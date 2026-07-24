@@ -529,10 +529,11 @@ export default function CyraDemo() {
           <div className="consentcard">
             <b>Always true, no toggle:</b>
             <ul className="rlist" style={{ marginTop: 6 }}>
-              <li>Symptom data stays on your device — matching and insights run locally.</li>
+              <li>Your health data is stored on your device — matching and insights run locally, not on our servers.</li>
               <li>Nothing is ever sold. Partners never see your data.</li>
               <li>Sharing with a doctor happens only when you press send, and you can revoke it.</li>
               <li>Delete everything, anytime, in one tap.</li>
+              <li>Optional backup is encrypted so even we cannot read it — the key stays on your device.</li>
             </ul>
           </div>
           <button className={`consentopt ${research ? "on" : ""}`} onClick={() => setResearch((r) => !r)}>
@@ -558,7 +559,7 @@ export default function CyraDemo() {
           <span className="mark">{org.name}<span className="sub">{org.tag}</span></span>
           <h1 className="disp" style={{ marginTop: 22 }}>{acct.name ? `${acct.name}, let's set up` : "Let's set up"}
             <br />your space.</h1>
-          <p className="hint">Four quick taps. Your answers shape the whole app — one experience, built for where you are. Nothing here is stored on our servers.</p>
+          <p className="hint">Four quick taps. Your answers shape the whole app — one experience, built for where you are. Your health answers stay on your device.</p>
           {obBusy ? (
             <div className="card" style={{ display: "block" }}><p>Personalizing your space…</p></div>
           ) : (
