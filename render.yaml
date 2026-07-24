@@ -1,0 +1,15 @@
+# Render blueprint — deploys the Cyra app as a static site.
+# In Render: New > Blueprint, point at your repo, and this file does the rest.
+services:
+  - type: web
+    name: cyra-health
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
