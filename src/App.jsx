@@ -171,7 +171,17 @@ export default function CyraDemo() {
   const [orgId, setOrgId] = useState("cyra");
   const [palIdx, setPalIdx] = useState({ peri: 0, preg: 0, periods: 0 });
   const [showPal, setShowPal] = useState(false);
-  const [phase, setPhase] = useState("splash"); // splash -> register -> consent -> intake -> app
+  const [phase, setPhase] = useState("splash"); // splash -> register (8 steps) -> app
+  const [regStep, setRegStep] = useState(0);
+  const [regTouched, setRegTouched] = useState({});
+  const [reg, setReg] = useState({
+    name: "", email: "", pass: "", anon: false, age: null, zip: "",
+    stage: null, cycleLen: null, cycleReg: null, lastPeriod: "",
+    preg: null, births: null, contra: null,
+    conditions: [], familyHx: [], meds: null,
+    goals: [], sleep: null, activity: null,
+    emailOptin: true, notifOptin: true, research: false, terms: false,
+  });
   const [acct, setAcct] = useState({ name: "", email: "", anon: false });
   const [research, setResearch] = useState(false);
   const [stage, setStage] = useState(null);
@@ -492,64 +502,205 @@ export default function CyraDemo() {
             <br />finally being heard.</h1>
           <p className="hint">Track in 30 seconds a day. See your real patterns. Walk into appointments with evidence. Your health data stays on your device — always.</p>
           <button className="cta" onClick={() => setPhase("register")}>Get started</button>
-          <p className="rfoot" style={{ textAlign: "center" }}>Free to use · guidance, never diagnosis</p>
+          <p className="rfoot" style={{ textAlign: "center" }}>Free to use · guidance, never diagnosis<br /><b>BUILD 2026.07.25-A</b></p>
         </div>
       </div>
     );
   }
 
   if (phase === "register") {
-    return (
-      <div className="cy" style={style}>
-        <style>{css}</style>
-        <div className="obwrap">
-          <span className="mark">Cyra<span className="sub">Health</span></span>
-          <h1 className="disp" style={{ marginTop: 22 }}>Create your account</h1>
-          <p className="hint">Or don't — Anonymous Mode gives you the full app with no name, no email, nothing that identifies you. If anyone ever demands we identify you, we can't.</p>
-          <input className="inp" placeholder="First name (optional)" value={acct.name} onChange={(e) => setAcct((a) => ({ ...a, name: e.target.value }))} />
-          <input className="inp" placeholder="Email" type="email" value={acct.email} onChange={(e) => setAcct((a) => ({ ...a, email: e.target.value }))} />
-          <button className="cta" onClick={() => {
-            if (!acct.email.includes("@")) return ping("Enter an email — or go anonymous below");
-            setAcct((a) => ({ ...a, anon: false })); setPhase("consent");
-          }}>Continue with email</button>
-          <button className="ghostbtn" onClick={() => { setAcct({ name: "", email: "", anon: true }); setPhase("consent"); }}>Continue in Anonymous Mode</button>
-          <p className="rfoot">Email is used only for sign-in and recovery. Never for ads. Never sold.</p>
-        </div>
+    const RSTEPS = [
+      { key: "account", title: "Create your account", sub: "Or don't — Anonymous Mode gives you the full app with no name, no email, nothing that identifies you. If anyone ever demands we identify you, we can't." },
+      { key: "basics", title: "A bit about you", sub: "Age band and ZIP — enough to personalize, never enough on their own to identify you." },
+      { key: "stage", title: "Where are you right now?", sub: "This shapes your entire experience. You can change it anytime." },
+      { key: "cycle", title: "Your cycle history", sub: "So predictions start accurate instead of guessing for months." },
+      { key: "repro", title: "Reproductive history", sub: "Private and optional — it genuinely changes what's relevant to you." },
+      { key: "health", title: "Health background", sub: "General categories that interact with hormonal health — never your medical records." },
+      { key: "goals", title: "What brings you here?", sub: "So the app leads with what you actually care about." },
+      { key: "consent", title: "Your data, your rules", sub: "The promises that never change — and the choices that are yours." },
+    ];
+    const rs = RSTEPS[regStep];
+    const REQ = {
+      account: [["email", reg.anon || reg.email.includes("@")]],
+      basics: [["age", reg.age], ["zip", reg.zip]],
+      stage: [["stage", reg.stage]],
+      cycle: [["cycleLen", reg.cycleLen], ["cycleReg", reg.cycleReg]],
+      repro: [["preg", reg.preg]],
+      health: [["meds", reg.meds]],
+      goals: [["goals", reg.goals.length], ["sleep", reg.sleep], ["activity", reg.activity]],
+      consent: [["terms", reg.terms]],
+    };
+    const miss = (REQ[rs.key] || []).filter(([, ok]) => !ok).map(([k]) => k);
+    const bad = (k) => regTouched[rs.key] && miss.includes(k);
+    const rup = (k, v) => setReg((x) => ({ ...x, [k]: v }));
+    const rtog = (k, v) => setReg((x) => ({ ...x, [k]: x[k].includes(v) ? x[k].filter((y) => y !== v) : [...x[k], v] }));
+    const RLab = ({ k, children }) => <p className={`lab ${bad(k) ? "labErr" : ""}`}>{children}{bad(k) && <span className="need"> · needed</span>}</p>;
+    const RChips = ({ k, opts }) => (
+      <div className={`mcrow ${bad(k) ? "err" : ""}`}>
+        {opts.map((o) => <button key={o} className={`mc ${reg[k] === o ? "on" : ""}`} onClick={() => rup(k, reg[k] === o ? null : o)}>{o}</button>)}
       </div>
     );
-  }
+    const RMulti = ({ k, opts }) => (
+      <div className={`mcrow ${bad(k) ? "err" : ""}`}>
+        {opts.map((o) => <button key={o} className={`mc ${reg[k].includes(o) ? "on" : ""}`} onClick={() => rtog(k, o)}>{o}</button>)}
+      </div>
+    );
 
-  if (phase === "consent") {
+    const finishReg = async () => {
+      const map = {
+        "My Cycle": ["periods", "My Cycle"],
+        "Trying to conceive": ["periods", "Trying to Conceive"],
+        "Pregnant": ["preg", "Pregnancy"],
+        "Perimenopause": ["peri", "Perimenopause"],
+        "Menopause & beyond": ["peri", "Menopause"],
+      };
+      const [sid, slabel] = map[reg.stage] || ["peri", "Perimenopause"];
+      setAcct({ name: reg.name, email: reg.email, anon: reg.anon });
+      setResearch(reg.research);
+      setStage(sid);
+      setStageName(slabel);
+      setDraft({});
+      setAppTab(sid === "preg" ? "today" : "patterns");
+      setWelcome(`Welcome${reg.name ? `, ${reg.name}` : ""} — your ${slabel} space is ready.`);
+      setPhase("app");
+      try {
+        const r = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-6", max_tokens: 200,
+            messages: [{ role: "user", content: `Write ONE warm, specific welcome sentence (max 22 words) for a woman joining a hormonal-health app. Her space: ${slabel}. Age: ${reg.age}. Cycles: ${reg.cycleLen || "n/a"}, ${reg.cycleReg || "n/a"}. Goals: ${reg.goals.join(", ") || "none given"}. Reply with the sentence only, no quotes.` }],
+          }),
+        });
+        const d = await r.json();
+        const txt = (d.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
+        if (txt) setWelcome(txt);
+      } catch { /* keep the rules welcome */ }
+    };
+
+    const advance = () => {
+      if (miss.length) { setRegTouched((t) => ({ ...t, [rs.key]: true })); return; }
+      if (regStep < RSTEPS.length - 1) setRegStep(regStep + 1); else finishReg();
+    };
+
     return (
       <div className="cy" style={style}>
         <style>{css}</style>
         <div className="obwrap">
           <span className="mark">Cyra<span className="sub">Health</span></span>
-          <h1 className="disp" style={{ marginTop: 22 }}>How your data works</h1>
-          <div className="consentcard">
-            <b>Always true, no toggle:</b>
-            <ul className="rlist" style={{ marginTop: 6 }}>
-              <li>Your health data is stored on your device — matching and insights run locally, not on our servers.</li>
-              <li>Nothing is ever sold. Partners never see your data.</li>
-              <li>Sharing with a doctor happens only when you press send, and you can revoke it.</li>
-              <li>Delete everything, anytime, in one tap.</li>
-              <li>Optional backup is encrypted so even we cannot read it — the key stays on your device.</li>
-            </ul>
+          <div className="prog" style={{ marginTop: 14 }}>{RSTEPS.map((_, i) => <span key={i} className={i <= regStep ? "on" : ""} />)}</div>
+          <div className="stepno">Step {regStep + 1} of {RSTEPS.length}</div>
+          <h1 className="disp">{rs.title}</h1>
+          <p className="hint">{rs.sub}</p>
+
+          {rs.key === "account" && (
+            <>
+              <input className="inp" placeholder="First name (optional)" value={reg.name} onChange={(e) => rup("name", e.target.value)} />
+              <input className={`inp ${bad("email") ? "inpErr" : ""}`} placeholder="Email" type="email" value={reg.email} onChange={(e) => rup("email", e.target.value)} />
+              <input className="inp" placeholder="Password" type="password" value={reg.pass} onChange={(e) => rup("pass", e.target.value)} />
+              <button className="ghostbtn" onClick={() => { rup("anon", !reg.anon); rup("email", ""); }}>{reg.anon ? "✓ Anonymous Mode on" : "Continue in Anonymous Mode instead"}</button>
+            </>
+          )}
+
+          {rs.key === "basics" && (
+            <>
+              <RLab k="age">Age</RLab>
+              <RChips k="age" opts={["Under 25", "25–34", "35–44", "45–54", "55+"]} />
+              <RLab k="zip">ZIP or postal code</RLab>
+              <input className={`inp ${bad("zip") ? "inpErr" : ""}`} placeholder="e.g. 90210" value={reg.zip} onChange={(e) => rup("zip", e.target.value)} />
+              <p className="rfoot">ZIP, not street address — enough for local care and regional averages, nothing more. A store only ever collects your full address at checkout.</p>
+            </>
+          )}
+
+          {rs.key === "stage" && (
+            <div className={`regcards ${bad("stage") ? "err" : ""}`}>
+              {[["My Cycle", "periods & PMS"], ["Trying to conceive", "fertility"], ["Pregnant", "week by week"], ["Perimenopause", "changing cycles"], ["Menopause & beyond", "post-transition"]].map(([lbl, d]) => (
+                <button key={lbl} className={`stagecard ${reg.stage === lbl ? "on" : ""}`} onClick={() => rup("stage", lbl)}><b>{lbl}</b><span>{d}</span></button>
+              ))}
+            </div>
+          )}
+
+          {rs.key === "cycle" && (
+            <>
+              <RLab k="cycleLen">Typical cycle length</RLab>
+              <RChips k="cycleLen" opts={["Under 24 days", "24–31 days", "Over 31 days", "Irregular", "Not sure"]} />
+              <RLab k="cycleReg">How regular?</RLab>
+              <RChips k="cycleReg" opts={["Clockwork", "Roughly", "All over"]} />
+              <p className="lab">First day of your last period (optional)</p>
+              <input className="inp" type="date" value={reg.lastPeriod} onChange={(e) => rup("lastPeriod", e.target.value)} />
+            </>
+          )}
+
+          {rs.key === "repro" && (
+            <>
+              <RLab k="preg">Ever been pregnant?</RLab>
+              <RChips k="preg" opts={["Never", "Currently", "In the past"]} />
+              <p className="lab">Births</p>
+              <RChips k="births" opts={["0", "1", "2", "3+"]} />
+              <p className="lab">Current birth control</p>
+              <RChips k="contra" opts={["None", "Pill", "IUD", "Implant/shot", "Barrier", "Prefer not to say"]} />
+              <p className="rfoot">Every field skippable. Context to serve you — kept on your device, never sold.</p>
+            </>
+          )}
+
+          {rs.key === "health" && (
+            <>
+              <p className="lab">Relevant conditions (tap any)</p>
+              <RMulti k="conditions" opts={["PCOS", "Endometriosis", "Thyroid", "Diabetes", "Anemia", "Migraines", "High blood pressure", "Anxiety/depression", "None"]} />
+              <p className="lab">Family history worth noting</p>
+              <RMulti k="familyHx" opts={["Early menopause", "Osteoporosis", "Breast/ovarian cancer", "Heart disease", "None / unsure"]} />
+              <RLab k="meds">On regular medication or hormones?</RLab>
+              <RChips k="meds" opts={["No", "Yes", "Prefer not to say"]} />
+              <p className="rfoot">General categories only. We never ask for medical records, insurance or policy numbers, government ID, or an SSN.</p>
+            </>
+          )}
+
+          {rs.key === "goals" && (
+            <>
+              <RLab k="goals">What would make this worth it? (pick a few)</RLab>
+              <RMulti k="goals" opts={["Understand my symptoms", "Predict my cycle", "Get pregnant", "Avoid pregnancy", "Prep for my doctor", "Sleep better", "Feel less alone", "Track the transition"]} />
+              <RLab k="sleep">Sleep, most nights</RLab>
+              <RChips k="sleep" opts={["Solid", "Hit or miss", "Poor"]} />
+              <RLab k="activity">Activity level</RLab>
+              <RChips k="activity" opts={["Low", "Moderate", "High"]} />
+            </>
+          )}
+
+          {rs.key === "consent" && (
+            <>
+              <div className="consentcard">
+                <b>Always true — no toggle, no fine print:</b>
+                <ul className="rlist" style={{ marginTop: 6 }}>
+                  <li>Your health data is stored on your device — insights run locally, not on our servers.</li>
+                  <li>Never sold. Partners receive an anonymous token, never your identity.</li>
+                  <li>Doctor sharing happens only when you press send.</li>
+                  <li>Delete everything, anytime, in one tap.</li>
+                  <li>Optional backup is encrypted so even we cannot read it — the key stays on your device.</li>
+                </ul>
+              </div>
+              {[["emailOptin", "Email me insights & reminders", "Unsubscribe anytime."],
+                ["notifOptin", "Notify me on this device", "Free push reminders. No phone number, no texts, ever."],
+                ["research", "Contribute to research", "Named studies improving women's care — aggregate, de-identified, opt-in per study, withdraw anytime."],
+                ["terms", "I agree to the Terms & Privacy Policy", "Plain language, no dark patterns."]].map(([k, t2, d]) => (
+                <button key={k} className={`consentopt ${reg[k] ? "on" : ""} ${k === "terms" && bad("terms") ? "inpErr" : ""}`} style={{ marginBottom: 9 }} onClick={() => rup(k, !reg[k])}>
+                  <span className="ckbox">{reg[k] ? "✓" : ""}</span>
+                  <span><b>{t2}</b><br />{d}</span>
+                </button>
+              ))}
+            </>
+          )}
+
+          {regTouched[rs.key] && miss.length > 0 && (
+            <p className="errhint">A few fields still need a tap — they're marked in red above.</p>
+          )}
+
+          <div className="nav">
+            {regStep > 0 && <button className="back" onClick={() => setRegStep(regStep - 1)}>Back</button>}
+            <button className="cta" onClick={advance}>{regStep < RSTEPS.length - 1 ? "Continue" : (miss.length ? "Complete required fields" : "Enter Cyra")}</button>
           </div>
-          <button className={`consentopt ${research ? "on" : ""}`} onClick={() => setResearch((r) => !r)}>
-            <span className="ckbox">{research ? "✓" : ""}</span>
-            <span><b>Contribute to research (optional)</b><br />
-            Join specific, named studies that improve care for women — aggregate and de-identified only, opt-in per study, withdraw anytime. You'll see what your data helped discover.</span>
-          </button>
-          <button className="cta" style={{ marginTop: 14 }} onClick={() => setPhase("intake")}>
-            {research ? "Agree & continue — count me in" : "Agree & continue"}
-          </button>
-          <p className="rfoot">You can change the research choice later in settings.</p>
         </div>
       </div>
     );
   }
-
   if (!stage) {
     const q = OBQ[ob.step];
     return (
@@ -1156,5 +1307,26 @@ const css = `
 .palmeta { display:flex; flex-direction:column; flex:1; }
 .palmeta b { font-size:13px; color:var(--ink); } .palmeta span { font-size:11px; color:var(--soft); }
 .palcheck { color:var(--primary); font-weight:700; }
+.prog { display:flex; gap:5px; margin-bottom:6px; }
+.prog span { flex:1; height:5px; border-radius:3px; background:color-mix(in srgb, var(--ink) 14%, var(--card)); }
+.prog span.on { background:var(--primary); }
+.stepno { font-size:11px; font-weight:700; color:var(--soft); text-transform:uppercase; letter-spacing:.07em; margin-bottom:12px; }
+.lab { font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--soft); margin:16px 0 8px; }
+.labErr { color:#B4462F; }
+.need { color:#B4462F; font-weight:700; }
+.mcrow { display:flex; flex-wrap:wrap; gap:8px; }
+.mc { border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:9px 15px; font:500 13px 'Karla'; color:var(--ink); cursor:pointer; }
+.mc.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary); font-weight:700; }
+.err .mc, .err .stagecard { border-color:#E0A99B; }
+.inpErr { border-color:#C4573B !important; background:#FBEEEA !important; }
+.errhint { font-size:12.5px; color:#B4462F; line-height:1.5; margin:14px 0 0; background:#FBEEEA; border:1.5px solid #E7C3B8; border-radius:11px; padding:11px 13px; }
+.regcards { display:grid; gap:9px; }
+.stagecard { display:flex; flex-direction:column; align-items:flex-start; gap:2px; border:1.5px solid var(--line); background:var(--card); border-radius:13px; padding:13px 15px; cursor:pointer; text-align:left; }
+.stagecard.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 8%, var(--card)); }
+.stagecard b { font-family:'Fraunces',serif; font-size:16px; color:var(--ink); } .stagecard.on b { color:var(--primary); }
+.stagecard span { font-size:12px; color:var(--soft); }
+.nav { display:flex; gap:10px; margin-top:20px; }
+.back { border:1.5px solid var(--line); background:var(--card); color:var(--ink); border-radius:13px; padding:14px 20px; font:700 14px 'Karla'; cursor:pointer; }
+.nav .cta { flex:1; }
 .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:20px; background:var(--ink); color:#FFF; font-size:13px; padding:9px 16px; border-radius:999px; max-width:86%; text-align:center; z-index:9; }
 `;
