@@ -46,7 +46,7 @@ export default function TodayScreen({ pred, stage, welcome, editDate, setEditDat
         const mapped = { ...draft };
         if (quickMode && !editDate) { Object.entries(quickMap).forEach(([q, sid]) => { if (draft[q] != null) mapped[sid] = draft[q]; }); if (mapped.q1 != null) mapped.fat = mapped.q2; }
         ["q1", "q2", "q3"].forEach((k) => delete mapped[k]);
-        setDays((d) => [...d.filter((x) => x.date !== target), { date: target, sleepQ: sleepQ || "fair", period: editDate ? editPeriod : false, scales: { ...scales }, flow, disch, odor, sym: { ...Object.fromEntries([...SYMS, ...Object.keys(PSYM)].map((k) => [k, 0])), ...mapped } }].sort((a, b) => a.date.localeCompare(b.date)));
+        setDays((d) => [...d.filter((x) => x.date !== target), { date: target, sleepQ: sleepQ || "fair", period: editDate ? (editPeriod || !!flow) : !!flow, scales: { ...scales }, flow, disch, odor, sym: { ...Object.fromEntries([...SYMS, ...Object.keys(PSYM)].map((k) => [k, 0])), ...mapped } }].sort((a, b) => a.date.localeCompare(b.date)));
         ping(editDate ? `${fmt(target)} updated` : "Saved — check Patterns");
         if (!editDate) contribute({ sym: mapped, sleepQ: sleepQ || "fair", flow });
         if (editDate) { setEditDate(null); setDraft({}); setSleepQ(null); setAppTab("cal"); } else setAppTab("patterns");

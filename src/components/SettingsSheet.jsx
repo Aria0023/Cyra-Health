@@ -1,7 +1,8 @@
 import { CADENCE } from "../lib/constants.js";
+import DataControls from "./DataControls.jsx";
 
 /* ⚙ Settings: check-in cadence, nudge time, quick vs full check-in. */
-export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping }) {
+export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe }) {
   return (
     <section className="palsheet" aria-label="Check-in settings">
       <p className="section-lab" style={{ margin: "0 0 8px" }}>Check-in rhythm</p>
@@ -22,6 +23,7 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
         <button className={`mc ${!quickMode ? "on" : ""}`} onClick={() => setQuickMode(false)}>Full detail</button>
       </div>
       <p className="rfoot">One reminder at most. Missed days are never scolded — your patterns work fine with gaps.</p>
+      <DataControls driver={storageDriver} onExport={onExport} onImport={onImport} onWipe={onWipe} ping={ping} />
       <button className="ghostbtn" style={{ marginTop: 10 }} onClick={() => setShowSettings(false)}>Done</button>
     </section>
   );

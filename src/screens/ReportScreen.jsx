@@ -92,7 +92,7 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
       </button>
       {showTable && (
         <div className="bodypanel">
-          <div className="rtitle" style={{ fontSize: 15, marginTop: 10 }}>Symptom log <span className="rmeta">{stageName} · {fmt(ins.last30[0].date)}–{fmt(ins.last30[ins.last30.length - 1].date)}</span></div>
+          <div className="rtitle" style={{ fontSize: 15, marginTop: 10 }}>Symptom log <span className="rmeta">{stageName} · {ins.last30.length ? `${fmt(ins.last30[0].date)}–${fmt(ins.last30[ins.last30.length - 1].date)}` : "nothing logged yet"}</span></div>
           <table className="rtab"><thead><tr><th>Symptom</th><th>Days</th><th>Mod.–strong</th></tr></thead>
             <tbody>{ins.counts.map((c) => <tr key={c.id}><td>{c.label}</td><td>{c.days}/{ins.last30.length}</td><td>{c.strong}</td></tr>)}</tbody></table>
           {ins.variability != null && <p className="rfoot">Cycle lengths: {ins.lens.join(", ")} days ({ins.variability}-day spread).</p>}

@@ -1,5 +1,10 @@
-/* Phase 1: splash. Wordmark, tagline, value proposition, "Get started". */
-export default function SplashScreen({ onStart }) {
+import { useState } from "react";
+import { RestoreForm } from "../components/DataControls.jsx";
+
+/* Phase 1: splash. Wordmark, tagline, value proposition, "Get started", and a way
+   back in from an encrypted backup. */
+export default function SplashScreen({ onStart, onImport }) {
+  const [restore, setRestore] = useState(false);
   return (
     <main className="splash">
       <div className="splashmark">Cyra<span>.</span></div>
@@ -10,6 +15,8 @@ export default function SplashScreen({ onStart }) {
       <p className="hint">Track in 30 seconds a day. See your real patterns. Walk into appointments with evidence. Your health data stays on your device — always.</p>
       <button className="cta" onClick={onStart}>Get started</button>
       <p className="rfoot" style={{ textAlign: "center" }}>Free to use · guidance, never diagnosis<br /><b>BUILD 2026.10.07-D</b></p>
+      <button className="linkbtn" style={{ display: "block", margin: "18px auto 0" }} onClick={() => setRestore((v) => !v)}>{restore ? "Hide restore" : "Restore from an encrypted backup"}</button>
+      {restore && <RestoreForm onImport={onImport} compact />}
     </main>
   );
 }

@@ -20,8 +20,8 @@ export default function CalendarScreen({ pred, days, symIds, symMap, dayScore, s
             const d = new Date(now.getFullYear(), now.getMonth(), dnum, 12);
             const iso = d.toISOString().slice(0, 10);
             const logged = days.find((x) => x.date === iso && x.period);
-            const predP = inRange(d, pred.nextStart, new Date(pred.nextStart.getTime() + 4 * 86400000));
-            const fert = inRange(d, pred.fertileFrom, pred.fertileTo);
+            const predP = !!pred && inRange(d, pred.nextStart, new Date(pred.nextStart.getTime() + 4 * 86400000));
+            const fert = !!pred && inRange(d, pred.fertileFrom, pred.fertileTo);
             const entry = days.find((x) => x.date === iso);
             const sc = dayScore(entry, symIds);
             const tint = sc != null ? { background: scoreColor(sc), borderColor: scoreColor(sc), color: sc > 0.3 ? "#1A1A1A" : "#FFFFFF", fontWeight: 700 } : {};
@@ -63,7 +63,11 @@ export default function CalendarScreen({ pred, days, symIds, symMap, dayScore, s
           </div>
         );
       })()}
-      <div className="card"><div className="num">±{Math.max(2, Math.round((ins.variability || 4) / 2))}d</div><p>Confidence given your recent cycles ({ins.lens.join(" · ")}d). Estimates — not contraception. Tap any day to see or edit what you logged.</p></div>
+      {pred ? (
+        <div className="card"><div className="num">±{Math.max(2, Math.round((ins.variability || 4) / 2))}d</div><p>Confidence given your recent cycles ({ins.lens.length ? ins.lens.join(" · ") + "d" : "not enough yet"}). Estimates — not contraception. Tap any day to see or edit what you logged.</p></div>
+      ) : (
+        <div className="card"><div className="num">—</div><p>No predictions yet. Log a period day (any flow on the Today screen) and the calendar starts estimating your next one.</p></div>
+      )}
     </main>
   );
 }

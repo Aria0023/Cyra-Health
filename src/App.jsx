@@ -17,6 +17,12 @@ import { seed, fmt, insights, predict, symBurden, scoreLabel, dayScore } from ".
 import { API_BASE, apiPost } from "./lib/api.js";
 import { DEMO_WEARABLES, connectSource, syncSource, mergeRows } from "./lib/wearables.js";
 import { PULSE_EVENTS, weeklyToken, eventsForDay, fetchPulse, sendTally } from "./lib/pulse.js";
+import { storage } from "./lib/storage.js";
+import { encryptBackup, decryptBackup } from "./lib/backup.js";
+
+const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
+/* What persists on the device: the health record and settings. Never the password, never UI state. */
+const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseToken", "regAnswers"];
 import Shell from "./components/Shell.jsx";
 import ScoreMeter from "./components/ScoreMeter.jsx";
 import ScaleSection from "./components/ScaleSection.jsx";
@@ -87,7 +93,7 @@ export default function CyraDemo() {
   const [obBusy, setObBusy] = useState(false);
   const [welcome, setWelcome] = useState("");
   const [appTab, setAppTab] = useState("patterns");
-  const [days, setDays] = useState(seed);
+  const [days, setDays] = useState(() => (DEMO_SEED ? seed() : []));
   const [draft, setDraft] = useState({});
   const [sleepQ, setSleepQ] = useState(null);
   const [kicks, setKicks] = useState(0);
@@ -107,6 +113,8 @@ export default function CyraDemo() {
   const [editDate, setEditDate] = useState(null);
   const [editPeriod, setEditPeriod] = useState(false);
   const [toast, setToast] = useState("");
+  const [hydrated, setHydrated] = useState(false);
+  const [regAnswers, setRegAnswers] = useState(null); // registration record minus the password
 
   const org = ORGS[orgId];
   const stagePal = stage && orgId === "cyra" ? PALETTES[stage][palIdx[stage]] : null;
@@ -360,6 +368,38 @@ export default function CyraDemo() {
     setDraft({}); setAppTab("home"); setPregTab("home"); setObBusy(false);
   };
 
+  /* ---------- on-device persistence ---------- */
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseToken: setPulseToken, regAnswers: setRegAnswers };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseToken, regAnswers };
+  const snapshot = () => ({ v: 1, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, values[k]])) });
+  const applySaved = (saved) => {
+    for (const k of PERSISTED) if (k in saved && saved[k] !== undefined) setters[k](saved[k]);
+    if (saved.stage) { setPhase("app"); setAppTab("home"); setPregTab("home"); }
+  };
+  useEffect(() => {
+    storage.load().then((saved) => { if (saved && saved.v === 1 && saved.phase === "app") applySaved(saved); }).finally(() => setHydrated(true));
+  }, []); // eslint-disable-line
+  useEffect(() => {
+    if (!hydrated || phase !== "app") return;
+    const t = setTimeout(() => storage.save(snapshot()).catch(() => ping("Couldn't save to this device — storage may be full or blocked")), 400);
+    return () => clearTimeout(t);
+  }, [hydrated, phase, ...PERSISTED.map((k) => values[k])]); // eslint-disable-line
+  const exportBackup = async (passphrase) => {
+    const env = await encryptBackup(snapshot(), passphrase);
+    const blob = new Blob([JSON.stringify(env)], { type: "application/json" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `cyra-backup-${todayIso}.cyra.json`; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  const importBackup = async (file, passphrase) => {
+    let env; try { env = JSON.parse(await file.text()); } catch { throw new Error("That file isn't a Cyra backup"); }
+    const saved = await decryptBackup(env, passphrase);
+    if (!saved || saved.v !== 1 || !saved.stage) throw new Error("That backup is empty or from a different version");
+    applySaved(saved); setShowSettings(false);
+    await storage.save({ ...saved, phase: "app" });
+    ping("Backup restored");
+  };
+  const wipeDevice = async () => { await storage.clear(); window.location.replace(window.location.pathname); };
+
   /* ---------- social sign-in: real OAuth through the backend ---------- */
   const startSocial = async (id, label) => {
     setSocialBusy(id);
@@ -400,6 +440,7 @@ export default function CyraDemo() {
     const [sid, slabel] = map[reg.stage] || ["peri", "Perimenopause"];
     setAcct({ name: reg.name, email: reg.email, anon: reg.anon });
     setResearch(reg.research);
+    setRegAnswers((({ pass, ...rest }) => rest)(reg));
     setStage(sid);
     setStageName(slabel);
     setDraft({});
@@ -419,10 +460,14 @@ export default function CyraDemo() {
   const bodySection = <BodySignals stage={stage} showBody={showBody} setShowBody={setShowBody} flow={flow} setFlow={setFlow} disch={disch} setDisch={setDisch} odor={odor} setOdor={setOdor} bodyOdor={bodyOdor} setBodyOdor={setBodyOdor} />;
   const quickCheckin = <QuickCheckin stage={stage} draft={draft} setDraft={setDraft} setQuickMode={setQuickMode} />;
 
+  if (!hydrated) {
+    return <Shell style={style}><main aria-busy="true" /></Shell>;
+  }
+
   if (phase === "splash") {
     return (
       <Shell style={style} toast={toast}>
-        <SplashScreen onStart={() => setPhase("register")} />
+        <SplashScreen onStart={() => setPhase("register")} onImport={importBackup} />
       </Shell>
     );
   }
@@ -466,7 +511,7 @@ export default function CyraDemo() {
       </header>
 
       {/* ============ APP ============ */}
-      {showSettings && <SettingsSheet cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} />}
+      {showSettings && <SettingsSheet cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storage.driver()} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} />}
       {showPal && stage && orgId === "cyra" && <PaletteSheet stage={stage} stageName={stageName} palIdx={palIdx} setPalIdx={setPalIdx} setShowPal={setShowPal} />}
       <div>
 
@@ -505,7 +550,7 @@ export default function CyraDemo() {
             {appTab === "today" && (
               <TodayScreen pred={pred} stage={stage} welcome={welcome} editDate={editDate} setEditDate={setEditDate} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} scales={scales} flow={flow} disch={disch} odor={odor} setDays={setDays} ping={ping} setAppTab={setAppTab} contribute={(entry) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase }))} />
             )}
-            {appTab === "cal" && pred && (
+            {appTab === "cal" && (
               <CalendarScreen pred={pred} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} setDraft={setDraft} setSleepQ={setSleepQ} setEditPeriod={setEditPeriod} setEditDate={setEditDate} setAppTab={setAppTab} ins={ins} />
             )}
             {appTab === "patterns" && <PatternsScreen ins={ins} symIds={symIds} ramp={ramp} scoreColor={scoreColor} stage={stage} medEffects={medEffects} />}

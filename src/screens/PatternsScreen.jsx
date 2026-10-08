@@ -7,6 +7,7 @@ export default function PatternsScreen({ ins, symIds, ramp, scoreColor, stage, m
   return (
     <main>
       <h1 className="disp">Your last 60 days</h1>
+      {ins.sorted.length === 0 && <p className="hint">Nothing logged yet — your first check-in starts the pattern. Come back after a few days and this fills in.</p>}
       <div className="stripes" role="img" aria-label="Sixty daily stripes colored from calm to heavy; a dot marks period days">
         {ins.sorted.slice(-60).map((d) => (
           <div key={d.date} className="scol" title={fmt(d.date)}>
