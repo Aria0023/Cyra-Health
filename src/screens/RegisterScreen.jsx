@@ -13,7 +13,7 @@ const RSTEPS = [
   { key: "consent", title: "Your data, your rules", sub: "The promises that never change — and the choices that are yours." },
 ];
 
-export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTouched, setRegTouched, cadence, setCadence, socialBusy, setSocialBusy, ping, finishReg }) {
+export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTouched, setRegTouched, cadence, setCadence, socialBusy, startSocial, finishReg }) {
   const rs = RSTEPS[regStep];
   const REQ = {
     account: [["email", reg.anon || reg.email.includes("@")]],
@@ -63,20 +63,12 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
           <div className="orline"><span>or sign in with</span></div>
           <div className="social">
             {[["apple", "Apple", "#000"], ["google", "Google", "#4285F4"], ["facebook", "Facebook", "#1877F2"]].map(([id, label, color]) => (
-              <button key={id} className="socialbtn" disabled={!!socialBusy} onClick={() => {
-                setSocialBusy(id);
-                setTimeout(() => {
-                  /* Production: redirect to the provider's OAuth flow; the backend callback
-                     returns a verified email + name. Demo fills in a placeholder identity. */
-                  setReg((x) => ({ ...x, anon: false, email: x.email || `you@${id === "apple" ? "privaterelay.appleid.com" : id + ".com"}`, name: x.name }));
-                  setSocialBusy(null); ping(`Signed in with ${label}`); setRegStep(1);
-                }, 900);
-              }}>
+              <button key={id} className="socialbtn" disabled={!!socialBusy} onClick={() => startSocial(id, label)}>
                 <span className="socialdot" aria-hidden="true" style={{ background: color }} />{socialBusy === id ? "Connecting…" : label}
               </button>
             ))}
           </div>
-          <p className="rfoot">Signing in with a provider shares only your name and email with Cyra — never your health data with them. Apple lets you hide your email.</p>
+          <p className="rfoot">Signing in with a provider shares only your name and email with Cyra — never your health data with them. Cyra's server passes them straight to this device and keeps no account record. Apple lets you hide your email.</p>
         </>
       )}
 

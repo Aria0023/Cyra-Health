@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 /* ================================================================
    CYRA HEALTH — reference implementation
@@ -14,7 +14,7 @@ import { useMemo, useState } from "react";
 
 import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, RAMPS } from "./lib/constants.js";
 import { seed, fmt, insights, predict, symBurden, scoreLabel, dayScore } from "./lib/engine.js";
-import { apiPost } from "./lib/api.js";
+import { API_BASE, apiPost } from "./lib/api.js";
 import Shell from "./components/Shell.jsx";
 import ScoreMeter from "./components/ScoreMeter.jsx";
 import ScaleSection from "./components/ScaleSection.jsx";
@@ -332,6 +332,35 @@ export default function CyraDemo() {
     setDraft({}); setAppTab("home"); setPregTab("home"); setObBusy(false);
   };
 
+  /* ---------- social sign-in: real OAuth through the backend ---------- */
+  const startSocial = async (id, label) => {
+    setSocialBusy(id);
+    try {
+      const r = await fetch(`${API_BASE}/api/oauth/providers`);
+      const available = r.ok ? await r.json() : {};
+      if (!available[id]) { ping(`${label} sign-in isn't set up on this server yet`); setSocialBusy(null); return; }
+      // The provider only ever sees that you are signing in to Cyra; the backend
+      // hands the verified email (and name, if given) back to this device and keeps no copy.
+      window.location.assign(`${API_BASE}/api/oauth/${id}/start?return=${encodeURIComponent(window.location.origin + window.location.pathname)}`);
+    } catch {
+      ping("Couldn't reach the sign-in service"); setSocialBusy(null);
+    }
+  };
+  useEffect(() => {
+    const m = /^#oauth(_error)?=(.+)$/.exec(window.location.hash || "");
+    if (!m) return;
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    setPhase("register");
+    if (m[1]) { ping("Sign-in didn't complete — you can try again or continue with email"); return; }
+    apiPost("/api/oauth/exchange", { code: decodeURIComponent(m[2]) })
+      .then((idn) => {
+        setReg((x) => ({ ...x, anon: false, email: idn.email || x.email, name: x.name || (idn.name || "").split(" ")[0] }));
+        setRegStep(1);
+        ping(`Signed in with ${{ apple: "Apple", google: "Google", facebook: "Facebook" }[idn.provider] || idn.provider}`);
+      })
+      .catch(() => ping("Sign-in didn't complete — you can try again or continue with email"));
+  }, []);
+
   const finishReg = async () => {
     const map = {
       "My Cycle": ["periods", "My Cycle"],
@@ -364,7 +393,7 @@ export default function CyraDemo() {
 
   if (phase === "splash") {
     return (
-      <Shell style={style}>
+      <Shell style={style} toast={toast}>
         <SplashScreen onStart={() => setPhase("register")} />
       </Shell>
     );
@@ -372,14 +401,14 @@ export default function CyraDemo() {
 
   if (phase === "register") {
     return (
-      <Shell style={style}>
-        <RegisterScreen reg={reg} setReg={setReg} regStep={regStep} setRegStep={setRegStep} regTouched={regTouched} setRegTouched={setRegTouched} cadence={cadence} setCadence={setCadence} socialBusy={socialBusy} setSocialBusy={setSocialBusy} ping={ping} finishReg={finishReg} />
+      <Shell style={style} toast={toast}>
+        <RegisterScreen reg={reg} setReg={setReg} regStep={regStep} setRegStep={setRegStep} regTouched={regTouched} setRegTouched={setRegTouched} cadence={cadence} setCadence={setCadence} socialBusy={socialBusy} startSocial={startSocial} finishReg={finishReg} />
       </Shell>
     );
   }
   if (!stage) {
     return (
-      <Shell style={style}>
+      <Shell style={style} toast={toast}>
         <IntakeScreen org={org} acct={acct} ob={ob} setOb={setOb} obBusy={obBusy} setObBusy={setObBusy} setStage={setStage} setStageName={setStageName} setWelcome={setWelcome} setAppTab={setAppTab} setPregTab={setPregTab} finishOnboarding={finishOnboarding} />
       </Shell>
     );
@@ -399,7 +428,7 @@ export default function CyraDemo() {
   const connView = <ConnectScreen relationship={relationship} setRelationship={setRelationship} conn={conn} setConn={setConn} intimacy={intimacy} setIntimacy={setIntimacy} after={after} setAfter={setAfter} setConnLog={setConnLog} todayIso={todayIso} ping={ping} />;
 
   return (
-    <Shell style={style}>
+    <Shell style={style} toast={toast}>
       <header className="mast">
         <span className="mark">{org.name}<span className="sub">{org.tag}</span></span>
         {stage && <span className="acctchip">{acct.anon ? "Anonymous" : acct.name || "You"}{research ? " · research ✓" : ""}</span>}
@@ -461,7 +490,6 @@ export default function CyraDemo() {
         )}
       </div>
 
-      <div className="toast" role="status" aria-live="polite" style={toast ? {} : { display: "none" }}>{toast}</div>
     </Shell>
   );
 }

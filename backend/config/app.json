@@ -15,7 +15,8 @@
     "auth",
     "fhir",
     "affiliates",
-    "ai"
+    "ai",
+    "oauth"
   ],
   "storage": {
     "driver": "json",

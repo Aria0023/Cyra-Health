@@ -36,6 +36,7 @@ app.use(
     },
   })
 );
+app.use(express.urlencoded({ extended: false })); // Apple Sign-In posts its callback as a form
 
 app.use(express.static("public"));
 app.get("/health", (req, res) => res.json({ ok: true, service: "cyra-backend" }));

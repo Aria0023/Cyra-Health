@@ -42,6 +42,7 @@ Runs anywhere Node 18+ runs. Zero external services required.
     GET  /api/reports/partners/:id
     GET  /api/catalog?stage=peri
     POST /api/ai/welcome | /api/ai/route | /api/ai/ask | /api/ai/insight   (AI proxy; see src/modules/ai)
+    GET  /api/oauth/providers         GET /api/oauth/:provider/start?return=   POST /api/oauth/exchange
 
 ## Before production
 Reference implementation — before real traffic add: TLS + auth on admin
@@ -92,3 +93,21 @@ deterministic fallback. With `ANTHROPIC_API_KEY` set the proxy calls Claude
 fallback on); without it, or on any API error, the fallback answers with
 `provider: "rules"` so the app keeps working. `npm run smoke:ai` exercises both
 paths against a mock Anthropic endpoint. Set `CORS_ORIGIN` to the app's origin.
+
+## v4 — Social sign-in (`src/modules/oauth/`)
+Real authorization-code OAuth for Apple, Google and Facebook, with node:crypto
+only. `GET /api/oauth/providers` says which are configured; `GET
+/api/oauth/:provider/start?return=<app URL>` redirects to the provider with a
+signed, expiring state (nonce, PKCE verifier, return URL); the callback
+exchanges the code, verifies the id_token (signature against the provider's
+JWKS, issuer, audience, expiry, nonce — Facebook uses `appsecret_proof` and
+`/me` instead), then redirects back to the app with a one-time handoff code;
+`POST /api/oauth/exchange {code}` returns `{provider, email, emailVerified,
+name}` exactly once. The server keeps no account record: the identity waits in
+memory for at most five minutes until the device collects it. Return URLs are
+limited to `CORS_ORIGIN`. Credentials: `APPLE_CLIENT_ID / APPLE_TEAM_ID /
+APPLE_KEY_ID / APPLE_PRIVATE_KEY`, `GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET`,
+`FACEBOOK_APP_ID / FACEBOOK_APP_SECRET`; the callback URL to register with each
+provider is `<PUBLIC_BASE_URL>/api/oauth/<provider>/callback`. An unconfigured
+provider answers 503 — the app never fakes a login. `npm run smoke:oauth` runs
+the whole flow against a local mock provider.
