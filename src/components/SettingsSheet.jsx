@@ -3,7 +3,7 @@ import { CADENCE } from "../lib/constants.js";
 /* ⚙ Settings: check-in cadence, nudge time, quick vs full check-in. */
 export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping }) {
   return (
-    <div className="palsheet">
+    <section className="palsheet" aria-label="Check-in settings">
       <p className="section-lab" style={{ margin: "0 0 8px" }}>Check-in rhythm</p>
       <div className="regcards">
         {CADENCE.map((cd) => (
@@ -23,6 +23,6 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
       </div>
       <p className="rfoot">One reminder at most. Missed days are never scolded — your patterns work fine with gaps.</p>
       <button className="ghostbtn" style={{ marginTop: 10 }} onClick={() => setShowSettings(false)}>Done</button>
-    </div>
+    </section>
   );
 }

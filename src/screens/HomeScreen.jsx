@@ -21,7 +21,7 @@ export default function HomeScreen({
     <main>
       <div className="homehead">
         <div>
-          <div className="greet">{greet}{acct.name ? `, ${acct.name}` : ""}.</div>
+          <h1 className="greet">{greet}{acct.name ? `, ${acct.name}` : ""}.</h1>
           <div className="greetsub">{stage === "preg" ? `Week ${pregWeek} · second trimester` : pred ? `Day ${pred.cycleDay} · ${pred.phase} phase` : stageName}</div>
         </div>
         <div className="streak"><b>{loggedLast14}</b><span>of 14 days</span></div>

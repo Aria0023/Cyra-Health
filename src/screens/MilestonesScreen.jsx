@@ -46,7 +46,7 @@ export default function MilestonesScreen({ pregWeek }) {
             const now = pregWeek >= m.from && pregWeek <= m.to;
             const soon = !done && !now && m.from - pregWeek > 0 && m.from - pregWeek <= 4;
             return (
-              <div className="shelfc" key={m.label} style={done ? { opacity: 0.55 } : {}}>
+              <div className="shelfc" key={m.label} style={done ? { background: "var(--paper)", boxShadow: "none" } : {}}>
                 <div className="shead"><span className="sbrand">Weeks {m.w}</span>
                   <span className="ppill" style={now ? { borderColor: "#A04545", color: "#A04545" } : soon ? { borderColor: "var(--primary)", color: "var(--primary)" } : {}}>{done ? "done ✓" : now ? "in window" : soon ? "coming up" : "later"}</span></div>
                 <div className="sname">{m.label}</div>

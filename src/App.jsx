@@ -508,10 +508,12 @@ export default function CyraDemo() {
         {/* ---------- PREGNANCY: its own component ---------- */}
         {stage === "preg" ? (
           <>
-            <nav className="tabs" role="tablist" aria-label="Sections">
-              {[["home", "Home"], ["today", "Today"], ["cal", "Calendar"], ["mile", "Milestones"], ["connect", "Connect"], ["ask", "Ask"]].map(([id, l]) => (
-                <button key={id} role="tab" aria-selected={pregTab === id} className={`tab ${pregTab === id ? "tab-on" : ""}`} onClick={() => setPregTab(id)}>{l}</button>
-              ))}
+            <nav aria-label="Sections">
+              <div className="tabs" role="tablist">
+                {[["home", "Home"], ["today", "Today"], ["cal", "Calendar"], ["mile", "Milestones"], ["connect", "Connect"], ["ask", "Ask"]].map(([id, l]) => (
+                  <button key={id} role="tab" aria-selected={pregTab === id} className={`tab ${pregTab === id ? "tab-on" : ""}`} onClick={() => setPregTab(id)}>{l}</button>
+                ))}
+              </div>
             </nav>
 
             {pregTab === "today" && (
@@ -527,10 +529,12 @@ export default function CyraDemo() {
           </>
         ) : (
           <>
-            <nav className="tabs" role="tablist" aria-label="Sections">
-              {[["home", "Home"], ["today", "Today"], ["cal", "Calendar"], ["patterns", "Patterns"], ["connect", "Connect"], ["report", "Report"], ["shelf", "Care"], ["ask", "Ask"]].map(([id, l]) => (
-                <button key={id} role="tab" aria-selected={appTab === id} className={`tab ${appTab === id ? "tab-on" : ""}`} onClick={() => setAppTab(id)}>{l}</button>
-              ))}
+            <nav aria-label="Sections">
+              <div className="tabs" role="tablist">
+                {[["home", "Home"], ["today", "Today"], ["cal", "Calendar"], ["patterns", "Patterns"], ["connect", "Connect"], ["report", "Report"], ["shelf", "Care"], ["ask", "Ask"]].map(([id, l]) => (
+                  <button key={id} role="tab" aria-selected={appTab === id} className={`tab ${appTab === id ? "tab-on" : ""}`} onClick={() => setAppTab(id)}>{l}</button>
+                ))}
+              </div>
             </nav>
 
             {appTab === "today" && (

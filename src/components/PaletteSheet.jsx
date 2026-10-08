@@ -3,7 +3,7 @@ import { PALETTES } from "../lib/constants.js";
 /* 🎨 Palette picker: 2–3 alternate UI palettes per stage. */
 export default function PaletteSheet({ stage, stageName, palIdx, setPalIdx, setShowPal }) {
   return (
-    <div className="palsheet">
+    <section className="palsheet" aria-label="Color palette">
       <p className="section-lab" style={{ margin: "0 0 8px" }}>Palette · {stageName}</p>
       {PALETTES[stage].map((p, i) => (
         <button key={p.id} className={`palopt ${palIdx[stage] === i ? "on" : ""}`} onClick={() => { setPalIdx((x) => ({ ...x, [stage]: i })); }}>
@@ -15,6 +15,6 @@ export default function PaletteSheet({ stage, stageName, palIdx, setPalIdx, setS
         </button>
       ))}
       <button className="ghostbtn" style={{ marginTop: 4 }} onClick={() => setShowPal(false)}>Done</button>
-    </div>
+    </section>
   );
 }

@@ -47,7 +47,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
   };
 
   return (
-    <div className="obwrap">
+    <main className="obwrap">
       <span className="mark">Cyra<span className="sub">Health</span></span>
       <div className="prog" style={{ marginTop: 14 }}>{RSTEPS.map((_, i) => <span key={i} className={i <= regStep ? "on" : ""} />)}</div>
       <div className="stepno">Step {regStep + 1} of {RSTEPS.length}</div>
@@ -183,6 +183,6 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
         {regStep > 0 && <button className="back" onClick={() => setRegStep(regStep - 1)}>Back</button>}
         <button className="cta" onClick={advance}>{regStep < RSTEPS.length - 1 ? "Continue" : (miss.length ? "Complete required fields" : "Enter Cyra")}</button>
       </div>
-    </div>
+    </main>
   );
 }

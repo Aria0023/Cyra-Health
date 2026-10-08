@@ -10,7 +10,7 @@ const OBQ = [
 export default function IntakeScreen({ org, acct, ob, setOb, obBusy, setObBusy, setStage, setStageName, setWelcome, setAppTab, setPregTab, finishOnboarding }) {
   const q = OBQ[ob.step];
   return (
-    <div className="obwrap">
+    <main className="obwrap">
       <span className="mark">{org.name}<span className="sub">{org.tag}</span></span>
       <h1 className="disp" style={{ marginTop: 22 }}>{acct.name ? `${acct.name}, let's set up` : "Let's set up"}
         <br />your space.</h1>
@@ -34,6 +34,6 @@ export default function IntakeScreen({ org, acct, ob, setOb, obBusy, setObBusy, 
         </>
       )}
       <p className="rfoot">You can retake this anytime — life changes, the app changes with you.</p>
-    </div>
+    </main>
   );
 }
