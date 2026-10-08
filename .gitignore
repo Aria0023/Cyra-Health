@@ -6,3 +6,8 @@ backend/node_modules/
 backend/data/
 *.log
 .DS_Store
+# local test runs: extra build outputs, scratch data stores, throwaway configs and certs
+dist-*/
+backend/data-*/
+backend/config/app.*.json
+backend/data-push-tls/
