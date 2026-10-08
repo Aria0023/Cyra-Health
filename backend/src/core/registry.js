@@ -15,7 +15,10 @@ export function loadConfig(root) {
     .map((f) => JSON.parse(fs.readFileSync(path.join(partnersDir, f), "utf8")));
   const intDir = path.join(root, "config/integrations");
   const integrations = fs.existsSync(intDir) ? fs.readdirSync(intDir).filter(f=>f.endsWith(".json")).map(f=>JSON.parse(fs.readFileSync(path.join(intDir,f),"utf8"))) : [];
-  return { ...app, partners, integrations };
+  const adminKey = process.env.ADMIN_KEY || app.adminKey;
+  const authSecret = process.env.AUTH_SECRET || app.authSecret;
+  if (!process.env.ADMIN_KEY || !process.env.AUTH_SECRET) console.warn("[cyra] WARNING: ADMIN_KEY / AUTH_SECRET not set — using the demo values from config/app.json. Set both in the environment before real traffic.");
+  return { ...app, adminKey, authSecret, partners, integrations };
 }
 
 export async function mountModules(appServer, ctx) {

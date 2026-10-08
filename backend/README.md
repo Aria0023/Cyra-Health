@@ -41,6 +41,7 @@ Runs anywhere Node 18+ runs. Zero external services required.
     GET  /api/payouts?from&to
     GET  /api/reports/partners/:id
     GET  /api/catalog?stage=peri
+    POST /api/ai/welcome | /api/ai/route | /api/ai/ask | /api/ai/insight   (AI proxy; see src/modules/ai)
 
 ## Before production
 Reference implementation — before real traffic add: TLS + auth on admin
@@ -79,3 +80,15 @@ userRefs and normalized aggregates, never PII or raw symptom logs.
   in your IdP (OIDC/SSO); health data stays on-device.
 - Admin writes gated by `x-admin-key` (demo). Production: real auth, per-org
   admin scopes, audit log.
+
+## v4 — AI proxy (`src/modules/ai/`)
+The app never calls Anthropic directly and never holds a key. Four endpoints
+mirror the app's call sites — `welcome`, `route`, `ask`, `insight` — each with a
+strict input allowlist (categorical answers and aggregates only; unknown fields
+are dropped, never forwarded), a per-IP rate limit, a system prompt that forbids
+diagnosis and dosing and requires an urgent flag for red-flag symptoms, and a
+deterministic fallback. With `ANTHROPIC_API_KEY` set the proxy calls Claude
+(`claude-opus-5-5` by default, structured JSON output, server-side refusal
+fallback on); without it, or on any API error, the fallback answers with
+`provider: "rules"` so the app keeps working. `npm run smoke:ai` exercises both
+paths against a mock Anthropic endpoint. Set `CORS_ORIGIN` to the app's origin.

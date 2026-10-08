@@ -6,12 +6,14 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "smoke": "node scripts/smoke.js"
+    "smoke": "node scripts/smoke.js",
+    "smoke:ai": "node scripts/ai-smoke.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.132.1",
     "express": "^5.2.1"
   }
 }

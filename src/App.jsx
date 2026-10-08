@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 
 /* ================================================================
-   CYRA HEALTH — FULL SYSTEM LIVE DEMO v3
-   Life stages: My Cycle (young) · Pregnancy (own component) · Peri/Meno
-   New: advice-with-actions on every insight · "Send to my doctor"
-   (FHIR push) · Affiliates hub · plus wearables, live agent,
-   business engine, white-label org switcher, enterprise console.
+   CYRA HEALTH — reference implementation
+   Life stages: My Cycle · Pregnancy · Peri/Meno — exactly one per user.
+   Health data lives in this component's state and on the device only. The
+   backend is reached solely through ./lib/api.js (AI proxy); no Anthropic
+   call and no API key exist in client code.
 
    This file owns ALL state and derived data (useState / useMemo only).
    Screens live in ./screens, one file per screen; shared pieces in
@@ -13,7 +13,8 @@ import { useMemo, useState } from "react";
    ================================================================ */
 
 import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, RAMPS } from "./lib/constants.js";
-import { seed, seedMetrics, fmt, insights, predict, symBurden, scoreLabel, dayScore } from "./lib/engine.js";
+import { seed, fmt, insights, predict, symBurden, scoreLabel, dayScore } from "./lib/engine.js";
+import { apiPost } from "./lib/api.js";
 import Shell from "./components/Shell.jsx";
 import ScoreMeter from "./components/ScoreMeter.jsx";
 import ScaleSection from "./components/ScaleSection.jsx";
@@ -83,7 +84,6 @@ export default function CyraDemo() {
   const [ob, setOb] = useState({ step: 0, preg: null, age: null, per: null, vms: null });
   const [obBusy, setObBusy] = useState(false);
   const [welcome, setWelcome] = useState("");
-  const [section, setSection] = useState("app");
   const [appTab, setAppTab] = useState("patterns");
   const [days, setDays] = useState(seed);
   const [draft, setDraft] = useState({});
@@ -101,33 +101,15 @@ export default function CyraDemo() {
   const [askQ, setAskQ] = useState("");
   const [askBusy, setAskBusy] = useState(false);
   const [askOut, setAskOut] = useState(null);
-  const [metrics, setMetrics] = useState(() => seedMetrics("healthkit", 0));
-  const [synced, setSynced] = useState({ healthkit: true, oura: false, terra: false });
-  const [agentOut, setAgentOut] = useState(null);
-  const [agentBusy, setAgentBusy] = useState(false);
-  const [bizEvents, setBizEvents] = useState([]);
-  const [bizStep, setBizStep] = useState(0);
   const [selDay, setSelDay] = useState(null);
   const [editDate, setEditDate] = useState(null);
   const [editPeriod, setEditPeriod] = useState(false);
-  const [affs, setAffs] = useState([
-    { id: 1, company: "Embr Labs", category: "Cooling wearable", fee: "18% commission", status: "pending" },
-    { id: 2, company: "Cusp Health", category: "Telehealth (fertility)", fee: "$60/new patient", status: "approved" },
-    { id: 3, company: "Luna Sleepwear", category: "Apparel", fee: "15% commission", status: "rejected" },
-  ]);
-  const [affForm, setAffForm] = useState({ company: "", category: "" });
-  const [users, setUsers] = useState([
-    { ref: "u_9f2ab", org: "cyra", role: "member", status: "active" },
-    { ref: "u_bb381", org: "bloom", role: "org_admin", status: "active" },
-    { ref: "u_e77a0", org: "bloom", role: "member", status: "active" },
-  ]);
   const [toast, setToast] = useState("");
 
   const org = ORGS[orgId];
   const stagePal = stage && orgId === "cyra" ? PALETTES[stage][palIdx[stage]] : null;
   const t = { ...org.theme, ...(stagePal || {}) };
   const symMap = stage === "periods" ? PSYM : SYM;
-  const activeStage = stage || "peri";
   const symIds = Object.keys(symMap);
   const shelfItems = SHELF.filter((s) => s.stages.includes(stage) && (!org.partnerIds || org.partnerIds.includes(s.id)));
   const ins = useMemo(() => insights(days, stage === "periods" ? Object.keys(PSYM) : SYMS), [days, stage]);
@@ -135,47 +117,6 @@ export default function CyraDemo() {
   const todayIso = new Date().toISOString().slice(0, 10);
   const pregWeek = 22, trimester = 2;
   const ping = (m) => { setToast(m); setTimeout(() => setToast(""), 2600); };
-
-  const sync = (id, label) => {
-    if (synced[id]) return ping(`${label} already synced`);
-    setMetrics((m) => [...m, ...seedMetrics(id, id === "oura" ? 0 : 1)]);
-    setSynced((s) => ({ ...s, [id]: true }));
-    ping(`${label} synced — 42 samples normalized`);
-  };
-  const avg = (type) => { const v = metrics.filter((m) => m.type === type).map((m) => m.value); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0; };
-
-  const runAgent = async () => {
-    setAgentBusy(true); setAgentOut(null);
-    const summary = {
-      userRef: "u_9f2ab", org: org.slug, life_stage: stage === "preg" ? `pregnancy week ${pregWeek}` : stage,
-      wearables: { avg_temp_deviation_c: +avg("temp_deviation").toFixed(2), avg_sleep_score: Math.round(avg("sleep_score")), avg_hrv: Math.round(avg("hrv")) },
-      symptoms_last30: Object.fromEntries(ins.counts.map((c) => [c.label, `${c.days}/30 days`])),
-      sleep_to_hotflash_multiplier: ins.hfMult ? +ins.hfMult.toFixed(1) : null,
-      cycle_lengths_days: ins.lens,
-      shelf_options: shelfItems.map((s) => `${s.brand}: ${s.name} (${s.ev})`),
-    };
-    try {
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6", max_tokens: 700,
-          messages: [{ role: "user", content: `You are the insight agent inside ${org.name}, a hormonal-health app. Respond ONLY with JSON (no markdown): {"insight":"2-3 warm plain sentences connecting the data","action":"one concrete evidence-based next step the user can take","urgency":"self-care|next visit|this week","flag_for_doctor":"one thing to raise at an appointment"} Educational guidance only — options and questions to ask, never diagnosis or prescriptions. Data: ${JSON.stringify(summary)}` }],
-        }),
-      });
-      const data = await r.json();
-      const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
-      setAgentOut({ provider: "claude-sonnet-4-6 (live)", ...JSON.parse(text.replace(/```json|```/g, "").trim()) });
-    } catch {
-      setAgentOut({
-        provider: "rules fallback (offline)",
-        insight: `Temperature ran ${avg("temp_deviation").toFixed(2)}°C above baseline while sleep scores averaged ${Math.round(avg("sleep_score"))} — and check-ins show the same story from the symptom side.`,
-        action: "Start with sleep: CBT-I is the first-line, drug-free treatment for this pattern.",
-        urgency: "self-care",
-        flag_for_doctor: ins.variability ? `Cycle lengths of ${ins.lens.join(", ")} days — a ${ins.variability}-day spread.` : "Your symptom frequency table.",
-      });
-    }
-    setAgentBusy(false);
-  };
 
   const buildEmail = () => {
     const subject = `Symptom summary ahead of my appointment${acct.name ? ` — ${acct.name}` : ""}`;
@@ -196,18 +137,11 @@ export default function CyraDemo() {
     if (!askQ.trim()) return ping("Type a question first");
     setAskBusy(true); setAskOut(null);
     try {
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6", max_tokens: 700,
-          messages: [{ role: "user", content: `You are "Ask ${org.name}", a plain-language health explainer inside a women's hormonal-health app. The user's life stage: ${stageName || "unknown"}. Their question: "${askQ}". Respond ONLY with JSON (no markdown): {"answer":"120-170 words at an 8th-grade reading level, warm and honest, explaining what the evidence says","source_note":"which guideline bodies or evidence this reflects, by name (e.g. ACOG, The Menopause Society, Cochrane reviews)","ask_your_doctor":"one specific question they could bring to their clinician","urgent":true|false}. Set urgent true ONLY if the question describes red-flag symptoms needing prompt care. Educational only — no diagnosis, no dosing, no prescriptions. If asked about self-harm or crisis topics, set urgent true and point to professional support.` }],
-        }),
-      });
-      const data = await r.json();
-      const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
-      setAskOut({ live: true, ...JSON.parse(text.replace(/```json|```/g, "").trim()) });
+      // Only the question text and the stage label leave the device — no name, no identifier, no entry log.
+      const out = await apiPost("/api/ai/ask", { question: askQ.trim().slice(0, 500), stage: stageName || "unknown" });
+      setAskOut({ live: out.provider !== "rules", answer: out.answer, source_note: out.source_note || null, ask_your_doctor: out.ask_your_doctor || null, urgent: !!out.urgent });
     } catch {
-      setAskOut({ live: false, answer: "I couldn't reach the evidence service just now — but your question is saved. In the shipped app this answers in a few seconds, in plain language, with the guideline it came from named underneath.", source_note: null, ask_your_doctor: null, urgent: false });
+      setAskOut({ live: false, answer: "I couldn't reach the evidence service just now. Check your connection and try again — or write the question down and bring it to your next visit.", source_note: null, ask_your_doctor: null, urgent: false });
     }
     setAskBusy(false);
   };
@@ -223,7 +157,6 @@ export default function CyraDemo() {
   const liveScore = 1 - liveBurden; // 1 = great day
   /* Data-viz ramp: saturated and readable, independent of UI chrome colors. */
   const ramp = () => RAMPS[stage] || RAMPS.peri;
-  const scoreRough = () => ramp().rough;
   const scoreColor = (s) => {
     const lerp = (a, b, u) => a.map((c, i) => Math.round(c + (b[i] - c) * u));
     const { good, mid, rough } = ramp();
@@ -378,15 +311,6 @@ export default function CyraDemo() {
   else if (pred) nextUp.push(pred.late > 0 ? { k: "late", text: `Period ${pred.late} day${pred.late > 1 ? "s" : ""} past your average`, sub: stage === "peri" ? "Irregularity is data too" : "Normal variation happens" } : { k: "period", text: `Period expected in ~${pred.daysTo} days`, sub: `Avg cycle ${pred.avgLen} days` });
   if (upcoming[0]) nextUp.push({ k: "appt", text: `Appointment${upcoming[0].who ? ` with ${upcoming[0].who}` : ""} in ${daysUntil(upcoming[0].date)} day${daysUntil(upcoming[0].date) === 1 ? "" : "s"}`, sub: daysUntil(upcoming[0].date) <= 7 ? "Prep your report →" : fmt(upcoming[0].date), action: daysUntil(upcoming[0].date) <= 7 ? () => goTab("report") : null });
 
-  const BIZ = [
-    { l: "1 · Generate referral link (hash only)", line: "POST /api/referrals/link → code a47f…, no PII" },
-    { l: "2 · User clicks → redirect to partner", line: "GET /r/a47f… → 302 partner site ?ref=a47f…" },
-    { l: "3 · Partner webhook: patient booked", line: "HMAC ✓ · conversion · NEW PATIENT → $80 bounty", amt: 80 },
-    { l: "4 · Follow-up visit (no double bounty)", line: "HMAC ✓ · visit · isNewPatient: false → $0" },
-    { l: "5 · Product sale $68 → 15%", line: "HMAC ✓ · conversion · commission $10.20", amt: 10.2 },
-    { l: "6 · Forged webhook → rejected", line: "HMAC ✗ → 401 · no event, no payout" },
-  ];
-  const bizTotal = bizEvents.reduce((a, e) => a + (e.amt || 0), 0);
   const style = { "--primary": t.primary, "--paper": t.paper, "--card": t.card, "--accent": t.accent, "--ink": t.ink, "--soft": t.soft, "--line": t.line };
 
   /* ---------- agentic intake routing ---------- */
@@ -401,17 +325,8 @@ export default function CyraDemo() {
     setObBusy(true);
     let route = rulesRoute(ob);
     try {
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6", max_tokens: 300,
-          messages: [{ role: "user", content: `Route a new user of a women's hormonal-health app to exactly one experience based on their intake. Answers: pregnant=${ob.preg}, age_band=${ob.age}, periods=${ob.per} (regular|irregular|none12|na), hot_flashes_or_night_sweats=${ob.vms}. Respond ONLY JSON: {"stage":"periods|preg|peri","label":"My Cycle|Pregnancy|Perimenopause|Menopause","welcome":"one warm sentence for this specific person"}. Pregnancy always wins. No period for 12+ months = Menopause.` }],
-        }),
-      });
-      const data = await r.json();
-      const text = (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("");
-      const parsed = JSON.parse(text.replace(/```json|```/g, "").trim());
-      if (["periods", "preg", "peri"].includes(parsed.stage)) route = parsed;
+      const out = await apiPost("/api/ai/route", { preg: ob.preg, age: ob.age, per: ob.per, vms: ob.vms });
+      if (["periods", "preg", "peri"].includes(out.stage) && out.label) route = { stage: out.stage, label: out.label, welcome: out.welcome || route.welcome };
     } catch { /* rules route already set */ }
     setStage(route.stage); setStageName(route.label); setWelcome(route.welcome);
     setDraft({}); setAppTab("home"); setPregTab("home"); setObBusy(false);
@@ -435,16 +350,9 @@ export default function CyraDemo() {
     setWelcome(`Welcome${reg.name ? `, ${reg.name}` : ""} — your ${slabel} space is ready.`);
     setPhase("app");
     try {
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6", max_tokens: 200,
-          messages: [{ role: "user", content: `Write ONE warm, specific welcome sentence (max 22 words) for a woman joining a hormonal-health app. Her space: ${slabel}. Age: ${reg.age}. Cycles: ${reg.cycleLen || "n/a"}, ${reg.cycleReg || "n/a"}. Goals: ${reg.goals.join(", ") || "none given"}. Reply with the sentence only, no quotes.` }],
-        }),
-      });
-      const d = await r.json();
-      const txt = (d.content || []).filter((b) => b.type === "text").map((b) => b.text).join("").trim();
-      if (txt) setWelcome(txt);
+      // Categorical answers only — the name never leaves the device.
+      const out = await apiPost("/api/ai/welcome", { stage: slabel, age: reg.age, cycleLen: reg.cycleLen, cycleReg: reg.cycleReg, goals: reg.goals });
+      if (out.provider !== "rules" && out.welcome) setWelcome(out.welcome);
     } catch { /* keep the rules welcome */ }
   };
 

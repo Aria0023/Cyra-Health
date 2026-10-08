@@ -19,17 +19,6 @@ export function seed() {
   }
   return days;
 }
-export function seedMetrics(sourceId, offset) {
-  const out = [];
-  for (let i = 14; i >= 1; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i - offset);
-    const date = d.toISOString().slice(0, 10); const wave = Math.sin(i / 2.3);
-    out.push({ date, type: "temp_deviation", value: +(0.12 + 0.18 * Math.abs(wave)).toFixed(2), sourceId });
-    out.push({ date, type: "sleep_score", value: Math.round(64 - 9 * wave), sourceId });
-    out.push({ date, type: "hrv", value: Math.round(34 + 6 * wave), sourceId });
-  }
-  return out;
-}
 export const loadOf = (day, ids) => Math.min(1, ids.reduce((a, k) => a + (day.sym[k] || 0), 0) / (ids.length * 2));
 export function stripeColor(v, hot, calm, mid) {
   const lerp = (a, b, u) => a.map((c, i) => Math.round(c + (b[i] - c) * u));

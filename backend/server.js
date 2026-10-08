@@ -13,6 +13,22 @@ const store = createStore(config);
 const ctx = { config, store };
 
 const app = express();
+app.set("trust proxy", 1); // Render / any reverse proxy: req.ip is the client, not the proxy
+
+// CORS: the static app lives on another origin. CORS_ORIGIN = comma-separated allowlist; unset = any origin (no credentials are ever sent).
+const origins = (process.env.CORS_ORIGIN || "*").split(",").map((s) => s.trim()).filter(Boolean);
+app.use((req, res, next) => {
+  const origin = req.get("origin");
+  if (origin && (origins.includes("*") || origins.includes(origin))) {
+    res.set("access-control-allow-origin", origins.includes("*") ? "*" : origin);
+    res.set("vary", "origin");
+    res.set("access-control-allow-methods", "GET,POST,PATCH,OPTIONS");
+    res.set("access-control-allow-headers", "content-type, authorization, x-admin-key, x-cyra-signature");
+    res.set("access-control-max-age", "600");
+  }
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
 app.use(
   express.json({
     verify: (req, res, buf) => {
@@ -27,5 +43,5 @@ app.get("/r/:code", (req, res) => redirectHandler(ctx, req, res));
 
 await mountModules(app, ctx);
 
-const port = config.port || 3000;
+const port = Number(process.env.PORT) || config.port || 3000;
 app.listen(port, () => console.log(`[cyra] backend listening on :${port}`));
