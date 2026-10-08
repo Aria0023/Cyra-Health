@@ -19,10 +19,11 @@ import { DEMO_WEARABLES, connectSource, syncSource, mergeRows } from "./lib/wear
 import { PULSE_EVENTS, weeklyToken, eventsForDay, fetchPulse, sendTally } from "./lib/pulse.js";
 import { storage } from "./lib/storage.js";
 import { encryptBackup, decryptBackup } from "./lib/backup.js";
+import { syncReminders, wantsReminders, support as reminderSupport } from "./lib/notifications.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
 /* What persists on the device: the health record and settings. Never the password, never UI state. */
-const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseToken", "regAnswers"];
+const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseToken", "regAnswers", "reminders"];
 import Shell from "./components/Shell.jsx";
 import ScoreMeter from "./components/ScoreMeter.jsx";
 import ScaleSection from "./components/ScaleSection.jsx";
@@ -115,6 +116,7 @@ export default function CyraDemo() {
   const [toast, setToast] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [regAnswers, setRegAnswers] = useState(null); // registration record minus the password
+  const [reminders, setReminders] = useState({ enabled: false, status: "off" }); // status: off | on | blocked | unavailable | unsupported
 
   const org = ORGS[orgId];
   const stagePal = stage && orgId === "cyra" ? PALETTES[stage][palIdx[stage]] : null;
@@ -369,8 +371,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseToken: setPulseToken, regAnswers: setRegAnswers };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseToken, regAnswers };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseToken: setPulseToken, regAnswers: setRegAnswers, reminders: setReminders };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseToken, regAnswers, reminders };
   const snapshot = () => ({ v: 1, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, values[k]])) });
   const applySaved = (saved) => {
     for (const k of PERSISTED) if (k in saved && saved[k] !== undefined) setters[k](saved[k]);
@@ -399,6 +401,19 @@ export default function CyraDemo() {
     ping("Backup restored");
   };
   const wipeDevice = async () => { await storage.clear(); window.location.replace(window.location.pathname); };
+
+  /* ---------- reminders: on-device schedule (phone) or web push (browser) ---------- */
+  const applyReminders = async (enabled, cad = cadence, nudge = quietHours) => {
+    if (!enabled) { try { await syncReminders({ cadence: "me", nudge: "never" }); } catch { /* nothing to cancel */ } setReminders({ enabled: false, status: "off" }); return; }
+    if (!wantsReminders(cad, nudge)) { try { await syncReminders({ cadence: cad, nudge }); } catch { /* nothing scheduled */ } setReminders({ enabled: true, status: "off" }); return; }
+    try {
+      const r = await syncReminders({ cadence: cad, nudge });
+      setReminders({ enabled: true, status: r.active ? "on" : r.blocked ? "blocked" : r.unsupported ? "unsupported" : "unavailable" });
+      if (r.blocked) ping("Reminders are blocked in your browser settings");
+      else if (r.unavailable) ping("Reminders aren't set up on this server yet");
+    } catch { setReminders({ enabled: true, status: "unavailable" }); }
+  };
+  useEffect(() => { if (hydrated && phase === "app" && reminders.enabled) applyReminders(true); }, [cadence, quietHours]); // eslint-disable-line
 
   /* ---------- social sign-in: real OAuth through the backend ---------- */
   const startSocial = async (id, label) => {
@@ -441,6 +456,7 @@ export default function CyraDemo() {
     setAcct({ name: reg.name, email: reg.email, anon: reg.anon });
     setResearch(reg.research);
     setRegAnswers((({ pass, ...rest }) => rest)(reg));
+    if (reg.notifOptin) applyReminders(true);
     setStage(sid);
     setStageName(slabel);
     setDraft({});
@@ -511,7 +527,7 @@ export default function CyraDemo() {
       </header>
 
       {/* ============ APP ============ */}
-      {showSettings && <SettingsSheet cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storage.driver()} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} />}
+      {showSettings && <SettingsSheet cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storage.driver()} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} reminders={reminders} reminderSupport={reminderSupport()} onReminders={applyReminders} />}
       {showPal && stage && orgId === "cyra" && <PaletteSheet stage={stage} stageName={stageName} palIdx={palIdx} setPalIdx={setPalIdx} setShowPal={setShowPal} />}
       <div>
 

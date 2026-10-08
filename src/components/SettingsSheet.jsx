@@ -2,7 +2,8 @@ import { CADENCE } from "../lib/constants.js";
 import DataControls from "./DataControls.jsx";
 
 /* ⚙ Settings: check-in cadence, nudge time, quick vs full check-in. */
-export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe }) {
+export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, reminders, reminderSupport, onReminders }) {
+  const remindersText = !reminders?.enabled ? "Off" : reminders.status === "on" ? "On" : reminders.status === "blocked" ? "Blocked in your browser — allow notifications for Cyra to turn on" : reminders.status === "unsupported" ? "This browser can't show reminders" : reminders.status === "unavailable" ? "Not available right now" : "Off — pick a rhythm and a time";
   return (
     <section className="palsheet" aria-label="Check-in settings">
       <p className="section-lab" style={{ margin: "0 0 8px" }}>Check-in rhythm</p>
@@ -21,6 +22,11 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
       <div className="mcrow">
         <button className={`mc ${quickMode ? "on" : ""}`} onClick={() => setQuickMode(true)}>Quick · 3 taps</button>
         <button className={`mc ${!quickMode ? "on" : ""}`} onClick={() => setQuickMode(false)}>Full detail</button>
+      </div>
+      <p className="section-lab" style={{ margin: "14px 0 8px" }}>Reminders</p>
+      <div className="medrow" style={{ borderTop: "none", padding: "4px 0 8px" }}>
+        <div className="medinfo"><b>{remindersText}</b><span>{reminderSupport === "native" ? "Scheduled on this phone — no server involved." : "A plain reminder, nothing about your health in it. No phone number, no texts, ever."}</span></div>
+        <button className={`takebtn ${reminders?.enabled ? "on" : ""}`} aria-pressed={!!reminders?.enabled} onClick={() => onReminders(!reminders?.enabled)}>{reminders?.enabled ? "✓ On" : "Turn on"}</button>
       </div>
       <p className="rfoot">One reminder at most. Missed days are never scolded — your patterns work fine with gaps.</p>
       <DataControls driver={storageDriver} onExport={onExport} onImport={onImport} onWipe={onWipe} ping={ping} />

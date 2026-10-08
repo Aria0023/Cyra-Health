@@ -45,6 +45,7 @@ Runs anywhere Node 18+ runs. Zero external services required.
     GET  /api/oauth/providers         GET /api/oauth/:provider/start?return=   POST /api/oauth/exchange
     GET  /api/integrations/sources    oura: /start /callback /exchange /refresh /pull   terra: /session /done /webhook /inbox
     GET  /api/pulse?stage=            POST /api/pulse/tally
+    GET  /api/push/vapid              POST|DELETE /api/push/subscribe
 
 ## Before production
 Reference implementation — before real traffic add: TLS + auth on admin
@@ -137,3 +138,17 @@ returns each event's count only once at least `pulse.k` (default 50) distinct
 contributors reached it, otherwise `null`. Per-IP rate limit on tallies.
 `npm run smoke:pulse` checks suppression, de-duplication, the threshold, and
 that the on-disk store holds counts only.
+
+## v4 — Reminders (`src/modules/push/`)
+Browser reminders use standard Web Push (VAPID, aes128gcm). The store keeps the
+browser's push subscription, cadence, nudge time and timezone, plus the last
+day a reminder went out — never a name, never health data. A scheduler pass
+runs every minute and sends one generic "Time for your 30-second check-in" at
+most once per day, inside a 30-minute window at the chosen local time, only on
+the cadence's days (daily / weekdays / Mon-Wed-Fri / Mondays; "when I feel
+like it" and "never" send nothing). A 404/410 from the push service drops the
+subscription. There is no SMS anywhere. The phone build does not use this
+module: it schedules local notifications on the device. Generate keys once with
+`npm run vapid` and set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`.
+`npm run smoke:push` checks the scheduling rules and delivers a real encrypted
+push to a local HTTPS mock push service.

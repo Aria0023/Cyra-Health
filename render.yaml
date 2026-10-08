@@ -61,3 +61,9 @@ services:
         sync: false
       - key: TERRA_SIGNING_SECRET
         sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false

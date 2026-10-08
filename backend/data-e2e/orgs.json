@@ -1,0 +1,19 @@
+[
+  {
+    "slug": "cyra",
+    "name": "Cyra Health",
+    "theme": {
+      "primary": "#8E3B5E",
+      "paper": "#F6F1EC",
+      "accent": "#DD8A4E"
+    },
+    "stages": [
+      "cycle",
+      "fertility",
+      "peri",
+      "meno"
+    ],
+    "partnerIds": null,
+    "createdAt": "2026-10-08T13:30:41.292Z"
+  }
+]

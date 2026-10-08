@@ -4,11 +4,11 @@
    fallback so the app never breaks offline. */
 export const API_BASE = (import.meta.env.VITE_API_BASE || "").replace(/\/$/, "");
 
-export async function apiPost(path, body, { timeoutMs = 15000 } = {}) {
+export async function apiPost(path, body, { timeoutMs = 15000, method = "POST" } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const r = await fetch(`${API_BASE}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: ctrl.signal });
+    const r = await fetch(`${API_BASE}${path}`, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: ctrl.signal });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     return await r.json();
   } finally {

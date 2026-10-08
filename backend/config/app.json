@@ -17,7 +17,8 @@
     "affiliates",
     "ai",
     "oauth",
-    "pulse"
+    "pulse",
+    "push"
   ],
   "storage": {
     "driver": "json",

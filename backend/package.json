@@ -11,13 +11,16 @@
     "smoke:oauth": "node scripts/oauth-smoke.js",
     "smoke:integrations": "node scripts/integrations-smoke.js",
     "smoke:pulse": "node scripts/pulse-smoke.js",
-    "smoke:all": "npm run smoke:ai && npm run smoke:oauth && npm run smoke:integrations && npm run smoke:pulse"
+    "smoke:all": "npm run smoke:ai && npm run smoke:oauth && npm run smoke:integrations && npm run smoke:pulse && npm run smoke:push",
+    "smoke:push": "node scripts/push-smoke.js",
+    "vapid": "node -e \"const k=require('web-push').generateVAPIDKeys();console.log('VAPID_PUBLIC_KEY='+k.publicKey);console.log('VAPID_PRIVATE_KEY='+k.privateKey)\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.1",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "web-push": "^3.6.7"
   }
 }
