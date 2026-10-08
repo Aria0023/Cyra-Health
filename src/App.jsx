@@ -20,6 +20,7 @@ import { PULSE_EVENTS, weeklyToken, eventsForDay, fetchPulse, sendTally } from "
 import { storage } from "./lib/storage.js";
 import { encryptBackup, decryptBackup } from "./lib/backup.js";
 import { syncReminders, wantsReminders, support as reminderSupport } from "./lib/notifications.js";
+import { isNative, appReturnUrl, newAppVerifier, waitForAppUrl, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
 /* What persists on the device: the health record and settings. Never the password, never UI state. */
@@ -32,6 +33,7 @@ import QuickCheckin from "./components/QuickCheckin.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
 import PaletteSheet from "./components/PaletteSheet.jsx";
 import SplashScreen from "./screens/SplashScreen.jsx";
+import RecordUnavailableScreen from "./screens/RecordUnavailableScreen.jsx";
 import RegisterScreen from "./screens/RegisterScreen.jsx";
 import IntakeScreen from "./screens/IntakeScreen.jsx";
 import HomeScreen from "./screens/HomeScreen.jsx";
@@ -115,6 +117,7 @@ export default function CyraDemo() {
   const [editPeriod, setEditPeriod] = useState(false);
   const [toast, setToast] = useState("");
   const [hydrated, setHydrated] = useState(false);
+  const [recordUnavailable, setRecordUnavailable] = useState(false); // phone: the record exists but can't be read right now
   const [regAnswers, setRegAnswers] = useState(null); // registration record minus the password
   const [reminders, setReminders] = useState({ enabled: false, status: "off" }); // status: off | on | blocked | unavailable | unsupported
 
@@ -273,7 +276,10 @@ export default function CyraDemo() {
       setWearBusy(null);
     }
   };
-  const wAvg = (k) => (wearData.length ? Math.round((wearData.reduce((a, m) => a + m[k], 0) / wearData.length) * (k === "temp" ? 100 : 1)) / (k === "temp" ? 100 : 1) : null);
+  /* Wearable rows can lack any field (no watch worn, no sleep tracked): a missing value is
+     "no reading", never 0, so averages and thresholds only look at real readings. */
+  const has = (v) => typeof v === "number" && Number.isFinite(v);
+  const wAvg = (k) => { const vals = wearData.map((m) => m[k]).filter(has); return vals.length ? Math.round((vals.reduce((a, v) => a + v, 0) / vals.length) * (k === "temp" ? 100 : 1)) / (k === "temp" ? 100 : 1) : null; };
 
   const wearInsights = (() => {
     if (!wearData.length) return [];
@@ -282,26 +288,27 @@ export default function CyraDemo() {
     if (stage === "periods") {
       let ovu = null, riseAt = null;
       for (let i = 1; i < sorted.length - 2; i++) {
-        if (sorted[i - 1].temp < 0.12 && sorted[i].temp >= 0.2 && sorted[i + 1].temp >= 0.2 && sorted[i + 2].temp >= 0.2) { ovu = sorted[i - 1].date; riseAt = sorted[i].date; break; }
+        if (has(sorted[i - 1].temp) && has(sorted[i].temp) && has(sorted[i + 1].temp) && has(sorted[i + 2].temp) && sorted[i - 1].temp < 0.12 && sorted[i].temp >= 0.2 && sorted[i + 1].temp >= 0.2 && sorted[i + 2].temp >= 0.2) { ovu = sorted[i - 1].date; riseAt = sorted[i].date; break; }
       }
       if (ovu) out.push({ num: "Ovulated", text: `A sustained temperature rise began ${fmt(riseAt)} and held — consistent with ovulation around ${fmt(ovu)}. This confirms it after the fact, the way basal-temperature charting does. It can't predict next month, and it isn't contraception.`, advice: stageName === "Trying to Conceive" ? "If you're trying to conceive, the fertile days were the ~5 before and the day of that rise — Cyra will use this to sharpen next month's estimate." : null, urgency: "self" });
       else if (pred && pred.cycleDay < pred.avgLen - 14) out.push({ num: `Day ${pred.cycleDay}`, text: `No temperature shift yet this cycle — which fits: based on your ${pred.avgLen}-day average, ovulation would be expected around day ${pred.avgLen - 14}. Cyra will flag the rise when it holds for three days.`, urgency: "self", advice: stageName === "Trying to Conceive" ? `Your estimated fertile window opens around day ${Math.max(1, pred.avgLen - 19)} — the temperature rise confirms it only afterwards, so pair it with other signs if timing matters.` : null });
-      const lut = sorted.filter((s) => s.temp >= 0.2), fol = sorted.filter((s) => s.temp < 0.12);
+      const lut = sorted.filter((s) => has(s.temp) && s.temp >= 0.2), fol = sorted.filter((s) => has(s.temp) && s.temp < 0.12);
       if (lut.length >= 4 && fol.length >= 4) {
-        const av = (a, k) => Math.round(a.reduce((x, y) => x + y[k], 0) / a.length);
-        out.push({ num: `${av(fol, "rhr")}→${av(lut, "rhr")}`, text: `Resting heart rate runs about ${av(lut, "rhr") - av(fol, "rhr")} bpm higher in the second half of your cycle, and HRV dips ${av(fol, "hrv") - av(lut, "hrv")} ms. That's your body's normal luteal signature — useful context for why some weeks feel heavier.` });
+        const av = (a, k) => { const v = a.map((y) => y[k]).filter(has); return v.length >= 4 ? Math.round(v.reduce((x, y) => x + y, 0) / v.length) : null; };
+        const [rf, rl, hf, hl] = [av(fol, "rhr"), av(lut, "rhr"), av(fol, "hrv"), av(lut, "hrv")];
+        if (rf != null && rl != null && hf != null && hl != null) out.push({ num: `${rf}→${rl}`, text: `Resting heart rate runs about ${rl - rf} bpm higher in the second half of your cycle, and HRV dips ${hf - hl} ms. That's your body's normal luteal signature — useful context for why some weeks feel heavier.` });
       }
     }
     if (stage === "peri" && !isMeno) {
-      const hot = wearData.filter((m) => m.temp >= 0.3 && m.sleep < 60).length;
+      const hot = wearData.filter((m) => has(m.temp) && has(m.sleep) && m.temp >= 0.3 && m.sleep < 60).length;
       const nsLogged = ins.counts.find((x) => x.id === "ns")?.days || 0;
       out.push({ num: `${hot}`, text: `${hot} of the last 30 nights showed a temperature spike with broken sleep — the wearable signature of night sweats${nsLogged ? `, and it lines up with the ${nsLogged} you logged` : ""}. Two independent signals telling the same story is exactly what a clinician wants to see.`, urgency: hot >= 8 ? "visit" : "self", advice: hot >= 8 ? "Night sweats this frequent are very treatable — bring this count to your doctor." : "Keep both the wearable and your check-ins going; agreement between them makes your record much stronger." });
     }
-    if (isMeno) {
-      const spikes = wearData.filter((m) => m.temp >= 0.3).length;
+    if (isMeno && wAvg("rhr") != null) {
+      const spikes = wearData.filter((m) => has(m.temp) && m.temp >= 0.3).length;
       out.push({ num: `${wAvg("rhr")}`, text: `Resting heart rate averaged ${wAvg("rhr")} bpm on a steady temperature baseline (${spikes} spike night${spikes === 1 ? "" : "s"} in 30). After menopause there's no cycle to track — so the useful signals shift to heart health and sleep. A rising resting heart rate over months, or a new run of night spikes, is worth noting.`, urgency: spikes >= 6 ? "visit" : "self", advice: spikes >= 6 ? "A new pattern of night-time temperature spikes after menopause is worth mentioning at your next visit." : "Post-menopause, cardiovascular risk rises — ask about a lipid panel and blood-pressure check if you haven't lately." });
     }
-    if (stage === "preg") out.push({ num: `${wAvg("rhr")}`, text: `Resting heart rate averaged ${wAvg("rhr")} bpm. It normally climbs 10–20 bpm across pregnancy as blood volume rises — a gradual rise is expected; a sudden jump, or a racing heart at rest, is a tell-your-provider signal.`, urgency: "self", advice: "Sleep score averaged " + wAvg("sleep") + " — side-sleeping with pillow support has real evidence behind it in later pregnancy." });
+    if (stage === "preg" && wAvg("rhr") != null) out.push({ num: `${wAvg("rhr")}`, text: `Resting heart rate averaged ${wAvg("rhr")} bpm. It normally climbs 10–20 bpm across pregnancy as blood volume rises — a gradual rise is expected; a sudden jump, or a racing heart at rest, is a tell-your-provider signal.`, urgency: "self", advice: (wAvg("sleep") != null ? "Sleep score averaged " + wAvg("sleep") + " — s" : "S") + "ide-sleeping with pillow support has real evidence behind it in later pregnancy." });
     return out;
   })();
 
@@ -361,11 +368,9 @@ export default function CyraDemo() {
   };
   const finishOnboarding = async () => {
     setObBusy(true);
-    let route = rulesRoute(ob);
-    try {
-      const out = await apiPost("/api/ai/route", { preg: ob.preg, age: ob.age, per: ob.per, vms: ob.vms });
-      if (["periods", "preg", "peri"].includes(out.stage) && out.label) route = { stage: out.stage, label: out.label, welcome: out.welcome || route.welcome };
-    } catch { /* rules route already set */ }
+    // Routing runs on this device only: the intake answers (pregnancy, periods, hot
+    // flashes, age band) are health data, and the spec's stage map is deterministic.
+    const route = rulesRoute(ob);
     setStage(route.stage); setStageName(route.label); setWelcome(route.welcome);
     setDraft({}); setAppTab("home"); setPregTab("home"); setObBusy(false);
   };
@@ -378,9 +383,13 @@ export default function CyraDemo() {
     for (const k of PERSISTED) if (k in saved && saved[k] !== undefined) setters[k](saved[k]);
     if (saved.stage) { setPhase("app"); setAppTab("home"); setPregTab("home"); }
   };
-  useEffect(() => {
-    storage.load().then((saved) => { if (saved && saved.v === 1 && saved.phase === "app") applySaved(saved); }).finally(() => setHydrated(true));
-  }, []); // eslint-disable-line
+  // A record that exists but can't be read (phone only) keeps hydrated false, so nothing
+  // is saved over it; RecordUnavailableScreen offers Try again.
+  const hydrate = () => storage.load().then(
+    (saved) => { try { if (saved && saved.v === 1 && saved.phase === "app") applySaved(saved); } finally { setRecordUnavailable(false); setHydrated(true); } },
+    () => setRecordUnavailable(true),
+  );
+  useEffect(() => { hydrate(); }, []); // eslint-disable-line
   useEffect(() => {
     if (!hydrated || phase !== "app") return;
     const t = setTimeout(() => storage.save(snapshot()).catch(() => ping("Couldn't save to this device — storage may be full or blocked")), 400);
@@ -388,9 +397,21 @@ export default function CyraDemo() {
   }, [hydrated, phase, ...PERSISTED.map((k) => values[k])]); // eslint-disable-line
   const exportBackup = async (passphrase) => {
     const env = await encryptBackup(snapshot(), passphrase);
+    const name = `cyra-backup-${todayIso}.cyra.json`;
+    if (isNative()) {
+      // Phone: the already-encrypted file goes to the app's cache only long enough for the
+      // share sheet (Save to Files, Drive, AirDrop…), then it is deleted. Where it goes is
+      // her choice; it is unreadable without the passphrase.
+      const { uri } = await Filesystem.writeFile({ path: name, data: JSON.stringify(env), directory: Directory.Cache, encoding: Encoding.UTF8 });
+      try { await Share.share({ title: "Cyra encrypted backup", files: [uri] }); }
+      catch (e) { if (/cancel/i.test(String(e?.message || e))) return false; throw new Error("Couldn't open the share sheet on this phone"); }
+      finally { await Filesystem.deleteFile({ path: name, directory: Directory.Cache }).catch(() => { /* already gone */ }); }
+      return true;
+    }
     const blob = new Blob([JSON.stringify(env)], { type: "application/json" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `cyra-backup-${todayIso}.cyra.json`; document.body.appendChild(a); a.click(); a.remove();
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    return true;
   };
   const importBackup = async (file, passphrase) => {
     let env; try { env = JSON.parse(await file.text()); } catch { throw new Error("That file isn't a Cyra backup"); }
@@ -416,32 +437,50 @@ export default function CyraDemo() {
   useEffect(() => { if (hydrated && phase === "app" && reminders.enabled) applyReminders(true); }, [cadence, quietHours]); // eslint-disable-line
 
   /* ---------- social sign-in: real OAuth through the backend ---------- */
+  // Web: a full-page redirect that comes back as #oauth=<code>. Phone app: a sign-in
+  // window (iOS: ASWebAuthenticationSession; Android: the system browser), back through
+  // cyrahealth://auth/oauth?a=<attempt>#oauth=<code>, redeemable only with this
+  // attempt's one-time verifier.
   const startSocial = async (id, label) => {
     setSocialBusy(id);
+    if (isNative() && !API_BASE) { ping("Sign-in isn't set up in this version of the app yet — continue with email"); setSocialBusy(null); return; }
     try {
       const r = await fetch(`${API_BASE}/api/oauth/providers`);
       const available = r.ok ? await r.json() : {};
       if (!available[id]) { ping(`${label} sign-in isn't set up on this server yet`); setSocialBusy(null); return; }
       // The provider only ever sees that you are signing in to Cyra; the backend
       // hands the verified email (and name, if given) back to this device and keeps no copy.
+      if (isNative()) {
+        const { verifier, challenge } = await newAppVerifier();
+        const ret = appReturnUrl("oauth"); // this attempt's own link
+        let back = null;
+        try { back = await waitForAppUrl(ret, `${API_BASE}/api/oauth/${id}/start?return=${encodeURIComponent(ret)}&app_challenge=${challenge}`); } catch { /* closed, timed out or couldn't open */ }
+        setSocialBusy(null);
+        finishSocial(back && !back.has("oauth_error") && back.get("oauth") ? { code: back.get("oauth"), verifier } : { error: true });
+        return;
+      }
       window.location.assign(`${API_BASE}/api/oauth/${id}/start?return=${encodeURIComponent(window.location.origin + window.location.pathname)}`);
     } catch {
       ping("Couldn't reach the sign-in service"); setSocialBusy(null);
     }
   };
-  useEffect(() => {
-    const m = /^#oauth(_error)?=(.+)$/.exec(window.location.hash || "");
-    if (!m) return;
-    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  // Shared by both returns: exchange the one-time code, prefill, move to step 2.
+  const finishSocial = ({ code, verifier, error }) => {
     setPhase("register");
-    if (m[1]) { ping("Sign-in didn't complete — you can try again or continue with email"); return; }
-    apiPost("/api/oauth/exchange", { code: decodeURIComponent(m[2]) })
+    if (error) { ping("Sign-in didn't complete — you can try again or continue with email"); return; }
+    apiPost("/api/oauth/exchange", verifier ? { code, verifier } : { code })
       .then((idn) => {
         setReg((x) => ({ ...x, anon: false, email: idn.email || x.email, name: x.name || (idn.name || "").split(" ")[0] }));
         setRegStep(1);
         ping(`Signed in with ${{ apple: "Apple", google: "Google", facebook: "Facebook" }[idn.provider] || idn.provider}`);
       })
       .catch(() => ping("Sign-in didn't complete — you can try again or continue with email"));
+  };
+  useEffect(() => {
+    const m = /^#oauth(_error)?=(.+)$/.exec(window.location.hash || "");
+    if (!m) return;
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    finishSocial(m[1] ? { error: true } : { code: decodeURIComponent(m[2]) });
   }, []);
 
   const finishReg = async () => {
@@ -477,6 +516,7 @@ export default function CyraDemo() {
   const quickCheckin = <QuickCheckin stage={stage} draft={draft} setDraft={setDraft} setQuickMode={setQuickMode} />;
 
   if (!hydrated) {
+    if (recordUnavailable) return <Shell style={style}><RecordUnavailableScreen onRetry={hydrate} onStartOver={async () => { await storage.clear(); setRecordUnavailable(false); setHydrated(true); }} /></Shell>;
     return <Shell style={style}><main aria-busy="true" /></Shell>;
   }
 

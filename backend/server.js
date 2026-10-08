@@ -22,7 +22,7 @@ app.use((req, res, next) => {
   if (origin && (origins.includes("*") || origins.includes(origin))) {
     res.set("access-control-allow-origin", origins.includes("*") ? "*" : origin);
     res.set("vary", "origin");
-    res.set("access-control-allow-methods", "GET,POST,PATCH,OPTIONS");
+    res.set("access-control-allow-methods", "GET,POST,PATCH,DELETE,OPTIONS");
     res.set("access-control-allow-headers", "content-type, authorization, x-admin-key, x-cyra-signature");
     res.set("access-control-max-age", "600");
   }

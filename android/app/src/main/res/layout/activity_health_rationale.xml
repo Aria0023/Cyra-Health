@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rationale_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingTop="24dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="24dp">
+
+        <TextView
+            android:id="@+id/rationale_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/hc_rationale_title"
+            android:textAppearance="@style/TextAppearance.AppCompat.Headline" />
+
+        <TextView
+            android:id="@+id/rationale_reads_heading"
+            style="@style/HealthRationale.Heading"
+            android:text="@string/hc_rationale_reads_heading" />
+
+        <TextView
+            style="@style/HealthRationale.Body"
+            android:text="@string/hc_rationale_reads_body" />
+
+        <TextView
+            android:id="@+id/rationale_why_heading"
+            style="@style/HealthRationale.Heading"
+            android:text="@string/hc_rationale_why_heading" />
+
+        <TextView
+            style="@style/HealthRationale.Body"
+            android:text="@string/hc_rationale_why_body" />
+
+        <TextView
+            android:id="@+id/rationale_where_heading"
+            style="@style/HealthRationale.Heading"
+            android:text="@string/hc_rationale_where_heading" />
+
+        <TextView
+            style="@style/HealthRationale.Body"
+            android:text="@string/hc_rationale_where_body" />
+
+        <TextView
+            android:id="@+id/rationale_control_heading"
+            style="@style/HealthRationale.Heading"
+            android:text="@string/hc_rationale_control_heading" />
+
+        <TextView
+            style="@style/HealthRationale.Body"
+            android:text="@string/hc_rationale_control_body" />
+
+        <!-- Shown only when privacy_policy_url is set (see strings.xml). -->
+        <Button
+            android:id="@+id/rationale_policy"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:minHeight="48dp"
+            android:text="@string/hc_rationale_policy_button"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/rationale_done"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:minHeight="48dp"
+            android:text="@string/hc_rationale_done" />
+
+    </LinearLayout>
+</ScrollView>

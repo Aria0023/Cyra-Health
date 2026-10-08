@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Cyra app privacy manifest (App target).
+
+  Scope: what the app itself sends off the device today, judged from src/lib/api.js,
+  src/App.jsx, src/lib/pulse.js, src/lib/wearables.js, src/lib/notifications.js and
+  backend/src/modules (ai, pulse, integrations, oauth, push). Apple's definition of
+  "collect": transmitting data off the device in a way that allows you and/or your
+  third-party partners to access it for longer than needed to service the request in
+  real time. Where a flow was borderline, it is declared rather than left out.
+
+  NOT collected, so not declared:
+  - Apple Health data read by CyraHealthPlugin. It is read and kept on this device only
+    (Library/NoCloud, excluded from backup); the plugin makes no network calls.
+  - Reminders. The phone build schedules local notifications on the device; the Web Push
+    subscription in backend/src/modules/push is used only by the web build.
+  - The encrypted backup: a file the user keeps, with a key only she holds; no server.
+  - No analytics, advertising, crash-reporting or tracking SDK is in the app.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<!--
+		  File timestamp APIs (FileAttributeKey.creationDate and .modificationDate).
+		  Not called by the App target's own Swift (AppDelegate, SceneDelegate,
+		  CyraViewController, CyraHealthPlugin use createDirectory, setAttributes with
+		  protectionKey, URL resource values isExcludedFromBackup, fileProtection and
+		  isRegularFile, and contentsOfDirectory; none of these is on Apple's required
+		  reason list). They are read by the Capacitor Filesystem plugin's library
+		  (ion-ios-filesystem IONFILEItemAttributeModel, behind Filesystem.stat), which
+		  Swift Package Manager links statically into this App executable. Neither
+		  CapacitorFilesystem 8.1.4 nor ion-ios-filesystem ships its own privacy
+		  manifest, and Apple requires the bundle containing the executable to report the
+		  API. C617.1: timestamps of files inside the app container only.
+		  Remove this entry if a future Filesystem release bundles its own manifest.
+		-->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<!--
+		  Health. Leaves the device in:
+		  - POST /api/ai/welcome: life stage, age band, cycle length and regularity, goals.
+		  - POST /api/ai/ask: the life-stage label (with the question, below).
+		  - POST /api/pulse/tally (opt-in only): stage plus allowlisted symptom flags
+		    (hot flashes, rough night, cramps, mood dip, heavy day, nausea, kicks, swelling).
+		  When ANTHROPIC_API_KEY is set, the backend forwards the AI inputs to Anthropic,
+		  a third-party processor, whose retention is longer than real time. Pulse
+		  persists weekly counts.
+		  Oura and Terra (Fitbit, Garmin, Whoop) rows reach the device through the backend:
+		  Oura rows are relayed in real time; Terra rows (temperature, resting heart rate,
+		  HRV, sleep) wait in server memory for up to 7 days, keyed by the Terra reference
+		  id (backend/src/modules/integrations/index.js, inbox map).
+		  Linked: that reference id is declared below as a linked User ID, because Terra
+		  ties it to the person's wearable account. Health rows stored under it are
+		  therefore linked too (Apple: data is unlinked only when direct identifiers such
+		  as a user ID are stripped before collection). The AI and pulse flows above carry
+		  no name, email, account, reference id or device identifier, but the label is per
+		  data type, so Health as a whole is declared linked.
+		  Product personalization: welcome writes a personal greeting. (Intake routing to
+		  the single life-stage experience runs on the device and sends nothing.)
+		  Depends on product behavior: if the Terra inbox goes away (or stops keying rows by
+		  the reference id), Health could return to not linked.
+		-->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeHealth</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeProductPersonalization</string>
+			</array>
+		</dict>
+		<!--
+		  Sensitive info: Apple lists pregnancy information here. It is sent as the
+		  "Pregnancy" or "Trying to Conceive" stage labels in /api/ai/welcome and /api/ai/ask, and the pregnancy pulse flags
+		  (nausea, kicks, swelling). Same purposes as Health above.
+		  Not linked: none of these requests carries a name, email, account, Terra
+		  reference id or device identifier, and the backend keeps no user account. Pulse
+		  sends a random token that changes every week; the server keeps only its hash, in
+		  memory, to count each person once per week. The Terra inbox (the reason Health is
+		  linked) holds wearable rows only, never pregnancy information.
+		  Depends on product behavior: declare linked if any of these requests ever carries
+		  an identifier.
+		-->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeSensitiveInfo</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeProductPersonalization</string>
+			</array>
+		</dict>
+		<!--
+		  Other user content: the free-text "Ask Cyra" question (up to 500 characters),
+		  POST /api/ai/ask, forwarded to Anthropic when a key is set. Sent without a name or
+		  identifier, but it can contain whatever the person types.
+		-->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!--
+		  Product interaction: the opt-in pulse flag "report" (opened the doctor report,
+		  src/App.jsx contribute(["report"])), stored only as an aggregate weekly count and
+		  shown back to users once at least k people share it.
+		-->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!--
+		  Email address and name: optional social sign-in (Apple, Google, Facebook) through
+		  /api/oauth. The backend receives the verified email, plus a name if the provider
+		  sends one, and holds them in memory for at most 5 minutes under a one-time code
+		  until this device collects them. No account record is kept. Declared because the
+		  hand-off outlives a single request. They identify the person, so they are linked.
+		  Anonymous Mode and email registration send neither.
+		-->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeName</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!--
+		  User ID: the random Terra reference id the device creates when someone connects
+		  Fitbit, Garmin or Whoop (src/lib/wearables.js newRef). It is sent to the backend
+		  and passed to Terra as reference_id, and Terra keeps it with that person's wearable
+		  connection, and the backend keys the queued Terra rows by it (see Health above).
+		  Declared as linked because Terra, the aggregator, can tie it to the wearable
+		  account.
+		-->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!--
+		  Other data types: Oura access and refresh tokens. After someone connects Oura, the
+		  backend holds the tokens in memory for at most 5 minutes under a one-time code
+		  until this device collects them (integrations/index.js, handoffs map); after
+		  that, the device keeps them and sends them with each pull or refresh, which the
+		  backend uses in real time only. Apple has no credentials category; Apple says a
+		  token used on a server call and not retained need not be disclosed, but this
+		  hand-off outlives a single request, the same reason Email and Name are declared.
+		  They open the person's Oura account, so they are linked.
+		  Depends on product behavior: if the hand-off stops holding tokens on the server,
+		  this entry can go.
+		-->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherDataTypes</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

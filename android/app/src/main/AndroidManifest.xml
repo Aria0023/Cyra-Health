@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Health data stays on this phone: no cloud backup, no device-to-device transfer.
+         dataExtractionRules covers Android 12+, fullBackupContent covers Android 11 and lower.
+         tools:replace keeps these values even if a library manifest declares its own. -->
+    <application
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        tools:replace="android:allowBackup,android:fullBackupContent,android:dataExtractionRules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Return from native sign-in / connect flows: cyrahealth://auth/<oauth|oura|terra>#...
+                 Delivered to JS by @capacitor/app as appUrlOpen (or getLaunchUrl on cold start). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="cyrahealth" android:host="auth" />
+            </intent-filter>
+
+        </activity>
+
+        <!-- Health Connect privacy rationale, Android 13 and lower. -->
+        <activity
+            android:name=".HealthPermissionsRationaleActivity"
+            android:exported="true"
+            android:label="@string/hc_rationale_label"
+            android:theme="@style/AppTheme.HealthRationale">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Health Connect privacy rationale, Android 14+ (must follow its target activity). -->
+        <activity-alias
+            android:name=".ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".HealthPermissionsRationaleActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+    <!-- Lets HealthConnectClient.getSdkStatus() see the Health Connect app on Android 13 and lower. -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
+
+    <!-- Permissions -->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Reminders: POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED and WAKE_LOCK are merged in from
+         @capacitor/local-notifications. That plugin also declares SCHEDULE_EXACT_ALARM; Cyra
+         removes it because src/lib/notifications.js schedules every reminder with
+         isExactNotification: false, and the plugin checks canScheduleExactAlarms() before any
+         exact alarm, so without the permission it uses inexact alarms (setAndAllowWhileIdle/set).
+         If a reminder ever needs exact timing, revisit this. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
+
+    <!-- Health Connect, read-only. Must match the Health apps declaration in Play Console. -->
+    <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE_VARIABILITY" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_SKIN_TEMPERATURE" />
+</manifest>

@@ -30,13 +30,15 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping 
   const [pass2, setPass2] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Phone build: a web view can't save a download, so there is no backup file to offer
+  // there (yet) — and no copy may promise one.
   const where = driver === "app-sandbox" ? "in this app's protected storage on your phone" : driver === "indexeddb" ? "in this browser's on-device database (not cookies, not localStorage)" : "in memory for this session only — nothing is saved";
   const doExport = async () => {
     setErr("");
     if (pass.length < 8) return setErr("Use a passphrase of at least 8 characters");
     if (pass !== pass2) return setErr("The two passphrases don't match");
     setBusy(true);
-    try { await onExport(pass); setMode(null); setPass(""); setPass2(""); ping("Backup saved — keep the passphrase somewhere safe; it can't be recovered"); } catch (e) { setErr(e.message || "Couldn't create the backup"); } finally { setBusy(false); }
+    try { const saved = await onExport(pass); if (saved === false) return; setMode(null); setPass(""); setPass2(""); ping("Backup saved — keep the passphrase somewhere safe; it can't be recovered"); } catch (e) { setErr(e.message || "Couldn't create the backup"); } finally { setBusy(false); }
   };
   return (
     <>
@@ -53,7 +55,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping 
           <input className="inp" type="password" placeholder="Passphrase (8+ characters)" aria-label="Backup passphrase" value={pass} onChange={(e) => setPass(e.target.value)} />
           <input className="inp" type="password" placeholder="Repeat passphrase" aria-label="Repeat backup passphrase" value={pass2} onChange={(e) => setPass2(e.target.value)} />
           {err && <p className="errhint" style={{ marginTop: 0 }}>{err}</p>}
-          <button className="cta" disabled={busy} onClick={doExport}>{busy ? "Encrypting…" : "Download encrypted backup"}</button>
+          <button className="cta" disabled={busy} onClick={doExport}>{busy ? "Encrypting…" : driver === "app-sandbox" ? "Save encrypted backup…" : "Download encrypted backup"}</button>
           <p className="rfoot">AES-256 encrypted on this device before it becomes a file. Even Cyra can't read it — only this passphrase opens it, and it isn't stored anywhere.</p>
         </div>
       )}

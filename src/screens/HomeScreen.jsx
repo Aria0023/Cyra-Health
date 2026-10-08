@@ -111,13 +111,13 @@ export default function HomeScreen({
           ))}
           {wearData.length > 0 && (
             <div className="plaincard" style={{ marginTop: 10 }}>
-              <div className="recaprow" style={{ borderTop: "none", marginTop: 0 }}><span>Avg temperature deviation</span><b>{wAvg("temp") > 0 ? "+" : ""}{wAvg("temp")}°C</b></div>
-              <div className="recaprow"><span>Resting heart rate</span><b>{wAvg("rhr")} bpm</b></div>
-              <div className="recaprow"><span>HRV</span><b>{wAvg("hrv")} ms</b></div>
-              <div className="recaprow"><span>Sleep score</span><b>{wAvg("sleep")}</b></div>
+              <div className="recaprow" style={{ borderTop: "none", marginTop: 0 }}><span>Avg temperature deviation</span><b>{wAvg("temp") == null ? "—" : `${wAvg("temp") > 0 ? "+" : ""}${wAvg("temp")}°C`}</b></div>
+              <div className="recaprow"><span>Resting heart rate</span><b>{wAvg("rhr") == null ? "—" : `${wAvg("rhr")} bpm`}</b></div>
+              <div className="recaprow"><span>HRV</span><b>{wAvg("hrv") == null ? "—" : `${wAvg("hrv")} ms`}</b></div>
+              <div className="recaprow"><span>Sleep score</span><b>{wAvg("sleep") == null ? "—" : wAvg("sleep")}</b></div>
             </div>
           )}
-          <p className="rfoot">{DEMO_WEARABLES ? "This build shows 30 days of illustrative demo data shaped to your stage — not a real device. " : "Apple Health and Health Connect are read on this phone and never uploaded. Oura and Fitbit/Garmin/Whoop data passes through Cyra's server on its way to you and is not stored there. "}Wearable signals confirm patterns after the fact — they don't replace a clinician and aren't contraception.</p>
+          <p className="rfoot">{DEMO_WEARABLES ? "This build shows 30 days of illustrative demo data shaped to your stage — not a real device. " : "Apple Health and Health Connect are read on this phone and never uploaded. Oura data passes through Cyra's server on its way to you and is not stored there. Fitbit/Garmin/Whoop data waits in the server's memory (never written to disk) until this device collects it, then it's deleted; anything not collected is deleted after 7 days. "}Wearable signals confirm patterns after the fact — they don't replace a clinician and aren't contraception.</p>
         </div>
       )}
 

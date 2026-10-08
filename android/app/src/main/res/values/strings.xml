@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Cyra</string>
+    <string name="title_activity_main">Cyra</string>
+    <string name="package_name">com.cyrahealth.app</string>
+    <string name="custom_url_scheme">com.cyrahealth.app</string>
+
+    <!-- Health Connect permission rationale (HealthPermissionsRationaleActivity).
+         Every sentence must stay literally true of the shipped build: read-only access to the
+         four types the CyraHealth plugin requests, stored only on the phone, excluded from
+         Android backup and device transfer (see res/xml/data_extraction_rules.xml). -->
+    <string name="hc_rationale_label">Cyra and Health Connect</string>
+    <string name="hc_rationale_title">How Cyra uses Health Connect</string>
+    <string name="hc_rationale_reads_heading">What Cyra reads</string>
+    <string name="hc_rationale_reads_body">If you allow it, Cyra reads four kinds of data from Health Connect: resting heart rate, heart rate variability, sleep sessions (including sleep stages) and skin temperature changes. Cyra only asks for skin temperature where Health Connect on this phone supports it. Cyra only reads. It never writes, changes or deletes anything in Health Connect.</string>
+    <string name="hc_rationale_why_heading">Why</string>
+    <string name="hc_rationale_why_body">To show patterns in your own data next to what you log. For example: a temperature rise consistent with ovulation having already happened (this confirms it after the fact and is not contraception), nights that look like night sweats, or changes in your resting heart rate.</string>
+    <string name="hc_rationale_where_heading">Where it stays</string>
+    <string name="hc_rationale_where_body">Cyra reads this data on this phone and keeps it in Cyra\'s private storage on this phone. Cyra never sends it to Cyra\'s servers or to anyone else, and Cyra excludes its data from Android cloud backup and from phone-to-phone transfer. It only leaves this phone if you export an encrypted backup yourself, locked with a passphrase only you know.</string>
+    <string name="hc_rationale_control_heading">You\'re in control</string>
+    <string name="hc_rationale_control_body">You can remove Cyra\'s access at any time in Health Connect settings, and Cyra stops reading. To erase what Cyra already saved, open Settings in Cyra, then Your data, then Delete everything, or uninstall Cyra.</string>
+    <string name="hc_rationale_policy_button">Read Cyra\'s full privacy policy</string>
+    <string name="hc_rationale_policy_unavailable">Couldn\'t open a browser for the privacy policy.</string>
+    <string name="hc_rationale_done">Done</string>
+
+    <!-- Health Connect requires this screen to show the SAME privacy policy as the Play Console
+         listing. Set this to that published https:// URL (attorney-reviewed policy, see docs/).
+         While it is empty the policy button stays hidden, and release builds fail on purpose
+         (checkPrivacyPolicyUrl in app/build.gradle) so the Health apps declaration can't ship
+         without it. Debug builds are not affected. -->
+    <string name="privacy_policy_url" translatable="false"></string>
+</resources>

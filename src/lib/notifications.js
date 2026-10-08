@@ -4,10 +4,11 @@
    keeps the browser's push subscription plus cadence, nudge time and timezone
    (no name, no health data) and sends a generic reminder at the chosen time. */
 import { API_BASE, apiPost } from "./api.js";
+import { isNative, LocalNotifications } from "./native.js";
 
 export const NUDGE_TIME = { morning: [9, 0], midday: [12, 30], evening: [19, 0] };
 const DAYS = { daily: [1, 2, 3, 4, 5, 6, 7], weekdays: [2, 3, 4, 5, 6], "3x": [2, 4, 6], weekly: [2], me: [] }; // Capacitor weekday: 1 = Sunday
-const native = () => (typeof window !== "undefined" && window.Capacitor?.Plugins?.LocalNotifications) || null;
+const native = () => (isNative() ? LocalNotifications : null);
 const webSupported = () => typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
 export const wantsReminders = (cadence, nudge) => DAYS[cadence]?.length > 0 && nudge in NUDGE_TIME;
@@ -33,7 +34,10 @@ export async function syncReminders({ cadence, nudge }) {
     const perm = await ln.requestPermissions();
     if (perm.display !== "granted") return { active: false, blocked: true };
     const [hour, minute] = NUDGE_TIME[nudge];
-    await ln.schedule({ notifications: DAYS[cadence].map((weekday) => ({ id: 1000 + weekday, title: "Cyra", body: "Time for your 30-second check-in.", schedule: { on: { weekday, hour, minute }, allowWhileIdle: true } })) });
+    // Inexact on purpose: a gentle check-in may land a few minutes late, whereas exact (the plugin's default) makes Android 12+ open the "Alarms & reminders" settings screen.
+    // allowWhileIdle (Android only; iOS ignores both options) lets each weekday's first alarm fire during Doze. The plugin re-arms later weeks
+    // without it, so those can be held back in Doze until the app next opens and runs this again (App.jsx re-applies reminders after loading).
+    await ln.schedule({ notifications: DAYS[cadence].map((weekday) => ({ id: 1000 + weekday, title: "Cyra", body: "Time for your 30-second check-in.", schedule: { on: { weekday, hour, minute }, allowWhileIdle: true }, isExactNotification: false })) });
     return { active: true };
   }
   if (!webSupported()) return { active: false, unsupported: true };

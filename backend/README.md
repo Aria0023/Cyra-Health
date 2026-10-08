@@ -70,7 +70,7 @@ One per-day row for every source: `{ date, temp (°C deviation), rhr, hrv, sleep
   a widget session for the device's opaque reference id; Terra's signed webhooks
   (`terra-signature`, HMAC over `t.body`, 5-minute window) are normalized into an
   **in-memory mailbox** per reference id (TTL 7 days, never written to disk) that
-  the device drains with `GET /terra/inbox?ref=`.
+  the device drains with `POST /terra/inbox {ref}` (the reference id never appears in a URL, so it never lands in access logs).
 `GET /sources` reports what this server can serve. Credentials: `OURA_CLIENT_ID /
 OURA_CLIENT_SECRET`, `TERRA_DEV_ID / TERRA_API_KEY / TERRA_SIGNING_SECRET`;
 register `<PUBLIC_BASE_URL>/api/integrations/oura/callback` with Oura and
@@ -152,3 +152,16 @@ module: it schedules local notifications on the device. Generate keys once with
 `npm run vapid` and set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`.
 `npm run smoke:push` checks the scheduling rules and delivers a real encrypted
 push to a local HTTPS mock push service.
+
+## v4 — Phone app returns (`src/modules/oauth/returns.js`)
+The iOS/Android app runs sign-in and Oura/Terra connections outside its web view
+and comes back through its own link, `cyrahealth://auth/<oauth|oura|terra>?a=<attempt>`.
+`APP_RETURN_SCHEMES` (comma list, default `cyrahealth`) names the schemes accepted
+as return URLs besides the `CORS_ORIGIN` web origins; `javascript:`, `data:`,
+`file:` and every other scheme are refused. Because another installed app could
+claim the same scheme, an app return must carry `app_challenge` =
+base64url(SHA-256(verifier)) on `/start`; the challenge is bound into the signed
+state and the handoff, and `POST /api/oauth/exchange` / `POST
+/api/integrations/oura/exchange` then require `{code, verifier}`. Web flows send
+no challenge and keep working unchanged. The callback pages only `postMessage`
+to http(s) openers; for app returns they redirect straight to the app link.

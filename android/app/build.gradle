@@ -1,0 +1,90 @@
+apply plugin: 'com.android.application'
+apply plugin: 'kotlin-android'
+
+android {
+    namespace = "com.cyrahealth.app"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.cyrahealth.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+// Same JVM target as the Java side (capacitor.build.gradle sets Java 21) and as the
+// Kotlin-based Capacitor plugins, which also use jvmToolchain(21).
+kotlin {
+    jvmToolchain(21)
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    // CyraHealth plugin: reads Health Connect on the device (read-only; nothing is uploaded).
+    implementation "androidx.health.connect:connect-client:$healthConnectVersion"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$kotlinxCoroutinesVersion"
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+// Release gate: Health Connect's privacy-policy link opens HealthPermissionsRationaleActivity,
+// and Google requires it to show the same privacy policy as the Play Console listing. Fail any
+// release build until res/values/strings.xml privacy_policy_url holds that https:// URL.
+// Debug builds are not gated. Plain JDK XML parsing, no extra Gradle plugins.
+def privacyPolicyStrings = file('src/main/res/values/strings.xml')
+def checkPrivacyPolicyUrl = tasks.register('checkPrivacyPolicyUrl') {
+    inputs.file(privacyPolicyStrings)
+    doLast {
+        def doc = javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(privacyPolicyStrings)
+        def nodes = doc.getElementsByTagName('string')
+        def url = ''
+        for (int i = 0; i < nodes.length; i++) {
+            if (nodes.item(i).getAttribute('name') == 'privacy_policy_url') url = nodes.item(i).textContent.trim()
+        }
+        if (!url.startsWith('https://')) {
+            throw new GradleException("Release blocked: set privacy_policy_url in app/src/main/res/values/strings.xml " +
+                "to the published https:// privacy policy URL that the Play Console listing uses (Health Connect requirement).")
+        }
+    }
+}
+// preReleaseBuild fails fast; assembleRelease / bundleRelease are the documented assemble<Variant>
+// and bundle<Variant> entry points, listed too in case the pre-build task is ever renamed.
+tasks.matching { it.name in ['preReleaseBuild', 'assembleRelease', 'bundleRelease'] }.configureEach {
+    dependsOn checkPrivacyPolicyUrl
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}

@@ -8,8 +8,9 @@ services:
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     envVars:
+      # 22: @capacitor/cli (a devDependency since the iOS/Android wrap) declares engines node >=22.
       - key: NODE_VERSION
-        value: "20"
+        value: "22"
       - key: VITE_API_BASE
         value: https://cyra-backend.onrender.com
     routes:
@@ -27,8 +28,16 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "20"
+      # Production: with no return allowlist, web sign-in/connect returns are refused rather than open to any site.
+      - key: NODE_ENV
+        value: production
+      # The web app, the iOS app's web view (capacitor://localhost) and the Android app's (https://localhost).
+      # Web sign-in/connect returns use the http(s) entries minus the web-view origins (or RETURN_ORIGINS if set).
       - key: CORS_ORIGIN
-        value: https://cyra-health.onrender.com
+        value: "https://cyra-health.onrender.com,capacitor://localhost,https://localhost"
+      # URL scheme the phone app is sent back to after sign-in / connecting a wearable.
+      - key: APP_RETURN_SCHEMES
+        value: cyrahealth
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: ADMIN_KEY

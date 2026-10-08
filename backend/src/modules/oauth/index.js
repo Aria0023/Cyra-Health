@@ -1,9 +1,9 @@
 // Social sign-in: real authorization-code OAuth for Apple, Google and Facebook.
 //
 //   GET  /api/oauth/providers                   which providers are configured
-//   GET  /api/oauth/:provider/start?return=URL  → 302 to the provider
+//   GET  /api/oauth/:provider/start?return=URL[&app_challenge=C]  → 302 to the provider
 //   GET|POST /api/oauth/:provider/callback      provider → here → 302 return#oauth=<code>
-//   POST /api/oauth/exchange {code}             → { provider, email, emailVerified, name } once
+//   POST /api/oauth/exchange {code[, verifier]} → { provider, email, emailVerified, name } once
 //
 // What the server learns: a verified email and (if the provider sends it) a name.
 // What it keeps: nothing. The identity lives in memory for at most five minutes,
@@ -13,9 +13,14 @@
 // Security: signed, expiring state (HMAC with AUTH_SECRET) carrying the nonce,
 // the PKCE verifier and the return URL; PKCE S256 for Google and Facebook;
 // id_token signature + iss/aud/exp/nonce checks for Google and Apple; Facebook
-// appsecret_proof; return URLs limited to the CORS_ORIGIN allowlist.
+// appsecret_proof; return URLs limited to the RETURN_ORIGINS / CORS_ORIGIN allowlist,
+// or to exactly <scheme>://auth/oauth[?a=<attempt>] for the iOS/Android app
+// (APP_RETURN_SCHEMES, default "cyrahealth") — which must bind an app_challenge whose
+// verifier the exchange then demands, so another app that claims the scheme can't
+// redeem the code; and a web code is never redeemed with a verifier (see returns.js).
 import crypto from "crypto";
 import { verifyIdToken, appleClientSecret, pkceVerifier, pkceChallenge } from "./jwt.js";
+import { checkReturn, startChallenge, codeRedeemable } from "./returns.js";
 
 export const basePath = "/api/oauth";
 
@@ -66,13 +71,7 @@ export function mount(router, ctx) {
   const { config } = ctx;
   const secret = config.authSecret;
   const publicBase = () => (env("PUBLIC_BASE_URL") || env("RENDER_EXTERNAL_URL") || config.baseUrl || "").replace(/\/$/, "");
-  const allowedReturn = (url) => {
-    let u; try { u = new URL(url); } catch { return false; }
-    if (!/^https?:$/.test(u.protocol)) return false;
-    const list = (env("CORS_ORIGIN") || "*").split(",").map((s) => s.trim()).filter(Boolean);
-    return list.includes("*") || list.includes(u.origin);
-  };
-  const handoffs = new Map(); // code -> { identity, exp }
+  const handoffs = new Map(); // code -> { identity, exp, ac (app challenge or null) }
   const sweep = () => { const now = Date.now(); for (const [k, v] of handoffs) if (v.exp < now) handoffs.delete(k); };
   const back = (res, ret, frag) => res.redirect(302, `${ret}#${frag}`);
 
@@ -85,11 +84,13 @@ export function mount(router, ctx) {
     const p = providers()[req.params.provider];
     if (!p) return res.status(404).json({ error: "unknown provider" });
     if (!p.configured()) return res.status(503).json({ error: `${p.label} sign-in is not configured on this server` });
-    const ret = String(req.query.return || "");
-    if (!allowedReturn(ret)) return res.status(400).json({ error: "return URL not allowed" });
+    const ret = checkReturn(req.query.return, { flows: ["oauth"] });
+    if (!ret) return res.status(400).json({ error: "return URL not allowed" });
+    const app = startChallenge(ret, req.query.app_challenge);
+    if (app.error) return res.status(400).json({ error: app.error });
     const nonce = crypto.randomBytes(16).toString("hex");
     const verifier = p.pkce ? pkceVerifier() : null;
-    const state = sign({ p: req.params.provider, nonce, verifier, ret, exp: Date.now() + 10 * 60_000 }, secret);
+    const state = sign({ p: req.params.provider, nonce, verifier, ret: ret.href, ac: app.challenge, exp: Date.now() + 10 * 60_000 }, secret);
     const params = { client_id: p.clientId, redirect_uri: `${publicBase()}/api/oauth/${req.params.provider}/callback`, response_type: "code", scope: p.scope, state, nonce, ...(p.responseMode ? { response_mode: p.responseMode } : {}), ...(verifier ? { code_challenge: pkceChallenge(verifier), code_challenge_method: "S256" } : {}) };
     res.redirect(302, `${p.authorize}?${form(params)}`);
   });
@@ -119,7 +120,7 @@ export function mount(router, ctx) {
       }
       sweep();
       const code = crypto.randomBytes(24).toString("hex");
-      handoffs.set(code, { identity, exp: Date.now() + 5 * 60_000 });
+      handoffs.set(code, { identity, ac: st.ac || null, exp: Date.now() + 5 * 60_000 });
       return back(res, st.ret, `oauth=${code}`);
     } catch (e) {
       console.warn(`[cyra] oauth/${id}: ${e.message}`);
@@ -133,8 +134,9 @@ export function mount(router, ctx) {
     sweep();
     const code = String(req.body?.code || "");
     const h = handoffs.get(code);
-    handoffs.delete(code);
-    if (!h) return res.status(404).json({ error: "code unknown, used, or expired" });
+    handoffs.delete(code); // single use, also when the verifier is missing or wrong
+    // Both or neither: an app-bound code needs its verifier; a web code is refused when one is sent.
+    if (!codeRedeemable(h, req.body?.verifier)) return res.status(404).json({ error: "code unknown, used, or expired" });
     res.json(h.identity);
   });
 }

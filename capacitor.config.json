@@ -1,0 +1,12 @@
+{
+  "appId": "com.cyrahealth.app",
+  "appName": "Cyra",
+  "webDir": "dist",
+  "loggingBehavior": "none",
+  "server": { "hostname": "localhost", "iosScheme": "capacitor", "androidScheme": "https" },
+  "ios": { "contentInset": "always" },
+  "android": { "allowMixedContent": false },
+  "plugins": {
+    "LocalNotifications": { "iconColor": "#2C6A61" }
+  }
+}
