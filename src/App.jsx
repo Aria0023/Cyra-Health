@@ -15,6 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, RAMPS } from "./lib/constants.js";
 import { seed, fmt, insights, predict, symBurden, scoreLabel, dayScore } from "./lib/engine.js";
 import { API_BASE, apiPost } from "./lib/api.js";
+import { DEMO_WEARABLES, connectSource, syncSource, mergeRows } from "./lib/wearables.js";
 import Shell from "./components/Shell.jsx";
 import ScoreMeter from "./components/ScoreMeter.jsx";
 import ScaleSection from "./components/ScaleSection.jsx";
@@ -229,11 +230,28 @@ export default function CyraDemo() {
     }
     return out;
   };
-  const connectWear = (id, label) => {
-    if (wearSources[id]) return ping(`${label} is already connected`);
-    setWearSources((s) => ({ ...s, [id]: true }));
-    if (!wearData.length) setWearData(seedWear(id));
-    ping(`${label} connected — 30 days imported`);
+  const [wearBusy, setWearBusy] = useState(null);
+  const connectWear = async (id, label) => {
+    if (wearBusy) return;
+    if (DEMO_WEARABLES) { // illustrative data, build-flag only; the UI says so
+      if (wearSources[id]) return ping(`${label} is already connected`);
+      setWearSources((s) => ({ ...s, [id]: { connectedAt: Date.now(), demo: true } }));
+      if (!wearData.length) setWearData(seedWear(id));
+      return ping(`${label} connected — 30 days of demo data`);
+    }
+    setWearBusy(id);
+    try {
+      const existing = wearSources[id];
+      const rows = existing ? await syncSource(id, existing) : null;
+      const result = existing ? { rows, state: existing } : await connectSource(id, { onStatus: ping });
+      setWearSources((s) => ({ ...s, [id]: result.state }));
+      setWearData((d) => mergeRows(d, result.rows));
+      ping(result.rows.length ? `${label}: ${result.rows.length} day${result.rows.length === 1 ? "" : "s"} imported` : existing ? `${label}: nothing new yet` : `${label} connected — data will appear as it arrives`);
+    } catch (e) {
+      ping(e.message || `Couldn't connect ${label}`);
+    } finally {
+      setWearBusy(null);
+    }
   };
   const wAvg = (k) => (wearData.length ? Math.round((wearData.reduce((a, m) => a + m[k], 0) / wearData.length) * (k === "temp" ? 100 : 1)) / (k === "temp" ? 100 : 1) : null);
 
@@ -418,7 +436,7 @@ export default function CyraDemo() {
     <HomeScreen
       acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} pred={pred} loggedLast14={loggedLast14} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} wearInsights={wearInsights} milestones={milestones} nextUp={nextUp} pulse={PULSE}
       recap={recap} showRecap={showRecap} setShowRecap={setShowRecap}
-      showWear={showWear} setShowWear={setShowWear} wearSources={wearSources} connectWear={connectWear} wearData={wearData} wAvg={wAvg}
+      showWear={showWear} setShowWear={setShowWear} wearSources={wearSources} connectWear={connectWear} wearBusy={wearBusy} wearData={wearData} wAvg={wAvg}
       showMeds={showMeds} setShowMeds={setShowMeds} meds={meds} medLog={medLog} medEffects={medEffects} setMedLog={setMedLog} newMed={newMed} setNewMed={setNewMed} setMeds={setMeds} ping={ping}
       showAppts={showAppts} setShowAppts={setShowAppts} upcoming={upcoming} past={past} daysUntil={daysUntil} setAppts={setAppts} newAppt={newAppt} setNewAppt={setNewAppt}
       showJournal={showJournal} setShowJournal={setShowJournal} journal={journal} jDraft={jDraft} setJDraft={setJDraft} setJournal={setJournal}

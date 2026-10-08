@@ -1,1 +1,0 @@
-{ "id": "healthkit", "name": "Apple HealthKit / Android Health Connect (app push)", "adapter": "healthkit", "secret": "healthkit-demo-secret-change-me" }

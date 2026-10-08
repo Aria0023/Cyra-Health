@@ -43,6 +43,7 @@ Runs anywhere Node 18+ runs. Zero external services required.
     GET  /api/catalog?stage=peri
     POST /api/ai/welcome | /api/ai/route | /api/ai/ask | /api/ai/insight   (AI proxy; see src/modules/ai)
     GET  /api/oauth/providers         GET /api/oauth/:provider/start?return=   POST /api/oauth/exchange
+    GET  /api/integrations/sources    oura: /start /callback /exchange /refresh /pull   terra: /session /done /webhook /inbox
 
 ## Before production
 Reference implementation — before real traffic add: TLS + auth on admin
@@ -53,13 +54,26 @@ encryption at rest, audit logging, access controls.
 
 ## v2 — Open architecture additions
 
-### Wearable integration hub (`src/modules/integrations/`)
-One normalized metric schema; each source = one config file + one adapter:
-- **healthkit** — app reads HealthKit/Health Connect on-device, pushes normalized
-  samples (covers Oura, Fitbit, Garmin, Whoop, Samsung via the OS — preferred path)
-- **oura** — Oura API v2 direct (user OAuth)
-- **terra** — aggregator payloads (one adapter, dozens of wearables)
-Add a wearable: drop `config/integrations/x.json` (+ adapter if the shape is new).
+### Wearable integration hub (`src/modules/integrations/`) — v4, privacy-first
+One per-day row for every source: `{ date, temp (°C deviation), rhr, hrv, sleep }`.
+- **Apple Health / Health Connect** — read *on the device* by the app's native
+  bridge (Capacitor plugin `CyraHealth`: `available()`, `requestAuthorization()`,
+  `readDaily({from,to})`). The server never sees it.
+- **Oura (API v2, user OAuth)** — `GET /oura/start?return=` opens Oura in a popup;
+  the callback hands a one-time code to the opener via `postMessage`; `POST
+  /oura/exchange` returns the tokens **to the device**, which keeps them. `POST
+  /oura/pull {access_token}` fetches readiness/sleep, normalizes, returns — and
+  stores nothing; `POST /oura/refresh` uses the server-held client secret.
+- **Terra (Fitbit, Garmin, Whoop, …)** — `POST /terra/session {ref, return}` creates
+  a widget session for the device's opaque reference id; Terra's signed webhooks
+  (`terra-signature`, HMAC over `t.body`, 5-minute window) are normalized into an
+  **in-memory mailbox** per reference id (TTL 7 days, never written to disk) that
+  the device drains with `GET /terra/inbox?ref=`.
+`GET /sources` reports what this server can serve. Credentials: `OURA_CLIENT_ID /
+OURA_CLIENT_SECRET`, `TERRA_DEV_ID / TERRA_API_KEY / TERRA_SIGNING_SECRET`;
+register `<PUBLIC_BASE_URL>/api/integrations/oura/callback` with Oura and
+`<PUBLIC_BASE_URL>/api/integrations/terra/webhook` with Terra. `npm run
+smoke:integrations` runs both flows against local mocks.
 
 ### Agentic backend (`src/modules/agent/`)
 Agent = task + shared tool registry + pluggable reasoning provider:

@@ -51,3 +51,13 @@ services:
         sync: false
       - key: FACEBOOK_APP_SECRET
         sync: false
+      - key: OURA_CLIENT_ID
+        sync: false
+      - key: OURA_CLIENT_SECRET
+        sync: false
+      - key: TERRA_DEV_ID
+        sync: false
+      - key: TERRA_API_KEY
+        sync: false
+      - key: TERRA_SIGNING_SECRET
+        sync: false

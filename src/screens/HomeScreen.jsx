@@ -1,4 +1,5 @@
 import { fmt } from "../lib/engine.js";
+import { SOURCES, DEMO_WEARABLES } from "../lib/wearables.js";
 import Advice from "../components/Advice.jsx";
 
 /* Home (default tab): greeting + streak, check-in CTA, today's top insight,
@@ -9,7 +10,7 @@ const delta = (a, b, goodUp = true) => { const d = b - a; if (d === 0) return <s
 export default function HomeScreen({
   acct, stage, stageName, pregWeek, pred, loggedLast14, streakLine, goTab, entryOn, todayIso, homeInsight, wearInsights, milestones, nextUp, pulse,
   recap, showRecap, setShowRecap,
-  showWear, setShowWear, wearSources, connectWear, wearData, wAvg,
+  showWear, setShowWear, wearSources, connectWear, wearBusy, wearData, wAvg,
   showMeds, setShowMeds, meds, medLog, medEffects, setMedLog, newMed, setNewMed, setMeds, ping,
   showAppts, setShowAppts, upcoming, past, daysUntil, setAppts, newAppt, setNewAppt,
   showJournal, setShowJournal, journal, jDraft, setJDraft, setJournal,
@@ -96,11 +97,11 @@ export default function HomeScreen({
       <button className="disclosure" onClick={() => setShowWear((v) => !v)}><span>Wearables{Object.keys(wearSources).length ? ` · ${Object.keys(wearSources).length} connected` : " · optional"}</span><span>{showWear ? "−" : "+"}</span></button>
       {showWear && (
         <div className="bodypanel">
-          <p className="hint" style={{ margin: "10px 0" }}>Entirely optional — Cyra works fully without a device. Connect one and it adds skin temperature, resting heart rate, HRV, and sleep to your record, read on your device.</p>
-          {[["healthkit", "Apple Watch · Health app", "temperature, heart rate, sleep"], ["oura", "Oura Ring", "temperature trend, HRV, readiness"], ["terra", "Fitbit · Garmin · Whoop", "via a secure aggregator"]].map(([id, name, what]) => (
+          <p className="hint" style={{ margin: "10px 0" }}>Entirely optional — Cyra works fully without a device. Connect one and it adds skin temperature, resting heart rate, HRV, and sleep to your record.</p>
+          {SOURCES.map(({ id, name, what }) => (
             <div className="medrow" key={id}>
               <div className="medinfo"><b>{name}</b><span>{what}</span></div>
-              <button className={`takebtn ${wearSources[id] ? "on" : ""}`} onClick={() => connectWear(id, name)}>{wearSources[id] ? "✓ Connected" : "Connect"}</button>
+              <button className={`takebtn ${wearSources[id] ? "on" : ""}`} disabled={!!wearBusy} aria-busy={wearBusy === id} onClick={() => connectWear(id, name)}>{wearBusy === id ? "Connecting…" : wearSources[id] ? "✓ Sync" : "Connect"}</button>
             </div>
           ))}
           {wearData.length > 0 && (
@@ -111,7 +112,7 @@ export default function HomeScreen({
               <div className="recaprow"><span>Sleep score</span><b>{wAvg("sleep")}</b></div>
             </div>
           )}
-          <p className="rfoot">Demo imports 30 days of illustrative data shaped to your stage; production reads your real device history. Wearable signals confirm patterns after the fact — they don't replace a clinician and aren't contraception.</p>
+          <p className="rfoot">{DEMO_WEARABLES ? "This build shows 30 days of illustrative demo data shaped to your stage — not a real device. " : "Apple Health and Health Connect are read on this phone and never uploaded. Oura and Fitbit/Garmin/Whoop data passes through Cyra's server on its way to you and is not stored there. "}Wearable signals confirm patterns after the fact — they don't replace a clinician and aren't contraception.</p>
         </div>
       )}
 
