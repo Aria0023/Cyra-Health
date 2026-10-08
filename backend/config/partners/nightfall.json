@@ -1,0 +1,18 @@
+{
+  "id": "nightfall",
+  "name": "Nightfall",
+  "kind": "affiliate",
+  "landingUrl": "https://example-nightfall.test/shop",
+  "refParam": "aff",
+  "attributionWindowDays": 30,
+  "webhookSecret": "nightfall-demo-secret-change-me",
+  "feeModel": { "type": "commission_pct", "pct": 15 },
+  "stages": ["peri", "meno"],
+  "shelf": {
+    "title": "Cooling sleep set + pillowcase",
+    "price": "$68",
+    "evidence": "Comfort, not a treatment",
+    "matches": ["ns", "hf"],
+    "blurb": "Moisture-wicking fabric. Won't reduce night sweats — makes them easier to sleep through."
+  }
+}

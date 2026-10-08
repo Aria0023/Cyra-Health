@@ -1,5 +1,3 @@
-# Render blueprint — deploys the Cyra app as a static site.
-# In Render: New > Blueprint, point at your repo, and this file does the rest.
 services:
   - type: web
     name: cyra-health

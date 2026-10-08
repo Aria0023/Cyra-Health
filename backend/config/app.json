@@ -1,0 +1,28 @@
+{
+  "baseUrl": "http://localhost:3000",
+  "port": 3000,
+  "modules": [
+    "partners",
+    "referrals",
+    "webhooks",
+    "payouts",
+    "reports",
+    "catalog",
+    "integrations",
+    "agent",
+    "orgs",
+    "users",
+    "auth",
+    "fhir",
+    "affiliates"
+  ],
+  "storage": {
+    "driver": "json",
+    "dir": "./data"
+  },
+  "agent": {
+    "provider": "rules"
+  },
+  "adminKey": "demo-admin-key-change-me",
+  "authSecret": "demo-auth-secret-change-me"
+}

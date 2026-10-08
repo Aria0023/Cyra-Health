@@ -1,0 +1,18 @@
+{
+  "id": "midi",
+  "name": "Midi Health",
+  "kind": "telehealth",
+  "landingUrl": "https://example-midi.test/book",
+  "refParam": "ref",
+  "attributionWindowDays": 90,
+  "webhookSecret": "midi-demo-secret-change-me",
+  "feeModel": { "type": "new_patient_bounty", "amountCents": 8000 },
+  "stages": ["peri", "meno"],
+  "shelf": {
+    "title": "Visit with a menopause-trained clinician (insurance accepted)",
+    "price": "Covered by many plans",
+    "evidence": "Clinical care",
+    "matches": ["hf", "ns", "fog", "mood", "slp", "ach"],
+    "blurb": "In-network virtual clinic for midlife health. Bring your Cyra report."
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "alloy",
+  "name": "Alloy",
+  "kind": "telehealth",
+  "landingUrl": "https://example-alloy.test/start",
+  "refParam": "utm_ref",
+  "attributionWindowDays": 60,
+  "webhookSecret": "alloy-demo-secret-change-me",
+  "feeModel": { "type": "per_visit_fee", "amountCents": 3500 },
+  "stages": ["peri", "meno"],
+  "shelf": {
+    "title": "Cash-pay menopause care, async visits",
+    "price": "From $49/mo",
+    "evidence": "Clinical care",
+    "matches": ["hf", "ns", "mood", "slp"],
+    "blurb": "Fast asynchronous prescriptions from menopause-trained doctors."
+  }
+}
