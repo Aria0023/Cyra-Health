@@ -4,7 +4,7 @@ import Advice from "../components/Advice.jsx";
 
 /* Pregnancy — Today: week + trimester + progress to 40, weekly read, pregnancy
    symptoms, scales, body signals, kick counter, red-flag swelling advice. */
-export default function PregTodayScreen({ pregWeek, trimester, scoreMeter, draft, setDraft, symMap, scaleSection, bodySection, kicks, setKicks, setPregLog, todayIso, scales, ping }) {
+export default function PregTodayScreen({ pregWeek, trimester, scoreMeter, draft, setDraft, symMap, scaleSection, bodySection, kicks, setKicks, setPregLog, todayIso, scales, ping, contribute }) {
   return (
     <main>
       <div className="pregband">
@@ -42,6 +42,7 @@ export default function PregTodayScreen({ pregWeek, trimester, scoreMeter, draft
       <button className="cta" style={{ marginTop: 12 }} onClick={() => {
         setPregLog((l) => ({ ...l, [todayIso]: { sym: { ...draft }, kicks, scales: { ...scales } } }));
         ping("Saved to your pregnancy journal — see Calendar");
+        contribute({ sym: draft, kicks });
       }}>Save today</button>
     </main>
   );

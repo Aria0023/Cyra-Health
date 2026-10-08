@@ -9,7 +9,9 @@
     "smoke": "node scripts/smoke.js",
     "smoke:ai": "node scripts/ai-smoke.js",
     "smoke:oauth": "node scripts/oauth-smoke.js",
-    "smoke:integrations": "node scripts/integrations-smoke.js"
+    "smoke:integrations": "node scripts/integrations-smoke.js",
+    "smoke:pulse": "node scripts/pulse-smoke.js",
+    "smoke:all": "npm run smoke:ai && npm run smoke:oauth && npm run smoke:integrations && npm run smoke:pulse"
   },
   "keywords": [],
   "author": "",

@@ -72,8 +72,13 @@ export default function HomeScreen({
 
       <p className="section-lab">You're not alone · this week across Cyra</p>
       <div className="pulse">
-        {pulse.map(([n, what]) => <div className="pulserow" key={what}><b>{n.toLocaleString()}</b><span>women {what}</span></div>)}
-        <p className="rfoot" style={{ margin: "10px 0 0" }}>Anonymous counts only — no one's data is shared. Demo figures; live numbers come from the aggregate service.</p>
+        {pulse.items.map((it) => (
+          <div className="pulserow" key={it.id}>
+            <b>{it.count != null ? it.count.toLocaleString() : "—"}</b>
+            <span>{it.count != null ? `women ${it.what}` : pulse.status === "offline" ? `${it.what} · couldn't load this week's number` : `${it.what} · shown once at least ${pulse.k || 50} people have`}</span>
+          </div>
+        ))}
+        <p className="rfoot" style={{ margin: "10px 0 0" }}>Anonymous counts only — no one's data is shared. Counted from people who chose to contribute, and shown only once {pulse.k || 50} or more did.</p>
       </div>
 
       {recap ? (

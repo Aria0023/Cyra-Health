@@ -7,7 +7,7 @@ import path from "path";
 import express from "express";
 
 export function loadConfig(root) {
-  const app = JSON.parse(fs.readFileSync(path.join(root, "config/app.json"), "utf8"));
+  const app = JSON.parse(fs.readFileSync(path.join(root, process.env.CYRA_CONFIG || "config/app.json"), "utf8"));
   const partnersDir = path.join(root, "config/partners");
   const partners = fs
     .readdirSync(partnersDir)

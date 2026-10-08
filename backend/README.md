@@ -44,6 +44,7 @@ Runs anywhere Node 18+ runs. Zero external services required.
     POST /api/ai/welcome | /api/ai/route | /api/ai/ask | /api/ai/insight   (AI proxy; see src/modules/ai)
     GET  /api/oauth/providers         GET /api/oauth/:provider/start?return=   POST /api/oauth/exchange
     GET  /api/integrations/sources    oura: /start /callback /exchange /refresh /pull   terra: /session /done /webhook /inbox
+    GET  /api/pulse?stage=            POST /api/pulse/tally
 
 ## Before production
 Reference implementation — before real traffic add: TLS + auth on admin
@@ -125,3 +126,14 @@ APPLE_KEY_ID / APPLE_PRIVATE_KEY`, `GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET`,
 provider is `<PUBLIC_BASE_URL>/api/oauth/<provider>/callback`. An unconfigured
 provider answers 503 — the app never fakes a login. `npm run smoke:oauth` runs
 the whole flow against a local mock provider.
+
+## v4 — Pulse aggregates (`src/modules/pulse/`)
+"You're not alone" counts with k-anonymity. An opted-in device posts
+`POST /api/pulse/tally {stage, token, events}` — the stage, a few allowlisted
+event flags for the week, and a random weekly token used only to de-duplicate
+in memory (never written to disk; the week's sets are dropped as weeks roll
+over). What persists is counts per (week, stage, event). `GET /api/pulse?stage=`
+returns each event's count only once at least `pulse.k` (default 50) distinct
+contributors reached it, otherwise `null`. Per-IP rate limit on tallies.
+`npm run smoke:pulse` checks suppression, de-duplication, the threshold, and
+that the on-disk store holds counts only.

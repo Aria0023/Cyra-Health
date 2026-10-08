@@ -16,6 +16,7 @@ import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, RAMPS } from "./lib/const
 import { seed, fmt, insights, predict, symBurden, scoreLabel, dayScore } from "./lib/engine.js";
 import { API_BASE, apiPost } from "./lib/api.js";
 import { DEMO_WEARABLES, connectSource, syncSource, mergeRows } from "./lib/wearables.js";
+import { PULSE_EVENTS, weeklyToken, eventsForDay, fetchPulse, sendTally } from "./lib/pulse.js";
 import Shell from "./components/Shell.jsx";
 import ScoreMeter from "./components/ScoreMeter.jsx";
 import ScaleSection from "./components/ScaleSection.jsx";
@@ -173,15 +174,24 @@ export default function CyraDemo() {
   const loggedLast14 = Array.from({ length: 14 }, (_, i) => isoDaysAgo(i)).filter((iso) => !!entryOn(iso)).length;
   const streakLine = loggedLast14 >= 10 ? "That's a real record now." : loggedLast14 >= 5 ? "Patterns are starting to show." : "Every entry counts — nothing to catch up on.";
 
-  /* Pulse: anonymous aggregate counts. DEMO FIGURES — production reads these from the
-     backend's aggregate endpoint (counts only, never identities). */
-  const wk = Math.floor(Date.now() / (7 * 86400000));
-  const seedN = (base, spread, salt) => base + ((wk * 9301 + salt * 49297) % spread);
-  const PULSE = {
-    peri: [[seedN(2100, 400, 1), "logged hot flashes"], [seedN(1650, 300, 2), "had a rough night's sleep"], [seedN(610, 120, 3), "brought a Cyra report to a doctor"]],
-    periods: [[seedN(3300, 500, 4), "logged cramps"], [seedN(2400, 400, 5), "tracked a mood dip before their period"], [seedN(880, 150, 6), "asked a doctor about heavy periods"]],
-    preg: [[seedN(1200, 250, 7), "logged nausea"], [seedN(940, 200, 8), "counted kicks"], [seedN(410, 90, 9), "had a glucose screen"]],
-  }[stage] || [];
+  /* Pulse: anonymous aggregate counts from the backend (counts only, k-anonymity ≥ 50).
+     Tallies are sent only when the user opted in to contribute, and carry no identity. */
+  const [pulse, setPulse] = useState({ items: [], status: "loading" });
+  const [pulseToken, setPulseToken] = useState(null);
+  useEffect(() => {
+    if (!stage) return;
+    let live = true;
+    setPulse({ items: (PULSE_EVENTS[stage] || []).map(([id, what]) => ({ id, what, count: null })), status: "loading" });
+    fetchPulse(stage).then((j) => live && setPulse({ items: j.items, k: j.k, status: "ok" })).catch(() => live && setPulse((p) => ({ ...p, status: "offline" })));
+    return () => { live = false; };
+  }, [stage]);
+  const contribute = (events) => {
+    if (!research || !stage || !events.length) return;
+    const t = weeklyToken(pulseToken);
+    if (t !== pulseToken) setPulseToken(t);
+    sendTally(stage, t.token, events).then(() => fetchPulse(stage)).then((j) => setPulse({ items: j.items, k: j.k, status: "ok" })).catch(() => {});
+  };
+  useEffect(() => { if (stage !== "preg" && appTab === "report") contribute(["report"]); }, [appTab]);
 
   /* Monthly recap: last 30 vs the 30 before */
   const recap = (() => {
@@ -434,7 +444,7 @@ export default function CyraDemo() {
 
   const homeView = (
     <HomeScreen
-      acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} pred={pred} loggedLast14={loggedLast14} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} wearInsights={wearInsights} milestones={milestones} nextUp={nextUp} pulse={PULSE}
+      acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} pred={pred} loggedLast14={loggedLast14} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} wearInsights={wearInsights} milestones={milestones} nextUp={nextUp} pulse={pulse}
       recap={recap} showRecap={showRecap} setShowRecap={setShowRecap}
       showWear={showWear} setShowWear={setShowWear} wearSources={wearSources} connectWear={connectWear} wearBusy={wearBusy} wearData={wearData} wAvg={wAvg}
       showMeds={showMeds} setShowMeds={setShowMeds} meds={meds} medLog={medLog} medEffects={medEffects} setMedLog={setMedLog} newMed={newMed} setNewMed={setNewMed} setMeds={setMeds} ping={ping}
@@ -472,7 +482,7 @@ export default function CyraDemo() {
             </nav>
 
             {pregTab === "today" && (
-              <PregTodayScreen pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} setKicks={setKicks} setPregLog={setPregLog} todayIso={todayIso} scales={scales} ping={ping} />
+              <PregTodayScreen pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} setKicks={setKicks} setPregLog={setPregLog} todayIso={todayIso} scales={scales} ping={ping} contribute={(entry) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])])} />
             )}
             {pregTab === "cal" && (
               <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={dayScore} scoreColor={scoreColor} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} setDraft={setDraft} setKicks={setKicks} setPregTab={setPregTab} ping={ping} />
@@ -493,7 +503,7 @@ export default function CyraDemo() {
             </nav>
 
             {appTab === "today" && (
-              <TodayScreen pred={pred} stage={stage} welcome={welcome} editDate={editDate} setEditDate={setEditDate} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} scales={scales} flow={flow} disch={disch} odor={odor} setDays={setDays} ping={ping} setAppTab={setAppTab} />
+              <TodayScreen pred={pred} stage={stage} welcome={welcome} editDate={editDate} setEditDate={setEditDate} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} scales={scales} flow={flow} disch={disch} odor={odor} setDays={setDays} ping={ping} setAppTab={setAppTab} contribute={(entry) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase }))} />
             )}
             {appTab === "cal" && pred && (
               <CalendarScreen pred={pred} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} setDraft={setDraft} setSleepQ={setSleepQ} setEditPeriod={setEditPeriod} setEditDate={setEditDate} setAppTab={setAppTab} ins={ins} />

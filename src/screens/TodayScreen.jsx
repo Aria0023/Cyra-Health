@@ -4,7 +4,7 @@ import { fmt, sevDots } from "../lib/engine.js";
 /* Cycle & Peri — Today: cycle-status card, live score meter, quick or full
    check-in, sleep quality, body signals, save, phase-appropriate daily read.
    Also the edit form for a day picked from the Calendar. */
-export default function TodayScreen({ pred, stage, welcome, editDate, setEditDate, setDraft, setSleepQ, scoreMeter, quickMode, quickCheckin, symIds, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, scales, flow, disch, odor, setDays, ping, setAppTab }) {
+export default function TodayScreen({ pred, stage, welcome, editDate, setEditDate, setDraft, setSleepQ, scoreMeter, quickMode, quickCheckin, symIds, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, scales, flow, disch, odor, setDays, ping, setAppTab, contribute }) {
   return (
     <main>
       {pred && (
@@ -48,6 +48,7 @@ export default function TodayScreen({ pred, stage, welcome, editDate, setEditDat
         ["q1", "q2", "q3"].forEach((k) => delete mapped[k]);
         setDays((d) => [...d.filter((x) => x.date !== target), { date: target, sleepQ: sleepQ || "fair", period: editDate ? editPeriod : false, scales: { ...scales }, flow, disch, odor, sym: { ...Object.fromEntries([...SYMS, ...Object.keys(PSYM)].map((k) => [k, 0])), ...mapped } }].sort((a, b) => a.date.localeCompare(b.date)));
         ping(editDate ? `${fmt(target)} updated` : "Saved — check Patterns");
+        if (!editDate) contribute({ sym: mapped, sleepQ: sleepQ || "fair", flow });
         if (editDate) { setEditDate(null); setDraft({}); setSleepQ(null); setAppTab("cal"); } else setAppTab("patterns");
       }}>{editDate ? `Save changes to ${fmt(editDate)}` : "Save today's check-in"}</button>
       {pred && (

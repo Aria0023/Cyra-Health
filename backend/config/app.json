@@ -16,7 +16,8 @@
     "fhir",
     "affiliates",
     "ai",
-    "oauth"
+    "oauth",
+    "pulse"
   ],
   "storage": {
     "driver": "json",
@@ -30,5 +31,8 @@
   "ai": {
     "model": "claude-opus-5-5",
     "perMinute": 20
+  },
+  "pulse": {
+    "k": 50
   }
 }
