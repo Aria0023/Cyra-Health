@@ -52,7 +52,7 @@ function providers() {
   const P = {
     apple: {
       label: "Apple", clientId: env("APPLE_CLIENT_ID"), teamId: env("APPLE_TEAM_ID"), keyId: env("APPLE_KEY_ID"), privateKey: env("APPLE_PRIVATE_KEY"),
-      authorize: "https://appleid.apple.com/auth/authorize", token: "https://appleid.apple.com/auth/token", jwks: "https://appleid.apple.com/auth/keys", issuer: "https://appleid.apple.com",
+      authorize: "https://appleid.apple.com/auth/authorize", token: "https://appleid.apple.com/auth/token", revoke: "https://appleid.apple.com/auth/revoke", jwks: "https://appleid.apple.com/auth/keys", issuer: "https://appleid.apple.com",
       scope: "name email", responseMode: "form_post", pkce: false, idToken: true,
       configured() { return !!(this.clientId && this.teamId && this.keyId && this.privateKey); },
       secret() { return appleClientSecret(this); },
@@ -72,7 +72,7 @@ function providers() {
       secret() { return this.clientSecret; },
     },
   };
-  if (mock) for (const [id, p] of Object.entries(P)) Object.assign(p, { authorize: `${mock}/${id}/authorize`, token: `${mock}/${id}/token`, jwks: `${mock}/jwks`, issuer: mock, userinfo: `${mock}/${id}/me`, clientId: p.clientId || "test-client", clientSecret: p.clientSecret || "test-secret", configured: () => true, secret: () => "test-secret" });
+  if (mock) for (const [id, p] of Object.entries(P)) Object.assign(p, { authorize: `${mock}/${id}/authorize`, token: `${mock}/${id}/token`, ...(p.revoke ? { revoke: `${mock}/${id}/revoke` } : {}), jwks: `${mock}/jwks`, issuer: mock, userinfo: `${mock}/${id}/me`, clientId: p.clientId || "test-client", clientSecret: p.clientSecret || "test-secret", configured: () => true, secret: () => "test-secret" });
   return P;
 }
 
@@ -135,6 +135,14 @@ export function mount(router, ctx, { handoffTtlMs = 5 * 60_000, sweepMs = 30_000
       if (p.idToken) {
         const claims = await verifyIdToken(tok.id_token, { jwksUrl: p.jwks, issuer: p.issuer, audience: p.clientId, nonce: st.nonce });
         identity = identityFromClaims(id, claims, id === "apple" ? q.user : null);
+        // Apple: end the grant straight away (best effort, not awaited), so Cyra isn't left authorized
+        // under her Apple ID and her next Apple sign-in is a first authorization again (Apple sends the
+        // name only then). Only the status is logged, never the token or Apple's answer.
+        const grant = id === "apple" && p.revoke ? tok.refresh_token || tok.access_token : null;
+        if (grant) {
+          fetch(p.revoke, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: form({ client_id: p.clientId, client_secret: p.secret(), token: grant, token_type_hint: tok.refresh_token ? "refresh_token" : "access_token" }) })
+            .then((r) => { if (!r.ok) console.warn(`[cyra] oauth/apple: revoke answered ${r.status}`); }, () => console.warn("[cyra] oauth/apple: revoke failed (network)"));
+        }
       } else {
         // Facebook: ask for name and email only. Facebook gives no "verified" signal, so the
         // email is read but never passed on; the account id it always adds is dropped here too.
@@ -145,8 +153,9 @@ export function mount(router, ctx, { handoffTtlMs = 5 * 60_000, sweepMs = 30_000
       }
       // Only `identity` (provider, name, and the email if the provider verified it) is kept, in
       // memory under the one-time code below, until /exchange or 5 minutes. tok (access token,
-      // id_token, Apple's refresh token), the raw claims, Apple's user JSON and Facebook's /me
-      // answer (with its account id) are not stored or logged.
+      // id_token, Apple's refresh token — sent once to Apple's revoke endpoint above, which ends
+      // the Apple grant), the raw claims, Apple's user JSON and Facebook's /me answer (with its
+      // account id) are not stored or logged.
       const code = crypto.randomBytes(24).toString("hex");
       handoffs.set(code, { identity, ac: st.ac || null });
       return back(res, st.ret, `oauth=${code}`);

@@ -1,9 +1,9 @@
 import { GSYM } from "../lib/constants.js";
-import { fmt } from "../lib/engine.js";
+import { fmt, localDay } from "../lib/engine.js";
 
 /* Pregnancy — Calendar: week-start markers, logged-day dots, due-date countdown.
    No fertile window or period prediction here, by design. */
-export default function PregCalendarScreen({ pregWeek, pregLog, dayScore, scoreColor, todayIso, pregSel, setPregSel, setDraft, setKicks, setPregTab, ping }) {
+export default function PregCalendarScreen({ pregWeek, pregLog, dayScore, scoreColor, todayIso, pregSel, setPregSel, onEdit, ping }) {
   return (
     <main>
       <h1 className="disp">{new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}</h1>
@@ -18,7 +18,7 @@ export default function PregCalendarScreen({ pregWeek, pregLog, dayScore, scoreC
           const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
           for (let dnum = 1; dnum <= dim; dnum++) {
             const d = new Date(now.getFullYear(), now.getMonth(), dnum, 12);
-            const iso = d.toISOString().slice(0, 10);
+            const iso = localDay(d);
             const diff = Math.round((d - now) / 86400000);
             const wk = pregWeek + Math.floor(diff / 7);
             const wkStart = ((diff % 7) + 7) % 7 === 0;
@@ -50,7 +50,7 @@ export default function PregCalendarScreen({ pregWeek, pregLog, dayScore, scoreC
               <p className="hint" style={{ margin: "6px 0 0" }}>Nothing logged this day.</p>
             )}
             <div className="sfoot" style={{ marginTop: 10 }}>
-              {e ? <button className="sbtn" onClick={() => { setDraft({ ...e.sym }); setKicks(e.kicks); setPregSel(null); setPregTab("today"); ping(`Editing ${fmt(pregSel)} — save to update`); }}>Edit</button> : <span />}
+              {e ? <button className="sbtn" onClick={() => { onEdit(pregSel); setPregSel(null); ping(`Editing ${fmt(pregSel)} — save to update that day`); }}>Edit</button> : <span />}
               <button className="sbtn" onClick={() => setPregSel(null)}>Close</button>
             </div>
           </div>

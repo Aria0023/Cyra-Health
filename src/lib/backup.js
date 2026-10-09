@@ -11,7 +11,9 @@
    user's choice. */
 const subtle = globalThis.crypto.subtle;
 const enc = new TextEncoder(), dec = new TextDecoder();
-const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+// In 32 KB slices: spreading a whole record as call arguments overflows the engine's argument
+// limit (about 65,536 in Safari / the iPhone app) once months of entries are saved.
+const b64 = (buf) => { const u = new Uint8Array(buf); let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); };
 const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 export const ITERATIONS = 600_000;
 /** "At least 8 characters", counted the way a person counts them: after the same NFKC

@@ -183,6 +183,8 @@ export function mount(router, ctx, { handoffTtlMs = 5 * 60_000, inboxTtlMs = 7 *
   });
   const refreshTokens = async (o, refresh) => {
     const r = await fetch(o.token, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: form({ grant_type: "refresh_token", refresh_token: refresh, client_id: o.clientId, client_secret: o.clientSecret }) });
+    // Oura down or rate-limiting is not a refusal: throw (the route answers 502) so the device keeps its tokens.
+    if (r.status >= 500 || r.status === 429) throw new Error(`token endpoint ${r.status}`);
     const tok = await r.json();
     return r.ok && tok.access_token ? tok : null;
   };

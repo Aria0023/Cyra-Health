@@ -44,12 +44,14 @@ whose variables are unset answers 503 — the app never fakes it; without
 ## Status
 `render.yaml` deploys this backend with `NODE_ENV=production`, and the shipped
 app sends it live traffic. In place: HTTPS via Render; per-address rate limits
-on `/api/ai/ask` and `/api/pulse/tally`; provider secrets from the environment;
-the start-up guard above; only the five modules the app calls are mounted.
+on `/api/ai/ask`, `/api/pulse/tally` and `POST /api/push/subscribe` (which also
+takes only browser push-service endpoints and caps its rows); provider secrets
+from the environment; the start-up guard above; only the five modules the app
+calls are mounted.
 Not yet in place: a database or encrypted disk (`data/pulse.json` and
 `data/push.json` are plain JSON on the instance disk — on Render without a
-persistent disk, until the next deploy or restart), audit logging and
-monitoring. Render's own request logs (paths, times, client addresses) are
+persistent disk, until the next deploy or restart; `DATA_DIR` moves them to a
+disk's mount path once one is attached), audit logging and monitoring. Render's own request logs (paths, times, client addresses) are
 outside this code.
 
 This service already handles consumer health information: the text of Ask

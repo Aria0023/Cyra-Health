@@ -28,6 +28,7 @@
    A queue whose stage is no longer the record's stage is dropped, never sent. Turning
    sharing off clears the queue in every open tab. */
 import { API_BASE, apiFetch, apiPost, needServer } from "./api.js";
+import { localDay } from "./engine.js";
 
 export const PULSE_EVENTS = {
   peri: [["hf", "logged hot flashes"], ["ns", "logged night sweats"], ["rough_night", "had a rough night's sleep"]],
@@ -52,8 +53,8 @@ export function weekKey(d = new Date()) {
   const y = t.getUTCFullYear();
   return `${y}-W${String(Math.ceil(((t - Date.UTC(y, 0, 1)) / 86400000 + 1) / 7)).padStart(2, "0")}`;
 }
-/** This device's local calendar day, YYYY-MM-DD. */
-export const localDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+/** This device's local calendar day, YYYY-MM-DD (defined once, in engine.js). */
+export { localDay };
 
 /** Events worth counting from one saved cycle/peri/pregnancy day (sym severities, sleep, flow,
     phase and lateness of the predicted period). mood_dip: the "Mood swings" symptom on a day
@@ -109,8 +110,9 @@ export function queueEvents(queue, sent, stage, events, now = new Date(), { day 
   // One stage per queue: after a stage change, the old stage's unsent flags are dropped, never sent.
   const same = queue && queue.stage === stage;
   const days = same ? daysOf(queue) : {};
-  // An edit of an earlier day only replaces that day's flags if they are still waiting; it never adds any.
-  if (day && day !== localDay(now)) return same && days[day] ? build(stage, { ...days, [day]: fresh }, queue.day) : queue;
+  // An edit of an earlier day can only take back flags still waiting for that day; it never
+  // adds any (an added flag would be due at once, i.e. sent on the day she logged it).
+  if (day && day !== localDay(now)) return same && days[day] ? build(stage, { ...days, [day]: fresh.filter((e) => days[day].includes(e)) }, queue.day) : queue;
   return build(stage, { ...days, [localDay(now)]: fresh }, same ? queue.day : null);
 }
 

@@ -1,4 +1,4 @@
-import { fmt, loadOf, stripeColor } from "../lib/engine.js";
+import { fmt, loadOf, stripeColor, isPeriodDay } from "../lib/engine.js";
 import Advice from "../components/Advice.jsx";
 
 /* Cycle & Peri — Patterns: 60-day stripe field, insight + advice cards,
@@ -12,7 +12,7 @@ export default function PatternsScreen({ ins, symIds, ramp, scoreColor, stage, m
         {ins.sorted.slice(-60).map((d) => (
           <div key={d.date} className="scol" title={fmt(d.date)}>
             <div className="stripe" style={{ background: stripeColor(loadOf(d, symIds), ramp().rough, ramp().good, ramp().mid) }} />
-            <div className={`sdot ${d.period ? "on" : ""}`} />
+            <div className={`sdot ${isPeriodDay(d) ? "on" : ""}`} />
           </div>
         ))}
       </div>

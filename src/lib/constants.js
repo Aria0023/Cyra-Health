@@ -31,9 +31,15 @@ export const CADENCE = [
   { id: "me", label: "When I feel like it", desc: "No reminders at all" },
 ];
 export const QUICK_Q = {
-  periods: ["Any cramps or bloating?", "How's your energy?", "Mood today?"],
+  periods: ["Any cramps or bloating?", "Any headaches?", "Mood today?"],
   peri: ["Any hot flashes or night sweats?", "How did you sleep?", "How's your focus?"],
   preg: ["Any nausea or heartburn?", "Swelling anywhere?", "Energy today?"],
+};
+/* The hero symptom each quick question is saved as (spec A8: quick answers map onto hero
+   symptoms so patterns still compute). Every target is a tracked SYM / PSYM key. */
+export const QUICK_MAP = {
+  periods: { q1: "crm", q2: "hda", q3: "mood" },
+  peri: { q1: "hf", q2: "slp", q3: "fog" },
 };
 
 export const SCALES = [

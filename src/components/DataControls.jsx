@@ -32,11 +32,11 @@ export function RestoreForm({ onImport, onDone, compact = false }) {
       <input className="inp" type="password" placeholder="Backup passphrase" aria-label="Backup passphrase" {...noSave} value={pass} onChange={(e) => setPass(e.target.value)} />
       {err && <p className="errhint" style={{ marginTop: 0 }}>{err}</p>}
       <button className="cta" disabled={busy} onClick={go}>{busy ? "Unlocking…" : "Restore"}</button>
-      <p className="rfoot">Unlocked on this device with your passphrase. It replaces your record here. Oura and Fitbit/Garmin/Whoop connections in the backup come back on and sync through Cyra's server; ones only on this device stay connected.</p>
+      <p className="rfoot">Unlocked on this device with your passphrase. It replaces your record here. Oura and Fitbit/Garmin/Whoop connections in the backup come back unconfirmed until Cyra checks them through its server; ones only on this device stay connected.</p>
       <Details label="What a restore changes">
         <ul>
           <li>Your settings are replaced too, except this device's choices about weekly counts, Cyra's AI and browser reminders.</li>
-          <li>If the backup has Oura or Fitbit/Garmin/Whoop connected, that connection comes back on this device and fetches readings through Cyra's server as before. A connection this device has now for the same service is replaced, so remove Cyra in that account if you want it ended.</li>
+          <li>If the backup has Oura or Fitbit/Garmin/Whoop connected, that connection comes back on this device marked not confirmed, because it may have been ended since the backup was made. It counts as connected again once Cyra confirms it through its server: Oura on a Sync that works (checked straight away, and removed from this device if it no longer works), Fitbit/Garmin/Whoop when readings arrive. A Fitbit/Garmin/Whoop connection you ended after the backup can't send readings, so tap Disconnect to remove it. One this device is still waiting to see disconnected isn't restored. A connection this device has now for the same service is replaced, so remove Cyra in that account if you want it ended.</li>
           <li>A connection this device has that the backup doesn't (Oura or Fitbit/Garmin/Whoop) stays connected here and keeps fetching readings through Cyra's server as before. Tap Disconnect under Wearables on Home if you don't want it.</li>
         </ul>
       </Details>

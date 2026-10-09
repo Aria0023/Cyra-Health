@@ -215,7 +215,11 @@ async function pullOura(tokens) {
     if (!tokens.refresh_token) throw expired();
     let fresh;
     try { fresh = await apiPost("/api/integrations/oura/refresh", { refresh_token: tokens.refresh_token }); }
-    catch (e2) { if (e2?.network) throw new Error("Couldn't reach Cyra's server — check your connection"); throw expired(); }
+    catch (e2) { // only a refusal (401) means the sign-in is gone; an outage keeps the tokens for the next Sync
+      if (e2?.network) throw new Error("Couldn't reach Cyra's server — check your connection");
+      if (e2?.status === 401) throw expired();
+      throw new Error("Oura didn't answer — try syncing again in a moment");
+    }
     Object.assign(tokens, fresh);
     try { return toRows(await attempt(tokens)); }
     catch (e3) { if (e3?.network) throw new Error("Couldn't reach Cyra's server — check your connection"); if (e3?.status === 401) throw expired(); throw new Error("Oura didn't answer — try syncing again in a moment"); }
@@ -237,7 +241,9 @@ export async function syncSource(id, state) {
     if (!state?.tokens) throw err("Your Oura sign-in expired — tap Connect to reconnect", "OURA_EXPIRED");
     const tokens = { ...state.tokens };
     const rows = await pullOura(tokens);
-    return { rows, state: { ...state, tokens } };
+    const next = { ...state, tokens };
+    delete next.pending; delete next.restored; // a good pull confirms a connection restored from a backup
+    return { rows, state: next };
   }
   if (id === "terra") {
     needServer();

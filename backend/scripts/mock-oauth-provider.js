@@ -2,7 +2,7 @@
 // google and apple (apple uses response_mode=form_post), token + /me for facebook.
 // Never used in production — the backend only points here when OAUTH_MOCK_BASE is set.
 // Test knobs: add mock_email_verified=false to an authorize URL to get an id_token whose
-// email is NOT verified. `seen` records what the backend asked for (/me fields, states).
+// email is NOT verified. `seen` records what the backend asked for (/me fields, states, revoked tokens).
 import http from "http";
 import crypto from "crypto";
 
@@ -13,7 +13,7 @@ export function startMockProvider(port = 3998) {
   const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", { modulusLength: 2048 });
   const jwk = { ...publicKey.export({ format: "jwk" }), kid: "k1", use: "sig", alg: "RS256" };
   const pending = new Map();
-  const seen = { meFields: [], states: [] };
+  const seen = { meFields: [], states: [], revoked: [] };
   const idToken = (claims) => { const h = b64u({ alg: "RS256", kid: "k1", typ: "JWT" }), p = b64u(claims); const s = crypto.sign("RSA-SHA256", Buffer.from(`${h}.${p}`), privateKey); return `${h}.${p}.${s.toString("base64url")}`; };
   const server = http.createServer((req, res) => {
     const u = new URL(req.url, base); let raw = ""; req.on("data", (c) => (raw += c)); req.on("end", () => {
@@ -35,8 +35,9 @@ export function startMockProvider(port = 3998) {
         if (p.challenge && crypto.createHash("sha256").update(body.code_verifier || "").digest("base64url") !== p.challenge) return json({ error: "invalid_grant", error_description: "pkce" }, 400);
         if (provider === "facebook") return json({ access_token: "fb-token-" + body.code, token_type: "bearer" });
         const now = Math.floor(Date.now() / 1000);
-        return json({ access_token: "x", id_token: idToken({ iss: base, aud: body.client_id, sub: "sub-1", email: `ada@${provider}.example`, email_verified: p.unverified ? false : provider === "apple" ? "true" : true, given_name: "Ada", family_name: "Lovelace", nonce: p.nonce, iat: now, exp: now + 600 }) });
+        return json({ access_token: "x", ...(provider === "apple" ? { refresh_token: "apple-refresh-" + body.code } : {}), id_token: idToken({ iss: base, aud: body.client_id, sub: "sub-1", email: `ada@${provider}.example`, email_verified: p.unverified ? false : provider === "apple" ? "true" : true, given_name: "Ada", family_name: "Lovelace", nonce: p.nonce, iat: now, exp: now + 600 }) });
       }
+      if (action === "revoke") { seen.revoked.push({ provider, token: body.token, hint: body.token_type_hint, client_id: body.client_id, has_secret: !!body.client_secret }); res.writeHead(200); return res.end(); }
       if (action === "me") {
         const proof = crypto.createHmac("sha256", "test-secret").update(u.searchParams.get("access_token") || "").digest("hex");
         if (u.searchParams.get("appsecret_proof") !== proof) return json({ error: { message: "bad proof" } }, 400);

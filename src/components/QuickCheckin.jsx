@@ -1,10 +1,12 @@
 import { QUICK_Q } from "../lib/constants.js";
+import { foldQuick } from "../lib/engine.js";
 
-/* Quick check-in: three stage-specific questions, done in ~10 seconds. */
+/* Quick check-in: three stage-specific questions, done in ~10 seconds. "more detail" carries
+   the answers given so far onto the matching symptom chips. */
 export default function QuickCheckin({ stage, draft, setDraft, setQuickMode }) {
   return (
     <div className="plaincard" style={{ marginBottom: 14 }}>
-      <div className="shead" style={{ marginBottom: 8 }}><span className="sbrand">Quick check-in</span><button className="linkbtn" onClick={() => setQuickMode(false)}>more detail</button></div>
+      <div className="shead" style={{ marginBottom: 8 }}><span className="sbrand">Quick check-in</span><button className="linkbtn" onClick={() => { setDraft((d) => foldQuick(d, stage)); setQuickMode(false); }}>more detail</button></div>
       {(QUICK_Q[stage] || QUICK_Q.peri).map((q, i) => {
         const key = ["q1", "q2", "q3"][i];
         return (

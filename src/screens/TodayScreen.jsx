@@ -1,16 +1,18 @@
 import { flagWords } from "../lib/pulse.js";
 import Details from "../components/Details.jsx";
 import { SYMS, PSYM, READS } from "../lib/constants.js";
-import { fmt, sevDots } from "../lib/engine.js";
+import { fmt, sevDots, foldQuick } from "../lib/engine.js";
 
 /* Cycle & Peri — Today: cycle-status card, live score meter, quick or full
    check-in, sleep quality, body signals, save, phase-appropriate daily read.
    Also the edit form for a day picked from the Calendar. Saving today's check-in only
    queues weekly-count flags on this device when sharing is on (App.jsx contribute); saving
-   it again (also from the Calendar) replaces them, and an edit of an earlier day only
-   replaces that day's flags while they are still waiting. A quick check-in asks combined questions ("cramps or bloating"),
-   so it adds no symptom flags — only the full check-in's named symptoms, sleep and flow do. */
-export default function TodayScreen({ pred, stage, welcome, editDate, setEditDate, setDraft, setSleepQ, scoreMeter, quickMode, quickCheckin, symIds, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, scales, flow, disch, odor, setDays, ping, setAppTab, research, contribute }) {
+   it again (also from the Calendar) replaces them, and an edit of an earlier day can only
+   take back that day's flags while they are still waiting (it never adds one). A quick check-in asks combined questions ("cramps or bloating"),
+   so it adds no symptom flags — only the full check-in's named symptoms, sleep and flow do.
+   The form opens on what is already saved for the day (App.jsx loads it), so saving again
+   updates that entry; an edit's "Period day" switch is what that day is saved with. */
+export default function TodayScreen({ pred, stage, welcome, editDate, onEndEdit, setDraft, setSleepQ, scoreMeter, quickMode, quickCheckin, symIds, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, setEditPeriod, scales, flow, disch, odor, bodyOdor, setDays, ping, setAppTab, research, contribute }) {
   return (
     <main>
       {pred && (
@@ -25,7 +27,7 @@ export default function TodayScreen({ pred, stage, welcome, editDate, setEditDat
       {welcome && <div className="readcard" style={{ marginTop: 0, marginBottom: 14 }}><p className="hint" style={{ margin: 0 }}>{welcome}</p></div>}
       {editDate && (
         <div className="card" style={{ display: "block", marginBottom: 12 }}>
-          <p><b>Editing {fmt(editDate)}</b> — changes save to that day. <button className="linkbtn" onClick={() => { setEditDate(null); setDraft({}); setSleepQ(null); }}>Back to today</button></p>
+          <p><b>Editing {fmt(editDate)}</b> — changes save to that day. <button className="linkbtn" onClick={() => onEndEdit()}>Back to today</button></p>
         </div>
       )}
       <h1 className="disp">{editDate ? `Fixing up ${fmt(editDate)}` : stage === "periods" ? "Hey — how's today?" : "How was today, honestly?"}</h1>
@@ -44,25 +46,37 @@ export default function TodayScreen({ pred, stage, welcome, editDate, setEditDat
           <button key={id} aria-pressed={sleepQ === id} className={`pill ${sleepQ === id ? "pill-on" : ""}`} onClick={() => setSleepQ(id)}>{l}</button>
         ))}
       </div>
+      {editDate && (
+        <div className="row">
+          <button aria-pressed={editPeriod} className={`pill ${editPeriod ? "pill-on" : ""}`} onClick={() => setEditPeriod((v) => !v)}>Period day</button>
+        </div>
+      )}
       {(!quickMode || editDate) && scaleSection}
       {(!quickMode || editDate) && bodySection}
       <button className="cta" onClick={() => {
         const target = editDate || todayIso;
-        const quickMap = stage === "periods" ? { q1: "crm", q2: "eng", q3: "mood" } : { q1: "hf", q2: "slp", q3: "fog" };
-        const mapped = { ...draft };
-        if (quickMode && !editDate) { Object.entries(quickMap).forEach(([q, sid]) => { if (draft[q] != null) mapped[sid] = draft[q]; }); if (mapped.q1 != null) mapped.fat = mapped.q2; }
-        ["q1", "q2", "q3"].forEach((k) => delete mapped[k]);
-        setDays((d) => [...d.filter((x) => x.date !== target), { date: target, sleepQ: sleepQ || "fair", period: editDate ? (editPeriod || !!flow) : !!flow, scales: { ...scales }, flow, disch, odor, sym: { ...Object.fromEntries([...SYMS, ...Object.keys(PSYM)].map((k) => [k, 0])), ...mapped } }].sort((a, b) => a.date.localeCompare(b.date)));
+        // Quick answers (also ones carried over by "more detail" or left from quick mode) are
+        // saved as the hero symptoms they ask about.
+        const mapped = foldQuick(draft, stage);
+        const fromQuick = mapped.__q || {};
+        delete mapped.__q;
+        const sym = { ...Object.fromEntries([...SYMS, ...Object.keys(PSYM)].map((k) => [k, 0])), ...mapped };
+        // Spotting alone is not a period day; an edit keeps the day's own "Period day" switch.
+        const bleeding = !!flow && flow !== "spot";
+        const entry = { date: target, sleepQ: sleepQ || "fair", period: editDate ? !!editPeriod : bleeding, scales: { ...scales }, flow, disch, odor, bodyOdor, sym };
+        setDays((d) => [...d.filter((x) => x.date !== target), entry].sort((a, b) => a.date.localeCompare(b.date)));
         ping(editDate ? `${fmt(target)} updated` : "Saved — check Patterns");
-        contribute({ sym: quickMode && !editDate ? {} : mapped, sleepQ: sleepQ || "fair", flow }, target);
-        if (editDate) { setEditDate(null); setDraft({}); setSleepQ(null); setAppTab("cal"); } else setAppTab("patterns");
+        // Weekly counts: a symptom still at the value a combined quick question gave it adds no flag.
+        const flagged = Object.fromEntries(Object.entries(mapped).filter(([k, v]) => !(k in fromQuick && fromQuick[k] === v)));
+        contribute({ sym: quickMode && !editDate ? {} : flagged, sleepQ: sleepQ || "fair", flow }, target);
+        if (editDate) { onEndEdit(entry); setAppTab("cal"); } else { setDraft(Object.keys(fromQuick).length ? { ...sym, __q: fromQuick } : sym); setAppTab("patterns"); }
       }}>{editDate ? `Save changes to ${fmt(editDate)}` : "Save today's check-in"}</button>
       {research && !editDate && (
         <>
           <p className="rfoot">Sharing weekly counts is on: which of {flagWords(stage)} this check-in logged, plus your life stage group, go to Cyra's server on a later day, with no dates or values.</p>
           <Details label="Exactly what's sent">
             <ul>
-              <li>Until it's sent on a later day, saving this check-in again replaces what it counts. A fix after that can't change counts already sent.</li>
+              <li>Until it's sent on a later day, saving this check-in again today replaces what it counts, and a fix from the Calendar on a later day can only take flags back, never add one. A fix after it's sent can't change counts already sent.</li>
               {quickMode && <li>{stage === "peri" ? "A quick check-in shares only whether you had a poor night's sleep." : "A quick check-in shares only whether you logged a heavy-flow day."}</li>}
               <li>Sent at most once a day. Like any request, it carries your device's internet address.</li>
               <li>You can turn this off in ⚙ Settings.</li>

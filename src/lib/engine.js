@@ -1,7 +1,24 @@
-import { SYM, PSYM } from "./constants.js";
+import { SYM, PSYM, QUICK_MAP } from "./constants.js";
 
 /* Deterministic demo data, cycle detection, prediction and scoring. Pure
    functions only — no React, no state, no side effects. */
+
+/** This device's local calendar day, YYYY-MM-DD: the key for every day record (check-ins,
+    pregnancy log, journal, intimacy and medication logs) and for "today". Never the UTC date,
+    or an evening entry in the Americas (or a morning one in Asia) lands on the next/previous
+    day. Keys stay plain YYYY-MM-DD strings, so records saved by earlier versions read as before. */
+export const localDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** Quick check-in answers (q1..q3) moved onto the hero symptoms they ask about. The symptoms a
+    quick answer set are listed under __q (with the value it gave), so the weekly counts can
+    leave them out: a combined question ("cramps or bloating") never yields a symptom flag. */
+export function foldQuick(draft, stage) {
+  const map = QUICK_MAP[stage] || QUICK_MAP.peri;
+  const out = { ...draft }, q = { ...(draft.__q || {}) };
+  for (const [k, sid] of Object.entries(map)) { if (out[k] != null) { out[sid] = out[k]; q[sid] = out[k]; } delete out[k]; }
+  if (Object.keys(q).length) out.__q = q;
+  return out;
+}
 
 export function seed() {
   let s = 42;
@@ -14,7 +31,7 @@ export function seed() {
     const poor = rnd() < 0.32;
     const sleepQ = poor ? "poor" : rnd() < 0.4 ? "fair" : "good";
     const sev = (b) => { const r = rnd(), p = prevPoor ? b + 0.26 : b; return r < p * 0.45 ? 3 : r < p ? 2 : r < p + 0.2 ? 1 : 0; };
-    days.push({ date: d.toISOString().slice(0, 10), sleepQ, period, sym: { hf: sev(0.42), ns: prevPoor ? sev(0.4) : sev(0.22), fog: sev(prevPoor ? 0.5 : 0.3), mood: sev(0.3), slp: sleepQ === "poor" ? 2 + (rnd() < 0.4 ? 1 : 0) : sleepQ === "fair" ? (rnd() < 0.5 ? 1 : 0) : 0, ach: sev(0.24), crm: period ? sev(0.8) : sev(0.1), hda: sev(0.25), blo: sev(0.3), eng: sev(0.3) } });
+    days.push({ date: localDay(d), sleepQ, period, sym: { hf: sev(0.42), ns: prevPoor ? sev(0.4) : sev(0.22), fog: sev(prevPoor ? 0.5 : 0.3), mood: sev(0.3), slp: sleepQ === "poor" ? 2 + (rnd() < 0.4 ? 1 : 0) : sleepQ === "fair" ? (rnd() < 0.5 ? 1 : 0) : 0, ach: sev(0.24), crm: period ? sev(0.8) : sev(0.1), hda: sev(0.25), blo: sev(0.3), eng: sev(0.3) } });
     prevPoor = poor;
   }
   return days;
@@ -29,13 +46,16 @@ export const fmt = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-U
 export const hex2rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 
 /* ISO date n days before `today`, the same way the app keys its days (App.jsx isoDaysAgo). */
-const isoBefore = (today, n) => { const d = new Date(today); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+const isoBefore = (today, n) => { const d = typeof today === "string" ? new Date(today + "T12:00:00") : new Date(today); d.setDate(d.getDate() - n); return localDay(d); };
+/* A period day for cycle maths: spotting alone (flow "spot") never starts or extends a period,
+   including days an earlier version saved as period days. */
+export const isPeriodDay = (d) => !!d && !!d.period && d.flow !== "spot";
 const cycleStarts = (sorted) => {
-  const pset = new Set(sorted.filter((d) => d.period).map((d) => d.date));
+  const pset = new Set(sorted.filter(isPeriodDay).map((d) => d.date));
   const starts = [];
   pset.forEach((iso) => {
     let st = true;
-    for (let k = 1; k <= 5; k++) { const p = new Date(iso + "T12:00:00"); p.setDate(p.getDate() - k); if (pset.has(p.toISOString().slice(0, 10))) st = false; }
+    for (let k = 1; k <= 5; k++) { const p = new Date(iso + "T12:00:00"); p.setDate(p.getDate() - k); if (pset.has(localDay(p))) st = false; }
     if (st) starts.push(iso);
   });
   return starts.sort();

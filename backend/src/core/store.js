@@ -81,6 +81,7 @@ export class JsonStore {
 
 export function createStore(config) {
   const driver = config.storage?.driver || "json";
-  if (driver === "json") return new JsonStore(config.storage?.dir || "./data");
+  // DATA_DIR (environment) overrides storage.dir, e.g. a persistent disk's mount path on Render.
+  if (driver === "json") return new JsonStore((process.env.DATA_DIR || "").trim() || config.storage?.dir || "./data");
   throw new Error(`Unknown storage driver: ${driver} — implement it in src/core/store.js`);
 }

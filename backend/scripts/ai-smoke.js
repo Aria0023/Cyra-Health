@@ -62,7 +62,7 @@ try {
   const userText = req.body.messages.map((m) => (typeof m.content === "string" ? m.content : JSON.stringify(m.content))).join("\n");
   assert(req.body.model === "claude-opus-5-5", "request: model claude-opus-5-5");
   assert(req.body.fallbacks === "default" && /server-side-fallback-2026-07-01/.test(req.headers["anthropic-beta"] || ""), "request: server-side refusal fallback on");
-  assert(req.body.output_config?.format?.type === "json_schema" && req.body.output_config.effort === "medium", "request: json_schema structured output + effort");
+  assert(req.body.output_config?.format?.type === "json_schema" && req.body.output_config.effort === "low" && req.body.max_tokens === 4000, "request: json_schema structured output + effort low + max_tokens 4000 (room for thinking)");
   assert(req.headers["x-api-key"] === "sk-ant-test", "request: key sent only by the backend");
   assert(!/LEAK|entries|leak@example/.test(JSON.stringify(req.body)), "request: unknown fields never forwarded");
   assert(userText.includes('"Why are my cramps worse some months?"') && /life stage: not stated\./.test(userText) && !/life stage: (My Cycle|Trying|Pregnancy|Perimenopause|Menopause)/.test(userText) && !/LEAK|leak@/.test(userText), "request: without a stage the prompt carries only the typed question");

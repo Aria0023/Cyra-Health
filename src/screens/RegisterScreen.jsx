@@ -133,7 +133,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
               <Details label="Exactly what's shared">
                 <p>They send Cyra's server sign-in tokens, your name, email and an account ID (Google also sends basic profile details, such as a profile-photo link).</p>
                 <p>Only your name, plus your email from Apple or Google when it's verified, comes to this device. Facebook fills in your name only.</p>
-                <p>The server discards the tokens at once, erases the rest within 5 minutes and keeps no account record. Apple lets you hide your email.</p>
+                <p>With Apple, the server then sends Apple's token straight back to Apple, asking it to end Cyra's access to your Apple ID. The server discards the tokens at once, erases the rest within 5 minutes and keeps no account record. Apple lets you hide your email.</p>
               </Details>
             </>
           )}

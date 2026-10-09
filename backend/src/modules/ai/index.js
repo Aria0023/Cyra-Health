@@ -30,8 +30,8 @@ async function callClaude(client, model, task, value) {
     output_config: { effort: task.effort || "low", format: { type: "json_schema", schema: task.schema } },
     messages: [{ role: "user", content: task.prompt(value) }],
   });
-  if (response.stop_reason === "refusal") throw new Error(`model declined (${response.stop_details?.category || "unspecified"})`);
-  if (response.stop_reason === "max_tokens") throw new Error("model output truncated");
+  if (response.stop_reason === "refusal") throw Object.assign(new Error("model declined"), { cat: `model declined (${String(response.stop_details?.category || "unspecified").slice(0, 40)})` });
+  if (response.stop_reason === "max_tokens") throw Object.assign(new Error("model output truncated"), { cat: `output truncated at max_tokens (${response.usage?.output_tokens ?? "?"} tokens)` });
   const text = response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
   return task.clean(JSON.parse(text));
 }
@@ -54,7 +54,7 @@ export function mount(router, ctx) {
       try {
         res.json({ provider: model, ...(await callClaude(client, model, task, input.value)) });
       } catch (e) {
-        const kind = e instanceof Anthropic.RateLimitError ? "rate-limited" : e instanceof Anthropic.AuthenticationError ? "bad API key" : e instanceof Anthropic.APIConnectionTimeoutError ? "timed out" : e instanceof Anthropic.APIConnectionError ? "connection error" : e instanceof Anthropic.APIError ? `API ${e.status}` : e.constructor?.name || "error";
+        const kind = e instanceof Anthropic.RateLimitError ? "rate-limited" : e instanceof Anthropic.AuthenticationError ? "bad API key" : e instanceof Anthropic.APIConnectionTimeoutError ? "timed out" : e instanceof Anthropic.APIConnectionError ? "connection error" : e instanceof Anthropic.APIError ? `API ${e.status}` : e.cat || e.constructor?.name || "error";
         console.warn(`[cyra] ai/${name}: ${kind} — serving rules fallback`);
         res.json({ provider: "rules", degraded: true, ...task.fallback(input.value) });
       }

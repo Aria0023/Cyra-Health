@@ -22,7 +22,7 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
   const cancelFailed = st === "error" && !!reminders?.cancelFailed; // phone: Turn off again
   const webReminders = reminderSupport === "web" && hasServer();
   const remindersSub = reminderSupport === "native" ? "Scheduled on this phone — no server involved."
-    : webReminders ? "A plain reminder, nothing about your health in it. Cyra's server keeps this browser's push address and your reminder schedule; turning reminders off erases them. No phone number, no texts, ever."
+    : webReminders ? "A plain reminder, nothing about your health in it. Cyra's server keeps this browser's push address and your reminder schedule; turning reminders off erases them. A server update or restart can pause them until you next open Cyra. No phone number, no texts, ever."
     : reminderSupport === "web" ? "Reminders aren't available in this version of Cyra."
     : "This browser can't show reminders.";
   return (

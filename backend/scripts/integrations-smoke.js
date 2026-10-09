@@ -10,6 +10,7 @@ import { spawn } from "child_process";
 import express from "express";
 import { startMockWearables } from "./mock-wearables.js";
 import { mount as mountIntegrations, terraRef } from "../src/modules/integrations/index.js";
+import { normalize as terraNormalize } from "../src/modules/integrations/adapters/terra.js";
 const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode = 1; } else console.log("ok  ", m); };
 const waitFor = async (url) => { for (let i = 0; i < 50; i++) { try { if ((await fetch(url)).ok) return; } catch {} await new Promise((r) => setTimeout(r, 100)); } throw new Error("backend did not start"); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -21,6 +22,9 @@ const go = (u, i) => fetch(u, { redirect: "manual", ...i });
 const post = (p, b, h = {}) => fetch(`${B}${p}`, { method: "POST", headers: { "content-type": "application/json", ...h }, body: typeof b === "string" ? b : JSON.stringify(b) });
 const signed = (payload, ts = Math.floor(Date.now() / 1000), secret = "test-signing") => ({ "terra-signature": `t=${ts},v1=${crypto.createHmac("sha256", secret).update(`${ts}.${payload}`).digest("hex")}` });
 const daily = (ref, date, fields) => JSON.stringify({ type: "daily", user: { user_id: "terra-u1", reference_id: ref, provider: "FITBIT" }, data: [{ metadata: { start_time: `${date}T00:00:00Z` }, ...fields }] });
+// Terra's Sleep shape: a night from 23:30 the day before to 07:00 on `date` (the wake day), temperature_data = { delta }.
+const prevDay = (date) => new Date(Date.parse(`${date}T12:00:00Z`) - 86400000).toISOString().slice(0, 10);
+const sleepP = (ref, date, fields, meta = {}) => JSON.stringify({ type: "sleep", user: { user_id: "terra-u1", reference_id: ref, provider: "FITBIT" }, data: [{ metadata: { start_time: `${prevDay(date)}T23:30:00-07:00`, end_time: `${date}T07:00:00-07:00`, is_nap: false, ...meta }, ...fields }] });
 try {
   await waitFor(`${B}/health`);
   const src = await (await fetch(`${B}/api/integrations/sources`)).json();
@@ -80,7 +84,7 @@ try {
     assert(bad.status === 400 && /history\.replaceState\(null,"",location\.pathname\)/.test(page) && !page.includes(REF) && !page.includes("terra-u9"), "terra done: the expired-link page strips Terra's query too and echoes none of it"); }
   assert((await post("/api/integrations/terra/session", { key: "x", return: RET })).status === 400, "terra: key must be 43-128 base64url chars");
   assert((await post("/api/integrations/terra/session", { ref: "dev_abcdef12", return: RET })).status === 400, "terra: an old {ref} session request is refused (fails closed)");
-  const payload = daily(REF, "2026-10-01", { heart_rate_data: { summary: { resting_hr_bpm: 61.4, avg_hrv_rmssd: 44.2 } }, temperature_data: { body_temperature_delta: 0.21 }, sleep_durations_data: { sleep_efficiency: 0.86 } });
+  const payload = sleepP(REF, "2026-10-01", { heart_rate_data: { summary: { resting_hr_bpm: 61.4, avg_hrv_rmssd: 44.2 } }, temperature_data: { delta: 0.21 }, sleep_durations_data: { sleep_efficiency: 0.86 } });
   let w = await post("/api/integrations/terra/webhook", payload, signed(payload));
   assert(w.status === 200 && (await w.json()).queued === 1, "terra: signed webhook accepted and queued");
   w = await post("/api/integrations/terra/webhook", payload, { "terra-signature": `t=${Math.floor(Date.now() / 1000)},v1=${"0".repeat(64)}` });
@@ -96,9 +100,16 @@ try {
   let box = await (await post("/api/integrations/terra/inbox", { key: newKey() })).json();
   assert(box.rows.length === 0, "terra: another key opens an empty mailbox");
   box = await (await post("/api/integrations/terra/inbox", { key: KEY })).json();
-  assert(box.rows.length === 1 && box.rows[0].rhr === 61 && box.rows[0].hrv === 44 && box.rows[0].temp === 0.21 && box.rows[0].sleep === 86 && box.rows[0].date === "2026-10-01", "terra: POST inbox {key} returns the normalized row");
+  assert(box.rows.length === 1 && box.rows[0].rhr === 61 && box.rows[0].hrv === 44 && box.rows[0].temp === 0.21 && box.rows[0].sleep === 86 && box.rows[0].date === "2026-10-01", "terra: POST inbox {key} returns the normalized row (Sleep temperature_data.delta → temp, filed under the wake day)");
   box = await (await post("/api/integrations/terra/inbox", { key: KEY })).json();
   assert(box.rows.length === 0, "terra: inbox cleared after the device drained it");
+  { const n = (p) => terraNormalize(JSON.parse(p));
+    const body = JSON.stringify({ type: "body", data: [{ metadata: { start_time: "2026-10-01T00:00:00Z" }, temperature_data: { body_temperature_samples: [{ timestamp: "2026-10-01T08:00:00Z", temperature_celsius: 36.6 }], skin_temperature_samples: [{ timestamp: "2026-10-01T08:00:00Z", temperature_celsius: 33.1 }] } }] });
+    assert(n(body).length === 0, "terra normalize: a Body payload's absolute °C samples never become temp (temp holds baseline deltas)");
+    assert(n(sleepP("r", "2026-10-08", { temperature_data: { delta: -0.12 } }))[0]?.date === "2026-10-08", "terra normalize: a night 23:30 Oct 7 → 07:00 Oct 8 is filed under Oct 8 (the wake day, like Oura)");
+    assert(n(sleepP("r", "2026-10-08", { temperature_data: { delta: 0.4 } }, { is_nap: true })).length === 0, "terra normalize: a nap is skipped (it can't overwrite the night's values)");
+    assert(n(sleepP("r", "2026-10-08", { scores: { sleep_score: 77 } }))[0]?.sleep === 77, "terra normalize: sleep falls back to Terra's scores.sleep_score");
+    assert(n(daily("r", "2026-10-08", { heart_rate_data: { summary: { resting_hr_bpm: 58 } } }))[0]?.date === "2026-10-08", "terra normalize: a daily payload stays on its start day"); }
   // Terra disconnect: deauthenticate at Terra, empty the mailbox
   w = await post("/api/integrations/terra/webhook", payload, signed(payload));
   const dc = await post("/api/integrations/terra/disconnect", { key: KEY });
@@ -221,7 +232,7 @@ try {
     assert(mock.seen.revoked.length === rv0 + 1, "oura handoff: tokens nobody collected are revoked at Oura when they expire (no live grant left behind)");
     // a Terra row, then an update to the same day just before it expires: the update must not extend it
     const key = newKey(), ref = terraRef(key);
-    const p1 = daily(ref, "2026-10-02", { temperature_data: { body_temperature_delta: 0.3 } });
+    const p1 = sleepP(ref, "2026-10-02", { temperature_data: { delta: 0.3 } });
     await P("/api/integrations/terra/webhook", p1, signed(p1));
     assert(ctx.integrationsMemory().rows === 1, "terra mailbox: one row waiting");
     await sleep(400);
@@ -231,7 +242,7 @@ try {
     const mem = ctx.integrationsMemory();
     assert(mem.rows === 0 && mem.mailboxes === 0, `terra mailbox: row deleted 7 days (600 ms here) after it FIRST arrived, by the timed sweep, though updated since (${JSON.stringify(mem)})`);
     // a fresh row expires on its own with no request at all
-    const p3 = daily(ref, "2026-10-03", { temperature_data: { body_temperature_delta: 0.1 } });
+    const p3 = sleepP(ref, "2026-10-03", { temperature_data: { delta: 0.1 } });
     await P("/api/integrations/terra/webhook", p3, signed(p3));
     await sleep(750);
     assert(ctx.integrationsMemory().mailboxes === 0, "terra mailbox: uncollected row swept with no further request");

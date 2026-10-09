@@ -69,7 +69,9 @@ const LIBRARY = [
   { re: /tired|fatigue|exhaust|no energy|thyroid|iron|vitamin d/i, answer: "Feeling wiped out for weeks is a symptom worth investigating rather than normalizing. Three common, easily tested causes show up as fatigue: an underactive thyroid, iron-deficiency anemia (very common with heavy periods), and low vitamin D. Each is a simple blood test, and each is treatable. Poor sleep and mood changes around hormonal transitions also drain energy, so a sleep pattern alongside your fatigue scores gives a clinician something concrete. Asking for the tests by name tends to work better than saying \"I'm just tired.\"", source_note: "American Thyroid Association guidelines; ACOG guidance on anemia in women; NICE guidance on tiredness and vitamin D deficiency.", ask: "Could we check my thyroid, a full blood count with iron studies, and vitamin D?" },
 ];
 const ask = {
-  effort: "medium", maxTokens: 1200,
+  // Opus 5.5 always thinks, and thinking counts toward max_tokens: low effort keeps it short (and inside
+  // the 12 s limit), and 4000 leaves room for it plus the ~400-token JSON answer, so it isn't truncated.
+  effort: "low", maxTokens: 4000,
   // stage is optional: the app no longer sends it, so the prompt carries only what she typed.
   validate: (b) => { const question = str(b.question, 500); if (question.length < 3) return { error: "question is required" }; return { value: { question, stage: oneOf(b.stage, STAGE_LABELS.filter((s) => s !== "unknown"), "not stated") } }; },
   system: GUARDRAILS,

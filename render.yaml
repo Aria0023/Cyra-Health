@@ -83,3 +83,9 @@ services:
         sync: false
       - key: VAPID_SUBJECT
         sync: false
+      # Where the backend keeps data/push.json (web reminder subscriptions) and data/pulse.json
+      # (weekly counts). Unset = ./data on the instance's own disk, which Render wipes on every
+      # deploy and restart. Set it to a persistent disk's mount path (a disk needs a paid instance)
+      # once one is attached; until then, those two files are lost on each deploy.
+      - key: DATA_DIR
+        sync: false

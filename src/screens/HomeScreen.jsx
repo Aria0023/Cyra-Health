@@ -7,6 +7,15 @@ import Details from "../components/Details.jsx";
 /* Home (default tab): greeting + streak, check-in CTA, today's top insight,
    wearable cards, milestones, coming up, pulse, monthly recap, and the
    collapsible Wearables / What I'm trying / Appointments / Journal sections. */
+/* A trial without enough logged days on both sides of its start date (App.jsx medEffects):
+   how many more it needs, or, when the days left can't get there, that it can't be compared. */
+const plural = (n) => `${n} logged day${n === 1 ? "" : "s"}`;
+function trialWait(e) {
+  if (e.stuckBefore) return `Only ${plural(e.haveBefore)} in the 2 weeks before the start date — Cyra needs 5 there, so this one can't be compared`;
+  if (e.stuckAfter) return `Only ${plural(e.haveAfter)} in the 2 weeks from the start date — Cyra needs 5 there, so this one can't be compared`;
+  const n = e.needBefore + e.needAfter;
+  return `${n} more ${n === 1 ? "logged day" : "logged days"} to compare`;
+}
 /* Said before every first connect of a source that goes through Cyra's server. */
 const here = isNative() ? "this phone" : "this device";
 const Here = isNative() ? "This phone" : "This device";
@@ -107,7 +116,7 @@ export default function HomeScreen({
               : `${it.what} · shows once ${pulse.k || 50} contributions are counted`}</span>
           </div>
         ))}
-        <p className="rfoot" style={{ margin: "10px 0 0" }}>Anonymous counts only: no names, dates or values. They come from people who chose to share weekly counts, and a number shows only once {pulse.k || 50} or more contributions are in. Each phone or browser counts once a week, so one person sharing from two devices counts twice. Loading these numbers tells Cyra's server nothing about your health.</p>
+        <p className="rfoot" style={{ margin: "10px 0 0" }}>Anonymous counts only: no names, dates or values. The Cyra app adds to them only for people who turn on sharing, at most once a week from each phone or browser, so one person sharing from two devices counts twice. A number shows only once {pulse.k || 50} or more contributions are in. Because no one is identified, Cyra's server can't check who sends a count, so treat these as rough numbers. Loading these numbers tells Cyra's server nothing about your health.</p>
       </div>
 
       {recap ? (
@@ -137,7 +146,7 @@ export default function HomeScreen({
             return (
               <div key={id}>
                 <div className="medrow">
-                  <div className="medinfo"><b>{name}</b><span>{what}</span>{st?.pending && <span>Waiting for the connection to finish — tap Sync once you've approved Cyra.</span>}{id === "terra" && terraOffCount > 0 && <span>Disconnect not confirmed yet: your earlier connection may still be linked and sending new readings to Cyra's server. Cyra keeps asking while it's open and each time you open it.</span>}</div>
+                  <div className="medinfo"><b>{name}</b><span>{what}</span>{st?.pending && <span>{st.restored ? id === "oura" ? "Restored from a backup, not confirmed yet: it shows as connected once a Sync works, and Sync removes it if it no longer does." : "Restored from a backup, not confirmed yet: it shows as connected once readings arrive. If you ended it after making the backup, tap Disconnect." : "Waiting for the connection to finish — tap Sync once you've approved Cyra."}</span>}{id === "terra" && terraOffCount > 0 && <span>Disconnect not confirmed yet: your earlier connection may still be linked and sending new readings to Cyra's server. Cyra keeps asking while it's open and each time you open it.</span>}</div>
                   <div className="wearbtns">
                     {viaServer && st && !st.demo && <button className="takebtn" disabled={!!wearBusy} aria-busy={wearBusy === `${id}:off`} onClick={() => disconnectWear(id, name)}>{wearBusy === `${id}:off` ? "Disconnecting…" : "Disconnect"}</button>}
                     <button className={`takebtn ${st && !st.pending ? "on" : ""}`} disabled={!!wearBusy} aria-busy={wearBusy === id} aria-expanded={viaServer && !st ? wearConfirm === id : undefined} onClick={() => connectWear(id, name)}>{wearBusy === id ? (st ? "Syncing…" : "Connecting…") : st ? (st.pending ? "Sync" : "✓ Sync") : "Connect"}</button>
@@ -190,7 +199,7 @@ export default function HomeScreen({
             return (
               <div className="medrow" key={m.id}>
                 <div className="medinfo"><b>{m.name}</b><span>{m.kind === "rx" ? "Prescription" : m.kind === "supp" ? "Supplement" : "Habit"} · since {fmt(m.started)}</span>
-                  {eff?.ready ? <span className="medeff">Day score {eff.before} → {eff.after} since starting</span> : <span className="medeff muted">{eff ? `${eff.need} more logged days to compare` : ""}</span>}
+                  {eff?.ready ? <span className="medeff">Day score {eff.before} → {eff.after} since starting</span> : <span className="medeff muted">{eff ? trialWait(eff) : ""}</span>}
                 </div>
                 <button aria-pressed={takenToday} className={`takebtn ${takenToday ? "on" : ""}`} onClick={() => setMedLog((l) => ({ ...l, [todayIso]: { ...(l[todayIso] || {}), [m.id]: !takenToday } }))}>{takenToday ? "✓ Taken" : "Taken today?"}</button>
               </div>
@@ -238,8 +247,14 @@ export default function HomeScreen({
         <div className="bodypanel">
           <p className="hint" style={{ margin: "10px 0 8px" }}>How are you, really? Some days a slider isn't enough.</p>
           <textarea className="inp" rows={3} style={{ resize: "none", fontFamily: "inherit" }} value={jDraft} onChange={(e) => setJDraft(e.target.value)} placeholder="Private. Just for you." />
-          <button className="cta" onClick={() => { if (!jDraft.trim()) return; setJournal((j) => ({ ...j, [todayIso]: jDraft.trim() })); setJDraft(""); ping("Saved to your journal"); }}>Save entry</button>
-          {Object.keys(journal).sort().reverse().slice(0, 5).map((iso) => <div className="jentry" key={iso}><b>{fmt(iso)}</b><p>{journal[iso]}</p></div>)}
+          <button className="cta" onClick={() => {
+            const t = jDraft.trim(); if (!t) return;
+            const more = !!journal[todayIso];
+            // A day keeps every entry written on it: a later one is added below the earlier ones.
+            setJournal((j) => ({ ...j, [todayIso]: j[todayIso] ? `${j[todayIso]}\n\n${t}` : t }));
+            setJDraft(""); ping(more ? "Added to today's journal" : "Saved to your journal");
+          }}>Save entry</button>
+          {Object.keys(journal).sort().reverse().slice(0, 5).map((iso) => <div className="jentry" key={iso}><b>{fmt(iso)}</b><p style={{ whiteSpace: "pre-wrap" }}>{journal[iso]}</p></div>)}
         </div>
       )}
     </main>

@@ -37,7 +37,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
    ================================================================ */
 
 import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, RAMPS } from "./lib/constants.js";
-import { seed, fmt, insights, predict, predictionWaits, symBurden, scoreLabel, dayScore } from "./lib/engine.js";
+import { seed, fmt, insights, predict, predictionWaits, symBurden, scoreLabel, dayScore, isPeriodDay } from "./lib/engine.js";
 import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
 import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource, drainTerra, mergeRows, disconnectHelp } from "./lib/wearables.js";
 import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue, pruneQueue, mergeQueues, localDay, weekKey } from "./lib/pulse.js";
@@ -52,10 +52,15 @@ const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
    reminders persists { enabled, endpoint, pending, rev } — this browser's push address, any
    address Cyra's server still has to forget, and a version so every open tab agrees on the
    on/off switch; its status is worked out again at every launch. */
-const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff"];
+const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally"];
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects. */
 const DEVICE_ONLY = ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff"];
+/* The health record and settings another open tab of this browser can hand over (everything
+   saved except the per-device consents and this browser's reminder addresses). */
+const RECORD = PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders");
+const recordSig = (o) => JSON.stringify(RECORD.map((k) => o?.[k] ?? null));
+const ZERO_SCALES = { fatigue: 0, pain: 0, moodq: 0, stress: 0 };
 /* Push addresses Cyra's server still has to forget (every one is retried until confirmed). */
 const cleanPending = (v) => (Array.isArray(v) ? [...new Set(v.filter((e) => typeof e === "string" && /^https:\/\//.test(e) && e.length <= 2048))].slice(0, 100) : []);
 /* Fitbit/Garmin/Whoop disconnects Cyra's server couldn't confirm: { key } (or { ref } from an
@@ -107,7 +112,7 @@ export default function CyraDemo() {
   const [quickMode, setQuickMode] = useState(true);
   const [meds, setMeds] = useState([]);
   const [medLog, setMedLog] = useState({});
-  const [newMed, setNewMed] = useState({ name: "", kind: "supp", started: new Date().toISOString().slice(0, 10) });
+  const [newMed, setNewMed] = useState({ name: "", kind: "supp", started: localDay() });
   const [showMeds, setShowMeds] = useState(false);
   const [appts, setAppts] = useState([]);
   const [newAppt, setNewAppt] = useState({ date: "", who: "" });
@@ -157,6 +162,7 @@ export default function CyraDemo() {
   const [draft, setDraft] = useState({});
   const [sleepQ, setSleepQ] = useState(null);
   const [kicks, setKicks] = useState(0);
+  const [kickTally, setKickTally] = useState(null); // { day, n }: today's kick count, kept on the device between taps (before Save today)
   const [pregTab, setPregTab] = useState("home");
   const [pregLog, setPregLog] = useState({});
   const [pregSel, setPregSel] = useState(null);
@@ -182,6 +188,11 @@ export default function CyraDemo() {
   const [reminders, setReminders] = useState({ enabled: false, status: "off", endpoint: null, pending: [], rev: 0 }); // status: off | on | blocked (+denied) | unavailable | error | unsupported; pending: push addresses the server still has to forget
   const wipingRef = useRef(false); // Delete everything / Start over in progress: nothing may be saved any more
   const saveTimer = useRef(null);  // the pending autosave, cancelled by a wipe
+  const pendingSave = useRef(null); // that autosave's write, run at once when the app is hidden or closed (flushSave)
+  const lastSig = useRef(null);     // the record this tab last saved or took over from another tab
+  const skipSig = useRef(null);     // a record just taken over from another tab, not to be written back
+  const cancelSave = () => { clearTimeout(saveTimer.current); pendingSave.current = null; };
+  const flushSave = () => { const run = pendingSave.current; if (!run) return; clearTimeout(saveTimer.current); pendingSave.current = null; run(); };
 
   const org = ORGS[orgId];
   const stagePal = stage && orgId === "cyra" ? PALETTES[stage][palIdx[stage]] : null;
@@ -201,10 +212,10 @@ export default function CyraDemo() {
   // Until two cycles are logged, predictions start from the registration answers (last period, usual length).
   const pred = useMemo(() => predict(ins, stage === "preg" ? null : regAnswers), [ins, regAnswers, stage]);
   const predWaits = stage !== "preg" && !pred && predictionWaits(ins, regAnswers);
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = localDay(); // this device's calendar day, never the UTC date
   const pregWeek = 22, trimester = 2;
-  const ping = (m) => { setToast(m); setTimeout(() => setToast(""), 2600); };
-  useEffect(() => { setKicks(0); }, [todayIso]); // the kick counter starts again each day
+  const toastTimer = useRef(null);
+  const ping = (m) => { clearTimeout(toastTimer.current); setToast(m); toastTimer.current = setTimeout(() => setToast(""), 2600); };
 
   /* The doctor email: everything in it comes from one window — the last 30 calendar days —
      and the denominator is the number of days she actually logged in it. */
@@ -273,7 +284,51 @@ export default function CyraDemo() {
   const goTab = (t2) => (stage === "preg" ? setPregTab(t2) : setAppTab(t2));
   const entryOn = (iso) => (stage === "preg" ? pregLog[iso] : days.find((d) => d.date === iso));
   const scoreOn = (iso) => { const e = entryOn(iso); return e ? dayScore(e, stage === "preg" ? Object.keys(GSYM) : symIds) : null; };
-  const isoDaysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
+
+  /* ---------- the check-in form (Today) ----------
+     The form always opens on what is saved for the day it edits, so saving again updates
+     that entry instead of replacing it with a blank form: today's entry at launch, when the
+     day changes and when the stage changes; a Calendar day while it is being edited (today's
+     unsaved form is put aside and comes back afterwards). Today's kick count is also kept on
+     the device between taps (kickTally), so a relaunch never shows fewer kicks. */
+  const formFrom = (e, tally = 0) => ({
+    draft: e ? { ...(e.sym || {}) } : {}, sleepQ: e?.sleepQ ?? null, scales: { ...ZERO_SCALES, ...(e?.scales || {}) },
+    flow: e?.flow ?? null, disch: e?.disch ?? null, odor: e?.odor ?? null, bodyOdor: e?.bodyOdor ?? null, kicks: Math.max(e?.kicks || 0, tally),
+  });
+  const formFor = (iso) => formFrom(entryOn(iso), stage === "preg" && iso === todayIso && kickTally?.day === iso ? kickTally.n || 0 : 0);
+  const applyForm = (f) => { setDraft(f.draft); setSleepQ(f.sleepQ); setScales(f.scales); setFlow(f.flow); setDisch(f.disch); setOdor(f.odor); setBodyOdor(f.bodyOdor); setKicks(f.kicks); };
+  const editSnap = useRef(null); // today's form, put aside while another day is edited
+  const formStage = useRef(null);
+  const [formRev, setFormRev] = useState(0); // bumped when the record is replaced (backup restored, another tab saved)
+  useEffect(() => {
+    if (!hydrated || !stage) return;
+    const f = formFor(todayIso);
+    const sameStage = formStage.current === stage; formStage.current = stage;
+    if (editDate && sameStage) { editSnap.current = f; return; } // an edit stays open; today's form comes back after it
+    editSnap.current = null; setEditDate(null); applyForm(f);
+  }, [hydrated, todayIso, stage, formRev]); // eslint-disable-line
+  const startEdit = (iso) => {
+    if (!editDate) editSnap.current = { draft, sleepQ, scales, flow, disch, odor, bodyOdor, kicks };
+    applyForm(formFor(iso));
+    setEditPeriod(stage !== "preg" && isPeriodDay(entryOn(iso)));
+    setEditDate(iso); goTab("today");
+  };
+  // saved: the entry just saved for editDate (if that was today, the form now shows it).
+  const endEdit = (saved) => {
+    if (!editDate) return;
+    const back = saved && editDate === todayIso ? formFrom(saved) : editSnap.current || formFor(todayIso);
+    editSnap.current = null; setEditDate(null); applyForm(back);
+  };
+  const curTab = stage === "preg" ? pregTab : appTab;
+  useEffect(() => { if (editDate && curTab !== "today") endEdit(); }, [curTab]); // eslint-disable-line -- leaving Today ends an edit
+  const addKick = () => {
+    const n = kicks + 1;
+    setKicks(n);
+    if (!editDate) setKickTally({ day: todayIso, n });
+  };
+  // A bleeding flow picked while editing a day marks it a period day (the switch can undo it).
+  const pickFlow = (v) => { setFlow(v); if (editDate && v && v !== "spot") setEditPeriod(true); };
+  const isoDaysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return localDay(d); };
   const loggedLast14 = Array.from({ length: 14 }, (_, i) => isoDaysAgo(i)).filter((iso) => !!entryOn(iso)).length;
   const streakLine = loggedLast14 >= 10 ? "That's a real record now." : loggedLast14 >= 5 ? "Patterns are starting to show." : "Every entry counts — nothing to catch up on.";
 
@@ -303,7 +358,7 @@ export default function CyraDemo() {
   const researchRef = useRef(research); researchRef.current = research;
   const pulseRevRef = useRef(pulseRev); pulseRevRef.current = pulseRev;
   // A check-in saved (again): its flags replace whatever that day's earlier save queued. An
-  // edit of an earlier day (Calendar) only replaces flags still waiting for that day.
+  // edit of an earlier day (Calendar) can only take back flags still waiting for that day.
   const contribute = (events, dateIso = todayIso) => {
     if (!researchRef.current || !stage) return;
     const past = dateIso !== todayIso; // an earlier day's phase isn't known here, so it never yields mood_dip
@@ -322,7 +377,7 @@ export default function CyraDemo() {
     adoptPulse(p); tellPulse(p); // every tab stops (or starts) queuing at once
     if (on) { ping("Weekly counts on — flags from your check-ins go out on a later day, at most once a day"); return; }
     // Off is confirmed only once it is stored on this device, so no later launch can send.
-    clearTimeout(saveTimer.current);
+    cancelSave();
     const write = async () => {
       const latest = await storage.load().catch(() => null);
       const base = latest && latest.v === 1 ? latest : snapshot();
@@ -372,15 +427,21 @@ export default function CyraDemo() {
     return { score: [avg(prev30), avg(last30)], calm: [calm(prev30), calm(last30)], poor: [poor(prev30), poor(last30)], top: top ? { label: top.label, prev: topN(prev30), now: topN(last30) } : null };
   })();
 
-  /* Medication effects: 14 days before start vs 14 after, needs ≥5 logged each side */
+  /* Medication effects: 14 days before start vs 14 after, needs ≥5 logged each side. Only
+     today and later days can still be logged, so a side that can no longer reach 5 says so
+     (stuck) instead of counting down. */
   const medEffects = meds.map((m) => {
     const start = new Date(m.started + "T12:00:00");
     const before = [], afterArr = [];
+    let openBefore = 0, openAfter = 0;
     for (let i = 1; i <= 14; i++) {
-      const b = new Date(start); b.setDate(b.getDate() - i); const sb = scoreOn(b.toISOString().slice(0, 10)); if (sb != null) before.push(sb);
-      const a = new Date(start); a.setDate(a.getDate() + i - 1); const sa = scoreOn(a.toISOString().slice(0, 10)); if (sa != null) afterArr.push(sa);
+      const b = new Date(start); b.setDate(b.getDate() - i); const ib = localDay(b), sb = scoreOn(ib); if (sb != null) before.push(sb); else if (ib >= todayIso) openBefore++;
+      const a = new Date(start); a.setDate(a.getDate() + i - 1); const ia = localDay(a), sa = scoreOn(ia); if (sa != null) afterArr.push(sa); else if (ia >= todayIso) openAfter++;
     }
-    if (before.length < 5 || afterArr.length < 5) return { ...m, ready: false, need: Math.max(0, 5 - afterArr.length) };
+    if (before.length < 5 || afterArr.length < 5) {
+      const needBefore = Math.max(0, 5 - before.length), needAfter = Math.max(0, 5 - afterArr.length);
+      return { ...m, ready: false, haveBefore: before.length, haveAfter: afterArr.length, needBefore, needAfter, stuckBefore: needBefore > openBefore, stuckAfter: needAfter > openAfter };
+    }
     const av = (arr) => Math.round((arr.reduce((x, y) => x + y, 0) / arr.length) * 100);
     return { ...m, ready: true, before: av(before), after: av(afterArr) };
   });
@@ -395,7 +456,7 @@ export default function CyraDemo() {
     const lastStart = ins.starts.length ? new Date(ins.starts[ins.starts.length - 1] + "T12:00:00") : new Date();
     const nz = (i, s, amp) => ((Math.sin(i * 12.9898 + s * 78.233) * 43758.5453) % 1) * amp;
     for (let i = 30; i >= 1; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i); const iso = d.toISOString().slice(0, 10);
+      const d = new Date(); d.setDate(d.getDate() - i); const iso = localDay(d);
       const cd = (((Math.round((d - lastStart) / 86400000)) % cycleLen) + cycleLen) % cycleLen;
       let temp, rhr, hrv, sleep;
       if (stage === "periods") { const lut = i <= 12; temp = (lut ? 0.32 : 0.02) + nz(i, 1, 0.07); rhr = (lut ? 64 : 60) + nz(i, 2, 2); hrv = (lut ? 38 : 46) + nz(i, 3, 4); sleep = 74 + nz(i, 4, 8); }
@@ -408,6 +469,7 @@ export default function CyraDemo() {
   };
   const [wearBusy, setWearBusy] = useState(null);
   const [wearConfirm, setWearConfirm] = useState(null); // a server-mediated source whose disclosure card is open
+  const restoredOuraGone = "The Oura connection in the backup no longer works, so it was removed from this device. Tap Connect to reconnect; if Cyra still shows in your Oura account's connected apps, you can remove it there.";
   const connectWear = async (id, label, { confirmed = false } = {}) => {
     if (wearBusy) return;
     if (DEMO_WEARABLES) { // illustrative data, build-flag only; the UI says so
@@ -434,7 +496,7 @@ export default function CyraDemo() {
       ping(msg);
     } catch (e) {
       if (e?.code === "OURA_EXPIRED") setWearSources(({ oura, ...rest }) => rest); // Connect comes back
-      ping(e.message || `Couldn't connect ${label}`);
+      ping(e?.code === "OURA_EXPIRED" && existing?.restored ? restoredOuraGone : e.message || `Couldn't connect ${label}`);
     } finally {
       setWearBusy(null);
     }
@@ -618,8 +680,9 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, terraOff: (v) => setTerraOff(cleanTerraOff(v)), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); } };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); } };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally };
+  const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: 1, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
   // A saved record always opens the app — also one saved while she was choosing a stage
@@ -645,7 +708,11 @@ export default function CyraDemo() {
   useEffect(() => {
     if (!hydrated || phase !== "app" || wipingRef.current) return;
     const snap = snapshot();
-    saveTimer.current = setTimeout(async () => {
+    // What this tab just took over from another tab is already stored: don't write it back.
+    const adopted = !!skipSig.current && recordSig(snap) === skipSig.current;
+    skipSig.current = null;
+    if (adopted) return;
+    const run = async () => {
       if (wipingRef.current) return;
       let out = snap;
       if (!isNative()) { // a browser can have several tabs: a newer sharing state stored by another one wins
@@ -656,10 +723,33 @@ export default function CyraDemo() {
         const rem = mergeReminders(out.reminders, latest?.reminders);
         if (rem !== out.reminders) { out = { ...out, reminders: rem }; adoptReminders(rem); }
       }
-      storage.save(out).then(() => setStorageDriver(storage.driver()), () => { setStorageDriver(storage.driver()); ping("Couldn't save to this device — storage may be full or blocked"); });
-    }, 400);
-    return () => clearTimeout(saveTimer.current);
+      storage.save(out).then(() => {
+        setStorageDriver(storage.driver());
+        // Other open tabs of this browser take the saved record over, so none of them
+        // writes its older copy back over this one (adoptRecord).
+        const sig = isNative() ? null : recordSig(out);
+        if (sig && sig !== lastSig.current) { lastSig.current = sig; try { channel.current?.postMessage({ type: "record" }); } catch { /* single tab */ } }
+      }, () => { setStorageDriver(storage.driver()); ping("Couldn't save to this device — storage may be full or blocked"); });
+    };
+    pendingSave.current = run;
+    saveTimer.current = setTimeout(() => { pendingSave.current = null; run(); }, 400);
+    return () => cancelSave();
   }, [hydrated, phase, ...PERSISTED.map((k) => values[k])]); // eslint-disable-line
+  /* Another tab of this browser saved the record: take its health record and settings over
+     (never the per-device consents or reminder addresses, which have their own merge). The
+     check-in form is reloaded when that changed today's entry. */
+  const adoptRecord = async () => {
+    if (!hydrated || phase !== "app" || wipingRef.current || isNative()) return;
+    const saved = await storage.load().catch(() => null);
+    if (!saved || saved.v !== 1 || saved.phase !== "app" || wipingRef.current) return;
+    const cur = valuesRef.current, sig = recordSig(saved);
+    if (sig === recordSig(cur)) return;
+    lastSig.current = sig; skipSig.current = sig;
+    for (const k of RECORD) if (k in saved && saved[k] !== undefined) setters[k](saved[k]);
+    const today = (v) => JSON.stringify([v.stage, v.stage === "preg" ? v.pregLog?.[todayIso] ?? null : (v.days || []).find((d) => d.date === todayIso) ?? null, v.kickTally ?? null]);
+    if (today(saved) !== today(cur)) setFormRev((n) => n + 1);
+  };
+  const adoptRecordRef = useRef(adoptRecord); adoptRecordRef.current = adoptRecord;
 
   /* Weekly counts: send a due queue — at most one tally a day from this browser (or this
      phone app install), never on the day of the check-in. Inside a Web Lock shared by every
@@ -720,10 +810,12 @@ export default function CyraDemo() {
     return () => window.removeEventListener("online", onOnline);
   }, []); // eslint-disable-line
   useEffect(() => {
-    const onVisible = () => { if (document.visibilityState === "visible") { drainTerraNow(); retryPushForget(); retryTerraOff(); } };
+    // Hidden, closed or sent to the background: a save still waiting on its 400 ms timer is written now.
+    const onVisible = () => { if (document.visibilityState === "visible") { drainTerraNow(); retryPushForget(); retryTerraOff(); } else flushSave(); };
     document.addEventListener("visibilitychange", onVisible);
-    const sub = isNative() ? CapApp.addListener("appStateChange", (st) => { if (st?.isActive) { drainTerraNow(); retryTerraOff(); } }) : null;
-    return () => { document.removeEventListener("visibilitychange", onVisible); sub?.then((h) => h.remove()).catch(() => {}); };
+    window.addEventListener("pagehide", flushSave);
+    const sub = isNative() ? CapApp.addListener("appStateChange", (st) => { if (st?.isActive) { drainTerraNow(); retryTerraOff(); } else flushSave(); }) : null;
+    return () => { document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("pagehide", flushSave); sub?.then((h) => h.remove()).catch(() => {}); };
   }, []); // eslint-disable-line
 
   /* Phone: a backup copy an interrupted share left in the app's cache (app closed or killed
@@ -772,14 +864,25 @@ export default function CyraDemo() {
   // Restoring brings back the record and settings, but never the per-device consents
   // (weekly counts, Cyra's AI, and in a browser the reminders, which would register this
   // browser with Cyra's server): those stay as they are on this device. A wearable
-  // connection in the backup comes back on this device; one this device has that the backup
+  // connection in the backup comes back on this device unconfirmed; one this device has that the backup
   // doesn't is kept (the restore form says so).
   const importBackup = async (file, passphrase) => {
     let env; try { env = JSON.parse(await file.text()); } catch { throw new Error("That file isn't a Cyra backup"); }
     const saved = await decryptBackup(env, passphrase);
     if (!saved || saved.v !== 1 || !saved.stage) throw new Error("That backup is empty or from a different version");
-    const wear = { ...wearSources, ...(saved.wearSources && typeof saved.wearSources === "object" ? saved.wearSources : {}) };
-    applySaved({ ...saved, wearSources: wear }, { skip: [...DEVICE_ONLY, "reminders"] }); setShowSettings(false);
+    /* Oura / Terra connections in the backup may have been ended since it was made. One whose
+       Terra disconnect this device is already asking for is left out; the others come back
+       unconfirmed (pending + restored): they don't count as connected until a Sync gets
+       readings, and Oura is checked right away (one that no longer works is removed). */
+    const fromBackup = saved.wearSources && typeof saved.wearSources === "object" ? { ...saved.wearSources } : {};
+    const endingIds = cleanTerraOff(terraOff).map(offId);
+    if (fromBackup.terra && endingIds.includes(offId(fromBackup.terra))) delete fromBackup.terra;
+    for (const id of ["oura", "terra"]) {
+      const st = fromBackup[id];
+      if (st && typeof st === "object" && !st.demo && JSON.stringify(st) !== JSON.stringify(wearSources[id])) fromBackup[id] = { ...st, pending: true, restored: true };
+    }
+    const wear = { ...wearSources, ...fromBackup };
+    applySaved({ ...saved, wearSources: wear }, { skip: [...DEVICE_ONLY, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
@@ -787,6 +890,19 @@ export default function CyraDemo() {
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), wearSources: wear, ...keep, reminders: rem, v: 1, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     ping(!isNative() && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored");
+    if (wear.oura?.restored && API_BASE && !DEMO_WEARABLES) checkRestoredOura(wear.oura);
+  };
+  const checkRestoredOura = async (st) => {
+    setWearBusy("oura");
+    try {
+      const { rows, state } = await syncSource("oura", st);
+      if (wipingRef.current) return;
+      setWearSources((s) => (s.oura?.restored ? { ...s, oura: state } : s));
+      if (rows.length) setWearData((d) => mergeRows(d, rows));
+    } catch (e) {
+      if (e?.code === "OURA_EXPIRED" && !wipingRef.current) { setWearSources(({ oura: _gone, ...rest }) => rest); ping(restoredOuraGone); }
+      // anything else: it stays unconfirmed, and Sync checks it again
+    } finally { setWearBusy(null); }
   };
 
   /* ---------- Delete everything / Start over ----------
@@ -819,9 +935,10 @@ export default function CyraDemo() {
     ch.onmessage = (e) => {
       if (e.data?.type === "pulse") { if ((e.data.pulseRev || 0) > pulseRevRef.current) adoptPulse(e.data); return; }
       if (e.data?.type === "reminders") { adoptReminders(e.data); return; }
+      if (e.data?.type === "record") { adoptRecordRef.current(); return; }
       if (e.data?.type !== "wipe") return;
       if (e.data.phase === "cancel") { wipingRef.current = false; return; }
-      wipingRef.current = true; clearTimeout(saveTimer.current);
+      wipingRef.current = true; cancelSave();
       if (e.data.phase === "done") window.location.replace(window.location.pathname);
     };
     return () => { ch.close(); channel.current = null; };
@@ -834,7 +951,7 @@ export default function CyraDemo() {
     if (isNative()) await step(sweepBackupCache);
   };
   const wipe = async (sources = {}, { force = false, pushKnown = [], holdWeek: startOver = false } = {}) => {
-    wipingRef.current = true; clearTimeout(saveTimer.current);
+    wipingRef.current = true; cancelSave();
     tellOtherTabs("start");
     const failed = [], ended = []; // failed: [{ name, kind: network | refused | nokey }]
     let pushLeft = null, pushForgot = false, terraLiveEnded = false;
@@ -946,7 +1063,7 @@ export default function CyraDemo() {
      switch's network calls, so a tab closed during them can't lose it. */
   const saveRemindersNow = async (rem) => {
     if (!hydrated || phase !== "app" || wipingRef.current) return;
-    clearTimeout(saveTimer.current);
+    cancelSave();
     try {
       const latest = isNative() ? null : await storage.load().catch(() => null);
       const base = latest && latest.v === 1 ? latest : snapshot();
@@ -1153,7 +1270,7 @@ export default function CyraDemo() {
   /* ---------- shared check-in pieces (one instance, rendered by whichever Today is active) ---------- */
   const scoreMeter = <ScoreMeter liveScore={liveScore} scoreLabel={scoreLabel} scoreColor={scoreColor} />;
   const scaleSection = <ScaleSection scales={scales} setScales={setScales} />;
-  const bodySection = <BodySignals stage={stage} showBody={showBody} setShowBody={setShowBody} flow={flow} setFlow={setFlow} disch={disch} setDisch={setDisch} odor={odor} setOdor={setOdor} bodyOdor={bodyOdor} setBodyOdor={setBodyOdor} />;
+  const bodySection = <BodySignals stage={stage} showBody={showBody} setShowBody={setShowBody} flow={flow} setFlow={pickFlow} disch={disch} setDisch={setDisch} odor={odor} setOdor={setOdor} bodyOdor={bodyOdor} setBodyOdor={setBodyOdor} />;
   const quickCheckin = <QuickCheckin stage={stage} draft={draft} setDraft={setDraft} setQuickMode={setQuickMode} />;
 
   if (!hydrated) {
@@ -1236,10 +1353,10 @@ export default function CyraDemo() {
             </nav>
 
             {pregTab === "today" && (
-              <PregTodayScreen pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} setKicks={setKicks} setPregLog={setPregLog} todayIso={todayIso} scales={scales} ping={ping} research={research} contribute={(entry) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])])} />
+              <PregTodayScreen pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
             )}
             {pregTab === "cal" && (
-              <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={dayScore} scoreColor={scoreColor} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} setDraft={setDraft} setKicks={setKicks} setPregTab={setPregTab} ping={ping} />
+              <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={dayScore} scoreColor={scoreColor} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} onEdit={startEdit} ping={ping} />
             )}
             {pregTab === "mile" && <MilestonesScreen pregWeek={pregWeek} />}
             {pregTab === "ask" && askView}
@@ -1257,10 +1374,10 @@ export default function CyraDemo() {
             </nav>
 
             {appTab === "today" && (
-              <TodayScreen pred={pred} stage={stage} welcome={welcome} editDate={editDate} setEditDate={setEditDate} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} scales={scales} flow={flow} disch={disch} odor={odor} setDays={setDays} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
+              <TodayScreen pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} setDays={setDays} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
             )}
             {appTab === "cal" && (
-              <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} setDraft={setDraft} setSleepQ={setSleepQ} setEditPeriod={setEditPeriod} setEditDate={setEditDate} setAppTab={setAppTab} ins={ins} />
+              <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />
             )}
             {appTab === "patterns" && <PatternsScreen ins={ins} symIds={symIds} ramp={ramp} scoreColor={scoreColor} stage={stage} medEffects={medEffects} />}
             {appTab === "report" && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} />}
