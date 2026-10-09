@@ -1,6 +1,16 @@
 // Storage adapter interface. Default: JSON file store (zero-config).
-// Swap for Postgres/DynamoDB by implementing the same four methods and
-// changing `storage.driver` in config/app.json. Nothing else changes.
+// The contract is six async methods:
+//   insert(coll, doc)          → doc
+//   find(coll, pred)           → rows matching pred
+//   findOne(coll, pred)        → first match or null
+//   update(coll, pred, patch)  → number of rows patched
+//   remove(coll, pred)         → number of rows deleted; they are gone from the
+//                                collection (and, for JsonStore, from the file on disk)
+//   apply(coll, fn)            → fn(rows) edits a copy of the collection; the copy is
+//                                written as one change and kept only if the write worked
+//                                (all or nothing: a failed write leaves no partial edit)
+// Swap for Postgres/DynamoDB by implementing the same six methods and
+// changing `storage.driver` in config. Nothing else changes.
 import fs from "fs";
 import path from "path";
 
@@ -48,6 +58,23 @@ export class JsonStore {
       }
     });
     this._save(coll);
+    return n;
+  }
+  async apply(coll, fn) {
+    const next = this._load(coll).map((r) => ({ ...r }));
+    const out = fn(next);
+    fs.writeFileSync(this._file(coll), JSON.stringify(next, null, 2));
+    this.cache[coll] = next;
+    return out;
+  }
+  async remove(coll, pred) {
+    const rows = this._load(coll);
+    const keep = rows.filter((r) => !pred(r));
+    const n = rows.length - keep.length;
+    if (n) {
+      this.cache[coll] = keep;
+      this._save(coll);
+    }
     return n;
   }
 }

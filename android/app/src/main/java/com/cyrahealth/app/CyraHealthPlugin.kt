@@ -48,11 +48,18 @@ import org.json.JSONObject
  * WebView. It makes no network calls and writes nothing to Health Connect.
  *
  *   available()            -> { available: boolean }   Health Connect SDK status == SDK_AVAILABLE
- *   requestAuthorization() -> { granted: boolean }     true only if every requested read permission is granted
+ *   requestAuthorization() -> { granted: boolean, grantedTypes: string[], requestedTypes: string[] }
+ *       requestedTypes: the types Cyra asks to read on this phone, as row fields: "rhr", "hrv",
+ *       "sleep", plus "temp" where Health Connect supports skin temperature. grantedTypes: those
+ *       of them that Health Connect says Cyra may read right now. granted: at least one is.
+ *       The Health Connect permission screen opens only while some requested type isn't granted;
+ *       whatever the person allows there stays allowed, even if it is only some of the types.
  *   readDaily({ from, to }) -> { days: [{ date, temp, rhr, hrv, sleep }] }
  *
- * readDaily works per local calendar day (ZoneId.systemDefault()) in [from, to], and only
- * returns days with at least one value:
+ * readDaily asks Health Connect which permissions Cyra holds on every call and reads only
+ * those types; a type that isn't granted is never read and stays null. It works per local
+ * calendar day (ZoneId.systemDefault()) in [from, to], and only returns days with at least
+ * one value:
  *   rhr   mean RestingHeartRateRecord.beatsPerMinute of records whose time falls on the day, rounded.
  *   hrv   mean HeartRateVariabilityRmssdRecord.heartRateVariabilityMillis on the day, rounded (ms).
  *   sleep round(100 * asleep / in-session) over SleepSessionRecords that END on the day, where
@@ -100,9 +107,10 @@ class CyraHealthPlugin : Plugin() {
         scope.launch {
             try {
                 val wanted = wantedPermissions(client)
-                if (client.permissionController.getGrantedPermissions().containsAll(wanted)) {
+                val held = client.permissionController.getGrantedPermissions()
+                if (held.containsAll(wanted)) {
                     permissionScreenOpen.set(false)
-                    call.resolve(JSObject().put("granted", true))
+                    call.resolve(authorizationResult(wanted, held))
                     return@launch
                 }
                 val intent = permissionContract.createIntent(context, wanted)
@@ -140,7 +148,7 @@ class CyraHealthPlugin : Plugin() {
         } catch (e: Exception) {
             emptySet()
         }
-        val client = clientOrNull() ?: return call.resolve(JSObject().put("granted", false))
+        val client = clientOrNull() ?: return call.resolve(authorizationResult(emptySet(), emptySet()))
         scope.launch {
             // Re-check with Health Connect itself: the screen's result only lists what changed.
             val granted = try {
@@ -150,8 +158,32 @@ class CyraHealthPlugin : Plugin() {
             } catch (e: Exception) {
                 fromScreen
             }
-            call.resolve(JSObject().put("granted", granted.containsAll(wantedPermissions(client))))
+            call.resolve(authorizationResult(wantedPermissions(client), granted))
         }
+    }
+
+    /**
+     * { granted, grantedTypes, requestedTypes } for src/lib/wearables.js. A partial grant is
+     * reported as partial (granted: true, fewer grantedTypes than requestedTypes), so the app
+     * never says Cyra has no access while Health Connect still lets it read some of the
+     * requested types.
+     */
+    private fun authorizationResult(wanted: Set<String>, held: Set<String>): JSObject {
+        val requestedTypes = JSArray()
+        val grantedTypes = JSArray()
+        var grantedCount = 0
+        for ((permission, type) in TYPE_NAMES) {
+            if (permission !in wanted) continue
+            requestedTypes.put(type)
+            if (permission in held) {
+                grantedTypes.put(type)
+                grantedCount++
+            }
+        }
+        return JSObject()
+            .put("granted", grantedCount > 0)
+            .put("grantedTypes", grantedTypes)
+            .put("requestedTypes", requestedTypes)
     }
 
     @PluginMethod
@@ -348,6 +380,14 @@ class CyraHealthPlugin : Plugin() {
         private val READ_SLEEP = HealthPermission.getReadPermission(SleepSessionRecord::class)
         private val READ_SKIN_TEMPERATURE = HealthPermission.getReadPermission(SkinTemperatureRecord::class)
         private val BASE_PERMISSIONS = setOf(READ_RESTING_HEART_RATE, READ_HRV, READ_SLEEP)
+
+        /** Each read permission and the row field it fills (the names requestAuthorization reports). */
+        private val TYPE_NAMES = listOf(
+            READ_RESTING_HEART_RATE to "rhr",
+            READ_HRV to "hrv",
+            READ_SLEEP to "sleep",
+            READ_SKIN_TEMPERATURE to "temp",
+        )
 
         private val ASLEEP_STAGES = setOf(
             SleepSessionRecord.STAGE_TYPE_SLEEPING,

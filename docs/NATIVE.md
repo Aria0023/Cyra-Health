@@ -8,17 +8,34 @@ CocoaPods) and `android/` is an Android Studio project. Both use the app id
 What the shell adds:
 
 - **Storage on the phone.** The whole health record is one file,
-  `NoCloud/cyra-state.json`, inside the app's Library folder. Nothing is uploaded.
+  `NoCloud/cyra-state.json`: on iPhone in the app's `Library` folder (marked excluded from
+  backup, with complete file protection), on Android in the app's private internal `files`
+  folder (Capacitor's `Directory.Library`, with Android backup and transfer switched off).
+  The file itself is never uploaded. Each save writes `NoCloud/cyra-state.json.tmp` first
+  and then moves it into place, so a crash can't leave half a record. While the person
+  saves an encrypted backup, an encrypted copy sits in the app's cache until sharing
+  finishes (on Android, when the app she chose hands back to Cyra), and is then deleted; if
+  Cyra was closed first, it is deleted the next time Cyra opens, and Delete everything or
+  Start over also removes it (§7b).
 - **Apple Health / Health Connect.** Read on the phone by Cyra's own plugin
-  (`CyraHealth`). Nothing is uploaded.
+  (`CyraHealth`). Cyra never sends it to its server or to anyone else; it is kept only in
+  the on-device record (and, encrypted, inside a backup file if the person exports one to
+  a place she chooses).
 - **Reminders.** Scheduled on the phone as local notifications. No server and no push
   service are involved.
-- **Sign-in and connecting Oura or Fitbit/Garmin/Whoop.** These open in a sign-in
-  window (iOS: Apple's secure sign-in sheet; Android: a Chrome Custom Tab) and come back
-  to the app through a Cyra link (details below).
+- **Sign-in and connecting Oura or Fitbit/Garmin/Whoop.** These open in a sign-in window
+  (iOS: Apple's private sign-in sheet, which shares nothing with Safari; Android: a Custom
+  Tab, normally from the default browser, which shares that browser's sign-ins and history)
+  and come back to the app through a Cyra link (details below).
 
-All plugin access goes through one file, `src/lib/native.js`. In the web build
-(Render static site) none of it runs, so the website behaves exactly as before.
+The phone app sends Cyra's backend the same things the website does, except reminders,
+which never involve the server on the phone: the stage-less read of last week's anonymous
+counts, and, only after the person turns them on, the weekly counts, Ask Cyra's AI, Oura,
+Fitbit/Garmin/Whoop and sign-in. The README's "Privacy" section lists what each one sends.
+
+All plugin access goes through one file, `src/lib/native.js`. In the web build every
+plugin call is skipped (each caller checks `isNative()` first), so no native plugin and no
+plugin web fallback is ever used on the website.
 
 ---
 
@@ -48,9 +65,17 @@ npm run cap:ios       # the same, then open ios/App/App.xcodeproj in Xcode
 npm run cap:android   # the same, then open android/ in Android Studio
 ```
 
-If `VITE_API_BASE` is missing, the app still works on the phone, but sign-in and
-connecting Oura, Fitbit, Garmin or Whoop show a plain "isn't set up in this version
-of the app yet" message. The app never tries to reach a server that doesn't exist.
+If `VITE_API_BASE` is missing, the app still works on the phone and makes no request to a
+backend at all: every helper in `src/lib/api.js` fails at once without calling `fetch`.
+Sign-in shows "Sign-in isn't set up in this version of the app yet — continue with email",
+and connecting Oura, Fitbit, Garmin or Whoop shows "This version of the app isn't set up to
+connect accounts yet". The anonymous counts say they're "not available in this version of
+the app", no weekly counts are sent, and Ask Cyra answers from its on-device library only. Apple Health / Health Connect and
+reminders work as usual, because they never use the server.
+
+Also set `VITE_TERMS_URL` and `VITE_PRIVACY_URL` (the published Terms and Privacy Policy)
+before a public release. Without them the build still passes, prints a warning, and the
+consent step says the documents are still being finalized instead of linking them.
 
 Run `npm run cap:sync` again after any change to `src/`, `capacitor.config.json` or the
 Capacitor packages.
@@ -66,11 +91,17 @@ Capacitor packages.
      team, change it here (for example `com.yourcompany.cyra`) and put the same value in
      `appId` in `capacitor.config.json`. The `cyrahealth://` link scheme doesn't depend
      on the bundle id.
-3. **HealthKit capability.** `ios/App/App/App.entitlements` already turns HealthKit on.
-   In the same tab you should see **HealthKit** listed. If it isn't there, click
-   **+ Capability** and add **HealthKit**. Leave **Clinical Health Records** and
-   **Background Delivery** unticked. Apple's "Setting up HealthKit" guide warns that App
-   Review may reject apps that turn on Clinical Health Records without using it.
+3. **HealthKit and Data Protection capabilities.** `ios/App/App/App.entitlements` already
+   turns on HealthKit and Data Protection
+   (`com.apple.developer.default-data-protection` = `NSFileProtectionComplete`). In the
+   same tab you should see **HealthKit** and **Data Protection** listed. If one isn't there,
+   click **+ Capability** and add it, then check that `App.entitlements` still says
+   `NSFileProtectionComplete`. Apple's documentation for the entitlement says: "To add this
+   entitlement to your app, enable the Data Protection capability in Xcode." The entitlement
+   and the provisioning profile have to agree, or code signing fails; with automatic
+   signing, Xcode normally takes care of both. Leave **Clinical Health Records** and **Background
+   Delivery** unticked. Apple's "Setting up HealthKit" guide warns that App Review may
+   reject apps that turn on Clinical Health Records without using it.
 4. Connect an iPhone and press **Run**. To get real wrist temperature, HRV, resting
    heart rate and sleep data, use an iPhone paired with an Apple Watch. The simulator
    has no watch data.
@@ -81,16 +112,30 @@ Already set up in `ios/App/App`: the HealthKit read-permission text
 of the `CyraHealth` and `CyraAuth` plugins (`CyraViewController.swift`).
 
 **Where the record lives on iPhone:** `Library/NoCloud/cyra-state.json`. iOS backs up
-`Library/` to iCloud by default, so at every launch the app creates `Library/NoCloud`,
-marks it (and the files in it) as excluded from backup, and gives it complete file
-protection (`CyraNoCloud` in `AppDelegate.swift`).
+`Library/` to iCloud by default, so at every launch, and every time the app goes to the
+background, the app creates `Library/NoCloud` if needed, marks it and every file in it as
+excluded from backup, and gives them complete file protection (`CyraNoCloud` in
+`AppDelegate.swift`). Apple calls the backup exclusion guidance to the system, not a
+guarantee.
 
-Complete protection means the file can't be read while the iPhone is locked. If Cyra
-starts in that state, it shows **"Your record couldn't be opened"** with a **Try again**
-button instead of the welcome screen, and saves nothing until the record has been read,
-so an empty record can never overwrite the real one. Only a missing file
-(`OS-PLUG-FILE-0008` from the Filesystem plugin) counts as "no record yet". If the file
-is damaged and never opens, the person can choose to delete it and start over.
+A save writes `cyra-state.json.tmp` and then moves it over `cyra-state.json`. iOS won't
+move a file onto an existing one (`FileManager.moveItem`), so `src/lib/storage.js` deletes
+the old record first; if the app dies in between, the next launch reads the complete temp
+file. So every save leaves a new file in place. The Data Protection entitlement makes
+complete protection the default for files the app creates, so on an app installed from
+scratch the new file is protected from the moment it exists. Apple's developer support
+describes that default as applying to an install from scratch; on a phone that updated from
+a build without the entitlement, a record saved since the last launch or background pass
+has the system default (complete until first user authentication) until the next pass.
+Locking the phone sends the app to the background, which runs that pass.
+
+On an iPhone with a passcode, complete protection means the file can't be read from about
+10 seconds after the iPhone locks until it is next unlocked. If Cyra starts in that state,
+it shows **"Your record couldn't be opened"** with a **Try again** button instead of the
+welcome screen, and saves nothing until the record has been read, so an empty record can
+never overwrite the real one. Only a missing file (`OS-PLUG-FILE-0008` from the Filesystem
+plugin, for both the record and the temp file) counts as "no record yet". If the file is
+damaged and never opens, the person can choose to delete it and start over.
 
 ## 4. Android (Android Studio)
 
@@ -105,12 +150,27 @@ is damaged and never opens, the person can choose to delete it and start over.
 4. Cyra only asks to **read** resting heart rate, heart-rate variability, sleep and skin
    temperature. Before a Play Store release, the Health Connect permissions
    declaration in Play Console has to list exactly these.
+5. **Partial permission.** The person can allow only some of these types. The plugin then
+   reports which ones (`requestAuthorization` returns `granted`, `grantedTypes` and
+   `requestedTypes`), reads only those, and Cyra says "Cyra can read only some of the health
+   data it asked for. You can change this in Health Connect → App permissions → Cyra." Only
+   when none is allowed does it say "Cyra wasn't given permission to read health data". The
+   plugin asks Health Connect which permissions it holds before every read, because
+   developer.android.com says users "can grant or revoke permissions at any time".
+6. **Privacy policy link.** Health Connect's privacy link opens Cyra's rationale screen,
+   which has to link to the same privacy policy as the Play Console listing. Put that
+   published `https://` address in `privacy_policy_url` in
+   `android/app/src/main/res/values/strings.xml` (the same address as `VITE_PRIVACY_URL`).
+   Until then the link is hidden, and release builds fail on purpose
+   (`checkPrivacyPolicyUrl` in `android/app/build.gradle`).
 
 **Where the record lives on Android:** `files/NoCloud/cyra-state.json` in the app's
 private internal storage. The Filesystem plugin maps `Directory.Library` to the app's
-internal files folder. App backup is switched off (`android:allowBackup="false"`, plus
-backup and data-extraction rules that exclude everything), so the file never reaches
-Google's backup servers or device-to-device transfer.
+internal files folder. A save writes `cyra-state.json.tmp` and the Filesystem plugin's
+rename deletes the old record and moves the temp file into its place; if the app dies in
+between, the next launch reads the temp file. App backup is switched off
+(`android:allowBackup="false"`, plus backup and data-extraction rules that exclude
+everything), so the file never reaches Google's backup servers or device-to-device transfer.
 
 ## 5. How sign-in and connecting a wearable come back to the app
 
@@ -125,10 +185,12 @@ app does this instead:
      that only the calling app's session receives the authentication callback, even when
      more than one app registers the same callback URL scheme". It runs as an ephemeral
      session, so it shares no cookies or browsing data with Safari.
-   - **Android:** a Chrome Custom Tab (`@capacitor/browser`). The link comes back
-     through the App plugin's `appUrlOpen` event.
+   - **Android:** a Custom Tab (`@capacitor/browser`), normally from the phone's default
+     browser, so it shares that browser's cookies and history. The link comes back through
+     the App plugin's `appUrlOpen` event.
 3. The person signs in with Apple, Google or Facebook, or approves Oura or the Terra
-   widget.
+   widget. Before Oura or the Terra widget opens, Cyra shows what that connection sends
+   and waits for **Continue**.
 4. The backend sends the window to the return link, with the result after `#`:
 
    | Flow | Link | Carries |
@@ -140,8 +202,11 @@ app does this instead:
 5. Cyra only accepts the exact link of the current attempt. On iOS the sign-in sheet
    closes itself. On Android, opening Cyra already replaces the Custom Tab, so the app
    doesn't call close again, because a second close can race the browser shutting itself
-   down. Cyra then swaps the code for the result (verified email, or Oura tokens) with one
-   call to the backend.
+   down. Cyra then swaps the code for the result with one call to the backend: for
+   sign-in, the provider, the person's name and, only when Apple or Google says it is
+   verified, her email (Facebook's email is never passed on); for Oura, the tokens. The
+   backend deletes the result at that moment, and a timer deletes it 5 minutes after the
+   callback if nobody collects it.
 
 If the person closes the window without finishing, Cyra says so in plain words. If
 nothing comes back within 5 minutes, it stops waiting (and on iOS closes the sheet).
@@ -157,8 +222,8 @@ ignores every link that doesn't carry the current attempt's id.
 
 The backend accepts only these exact shapes: `<scheme>://auth/oauth` for sign-in and
 `/auth/oura` or `/auth/terra` for the matching connect flow, each optionally followed by
-`?a=<16 to 64 characters of A-Z, a-z, 0-9, - or _>`. Any other host, path, query or form
-is refused.
+`?a=<16 to 64 characters of A-Z, a-z, 0-9, - or _>`, with the scheme written in lowercase.
+Any other host, path or query, any `#`, and a scheme in any other case are refused (400).
 
 ### Why there's a verifier
 
@@ -172,8 +237,8 @@ Cyra uses the same idea for its own handoff:
 
 - Before opening the window, the app makes a random secret, the **verifier**. It sends
   only its SHA-256 fingerprint (`app_challenge`) on the start URL.
-- The backend seals that fingerprint into its signed state and keeps it next to the
-  one-time code.
+- The backend seals that fingerprint into its encrypted state (AES-256-GCM, with a key
+  derived from `AUTH_SECRET`) and keeps it next to the one-time code.
 - `POST /api/oauth/exchange` and `POST /api/integrations/oura/exchange` work on a
   **both or neither** rule:
   - A code made for the app is only redeemed **with** its matching verifier.
@@ -183,11 +248,25 @@ Cyra uses the same idea for its own handoff:
     someone else's Oura ring.
   - A refused attempt gets the same 404 as an unknown code, and the code is used up, so
     nobody can keep guessing.
-- The verifier exists only in the app's memory, for that single request.
-- An app-link return without an `app_challenge` is refused at the start (400). So is an
-  `app_challenge` on a web return.
-- Terra's link carries no code. The data is collected later under an id that never
-  leaves the phone except in the body of the collect request, so Terra needs no verifier.
+- The verifier is never saved. It lives in the app's memory for one sign-in or connect
+  attempt and is sent once, in the body of the exchange request, to Cyra's backend, which
+  checks it and doesn't keep it.
+- For sign-in and Oura, an app-link return without an `app_challenge` is refused at the
+  start (400), and so is an `app_challenge` on a web return. Terra's start takes no
+  challenge (next point).
+- Terra's return link carries no code, only `#terra=1`, so an app that intercepts it learns
+  nothing it could use, and Terra needs no verifier. The Fitbit/Garmin/Whoop readings wait
+  on Cyra's server, held in memory (not encrypted) for up to 7 days, in a mailbox that can
+  be opened only with this phone's secret key. A device you restore your encrypted backup
+  to gets that key too and can collect them. Collecting empties the mailbox. The app makes a secret mailbox key (32 random
+  bytes), keeps it in the on-device record (so it is also inside an encrypted backup), and
+  sends it only in request bodies, never in a URL: when the connection starts, and with each
+  collect or disconnect request. The backend registers only a one-way hash of the key with
+  Terra, as the connection's reference id. Terra adds that reference id to the address it
+  sends the window back to, so it can appear in request logs and browser history, but it
+  can't open the mailbox: collecting needs the key. (A connection made by the older app
+  version used its reference id as its secret, so that one can still be ended, never read,
+  with it.)
 - Web flows don't send `app_challenge` and work as before.
 
 ## 6. Server settings (Render → cyra-backend → Environment)
@@ -198,7 +277,8 @@ Cyra uses the same idea for its own handoff:
 | `APP_RETURN_SCHEMES` | `cyrahealth` | The app link scheme the backend may send people back to. This is also the default when unset. Already in `render.yaml`. |
 | `NODE_ENV` | `production` | With no return allowlist, web sign-in/connect returns are refused instead of allowed for any site. Already in `render.yaml`. |
 | `RETURN_ORIGINS` | usually unset | Optional. The web origins a sign-in/connect flow may return to. Unset means the `http(s)` entries of `CORS_ORIGIN`. |
-| `AUTH_SECRET` | a long random string | Signs the sign-in/connect state, including the app challenge. |
+| `ADMIN_KEY` | a long random string | Required in production: the server refuses to start without a real value. |
+| `AUTH_SECRET` | a different long random string | Required in production. Seals (encrypts and authenticates) the sign-in/connect state, including the app challenge. |
 | `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | from Apple | Sign in with Apple |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | from Google | Google sign-in |
 | `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET` | from Meta | Facebook sign-in |
@@ -230,18 +310,27 @@ Only the backend sends people on to `cyrahealth://`.
 
 The phone app doesn't need `VAPID_*`. Those keys are only for browser push reminders.
 
-**Native logging is off.** `capacitor.config.json` sets `"loggingBehavior": "none"`.
-Capacitor's default (`debug`) prints every plugin call's options and results to the Xcode
-console and to logcat in debug builds. That would include the whole health record
-(`Filesystem.writeFile`) and the `CyraHealth.readDaily` rows. If you need bridge logs to
-debug something, switch it to `"debug"` locally, use test data only, and don't commit
-the change.
+**Capacitor's bridge logging is off.** `capacitor.config.json` sets
+`"loggingBehavior": "none"`, so the bridge doesn't write plugin calls or their data to the
+Xcode console or logcat. Cyra's own native code still writes a few diagnostic lines (file
+names, file-protection status and error descriptions on iOS; exception class names on
+Android), never health values. Capacitor's default (`debug`) turns bridge logging on in
+debug builds. On Android it writes every plugin call's options to logcat, which includes
+the whole health record passed to `Filesystem.writeFile`, and call results can follow
+through the forwarded web console. On iOS it prints each call's plugin and method plus the
+first 256 characters of every result to the Xcode console, for example the start of the
+record from `Filesystem.readFile` and of the `CyraHealth.readDaily` rows. If you need bridge
+logs to debug something, switch it to `"debug"` locally, use test data only, and don't
+commit the change.
 
 ## 7. Reminders on the phone
 
-Reminders are local notifications. One weekly-repeating notification per chosen
-weekday, at the chosen time, with a generic text ("Time for your 30-second check-in.").
-"Never remind me" cancels all of them. They are scheduled as **inexact** on Android
+Reminders are off until the person turns them on. They are local notifications: one
+weekly-repeating notification per chosen weekday, at the chosen time, with a generic text
+("Time for your 30-second check-in."). Turning reminders off, choosing "When I feel like
+it" or "Never remind me", Delete everything and Start over each cancel every pending
+notification, whether or not reminders were on (Cyra cancels its own reminder ids as well
+as everything the plugin reports as pending). They are scheduled as **inexact** on Android
 (`isExactNotification: false`). A gentle check-in can arrive a few minutes late, and
 asking for exact alarms would make Android 12+ open the "Alarms & reminders" settings
 screen. Android 14 denies that permission by default to apps that aren't alarm-clock or
@@ -255,72 +344,80 @@ opened, and Cyra schedules all reminders again every time it opens.
 
 ## 7b. Backups on the phone
 
-The phone app doesn't offer **Encrypted backup** yet. The web version saves the backup
-as a browser download, and neither Capacitor web view saves downloads: iOS has no
-download handling in Capacitor, and Android has no `DownloadListener`. So the button is
-hidden in the phone app. The settings say so, and the delete warning no longer mentions
-a backup. **Restore** still works: it opens a backup file made on the web.
+The phone app offers **Encrypted backup** through the system share sheet: the file is
+encrypted on the device, written briefly to the app cache, handed to the share sheet, and
+the cache copy is deleted afterwards. In detail: the record is encrypted with a key derived
+from the person's passphrase (PBKDF2-SHA256, 600,000 rounds, AES-256-GCM), written as
+`cyra-backup-<date>.cyra.json` to the app's cache (`Directory.Cache`), and handed to the
+share sheet (`@capacitor/share`, installed), so the person chooses where it goes (Files,
+iCloud Drive, Google Drive, AirDrop, Mail…). The cache copy is deleted when sharing
+finishes (on iPhone when the sheet or the chosen action closes; on Android when the chosen
+app returns to Cyra), also when she cancels or sharing fails, and if the app was closed
+before that, Cyra deletes the leftover copy the next time it opens, whether or not the
+record can be read then (Delete everything and Start over remove it too). The button reads
+"Save encrypted backup…" on the phone, also after a save to the phone failed. The file's
+contents are unreadable without the passphrase (its name shows the date it was made), and
+Cyra never receives it.
 
-Adding backups to the phone app later means writing the encrypted file with
-`Filesystem` and handing it to a share sheet (for example `@capacitor/share`, which isn't
-installed). Keep in mind App Review Guideline 5.1.3(ii): apps "may not store personal
-health information in iCloud". So the person has to choose where the file goes, and the
-app must never write it into an iCloud-synced folder on its own.
+The web version saves the backup as a browser download instead. Neither Capacitor web view
+saves downloads (iOS has no download handling in Capacitor; Android has no
+`DownloadListener`), which is why the phone uses the share sheet. **Restore** opens a backup
+made on the web or on a phone. The delete warning says, on every platform, that the log
+can't be recovered unless the person saved a backup.
+
+App Review Guideline 5.1.3(ii): apps "may not store personal health information in
+iCloud". So the person has to choose where the file goes, and the app must never write it
+into an iCloud-synced folder on its own. It doesn't: it only writes to its own cache.
 
 ## 8. What has and hasn't been verified
 
 The phone code was written against the official documentation and the installed
-Capacitor sources. **It has not been compiled or run on a phone in the authoring
-environment**, which had no Xcode, no Android SDK, and no access to Google's Maven
+Capacitor sources. **Nothing has been built with Xcode or Gradle, or run on a phone.** The
+authoring environment had no Xcode, no Android SDK, and no access to Google's Maven
 repository.
 
-**Checked:**
+**Checked without a phone:**
 
-- `npm run build` passes and the build shows `BUILD 2026.10.07-D`.
-- ESLint reports no errors.
+- `Info.plist`, `App.entitlements` and `PrivacyInfo.xcprivacy` parse as property lists
+  (Python `plistlib`), and the Android manifest and resource XML files parse (Python
+  `xml.etree`).
+- The Swift files pass a tree-sitter Swift syntax check. That is a parse, not a compile:
+  no type checking.
+- `CyraHealthPlugin.kt` and `HealthPermissionsRationaleActivity.kt` compile with the
+  Kotlin 2.3.21 compiler against hand-written stubs of the Android, Health Connect and
+  Capacitor APIs they use, not against the real libraries. The permission result
+  (`granted`, `grantedTypes`, `requestedTypes`) was run on the JVM for full, partial and no
+  grants.
 - Backend smoke tests (`npm run smoke:oauth`, `npm run smoke:integrations` in
   `backend/`) pass, covering:
   - `cyrahealth://auth/<flow>?a=<id>` returns, and refusal of every other shape (other
-    host, path, query, opaque `cyrahealth:auth/…`, the wrong flow for the endpoint)
+    host, path, query, `#`, upper-case scheme, opaque `cyrahealth:auth/…`, the wrong flow
+    for the endpoint)
   - right, wrong and missing verifiers
   - the both-or-neither rule (a web code plus any verifier gives 404 and is used up)
   - refused schemes (`evil://`, `javascript:`, `data:`, `file:`, `intent:`)
   - `https://localhost` and `http://localhost` refused as web returns, `RETURN_ORIGINS`,
     and `NODE_ENV=production` refusing web returns when there's no allowlist
   - `APP_RETURN_SCHEMES` overrides
-  - the Terra mailbox emptied with `POST` only
+  - an uncollected sign-in hand-off deleted by its timer
+  - the Terra mailbox: opened only with the key, in a `POST` body; the reference id Terra
+    sees is the hash of the key and can't open it; the finish page never repeats Terra's
+    query; disconnect needs the key
   - the web flows
-- A browser test ran the production bundle with the iOS Capacitor bridge emulated the
-  way `@capacitor/core` expects it. It confirmed:
-  - the record is written and read through Filesystem at Library +
-    `NoCloud/cyra-state.json`, and IndexedDB is never opened
-  - an unreadable record (error `OS-PLUG-FILE-0013`) shows "Your record couldn't be
-    opened", nothing is written or deleted, and **Try again** opens it once it's readable
-  - reminders are scheduled through LocalNotifications
-  - `CyraHealth.readDaily` imports wearable days and is asked for local calendar days
-    (checked at UTC+14)
-  - sign-in through `CyraAuth.open({ url, ephemeral: true })` when the plugin is
-    present, and through the system browser plus `appUrlOpen` when it isn't (the
-    Android path). Each sends a per-attempt `cyrahealth://auth/oauth?a=…` return and an
-    `app_challenge`, finishes only on that attempt's link, ignores stale or foreign
-    links, and sends the matching verifier
-  - Oura and Terra work the same way, and the Terra mailbox is collected with `POST`
-  - closing or cancelling the window gives a plain message
-  - the phone build hides Encrypted backup
-- In the web build, Capacitor stays inactive, the record stays in IndexedDB, Encrypted
-  backup is still offered, and an axe-core audit of 22 screens finds no violations. The
-  phone-only "record couldn't be opened" screen also has no axe violations, and every
-  button on it is at least 44px tall.
 - Plugin options and error codes were checked against the installed type definitions
   and native sources: `@capacitor/local-notifications` 8.3.1,
-  `@capacitor/filesystem` 8.1.4 (plus `ion-ios-filesystem` and
-  `ionfilesystem-android` 1.1.1, which raise "not found" for a missing file),
-  `@capacitor/browser` 8.0.5, `@capacitor/app` 8.1.2.
+  `@capacitor/filesystem` 8.1.4 (plus `ion-ios-filesystem`, whose rename refuses an
+  existing destination, and `ionfilesystem-android` 1.1.1, whose rename deletes the
+  destination first; both raise "not found" for a missing file), `@capacitor/browser`
+  8.0.5, `@capacitor/app` 8.1.2.
 
 **Not verified (needs a real device):**
 
 - That the Swift and Kotlin code compiles, including `CyraAuthPlugin`, and that
-  HealthKit / Health Connect return real data.
+  HealthKit / Health Connect return real data, including a partial Health Connect grant.
+- That the Data Protection entitlement signs with your provisioning profile, and that a
+  record saved on an installed-from-scratch iPhone really has complete protection
+  (`FileProtectionType.complete`) from the first save.
 - That `Library/NoCloud` is really left out of an iCloud backup, and that Android backup
   contains nothing.
 - That a locked iPhone really reports a read error other than `OS-PLUG-FILE-0008`. The
@@ -330,8 +427,10 @@ repository.
   - On iOS, whether `ASWebAuthenticationSession` catches the backend's 302 to
     `cyrahealth://…` and the Oura/Terra page's script redirect. The finish page also has
     a "Return to Cyra" link to tap.
-  - Chrome Custom Tabs may need a tap if a redirect is blocked.
+  - Custom Tabs may need a tap if a redirect is blocked.
 - The Android choice not to call `Browser.close()` after the link arrives.
 - Notification timing on a real phone.
 - **If the phone closes Cyra while the window is open** (rare, low memory), the
   verifier only lived in memory, so the person has to start sign-in or connecting again.
+  For Fitbit/Garmin/Whoop, the mailbox key is saved before the window opens, so **Sync**
+  can still collect the readings once the connection finishes.

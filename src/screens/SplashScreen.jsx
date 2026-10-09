@@ -12,7 +12,7 @@ export default function SplashScreen({ onStart, onImport }) {
       <h1 className="disp" style={{ marginTop: 26 }}>Periods, pregnancy,
         <br />the transition — and
         <br />finally being heard.</h1>
-      <p className="hint">Track in 30 seconds a day. See your real patterns. Walk into appointments with evidence. Your health data stays on your device — always.</p>
+      <p className="hint">Track in 30 seconds a day. See your real patterns. Walk into appointments with evidence. Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that tells you exactly what it sends.</p>
       <button className="cta" onClick={onStart}>Get started</button>
       <p className="rfoot" style={{ textAlign: "center" }}>Free to use · guidance, never diagnosis<br /><b>BUILD 2026.10.07-D</b></p>
       <button className="linkbtn" style={{ display: "block", margin: "18px auto 0" }} onClick={() => setRestore((v) => !v)}>{restore ? "Hide restore" : "Restore from an encrypted backup"}</button>

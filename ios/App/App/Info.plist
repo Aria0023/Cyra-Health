@@ -36,7 +36,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Cyra reads your sleeping wrist temperature, resting heart rate, heart rate variability and sleep from Health on this device to show patterns alongside your cycle and symptoms. Cyra never uploads this data.</string>
+	<string>Cyra reads your sleeping wrist temperature, resting heart rate, heart rate variability and sleep from Health on this device to show patterns alongside your cycle and symptoms. Cyra never sends this data to its servers or to anyone else; it leaves this device only inside an encrypted backup you choose to save.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

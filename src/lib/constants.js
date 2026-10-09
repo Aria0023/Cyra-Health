@@ -53,13 +53,18 @@ export const STAGES = [
   { id: "peri", label: "Peri · Meno", who: "the transition" },
 ];
 
+/* Care shelf. `m`: the symptom ids an item is matched on, in every stage it lists
+   (SYM ids for peri, PSYM ids for periods; "rough" = nights logged as rough).
+   `partner`: true only once a signed partner agreement exists — it drives the
+   "Partner" pill. None exists yet, so every item is false and no commission is claimed. */
 export const SHELF = [
-  { id: "midi", brand: "Midi Health", name: "Menopause-trained clinician (insurance accepted)", price: "Covered by many plans", ev: "Clinical care", tone: "strong", m: ["hf", "ns", "fog", "slp"], stages: ["peri"] },
-  { id: "restfully", brand: "Restfully", name: "6-week CBT-I sleep program", price: "$49", ev: "Strong evidence", tone: "strong", m: ["slp"], stages: ["peri", "periods"] },
-  { id: "emberline", brand: "Emberline", name: "Wearable heat wrap for cramps", price: "$42", ev: "Comfort with evidence", tone: "strong", m: ["crm"], stages: ["periods"] },
-  { id: "mineral", brand: "Mineral & Co.", name: "Magnesium glycinate, 90 nights", price: "$24", ev: "Mixed evidence", tone: "mixed", m: ["slp", "mood", "crm"], stages: ["peri", "periods"] },
-  { id: "verdana", brand: "Verdana", name: "Prenatal essentials + folate", price: "$28", ev: "Strong evidence", tone: "strong", m: ["fat"], stages: ["preg"] },
-  { id: "nightfall", brand: "Nightfall", name: "Cooling sleep set", price: "$68", ev: "Comfort, not a treatment", tone: "comfort", m: ["ns", "hf"], stages: ["peri"] },
+  { id: "midi", brand: "Midi Health", name: "Menopause-trained clinician (insurance accepted)", price: "Covered by many plans", ev: "Clinical care", tone: "strong", m: ["hf", "ns", "fog", "slp"], stages: ["peri"], partner: false },
+  { id: "restfully", brand: "Restfully", name: "6-week CBT-I sleep program", price: "$49", ev: "Strong evidence", tone: "strong", m: ["slp", "rough"], stages: ["peri", "periods"], partner: false },
+  { id: "emberline", brand: "Emberline", name: "Wearable heat wrap for cramps", price: "$42", ev: "Comfort with evidence", tone: "strong", m: ["crm"], stages: ["periods"], partner: false },
+  { id: "mineral", brand: "Mineral & Co.", name: "Magnesium glycinate, 90 nights", price: "$24", ev: "Mixed evidence", tone: "mixed", m: ["slp", "mood", "crm"], stages: ["peri", "periods"], partner: false },
+  // Prenatal basics are offered for the stage, not matched to a symptom (and the pregnancy experience has no Care tab).
+  { id: "verdana", brand: "Verdana", name: "Prenatal essentials + folate", price: "$28", ev: "Strong evidence", tone: "strong", m: [], stages: ["preg"], partner: false },
+  { id: "nightfall", brand: "Nightfall", name: "Cooling sleep set", price: "$68", ev: "Comfort, not a treatment", tone: "comfort", m: ["ns", "hf"], stages: ["peri"], partner: false },
 ];
 
 /* Stage palettes — the app's mood shifts with life stage.

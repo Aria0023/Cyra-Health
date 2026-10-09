@@ -1,10 +1,16 @@
+import { flagWords } from "../lib/pulse.js";
+import Details from "../components/Details.jsx";
 import { SYMS, PSYM, READS } from "../lib/constants.js";
 import { fmt, sevDots } from "../lib/engine.js";
 
 /* Cycle & Peri — Today: cycle-status card, live score meter, quick or full
    check-in, sleep quality, body signals, save, phase-appropriate daily read.
-   Also the edit form for a day picked from the Calendar. */
-export default function TodayScreen({ pred, stage, welcome, editDate, setEditDate, setDraft, setSleepQ, scoreMeter, quickMode, quickCheckin, symIds, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, scales, flow, disch, odor, setDays, ping, setAppTab, contribute }) {
+   Also the edit form for a day picked from the Calendar. Saving today's check-in only
+   queues weekly-count flags on this device when sharing is on (App.jsx contribute); saving
+   it again (also from the Calendar) replaces them, and an edit of an earlier day only
+   replaces that day's flags while they are still waiting. A quick check-in asks combined questions ("cramps or bloating"),
+   so it adds no symptom flags — only the full check-in's named symptoms, sleep and flow do. */
+export default function TodayScreen({ pred, stage, welcome, editDate, setEditDate, setDraft, setSleepQ, scoreMeter, quickMode, quickCheckin, symIds, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, scales, flow, disch, odor, setDays, ping, setAppTab, research, contribute }) {
   return (
     <main>
       {pred && (
@@ -48,9 +54,22 @@ export default function TodayScreen({ pred, stage, welcome, editDate, setEditDat
         ["q1", "q2", "q3"].forEach((k) => delete mapped[k]);
         setDays((d) => [...d.filter((x) => x.date !== target), { date: target, sleepQ: sleepQ || "fair", period: editDate ? (editPeriod || !!flow) : !!flow, scales: { ...scales }, flow, disch, odor, sym: { ...Object.fromEntries([...SYMS, ...Object.keys(PSYM)].map((k) => [k, 0])), ...mapped } }].sort((a, b) => a.date.localeCompare(b.date)));
         ping(editDate ? `${fmt(target)} updated` : "Saved — check Patterns");
-        if (!editDate) contribute({ sym: mapped, sleepQ: sleepQ || "fair", flow });
+        contribute({ sym: quickMode && !editDate ? {} : mapped, sleepQ: sleepQ || "fair", flow }, target);
         if (editDate) { setEditDate(null); setDraft({}); setSleepQ(null); setAppTab("cal"); } else setAppTab("patterns");
       }}>{editDate ? `Save changes to ${fmt(editDate)}` : "Save today's check-in"}</button>
+      {research && !editDate && (
+        <>
+          <p className="rfoot">Sharing weekly counts is on: which of {flagWords(stage)} this check-in logged, plus your life stage group, go to Cyra's server on a later day, with no dates or values.</p>
+          <Details label="Exactly what's sent">
+            <ul>
+              <li>Until it's sent on a later day, saving this check-in again replaces what it counts. A fix after that can't change counts already sent.</li>
+              {quickMode && <li>{stage === "peri" ? "A quick check-in shares only whether you had a poor night's sleep." : "A quick check-in shares only whether you logged a heavy-flow day."}</li>}
+              <li>Sent at most once a day. Like any request, it carries your device's internet address.</li>
+              <li>You can turn this off in ⚙ Settings.</li>
+            </ul>
+          </Details>
+        </>
+      )}
       {pred && (
         <div className="readcard">
           <div className="rsec" style={{ margin: "0 0 4px" }}>Today's read · {pred.phase} phase</div>

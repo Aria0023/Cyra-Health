@@ -1,6 +1,6 @@
-// Referral engine.
-// Privacy rule: the app sends an opaque userRef (hash generated client-side).
-// No name, email, or symptom data ever reaches this backend.
+// Referral engine (development only: not mounted with NODE_ENV=production, and the
+// shipped app doesn't call it). userRef is stored as given, so callers must send an
+// opaque, client-generated hash — never a name or email. No symptom data is accepted.
 import crypto from "crypto";
 
 export function mount(router, ctx) {

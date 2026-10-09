@@ -3,19 +3,86 @@
 <!--
   Cyra app privacy manifest (App target).
 
-  Scope: what the app itself sends off the device today, judged from src/lib/api.js,
-  src/App.jsx, src/lib/pulse.js, src/lib/wearables.js, src/lib/notifications.js and
-  backend/src/modules (ai, pulse, integrations, oauth, push). Apple's definition of
-  "collect": transmitting data off the device in a way that allows you and/or your
-  third-party partners to access it for longer than needed to service the request in
-  real time. Where a flow was borderline, it is declared rather than left out.
+  Scope: everything this app sends off the device, judged from src/lib/api.js (every
+  fetch to the backend), src/lib/native.js and ios/App/App/CyraAuthPlugin.swift (the
+  sign-in and Oura/Terra connect windows, which open the backend's /api/oauth/:id/start and
+  /api/integrations/oura/start pages, or Terra's widget, as browser navigations and come back
+  through the backend's /callback and /done pages), src/App.jsx, src/lib/pulse.js,
+  src/lib/wearables.js, src/lib/notifications.js, src/lib/storage.js, src/lib/backup.js,
+  src/lib/links.js, src/screens/ReportScreen.jsx, src/main.jsx and src/styles.js, and from
+  what backend/src/modules (ai, pulse, integrations, oauth, push) do with it. Apple's definition of "collect": transmitting data off the device in a way
+  that allows you and/or your third-party partners to access it for longer than needed to
+  service the request in real time. Every flow is either declared below as a collected
+  data type or listed here as not collected, with the reason.
+
+  The health log is stored only on the device. Without any opt-in, Cyra sends one request at
+  each launch, GET /api/pulse, which carries no life stage, health data or identifier (see
+  NOT collected), plus the GET /api/oauth/providers and /api/integrations/sources checks when
+  she taps a sign-in or Connect button (see NOT collected). Everything else Cyra sends goes
+  only after the person turns that feature on (the user-directed hand-offs, the encrypted
+  backup and the doctor summary are listed under NOT collected below):
+  - "Share anonymous weekly counts": life stage group plus yes/no event flags, at most once
+    a day, with no token or identifier (POST /api/pulse/tally).
+  - "Also ask Cyra's AI": the typed question only, and only when the on-device library has
+    no answer (POST /api/ai/ask). The backend forwards it to Anthropic.
+  - Oura: the backend relays readings from Oura in real time and stores nothing.
+  - Fitbit, Garmin, Whoop through Terra: readings wait in the backend's memory (never on
+    disk, deleted when collected or after 7 days), in a mailbox keyed by a one-way hash of a
+    secret key that is kept on this device and in any encrypted backup the user exports. The
+    device sends the key only in request bodies, and the backend uses it for that request and
+    never stores it.
+  - Social sign-in: email (only when Apple or Google says it is verified) and name, held for
+    a 5-minute hand-off that a timer enforces.
 
   NOT collected, so not declared:
-  - Apple Health data read by CyraHealthPlugin. It is read and kept on this device only
-    (Library/NoCloud, excluded from backup); the plugin makes no network calls.
+  - Apple Health data read by CyraHealthPlugin. It is read and stored on this device
+    (Library/NoCloud, marked excluded from backup) and is never sent to Cyra's servers or
+    anyone else; the plugin makes no network calls. It leaves the device only inside the
+    passphrase-encrypted backup file, if the user exports one.
+  - The encrypted backup: a file the user exports and keeps wherever she chooses,
+    encrypted on the device with a key derived from a passphrase only she holds. It never
+    goes to a Cyra server.
+  - The doctor summary (Report > Open in email / Copy email): a last-30-days summary (how
+    many of those days she logged; up to four symptoms with their day counts and
+    moderate-to-strong counts; cycle lengths and their spread; in perimenopause, how much
+    more likely hot flashes were after poorly rated nights), with her saved name, if any, in
+    the subject. Cyra hands it to her own mail app as an unsent draft or puts it on her
+    clipboard. Cyra sends nothing itself and its servers never receive it. What happens to it
+    next depends on her mail app and clipboard: some mail apps save an open draft to the mail
+    provider's server before she sends it, and the system clipboard can reach her other
+    devices (Universal Clipboard) or apps allowed to read it.
+  - The weekly counts read, GET /api/pulse: it carries no life stage and no identifier;
+    every device gets the same answer (all three life stages, last closed week), and Cyra's
+    backend code keeps nothing from the request (the host's request log is declared under
+    Product interaction).
+  - The welcome sentence and the routing to the single life-stage experience: both are
+    made on the device, and nothing is sent.
   - Reminders. The phone build schedules local notifications on the device; the Web Push
     subscription in backend/src/modules/push is used only by the web build.
-  - The encrypted backup: a file the user keeps, with a key only she holds; no server.
+  - Fonts. They are bundled with the app (src/main.jsx imports @fontsource-variable), so
+    no font server is contacted.
+  - Sign-in and connect windows. They show Apple's, Google's, Facebook's, Oura's or Terra's
+    own pages (and, inside Terra's, Fitbit's, Garmin's or Whoop's) in an ephemeral
+    ASWebAuthenticationSession; what those pages collect falls under that company's own
+    policy. What they send back to Cyra's backend is used only for that request: the OAuth
+    callback reads the provider's account id, tokens and id_token claims (and Facebook's
+    email) and drops them once it has taken the name and the verified email, and the done
+    page ignores the user_id, reference_id and anything else Terra adds to its address.
+    Those addresses reach the hosting provider like any request address. What the backend
+    keeps longer than the request is declared below (Email address, Name, User ID, Other
+    data types).
+  - Requests that carry nothing beyond what every request carries (IP address, user
+    agent): GET /api/oauth/providers and GET /api/integrations/sources (which sign-in and
+    wearable services the server offers), and opening Cyra's Terms or Privacy Policy, which
+    shows the published address in a browser view (Capacitor Browser) with nothing from
+    Cyra added. (Cyra's code keeps nothing from these. The backend host's request logs for
+    the two GET calls are declared below under Product interaction. The policy pages are
+    served from whatever address VITE_TERMS_URL and VITE_PRIVACY_URL name, and that site logs
+    the visit like any website; when that site is hosted for Cyra, its request logs are
+    covered by the Product interaction entry too.)
+  - Rate limits. The AI and pulse modules keep a salted hash of the client address (the
+    salt changes every UTC day) with the times of the last minute's requests, in memory
+    only, dropped about a minute (60-65 s) after the last request.
   - No analytics, advertising, crash-reporting or tracking SDK is in the app.
 -->
 <plist version="1.0">
@@ -52,28 +119,39 @@
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array>
 		<!--
-		  Health. Leaves the device in:
-		  - POST /api/ai/welcome: life stage, age band, cycle length and regularity, goals.
-		  - POST /api/ai/ask: the life-stage label (with the question, below).
-		  - POST /api/pulse/tally (opt-in only): stage plus allowlisted symptom flags
-		    (hot flashes, rough night, cramps, mood dip, heavy day, nausea, kicks, swelling).
-		  When ANTHROPIC_API_KEY is set, the backend forwards the AI inputs to Anthropic,
-		  a third-party processor, whose retention is longer than real time. Pulse
-		  persists weekly counts.
-		  Oura and Terra (Fitbit, Garmin, Whoop) rows reach the device through the backend:
-		  Oura rows are relayed in real time; Terra rows (temperature, resting heart rate,
-		  HRV, sleep) wait in server memory for up to 7 days, keyed by the Terra reference
-		  id (backend/src/modules/integrations/index.js, inbox map).
-		  Linked: that reference id is declared below as a linked User ID, because Terra
-		  ties it to the person's wearable account. Health rows stored under it are
-		  therefore linked too (Apple: data is unlinked only when direct identifiers such
-		  as a user ID are stripped before collection). The AI and pulse flows above carry
-		  no name, email, account, reference id or device identifier, but the label is per
-		  data type, so Health as a whole is declared linked.
-		  Product personalization: welcome writes a personal greeting. (Intake routing to
-		  the single life-stage experience runs on the device and sends nothing.)
-		  Depends on product behavior: if the Terra inbox goes away (or stops keying rows by
-		  the reference id), Health could return to not linked.
+		  Health. Leaves the device only through features the person turns on:
+		  - POST /api/pulse/tally ("Share anonymous weekly counts"): allowlisted yes/no flags
+		    (hot flashes, night sweats, rough night, cramps, mood swings before a predicted
+		    period, heavy day, nausea, kicks, swelling) with the life stage group, at most once
+		    a day, with no token or identifier. The backend writes only weekly aggregate counts {week, stage, event,
+		    count}.
+		  - POST /api/ai/ask ("Also ask Cyra's AI"): the typed question, which can describe her
+		    health, sent only when the on-device library has no answer. The backend forwards it
+		    verbatim to Anthropic, a third-party processor whose retention is longer than real
+		    time (see Other user content below).
+		  - Oura: daily temperature, resting heart rate, HRV and sleep rows that the backend
+		    fetches from Oura with the token the device sends and returns in the same response,
+		    writing nothing.
+		  - Terra (Fitbit, Garmin, Whoop): temperature, resting heart rate, HRV and sleep rows
+		    that the backend keeps from what Terra pushes to it. They wait in memory, never on
+		    disk, in a mailbox keyed by a one-way hash of a secret mailbox key that is kept on her
+		    device (and inside any encrypted backup she exports, so a device she restores that
+		    backup to holds it too) and that the app sends to the backend only in the body of its
+		    own requests, until a device holding that key collects them; a sweep that runs every
+		    minute deletes each row no later than 7 days after it first arrived.
+		  Linked: the hash that keys the mailbox is Terra's reference id for the person's
+		  wearable connection (declared below as a linked User ID), so the Terra rows are linked,
+		  and the label is per data type, so Health as a whole is declared linked (Apple: data
+		  is unlinked only when direct identifiers such as a user ID are stripped before
+		  collection). The app adds no name, email, Cyra account, reference id or device
+		  identifier to the counts or the Ask question. The Oura relay carries only her Oura access
+		  token (or, to renew it, her refresh token), which identifies her Oura account to Oura, and
+		  the date range; the backend uses them for that one request and stores neither.
+		  Purpose: app functionality only. The counts are shown back in the app, and the answers
+		  and rows are shown to her. No server-side personalization, analytics, advertising or
+		  tracking.
+		  Depends on product behavior: if the Terra mailbox goes away, Health could return to
+		  not linked.
 		-->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
@@ -85,61 +163,49 @@
 			<key>NSPrivacyCollectedDataTypePurposes</key>
 			<array>
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
-				<string>NSPrivacyCollectedDataTypePurposeProductPersonalization</string>
 			</array>
 		</dict>
 		<!--
-		  Sensitive info: Apple lists pregnancy information here. It is sent as the
-		  "Pregnancy" or "Trying to Conceive" stage labels in /api/ai/welcome and /api/ai/ask, and the pregnancy pulse flags
-		  (nausea, kicks, swelling). Same purposes as Health above.
-		  Not linked: none of these requests carries a name, email, account, Terra
-		  reference id or device identifier, and the backend keeps no user account. Pulse
-		  sends a random token that changes every week; the server keeps only its hash, in
-		  memory, to count each person once per week. The Terra inbox (the reason Health is
-		  linked) holds wearable rows only, never pregnancy information.
-		  Depends on product behavior: declare linked if any of these requests ever carries
-		  an identifier.
+		  Sensitive info: Apple lists pregnancy information here. Two paths, both opt-in.
+		  (1) POST /api/pulse/tally ("Share anonymous weekly counts"): the stage "preg" and the
+		  pregnancy flags (nausea, kicks, swelling), sent at most once a day with no token or
+		  identifier; the body is exactly {stage, events} (the backend refuses any other field)
+		  and the backend keeps only aggregate weekly counts {week, stage, event, count}.
+		  (2) POST /api/ai/ask ("Also ask Cyra's AI"): a question she types can describe her
+		  pregnancy; the backend forwards it verbatim to Anthropic, which keeps it under its own
+		  terms, and nothing strips her name or contact details from it. The weekly counts read
+		  and the Ask request send no stage field.
+		  Linked: the tally itself is unlinked, but the label is per data type and Ask text can
+		  identify her (see Other user content), so Sensitive info as a whole is declared linked.
+		  Same purpose as Health.
+		  Could return to not linked only if Ask stops sending free text off the device.
 		-->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeSensitiveInfo</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
-			<false/>
+			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>
 			<array>
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
-				<string>NSPrivacyCollectedDataTypePurposeProductPersonalization</string>
 			</array>
 		</dict>
 		<!--
-		  Other user content: the free-text "Ask Cyra" question (up to 500 characters),
-		  POST /api/ai/ask, forwarded to Anthropic when a key is set. Sent without a name or
-		  identifier, but it can contain whatever the person types.
+		  Other user content: the question typed into Ask Cyra (up to 500 characters). It is
+		  sent only when the person has turned on "Also ask Cyra's AI" on this device and the
+		  on-device evidence library has no answer: POST /api/ai/ask {question}, with no stage
+		  or other field. The backend forwards the text verbatim to Anthropic, which keeps it
+		  under its own terms.
+		  Linked: free text can contain anything she types, including her name or contact
+		  details, and nothing strips identifying details before it is sent.
 		-->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeOtherUserContent</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
-			<false/>
-			<key>NSPrivacyCollectedDataTypeTracking</key>
-			<false/>
-			<key>NSPrivacyCollectedDataTypePurposes</key>
-			<array>
-				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
-			</array>
-		</dict>
-		<!--
-		  Product interaction: the opt-in pulse flag "report" (opened the doctor report,
-		  src/App.jsx contribute(["report"])), stored only as an aggregate weekly count and
-		  shown back to users once at least k people share it.
-		-->
-		<dict>
-			<key>NSPrivacyCollectedDataType</key>
-			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
-			<key>NSPrivacyCollectedDataTypeLinked</key>
-			<false/>
+			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>
@@ -149,11 +215,13 @@
 		</dict>
 		<!--
 		  Email address and name: optional social sign-in (Apple, Google, Facebook) through
-		  /api/oauth. The backend receives the verified email, plus a name if the provider
-		  sends one, and holds them in memory for at most 5 minutes under a one-time code
-		  until this device collects them. No account record is kept. Declared because the
-		  hand-off outlives a single request. They identify the person, so they are linked.
-		  Anonymous Mode and email registration send neither.
+		  /api/oauth. Of the provider's answer, the backend passes on only the name and, when
+		  Apple or Google says it is verified, the email (Facebook's email is never passed on).
+		  It holds them in memory under a one-time code until this device collects them, and a
+		  timer deletes them 5 minutes after the callback whether or not they were collected.
+		  No account record is kept. Declared because the hand-off outlives a single request.
+		  They identify the person, so they are linked. Anonymous Mode and email registration
+		  send neither.
 		-->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
@@ -180,12 +248,13 @@
 			</array>
 		</dict>
 		<!--
-		  User ID: the random Terra reference id the device creates when someone connects
-		  Fitbit, Garmin or Whoop (src/lib/wearables.js newRef). It is sent to the backend
-		  and passed to Terra as reference_id, and Terra keeps it with that person's wearable
-		  connection, and the backend keys the queued Terra rows by it (see Health above).
-		  Declared as linked because Terra, the aggregator, can tie it to the wearable
-		  account.
+		  User ID: the Terra reference id of a Fitbit, Garmin or Whoop connection. The device
+		  makes a secret mailbox key (32 random bytes, src/lib/wearables.js newKey), keeps it,
+		  and sends it only in request bodies. The backend derives the reference id from it
+		  with a one-way hash, registers that with Terra as reference_id and files Terra's
+		  deliveries under it (see Health above); the key itself is used only for the request.
+		  Terra keeps the reference id with the person's wearable connection until it is
+		  disconnected, so it is declared linked.
 		-->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
@@ -201,19 +270,51 @@
 		</dict>
 		<!--
 		  Other data types: Oura access and refresh tokens. After someone connects Oura, the
-		  backend holds the tokens in memory for at most 5 minutes under a one-time code
-		  until this device collects them (integrations/index.js, handoffs map); after
-		  that, the device keeps them and sends them with each pull or refresh, which the
-		  backend uses in real time only. Apple has no credentials category; Apple says a
-		  token used on a server call and not retained need not be disclosed, but this
-		  hand-off outlives a single request, the same reason Email and Name are declared.
-		  They open the person's Oura account, so they are linked.
+		  backend holds the tokens in memory under a one-time code until this device collects
+		  them, and a timer deletes them 5 minutes after the callback either way
+		  (integrations/index.js, handoffs). After that the device keeps them and sends them
+		  with each pull, refresh or disconnect, and the backend uses them for that request
+		  only. Apple has no credentials category; Apple says a token used on a server call and
+		  not retained need not be disclosed, but this hand-off outlives a single request, the
+		  same reason Email and Name are declared. They open the person's Oura account, so they
+		  are linked.
 		  Depends on product behavior: if the hand-off stops holding tokens on the server,
 		  this entry can go.
 		-->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeOtherDataTypes</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!--
+		  Product interaction: for each request to the backend, the hosting provider (Render, on
+		  Professional workspaces and above) keeps an HTTP request log entry: method, host,
+		  requested URL including any query string, status, response time, a request ID, the
+		  client IP address and (where Render records it) the user agent. That includes the
+		  automatic weekly-counts read at launch, the Terra mailbox collection at launch and on
+		  return to the foreground, and the opt-in tally and Ask calls; and, when the Terms or
+		  Privacy Policy pages are hosted for Cyra, each visit to them. Requests the app sends
+		  itself carry no identifier in the URL; secrets and keys travel only in request bodies,
+		  which Render does not log. Some URLs carry third-party parameters: the Oura callback
+		  (Oura's one-time code, used once and discarded), the sign-in and Oura start pages (the
+		  return link and the app challenge, neither a secret), and the Terra return page, to
+		  which Terra appends its user_id and the connection's reference_id (see User ID). That
+		  return page can tie a log entry to the reference id, so this entry is declared linked.
+		  Retention is set by the hosting plan. Cyra does not export these logs or join them to
+		  any other data.
+		  Could return to not linked only if Terra's return no longer passes through a logged
+		  backend URL and Render confirms query strings are not recorded.
+		-->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
 			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>

@@ -3,11 +3,17 @@
 // OAUTH_MOCK_BASE. Exercises the full code flow with plain fetch, plus the
 // failure paths, plus the native app's flow: a cyrahealth://auth/oauth?a=<attempt>
 // return link with an app_challenge whose verifier the exchange demands (both or
-// neither), and the return allowlists. Usage: node scripts/oauth-smoke.js
+// neither), and the return allowlists. Also: least data (verified-only email, Facebook asks
+// for name,email and never passes the email on, exactly four identity fields), sealed state
+// the provider can't read, strict app returns, and handoffs deleted by timers.
+// Usage: node scripts/oauth-smoke.js
 import http from "http";
 import crypto from "crypto";
 import { spawn } from "child_process";
+import express from "express";
 import { startMockProvider } from "./mock-oauth-provider.js";
+import { mount as mountOauth, identityFromClaims } from "../src/modules/oauth/index.js";
+import { expiringMap } from "../src/core/memory.js";
 
 const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode = 1; } else console.log("ok  ", m); };
 const waitFor = async (url) => { for (let i = 0; i < 50; i++) { try { if ((await fetch(url)).ok) return; } catch {} await new Promise((r) => setTimeout(r, 100)); } throw new Error("backend did not start"); };
@@ -15,6 +21,7 @@ const waitFor = async (url) => { for (let i = 0; i < 50; i++) { try { if ((await
 // --- mock provider ---
 const mockSrv = await startMockProvider(3998);
 const MOCK = mockSrv.base;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const mock = { close: mockSrv.close };
 
 const backend = spawn("node", ["server.js"], { env: { ...process.env, PORT: "3103", PUBLIC_BASE_URL: "http://127.0.0.1:3103", OAUTH_MOCK_BASE: MOCK, CORS_ORIGIN: "https://app.example,capacitor://localhost,https://localhost", AUTH_SECRET: "test-auth-secret", APP_RETURN_SCHEMES: "", RETURN_ORIGINS: "", NODE_ENV: "" }, stdio: ["ignore", "ignore", "inherit"] });
@@ -41,11 +48,33 @@ try {
     assert(cb.status === 302 && loc.startsWith(`${RET}#oauth=`), `${id}: callback hands off with a one-time code`);
     const code = loc.split("#oauth=")[1];
     const idn = await (await fetch(`${B}/api/oauth/exchange`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }) })).json();
-    assert(idn.provider === id && idn.email === `ada@${id}.example` && idn.emailVerified === true, `${id}: verified email returned`);
+    assert(Object.keys(idn).sort().join() === "email,emailVerified,name,provider", `${id}: identity is exactly {provider, email, emailVerified, name} (${Object.keys(idn).sort().join()})`);
+    if (id === "facebook") assert(idn.provider === id && idn.email === "" && idn.emailVerified === false, "facebook: no verified signal → email never passed on, emailVerified false");
+    else assert(idn.provider === id && idn.email === `ada@${id}.example` && idn.emailVerified === true, `${id}: verified email returned`);
     assert(id === "apple" ? idn.name === "Ada L" : idn.name === "Ada Lovelace", `${id}: name returned (${idn.name})`);
     const again = await fetch(`${B}/api/oauth/exchange`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }) });
     assert(again.status === 404, `${id}: handoff code is single-use`);
   }
+
+  assert(mockSrv.seen.meFields.length > 0 && mockSrv.seen.meFields.every((f) => f === "name,email"), `facebook: /me asked for fields=name,email only (${mockSrv.seen.meFields.join(" | ")})`);
+
+  // Google: an id_token whose email is not verified → the email never reaches the device
+  { let u = await go(`${B}/api/oauth/google/start?return=${encodeURIComponent(RET)}`); const a = new URL(u.headers.get("location")); a.searchParams.set("mock_email_verified", "false");
+    u = await go(a.toString()); u = await go(u.headers.get("location")); const code = (u.headers.get("location") || "").split("#oauth=")[1];
+    const idn = await (await fetch(`${B}/api/oauth/exchange`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }) })).json();
+    assert(idn.email === "" && idn.emailVerified === false && idn.name === "Ada Lovelace", `google: unverified email dropped (${JSON.stringify(idn)})`); }
+  { const c = (v) => identityFromClaims("apple", { email: "x@privaterelay.appleid.com", email_verified: v, sub: "001", is_private_email: "true" }, null);
+    assert(c("true").email && c(true).email && !c(false).email && !c("false").email && !c(undefined).email, "identityFromClaims: email only when email_verified is true/\"true\"");
+    assert(Object.keys(c("true")).sort().join() === "email,emailVerified,name,provider" && !JSON.stringify(c("true")).includes("001"), "identityFromClaims: account id (sub) and other claims dropped"); }
+
+  // the state is sealed: the provider (and any URL log) can't read the verifier, nonce, return URL or app challenge
+  { const st = mockSrv.seen.states.find(Boolean) || "";
+    const raw = Buffer.from(st, "base64url").toString("latin1");
+    let readable = false; for (const part of st.split(".")) { try { JSON.parse(Buffer.from(part, "base64url").toString()); readable = true; } catch { /* not JSON */ } }
+    assert(st.length > 40 && !readable && !/app\.example|cyrahealth|verifier|nonce|"ret"/.test(raw), `state: opaque to the provider (${st.slice(0, 24)}…)`);
+    const flipped = st.slice(0, 20) + (st[20] === "A" ? "B" : "A") + st.slice(21);
+    const t = await go(`${B}/api/oauth/google/callback?code=x&state=${encodeURIComponent(flipped)}`);
+    assert(t.status === 400, `state: one altered character → 400 (${t.status})`); }
 
   // failure paths
   let r = await go(`${B}/api/oauth/google/start?return=${encodeURIComponent("https://evil.example/")}`);
@@ -109,6 +138,8 @@ try {
   for (const bad of ["evil://x", "javascript:alert(1)", "data:text/html,hi", "file:///etc/passwd", "intent://x#Intent;end", "cyrahealthx://auth/oauth", "https://app.example.evil/",
     // only exactly <scheme>://auth/oauth[?a=<id>] for this module
     "cyrahealth:auth/oauth", "cyrahealth://evil.example/x", "cyrahealth://auth/oura", "cyrahealth://auth/terra", "cyrahealth://auth/oauth/x", "cyrahealth://auth/oauth?x=1", "cyrahealth://auth/oauth?a=short", "cyrahealth://user@auth/oauth", "cyrahealth://auth:1/oauth",
+    // no fragment and no upper-case scheme in an app return
+    "cyrahealth://auth/oauth#junk", `${APP_RET}#x`, "cyrahealth://auth/oauth#", "CYRAHEALTH://auth/oauth", "Cyrahealth://auth/oauth", `CyraHealth://auth/oauth?a=${"a".repeat(22)}`,
     // the phone apps' own web-view origins are in CORS_ORIGIN but are never web returns
     "https://localhost/", "http://localhost/", "capacitor://localhost/"]) {
     r = await go(`${B}/api/oauth/google/start?return=${encodeURIComponent(bad)}&app_challenge=${pair().challenge}`);
@@ -142,7 +173,7 @@ try { await waitFor("http://127.0.0.1:3107/health");
 // RETURN_ORIGINS overrides CORS_ORIGIN for web returns; production fails closed without a list
 const roEnv = { ...process.env, OAUTH_MOCK_BASE: MOCK, AUTH_SECRET: "test-auth-secret", APP_RETURN_SCHEMES: "" };
 const ro = spawn("node", ["server.js"], { env: { ...roEnv, PORT: "3108", PUBLIC_BASE_URL: "http://127.0.0.1:3108", CORS_ORIGIN: "https://app.example,https://localhost", RETURN_ORIGINS: "https://web.example,https://localhost", NODE_ENV: "" }, stdio: ["ignore", "ignore", "inherit"] });
-const prod = spawn("node", ["server.js"], { env: { ...roEnv, PORT: "3109", PUBLIC_BASE_URL: "http://127.0.0.1:3109", CORS_ORIGIN: "", RETURN_ORIGINS: "", NODE_ENV: "production" }, stdio: ["ignore", "ignore", "inherit"] });
+const prod = spawn("node", ["server.js"], { env: { ...roEnv, PORT: "3109", PUBLIC_BASE_URL: "http://127.0.0.1:3109", CORS_ORIGIN: "", RETURN_ORIGINS: "", NODE_ENV: "production", ADMIN_KEY: crypto.randomBytes(32).toString("hex"), AUTH_SECRET: crypto.randomBytes(32).toString("hex") }, stdio: ["ignore", "ignore", "inherit"] });
 try { await waitFor("http://127.0.0.1:3108/health"); await waitFor("http://127.0.0.1:3109/health");
   const at = (port, ret, extra = "") => go(`http://127.0.0.1:${port}/api/oauth/google/start?return=${encodeURIComponent(ret)}${extra}`).then((x) => x.status);
   assert(await at(3108, "https://web.example/") === 302 && await at(3108, "https://app.example/") === 400, "RETURN_ORIGINS: its origins are web returns, CORS_ORIGIN's are not");
@@ -160,4 +191,25 @@ try { await waitFor("http://127.0.0.1:3104/health");
   const r = await go(`http://127.0.0.1:3104/api/oauth/apple/start?return=${encodeURIComponent(RET)}`);
   assert(r.status === 503, "start: unconfigured provider → 503, never a fake login");
 } finally { bare.kill(); }
+// handoffs are deleted by timers: an identity nobody collects is gone on time with no further request
+{ const m = expiringMap(80); m.set("a", { x: 1 }); m.set("b", { x: 2 });
+  assert(m.size === 2 && m.take("a")?.x === 1 && m.take("a") === undefined, "expiringMap: take() is single use");
+  await sleep(150);
+  assert(m.size === 0 && m.take("b") === undefined, "expiringMap: entry deleted by its own timer, without any access"); }
+{ process.env.OAUTH_MOCK_BASE = MOCK; process.env.PUBLIC_BASE_URL = "http://127.0.0.1:3111"; process.env.CORS_ORIGIN = "https://app.example"; process.env.RETURN_ORIGINS = ""; process.env.NODE_ENV = "";
+  const mock2 = await startMockProvider(3995); process.env.OAUTH_MOCK_BASE = mock2.base;
+  const app = express(); app.use(express.json()); app.use(express.urlencoded({ extended: false }));
+  const router = express.Router(); const ctx = { config: { authSecret: crypto.randomBytes(32).toString("hex") } };
+  mountOauth(router, ctx, { handoffTtlMs: 300, sweepMs: 60_000 }); app.use("/api/oauth", router);
+  const srv = await new Promise((res) => { const x = app.listen(3111, () => res(x)); });
+  try {
+    let u = await go(`http://127.0.0.1:3111/api/oauth/google/start?return=${encodeURIComponent(RET)}`); u = await go(u.headers.get("location")); u = await go(u.headers.get("location"));
+    const code = (u.headers.get("location") || "").split("#oauth=")[1];
+    assert(code && ctx.oauthHandoffCount() === 1, "handoff: identity waits in memory under a one-time code");
+    await sleep(450); // no request in between: only the timer can delete it
+    assert(ctx.oauthHandoffCount() === 0, "handoff: deleted by its timer when uncollected (5 min in production, 300 ms here)");
+    const late = await fetch("http://127.0.0.1:3111/api/oauth/exchange", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }) });
+    assert(late.status === 404, `handoff: collecting after expiry → ${late.status}`);
+  } finally { srv.close(); mock2.close(); }
+}
 console.log(process.exitCode ? "OAUTH SMOKE: FAILURES" : "OAUTH SMOKE: all passed");

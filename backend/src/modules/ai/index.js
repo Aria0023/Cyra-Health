@@ -1,26 +1,24 @@
 // AI proxy: the app never talks to Anthropic directly and never holds a key.
-// POST /api/ai/welcome | /route | /ask | /insight  (see tasks.js for contracts)
+// One task is mounted: POST /api/ai/ask {question[, stage]} (see tasks.js). The app
+// answers questions from its on-device evidence library first and calls this only
+// when the person has turned on "Also ask Cyra's AI when the library has no answer"
+// and the library has no match. The question text is forwarded to Anthropic verbatim
+// (trimmed to 500 characters): free text carries whatever she typed. This module
+// stores nothing. The client address is used only in memory for the rate limit, as
+// a salted hash (salt changes daily) that is dropped about a minute (60-65 s) after the
+// last request. welcome / route / insight are no longer mounted — the app makes its
+// welcome and life-stage routing on the device, so POST /api/ai/{welcome,route,insight}
+// answer 404.
 //
-// Provider selection: ANTHROPIC_API_KEY set → Claude via the official SDK with the
-// server-side refusal fallback on; otherwise, or on any API error / refusal /
-// malformed output, the task's deterministic fallback answers (HTTP 200,
-// provider: "rules") so the app keeps working offline-equivalent.
+// Provider selection: ANTHROPIC_API_KEY set → Claude via the official SDK, one attempt
+// (no retry) with a 12-second limit — inside the app's 15-second wait — and the
+// server-side refusal fallback on. Otherwise, or on any API error / refusal /
+// malformed output, the deterministic library answers (HTTP 200, provider: "rules").
 import Anthropic from "@anthropic-ai/sdk";
 import { TASKS } from "./tasks.js";
+import { rateLimiter } from "../../core/memory.js";
 
 export const basePath = "/api/ai";
-
-function rateLimiter(perMinute) {
-  const hits = new Map();
-  return (key) => {
-    const now = Date.now(), from = now - 60_000;
-    const arr = (hits.get(key) || []).filter((t) => t > from);
-    if (arr.length >= perMinute) { hits.set(key, arr); return false; }
-    arr.push(now); hits.set(key, arr);
-    if (hits.size > 10_000) for (const [k, v] of hits) if (!v.some((t) => t > from)) hits.delete(k);
-    return true;
-  };
-}
 
 async function callClaude(client, model, task, value) {
   const response = await client.beta.messages.create({
@@ -42,21 +40,22 @@ export function mount(router, ctx) {
   const { config } = ctx;
   const model = process.env.AI_MODEL || config.ai?.model || "claude-opus-5-5";
   const key = process.env.ANTHROPIC_API_KEY;
-  const client = key ? new Anthropic({ apiKey: key, timeout: 25_000, maxRetries: 1 }) : null;
-  const allow = rateLimiter(config.ai?.perMinute || 20);
-  console.log(`[cyra] ai provider: ${client ? model : "rules fallback (ANTHROPIC_API_KEY not set)"}`);
+  const timeout = Number(config.ai?.timeoutMs) > 0 ? Number(config.ai.timeoutMs) : 12_000;
+  const client = key ? new Anthropic({ apiKey: key, timeout, maxRetries: 0 }) : null;
+  const allow = rateLimiter({ perMinute: config.ai?.perMinute || 20 });
+  console.log(`[cyra] ai provider: ${client ? model : "rules fallback (ANTHROPIC_API_KEY not set)"}; tasks: ${Object.keys(TASKS).join(", ")}`);
 
   for (const [name, task] of Object.entries(TASKS)) {
     router.post(`/${name}`, async (req, res) => {
-      if (!allow(req.ip || "anon")) return res.status(429).json({ error: "too many requests — try again in a minute" });
+      if (!allow(req.ip)) return res.status(429).json({ error: "too many requests — try again in a minute" });
       const input = task.validate(req.body || {});
       if (input.error) return res.status(400).json({ error: input.error });
       if (!client) return res.json({ provider: "rules", ...task.fallback(input.value) });
       try {
         res.json({ provider: model, ...(await callClaude(client, model, task, input.value)) });
       } catch (e) {
-        const kind = e instanceof Anthropic.RateLimitError ? "rate-limited" : e instanceof Anthropic.AuthenticationError ? "bad API key" : e instanceof Anthropic.APIConnectionError ? "connection error" : e instanceof Anthropic.APIError ? `API ${e.status}` : e.constructor?.name || "error";
-        console.warn(`[cyra] ai/${name}: ${kind}: ${e.message} — serving rules fallback`);
+        const kind = e instanceof Anthropic.RateLimitError ? "rate-limited" : e instanceof Anthropic.AuthenticationError ? "bad API key" : e instanceof Anthropic.APIConnectionTimeoutError ? "timed out" : e instanceof Anthropic.APIConnectionError ? "connection error" : e instanceof Anthropic.APIError ? `API ${e.status}` : e.constructor?.name || "error";
+        console.warn(`[cyra] ai/${name}: ${kind} — serving rules fallback`);
         res.json({ provider: "rules", degraded: true, ...task.fallback(input.value) });
       }
     });

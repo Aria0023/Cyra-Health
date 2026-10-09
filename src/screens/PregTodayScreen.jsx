@@ -1,10 +1,12 @@
+import { flagWords } from "../lib/pulse.js";
+import Details from "../components/Details.jsx";
 import { GSYM, PREG_TIPS } from "../lib/constants.js";
 import { sevDots } from "../lib/engine.js";
 import Advice from "../components/Advice.jsx";
 
 /* Pregnancy — Today: week + trimester + progress to 40, weekly read, pregnancy
    symptoms, scales, body signals, kick counter, red-flag swelling advice. */
-export default function PregTodayScreen({ pregWeek, trimester, scoreMeter, draft, setDraft, symMap, scaleSection, bodySection, kicks, setKicks, setPregLog, todayIso, scales, ping, contribute }) {
+export default function PregTodayScreen({ pregWeek, trimester, scoreMeter, draft, setDraft, symMap, scaleSection, bodySection, kicks, setKicks, setPregLog, todayIso, scales, ping, research, contribute }) {
   return (
     <main>
       <div className="pregband">
@@ -44,6 +46,18 @@ export default function PregTodayScreen({ pregWeek, trimester, scoreMeter, draft
         ping("Saved to your pregnancy journal — see Calendar");
         contribute({ sym: draft, kicks });
       }}>Save today</button>
+      {research && (
+        <>
+          <p className="rfoot">Sharing weekly counts is on: which of {flagWords("preg")} today's check-in logged, plus your life stage group, go to Cyra's server on a later day, with no dates or values.</p>
+          <Details label="Exactly what's sent">
+            <ul>
+              <li>The check-in counts as it stands when you last save it.</li>
+              <li>Sent at most once a day. Like any request, it carries your device's internet address.</li>
+              <li>You can turn this off in ⚙ Settings.</li>
+            </ul>
+          </Details>
+        </>
+      )}
     </main>
   );
 }

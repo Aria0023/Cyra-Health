@@ -16,7 +16,7 @@ export function mount(router, ctx) {
       newPatients: events.filter((e) => e.isNewPatient).length,
       totalVisits: events.filter((e) => e.type === "visit" || e.type === "conversion").length,
       uniqueReferredPatients: uniquePatients.size,
-      note: "Aggregate counts only. No user identities or health data are stored server-side.",
+      note: "Aggregate counts only. This report contains no user identities or health data.",
     });
   });
 }

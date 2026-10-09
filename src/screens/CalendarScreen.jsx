@@ -3,7 +3,7 @@ import { fmt, inRange } from "../lib/engine.js";
 /* Cycle & Peri — Calendar: month grid with day-score fills, period marks,
    predicted period (dashed) and estimated fertile window; tap a day to see or
    edit it; confidence card from cycle variability. */
-export default function CalendarScreen({ pred, days, symIds, symMap, dayScore, scoreColor, scoreLabel, todayIso, selDay, setSelDay, setDraft, setSleepQ, setEditPeriod, setEditDate, setAppTab, ins }) {
+export default function CalendarScreen({ pred, predWaits, days, symIds, symMap, dayScore, scoreColor, scoreLabel, todayIso, selDay, setSelDay, setDraft, setSleepQ, setEditPeriod, setEditDate, setAppTab, ins }) {
   return (
     <main>
       <h1 className="disp">{new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}</h1>
@@ -64,7 +64,9 @@ export default function CalendarScreen({ pred, days, symIds, symMap, dayScore, s
         );
       })()}
       {pred ? (
-        <div className="card"><div className="num">±{Math.max(2, Math.round((ins.variability || 4) / 2))}d</div><p>Confidence given your recent cycles ({ins.lens.length ? ins.lens.join(" · ") + "d" : "not enough yet"}). Estimates — not contraception. Tap any day to see or edit what you logged.</p></div>
+        <div className="card"><div className="num">±{Math.max(2, Math.round((ins.variability || 4) / 2))}d</div><p>Confidence given your recent cycles ({ins.lens.length ? ins.lens.join(" · ") + "d" : "not enough yet"}).{pred.basis === "told" ? ` Until two cycles are logged, this uses the ${pred.avgLen}-day cycle you gave at sign-up${pred.seeded ? " and the last period date you entered" : ""}.` : ""} Estimates — not contraception. Tap any day to see or edit what you logged.</p></div>
+      ) : predWaits ? (
+        <div className="card"><div className="num">—</div><p>At sign-up you said your cycles are irregular or you're not sure how long they run, so Cyra won't guess yet. Log a couple of periods (any flow on the Today screen) and the calendar starts estimating your next one.</p></div>
       ) : (
         <div className="card"><div className="num">—</div><p>No predictions yet. Log a period day (any flow on the Today screen) and the calendar starts estimating your next one.</p></div>
       )}

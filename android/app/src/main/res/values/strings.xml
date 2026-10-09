@@ -7,8 +7,9 @@
 
     <!-- Health Connect permission rationale (HealthPermissionsRationaleActivity).
          Every sentence must stay literally true of the shipped build: read-only access to the
-         four types the CyraHealth plugin requests, stored only on the phone, excluded from
-         Android backup and device transfer (see res/xml/data_extraction_rules.xml). -->
+         four types the CyraHealth plugin requests, stored only on the phone (it leaves only
+         inside an encrypted backup the user exports), excluded from Android backup and device
+         transfer (see res/xml/data_extraction_rules.xml). -->
     <string name="hc_rationale_label">Cyra and Health Connect</string>
     <string name="hc_rationale_title">How Cyra uses Health Connect</string>
     <string name="hc_rationale_reads_heading">What Cyra reads</string>
@@ -18,15 +19,16 @@
     <string name="hc_rationale_where_heading">Where it stays</string>
     <string name="hc_rationale_where_body">Cyra reads this data on this phone and keeps it in Cyra\'s private storage on this phone. Cyra never sends it to Cyra\'s servers or to anyone else, and Cyra excludes its data from Android cloud backup and from phone-to-phone transfer. It only leaves this phone if you export an encrypted backup yourself, locked with a passphrase only you know.</string>
     <string name="hc_rationale_control_heading">You\'re in control</string>
-    <string name="hc_rationale_control_body">You can remove Cyra\'s access at any time in Health Connect settings, and Cyra stops reading. To erase what Cyra already saved, open Settings in Cyra, then Your data, then Delete everything, or uninstall Cyra.</string>
+    <string name="hc_rationale_control_body">You can remove Cyra\'s access at any time in Health Connect settings, and Cyra stops reading. To erase what Cyra saved on this phone, tap ⚙ in Cyra, then under Your data tap Delete everything and confirm, or uninstall Cyra. Encrypted backups you exported yourself are not affected; delete those where you saved them.</string>
     <string name="hc_rationale_policy_button">Read Cyra\'s full privacy policy</string>
     <string name="hc_rationale_policy_unavailable">Couldn\'t open a browser for the privacy policy.</string>
     <string name="hc_rationale_done">Done</string>
 
     <!-- Health Connect requires this screen to show the SAME privacy policy as the Play Console
-         listing. Set this to that published https:// URL (attorney-reviewed policy, see docs/).
-         While it is empty the policy button stays hidden, and release builds fail on purpose
-         (checkPrivacyPolicyUrl in app/build.gradle) so the Health apps declaration can't ship
-         without it. Debug builds are not affected. -->
+         listing. Set this to that published https:// URL (the attorney-reviewed policy, see
+         docs/; the same address as VITE_PRIVACY_URL in the web and iOS builds). It stays empty
+         until that policy is published: while it is empty the policy button stays hidden, and
+         release builds fail on purpose (checkPrivacyPolicyUrl in app/build.gradle) so the
+         Health apps declaration can't ship without it. Debug builds are not affected. -->
     <string name="privacy_policy_url" translatable="false"></string>
 </resources>

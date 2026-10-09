@@ -13,6 +13,13 @@ services:
         value: "22"
       - key: VITE_API_BASE
         value: https://cyra-backend.onrender.com
+      # Published Terms and Privacy Policy (https://…), linked from the consent step. Public, not
+      # secret, but set per deployment: paste them under this service's Environment tab.
+      # Unset = the build warns and the app says the documents "aren't published yet". When set, the build fetches each URL and fails unless it serves a document.
+      - key: VITE_TERMS_URL
+        sync: false
+      - key: VITE_PRIVACY_URL
+        sync: false
     routes:
       - type: rewrite
         source: /*

@@ -2,7 +2,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Health data stays on this phone: no cloud backup, no device-to-device transfer.
+    <!-- Android backup and transfer: Cyra's on-device record (app-private storage) is excluded
+         from Android cloud backup and from device-to-device transfer. The app never uploads the
+         record itself. The whole record leaves this phone only inside the passphrase-encrypted
+         backup file that the person exports herself through the share sheet. Cyra itself never
+         sends the doctor summary; it goes wherever she takes it (her mail app may save a synced
+         draft first). Opt-in features send specific items to Cyra's backend: the weekly anonymous
+         count flags (stage group + event codes), Oura sign-in tokens, the Terra mailbox key (or an
+         older connection's Terra reference, sent only to disconnect it), and, if she turns on
+         "Also ask Cyra's AI", a question the on-device library can't answer, sent as typed (never
+         saved) and forwarded to Anthropic. See docs/CYRA-BUILD-SPEC.md.
          dataExtractionRules covers Android 12+, fullBackupContent covers Android 11 and lower.
          tools:replace keeps these values even if a library manifest declares its own. -->
     <application

@@ -1,11 +1,16 @@
-// AI tasks: the four call sites the app proxies through the backend.
+// AI tasks. Only `ask` is mounted (see TASKS at the bottom); welcome, route and
+// insight stay below for reference but are not served — the app builds its welcome
+// and routes life stages on the device.
 // Each task declares: what input it accepts (an allowlist — nothing else is read),
 // the system prompt, the user prompt builder, the JSON schema the model must
 // return, a `clean` step that re-validates the model's output, and a deterministic
 // `fallback` used when there is no API key, the API errors, or the model refuses.
 //
-// Privacy contract: inputs are categorical answers and aggregates keyed to no
-// identity. No names, no emails, no raw day-by-day entry logs ever reach here.
+// What `ask` forwards: the question text exactly as typed (trimmed, at most 500
+// characters) and, only if the caller sends one, a life-stage label from a fixed list.
+// The app sends no stage. Free text can contain anything the person typed — a name,
+// a medication — and goes to Anthropic as is; the app's disclosure says so. Unknown
+// fields are dropped, never forwarded. Nothing is stored.
 
 const STAGE_LABELS = ["My Cycle", "Trying to Conceive", "Pregnancy", "Perimenopause", "Menopause", "unknown"];
 const str = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
@@ -65,7 +70,8 @@ const LIBRARY = [
 ];
 const ask = {
   effort: "medium", maxTokens: 1200,
-  validate: (b) => { const question = str(b.question, 500); if (question.length < 3) return { error: "question is required" }; return { value: { question, stage: oneOf(b.stage, STAGE_LABELS, "unknown") } }; },
+  // stage is optional: the app no longer sends it, so the prompt carries only what she typed.
+  validate: (b) => { const question = str(b.question, 500); if (question.length < 3) return { error: "question is required" }; return { value: { question, stage: oneOf(b.stage, STAGE_LABELS.filter((s) => s !== "unknown"), "not stated") } }; },
   system: GUARDRAILS,
   prompt: (v) => `You are "Ask Cyra", a plain-language health explainer. The user's life stage: ${v.stage}. Her question: "${v.question}". Return: answer (120-170 words at an 8th-grade reading level, warm and honest, explaining what the evidence says), source_note (which guideline bodies or evidence this reflects, by name — e.g. ACOG, The Menopause Society, Cochrane reviews), ask_your_doctor (one specific question she could bring to her clinician), urgent (true ONLY if the question describes red-flag symptoms needing prompt care, or self-harm or crisis — then also point to professional support in the answer).`,
   schema: { type: "object", properties: { answer: { type: "string" }, source_note: { type: "string" }, ask_your_doctor: { type: "string" }, urgent: { type: "boolean" } }, required: ["answer", "source_note", "ask_your_doctor", "urgent"], additionalProperties: false },
@@ -74,7 +80,7 @@ const ask = {
     if (RED_FLAGS.test(v.question)) return { answer: "What you're describing can be a sign of something that needs to be checked today, not researched. Please contact your provider now, or go to urgent care or an emergency department — and if you are thinking about harming yourself, call or text 988 (US) or your local crisis line. You are not overreacting by asking.", source_note: null, ask_your_doctor: null, urgent: true };
     const hit = LIBRARY.find((t) => t.re.test(v.question));
     if (hit) return { answer: hit.answer, source_note: hit.source_note, ask_your_doctor: hit.ask, urgent: false };
-    return { answer: "I don't have a written answer for that one yet. The live evidence service wasn't available for this question, so rather than guess, here's the honest route: write the question down exactly as you asked it here and bring it to your next visit — clinicians answer specific questions far better than vague ones. If it's about a symptom that is new, severe, or getting worse, don't wait for the appointment.", source_note: null, ask_your_doctor: v.question, urgent: false };
+    return { answer: "I don't have a written answer for that one yet. Cyra's AI wasn't available for this question, so rather than guess, here's the honest route: write the question down exactly as you asked it here and bring it to your next visit — clinicians answer specific questions far better than vague ones. If it's about a symptom that is new, severe, or getting worse, don't wait for the appointment.", source_note: null, ask_your_doctor: v.question, urgent: false };
   },
 };
 
@@ -105,4 +111,7 @@ const insight = {
   },
 };
 
-export const TASKS = { welcome, route, ask, insight };
+// Mounted tasks. welcome, route and insight are kept above for reference only: the
+// app does not call them and the router does not serve them.
+export const TASKS = { ask };
+export const UNMOUNTED_TASKS = { welcome, route, insight };

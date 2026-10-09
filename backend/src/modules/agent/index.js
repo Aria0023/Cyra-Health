@@ -2,8 +2,10 @@
 // Providers (src/modules/agent/providers/):
 //   anthropic.js — real LLM reasoning via ANTHROPIC_API_KEY (tool-use loop)
 //   rules.js     — deterministic fallback, zero setup, same interface
-// Set "agent.provider" in config/app.json. Add tools in TOOLS below —
-// both providers pick them up automatically.
+// Set "agent.provider" in config/app-dev.json. Add tools in TOOLS below —
+// both providers pick them up automatically. Development only: not mounted with
+// NODE_ENV=production. /run passes the posted object to the provider as given and has
+// no authentication, so it must only ever receive opaque userRefs and aggregates.
 export function mount(router, ctx) {
   const { store, config } = ctx;
 

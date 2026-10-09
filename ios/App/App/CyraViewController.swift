@@ -26,8 +26,9 @@ class CyraViewController: CAPBridgeViewController {
         reloadAfterUnlockIfNeeded()
     }
 
-    /// The health record (Library/NoCloud/cyra-state.json) has Complete protection, so it
-    /// can't be read while the device is locked. Usually the web app only loads in the
+    /// The health record (Library/NoCloud/cyra-state.json) has Complete protection, so on a
+    /// device with a passcode it can't be read while the device is locked (from about 10
+    /// seconds after locking until the next unlock). Usually the web app only loads in the
     /// foreground, but Capacitor reloads the page straight away when iOS ends the web
     /// content process (WebViewDelegationHandler.webViewWebContentProcessDidTerminate),
     /// and that can happen in the background while the device is locked. The page would

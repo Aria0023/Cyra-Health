@@ -43,7 +43,8 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
-    // CyraHealth plugin: reads Health Connect on the device (read-only; nothing is uploaded).
+    // CyraHealth plugin: reads Health Connect on the device (read-only). The app never uploads
+    // what it reads; it leaves the phone only inside an encrypted backup the user exports.
     implementation "androidx.health.connect:connect-client:$healthConnectVersion"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$kotlinxCoroutinesVersion"
     testImplementation "junit:junit:$junitVersion"
