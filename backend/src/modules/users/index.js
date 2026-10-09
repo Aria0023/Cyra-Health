@@ -1,6 +1,6 @@
-// User control plane. Server stores only: opaque userRef hash, org, role,
-// status — never names, emails, or health data (identity lives in your IdP;
-// symptoms live on-device). Roles: member | org_admin.
+// User control plane (development only: not mounted with NODE_ENV=production).
+// Stores userRef, org, role, status and createdAt, as given — userRef must be an
+// opaque id, never a name or email (identity belongs in your IdP). Roles: member | org_admin.
 export function mount(router, ctx) {
   const { store, config } = ctx;
   const admin = (req, res) => {

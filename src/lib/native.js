@@ -20,8 +20,10 @@ export const hasPlugin = (name) => Capacitor.isPluginAvailable(name);
 
 /* Bridge contract (ios/App/App/CyraHealthPlugin.swift and the Android plugin):
      available()            → { available: boolean }
-     requestAuthorization() → { granted: boolean }
-     readDaily({ from, to }) "YYYY-MM-DD" → { days: [{ date, temp, rhr, hrv, sleep }] } */
+     requestAuthorization() → { granted: boolean, grantedTypes?: string[], requestedTypes?: string[] }
+                              (Android lists what Health Connect actually granted)
+     readDaily({ from, to }) "YYYY-MM-DD" → { days: [{ date, temp, rhr, hrv, sleep }], needsAuthorization?: boolean }
+                              (iOS: needsAuthorization when Health never asked about some types) */
 export const CyraHealth = registerPlugin("CyraHealth");
 
 /* Sign-in and connect flows on the phone run outside the web view and come back
@@ -58,10 +60,14 @@ function matchLink(link, returnUrl) {
   return new URLSearchParams(hash < 0 ? "" : text.slice(hash + 1));
 }
 
+/** An Error with a `code` (TIMEOUT, CLOSED, OPEN_FAILED, INCOMPLETE), so each caller can
+    word what happened for its own flow. */
+export const flowError = (code, message) => Object.assign(new Error(message), { code });
+
 /** Open `url` and wait for this attempt's link `returnUrl` (from appReturnUrl) to come
     back; resolves with its fragment as URLSearchParams. Rejects with a plain-language
-    error on timeout, when the person closes the window without finishing, or when the
-    window can't be opened. */
+    flowError on timeout, when the person closes the window without finishing, or when
+    the window can't be opened. */
 export function waitForAppUrl(returnUrl, url, timeoutMs = 5 * 60_000) {
   const useAuthSession = Capacitor.getPlatform() === "ios" && hasPlugin("CyraAuth") && /^https:\/\//i.test(url);
   return useAuthSession ? viaAuthSession(returnUrl, url, timeoutMs) : viaBrowser(returnUrl, url, timeoutMs);
@@ -71,11 +77,11 @@ function viaAuthSession(returnUrl, url, timeoutMs) {
   return new Promise((resolve, reject) => {
     let settled = false;
     const finish = (err, value) => { if (settled) return; settled = true; clearTimeout(timer); if (err) reject(err); else resolve(value); };
-    const timer = setTimeout(() => { CyraAuth.cancel().catch(() => { /* already closed */ }); finish(new Error("The connection window timed out")); }, timeoutMs);
+    const timer = setTimeout(() => { CyraAuth.cancel().catch(() => { /* already closed */ }); finish(flowError("TIMEOUT", "The connection window timed out")); }, timeoutMs);
     // ephemeral: the window shares no cookies or browsing data with Safari.
     CyraAuth.open({ url, ephemeral: true }).then(
-      (out) => { const back = matchLink(out?.url, returnUrl); finish(back ? null : new Error("The connection didn't complete"), back); },
-      (e) => finish(new Error(e?.code === "CANCELED" ? "The connection window was closed" : "Couldn't open the sign-in window on this phone")),
+      (out) => { const back = matchLink(out?.url, returnUrl); finish(back ? null : flowError("INCOMPLETE", "The connection didn't complete"), back); },
+      (e) => finish(e?.code === "CANCELED" ? flowError("CLOSED", "The connection window was closed") : flowError("OPEN_FAILED", "Couldn't open the sign-in window on this phone")),
     );
   });
 }
@@ -92,10 +98,16 @@ function viaBrowser(returnUrl, url, timeoutMs) {
       // iOS keeps the in-app Safari sheet open after the link fires, so close it. On
       // Android the link brings the app's singleTask activity forward, which already
       // clears the Custom Tab; closing again there can race the browser's own teardown.
-      if (Capacitor.getPlatform() === "ios") Browser.close().catch(() => { /* already closed */ });
+      // On a timeout Cyra also asks the browser window to close. That closes an in-app tab or
+      // sheet, but not a page the person moved into the full browser, and the provider can
+      // still accept an approval there until its sign-in link expires (10 min for sign-in and
+      // Oura, 30 min for Terra). The server revokes an Oura grant nobody collects and drops an
+      // uncollected sign-in after 5 min; a late Terra approval can be finished with Sync (see
+      // wearables.js windowError).
+      if (Capacitor.getPlatform() === "ios" || err?.code === "TIMEOUT") Browser.close().catch(() => { /* already closed */ });
       if (err) reject(err); else resolve(value);
     };
-    const timer = setTimeout(() => finish(new Error("The connection window timed out")), timeoutMs);
+    const timer = setTimeout(() => finish(flowError("TIMEOUT", "The connection window timed out")), timeoutMs);
     // Capacitor keeps an appUrlOpen that arrived while nobody listened and replays it to
     // the next listener; matchLink drops it unless it carries this attempt's id.
     subs.push(App.addListener("appUrlOpen", (event) => {
@@ -106,10 +118,10 @@ function viaBrowser(returnUrl, url, timeoutMs) {
     // link arrives, so give the link a moment to win.
     subs.push(Browser.addListener("browserFinished", () => {
       clearTimeout(closedTimer);
-      closedTimer = setTimeout(() => finish(new Error("The connection window was closed")), 2500);
+      closedTimer = setTimeout(() => finish(flowError("CLOSED", "The connection window was closed")), 2500);
     }));
     Promise.all(subs)
       .then(() => (settled ? undefined : Browser.open({ url })))
-      .catch(() => finish(new Error("Couldn't open the browser on this phone")));
+      .catch(() => finish(flowError("OPEN_FAILED", "Couldn't open the browser on this phone")));
   });
 }

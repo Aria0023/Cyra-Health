@@ -1,9 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android 12+ (targetSdk 31+): Cyra's whole health record lives in app-private storage on this
-     phone and must not reach Google's backup servers or another device. android:allowBackup="false"
-     alone does not stop device-to-device transfer on every manufacturer's devices, and a missing
+<!-- Android backup and transfer, Android 12+ (targetSdk 31+): Cyra's health record lives in
+     app-private storage on this phone, and the app never uploads the record itself. Android's own cloud backup
+     and device-to-device transfer must never copy it either. android:allowBackup="false" alone
+     does not stop device-to-device transfer on every manufacturer's devices, and a missing
      section leaves that transfer mode fully enabled, so both sections exclude every domain.
-     Files in the cache, code-cache and no-backup directories are never transferred anyway. -->
+     Files in the cache, code-cache and no-backup directories are never transferred anyway.
+     The only way the whole record leaves this phone is the passphrase-encrypted backup file
+     that the person exports herself through the share sheet. Opt-in features send specific
+     items to Cyra's backend: from the record, the weekly-count flags, Oura sign-in tokens and
+     the Terra mailbox key (or, for a connection made by an older version, its Terra reference,
+     sent only to disconnect it); and, if she turns on Ask Cyra's AI, a question the on-device
+     library can't answer is sent as typed (never saved here) to Cyra's backend, which forwards
+     it to Anthropic. Cyra itself never sends the doctor summary; it goes wherever she takes it
+     (her mail app may save a synced draft first). -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="root" path="." />

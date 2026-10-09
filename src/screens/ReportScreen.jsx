@@ -4,10 +4,13 @@ import { fmt } from "../lib/engine.js";
    what they might mean, verbatim scripts, send-ahead email, and the collapsed
    data table demoted below the guidance. */
 export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, showTable, setShowTable }) {
+  const n = ins.last30.length; // days logged in the last 30 calendar days
+  const email = buildEmail();
+  const emailText = `Subject: ${email.subject}\n\n${email.body}`;
   return (
     <main>
       <h1 className="disp">What to tell your doctor</h1>
-      <p className="hint">Appointments are short. This turns {ins.total || 30} days of what you felt into a few clear sentences — so "I just haven't felt right" becomes something your doctor can actually work with.</p>
+      <p className="hint">Appointments are short. This turns the last 30 days of what you felt into a few clear sentences — so "I just haven't felt right" becomes something your doctor can actually work with.</p>
 
       <p className="rsec">1 · What stands out</p>
       {(() => {
@@ -27,7 +30,7 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
               <p className="plain">You haven't logged much yet. A week or two of check-ins is enough to start seeing something real.</p>
             ) : top.map((c) => (
               <p className="plain" key={c.id}>
-                <b>{c.label}</b> showed up <b>{inWords(c.days)}</b> — {c.days} of your last {ins.last30.length} days
+                <b>{c.label}</b> showed up <b>{inWords(c.days)}</b> — {c.days} of the {n} days you logged in the last 30
                 {c.strong > 0 ? `, and ${c.strong} of those were moderate or strong` : ""}.
               </p>
             ))}
@@ -66,7 +69,7 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
       <p className="hint" style={{ marginBottom: 10 }}>Read these word for word if it helps. Knowing the question is half of getting a real answer.</p>
       <div className="plaincard">
         {ins.counts.filter((c) => c.days > 0).slice(0, 1).map((c) => (
-          <p className="script" key={c.id}>“I've tracked this daily. {c.label} happened {c.days} out of {ins.last30.length} days. What could be causing it?”</p>
+          <p className="script" key={c.id}>“I logged {n} of the last 30 days. {c.label} happened on {c.days} of them. What could be causing it?”</p>
         ))}
         {ins.variability != null && ins.variability >= 7 && (
           <p className="script">“My cycles have ranged from {Math.min(...ins.lens)} to {Math.max(...ins.lens)} days. Could I be in perimenopause, and what does that mean for me?”</p>
@@ -81,10 +84,11 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
       </div>
 
       <p className="rsec">4 · Send it ahead</p>
-      <p className="hint" style={{ marginBottom: 10 }}>A short email your doctor can read in twenty seconds — nothing to log into on their end.</p>
+      <p className="hint" style={{ marginBottom: 10 }}>A short email your doctor can read in twenty seconds — nothing to log into on their end. Below is exactly what it says. Cyra itself sends nothing; the text goes only where you take it.</p>
+      <textarea className="inp emailpreview" readOnly rows={9} aria-label="Email preview" value={emailText} onFocus={(e) => e.target.select()} />
       <div className="routes">
-        <button className="route" onClick={() => { const e = buildEmail(); window.open(`mailto:?subject=${encodeURIComponent(e.subject)}&body=${encodeURIComponent(e.body)}`); ping("Opening your email app…"); }}>Open in email<span>pre-filled draft</span></button>
-        <button className="route" onClick={() => { const e = buildEmail(); const txt = `Subject: ${e.subject}\n\n${e.body}`; if (navigator.clipboard?.writeText) navigator.clipboard.writeText(txt).then(() => ping("Email copied — paste anywhere"), () => ping("Copy blocked — long-press the preview")); }}>Copy email<span>paste anywhere</span></button>
+        <button className="route" onClick={() => { window.open(`mailto:?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`); ping("Handing off to your email… If nothing opens, use Copy email instead."); }}>Open in email<span>pre-filled draft</span></button>
+        <button className="route" onClick={() => { const blocked = () => ping("Copy blocked — select the text in the preview above"); if (navigator.clipboard?.writeText) navigator.clipboard.writeText(emailText).then(() => ping("Email copied — paste anywhere"), blocked); else blocked(); }}>Copy email<span>paste anywhere</span></button>
       </div>
 
       <button className="disclosure" style={{ marginTop: 14 }} onClick={() => setShowTable((v) => !v)}>
@@ -93,8 +97,8 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
       {showTable && (
         <div className="bodypanel">
           <div className="rtitle" style={{ fontSize: 15, marginTop: 10 }}>Symptom log <span className="rmeta">{stageName} · {ins.last30.length ? `${fmt(ins.last30[0].date)}–${fmt(ins.last30[ins.last30.length - 1].date)}` : "nothing logged yet"}</span></div>
-          <table className="rtab"><thead><tr><th>Symptom</th><th>Days</th><th>Mod.–strong</th></tr></thead>
-            <tbody>{ins.counts.map((c) => <tr key={c.id}><td>{c.label}</td><td>{c.days}/{ins.last30.length}</td><td>{c.strong}</td></tr>)}</tbody></table>
+          <table className="rtab"><thead><tr><th>Symptom</th><th>Days (of {n} logged)</th><th>Mod.–strong</th></tr></thead>
+            <tbody>{ins.counts.map((c) => <tr key={c.id}><td>{c.label}</td><td>{c.days}/{n}</td><td>{c.strong}</td></tr>)}</tbody></table>
           {ins.variability != null && <p className="rfoot">Cycle lengths: {ins.lens.join(", ")} days ({ins.variability}-day spread).</p>}
           <p className="rfoot">Logged daily by you. Observations, not diagnoses.</p>
         </div>

@@ -25,8 +25,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {
-        // Re-apply backup exclusion and Complete protection to Library/NoCloud and the
-        // files written there this session (see CyraNoCloud in AppDelegate.swift).
+        // Re-apply backup exclusion and Complete protection to Library/NoCloud and every
+        // file in it: each save moves a new file into place as cyra-state.json, and an
+        // interrupted save can leave cyra-state.json.tmp (see CyraNoCloud in AppDelegate.swift).
         CyraNoCloud.prepare()
     }
 }

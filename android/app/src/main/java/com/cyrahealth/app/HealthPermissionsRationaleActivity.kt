@@ -17,7 +17,9 @@ import androidx.core.view.WindowInsetsCompat
  * lower) and through the ViewPermissionUsageActivity alias (Android 14+, see AndroidManifest.xml).
  * Static text only; it reads no data. Below the plain-language summary it links to the full
  * privacy policy (the same one as the Play listing, which Health Connect requires) once
- * R.string.privacy_policy_url is set; the link opens in the user's browser and sends nothing.
+ * R.string.privacy_policy_url is set. Tapping it opens the URL, with nothing from Cyra added,
+ * in the app that handles web links (normally the browser), which fetches the page like any
+ * other visit.
  */
 class HealthPermissionsRationaleActivity : AppCompatActivity() {
 

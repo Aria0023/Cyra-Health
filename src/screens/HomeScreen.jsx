@@ -1,21 +1,31 @@
 import { fmt } from "../lib/engine.js";
 import { SOURCES, DEMO_WEARABLES } from "../lib/wearables.js";
+import { isNative } from "../lib/native.js";
 import Advice from "../components/Advice.jsx";
 
 /* Home (default tab): greeting + streak, check-in CTA, today's top insight,
    wearable cards, milestones, coming up, pulse, monthly recap, and the
    collapsible Wearables / What I'm trying / Appointments / Journal sections. */
+/* Said before every first connect of a source that goes through Cyra's server. */
+const here = isNative() ? "this phone" : "this device";
+const Here = isNative() ? "This phone" : "This device";
+const DISCLOSE = {
+  oura: `Connecting Oura: you'll sign in at Oura. Then, each time you sync, ${here} sends your Oura sign-in to Cyra's server, which uses it to fetch your last 30 days of readiness and sleep records from Oura, keeps only temperature, resting heart rate, HRV and sleep score, and passes those to ${here}. Your Oura sign-in is kept on ${here}; while you connect, it waits on Cyra's server in memory, never on disk, for at most 5 minutes until ${here} collects it, and Disconnect sends it once more so Oura can end Cyra's access. Your readings aren't kept on the server, and Oura knows you connected Cyra.`,
+  terra: `Connecting Fitbit, Garmin or Whoop: this goes through Terra, a health-data service. Terra keeps your device connection and data under its own privacy policy and sends your new wearable data to Cyra's server. The server keeps only daily temperature, resting heart rate, HRV and sleep, in memory, never on disk, until ${here} collects them, and discards the rest straight away. Anything not collected is deleted after 7 days. ${Here} keeps a random secret key (nothing about you) and sends it to Cyra's server when you connect, each time it collects readings (when you open or return to Cyra, and when you tap Sync) and when you disconnect; only a request with that key gets them.`,
+};
 const delta = (a, b, goodUp = true) => { const d = b - a; if (d === 0) return <span className="flat">unchanged</span>; const good = goodUp ? d > 0 : d < 0; return <span className={good ? "up" : "down"}>{d > 0 ? "+" : ""}{d}</span>; };
 
 export default function HomeScreen({
   acct, stage, stageName, pregWeek, pred, loggedLast14, streakLine, goTab, entryOn, todayIso, homeInsight, wearInsights, milestones, nextUp, pulse,
   recap, showRecap, setShowRecap,
-  showWear, setShowWear, wearSources, connectWear, wearBusy, wearData, wAvg,
+  showWear, setShowWear, wearSources, connectWear, disconnectWear, wearConfirm, setWearConfirm, wearBusy, wearData, wAvg,
   showMeds, setShowMeds, meds, medLog, medEffects, setMedLog, newMed, setNewMed, setMeds, ping,
   showAppts, setShowAppts, upcoming, past, daysUntil, setAppts, newAppt, setNewAppt,
   showJournal, setShowJournal, journal, jDraft, setJDraft, setJournal,
 }) {
   const hour = new Date().getHours();
+  const connectedCount = Object.values(wearSources).filter((w) => w && !w.pending).length;
+  const allDemo = wearData.length > 0 && wearData.every((r) => r.demo);
   const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
@@ -70,15 +80,19 @@ export default function HomeScreen({
         </>
       )}
 
-      <p className="section-lab">You're not alone · this week across Cyra</p>
+      <p className="section-lab">You're not alone · last week, from people who share counts</p>
       <div className="pulse">
         {pulse.items.map((it) => (
           <div className="pulserow" key={it.id}>
             <b>{it.count != null ? it.count.toLocaleString() : "—"}</b>
-            <span>{it.count != null ? `women ${it.what}` : pulse.status === "offline" ? `${it.what} · couldn't load this week's number` : `${it.what} · shown once at least ${pulse.k || 50} people have`}</span>
+            <span>{it.count != null ? `contributors ${it.what}`
+              : pulse.status === "loading" ? `${it.what} · loading last week's number`
+              : pulse.status === "offline" ? `${it.what} · couldn't load last week's number`
+              : pulse.status === "unavailable" ? `${it.what} · not available in this version of the app`
+              : `${it.what} · shows once ${pulse.k || 50} contributions are counted`}</span>
           </div>
         ))}
-        <p className="rfoot" style={{ margin: "10px 0 0" }}>Anonymous counts only — no one's data is shared. Counted from people who chose to contribute, and shown only once {pulse.k || 50} or more did.</p>
+        <p className="rfoot" style={{ margin: "10px 0 0" }}>Anonymous counts only: no names, dates or values. They come from people who chose to share weekly counts, and a number shows only once {pulse.k || 50} or more contributions are in. Loading these numbers tells Cyra's server nothing about your health.</p>
       </div>
 
       {recap ? (
@@ -99,16 +113,31 @@ export default function HomeScreen({
       )}
 
       {/* ---- Wearables ---- */}
-      <button className="disclosure" onClick={() => setShowWear((v) => !v)}><span>Wearables{Object.keys(wearSources).length ? ` · ${Object.keys(wearSources).length} connected` : " · optional"}</span><span>{showWear ? "−" : "+"}</span></button>
+      <button className="disclosure" onClick={() => setShowWear((v) => !v)}><span>Wearables{connectedCount ? ` · ${connectedCount} connected` : " · optional"}</span><span>{showWear ? "−" : "+"}</span></button>
       {showWear && (
         <div className="bodypanel">
-          <p className="hint" style={{ margin: "10px 0" }}>Entirely optional — Cyra works fully without a device. Connect one and it adds skin temperature, resting heart rate, HRV, and sleep to your record.</p>
-          {SOURCES.map(({ id, name, what }) => (
-            <div className="medrow" key={id}>
-              <div className="medinfo"><b>{name}</b><span>{what}</span></div>
-              <button className={`takebtn ${wearSources[id] ? "on" : ""}`} disabled={!!wearBusy} aria-busy={wearBusy === id} onClick={() => connectWear(id, name)}>{wearBusy === id ? "Connecting…" : wearSources[id] ? "✓ Sync" : "Connect"}</button>
-            </div>
-          ))}
+          <p className="hint" style={{ margin: "10px 0" }}>Entirely optional. Cyra works fully without a device. Connect one and Cyra keeps only temperature, resting heart rate, HRV and sleep from it — whichever your device records.</p>
+          {SOURCES.map(({ id, name, what, viaServer }) => {
+            const st = wearSources[id];
+            return (
+              <div key={id}>
+                <div className="medrow">
+                  <div className="medinfo"><b>{name}</b><span>{what}</span>{st?.pending && <span>Waiting for the connection to finish — tap Sync once you've approved Cyra.</span>}</div>
+                  <div className="wearbtns">
+                    {viaServer && st && !st.demo && <button className="takebtn" disabled={!!wearBusy} aria-busy={wearBusy === `${id}:off`} onClick={() => disconnectWear(id, name)}>{wearBusy === `${id}:off` ? "Disconnecting…" : "Disconnect"}</button>}
+                    <button className={`takebtn ${st && !st.pending ? "on" : ""}`} disabled={!!wearBusy} aria-busy={wearBusy === id} aria-expanded={viaServer && !st ? wearConfirm === id : undefined} onClick={() => connectWear(id, name)}>{wearBusy === id ? (st ? "Syncing…" : "Connecting…") : st ? (st.pending ? "Sync" : "✓ Sync") : "Connect"}</button>
+                  </div>
+                </div>
+                {wearConfirm === id && !st && (
+                  <div className="plaincard wearconfirm" role="group" aria-label={`Before connecting ${name}`}>
+                    <p className="plain">{DISCLOSE[id]}</p>
+                    <button className="cta" onClick={() => connectWear(id, name, { confirmed: true })}>Continue</button>
+                    <button className="ghostbtn" onClick={() => setWearConfirm(null)}>Not now</button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {wearData.length > 0 && (
             <div className="plaincard" style={{ marginTop: 10 }}>
               <div className="recaprow" style={{ borderTop: "none", marginTop: 0 }}><span>Avg temperature deviation</span><b>{wAvg("temp") == null ? "—" : `${wAvg("temp") > 0 ? "+" : ""}${wAvg("temp")}°C`}</b></div>
@@ -117,7 +146,9 @@ export default function HomeScreen({
               <div className="recaprow"><span>Sleep score</span><b>{wAvg("sleep") == null ? "—" : wAvg("sleep")}</b></div>
             </div>
           )}
-          <p className="rfoot">{DEMO_WEARABLES ? "This build shows 30 days of illustrative demo data shaped to your stage — not a real device. " : "Apple Health and Health Connect are read on this phone and never uploaded. Oura data passes through Cyra's server on its way to you and is not stored there. Fitbit/Garmin/Whoop data waits in the server's memory (never written to disk) until this device collects it, then it's deleted; anything not collected is deleted after 7 days. "}Wearable signals confirm patterns after the fact — they don't replace a clinician and aren't contraception.</p>
+          <p className="rfoot">{allDemo ? "This build shows 30 days of illustrative demo data shaped to your stage — not a real device. "
+            : DEMO_WEARABLES && !wearData.length ? "In this demo build, connecting a device adds 30 days of illustrative data shaped to your stage — not from a real device. "
+            : `${isNative() ? "Apple Health and Health Connect are read on this phone. Cyra never sends them anywhere; they leave only inside an encrypted backup you choose to save. " : ""}Oura readings pass through Cyra's server on the way to you and aren't stored there. Fitbit, Garmin and Whoop connect through Terra, a health-data service that keeps your connection, and the data it collects, under its own policy. Disconnect ends the connection; anything Terra already collected stays under Terra's policy. Their readings wait in Cyra's server memory (never on disk) until this device collects them and are deleted after 7 days if not collected. Delete everything also ends both connections; if that can't be confirmed, Cyra tells you what did and didn't end before deleting your record. `}Wearable signals confirm patterns after the fact — they don't replace a clinician and aren't contraception.</p>
         </div>
       )}
 

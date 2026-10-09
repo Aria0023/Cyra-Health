@@ -1,35 +1,56 @@
 import { CADENCE } from "../lib/constants.js";
+import { hasServer } from "../lib/api.js";
+import { support as reminderSupport } from "../lib/notifications.js";
+import { isNative } from "../lib/native.js";
+import { TERMS_URL, PRIVACY_URL, POLICY_LINKS_READY, openExternal } from "../lib/links.js";
+import { allFlagGroups } from "../lib/pulse.js";
 
 /* Phase 2: registration — 8 steps with validation. Red state appears only after
-   the user taps Continue with required fields missing; optional fields never turn red. */
+   the user taps Continue with required fields missing; optional fields never turn red.
+   There is no Cyra account: every answer is stored only on this device (App.jsx
+   finishReg). Registration data reaches Cyra's server only through opt-ins: the check-in
+   cadence (sent for web push along with the Settings reminder time and the browser's time
+   zone); the coarse life-stage group in anonymous weekly counts; and, with
+   Apple/Google/Facebook prefill, the name and email the provider sends, which the server
+   holds in memory under a one-time code until the device collects them, or 5 minutes at
+   most. Answers also leave inside an encrypted backup the user saves (minus the ZIP and
+   the age band). Required: an age band, a stage, cycle length and regularity, at least one
+   goal, and the consent box. Everything else can be skipped. */
 const RSTEPS = [
-  { key: "account", title: "Create your account", sub: "Or don't — Anonymous Mode gives you the full app with no name, no email, nothing that identifies you. If anyone ever demands we identify you, we can't." },
-  { key: "basics", title: "A bit about you", sub: "Age band and ZIP — enough to personalize, never enough on their own to identify you." },
+  { key: "account", title: "Set up Cyra on this device", sub: "There's no Cyra account. Your name, email and setup answers are saved only on this device (if you turn on browser reminders, Cyra's server also keeps the reminder days you pick). If you lose the phone or clear the browser, they go with it unless you save an encrypted backup, which keeps everything except your ZIP and age band. A few optional choices send a little to Cyra's server, and each one says exactly what before you turn it on. Anonymous Mode skips your name and email entirely. Cyra's servers keep no account and no profile of you in either mode: no age, health history or check-ins. Two optional features keep a little there while they're on: browser reminders (this browser's push address and its encryption keys, your reminder days, time and time zone, and the last day a reminder went out) and Fitbit/Garmin/Whoop sync (new readings, held up to 7 days until this device collects them). Turning one off erases it from Cyra's server; if the server can't be reached then, Cyra keeps asking until it confirms, and Delete everything tells you if anything stays connected. If you choose to share weekly counts, they're added to anonymous weekly totals that stay on the server. Sign-in prefill and Oura connect leave your name and email, or your Oura access, there for 5 minutes at most. Like any app that goes online, our server and its host see your device's internet address and app or browser type when the app connects; Cyra's own code doesn't keep the address." },
+  { key: "basics", title: "A bit about you", sub: "Your age band, plus an optional ZIP. Both stay on this device." },
   { key: "stage", title: "Where are you right now?", sub: "This shapes your entire experience. You can change it anytime." },
-  { key: "cycle", title: "Your cycle history", sub: "So predictions start accurate instead of guessing for months." },
-  { key: "repro", title: "Reproductive history", sub: "Private and optional — it genuinely changes what's relevant to you." },
-  { key: "health", title: "Health background", sub: "General categories that interact with hormonal health — never your medical records." },
-  { key: "goals", title: "What brings you here?", sub: "So the app leads with what you actually care about." },
-  { key: "consent", title: "Your data, your rules", sub: "The promises that never change — and the choices that are yours." },
+  { key: "cycle", title: "Your cycle history", sub: "So predictions can start from day one. These answers stay on this device, and go into an encrypted backup only if you save one." },
+  { key: "repro", title: "Reproductive history", sub: "Optional, and kept on this device (and in an encrypted backup, if you save one). Skip anything you like." },
+  { key: "health", title: "Health background", sub: "Diagnoses and family history that can affect hormonal health. All optional. They stay on this device and leave it only inside an encrypted backup you choose to save. We never import medical records." },
+  { key: "goals", title: "What brings you here?", sub: "Pick as many as you like. These stay on this device and leave it only inside an encrypted backup you choose to save." },
+  { key: "consent", title: "Your data and your choices", sub: "What Cyra does with your data today — and choices you can change later in Settings." },
 ];
+
+// A ZIP or postal code: letters, digits, spaces and hyphens, 10 characters at most — no room for a street address.
+const ZIP_CHARS = /[^A-Za-z0-9 -]/g;
+const ERR_INK = "#A13D28";
 
 export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTouched, setRegTouched, cadence, setCadence, socialBusy, startSocial, finishReg }) {
   const rs = RSTEPS[regStep];
   const REQ = {
-    account: [["email", reg.anon || reg.email.includes("@")]],
-    basics: [["age", reg.age], ["zip", reg.zip]],
+    account: [],
+    basics: [["age", reg.age]],
     stage: [["stage", reg.stage]],
     cycle: [["cycleLen", reg.cycleLen], ["cycleReg", reg.cycleReg]],
-    repro: [["preg", reg.preg]],
-    health: [["meds", reg.meds]],
-    goals: [["goals", reg.goals.length], ["sleep", reg.sleep], ["activity", reg.activity]],
+    repro: [],
+    health: [],
+    goals: [["goals", reg.goals.length]],
     consent: [["terms", reg.terms]],
   };
   const miss = (REQ[rs.key] || []).filter(([, ok]) => !ok).map(([k]) => k);
   const bad = (k) => regTouched[rs.key] && miss.includes(k);
   const rup = (k, v) => setReg((x) => ({ ...x, [k]: v }));
   const rtog = (k, v) => setReg((x) => ({ ...x, [k]: x[k].includes(v) ? x[k].filter((y) => y !== v) : [...x[k], v] }));
-  const RLab = ({ k, children }) => <p className={`lab ${bad(k) ? "labErr" : ""}`}>{children}{bad(k) && <span className="need"> · needed</span>}</p>;
+  // Anonymous Mode on: the name and email go, and their fields and the providers are hidden.
+  const toggleAnon = () => setReg((x) => (x.anon ? { ...x, anon: false } : { ...x, anon: true, name: "", email: "" }));
+  // Error ink #A13D28 is 5.2:1 on the registration paper (#EDE4DC); the stylesheet's #B4462F is 4.3:1 there.
+  const RLab = ({ k, children }) => <p className={`lab ${bad(k) ? "labErr" : ""}`} style={bad(k) ? { color: ERR_INK } : undefined}>{children}{bad(k) && <span className="need" style={{ color: ERR_INK }}> · needed</span>}</p>;
   const RChips = ({ k, opts }) => (
     <div className={`mcrow ${bad(k) ? "err" : ""}`}>
       {opts.map((o) => <button key={o} aria-pressed={reg[k] === o} className={`mc ${reg[k] === o ? "on" : ""}`} onClick={() => rup(k, reg[k] === o ? null : o)}>{o}</button>)}
@@ -39,6 +60,25 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
     <div className={`mcrow ${bad(k) ? "err" : ""}`}>
       {opts.map((o) => <button key={o} className={`mc ${reg[k].includes(o) ? "on" : ""}`} onClick={() => rtog(k, o)}>{o}</button>)}
     </div>
+  );
+
+  /* Consent choices: each one is shown only where it can do what it says. Reminders: on the
+     phone, or in a browser that can show them when this build has a server. Weekly counts:
+     only when this build has a server to count them. Nothing is pre-ticked. */
+  const isNativeBuild = isNative();
+  const remindKind = reminderSupport(); // "native" | "web" | "none"
+  const consentRows = [
+    (isNativeBuild || (remindKind === "web" && hasServer())) && ["notifOptin", "Remind me on this device", isNativeBuild ? "Scheduled on this phone — no server involved. No phone number, no texts, ever." : "Your browser's push service delivers it. Cyra's server keeps only this browser's push address and its encryption keys, which days and what time to remind you, your time zone, and the last day it sent you a reminder — nothing about your health. Turning reminders off erases them. If Cyra's server can't be reached then, Cyra asks it again while Cyra is open and each time you open it, until the server confirms; this browser stops accepting reminders right away. No phone number, no texts, ever."],
+    hasServer() && ["research", "Share anonymous weekly counts", `At most once a day, and never on the day you log them, Cyra's server gets your life stage group and which of these you logged, each at most once a week from this device (deleting the app or clearing this browser's data resets that) — ${allFlagGroups()}. A quick check-in adds only sleep and flow flags. No dates, values, name or account; like any request, it carries your device's internet address and app or browser type. They're added to the weekly "You're not alone" counts. Turn this off anytime in Settings. Counts already added can't be taken back.`],
+    // Until the published Terms and Privacy Policy can be linked, the box asks only for
+    // agreement to what this screen itself says.
+    ["terms", POLICY_LINKS_READY ? "I agree to the Terms & Privacy Policy" : "I agree to how Cyra handles my data, as described above", POLICY_LINKS_READY ? "Nothing here is pre-ticked, and every optional choice can be changed later in Settings." : "Plain language, no dark patterns."],
+  ].filter(Boolean);
+  const opensIn = isNativeBuild ? "opens in your browser" : "opens in a new tab";
+  const PolicyLink = ({ url, children }) => (
+    <a className="linkbtn" href={url} target="_blank" rel="noopener noreferrer" aria-label={`${children} (${opensIn})`}
+      style={{ display: "inline-flex", alignItems: "center", padding: "0 4px" }}
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); openExternal(url); }}>{children}</a>
   );
 
   const advance = () => {
@@ -56,19 +96,26 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
 
       {rs.key === "account" && (
         <>
-          <input className="inp" placeholder="First name (optional)" aria-label="First name (optional)" value={reg.name} onChange={(e) => rup("name", e.target.value)} />
-          <input className={`inp ${bad("email") ? "inpErr" : ""}`} placeholder="Email" aria-label="Email" type="email" value={reg.email} onChange={(e) => rup("email", e.target.value)} />
-          <input className="inp" placeholder="Password" aria-label="Password" type="password" value={reg.pass} onChange={(e) => rup("pass", e.target.value)} />
-          <button className="ghostbtn" onClick={() => { rup("anon", !reg.anon); rup("email", ""); }}>{reg.anon ? "✓ Anonymous Mode on" : "Continue in Anonymous Mode instead"}</button>
-          <div className="orline"><span>or sign in with</span></div>
-          <div className="social">
-            {[["apple", "Apple", "#000"], ["google", "Google", "#4285F4"], ["facebook", "Facebook", "#1877F2"]].map(([id, label, color]) => (
-              <button key={id} className="socialbtn" disabled={!!socialBusy} onClick={() => startSocial(id, label)}>
-                <span className="socialdot" aria-hidden="true" style={{ background: color }} />{socialBusy === id ? "Connecting…" : label}
-              </button>
-            ))}
-          </div>
-          <p className="rfoot">Signing in with a provider shares only your name and email with Cyra — never your health data with them. Cyra's server passes them straight to this device and keeps no account record. Apple lets you hide your email.</p>
+          {!reg.anon && (
+            <>
+              <input className="inp" placeholder="First name (optional)" aria-label="First name (optional)" autoComplete="off" value={reg.name} onChange={(e) => rup("name", e.target.value)} />
+              <input className="inp" placeholder="Email (optional, kept only on this device and in backups you save)" aria-label="Email (optional, kept only on this device and in backups you save)" type="email" autoComplete="off" value={reg.email} onChange={(e) => rup("email", e.target.value)} />
+            </>
+          )}
+          <button className="ghostbtn" aria-pressed={!!reg.anon} onClick={toggleAnon}>{reg.anon ? "✓ Anonymous Mode on" : "Continue in Anonymous Mode instead"}</button>
+          {!reg.anon && (
+            <>
+              <div className="orline"><span>or fill in your name and email from</span></div>
+              <div className="social">
+                {[["apple", "Apple", "#000"], ["google", "Google", "#4285F4"], ["facebook", "Facebook", "#1877F2"]].map(([id, label, color]) => (
+                  <button key={id} className="socialbtn" style={{ minHeight: 44 }} disabled={!!socialBusy} onClick={() => startSocial(id, label)}>
+                    <span className="socialdot" aria-hidden="true" style={{ background: color }} />{socialBusy === id ? "Connecting…" : label}
+                  </button>
+                ))}
+              </div>
+              <p className="rfoot">Apple, Google or Facebook will know you're setting up Cyra. They send Cyra's server short-lived sign-in tokens, your name, email and an account ID (Google also sends basic profile details, such as a profile-photo link). Only your name, plus your email from Apple or Google when it's verified, comes to this device (Facebook fills in your name only). The server discards the tokens at once, erases the rest within 5 minutes and keeps no account record. None of your health data goes to them. Apple lets you hide your email.</p>
+            </>
+          )}
         </>
       )}
 
@@ -76,9 +123,9 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
         <>
           <RLab k="age">Age</RLab>
           <RChips k="age" opts={["Under 25", "25–34", "35–44", "45–54", "55+"]} />
-          <RLab k="zip">ZIP or postal code</RLab>
-          <input className={`inp ${bad("zip") ? "inpErr" : ""}`} placeholder="e.g. 90210" aria-label="e.g. 90210" value={reg.zip} onChange={(e) => rup("zip", e.target.value)} />
-          <p className="rfoot">ZIP, not street address — enough for local care and regional averages, nothing more. A store only ever collects your full address at checkout.</p>
+          <p className="lab">ZIP or postal code (optional)</p>
+          <input className="inp" placeholder="e.g. 90210" aria-label="ZIP or postal code (optional)" maxLength={10} pattern="[A-Za-z0-9 \-]{0,10}" autoComplete="off" value={reg.zip} onChange={(e) => rup("zip", e.target.value.replace(ZIP_CHARS, "").slice(0, 10))} />
+          <p className="rfoot">ZIP is optional and stays on this device. Cyra doesn't use it yet and never sends it anywhere. Cyra never asks for your street address.</p>
         </>
       )}
 
@@ -103,13 +150,13 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
 
       {rs.key === "repro" && (
         <>
-          <RLab k="preg">Ever been pregnant?</RLab>
-          <RChips k="preg" opts={["Never", "Currently", "In the past"]} />
+          <p className="lab">Ever been pregnant?</p>
+          <RChips k="preg" opts={["Never", "Currently", "In the past", "Prefer not to say"]} />
           <p className="lab">Births</p>
           <RChips k="births" opts={["0", "1", "2", "3+"]} />
           <p className="lab">Current birth control</p>
           <RChips k="contra" opts={["None", "Pill", "IUD", "Implant/shot", "Barrier", "Prefer not to say"]} />
-          <p className="rfoot">Every field skippable. Context to serve you — kept on your device, never sold.</p>
+          <p className="rfoot">Every question can be skipped. Your answers stay on this device (and in an encrypted backup, if you save one) and are never sold.</p>
         </>
       )}
 
@@ -119,7 +166,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
           <RMulti k="conditions" opts={["PCOS", "Endometriosis", "Thyroid", "Diabetes", "Anemia", "Migraines", "High blood pressure", "Anxiety/depression", "None"]} />
           <p className="lab">Family history worth noting</p>
           <RMulti k="familyHx" opts={["Early menopause", "Osteoporosis", "Breast/ovarian cancer", "Heart disease", "None / unsure"]} />
-          <RLab k="meds">On regular medication or hormones?</RLab>
+          <p className="lab">On regular medication or hormones?</p>
           <RChips k="meds" opts={["No", "Yes", "Prefer not to say"]} />
           <p className="rfoot">General categories only. We never ask for medical records, insurance or policy numbers, government ID, or an SSN.</p>
         </>
@@ -129,9 +176,9 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
         <>
           <RLab k="goals">What would make this worth it? (pick a few)</RLab>
           <RMulti k="goals" opts={["Understand my symptoms", "Predict my cycle", "Get pregnant", "Avoid pregnancy", "Prep for my doctor", "Sleep better", "Feel less alone", "Track the transition"]} />
-          <RLab k="sleep">Sleep, most nights</RLab>
+          <p className="lab">Sleep, most nights</p>
           <RChips k="sleep" opts={["Solid", "Hit or miss", "Poor"]} />
-          <RLab k="activity">Activity level</RLab>
+          <p className="lab">Activity level</p>
           <RChips k="activity" opts={["Low", "Moderate", "High"]} />
         </>
       )}
@@ -139,13 +186,14 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
       {rs.key === "consent" && (
         <>
           <div className="consentcard">
-            <b>Always true — no toggle, no fine print:</b>
+            <b>What Cyra does with your data:</b>
             <ul className="rlist" style={{ marginTop: 6 }}>
-              <li>Your health data is stored on your device — insights run locally, not on our servers.</li>
-              <li>Never sold. Partners receive an anonymous token, never your identity.</li>
+              <li>Your health log is stored on this device, and your patterns are worked out here.</li>
+              <li>Nothing about your health leaves this device unless you turn on a feature that sends it (weekly counts, Cyra's AI, or a wearable sync), each of which tells you what it sends before you turn it on, or you take it out yourself: a doctor summary you open in email or copy, or a backup file you save, which stays locked with your passphrase.</li>
+              <li>Never sold. Care partners get nothing from Cyra about you.</li>
               <li>Doctor sharing happens only when you press send.</li>
-              <li>Delete everything, anytime, in one tap.</li>
-              <li>Optional backup is encrypted so even we cannot read it — the key stays on your device.</li>
+              <li>Delete everything from Settings, anytime. It also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop. If any of those can't be confirmed, Cyra tells you what did and didn't happen, and keeps your record on this device until you choose. Anonymous counts you already shared can't be pulled back.</li>
+              <li>Optional backup is a file you keep, locked with a passphrase only you know. Cyra never receives the file or the passphrase, so we can't read it — or recover it if you forget the passphrase.</li>
             </ul>
           </div>
           <p className="lab">How often should Cyra check in?</p>
@@ -154,16 +202,28 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
               <button key={cd.id} aria-pressed={cadence === cd.id} className={`stagecard ${cadence === cd.id ? "on" : ""}`} style={{ padding: "10px 14px" }} onClick={() => setCadence(cd.id)}><b style={{ fontSize: 14 }}>{cd.label}</b><span>{cd.desc}</span></button>
             ))}
           </div>
-          <p className="rfoot" style={{ marginBottom: 14 }}>You can change this anytime. Cyra sends one reminder at most, never a second nudge, and never guilts you for a missed day — gaps are fine, your patterns still work.</p>
-          {[["emailOptin", "Email me insights & reminders", "Unsubscribe anytime."],
-            ["notifOptin", "Notify me on this device", "Free push reminders. No phone number, no texts, ever."],
-            ["research", "Contribute to research", "Named studies improving women's care — aggregate, de-identified, opt-in per study, withdraw anytime."],
-            ["terms", "I agree to the Terms & Privacy Policy", "Plain language, no dark patterns."]].map(([k, t2, d]) => (
+          <p className="rfoot" style={{ marginBottom: 14 }}>You can change this anytime in Settings. Cyra sends one reminder at most, never a second nudge, and never guilts you for a missed day — gaps are fine, your patterns still work.</p>
+          {consentRows.map(([k, t2, d]) => (
             <button key={k} role="checkbox" aria-checked={!!(reg[k])} className={`consentopt ${reg[k] ? "on" : ""} ${k === "terms" && bad("terms") ? "inpErr" : ""}`} style={{ marginBottom: 9 }} onClick={() => rup(k, !reg[k])}>
               <span className="ckbox">{reg[k] ? "✓" : ""}</span>
               <span><b>{t2}</b><br />{d}</span>
             </button>
           ))}
+          {/* The documents sit next to the box, never inside it: opening one doesn't tick it. */}
+          {POLICY_LINKS_READY ? (
+            <p className="rfoot" style={{ margin: "-4px 0 9px", display: "flex", flexWrap: "wrap", alignItems: "center" }}>
+              <PolicyLink url={TERMS_URL}>Read the Terms</PolicyLink>
+              <span aria-hidden="true">·</span>
+              <PolicyLink url={PRIVACY_URL}>Read the Privacy Policy</PolicyLink>
+            </p>
+          ) : TERMS_URL || PRIVACY_URL ? (
+            <p className="rfoot" style={{ margin: "-4px 0 9px", display: "flex", flexWrap: "wrap", alignItems: "center" }}>
+              {TERMS_URL ? <PolicyLink url={TERMS_URL}>Read the Terms</PolicyLink> : <PolicyLink url={PRIVACY_URL}>Read the Privacy Policy</PolicyLink>}
+              <span>Cyra's {TERMS_URL ? "Privacy Policy" : "Terms"} isn't published yet; a later version of Cyra will link it here. Until then, the box above covers only what this screen says.</span>
+            </p>
+          ) : (
+            <p className="rfoot" style={{ margin: "0 0 9px" }}>Cyra's Terms and Privacy Policy aren't published yet; a later version of Cyra will link them here. Until then, the box above covers only what this screen says.</p>
+          )}
         </>
       )}
 

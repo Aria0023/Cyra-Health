@@ -14,7 +14,7 @@ export default function IntakeScreen({ org, acct, ob, setOb, obBusy, setObBusy, 
       <span className="mark">{org.name}<span className="sub">{org.tag}</span></span>
       <h1 className="disp" style={{ marginTop: 22 }}>{acct.name ? `${acct.name}, let's set up` : "Let's set up"}
         <br />your space.</h1>
-      <p className="hint">Four quick taps. Your answers shape the whole app — one experience, built for where you are. Your health answers stay on your device.</p>
+      <p className="hint">Four quick taps. Your answers shape the whole app — one experience, built for where you are. Your answers stay on this device. (If you share weekly counts, your life stage is part of what's shared.)</p>
       {obBusy ? (
         <div className="card" style={{ display: "block" }}><p>Personalizing your space…</p></div>
       ) : (

@@ -1,11 +1,35 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 /* ================================================================
    CYRA HEALTH — reference implementation
    Life stages: My Cycle · Pregnancy · Peri/Meno — exactly one per user.
-   Health data lives in this component's state and on the device only. The
-   backend is reached solely through ./lib/api.js (AI proxy); no Anthropic
-   call and no API key exist in client code.
+   The health record (daily logs, journal, intimacy log, trials, appointments,
+   wearable rows once collected) lives in this component's state and is saved only
+   on this device (IndexedDB or the app sandbox; lib/storage.js). What can leave the
+   device, each disclosed where it is turned on:
+   - always, with no health data: the stage-less read of last week's anonymous
+     counts (GET /api/pulse) — IP address and user agent, like any request;
+   - opt-in "Share anonymous weekly counts": life stage group + yes/no event flags,
+     at most once a day, on a later day than the check-in (lib/pulse.js); the server
+     keeps them only as weekly totals;
+   - opt-in "Also ask Cyra's AI": only the typed question, and only when the
+     on-device library has no answer (lib/askLibrary.js, runAsk below);
+   - opt-in Oura / Fitbit · Garmin · Whoop connections (lib/wearables.js): Oura
+     readings pass through the server on each sync and are not kept; Fitbit/Garmin/
+     Whoop readings wait in server memory (never on disk) for up to 7 days until this
+     device collects them, and Terra keeps its own copy under its policy; the device
+     sends its Oura tokens / Terra mailbox key in request bodies;
+   - web reminders: the browser's push subscription (address and keys), reminder days,
+     time and time zone (plus the last day a reminder went out, so there is never a
+     second one) (lib/notifications.js); phone reminders are scheduled on the phone;
+   - only when she starts it: the encrypted backup file (lib/backup.js), the
+     doctor-summary email draft (mailto) and the copied summary text (ReportScreen).
+   Backend requests use ./lib/api.js (fetch), except the sign-in, Oura and Terra
+   connection windows. These are browser navigations to `${API_BASE}/api/oauth/:id/start`,
+   `${API_BASE}/api/integrations/oura/start` and the Terra widget URL that
+   /api/integrations/terra/session returns, and each one ends on a backend callback or
+   done page (startSocial below; lib/wearables.js). A build without VITE_API_BASE makes
+   neither kind. No Anthropic call and no API key exist in client code.
 
    This file owns ALL state and derived data (useState / useMemo only).
    Screens live in ./screens, one file per screen; shared pieces in
@@ -13,18 +37,27 @@ import { useEffect, useMemo, useState } from "react";
    ================================================================ */
 
 import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, RAMPS } from "./lib/constants.js";
-import { seed, fmt, insights, predict, symBurden, scoreLabel, dayScore } from "./lib/engine.js";
-import { API_BASE, apiPost } from "./lib/api.js";
-import { DEMO_WEARABLES, connectSource, syncSource, mergeRows } from "./lib/wearables.js";
-import { PULSE_EVENTS, weeklyToken, eventsForDay, fetchPulse, sendTally } from "./lib/pulse.js";
+import { seed, fmt, insights, predict, predictionWaits, symBurden, scoreLabel, dayScore } from "./lib/engine.js";
+import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
+import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource, drainTerra, mergeRows, disconnectHelp } from "./lib/wearables.js";
+import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue, pruneQueue, mergeQueues, localDay, weekKey } from "./lib/pulse.js";
+import { answerLocally } from "./lib/askLibrary.js";
 import { storage } from "./lib/storage.js";
 import { encryptBackup, decryptBackup } from "./lib/backup.js";
-import { syncReminders, wantsReminders, support as reminderSupport } from "./lib/notifications.js";
-import { isNative, appReturnUrl, newAppVerifier, waitForAppUrl, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
+import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
+import { isNative, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
-/* What persists on the device: the health record and settings. Never the password, never UI state. */
-const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseToken", "regAnswers", "reminders"];
+/* What persists on the device: the health record and settings. Never UI state.
+   reminders persists { enabled, endpoint, pending, rev } — this browser's push address, any
+   address Cyra's server still has to forget, and a version so every open tab agrees on the
+   on/off switch; its status is worked out again at every launch. */
+const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders"];
+/* Per-device choices a restored backup never overrides: sharing counts and asking the AI
+   are consents given on this device. */
+const DEVICE_ONLY = ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI"];
+/* Push addresses Cyra's server still has to forget (every one is retried until confirmed). */
+const cleanPending = (v) => (Array.isArray(v) ? [...new Set(v.filter((e) => typeof e === "string" && /^https:\/\//.test(e) && e.length <= 2048))].slice(0, 100) : []);
 import Shell from "./components/Shell.jsx";
 import ScoreMeter from "./components/ScoreMeter.jsx";
 import ScaleSection from "./components/ScaleSection.jsx";
@@ -80,16 +113,30 @@ export default function CyraDemo() {
   const [showWear, setShowWear] = useState(false);
   const [regStep, setRegStep] = useState(0);
   const [regTouched, setRegTouched] = useState({});
+  // Registration answers are stored on this device. The only ones that ever reach a server
+  // are opt-ins: with "Remind me" in a web browser, the reminder days, time and time zone go
+  // to Cyra's server for web push; with weekly counts on, the life-stage group goes out with
+  // the tallies; sign-in prefill puts the provider's name and email in server memory for at
+  // most 5 minutes. They also leave inside any encrypted backup she exports (the ZIP and age
+  // band are left out). There is no Cyra account, so there is no password; name and email are
+  // optional and are kept nowhere, not even on this device, in Anonymous Mode.
   const [reg, setReg] = useState({
-    name: "", email: "", pass: "", anon: false, age: null, zip: "",
+    name: "", email: "", anon: false, age: null, zip: "",
     stage: null, cycleLen: null, cycleReg: null, lastPeriod: "",
     preg: null, births: null, contra: null,
     conditions: [], familyHx: [], meds: null,
     goals: [], sleep: null, activity: null,
-    emailOptin: true, notifOptin: true, research: false, terms: false,
+    // Nothing is pre-ticked. notifOptin: reminders are off until she ticks "Remind me".
+    // research: the "Share anonymous weekly counts" consent (also in Settings afterwards).
+    notifOptin: false, research: false, terms: false,
   });
   const [acct, setAcct] = useState({ name: "", email: "", anon: false });
-  const [research, setResearch] = useState(false);
+  const [research, setResearch] = useState(false); // "Share anonymous weekly counts" — see lib/pulse.js
+  const [pulseQueue, setPulseQueue] = useState(null); // { day, stage, events } waiting on this device for a later launch
+  const [pulseSent, setPulseSent] = useState(null); // { week, keys: ["stage|event"] } already sent this ISO week
+  const [pulseLastSend, setPulseLastSend] = useState(null); // local day this browser / app install last sent a tally: at most one a day
+  const [pulseRev, setPulseRev] = useState(0); // version of the sharing state above, so a stale tab can't roll it back
+  const [askAI, setAskAI] = useState(false); // "Also ask Cyra's AI when the library has no answer" — off until she turns it on
   const [stage, setStage] = useState(null);
   const [stageName, setStageName] = useState("");
   const [ob, setOb] = useState({ step: 0, preg: null, age: null, per: null, vms: null });
@@ -118,45 +165,78 @@ export default function CyraDemo() {
   const [toast, setToast] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [recordUnavailable, setRecordUnavailable] = useState(false); // phone: the record exists but can't be read right now
-  const [regAnswers, setRegAnswers] = useState(null); // registration record minus the password
-  const [reminders, setReminders] = useState({ enabled: false, status: "off" }); // status: off | on | blocked | unavailable | unsupported
+  const [recordLocked, setRecordLocked] = useState(false); // iOS: unreadable because the phone is locked (file protection)
+  const [storageDriver, setStorageDriver] = useState(null); // where the record really is, for Settings → Your data (null until probed)
+  const [holdWeek, setHoldWeek] = useState(null); // the week-only hold (lib/storage.js), so Delete everything can say it stays
+  const [regAnswers, setRegAnswers] = useState(null); // registration answers (no name or email in Anonymous Mode)
+  const [reminders, setReminders] = useState({ enabled: false, status: "off", endpoint: null, pending: [], rev: 0 }); // status: off | on | blocked (+denied) | unavailable | error | unsupported; pending: push addresses the server still has to forget
+  const wipingRef = useRef(false); // Delete everything / Start over in progress: nothing may be saved any more
+  const saveTimer = useRef(null);  // the pending autosave, cancelled by a wipe
 
   const org = ORGS[orgId];
   const stagePal = stage && orgId === "cyra" ? PALETTES[stage][palIdx[stage]] : null;
   const t = { ...org.theme, ...(stagePal || {}) };
   const symMap = stage === "periods" ? PSYM : SYM;
   const symIds = Object.keys(symMap);
-  const shelfItems = SHELF.filter((s) => s.stages.includes(stage) && (!org.partnerIds || org.partnerIds.includes(s.id)));
   const ins = useMemo(() => insights(days, stage === "periods" ? Object.keys(PSYM) : SYMS), [days, stage]);
-  const pred = useMemo(() => predict(ins), [ins]);
+  /* Care: items for this stage, the ones that fit what she logged in the last 30 days first
+     (most-logged match first), then in shelf order. Matching runs here, on the device. */
+  const shelfItems = useMemo(() => {
+    const pool = [...ins.counts, { id: "rough", label: "Rough nights", days: ins.roughNights }];
+    const best = (s) => pool.filter((c) => s.m.includes(c.id) && c.days > 0).sort((a, b) => b.days - a.days)[0] || null;
+    return SHELF.filter((s) => s.stages.includes(stage) && (!org.partnerIds || org.partnerIds.includes(s.id)))
+      .map((s, i) => ({ ...s, top: best(s), order: i }))
+      .sort((a, b) => (b.top?.days || 0) - (a.top?.days || 0) || a.order - b.order);
+  }, [ins, stage, org.partnerIds]);
+  // Until two cycles are logged, predictions start from the registration answers (last period, usual length).
+  const pred = useMemo(() => predict(ins, stage === "preg" ? null : regAnswers), [ins, regAnswers, stage]);
+  const predWaits = stage !== "preg" && !pred && predictionWaits(ins, regAnswers);
   const todayIso = new Date().toISOString().slice(0, 10);
   const pregWeek = 22, trimester = 2;
   const ping = (m) => { setToast(m); setTimeout(() => setToast(""), 2600); };
+  useEffect(() => { setKicks(0); }, [todayIso]); // the kick counter starts again each day
 
+  /* The doctor email: everything in it comes from one window — the last 30 calendar days —
+     and the denominator is the number of days she actually logged in it. */
   const buildEmail = () => {
     const subject = `Symptom summary ahead of my appointment${acct.name ? ` — ${acct.name}` : ""}`;
+    const n = ins.last30.length;
     const lines = [
-      `Hi — ahead of my appointment, a brief summary of my last 30 tracked days (logged daily in ${org.name}):`,
+      `Hi — ahead of my appointment, a brief summary of the last 30 days (I logged ${n} of them in ${org.name}):`,
       ``,
-      ...ins.counts.filter((c) => c.days > 0).slice(0, 4).map((c) => `• ${c.label}: ${c.days}/30 days (${c.strong} moderate-to-strong)`),
-      ...(ins.lens.length >= 2 ? [``, `• Recent cycle lengths: ${ins.lens.join(", ")} days (${ins.variability}-day spread)`] : []),
-      ...(stage === "peri" && ins.hfMult ? [`• Hot flashes were ${ins.hfMult.toFixed(1)}x more likely after poorly-rated nights`] : []),
+      ...ins.counts.filter((c) => c.days > 0).slice(0, 4).map((c) => `• ${c.label}: ${c.days} of ${n} logged days (${c.strong} moderate-to-strong)`),
+      ...(ins.lens30.length >= 1 ? [``, `• Cycle length${ins.lens30.length > 1 ? "s" : ""} in these 30 days: ${ins.lens30.join(", ")} days${ins.variability30 != null ? ` (${ins.variability30}-day spread)` : ""}`] : []),
+      ...(stage === "peri" && ins.hfMult30 ? [`• Hot flashes were ${ins.hfMult30.toFixed(1)}x more likely after poorly-rated nights`] : []),
       ``,
       `Happy to share the full day-by-day log at the visit. Thank you!`,
     ];
     return { subject, body: lines.join("\n") };
   };
 
-  /* ---------- Ask Cyra: plain-language evidence Q&A ---------- */
+  /* ---------- Ask Cyra: plain-language evidence Q&A ----------
+     The written library answers on this device first (red flags included) and nothing is
+     sent. Only when she has turned on "Also ask Cyra's AI" AND the library has no answer
+     does the question go to Cyra's backend, which forwards the text verbatim to
+     Anthropic. The request body is { question } alone — no stage, name, account or entry
+     log — though whatever she typed goes as typed, and like any request it carries the
+     device's IP address and user agent. */
+  const aiAvailable = !!API_BASE;
   const runAsk = async () => {
-    if (!askQ.trim()) return ping("Type a question first");
+    const question = askQ.trim().slice(0, 500);
+    if (!question) return ping("Type a question first");
+    const local = answerLocally(question);
+    if (local.matched || !askAI || !aiAvailable) {
+      setAskOut({ source: "library", ...local, offerAI: !local.matched && !askAI && aiAvailable });
+      return;
+    }
     setAskBusy(true); setAskOut(null);
     try {
-      // Only the question text and the stage label leave the device — no name, no identifier, no entry log.
-      const out = await apiPost("/api/ai/ask", { question: askQ.trim().slice(0, 500), stage: stageName || "unknown" });
-      setAskOut({ live: out.provider !== "rules", answer: out.answer, source_note: out.source_note || null, ask_your_doctor: out.ask_your_doctor || null, urgent: !!out.urgent });
-    } catch {
-      setAskOut({ live: false, answer: "I couldn't reach the evidence service just now. Check your connection and try again — or write the question down and bring it to your next visit.", source_note: null, ask_your_doctor: null, urgent: false });
+      const out = await apiPost("/api/ai/ask", { question });
+      // degraded: the server did ask Cyra's AI, but no AI answer came back (refusal, timeout, error)
+      setAskOut({ source: out.provider === "rules" ? (out.degraded ? "server-library-attempted" : "server-library") : "ai", answer: out.answer, source_note: out.source_note || null, ask_your_doctor: out.ask_your_doctor || null, urgent: !!out.urgent });
+    } catch (e) {
+      const answer = e?.status === 429 ? "Too many questions in a minute — try again shortly." : e?.status === 400 ? "Please type a slightly longer question." : "No answer came back from Cyra's AI. Check your connection and try again, or write the question down and bring it to your next visit.";
+      setAskOut({ source: "error", answer, source_note: null, ask_your_doctor: null, urgent: false });
     }
     setAskBusy(false);
   };
@@ -187,24 +267,86 @@ export default function CyraDemo() {
   const loggedLast14 = Array.from({ length: 14 }, (_, i) => isoDaysAgo(i)).filter((iso) => !!entryOn(iso)).length;
   const streakLine = loggedLast14 >= 10 ? "That's a real record now." : loggedLast14 >= 5 ? "Patterns are starting to show." : "Every entry counts — nothing to catch up on.";
 
-  /* Pulse: anonymous aggregate counts from the backend (counts only, k-anonymity ≥ 50).
-     Tallies are sent only when the user opted in to contribute, and carry no identity. */
-  const [pulse, setPulse] = useState({ items: [], status: "loading" });
-  const [pulseToken, setPulseToken] = useState(null);
+  /* Pulse ("You're not alone"): last closed week's anonymous counts, read ONCE per launch
+     with no stage in the request; this device picks its own stage's numbers locally, so
+     changing stage never asks again. A count shows only once k contributions are in.
+     Sharing (opt-in, research === true): a check-in only queues yes/no flags on this
+     device (saving that day again replaces them). Nothing is sent at check-in time; a
+     launch on a later day sends at most one tally a day (enforced across tabs with a Web
+     Lock and a stored send day), with no token or account; like any request it carries
+     the IP address and user agent (see lib/pulse.js and flushPulse below).
+     Every tab agrees on the sharing state (research, queue, what was sent, the send day):
+     a consent change or a send bumps pulseRev and is told to the other tabs, and before
+     each save a tab adopts a newer stored version. Turning sharing off is written to the
+     device at once (inside the same Web Lock as a send) before it is confirmed, a send
+     re-reads that stored switch and sends nothing once it is off, and a send never turns a
+     stored "off" back on. */
+  const [pulseAll, setPulseAll] = useState(null);
+  const [pulseStatus, setPulseStatus] = useState(API_BASE ? "loading" : "unavailable");
+  const pulseRead = useRef(false);
   useEffect(() => {
-    if (!stage) return;
-    let live = true;
-    setPulse({ items: (PULSE_EVENTS[stage] || []).map(([id, what]) => ({ id, what, count: null })), status: "loading" });
-    fetchPulse(stage).then((j) => live && setPulse({ items: j.items, k: j.k, status: "ok" })).catch(() => live && setPulse((p) => ({ ...p, status: "offline" })));
-    return () => { live = false; };
+    if (!stage || pulseRead.current || !API_BASE) return;
+    pulseRead.current = true;
+    fetchPulse().then((j) => { setPulseAll(j); setPulseStatus("ok"); }, () => setPulseStatus("offline"));
   }, [stage]);
-  const contribute = (events) => {
-    if (!research || !stage || !events.length) return;
-    const t = weeklyToken(pulseToken);
-    if (t !== pulseToken) setPulseToken(t);
-    sendTally(stage, t.token, events).then(() => fetchPulse(stage)).then((j) => setPulse({ items: j.items, k: j.k, status: "ok" })).catch(() => {});
+  const pulse = useMemo(() => ({ items: stage ? pickStage(pulseAll, stage) : [], k: pulseAll?.k, status: pulseStatus }), [pulseAll, pulseStatus, stage]);
+  const researchRef = useRef(research); researchRef.current = research;
+  const pulseRevRef = useRef(pulseRev); pulseRevRef.current = pulseRev;
+  // A check-in saved (again): its flags replace whatever that day's earlier save queued. An
+  // edit of an earlier day (Calendar) only replaces flags still waiting for that day.
+  const contribute = (events, dateIso = todayIso) => {
+    if (!researchRef.current || !stage) return;
+    const past = dateIso !== todayIso; // an earlier day's phase isn't known here, so it never yields mood_dip
+    setPulseQueue((q) => queueEvents(q, pulseSent, stage, past ? events.filter((e) => e !== "mood_dip") : events, new Date(), { day: past ? dateIso : null }));
   };
-  useEffect(() => { if (stage !== "preg" && appTab === "report") contribute(["report"]); }, [appTab]);
+  const nextRev = (other = 0) => Math.max(Date.now(), pulseRevRef.current + 1, other + 1);
+  const adoptPulse = (p) => {
+    const on = !!p.research;
+    researchRef.current = on; pulseRevRef.current = p.pulseRev || 0;
+    setResearch(on); setPulseQueue(on ? pruneQueue(p.pulseQueue, p.pulseSent) : null); setPulseSent(p.pulseSent ?? null);
+    setPulseLastSend(p.pulseLastSend ?? null); setPulseRev(p.pulseRev || 0);
+  };
+  const tellPulse = (p) => { try { channel.current?.postMessage({ type: "pulse", ...p }); } catch { /* single tab */ } };
+  const setSharing = async (on) => {
+    const p = { research: !!on, pulseQueue: on ? pulseQueue : null, pulseSent, pulseLastSend, pulseRev: nextRev() };
+    adoptPulse(p); tellPulse(p); // every tab stops (or starts) queuing at once
+    if (on) { ping("Weekly counts on — flags from your check-ins go out on a later day, at most once a day"); return; }
+    // Off is confirmed only once it is stored on this device, so no later launch can send.
+    clearTimeout(saveTimer.current);
+    const write = async () => {
+      const latest = await storage.load().catch(() => null);
+      const base = latest && latest.v === 1 ? latest : snapshot();
+      const rev = Math.max(p.pulseRev, (base.pulseRev || 0) + 1);
+      await storage.save({ ...base, research: false, pulseQueue: null, pulseRev: rev, savedAt: new Date().toISOString() });
+      return rev;
+    };
+    try {
+      const locks = typeof navigator !== "undefined" ? navigator.locks : null;
+      const rev = !isNative() && locks?.request ? await locks.request("cyra-pulse-flush", write) : await write();
+      if (rev !== p.pulseRev) { const q = { ...p, pulseRev: rev }; adoptPulse(q); tellPulse(q); }
+      setStorageDriver(storage.driver());
+      ping("Stopped sharing weekly counts. Nothing more will be sent.");
+    } catch {
+      setStorageDriver(storage.driver());
+      ping("Sharing is off for now, but Cyra couldn't save that to this device, so it could turn back on the next time Cyra opens. Tap Turn on, then turn it off again.");
+    }
+  };
+  /* A stored sharing state newer than this tab's (another tab turned sharing off, or sent
+     a tally) wins over what this tab is about to save. */
+  const mergePulse = (snap, stored) => {
+    if (!stored || stored.v !== 1 || !((stored.pulseRev || 0) > (snap.pulseRev || 0))) return snap;
+    const on = !!stored.research, sent = stored.pulseSent ?? null;
+    const queue = on ? mergeQueues(pruneQueue(snap.pulseQueue, sent), pruneQueue(stored.pulseQueue, sent)) : null;
+    return { ...snap, research: on, pulseQueue: queue, pulseSent: sent, pulseLastSend: stored.pulseLastSend ?? null, pulseRev: stored.pulseRev };
+  };
+
+  // One stage per queue: when the stage changes (or is being chosen again), the old stage's
+  // unsent flags are dropped in every tab, never sent.
+  useEffect(() => {
+    if (!hydrated || !pulseQueue || pulseQueue.stage === stage) return;
+    const p = { research, pulseQueue: null, pulseSent, pulseLastSend, pulseRev: nextRev() };
+    adoptPulse(p); tellPulse(p);
+  }, [stage, hydrated]); // eslint-disable-line
 
   /* Monthly recap: last 30 vs the 30 before */
   const recap = (() => {
@@ -233,8 +375,9 @@ export default function CyraDemo() {
     return { ...m, ready: true, before: av(before), after: av(afterArr) };
   });
 
-  /* ---- Wearables: Apple Watch / Oura / Terra. DEMO seeding shaped by stage;
-     production ingests real HealthKit/Oura/Terra samples via the integrations hub. ---- */
+  /* ---- Wearables: Apple Watch / Oura / Terra. DEMO seeding (build flag only) is shaped by
+     stage and every seeded row is marked demo; production ingests real HealthKit/Health
+     Connect readings on the phone and Oura/Terra through the integrations hub. ---- */
   const isMeno = stage === "peri" && stageName === "Menopause";
   const seedWear = (sourceId) => {
     const out = [];
@@ -249,32 +392,81 @@ export default function CyraDemo() {
       else if (isMeno) { temp = 0.03 + nz(i, 1, 0.06); rhr = 63 + nz(i, 2, 2); hrv = 36 + nz(i, 3, 4); sleep = 70 + nz(i, 4, 9); }
       else if (stage === "peri") { const poor = (days.find((x) => x.date === iso) || {}).sleepQ === "poor"; temp = (poor ? 0.38 : 0.08) + nz(i, 1, 0.1); rhr = 62 + (poor ? 4 : 0) + nz(i, 2, 2); hrv = (poor ? 30 : 40) + nz(i, 3, 4); sleep = (poor ? 54 : 72) + nz(i, 4, 7); }
       else { temp = 0.25 + nz(i, 1, 0.06); rhr = 73 + nz(i, 2, 2); hrv = 32 + nz(i, 3, 3); sleep = 66 + nz(i, 4, 8); }
-      out.push({ date: iso, sourceId, temp: +temp.toFixed(2), rhr: Math.round(rhr), hrv: Math.round(hrv), sleep: Math.round(sleep) });
+      out.push({ date: iso, sourceId, demo: true, temp: +temp.toFixed(2), rhr: Math.round(rhr), hrv: Math.round(hrv), sleep: Math.round(sleep) });
     }
     return out;
   };
   const [wearBusy, setWearBusy] = useState(null);
-  const connectWear = async (id, label) => {
+  const [wearConfirm, setWearConfirm] = useState(null); // a server-mediated source whose disclosure card is open
+  const connectWear = async (id, label, { confirmed = false } = {}) => {
     if (wearBusy) return;
     if (DEMO_WEARABLES) { // illustrative data, build-flag only; the UI says so
-      if (wearSources[id]) return ping(`${label} is already connected`);
+      if (wearSources[id]) return ping(`Demo mode — ${label} is already showing illustrative data`);
+      if (wearData.length) return ping("Demo mode — no device connected; nothing was added");
       setWearSources((s) => ({ ...s, [id]: { connectedAt: Date.now(), demo: true } }));
-      if (!wearData.length) setWearData(seedWear(id));
-      return ping(`${label} connected — 30 days of demo data`);
+      setWearData(seedWear(id));
+      return ping(`Demo mode — ${label} isn't really connected; showing 30 days of illustrative data`);
     }
+    const existing = wearSources[id];
+    // Oura and Terra go through Cyra's server: say exactly what that means before every first connect.
+    if (!existing && VIA_SERVER.has(id) && !confirmed && API_BASE) { setWearConfirm(id); return; }
+    setWearConfirm(null);
     setWearBusy(id);
     try {
-      const existing = wearSources[id];
-      const rows = existing ? await syncSource(id, existing) : null;
-      const result = existing ? { rows, state: existing } : await connectSource(id, { onStatus: ping });
+      // No await before connectSource: on the web its sign-in popup must open inside this tap.
+      const result = existing ? await syncSource(id, existing) : await connectSource(id, { onStatus: ping, onPending: (st) => setWearSources((s) => ({ ...s, [id]: st })) });
       setWearSources((s) => ({ ...s, [id]: result.state }));
       setWearData((d) => mergeRows(d, result.rows));
-      ping(result.rows.length ? `${label}: ${result.rows.length} day${result.rows.length === 1 ? "" : "s"} imported` : existing ? `${label}: nothing new yet` : `${label} connected — data will appear as it arrives`);
+      const n = result.rows.length;
+      let msg = n ? `${label}: ${n} day${n === 1 ? "" : "s"} imported.` : existing ? `${label}: no new readings found.`
+        : id === "terra" ? `${label} connected — no readings yet. They come in when you open Cyra or tap Sync.` : `${label} connected — no readings yet. Tap Sync to check again.`;
+      if (result.notice) msg = `${msg} ${result.notice}`;
+      ping(msg);
     } catch (e) {
+      if (e?.code === "OURA_EXPIRED") setWearSources(({ oura, ...rest }) => rest); // Connect comes back
       ping(e.message || `Couldn't connect ${label}`);
     } finally {
       setWearBusy(null);
     }
+  };
+  /* Disconnect a server-mediated source: Cyra's server ends it at Oura / Terra first, and
+     only then is it removed here. When this device holds nothing that could end it
+     (NO_KEY), only the local entry is removed and the person is told to remove Cyra in
+     that account. Terra: readings waiting on Cyra's server are collected first, because the
+     server empties the mailbox as soon as a disconnect is asked for. Readings already
+     imported stay in the record on this device. */
+  const disconnectWear = async (id, label) => {
+    const st = wearSources[id];
+    if (wearBusy || !st) return;
+    setWearBusy(`${id}:off`);
+    try {
+      if (id === "terra" && st.key) { try { const rows = await drainTerra(st.key); if (rows.length) setWearData((d) => mergeRows(d, rows)); } catch { /* nothing collected */ } }
+      await disconnectSource(id, st);
+      setWearSources(({ [id]: _gone, ...rest }) => rest);
+      ping(`${label} disconnected. Readings already imported stay on this device.`);
+    } catch (e) {
+      if (e?.code === "NO_KEY") { // nothing on this device could end it: say so, and stop showing it as connected
+        setWearSources(({ [id]: _gone, ...rest }) => rest);
+        ping(`${label} connection removed from this device. Readings already imported stay on this device. ${e.message}.`);
+      } else ping(`Couldn't confirm the disconnect — ${label} may still be connected. Try again, or ${disconnectHelp(id)}.`);
+    } finally {
+      setWearBusy(null);
+    }
+  };
+  /* Terra readings wait on Cyra's server until this device collects them, so collect them
+     on launch and whenever the app comes back to the foreground (at most once a minute). */
+  const wearSourcesRef = useRef(wearSources); wearSourcesRef.current = wearSources;
+  const lastDrain = useRef(0);
+  const drainTerraNow = async () => {
+    const st = wearSourcesRef.current.terra;
+    if (!st?.key || !API_BASE || DEMO_WEARABLES || wipingRef.current || Date.now() - lastDrain.current < 60_000) return;
+    lastDrain.current = Date.now();
+    try {
+      const { rows, state } = await syncSource("terra", st);
+      if (wipingRef.current) return;
+      if (rows.length) { setWearData((d) => mergeRows(d, rows)); ping(`Fitbit · Garmin · Whoop: ${rows.length} day${rows.length === 1 ? "" : "s"} imported`); }
+      if (state !== st) setWearSources((s) => (s.terra ? { ...s, terra: state } : s));
+    } catch { /* collected next time */ }
   };
   /* Wearable rows can lack any field (no watch worn, no sleep tracked): a missing value is
      "no reading", never 0, so averages and thresholds only look at real readings. */
@@ -330,7 +522,7 @@ export default function CyraDemo() {
       ms.push({ done: monthsSince != null && monthsSince >= 12, label: `12 months period-free = menopause${monthsSince != null ? ` · ${Math.min(12, monthsSince)}/12` : ""}`, progress: monthsSince != null ? Math.min(1, monthsSince / 12) : 0 });
     }
     if (stage === "preg") { ms.push({ done: pregWeek >= 13, label: "Second trimester" }); ms.push({ done: pregWeek >= 22, label: "Anatomy scan window" }); ms.push({ done: pregWeek >= 28, label: "Third trimester" }); }
-    ms.push({ done: Object.keys(wearSources).length > 0, label: "Wearable connected" });
+    ms.push({ done: Object.values(wearSources).some((w) => w && !w.pending), label: "Wearable connected" });
     ms.push({ done: meds.length > 0, label: "Started a trial — something you're trying" });
     ms.push({ done: appts.some((a) => a.note), label: "First visit debriefed" });
     return ms;
@@ -369,42 +561,159 @@ export default function CyraDemo() {
   const finishOnboarding = async () => {
     setObBusy(true);
     // Routing runs on this device only: the intake answers (pregnancy, periods, hot
-    // flashes, age band) are health data, and the spec's stage map is deterministic.
+    // flashes, age band) are health data and are never stored or sent; the spec's stage map
+    // is deterministic. The resulting stage reaches Cyra's server only inside the opt-in
+    // weekly counts (lib/pulse.js); the counts read itself sends no stage. Otherwise it
+    // leaves the device only when she moves it herself: inside an encrypted backup she
+    // exports, and implied by the doctor-email text she chooses to send.
     const route = rulesRoute(ob);
     setStage(route.stage); setStageName(route.label); setWelcome(route.welcome);
     setDraft({}); setAppTab("home"); setPregTab("home"); setObBusy(false);
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseToken: setPulseToken, regAnswers: setRegAnswers, reminders: setReminders };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseToken, regAnswers, reminders };
-  const snapshot = () => ({ v: 1, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, values[k]])) });
-  const applySaved = (saved) => {
-    for (const k of PERSISTED) if (k in saved && saved[k] !== undefined) setters[k](saved[k]);
-    if (saved.stage) { setPhase("app"); setAppTab("home"); setPregTab("home"); }
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); } };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders };
+  const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
+  const snapshot = () => ({ v: 1, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
+  // A saved record always opens the app — also one saved while she was choosing a stage
+  // again (stage null: the intake shows, with Settings and Delete everything one tap away).
+  const applySaved = (saved, { skip = [] } = {}) => {
+    for (const k of PERSISTED) if (!skip.includes(k) && k in saved && saved[k] !== undefined) setters[k](saved[k]);
+    setPhase("app"); setAppTab("home"); setPregTab("home");
   };
   // A record that exists but can't be read (phone only) keeps hydrated false, so nothing
   // is saved over it; RecordUnavailableScreen offers Try again.
   const hydrate = () => storage.load().then(
     (saved) => { try { if (saved && saved.v === 1 && saved.phase === "app") applySaved(saved); } finally { setRecordUnavailable(false); setHydrated(true); } },
-    () => setRecordUnavailable(true),
+    (e) => { setRecordLocked(!!e?.locked); setRecordUnavailable(true); },
   );
-  useEffect(() => { hydrate(); }, []); // eslint-disable-line
+  /* At every start, before and whether or not the record loads: (phone) delete a backup copy
+     an interrupted share left in the cache — no share can be under way in a freshly started
+     app — and drop a week-only hold whose week is over. */
   useEffect(() => {
-    if (!hydrated || phase !== "app") return;
-    const t = setTimeout(() => storage.save(snapshot()).catch(() => ping("Couldn't save to this device — storage may be full or blocked")), 400);
-    return () => clearTimeout(t);
+    hydrate(); storage.probe().then(setStorageDriver);
+    if (isNative()) sweepBackupCache().catch(() => { /* best effort */ });
+    storage.dropStaleHold(weekKey()).then(() => storage.getHold()).then(setHoldWeek, () => {});
+  }, []); // eslint-disable-line
+  useEffect(() => {
+    if (!hydrated || phase !== "app" || wipingRef.current) return;
+    const snap = snapshot();
+    saveTimer.current = setTimeout(async () => {
+      if (wipingRef.current) return;
+      let out = snap;
+      if (!isNative()) { // a browser can have several tabs: a newer sharing state stored by another one wins
+        const latest = await storage.load().catch(() => null);
+        if (wipingRef.current) return;
+        out = mergePulse(snap, latest);
+        if (out !== snap) adoptPulse(out);
+        const rem = mergeReminders(out.reminders, latest?.reminders);
+        if (rem !== out.reminders) { out = { ...out, reminders: rem }; adoptReminders(rem); }
+      }
+      storage.save(out).then(() => setStorageDriver(storage.driver()), () => { setStorageDriver(storage.driver()); ping("Couldn't save to this device — storage may be full or blocked"); });
+    }, 400);
+    return () => clearTimeout(saveTimer.current);
   }, [hydrated, phase, ...PERSISTED.map((k) => values[k])]); // eslint-disable-line
+
+  /* Weekly counts: send a due queue — at most one tally a day from this browser (or this
+     phone app install), never on the day of the check-in. Inside a Web Lock shared by every
+     tab of this browser, the stored record is read again, and "sent" (with today as the
+     send day, plus the week-only hold) is written BEFORE the request, so neither a reload
+     nor a second tab can send it again. Nothing is sent if, at that moment, the stored
+     switch says sharing is off or Delete everything has started. A queue whose stage isn't
+     the record's stage is dropped. A browser without Web Locks sends nothing (there would be
+     no way to keep it to one a day across tabs); the phone app has a single web view. */
+  const flushPulse = async () => {
+    if (!API_BASE) return;
+    const locks = typeof navigator !== "undefined" ? navigator.locks : null;
+    if (!locks?.request && !isNative()) return;
+    const run = async () => {
+      if (wipingRef.current || !researchRef.current) return;
+      const cur = await storage.load().catch(() => null);
+      const today = localDay();
+      if (!cur || cur.v !== 1 || !cur.research || !queueDue(cur.pulseQueue) || cur.pulseLastSend === today) return;
+      const hold0 = await storage.getHold();
+      // Resolves false (and the tally is not sent) when sharing is off or a delete has started.
+      const commit = async ({ queue, sent }) => {
+        if (wipingRef.current) return false;
+        const latest = (await storage.load().catch(() => null)) || cur;
+        if (wipingRef.current) return false;
+        const on = !!latest.research && researchRef.current; // a stored "off" always wins
+        const newer = latest.pulseQueue?.day === today ? pruneQueue(latest.pulseQueue, sent) : null; // a check-in saved meanwhile
+        const p = { research: on, pulseQueue: on ? mergeQueues(queue, newer) : null, pulseSent: sent, pulseLastSend: today, pulseRev: nextRev(latest.pulseRev || 0) };
+        if (queue && hold0 !== weekKey()) { await storage.clearHold(); setHoldWeek(hold0); } // refused: nothing was counted
+        else if (!queue && sent?.week === weekKey() && sent.keys?.length) { await storage.setHold(sent.week); setHoldWeek(sent.week); } // survives Delete everything / Start over
+        await storage.save({ ...latest, ...p, savedAt: new Date().toISOString() });
+        if (wipingRef.current) return false;
+        adoptPulse(p); tellPulse(p);
+        return on;
+      };
+      // A queue left over from another stage: dropped, never sent.
+      if (cur.pulseQueue.stage !== cur.stage) return commit({ queue: null, sent: cur.pulseSent ?? null });
+      // This device already sent counts this week from an earlier record (deleted since): send none.
+      if (hold0 === weekKey() && cur.pulseSent?.week !== weekKey()) return commit({ queue: null, sent: cur.pulseSent ?? null });
+      await flushQueue(cur.pulseQueue, cur.pulseSent ?? null, { commit });
+    };
+    try { if (locks?.request) await locks.request("cyra-pulse-flush", run); else await run(); } catch { /* tried again on a later launch */ }
+  };
+  /* Once per launch, after the record is loaded: send a due weekly-counts queue, collect
+     Terra readings waiting on the server, and ask the server again to forget any reminder
+     address it couldn't be told to forget before. */
+  const launched = useRef(false);
+  useEffect(() => {
+    if (!hydrated || launched.current) return;
+    launched.current = true;
+    flushPulse();
+    drainTerraNow();
+    retryPushForget();
+  }, [hydrated]); // eslint-disable-line
+  useEffect(() => {
+    const onOnline = () => retryPushForget();
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, []); // eslint-disable-line
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") { drainTerraNow(); retryPushForget(); } };
+    document.addEventListener("visibilitychange", onVisible);
+    const sub = isNative() ? CapApp.addListener("appStateChange", (st) => { if (st?.isActive) drainTerraNow(); }) : null;
+    return () => { document.removeEventListener("visibilitychange", onVisible); sub?.then((h) => h.remove()).catch(() => {}); };
+  }, []); // eslint-disable-line
+
+  /* Phone: a backup copy an interrupted share left in the app's cache (app closed or killed
+     while the share sheet was open). Run at every launch, before and whether or not the
+     record loads (no share can be under way in a freshly started app), and by Delete
+     everything and Start over once they reach this device's clean-up. */
+  const sweepBackupCache = async () => {
+    const { files = [] } = await Filesystem.readdir({ path: "", directory: Directory.Cache });
+    for (const f of files) { const n = typeof f === "string" ? f : f?.name; if (/^cyra-backup-.*\.cyra\.json$/.test(n || "")) await Filesystem.deleteFile({ path: n, directory: Directory.Cache }).catch(() => {}); }
+  };
   const exportBackup = async (passphrase) => {
-    const env = await encryptBackup(snapshot(), passphrase);
+    // The backup carries the record, minus what belongs to this device only: the ZIP and the
+    // age band (neither is used after registration; their screen says they "stay on this
+    // device") and this browser's push addresses.
+    const snap = snapshot();
+    if (snap.regAnswers && typeof snap.regAnswers === "object") { const ra = { ...snap.regAnswers }; delete ra.zip; delete ra.age; snap.regAnswers = ra; }
+    snap.reminders = { enabled: !!snap.reminders?.enabled };
+    const env = await encryptBackup(snap, passphrase);
     const name = `cyra-backup-${todayIso}.cyra.json`;
     if (isNative()) {
-      // Phone: the already-encrypted file goes to the app's cache only long enough for the
-      // share sheet (Save to Files, Drive, AirDrop…), then it is deleted. Where it goes is
-      // her choice; it is unreadable without the passphrase.
-      const { uri } = await Filesystem.writeFile({ path: name, data: JSON.stringify(env), directory: Directory.Cache, encoding: Encoding.UTF8 });
+      // Phone: the already-encrypted file goes to the app's cache while the share sheet
+      // (Save to Files, Drive, AirDrop…) is in use and is deleted as soon as Cyra hears back
+      // from it (on iPhone when the sheet or the chosen action closes; on Android when she
+      // returns to Cyra from the app she chose). A copy left behind by an interrupted share
+      // (app closed or killed mid-share) is deleted at the next launch (sweepBackupCache) or
+      // by Delete everything. Where it goes is her choice; its contents are unreadable
+      // without the passphrase (the file name shows only the date it was made).
+      let uri;
+      try { ({ uri } = await Filesystem.writeFile({ path: name, data: JSON.stringify(env), directory: Directory.Cache, encoding: Encoding.UTF8 })); }
+      catch { throw new Error("Couldn't prepare the backup file on this phone"); }
       try { await Share.share({ title: "Cyra encrypted backup", files: [uri] }); }
-      catch (e) { if (/cancel/i.test(String(e?.message || e))) return false; throw new Error("Couldn't open the share sheet on this phone"); }
+      catch (e) {
+        const m = String(e?.message || e);
+        if (/cancel/i.test(m)) return false;
+        if (/must provide|in progress/i.test(m)) throw new Error("Couldn't open the share sheet on this phone");
+        throw new Error("Sharing didn't finish — the backup may not have reached where you sent it. Anything that did is still encrypted.");
+      }
       finally { await Filesystem.deleteFile({ path: name, directory: Directory.Cache }).catch(() => { /* already gone */ }); }
       return true;
     }
@@ -413,43 +722,288 @@ export default function CyraDemo() {
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     return true;
   };
+  // Restoring brings back the record and settings, but never the per-device consents
+  // (weekly counts, Cyra's AI, and in a browser the reminders, which would register this
+  // browser with Cyra's server): those stay as they are on this device. A wearable
+  // connection in the backup comes back on this device; one this device has that the backup
+  // doesn't is kept (the restore form says so).
   const importBackup = async (file, passphrase) => {
     let env; try { env = JSON.parse(await file.text()); } catch { throw new Error("That file isn't a Cyra backup"); }
     const saved = await decryptBackup(env, passphrase);
     if (!saved || saved.v !== 1 || !saved.stage) throw new Error("That backup is empty or from a different version");
-    applySaved(saved); setShowSettings(false);
-    await storage.save({ ...saved, phase: "app" });
-    ping("Backup restored");
+    const wear = { ...wearSources, ...(saved.wearSources && typeof saved.wearSources === "object" ? saved.wearSources : {}) };
+    applySaved({ ...saved, wearSources: wear }, { skip: [...DEVICE_ONLY, "reminders"] }); setShowSettings(false);
+    const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
+    const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
+    setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI };
+    await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), wearSources: wear, ...keep, reminders: rem, v: 1, savedAt: new Date().toISOString(), phase: "app" });
+    applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
+    ping(!isNative() && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored");
   };
-  const wipeDevice = async () => { await storage.clear(); window.location.replace(window.location.pathname); };
 
-  /* ---------- reminders: on-device schedule (phone) or web push (browser) ---------- */
-  const applyReminders = async (enabled, cad = cadence, nudge = quietHours) => {
-    if (!enabled) { try { await syncReminders({ cadence: "me", nudge: "never" }); } catch { /* nothing to cancel */ } setReminders({ enabled: false, status: "off" }); return; }
-    if (!wantsReminders(cad, nudge)) { try { await syncReminders({ cadence: cad, nudge }); } catch { /* nothing scheduled */ } setReminders({ enabled: true, status: "off" }); return; }
+  /* ---------- Delete everything / Start over ----------
+     Delete everything — first, Cyra's server: (d) Oura, if connected: the token is revoked;
+     (a) web reminders: the server forgets every push address this browser holds or held;
+     (c) Terra, if connected, last because it empties the server's mailbox: readings waiting
+     there are collected into the record first, then the server ends the connection and
+     drops the mailbox. If any of these can't be confirmed (offline, server down, Terra/Oura
+     didn't confirm, or this device holds nothing that could end it), the record on this
+     device is not deleted: the error names what failed (and why) and what did end — a
+     connection the server already ended is removed from this device, and if reminders were
+     forgotten on the server they are turned off here too — and Settings offers Try again or
+     "Delete on this device anyway", which says what stays connected and where to remove it.
+     Then this device, best effort and in order: (a) reminders: phone — every pending
+     notification; web — the browser's push subscription; (b) web: every service worker;
+     (e) phone: any backup file left in the cache; then the record is deleted and checked
+     gone; (f) other open tabs are told to stop saving (and to carry on if the delete stops),
+     and to reload once the record is gone. If deleting the record itself fails, what
+     already happened is applied here too (reminders off, ended connections removed) and the
+     message says so. The week-only hold (lib/storage.js) stays when this device sent counts
+     this week, and a stale one is removed.
+     Start over (phone, record unreadable) does all of this except (c) and (d): the keys are
+     in the unreadable record, and its screen tells her to remove access in the wearable
+     account. It always leaves this week's hold, since the unreadable record may say counts
+     already went this week. */
+  const channel = useRef(null);
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const ch = (channel.current = new BroadcastChannel("cyra"));
+    ch.onmessage = (e) => {
+      if (e.data?.type === "pulse") { if ((e.data.pulseRev || 0) > pulseRevRef.current) adoptPulse(e.data); return; }
+      if (e.data?.type === "reminders") { adoptReminders(e.data); return; }
+      if (e.data?.type !== "wipe") return;
+      if (e.data.phase === "cancel") { wipingRef.current = false; return; }
+      wipingRef.current = true; clearTimeout(saveTimer.current);
+      if (e.data.phase === "done") window.location.replace(window.location.pathname);
+    };
+    return () => { ch.close(); channel.current = null; };
+  }, []); // eslint-disable-line
+  const tellOtherTabs = (phase) => { try { channel.current?.postMessage({ type: "wipe", phase }); } catch { /* single tab */ } };
+  const cleanUpHere = async () => {
+    const step = async (fn) => { try { await fn(); } catch { /* best effort: the next step still runs */ } };
+    await step(() => syncReminders({ cadence: "me", nudge: "never" }, { server: false }));
+    if (!isNative() && "serviceWorker" in navigator) await step(async () => { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); });
+    if (isNative()) await step(sweepBackupCache);
+  };
+  const wipe = async (sources = {}, { force = false, pushKnown = [], holdWeek: startOver = false } = {}) => {
+    wipingRef.current = true; clearTimeout(saveTimer.current);
+    tellOtherTabs("start");
+    const failed = [], ended = []; // failed: [{ name, kind: network | refused | nokey }]
+    let pushLeft = null, pushForgot = false;
+    const dropEnded = () => { const gone = ended.filter((k) => k !== "reminders"); if (gone.length) setWearSources((s) => Object.fromEntries(Object.entries(s).filter(([k]) => !gone.includes(k)))); };
+    const remindersOff = (pending) => setRem((x) => ({ ...x, enabled: false, status: "off", endpoint: null, pending: cleanPending(pending) }));
+    if (hasServer()) {
+      const kindOf = (e) => (e?.code === "NO_KEY" ? "nokey" : e?.status ? "refused" : "network");
+      const serverStep = async (name, fn) => { try { await fn(); ended.push(name); } catch (e) { failed.push({ name, kind: kindOf(e) }); } };
+      if (sources.oura && !sources.oura.demo) await serverStep("oura", () => disconnectSource("oura", sources.oura, { timeoutMs: 8000 }));
+      if (!isNative()) {
+        const all = await knownEndpoints(pushKnown);
+        const r = await forgetOnServerWhy(all, { timeoutMs: 6000 });
+        pushLeft = r.left;
+        if (r.left.length) failed.push({ name: "reminders", kind: r.refused ? "refused" : "network" });
+        else if (all.length) ended.push("reminders");
+        pushForgot = r.left.length < all.length;
+        if (pushForgot) await unsubscribeBrowser().catch(() => []); // the server forgot this browser: no reminder is shown here any more
+      }
+      if (sources.terra && !sources.terra.demo) {
+        if (sources.terra.key) { try { const rows = await drainTerra(sources.terra.key); if (rows.length) setWearData((d) => mergeRows(d, rows)); } catch { /* nothing collected */ } }
+        await serverStep("terra", () => disconnectSource("terra", sources.terra, { timeoutMs: 8000 }));
+      }
+    }
+    if (failed.length && !force) {
+      dropEnded();
+      if (pushForgot) remindersOff(pushLeft || []); // the rest is still retried until the server confirms
+      wipingRef.current = false; tellOtherTabs("cancel");
+      throw Object.assign(new Error("Cyra couldn't confirm every step — your record wasn't deleted"), { failed, ended });
+    }
+    await cleanUpHere();
+    if (startOver || pulseSent?.week === weekKey()) await storage.setHold(weekKey()); // this week's flags already went (or may have) from this device
+    else await storage.dropStaleHold(weekKey());
+    try { await storage.clear(); }
+    catch (e) {
+      // What already happened stays applied: reminders are off, ended connections are gone.
+      dropEnded(); remindersOff(pushLeft || []);
+      wipingRef.current = false; tellOtherTabs("cancel");
+      const done = ["reminders are already off", ...(ended.includes("oura") ? ["Oura is disconnected"] : []), ...(ended.includes("terra") ? ["Fitbit, Garmin or Whoop is disconnected"] : [])];
+      const head = e?.partial ? "Most of your record was deleted, but a leftover copy couldn't be removed — try again." : "Your record couldn't be deleted from this device — try again.";
+      const list = done.length < 2 ? done.join("") : `${done.slice(0, -1).join(", ")} and ${done[done.length - 1]}`;
+      throw new Error(`${head} ${list.replace(/^./, (c) => c.toUpperCase())}.`);
+    }
+    await storage.dropDatabase();
+    tellOtherTabs("done");
+    window.location.replace(window.location.pathname);
+  };
+  // Settings shows a failure itself (DataControls), with Try again / Delete on this device anyway.
+  const wipeDevice = (opts = {}) => wipe(wearSources, { ...opts, pushKnown: knownPush() });
+
+  /* ---------- reminders: on-device schedule (phone) or web push (browser) ----------
+     Off by default. Whatever the state, "Off", "When I feel like it" and "Never remind me"
+     cancel everything; status is worked out again at every launch, never trusted from disk.
+     Web, turning off: the browser's subscription is cancelled first and the off switch is
+     saved on this device, together with every address Cyra's server still has to forget
+     (reminders.pending), BEFORE anything is sent; then the server is asked to forget them,
+     and only the ones it confirms leave the list. The rest are sent again at launch, when
+     the browser comes back online or Cyra comes back on screen, and on a timer while Cyra
+     is open, until the server confirms (up to 100 addresses; "Delete on this device anyway"
+     or clearing this site's data erases the list). Every open tab agrees on the switch:
+     a change bumps reminders.rev, is told to the other tabs, and before each save a tab
+     adopts a newer stored switch and keeps every address still to forget, so a stale tab
+     can't turn reminders back on. Phone: a failed cancel is shown, never reported as off.
+     Only the newest call's result is shown. */
+  const remindersRef = useRef(reminders); remindersRef.current = reminders;
+  const remGen = useRef(0);
+  const adoptedRemRev = useRef(0); // the newest switch this tab took from another tab or from disk
+  const forgotten = useRef(new Set()); // addresses Cyra's server confirmed it forgot (never re-added)
+  const markForgotten = (tried, left) => { for (const e of cleanPending(tried)) if (!cleanPending(left).includes(e)) forgotten.current.add(e); };
+  const stillPending = (...lists) => cleanPending(lists.flatMap((l) => cleanPending(l))).filter((e) => !forgotten.current.has(e));
+  const knownPush = () => { const r = remindersRef.current; return [...cleanPending(r.pending), ...(r.endpoint ? [r.endpoint] : [])]; };
+  /* A stored reminders switch newer than this tab's wins, and its addresses still to forget are
+     added to this tab's (a stale tab can neither turn reminders back on nor drop one). */
+  const mergeReminders = (mine, theirs) => {
+    if (!mine || !theirs || typeof theirs !== "object" || !((theirs.rev || 0) > (mine.rev || 0))) return mine;
+    return { enabled: !!theirs.enabled, endpoint: typeof theirs.endpoint === "string" ? theirs.endpoint : null, pending: stillPending(mine.pending, theirs.pending), rev: theirs.rev };
+  };
+  const adoptReminders = (r) => {
+    if (!((r.rev || 0) > (remindersRef.current.rev || 0))) return;
+    adoptedRemRev.current = r.rev || 0;
+    setReminders((x) => ((r.rev || 0) <= (x.rev || 0) ? x
+      : { ...x, enabled: !!r.enabled, status: r.enabled ? (r.status || x.status) : "off", endpoint: r.enabled ? r.endpoint || x.endpoint || null : null, pending: stillPending(x.pending, r.pending), rev: r.rev }));
+  };
+  // A change to the switch made in this tab gets a new version and is told to the other tabs.
+  const setRem = (next) => setReminders((x) => {
+    const n = typeof next === "function" ? next(x) : next;
+    const changed = !!n.enabled !== !!x.enabled;
+    return { ...n, rev: changed ? Math.max(Date.now(), (x.rev || 0) + 1) : n.rev ?? x.rev ?? 0 };
+  });
+  useEffect(() => {
+    if (!reminders.rev || reminders.rev === adoptedRemRev.current) return;
+    adoptedRemRev.current = reminders.rev;
+    try { channel.current?.postMessage({ type: "reminders", enabled: !!reminders.enabled, status: reminders.status, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev }); } catch { /* single tab */ }
+  }, [reminders.rev]); // eslint-disable-line
+  /* Save the record now (not 400 ms later), with this reminders value: used before an off
+     switch's network calls, so a tab closed during them can't lose it. */
+  const saveRemindersNow = async (rem) => {
+    if (!hydrated || phase !== "app" || wipingRef.current) return;
+    clearTimeout(saveTimer.current);
     try {
-      const r = await syncReminders({ cadence: cad, nudge });
-      setReminders({ enabled: true, status: r.active ? "on" : r.blocked ? "blocked" : r.unsupported ? "unsupported" : "unavailable" });
-      if (r.blocked) ping("Reminders are blocked in your browser settings");
-      else if (r.unavailable) ping("Reminders aren't set up on this server yet");
-    } catch { setReminders({ enabled: true, status: "unavailable" }); }
+      const latest = isNative() ? null : await storage.load().catch(() => null);
+      const base = latest && latest.v === 1 ? latest : snapshot();
+      await storage.save({ ...base, reminders: { enabled: !!rem.enabled, endpoint: rem.endpoint || null, pending: stillPending(rem.pending, base.reminders?.pending), rev: Math.max(rem.rev || 0, base.reminders?.rev || 0) }, savedAt: new Date().toISOString() });
+    } catch { /* the autosave tries again */ }
   };
-  useEffect(() => { if (hydrated && phase === "app" && reminders.enabled) applyReminders(true); }, [cadence, quietHours]); // eslint-disable-line
+  const offPendingMsg = "Reminders are off and this browser won't show any more. Cyra's server didn't confirm it erased this browser's reminder address, so Cyra will ask it again while Cyra is open and each time you open it, until it does.";
+  const forgetBusy = useRef(false);
+  const retryPushForget = async () => {
+    const tried = cleanPending(remindersRef.current.pending);
+    if (!tried.length || !API_BASE || isNative() || wipingRef.current || forgetBusy.current) return;
+    forgetBusy.current = true;
+    try {
+      const left = await forgetOnServer(tried, { timeoutMs: 10000 });
+      for (const e of tried) if (!left.includes(e)) forgotten.current.add(e);
+      setReminders((x) => ({ ...x, pending: cleanPending(x.pending).filter((e) => left.includes(e) || !tried.includes(e)) }));
+    } finally { forgetBusy.current = false; }
+  };
+  // While an address still has to be forgotten: try again on a timer (30 s, doubling to 15 min).
+  const pendingCount = cleanPending(reminders.pending).length;
+  useEffect(() => {
+    if (!pendingCount || !API_BASE || isNative() || !hydrated) return;
+    let delay = 30_000, t = null, stop = false;
+    const tick = async () => { if (stop) return; await retryPushForget(); delay = Math.min(delay * 2, 15 * 60_000); if (!stop) t = setTimeout(tick, delay); };
+    t = setTimeout(tick, delay);
+    return () => { stop = true; clearTimeout(t); };
+  }, [pendingCount > 0, hydrated]); // eslint-disable-line
+  const blockedMsg = (r) => (isNative() ? "Notifications for Cyra are off in your phone's Settings — turn them on there to get reminders" : r.denied ? "Notifications for Cyra are blocked in this browser's site settings" : "Reminders need your permission — tap Turn on and choose Allow");
+  const applyReminders = async (enabled, cad = cadence, nudge = quietHours, { prompt = true } = {}) => {
+    const gen = ++remGen.current;
+    const current = () => gen === remGen.current;
+    const known = knownPush();
+    if (!enabled || !wantsReminders(cad, nudge)) {
+      let pending = cleanPending(remindersRef.current.pending);
+      if (!isNative()) {
+        // First the browser side and the saved switch, then the server.
+        const live = await unsubscribeBrowser().catch(() => []);
+        for (const e of [...known, ...live]) forgotten.current.delete(e); // in use until now: must be forgotten again
+        pending = cleanPending([...pending, ...known, ...live]);
+        if (API_BASE) {
+          const rem = { enabled: !!enabled, status: "off", endpoint: null, pending, rev: !!enabled !== !!remindersRef.current.enabled ? Math.max(Date.now(), (remindersRef.current.rev || 0) + 1) : remindersRef.current.rev || 0 };
+          if (current()) setReminders(rem);
+          await saveRemindersNow(rem);
+        }
+      }
+      try { const tried = pending; const r = await syncReminders({ cadence: "me", nudge: "never" }, { known: pending }); pending = cleanPending(r.pending); if (!isNative()) markForgotten(tried, pending); }
+      catch {
+        if (isNative()) { // nothing may say "off" while the phone may still hold scheduled reminders
+          if (!current()) return;
+          setRem((x) => ({ ...x, enabled: false, status: "error", cancelFailed: true, endpoint: null }));
+          if (prompt) ping("Couldn't cancel reminders on this phone — tap Turn off to try again");
+          return;
+        }
+      }
+      if (!current()) return;
+      setRem((x) => ({ enabled: !!enabled, status: "off", endpoint: null, pending, rev: x.rev }));
+      if (prompt && pending.length && !enabled) ping(offPendingMsg);
+      return;
+    }
+    try {
+      const r = await syncReminders({ cadence: cad, nudge }, { prompt, known });
+      if (!current()) return;
+      const keep = (patch) => setRem((x) => ({ endpoint: x.endpoint || null, pending: cleanPending(x.pending), rev: x.rev, ...patch }));
+      if (r.active) { if (r.endpoint) forgotten.current.delete(r.endpoint); markForgotten(known.filter((e) => e !== r.endpoint), r.pending); setRem((x) => ({ enabled: true, status: "on", endpoint: r.endpoint || null, pending: cleanPending(r.pending), rev: x.rev })); }
+      else if (r.blocked) {
+        // No permission any more: the browser dropped its subscription, so have the server forget the old address too.
+        const left = known.length && !isNative() ? await forgetOnServer(known) : [];
+        if (!current()) return;
+        setRem((x) => ({ enabled: false, status: "blocked", denied: !!r.denied, endpoint: null, pending: left, rev: x.rev }));
+        if (prompt) ping(blockedMsg(r));
+      }
+      else if (r.unsupported) keep({ enabled: true, status: "unsupported" });
+      else if (r.unavailable) { keep({ enabled: true, status: "unavailable" }); if (prompt) ping("Reminders aren't set up on this server yet"); }
+      else if (r.error) { keep({ enabled: true, status: "error" }); if (prompt) ping("Cyra's server couldn't set up reminders — try again later"); }
+      else if (r.superseded) { /* a newer "off" came in meanwhile */ }
+      else keep({ enabled: true, status: "off" });
+    } catch (e) {
+      if (!current()) return;
+      setRem((x) => ({ endpoint: x.endpoint || null, pending: cleanPending(x.pending), enabled: true, status: "error", rev: x.rev }));
+      if (prompt) ping(isNative() ? "Couldn't schedule reminders on this phone — try turning them on again" : e?.network ? "Couldn't reach Cyra's server — try turning reminders on again" : "Couldn't set up reminders in this browser — try turning them on again");
+    }
+  };
+  useEffect(() => {
+    if (!hydrated || phase !== "app" || wipingRef.current) return;
+    if (reminders.enabled) applyReminders(true, cadence, quietHours, { prompt: false });
+    else {
+      // Nothing scheduled: cancel anything left over (and retry forgetting old addresses), keeping the status shown.
+      const gen = ++remGen.current;
+      const tried = knownPush();
+      syncReminders({ cadence: "me", nudge: "never" }, { known: tried })
+        .then((r) => { if (!isNative()) markForgotten(tried, r.pending); if (gen === remGen.current) setReminders((x) => ({ ...x, endpoint: null, pending: cleanPending(r.pending), ...(x.cancelFailed ? { status: "off", cancelFailed: false } : {}) })); })
+        .catch(() => { /* nothing to cancel */ });
+    }
+  }, [cadence, quietHours, hydrated]); // eslint-disable-line
 
-  /* ---------- social sign-in: real OAuth through the backend ---------- */
-  // Web: a full-page redirect that comes back as #oauth=<code>. Phone app: a sign-in
-  // window (iOS: ASWebAuthenticationSession; Android: the system browser), back through
-  // cyrahealth://auth/oauth?a=<attempt>#oauth=<code>, redeemable only with this
-  // attempt's one-time verifier.
+  /* ---------- "fill in your name and email from" Apple / Google / Facebook ----------
+     Not an account: real OAuth through the backend only to prefill step 1, kept on this
+     device. Web: a full-page redirect that comes back as #oauth=<code>. Phone app: a sign-in
+     window (iOS: ASWebAuthenticationSession; Android: the system browser), back through
+     cyrahealth://auth/oauth?a=<attempt>#oauth=<code>, redeemable only with this
+     attempt's one-time verifier. A build without a server makes no request at all. */
+  const PROVIDER_LABEL = { apple: "Apple", google: "Google", facebook: "Facebook" };
+  const signInRetry = "Sign-in didn't complete — try again, or just fill in the form. Cyra has no accounts: anything the provider sent is erased from Cyra's server within 5 minutes, and the name and email you enter here are saved only on this device.";
   const startSocial = async (id, label) => {
     setSocialBusy(id);
-    if (isNative() && !API_BASE) { ping("Sign-in isn't set up in this version of the app yet — continue with email"); setSocialBusy(null); return; }
+    if (!hasServer()) { ping(`Apple, Google and Facebook sign-in aren't available in this version — fill in the form or use Anonymous Mode. Either way, your profile stays on this ${isNative() ? "phone" : "device"}.`); setSocialBusy(null); return; }
     try {
-      const r = await fetch(`${API_BASE}/api/oauth/providers`);
-      const available = r.ok ? await r.json() : {};
-      if (!available[id]) { ping(`${label} sign-in isn't set up on this server yet`); setSocialBusy(null); return; }
-      // The provider only ever sees that you are signing in to Cyra; the backend
-      // hands the verified email (and name, if given) back to this device and keeps no copy.
+      const r = await apiFetch("/api/oauth/providers", {}, { timeoutMs: 10000 });
+      let available = null;
+      if (r.ok) { try { available = await r.json(); } catch { /* not the providers list */ } }
+      if (available?.[id] !== true) {
+        ping(available?.[id] === false ? `${label} sign-in isn't set up on this server yet` : "Couldn't reach the sign-in service — try again in a moment");
+        setSocialBusy(null); return;
+      }
+      // The provider learns that this account is signing in to Cyra (plus the usual IP and
+      // browser details) and nothing about her health. The backend holds the verified email
+      // and name in memory under a one-time code for at most 5 minutes, hands them to this
+      // device, and writes nothing to disk.
       if (isNative()) {
         const { verifier, challenge } = await newAppVerifier();
         const ret = appReturnUrl("oauth"); // this attempt's own link
@@ -461,20 +1015,37 @@ export default function CyraDemo() {
       }
       window.location.assign(`${API_BASE}/api/oauth/${id}/start?return=${encodeURIComponent(window.location.origin + window.location.pathname)}`);
     } catch {
-      ping("Couldn't reach the sign-in service"); setSocialBusy(null);
+      ping("Couldn't reach the sign-in service — try again in a moment"); setSocialBusy(null);
     }
   };
-  // Shared by both returns: exchange the one-time code, prefill, move to step 2.
+  // Shared by both returns: exchange the one-time code, prefill, move to step 2. Only a
+  // verified email is filled in (the server drops unverified and Facebook emails and every
+  // other provider field). The toast says what was filled in, and that a name or email she
+  // had typed was kept. Anonymous Mode, if she turned it on meanwhile, wins: nothing is
+  // filled in.
+  const regRef = useRef(reg); regRef.current = reg;
   const finishSocial = ({ code, verifier, error }) => {
     setPhase("register");
-    if (error) { ping("Sign-in didn't complete — you can try again or continue with email"); return; }
+    if (error) { ping(signInRetry); return; }
     apiPost("/api/oauth/exchange", verifier ? { code, verifier } : { code })
       .then((idn) => {
-        setReg((x) => ({ ...x, anon: false, email: idn.email || x.email, name: x.name || (idn.name || "").split(" ")[0] }));
+        const label = PROVIDER_LABEL[idn?.provider] || "the provider";
+        if (regRef.current.anon) { ping(`Anonymous Mode is on, so nothing from ${label} was filled in`); return; }
+        const email = idn?.emailVerified === true && typeof idn.email === "string" ? idn.email.trim() : "";
+        const first = (typeof idn?.name === "string" ? idn.name.trim() : "").split(/\s+/)[0] || "";
+        const typed = !!regRef.current.name, typedEmail = !!regRef.current.email;
+        const fillName = !!first && !typed, fillEmail = !!email && !typedEmail;
+        setReg((x) => (x.anon ? x : { ...x, email: x.email || email, name: x.name || first }));
         setRegStep(1);
-        ping(`Signed in with ${{ apple: "Apple", google: "Google", facebook: "Facebook" }[idn.provider] || idn.provider}`);
+        const what = [fillName && "name", fillEmail && "email"].filter(Boolean).join(" and ");
+        const parts = [];
+        if (what) parts.push(`Filled in your ${what} from ${label} — saved only on this device`);
+        if (first && typed) parts.push(`${label} shared your name; Cyra kept the one you typed`);
+        if (email && typedEmail) parts.push(`${label} shared a verified email; Cyra kept the one you typed`);
+        if (!first && !email) parts.push(`${label} didn't share a name or a verified email — fill in the form if you like`);
+        ping(parts.join(". "));
       })
-      .catch(() => ping("Sign-in didn't complete — you can try again or continue with email"));
+      .catch(() => ping(signInRetry));
   };
   useEffect(() => {
     const m = /^#oauth(_error)?=(.+)$/.exec(window.location.hash || "");
@@ -492,21 +1063,30 @@ export default function CyraDemo() {
       "Menopause & beyond": ["peri", "Menopause"],
     };
     const [sid, slabel] = map[reg.stage] || ["peri", "Perimenopause"];
-    setAcct({ name: reg.name, email: reg.email, anon: reg.anon });
-    setResearch(reg.research);
-    setRegAnswers((({ pass, ...rest }) => rest)(reg));
-    if (reg.notifOptin) applyReminders(true);
+    // Anonymous Mode keeps no name and no email anywhere, not even on this device.
+    const anon = !!reg.anon;
+    const name = anon ? "" : reg.name.trim();
+    setAcct(anon ? { name: "", email: "", anon: true } : { name, email: reg.email.trim(), anon: false });
+    setResearch(!!reg.research);
+    const answers = { ...reg };
+    if (anon) { delete answers.name; delete answers.email; }
+    setRegAnswers(answers);
+    // Reminders only when she ticked "Remind me"; unticked also cancels anything left over.
+    applyReminders(!!reg.notifOptin);
     setStage(sid);
     setStageName(slabel);
     setDraft({});
     setAppTab("home"); setPregTab("home");
-    setWelcome(`Welcome${reg.name ? `, ${reg.name}` : ""} — your ${slabel} space is ready.`);
+    // The welcome is written here, on the device. Registration answers stay on this device,
+    // except what she opts into on the last step: with "Remind me" in a web browser, her
+    // reminder days, time and time zone go to Cyra's server for web push; with weekly counts
+    // on, her life-stage group goes out with yes/no check-in flags (at most one send a day,
+    // each flag at most once a week, never on the day it was logged). They are also in any
+    // encrypted backup she exports (the ZIP and the age band are left out of it), and her
+    // first name is in the doctor-email subject when she uses Open in email or Copy email
+    // (Report).
+    setWelcome(`Welcome${name ? `, ${name}` : ""} — your ${slabel} space is ready.`);
     setPhase("app");
-    try {
-      // Categorical answers only — the name never leaves the device.
-      const out = await apiPost("/api/ai/welcome", { stage: slabel, age: reg.age, cycleLen: reg.cycleLen, cycleReg: reg.cycleReg, goals: reg.goals });
-      if (out.provider !== "rules" && out.welcome) setWelcome(out.welcome);
-    } catch { /* keep the rules welcome */ }
   };
 
   /* ---------- shared check-in pieces (one instance, rendered by whichever Today is active) ---------- */
@@ -516,7 +1096,11 @@ export default function CyraDemo() {
   const quickCheckin = <QuickCheckin stage={stage} draft={draft} setDraft={setDraft} setQuickMode={setQuickMode} />;
 
   if (!hydrated) {
-    if (recordUnavailable) return <Shell style={style}><RecordUnavailableScreen onRetry={hydrate} onStartOver={async () => { await storage.clear(); setRecordUnavailable(false); setHydrated(true); }} /></Shell>;
+    // Start over runs the same clean-up as Delete everything, minus the wearable disconnects:
+    // the record that names them can't be read (the screen says so). It always leaves this
+    // week's hold, since that record may say counts already went this week. A phone has no
+    // server-side reminder row, so nothing on the server can block it.
+    if (recordUnavailable) return <Shell style={style}><RecordUnavailableScreen platform={platform()} locked={recordLocked} onRetry={hydrate} onStartOver={() => wipe({}, { holdWeek: true })} /></Shell>;
     return <Shell style={style}><main aria-busy="true" /></Shell>;
   }
 
@@ -535,9 +1119,17 @@ export default function CyraDemo() {
       </Shell>
     );
   }
+  const keepsWeekNote = pulseSent?.week === weekKey() || holdWeek === weekKey();
+  const settingsSheet = showSettings && <SettingsSheet cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storageDriver} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} keepsWeekNote={keepsWeekNote} reminders={reminders} reminderSupport={reminderSupport()} onReminders={(on) => applyReminders(on)} research={research} setResearch={setSharing} stage={stage} />;
   if (!stage) {
+    // Choosing a stage again: the saved record is still here, so Settings (and Delete
+    // everything) stays one tap away.
     return (
       <Shell style={style} toast={toast}>
+        <header className="mast" style={{ justifyContent: "flex-end", marginBottom: 0 }}>
+          <button className="stagechip" onClick={() => setShowSettings((v) => !v)} aria-label="Settings and your data" aria-expanded={showSettings}>⚙</button>
+        </header>
+        {settingsSheet}
         <IntakeScreen org={org} acct={acct} ob={ob} setOb={setOb} obBusy={obBusy} setObBusy={setObBusy} setStage={setStage} setStageName={setStageName} setWelcome={setWelcome} setAppTab={setAppTab} setPregTab={setPregTab} finishOnboarding={finishOnboarding} />
       </Shell>
     );
@@ -547,27 +1139,27 @@ export default function CyraDemo() {
     <HomeScreen
       acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} pred={pred} loggedLast14={loggedLast14} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} wearInsights={wearInsights} milestones={milestones} nextUp={nextUp} pulse={pulse}
       recap={recap} showRecap={showRecap} setShowRecap={setShowRecap}
-      showWear={showWear} setShowWear={setShowWear} wearSources={wearSources} connectWear={connectWear} wearBusy={wearBusy} wearData={wearData} wAvg={wAvg}
+      showWear={showWear} setShowWear={setShowWear} wearSources={wearSources} connectWear={connectWear} disconnectWear={disconnectWear} wearConfirm={wearConfirm} setWearConfirm={setWearConfirm} wearBusy={wearBusy} wearData={wearData} wAvg={wAvg}
       showMeds={showMeds} setShowMeds={setShowMeds} meds={meds} medLog={medLog} medEffects={medEffects} setMedLog={setMedLog} newMed={newMed} setNewMed={setNewMed} setMeds={setMeds} ping={ping}
       showAppts={showAppts} setShowAppts={setShowAppts} upcoming={upcoming} past={past} daysUntil={daysUntil} setAppts={setAppts} newAppt={newAppt} setNewAppt={setNewAppt}
       showJournal={showJournal} setShowJournal={setShowJournal} journal={journal} jDraft={jDraft} setJDraft={setJDraft} setJournal={setJournal}
     />
   );
-  const askView = <AskScreen org={org} stage={stage} askQ={askQ} setAskQ={setAskQ} runAsk={runAsk} askBusy={askBusy} askOut={askOut} />;
+  const askView = <AskScreen org={org} stage={stage} askQ={askQ} setAskQ={setAskQ} runAsk={runAsk} askBusy={askBusy} askOut={askOut} askAI={askAI} setAskAI={setAskAI} aiAvailable={aiAvailable} />;
   const connView = <ConnectScreen relationship={relationship} setRelationship={setRelationship} conn={conn} setConn={setConn} intimacy={intimacy} setIntimacy={setIntimacy} after={after} setAfter={setAfter} setConnLog={setConnLog} todayIso={todayIso} ping={ping} />;
 
   return (
     <Shell style={style} toast={toast}>
       <header className="mast">
         <span className="mark">{org.name}<span className="sub">{org.tag}</span></span>
-        {stage && <span className="acctchip">{acct.anon ? "Anonymous" : acct.name || "You"}{research ? " · research ✓" : ""}</span>}
+        {stage && <span className="acctchip">{acct.anon ? "Anonymous" : acct.name || "You"}{research && hasServer() ? " · sharing counts ✓" : ""}</span>}
         {stage && orgId === "cyra" && <button className="stagechip" onClick={() => setShowPal((s) => !s)} aria-label="Color palette" aria-expanded={showPal}>🎨</button>}
         {stage && <button className="stagechip" onClick={() => setShowSettings((s) => !s)} aria-label="Check-in settings" aria-expanded={showSettings}>⚙</button>}
         {stage && <button className="stagechip" onClick={() => { setStage(null); setOb({ step: 0, preg: null, age: null, per: null, vms: null }); setWelcome(""); }}>{stageName} · change</button>}
       </header>
 
       {/* ============ APP ============ */}
-      {showSettings && <SettingsSheet cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storage.driver()} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} reminders={reminders} reminderSupport={reminderSupport()} onReminders={applyReminders} />}
+      {settingsSheet}
       {showPal && stage && orgId === "cyra" && <PaletteSheet stage={stage} stageName={stageName} palIdx={palIdx} setPalIdx={setPalIdx} setShowPal={setShowPal} />}
       <div>
 
@@ -583,7 +1175,7 @@ export default function CyraDemo() {
             </nav>
 
             {pregTab === "today" && (
-              <PregTodayScreen pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} setKicks={setKicks} setPregLog={setPregLog} todayIso={todayIso} scales={scales} ping={ping} contribute={(entry) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])])} />
+              <PregTodayScreen pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} setKicks={setKicks} setPregLog={setPregLog} todayIso={todayIso} scales={scales} ping={ping} research={research} contribute={(entry) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])])} />
             )}
             {pregTab === "cal" && (
               <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={dayScore} scoreColor={scoreColor} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} setDraft={setDraft} setKicks={setKicks} setPregTab={setPregTab} ping={ping} />
@@ -604,14 +1196,14 @@ export default function CyraDemo() {
             </nav>
 
             {appTab === "today" && (
-              <TodayScreen pred={pred} stage={stage} welcome={welcome} editDate={editDate} setEditDate={setEditDate} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} scales={scales} flow={flow} disch={disch} odor={odor} setDays={setDays} ping={ping} setAppTab={setAppTab} contribute={(entry) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase }))} />
+              <TodayScreen pred={pred} stage={stage} welcome={welcome} editDate={editDate} setEditDate={setEditDate} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} scales={scales} flow={flow} disch={disch} odor={odor} setDays={setDays} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
             )}
             {appTab === "cal" && (
-              <CalendarScreen pred={pred} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} setDraft={setDraft} setSleepQ={setSleepQ} setEditPeriod={setEditPeriod} setEditDate={setEditDate} setAppTab={setAppTab} ins={ins} />
+              <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} setDraft={setDraft} setSleepQ={setSleepQ} setEditPeriod={setEditPeriod} setEditDate={setEditDate} setAppTab={setAppTab} ins={ins} />
             )}
             {appTab === "patterns" && <PatternsScreen ins={ins} symIds={symIds} ramp={ramp} scoreColor={scoreColor} stage={stage} medEffects={medEffects} />}
             {appTab === "report" && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} />}
-            {appTab === "shelf" && <CareScreen shelfItems={shelfItems} ins={ins} ping={ping} />}
+            {appTab === "shelf" && <CareScreen shelfItems={shelfItems} />}
             {appTab === "ask" && askView}
             {appTab === "connect" && connView}
             {appTab === "home" && homeView}

@@ -1,8 +1,8 @@
 // Multi-tenant white-labeling. An org owns: branding/theme, enabled life
 // stages, and its partner lineup (subset or override of the global catalog).
-// The mobile/web app calls GET /api/orgs/:slug/config at boot — same binary,
-// per-org experience. Write operations require x-admin-key (demo auth; use
-// real OIDC/SSO in production).
+// Designed for the app to call GET /api/orgs/:slug/config at boot (same binary,
+// per-org experience); the shipped app doesn't yet, and this module is not mounted
+// with NODE_ENV=production. Write operations require x-admin-key (demo auth).
 export function mount(router, ctx) {
   const { store, config } = ctx;
   const admin = (req, res) => {

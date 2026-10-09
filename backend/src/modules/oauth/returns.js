@@ -9,12 +9,15 @@
 //              CORS_ORIGIN lists them. "*" or an empty list means any origin, except with
 //              NODE_ENV=production, where it means none (fail closed).
 //   app link — exactly <scheme>://auth/<flow>, optionally ?a=<attempt id>, where the
-//              scheme is listed in APP_RETURN_SCHEMES (comma list, default "cyrahealth")
-//              and <flow> is one the calling endpoint serves (oauth | oura | terra).
-//              The attempt id lets the app tell this attempt's link from a stale one.
+//              scheme is written in lowercase and listed in APP_RETURN_SCHEMES (comma
+//              list, default "cyrahealth") and <flow> is one the calling endpoint serves
+//              (oauth | oura | terra). The attempt id lets the app tell this attempt's
+//              link from a stale one. Nothing else is accepted: no fragment ('#'), no
+//              other host, path or query, no upper-case scheme.
 //   Anything else (javascript:, data:, file:, intent:, unknown schemes, other hosts or
 //   paths under the app scheme) is refused, and the schemes in NEVER can't be enabled
-//   through APP_RETURN_SCHEMES either.
+//   through APP_RETURN_SCHEMES either. (A web return's own #fragment is dropped; an app
+//   return with any '#' is refused.)
 //
 // App-link verifier: a custom URL scheme can be claimed by another installed app,
 // which would then see the one-time code in cyrahealth://auth/...#oauth=<code>. So
@@ -47,11 +50,11 @@ export function returnOrigins() {
     `flows` limits app links to the flows the calling endpoint serves. */
 export function checkReturn(url, { flows = [] } = {}) {
   const text = String(url || "");
-  const app = APP_LINK.exec(text.split("#")[0]);
+  const app = APP_LINK.exec(text); // anchored, and its character classes admit no '#'
   if (app) {
-    const scheme = app[1].toLowerCase();
-    if (!appSchemes().includes(scheme) || !flows.includes(app[2])) return null;
-    return { href: `${scheme}://auth/${app[2]}${app[3] || ""}`, app: true };
+    const scheme = app[1];
+    if (scheme !== scheme.toLowerCase() || !appSchemes().includes(scheme) || !flows.includes(app[2])) return null;
+    return { href: text, app: true };
   }
   let u; try { u = new URL(text); } catch { return null; }
   if (u.username || u.password) return null;
