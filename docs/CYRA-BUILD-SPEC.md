@@ -444,3 +444,87 @@ receive only name/email, never health data.
 - [ ] Push notifications honoring cadence + nudge-time + "never"; no SMS.
 - [ ] Capacitor or Expo wrap for iOS/Android from the same codebase.
 - [ ] Every UI privacy claim verified literally true of the shipped build.
+
+## A13. POTS add-on
+
+**A13.1 Placement.** POTS tools are an optional add-on inside whichever single life stage the user has. They are
+never a stage, never offered as a stage choice, and never change `stage` or `stageName`. One switch (`pots.on`,
+Settings → Add-ons) adds one tab, "POTS", directly after Today in that stage's tab set. Changing stage keeps the
+POTS log and switch. A "POTS or dysautonomia" registration condition may show one Home offer card, once; it never
+turns the add-on on by itself.
+
+**A13.2 Data.** All POTS data lives in the persisted key `pots` (shape in lib/pots.js `POTS_EMPTY`), inside the
+on-device record: autosaved, included in the encrypted backup, replaced by a restore (a backup without `pots`
+clears it; a restore starts a new epoch), merged across tabs (`mergePots`: the newer epoch wins wholesale; within
+an epoch a 3-way merge against the last saved copy, with tombstones never capped within an epoch), and deleted by
+Delete everything. Erasing the POTS log starts a new epoch and clears every free-text and health setting, keeping
+only display choices. A `pots` whose `v` this build doesn't know is kept untouched and read-only, never
+overwritten. It is never written to `days[]` or `pregLog`, never enters `dayScore`, `insights()`, the recap or
+`eventsForDay`, and never leaves the device except in a file the user exports herself. Exports never use
+registration answers. POTS symptom and trigger ids match `^(p|t|c|x)_[a-z0-9]{1,16}$` (built-in lists:
+17 symptoms, 15 triggers, lib/potsConstants.js) and must never equal a weekly-count flag id or a SYM/PSYM/GSYM id.
+POTS data is never part of weekly counts and never sent to Cyra's AI.
+
+**A13.3 No diagnosis, no dosing.** POTS output never states or denies a diagnosis ("you have POTS" and similar
+wording, "diagnosed with", "positive", "negative", "normal result", "abnormal" are banned, as are "late" and
+"missed"; `POTS_BANNED`, checked by unit and e2e tests over POTS output, not by a whole-bundle grep). Fluid and sodium goals are entered by the user, labelled
+"set by my clinician" or "my own", and never pre-filled. Guideline ranges appear only in a cited Details panel
+with who-should-not caveats. The medicine library holds names and classes only. A free-text note is the user's own
+words and is never parsed. Exercise durations are blank until the user enters them; step-ups are options she
+chooses, never automatic, and never offered in pacing mode, after an exercise faint until she reports being
+checked, or without a clinician "yes". In pregnancy the plan and options need a separate prenatal-team "yes",
+which is cleared on every change of stage into pregnancy.
+
+**A13.4 Standing test constants (normative).**
+- Rest before standing: 5 or 10 min (defaults: active stand 5, lean 10). Lying readings at rest minutes
+  restMin−1 and restMin; baseline HR = mean of the last two lying readings (or the one taken),
+  rounded to a whole beat (baseline BP likewise, over lying readings with both numbers).
+- Upright readings: at minutes 1, 3, 5, 10, or every minute 1–10 (BP only at 1, 3, 5, 10). Minute 0 = the
+  user's "I'm up" tap. Timing is wall-clock. Late readings keep their actual time. Test ends at minute 10
+  (hard stop of the clock at 10:30).
+- HR threshold THR = 30 bpm (40 when the teen setting is on; copy always names 40 for ages 12–19).
+- Sustained: two consecutive taken upright readings with rise ≥ THR, the later at minute ≥ 3, ≤ 5 min apart.
+  Single: peak rise ≥ THR without a sustained pair — "single_last" when the last taken upright reading is ≥ THR
+  (nothing later shows whether it lasted), otherwise "single_mid". Below: peak < THR. Insufficient: no baseline
+  or < 2 upright.
+- Counted-pulse caveat when a counted reading feeds the baseline, peak or pair and |peak rise − THR| ≤ 6.
+  Resting-HR note when the lying baseline is ≥ 100.
+- High standing HR note: any upright HR ≥ 120.
+- Orthostatic BP drop: systolic ≥ 20 or diastolic ≥ 10 below baseline within 3 min ("drop" when ≥ 2 early
+  readings meet it or the last early reading at ≥ 3 min does; "single_drop" for one; "late_drop" after 3 min).
+- Supine high: lying ≥ 140/90 (visit note when on ≥ 2 tests). Live crisis interrupt: any ≥ 180/120.
+  Live low interrupt: upright systolic ≤ 80, or an early drop while symptomatic.
+- Live interrupts that need no BP: turning on the Vision dimming, Sick or Short of breath feel chip while
+  upright ("Lie down now and raise your legs. You can stop here.", Stop first); the Chest pain chip goes
+  straight to Stopped with the chest urgent card; an upright HR ≥ 20 bpm below the previous upright reading;
+  any HR ≥ 170.
+- Input sanity: HR 30–220, systolic 60–260, diastolic 30–160.
+- Safety: the safety screen and two gates precede every test; a red Stop (≥ 56 px, #A04545/#FFF) sits directly
+  under the phase heading and again in a sticky bar, in every running phase; inputs are never auto-focused; the
+  runner is the page's `<main>` with an `h1`; Stop leads to lie-down guidance and the urgent-care card; a faint
+  or near-faint answer is also logged as an episode; readings auto-save and can be corrected later (marked
+  "edited"); a running test older than 30 min without activity is marked interrupted at launch, and another
+  window never offers to save or discard a test that may still be running. Pregnancy rests on the left side and
+  adds the pregnancy caveat to every result.
+
+**A13.5 Patterns constants (normative).** Outcome = rough day (rating 3–4) among rated days; unrated days and
+unlogged exposures are unknown, never zero. Factor card: ≥ 14 rated days in the window, ≥ 5 days each side,
+≥ 4 rough days total, |difference| ≥ 20 percentage points AND ratio ≥ 1.3; at most 3 cards, at most 1 from a
+wearable; copy uses natural frequencies and the chance caveat. Median goal fallback needs ≥ 10 logged days.
+Wearable factors need ≥ 14 paired days and appear on screen only. Good vs rough: ≥ 4 good and ≥ 4 rough days;
+each row ≥ 3 values per side. 7-day comparison: ≥ 4 rated days in each week. Today pace: ≥ 7 earlier days.
+Cycle groups use logged starts only (period = start..start+4; week before = 7 days before a logged next start;
+other) and need ≥ 2 starts in 120 days, ≥ 2 groups with ≥ 4 rated days and ≥ 2 completed cycles; not shown in
+pregnancy or menopause. Medicine since starting: 14 days each side, ≥ 5 rated days each side.
+
+**A13.6 Exports.** The POTS report (PDF, in-house writer, base-14 Helvetica) and spreadsheet (one tidy CSV,
+UTF-8 BOM, formula-injection guard) are built on the device and leave only through a web download or the phone
+share sheet; the phone's cache copy is deleted after sharing and swept at launch and wipe. File names, share
+titles and email subjects are neutral (`cyra-report-{date}.pdf`, `cyra-data-{date}.csv`). Exports never contain
+wearable readings or anything derived from them, never contain registration answers, and never contain typed
+notes or the user's name unless she ticks them; life stage, cycle days and check-in overlap are included only
+while "Cycle or pregnancy details" is ticked (default on). Every export screen states that the file isn't locked.
+
+**A13.7 Reminders.** The add-on adds no notification. A8 still applies: one check-in reminder at most. A
+care-plan checklist is shown in the app only, with no "late", "missed" or streak language. Any future
+medicine/fluid reminder is owner decision D1 and needs A8 reworded first.
