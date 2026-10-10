@@ -11,9 +11,9 @@ import {
   addSession, updateSession, setSleep, setNote, tickPlan, upsertTest, editTestReadings, deleteTest, setTestFaint,
   setSessionFaint, addTilt, upsertMed, stopMed, removeMed, setSettings, addCustom, archiveCustom, upsertPreset,
   logMedsNow, medsNowPlan, dayTotals, dueDoses, standResult, mlToOz, ozToMl, saltGToNaMg, naMgToSaltG, fmtFluid, fmtSodium,
-  OZ_ML, NA_PER_G_SALT, ID_RE, TAG_RE,
+  OZ_ML, NA_PER_G_SALT, ID_RE, TAG_RE, localeUnits, turnOn, turnOff, finishSetup, resetPregClearance, samePots,
 } from "./pots.js";
-import { POTS_SYM, POTS_TRIG, POTS_BANNED, SAFETY_COPY, GUIDE_COPY, GUIDE_VERIFIED, POTS_MED_LIB, RUNNER_FEEL, FEEL_STOP } from "./potsConstants.js";
+import { POTS_SYM, POTS_TRIG, POTS_BANNED, SAFETY_COPY, GUIDE_COPY, GUIDE_VERIFIED, POTS_MED_LIB, RUNNER_FEEL, FEEL_STOP, POTS_LOCKED_COPY } from "./potsConstants.js";
 import { SYM, PSYM, GSYM } from "./constants.js";
 
 const D = "2026-10-08", D2 = "2026-10-09";
@@ -921,6 +921,81 @@ test("e: POTS fields never change weekly counts, in any stage", () => {
   // A POTS day spread over a check-in entry carries no field eventsForDay reads.
   assert.deepEqual(Object.keys(potsDay).filter((k) => ["sym", "sleepQ", "flow", "phase", "late", "kicks"].includes(k)), ["sym"]);
   assert.ok(Object.keys(potsDay.sym).every((k) => TAG_RE.test(k)));
+});
+
+/* ================= s2. the Settings switch, stage changes, merge bookkeeping ================= */
+test("s2: localeUnits: US English shows ounces, every other language millilitres; sodium in mg", () => {
+  assert.deepEqual(localeUnits("en-US"), { fluid: "oz", salt: "mgNa" });
+  for (const l of ["en-GB", "en-CA", "fr-FR", "es-US", "", undefined]) assert.deepEqual(localeUnits(l === undefined ? "de" : l), { fluid: "ml", salt: "mgNa" });
+});
+
+test("s2: turnOn the first time starts an epoch, sets since, Simple view and units; later turn-ons change nothing else", () => {
+  const p0 = freshEmpty();
+  const a = turnOn(p0, { day: D, simple: true, units: { fluid: "oz", salt: "mgNa" }, nowMs: 5000 });
+  assert.equal(a.on, true); assert.equal(a.since, D); assert.equal(a.epochAt, 5000);
+  assert.ok(ID_RE.test(a.epoch)); assert.equal(a.settings.simple, true); assert.deepEqual(a.settings.units, { fluid: "oz", salt: "mgNa" });
+  assert.deepEqual(p0, freshEmpty(), "input not mutated");
+  assert.deepEqual(cleanPots(a), a, "the result is already clean");
+  // off, change display choices, on again: the epoch, since and her choices stay
+  const b = setSettings(turnOff(a), { simple: false, units: { fluid: "ml" } });
+  assert.equal(b.on, false);
+  const c = turnOn(b, { day: D2, simple: true, units: { fluid: "oz", salt: "gSalt" }, nowMs: 9000 });
+  assert.equal(c.on, true); assert.equal(c.epoch, a.epoch); assert.equal(c.epochAt, 5000); assert.equal(c.since, D);
+  assert.equal(c.settings.simple, false); assert.equal(c.settings.units.fluid, "ml");
+  // an erased log (new epoch, since kept) turns on again in that same epoch
+  const e = eraseLog(c, 12000), f = turnOn(turnOff(e), { day: D2, nowMs: 15000 });
+  assert.equal(f.epoch, e.epoch); assert.equal(f.epochAt, 12000);
+  // a log adopted with an epoch but no since (never turned on here) keeps that epoch
+  const g = turnOn({ ...freshEmpty(), epoch: "e7", epochAt: 70 }, { day: D, nowMs: 99 });
+  assert.equal(g.epoch, "e7"); assert.equal(g.epochAt, 70); assert.equal(g.since, D);
+});
+
+test("s2: turnOn / turnOff never touch the log or the stage, and leave a locked record alone", () => {
+  let p = turnOn(freshEmpty(), { day: D, nowMs: 1 });
+  p = addIntake(p, D, { id: "i1", t: "09:00", kind: "water", label: "Glass", ml: 250 });
+  p = setRating(p, D, 3);
+  const off = turnOff(p);
+  assert.deepEqual({ ...off, on: true }, p, "only the switch changed");
+  assert.equal(turnOff(off), off, "already off: unchanged");
+  assert.deepEqual(turnOn(off, { day: D2, nowMs: 2 }), p, "back on: the same log");
+  for (const x of [p, off]) assert.ok(!("stage" in x) && !("stageName" in x));
+  const locked = { v: 2, on: true, future: { a: 1 } };
+  assert.equal(turnOn(locked, { day: D }), locked); assert.equal(turnOff(locked), locked);
+  assert.equal(resetPregClearance(locked), locked);
+  assert.ok(isLockedPots(locked) && typeof POTS_LOCKED_COPY === "string" && /^Update Cyra to see your POTS log\./.test(POTS_LOCKED_COPY));
+  assertClean(POTS_LOCKED_COPY, "POTS_LOCKED_COPY");
+});
+
+test("s2: finishSetup marks setup done once, and leaves a locked record alone", () => {
+  const p = turnOn(freshEmpty(), { day: D, nowMs: 1 });
+  const q = finishSetup(p);
+  assert.equal(q.setupDone, true); assert.equal(p.setupDone, false);
+  assert.equal(finishSetup(q), q);
+  assert.deepEqual({ ...q, setupDone: false }, p, "nothing else changes");
+  const locked = { v: 2 }; assert.equal(finishSetup(locked), locked);
+  assert.equal(eraseLog(q).setupDone, true, "an erase keeps setup done");
+});
+
+test("s2: a change of stage into Pregnancy clears only the prenatal-team answer", () => {
+  const base = turnOn(freshEmpty(), { day: D, nowMs: 1 });
+  assert.equal(resetPregClearance(base), base, "no program: unchanged");
+  const prog = { cleared: "yes", clearedOn: D, clearedPreg: "yes", clearedPregOn: D, pem: "no", step: 2, start: D, days: [1, 3], mainMin: 20, hrNote: "from my physio" };
+  const p = cleanPots({ ...base, move: { program: prog, faintPause: null } });
+  const r = resetPregClearance(p);
+  assert.deepEqual(r.move.program, { ...p.move.program, clearedPreg: null, clearedPregOn: null });
+  assert.equal(r.move.program.cleared, "yes", "the non-pregnancy answer stays");
+  assert.deepEqual(cleanPots(r), r);
+  assert.equal(resetPregClearance(r), r, "nothing left to clear: the same object (no save churn)");
+  assert.equal(p.move.program.clearedPreg, "yes", "input not mutated");
+});
+
+test("s2: samePots ignores key order and undefined keys, and sees real changes", () => {
+  const a = turnOn(freshEmpty(), { day: D, nowMs: 1 });
+  const reordered = JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(a).reverse())));
+  assert.ok(samePots(a, reordered) && samePots(a, { ...a, extra: undefined }));
+  assert.ok(!samePots(a, setRating(a, D, 2)) && !samePots(a, turnOff(a)));
+  // a merge that changed nothing is the same content as the stored copy
+  assert.ok(samePots(mergePots(a, reordered, a), a));
 });
 
 /* ================= source greps (A13, design 11.6) ================= */

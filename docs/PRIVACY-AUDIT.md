@@ -200,3 +200,34 @@ These are real and not yet disclosed in the app. Most belong in the privacy poli
 - **Terra and Oura.** Each is named before connecting, with what it keeps: Terra keeps data under its own policy, and Oura will know you connected Cyra.
 - **Restoring a backup.** The restore screen (`src/components/DataControls.jsx`) and Your data now say that wearable connections in the backup come back unconfirmed until Cyra checks them through its server (Oura straight away; Fitbit/Garmin/Whoop when readings arrive), that one this device is still disconnecting isn't restored, and that connections only on this device stay connected.
 - **Partner webhook secrets.** Production refuses to start if the webhook module is turned on without a real secret for each partner. The demo secrets in `backend/config/partners/` are used only in development.
+
+## POTS add-on: statements checked
+
+The POTS add-on (spec section A13) is built in slices on the `feature/pots-tracker` branch. Each slice adds only the statements for what it ships, and adds them here in the same commit. The POTS log is one persisted key, `pots`, inside the on-device record (`src/lib/pots.js`). It is never written into the check-in log, never part of weekly counts, and never sent to Cyra's server or Cyra's AI. Nothing in the add-on makes a network request.
+
+### Slice 2: the switch, the tab, persistence, backup, erase and cross-tab
+
+Each statement below was traced to the code that makes it true.
+
+- **Settings → Add-ons, POTS tools, off:** "For a racing heart, dizziness or feeling faint when you're upright, with or without a diagnosis. Adds a POTS tab. Works alongside {stage}. It doesn't change your life stage." True: "Turn on" (`turnOn` in `src/lib/pots.js`) sets only fields inside `pots`, and the tab is inserted after Today in the single tab set of whichever stage she has (`src/App.jsx`). Changing stage keeps `pots` as it is. The sentence names no feature this slice doesn't ship. Later slices add their features to it.
+- **On:** "On. Find it in the POTS tab." True: the tab shows exactly while `pots.on` is true.
+- **Toast on turning on:** "POTS tools on. Find them in the POTS tab".
+- **"Exactly what's kept" under the row:**
+  - "Everything you log in POTS tools is stored on this device with the rest of your record, and goes into an encrypted backup if you save one." True: `pots` is in `PERSISTED`, so autosave writes it into the same record document as the check-ins, and `exportBackup` encrypts the whole snapshot. The `pots` key appears only inside the ciphertext (checked in the phone test).
+  - "None of it is part of weekly counts, and none of it is sent to Cyra's server or Cyra's AI." True: `eventsForDay` reads only check-in fields, and no POTS id equals a weekly-count flag id (unit-tested). `runAsk` still sends only `{ question }`. No POTS code calls `fetch`, `apiPost`, `contribute(` or a storage API other than the record save (source grep in the unit tests).
+  - "Turning POTS tools off hides the tab and keeps what you logged, unless you choose to erase it." True: `turnOff` changes only `on`. Erasing is a separate, confirmed choice.
+- **Turn-off card:** "Turn off POTS tools?", "Hide the POTS tab (keep my POTS log)", "Hide it and erase my POTS log", "Cancel". The toasts are "POTS tab hidden. Your POTS log is kept" and "POTS log erased and the POTS tab hidden".
+- **Erase confirm:** "Erase your POTS log from this device? Standing tests, drinks and salt, symptoms, triggers, episodes, medicines, movement, your goals, your plan and visit questions, the symptom and trigger names you added, your drink and salt buttons, and what you told Cyra for your report all go for good. Only display choices stay: units, paper size, Simple view, which cards show, the order of Cyra's own symptom chips, your stand-test setup, the teen threshold setting and whether notes and cycle details go in reports. Your check-ins aren't touched. Backups you saved earlier still have it." True: `eraseLog` resets every listed field and keeps only those display settings, plus the switch and setup state. It starts a new epoch, so another open tab can't merge the erased entries back (tested across two tabs). A unit test puts a marker string in every free-text field and finds none after erasing. The design's list omitted the symptom-chip order and the cycle-details choice, which `eraseLog` keeps, so they were added to make the list complete.
+- **Read-only record:** "Update Cyra to see your POTS log. It was saved by a newer version of Cyra, so this version leaves it untouched." This appears in the POTS tab and in place of the switch. True: a `pots` whose `v` isn't 1 is kept by reference. No action writes it, the merge keeps the stored copy, and autosave and backup carry it as stored. The phone test checks that the disk copy is byte-identical after an autosave and after a relaunch.
+- **POTS tab hint:** "Kept on this device. Never part of weekly counts. Cyra can't diagnose POTS; only a clinician can, and good notes make that visit faster." The design's "and ready for your clinician" waits for the report slice.
+- **Restore, "What a restore changes":** "A backup made before you turned on POTS tools has no POTS log, so restoring it clears the POTS log on this device." True: a restore applies the backup's `pots` literally (owner decision D4) and starts a new epoch. A backup made without the key, or before POTS was turned on, gives an empty, switched-off log. A record saved by a newer build is kept untouched. The existing "It replaces your record here" stays true for `pots`, including against another open tab holding an older log (tested).
+- **Weekly counts, "Exactly what's sent":** "Nothing you log in POTS tools is ever part of weekly counts."
+
+Still true and unchanged: "Your check-ins, notes and history are stored …", "Cyra's servers don't keep a copy", the restore footer "It replaces your record here", "Every check-in, note, appointment and setting goes for good" (Delete everything deletes the whole record document, `pots` with it), and "One reminder at most" (the add-on adds no notification).
+
+Verified at this slice:
+- Unit tests 52/52, covering the turn-on, turn-off, setup, erase, merge and stage-change helpers.
+- Build passes with the stamp BUILD 2026.10.07-D. ESLint: 0 errors.
+- Phone bridge: the existing 240 checks, plus 71 POTS checks (switch, tab, setup, backup, erase, literal restore with a new epoch, a backup without `pots`, a `v: 2` record, stage changes, Delete everything, and no network request).
+- Live web: 164 passed. A new two-tab web test (21 checks) covers turning off, erasing and restoring in one tab while the other is stale.
+- axe: 0 violations on the existing 28, 28 and 13 screens, and on 48 POTS screen states in three stages, with panels closed and then open. Every POTS target is at least 44 px tall, and POTS primary buttons at least 56 px.

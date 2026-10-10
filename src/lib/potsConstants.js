@@ -171,3 +171,8 @@ export const GUIDE_COPY = [
     every string the POTS engine returns and by e2e checks of the rendered POTS screens; it
     is not a whole-bundle grep (other screens legitimately say "Rh-negative"). */
 export const POTS_BANNED = /\byou(?:['’]ve)?\s+(?:(?:may|might|probably|likely|could|would|definitely|certainly|do not|don['’]t|do)\s+)?(?:have|got)\s+POTS\b(?! whether)|\b(?:consistent with|suggest(?:s|ive of)?|confirms?|rules? out|indicates?|points? to)\s+POTS\b|\bdiagnosed with\b|\b(positive|negative|abnormal|normal result)\b|\b(late|missed)\b/i;
+
+/** Shown instead of the POTS tab's content and instead of the Settings switch when the
+    stored `pots` was written by a newer build (lib/pots.js isLockedPots): this build leaves
+    it untouched. */
+export const POTS_LOCKED_COPY = "Update Cyra to see your POTS log. It was saved by a newer version of Cyra, so this version leaves it untouched.";

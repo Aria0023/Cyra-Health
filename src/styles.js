@@ -240,5 +240,22 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:fo
 .wearconfirm .ghostbtn { margin-top:8px; }
 .sbtn:disabled { cursor:default; border-style:dashed; }
 .emailpreview { resize:vertical; font:500 12.5px/1.5 'Karla Variable','Karla',sans-serif; white-space:pre-wrap; user-select:text; -webkit-user-select:text; }
+/* ---- POTS add-on (scoped to .pots and the stand-test runner; chrome only — data colours come from RAMPS) ---- */
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.pots .cta, .pots .ghostbtn { min-height:56px; }
+.pots .mc, .pots .takebtn, .pots .sbtn, .pots .linkbtn, .pots .pill, .pots .chip { min-height:44px; }
+.pots .obq { margin:0 0 10px; }
+.minichip.big { min-height:44px; padding:10px 15px; font-size:13px; }
+.potsgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.potsgrid .route { min-height:72px; justify-content:center; align-items:flex-start; text-align:left; font-size:14px; padding:12px; }
+.potsgrid .route span { font-size:12px; }
+.goalbar { height:10px; background:var(--line); border-radius:5px; overflow:hidden; margin:8px 0 4px; }
+.goalfill { height:100%; background:var(--primary); border-radius:5px; }
+.pots-timer { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:54px; line-height:1.1; text-align:center; font-variant-numeric:tabular-nums; margin:6px 0 10px; color:var(--ink); }
+.cta.stopbtn { background:#A04545; color:#FFF; min-height:56px; font-size:15px; }
+.cta.stopbtn.top { margin:2px 0 12px; }
+.stopbar { position:sticky; bottom:0; z-index:5; background:var(--paper); padding:10px 0 calc(10px + env(safe-area-inset-bottom, 0px)); margin-top:12px; }
+.plaincard.urgent { border:2px solid #A04545; }
+.plaincard.urgent .uchip { display:inline-block; margin-bottom:6px; }
 .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:20px; background:var(--ink); color:#FFF; font-size:13px; padding:9px 16px; border-radius:999px; max-width:86%; text-align:center; z-index:9; }
 `;

@@ -373,6 +373,40 @@ export function markStaleRunning(p, nowMs = Date.now()) {
   return { ...p, tests: p.tests.map((x) => (stale(x) ? { ...x, status: "interrupted", upd: nowMs } : x)) };
 }
 
+/* ---------- the Settings switch (design 1.2) ---------- */
+/** Display units for a first turn-on, from the device language: US English shows fluid
+    ounces, everything else millilitres; sodium in mg. Display only (stored ml / mg sodium). */
+export const localeUnits = (lang = globalThis.navigator?.language) => ({ fluid: lang === "en-US" ? "oz" : "ml", salt: "mgNa" });
+/** Settings → Add-ons → "Turn on". The first time (no `since` yet): a new epoch if there is
+    none, `since` = `day`, Simple view following her check-in style (`simple`) and `units`.
+    Turning on again later keeps all of those, and the log, exactly as they were. It never
+    touches the life stage. A locked record comes back unchanged. */
+export function turnOn(p, { day, simple = false, units = localeUnits(), nowMs = Date.now() } = {}) {
+  if (isLockedPots(p)) return p;
+  const c = cleanPots(p), first = !c.since;
+  return {
+    ...c, on: true,
+    epoch: c.epoch || newId(), epochAt: c.epoch ? c.epochAt : nowMs,
+    since: c.since || (isIso(day) ? day : localDay()),
+    settings: first ? cleanSettings({ ...c.settings, simple: simple === true, units: { ...c.settings.units, ...(isObj(units) ? units : {}) } }) : c.settings,
+  };
+}
+/** First-run setup finished or skipped (design 4.1): it isn't shown again. */
+export const finishSetup = (p) => (isObj(p) && !isLockedPots(p) && p.setupDone !== true ? { ...p, setupDone: true } : p);
+/** "Hide the POTS tab (keep my POTS log)": only the switch changes. */
+export const turnOff = (p) => (isObj(p) && !isLockedPots(p) && p.on ? { ...p, on: false } : p);
+/** Every change of stage INTO Pregnancy: the prenatal-team exercise answer is asked again, so
+    a "yes" given before this pregnancy never carries over (design 4.10). `p` itself when there
+    is nothing to clear. */
+export function resetPregClearance(p) {
+  const pr = isObj(p) && !isLockedPots(p) && isObj(p.move) ? p.move.program : null;
+  if (!isObj(pr) || (pr.clearedPreg == null && pr.clearedPregOn == null)) return p;
+  return { ...p, move: { ...p.move, program: { ...pr, clearedPreg: null, clearedPregOn: null } } };
+}
+/** Same content, ignoring key order and undefined-valued keys (App.jsx keeps the stored copy
+    when a merge changed nothing, so two tabs never re-save the same log back and forth). */
+export const samePots = (a, b) => a === b || eq(a, b);
+
 /* ---------- cross-tab merge ---------- */
 const ids = (a) => a.map((x) => x.id);
 /** Did the relative order of the ids both lists share change? (Keeps a reorder of presets,
