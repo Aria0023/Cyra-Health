@@ -48,6 +48,8 @@ const pick = (v, known, d) => (known.includes(v) ? v : d);
 /** Enum values from a newer build survive: any short lowercase token is kept and renders
     as "Other"; known-value logic never branches on it. */
 const en = (v) => (matches(ENUM_RE, v) ? v : null);
+/** The same for schedule tokens, which may contain "-" ("1-3-5-10"). */
+const sch = (v) => (matches(/^[a-z0-9_-]{1,24}$/, v) ? v : null);
 const enList = (a, max = 20) => uniq((Array.isArray(a) ? a : []).filter((x) => matches(ENUM_RE, x))).slice(0, max);
 const tags = (a, max) => uniq((Array.isArray(a) ? a : []).filter(isTag)).slice(0, max);
 const uniq = (a) => [...new Set(a)];
@@ -146,11 +148,13 @@ export const isLockedPots = (p) => isObj(p) && p.v !== 1;
 const [HR_LO, HR_HI] = THRESH.range.hr, [SYS_LO, SYS_HI] = THRESH.range.sys, [DIA_LO, DIA_HI] = THRESH.range.dia;
 const vitals = (r) => ({ hr: int(r.hr, HR_LO, HR_HI), sys: int(r.sys, SYS_LO, SYS_HI), dia: int(r.dia, DIA_LO, DIA_HI) });
 
+/** An intake needs an amount, or else a kind or label: a salty snack whose sodium she
+    doesn't know is still logged (amount unknown, never counted as 0 in a total). */
 function cleanIntake(x) {
   if (!isObj(x) || !isId(x.id) || !hhmm(x.t)) return null;
-  const ml = int(x.ml, 1, 5000), naMg = int(x.naMg, 1, 20000);
-  if (ml == null && naMg == null) return null;
-  return shape(x, { upd: updN(x.upd), kind: en(x.kind) || "other", label: str(x.label, 30), ml, naMg, presetId: isId(x.presetId) ? x.presetId : undefined });
+  const ml = int(x.ml, 1, 5000), naMg = int(x.naMg, 1, 20000), kind = en(x.kind), label = str(x.label, 30);
+  if (ml == null && naMg == null && !kind && !label) return null;
+  return shape(x, { upd: updN(x.upd), kind: kind || "other", label, ml, naMg, presetId: isId(x.presetId) ? x.presetId : undefined });
 }
 function cleanDose(x) {
   if (!isObj(x) || !isId(x.id) || !hhmm(x.t) || !isId(x.medId) || !en(x.state)) return null;
@@ -215,8 +219,9 @@ function cleanTest(x) {
   const c = isObj(x.ctx) ? x.ctx : {};
   return shape(x, {
     upd: updN(x.upd) ?? 0, edited: x.edited === true,
-    method: en(x.method) || "stand", restPos: en(x.restPos) || "back", restMin: pick(x.restMin, [5, 10], 5),
-    sched: pick(x.sched, ["1-3-5-10", "every"], "1-3-5-10"), bp: x.bp === true, device: en(x.device),
+    // Values from a newer build pass through (shown as "Other"); only an unreadable one falls back.
+    method: en(x.method) || "stand", restPos: en(x.restPos) || "back", restMin: int(x.restMin, 1, 30) ?? 5,
+    sched: sch(x.sched) || "1-3-5-10", bp: x.bp === true, device: en(x.device),
     ctx: shape(c, { meds: en(c.meds), rateMed: en(c.rateMed), comp: boolN(c.comp), ate2h: boolN(c.ate2h), mlBefore: int(c.mlBefore, 0, 20000) }),
     rest: list(x.rest, cleanRest, 10), up: list(x.up, cleanUpReading, 30), feel: tags(x.feel, 20), pooling: en(x.pooling),
     // Status is kept as stored (never re-derived here); only hydrate marks a stale "running"
@@ -270,10 +275,12 @@ function cleanSettings(s) {
   return shape(s, {
     simple: s.simple === true,
     teen: s.teen === true,
-    units: shape(u, { fluid: pick(u.fluid, ["ml", "oz"], "ml"), salt: pick(u.salt, ["mgNa", "gSalt"], "mgNa") }),
-    paper: pick(s.paper, ["letter", "a4"], null),
+    // Enum settings keep a newer build's value (display falls back to the default); only an
+    // unreadable value is reset. "mgNa" / "gSalt" are the two salt-unit spellings.
+    units: shape(u, { fluid: en(u.fluid) || "ml", salt: matches(/^[a-zA-Z0-9_]{1,24}$/, u.salt) ? u.salt : "mgNa" }),
+    paper: en(s.paper),
     show: shape(sh, Object.fromEntries(Object.entries(d.show).map(([k, v]) => [k, boolD(sh[k], v)]))),
-    goals: shape(g, { fluidMl: int(g.fluidMl, 1, 5000), naMg: int(g.naMg, 1, 20000), by: pick(g.by, ["clinician", "me"], null), set: iso(g.set) }),
+    goals: shape(g, { fluidMl: int(g.fluidMl, 1, 5000), naMg: int(g.naMg, 1, 20000), by: en(g.by), set: iso(g.set) }),
     presets: Array.isArray(s.presets) ? list(s.presets, cleanPreset, 16) : d.presets,
     defaultFluid: isId(s.defaultFluid) ? s.defaultFluid : d.defaultFluid,
     defaultSalt: isId(s.defaultSalt) ? s.defaultSalt : d.defaultSalt,
@@ -283,11 +290,11 @@ function cleanSettings(s) {
     customSym: list(s.customSym, cleanCustom("c"), 100),
     customTrig: list(s.customTrig, cleanCustom("x"), 100),
     test: shape(t, {
-      method: pick(t.method, ["stand", "lean"], "stand"), restMin: pick(t.restMin, [5, 10], 5), sched: pick(t.sched, ["1-3-5-10", "every"], "1-3-5-10"),
-      bp: t.bp === true, device: pick(t.device, ["watch", "cuff", "oximeter", "counted", "other"], null), cue: boolD(t.cue, true), safetySeen: iso(t.safetySeen),
+      method: en(t.method) || "stand", restMin: int(t.restMin, 1, 30) ?? 5, sched: sch(t.sched) || "1-3-5-10",
+      bp: t.bp === true, device: en(t.device), cue: boolD(t.cue, true), safetySeen: iso(t.safetySeen),
     }),
     plan: list(s.plan, cleanPlanItem, 12),
-    testPlan: pick(s.testPlan, ["weekly", "visits", "asked"], null),
+    testPlan: en(s.testPlan),
     context: shape(cx, { status: en(cx.status), onset: shape(on, { ym: matches(YM_RE, on.ym) ? on.ym : null, after: enList(on.after) }), conditions: enList(cx.conditions) }),
     questions: list(s.questions, cleanQuestion, 10),
     reportNotes: s.reportNotes === true,
@@ -461,11 +468,12 @@ function withDay(p, day, fn) {
   if (!nd || (!(p.days || {})[day] && !Object.keys(nd).length)) return p;
   return { ...p, days: { ...p.days, [day]: nd } };
 }
-/** Add a cleaned item to a capped list; null when invalid, full or tombstoned. */
+/** Add a cleaned item to a capped list, keeping the newest `cap` (as cleanPots does), so
+    a new entry is never silently refused; null when invalid, a duplicate or tombstoned. */
 function appendItem(p, arr, item, clean, cap) {
   const it = clean(item);
-  if (!it || (p.gone || []).includes(it.id) || (arr || []).some((x) => x.id === it.id) || (arr || []).length >= cap) return null;
-  return [...(arr || []), it];
+  if (!it || (p.gone || []).includes(it.id) || (arr || []).some((x) => x.id === it.id)) return null;
+  return [...(arr || []), it].slice(-cap);
 }
 const withNewId = (x) => ({ ...x, id: isId(x && x.id) ? x.id : newId() });
 
@@ -573,13 +581,13 @@ export const tickPlan = guard((p, day, planId) => {
   return withDay(p, day, (d) => { const plan = { ...(d.plan || {}) }; if (plan[planId]) delete plan[planId]; else plan[planId] = true; return { ...d, plan }; });
 });
 
-/** Save a stand test (new or updated): auto-save while running and on every reading. */
+/** Save a stand test (new or updated): auto-save while running and on every reading. At
+    500 tests the oldest goes (as in cleanPots), so a new test is always saved. */
 export const upsertTest = guard((p, t) => {
   const it = cleanTest({ ...(isObj(t) ? t : {}), upd: Date.now() });
   if (!it || p.gone.includes(it.id)) return p;
   const has = p.tests.some((x) => x.id === it.id);
-  if (!has && p.tests.length >= 500) return p;
-  return { ...p, tests: (has ? p.tests.map((x) => (x.id === it.id ? it : x)) : [...p.tests, it]).sort(byDateTime) };
+  return { ...p, tests: (has ? p.tests.map((x) => (x.id === it.id ? it : x)) : [...p.tests, it]).sort(byDateTime).slice(-500) };
 });
 /** "Edit readings" on a finished test. `patch` = { rest?: [...], up?: [...] }, aligned by
     index with the test's readings; each entry is { hr, sys, dia } (or null = unchanged).
@@ -715,23 +723,41 @@ export function dueDoses(p, day, now, { back = 180, ahead = 60 } = {}) {
   }
   return out.sort((a, b) => toMin(a.slot) - toMin(b.slot));
 }
+/** The day before an ISO day key, as a local day key. */
+const prevDay = (day) => { const [y, m, d] = day.split("-").map(Number); return localDay(new Date(y, m - 1, d - 1)); };
 /** What one Simple-view "Took my meds" tap would log now, and what the 30-minute repeat
-    guard holds back. A med with planned times logs its due, unlogged slots (3 h back, 1 h
-    ahead); a med without times logs one dose. A med with a dose logged taken within the
-    last 30 minutes is skipped, so a foggy double tap never records two doses.
+    guard holds back (design §4.3):
+    - If any active medicine has planned times, only those log: at most ONE dose per
+      medicine per tap, for its latest unlogged slot at or before now within the last 3 h
+      (else its nearest slot in the next hour). Earlier unlogged slots, and slots before one
+      already logged, stay "Planned 8:00 · Took it?"; one tap never writes two doses of the
+      same medicine. Medicines without times are not logged then (a once-a-day supplement
+      would otherwise gain a dose on every tap).
+    - If no medicine has times, each active rx / otc / supplement logs one dose.
+    - A medicine with a dose logged taken in the last 30 minutes (across midnight too) is
+      skipped, so a foggy double tap never records two doses.
     -> { logged: [{ medId, slot, name }], guarded: [{ medId, name, t }] } */
 export function medsNowPlan(p, day, nowMs = Date.now()) {
   const out = { logged: [], guarded: [] };
-  if (!isObj(p) || isLockedPots(p)) return out;
+  if (!isObj(p) || isLockedPots(p) || !isIso(day)) return out;
   const now = nowHHMM(nowMs), n = toMin(now);
-  const doses = (((p.days || {})[day] || {}).doses) || [];
+  const days = p.days || {};
+  const doses = (days[day] || {}).doses || [];
+  const before = n < THRESH.repeatMin ? ((days[prevDay(day)] || {}).doses || []) : [];
   const due = dueDoses(p, day, now);
-  for (const med of activeMeds(p, day)) {
-    if (med.kind === "aid") continue;
-    const recent = doses.filter((d) => d.medId === med.id && d.state === "taken" && Math.abs(n - toMin(d.t)) <= 30);
+  const meds = activeMeds(p, day).filter((m) => m.kind !== "aid");
+  const anyTimed = meds.some((m) => m.times.length > 0);
+  for (const med of meds) {
+    if (anyTimed && !med.times.length) continue;
+    const taken = (a, shift) => a.filter((d) => d.medId === med.id && d.state === "taken" && Math.abs(n - (toMin(d.t) - shift)) <= THRESH.repeatMin);
+    const recent = [...taken(before, 1440), ...taken(doses, 0)];
     if (recent.length) { out.guarded.push({ medId: med.id, name: med.name, t: recent[recent.length - 1].t }); continue; }
-    if (med.times.length) due.filter((x) => x.med.id === med.id).forEach((x) => out.logged.push({ medId: med.id, slot: x.slot, name: med.name }));
-    else out.logged.push({ medId: med.id, slot: null, name: med.name });
+    if (!med.times.length) { out.logged.push({ medId: med.id, slot: null, name: med.name }); continue; }
+    const lastLogged = Math.max(-1, ...doses.filter((d) => d.medId === med.id && d.slot).map((d) => toMin(d.slot)));
+    const open = due.filter((x) => x.med.id === med.id && toMin(x.slot) > lastLogged);
+    const past = open.filter((x) => toMin(x.slot) <= n);
+    const pick1 = past.length ? past[past.length - 1] : open[0];
+    if (pick1) out.logged.push({ medId: med.id, slot: pick1.slot, name: med.name });
   }
   return out;
 }
@@ -788,20 +814,28 @@ export function fmtSodium(mg, units) {
 }
 
 /* ---------- standing test: live safety interrupts ---------- */
-/** Baseline lying BP: mean of the last two lying readings that have both numbers. */
-function restBaseline(rest, key) {
-  const rs = (rest || []).filter((r) => fin(r.min) && (key === "hr" ? fin(r.hr) : fin(r.sys) && fin(r.dia))).sort((a, b) => a.min - b.min).slice(-2);
+/** The last two lying readings (by minute) that have `keys`, or null. */
+function restBaseline(rest, keys) {
+  const rs = (rest || []).filter((r) => fin(r.min) && keys.every((k) => fin(r[k]))).sort((a, b) => a.min - b.min).slice(-2);
   return rs.length ? rs : null;
 }
 const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
-const inRange = (v, [lo, hi]) => (fin(v) && v >= lo && v <= hi ? v : null);
+/** Unrounded mean of `key` over the baseline readings that have `keys` (null when none). The
+    result and the live cards compare against this same value; only the display rounds. */
+const baseMean = (rest, key, keys = [key]) => { const rs = restBaseline(rest, keys); return rs ? mean(rs.map((r) => r[key])) : null; };
+/** A typed value for the safety checks: any finite number within the plausibility cap. It
+    may be outside the input-sanity range (so not stored), but a real extreme reading must
+    still raise its card. */
+const plaus = (v, [lo, hi]) => (fin(v) && v >= lo && v <= hi ? v : null);
 /** The live interrupt (if any) for something that just happened during a test. `test` is
     the test as saved so far; `event` is { type: "feel", id, pos } (a feel chip just turned
     on) or { type: "reading", reading, pos } (a reading just entered); pos is "rest" or
     "up". Works with blood pressure off. -> null | { kind, copy, stop, buttons, urgent? }.
     stop: true means go straight to Stopped (Chest pain, with the chest urgent card first);
-    otherwise show the card with buttons [Stop, continue] (Stop first). Out-of-range typed
-    values ("That looks unusual") are ignored here; they are never stored either. */
+    otherwise show the card with buttons [Stop, continue] (Stop first). The reading is
+    checked as typed, even outside the input-sanity range (which only decides what is
+    stored and when "That looks unusual" shows); only values past THRESH.plaus are ignored
+    as impossible. */
 export function interruptFor(test, event) {
   if (!isObj(event)) return null;
   const C = SAFETY_COPY.interrupt;
@@ -813,15 +847,17 @@ export function interruptFor(test, event) {
   }
   if (event.type !== "reading" || !isObj(event.reading)) return null;
   const r = event.reading, up = event.pos === "up";
-  const R = THRESH.range, hr = inRange(r.hr, R.hr), sys = inRange(r.sys, R.sys), dia = inRange(r.dia, R.dia);
+  const P = THRESH.plaus, hr = plaus(r.hr, P.hr), sys = plaus(r.sys, P.sys), dia = plaus(r.dia, P.dia);
   const t = isObj(test) ? test : {};
   if (hr != null && hr >= THRESH.hrHigh) return card("hrHigh");
   if ((sys != null && sys >= THRESH.crisisSys) || (dia != null && dia >= THRESH.crisisDia)) return card("bpCrisis");
   if (up && sys != null && sys <= THRESH.lowSys) return card("bpLow");
-  if (up && sys != null && dia != null && fin(r.min) && r.min <= THRESH.ohMin) {
-    const base = restBaseline(t.rest, "bp");
+  if (up && (sys != null || dia != null) && fin(r.min) && r.min <= THRESH.ohMin) {
+    // Each number on its own: a drop in either one counts, even if she typed only one.
+    const bSys = baseMean(t.rest, "sys"), bDia = baseMean(t.rest, "dia");
     const symptomatic = (t.feel || []).length > 0 || (r.feel || []).length > 0 || (t.up || []).some((u) => (u.feel || []).length > 0);
-    if (base && symptomatic && (mean(base.map((x) => x.sys)) - sys >= THRESH.ohSys || mean(base.map((x) => x.dia)) - dia >= THRESH.ohDia)) return card("bpLow");
+    const dropped = (sys != null && bSys != null && bSys - sys >= THRESH.ohSys) || (dia != null && bDia != null && bDia - dia >= THRESH.ohDia);
+    if (symptomatic && dropped) return card("bpLow");
   }
   if (up && hr != null) {
     // "Previous" = the latest earlier upright reading that was taken (a skipped one doesn't count).
@@ -833,6 +869,9 @@ export function interruptFor(test, event) {
 
 /* ---------- standing test: the result (computed at render, never stored) ---------- */
 const fmtMin = (m) => (Number.isInteger(m) ? String(m) : String(Math.round(m * 10) / 10));
+/** A shown number: whole, or to one decimal (a two-reading baseline can end in .5). The
+    thresholds are always checked on the unrounded value, so text and finding agree. */
+const fmtN = (x) => (Number.isInteger(x) ? String(x) : String(Math.round(x * 10) / 10));
 /** The result of a stand test against published thresholds (A13.4). `opts`:
     teen (40-bpm threshold), stage / stageName, daySym (that day's POTS symptoms, for the
     "below" advice), supineCount (tests with a high lying BP, this one included),
@@ -844,12 +883,10 @@ export function standResult(test, opts = {}) {
   const { teen = false, stage = null, daySym = null, supineCount = 0, firstFinding = false, cycle = null } = opts;
   const T = THRESH, thr = teen ? T.hrTeen : T.hr, t = isObj(test) ? test : {};
   const byMin = (a, b) => a.min - b.min;
-  const baseReads = restBaseline(t.rest, "hr") || [];
-  // The baseline is rounded to a whole beat, so a shown rise and the threshold check agree.
-  const baseHr = baseReads.length ? Math.round(mean(baseReads.map((r) => r.hr))) : null;
-  const bpReads = restBaseline(t.rest, "bp");
-  const baseSys = bpReads ? Math.round(mean(bpReads.map((r) => r.sys))) : null;
-  const baseDia = bpReads ? Math.round(mean(bpReads.map((r) => r.dia))) : null;
+  // Baselines are plain (unrounded) means, as in interruptFor; only the display rounds.
+  const baseReads = restBaseline(t.rest, ["hr"]) || [];
+  const baseHr = baseMean(t.rest, "hr");
+  const baseSys = baseMean(t.rest, "sys", ["sys", "dia"]), baseDia = baseMean(t.rest, "dia", ["sys", "dia"]);
   const up = (t.up || []).filter((r) => fin(r.min)).sort(byMin);
   const upHr = up.filter((r) => fin(r.hr) && r.min <= T.upMaxMin);
   const insufficient = baseHr == null || upHr.length < 2;
@@ -867,16 +904,22 @@ export function standResult(test, opts = {}) {
   const restHigh = baseHr != null && baseHr >= T.restHigh;
   const counted = !insufficient && Math.abs(peakRise - thr) <= T.countedBand && [...baseReads, upHr[peakI], ...(pair || [])].some((r) => r && r.how === "counted");
   const hr120 = upHr.some((r) => r.hr >= T.hr120);
-  // Blood pressure (only when BP was on and a lying BP exists).
-  let bpStatus = "none", drop = null;
-  if (t.bp === true && baseSys != null) {
+  // Blood pressure (only when BP was on). "no_drop" needs a lying BP and at least one
+  // standing BP in the first 3 minutes; otherwise the status is "none" and bpMissing says
+  // what wasn't taken ("all", "lying", "standing" or "early"), so the result never says
+  // the blood pressure held steady when it wasn't measured.
+  let bpStatus = "none", drop = null, bpMissing = null;
+  const bpUp = up.filter((r) => fin(r.sys) && fin(r.dia));
+  if (t.bp === true && baseSys == null) bpMissing = bpUp.length ? "lying" : "all";
+  else if (t.bp === true && !bpUp.length) bpMissing = "standing";
+  else if (t.bp === true) {
     const meets = (r) => baseSys - r.sys >= T.ohSys || baseDia - r.dia >= T.ohDia;
-    const bpUp = up.filter((r) => fin(r.sys) && fin(r.dia));
     const early = bpUp.filter((r) => r.min <= T.ohMin), lastE = early[early.length - 1];
     const ohEarly = early.filter(meets).length >= 2 || (!!lastE && meets(lastE) && lastE.min >= T.ohMin);
     const ohSingle = !ohEarly && early.some(meets);
     const late = bpUp.filter((r) => r.min > T.ohMin && meets(r));
-    bpStatus = ohEarly ? "drop" : ohSingle ? "single_drop" : late.length ? "late_drop" : "no_drop";
+    bpStatus = ohEarly ? "drop" : ohSingle ? "single_drop" : late.length ? "late_drop" : early.length ? "no_drop" : "none";
+    if (bpStatus === "none") bpMissing = "early";
     const cands = ohEarly || ohSingle ? early.filter(meets) : late;
     if (cands.length) {
       const size = (r) => Math.max((baseSys - r.sys) / T.ohSys, (baseDia - r.dia) / T.ohDia);
@@ -895,25 +938,28 @@ export function standResult(test, opts = {}) {
   const lines = [];
   const L = (kind, text, urgency = null, urgent = null) => lines.push({ kind, text, urgency, urgent });
   const headline = insufficient ? null
-    : `${t.restPos === "left" ? "Lying on left side" : "Lying"}: ${baseHr}. Highest standing: ${peakHr} at minute ${fmtMin(peakMin)}. ${peakRise > 0 ? `That's a rise of ${peakRise} beats a minute.` : "That's no rise above lying."}`;
+    : `${t.restPos === "left" ? "Lying on left side" : "Lying"}: ${fmtN(baseHr)}. Highest standing: ${peakHr} at minute ${fmtMin(peakMin)}. ${peakRise > 0 ? `That's a rise of ${fmtN(peakRise)} beats a minute.` : "That's no rise above lying."}`;
   if (t.edited === true) L("edited", "Some readings were corrected after the test.");
   if (isObj(cycle) && fin(cycle.day)) L("cycle", `Cycle day ${cycle.day}${cycle.weekBefore ? " (week before your period)" : ""}`);
 
   const teenClause = teen ? "" : " (40 or more for ages 12–19)";
   const share = "Share this test, and ask whether an in-clinic standing test or a tilt test would help.";
   if (hrStatus === "met") {
-    if (preg) L("hr", `That's a rise of ${peakRise}. Outside pregnancy, clinicians use ${thr}.`, "visit");
-    else {
-      L("hr", `Your heart rate went up by ${peakRise} beats a minute and stayed up at minutes ${fmtMin(pair[0].min)} and ${fmtMin(pair[1].min)}. That's at or above the ${thr}-beat rise clinicians look for in a standing test${teenClause}. It isn't a diagnosis: dehydration, illness, some medicines and time spent in bed can do this too. But it's exactly the kind of result to show your clinician.`);
-      L("advice", share, "visit");
-    }
+    // In pregnancy only the met sentence is replaced (§4.8.6); the Advice line still follows.
+    if (preg) L("hr", `That's a rise of ${fmtN(peakRise)}. Outside pregnancy, clinicians use ${thr}.`);
+    else L("hr", `Your heart rate went up by ${fmtN(peakRise)} beats a minute and stayed up at minutes ${fmtMin(pair[0].min)} and ${fmtMin(pair[1].min)}. That's at or above the ${thr}-beat rise clinicians look for in a standing test${teenClause}. It isn't a diagnosis: dehydration, illness, some medicines and time spent in bed can do this too. But it's exactly the kind of result to show your clinician.`);
+    L("advice", share, "visit");
   } else if (hrStatus === "single_mid") {
-    L("hr", `One reading went up by ${peakRise}, but the next one didn't stay that high. Clinicians look for a rise that lasts, so this one is borderline. Worth sharing with the rest of your log, especially if you felt unwell.`, "visit");
+    // Built from the data: the first taken reading after the peak that is back under thr.
+    // Readings at or above thr before it (say minutes 1 and 2, too early for a pair) are
+    // covered by "as much as"; the sentence never claims the very next reading fell.
+    const back = upHr.find((r, i) => i > peakI && rises[i] < thr);
+    L("hr", `Your heart rate went up by as much as ${fmtN(peakRise)} (minute ${fmtMin(peakMin)}), but by minute ${fmtMin(back.min)} it had come back under the ${thr}-beat rise. Clinicians look for a rise that lasts, so this one is borderline. Worth sharing with the rest of your log, especially if you felt unwell.`, "visit");
   } else if (hrStatus === "single_last") {
     const last = upHr[upHr.length - 1];
-    L("hr", `Your last reading, at minute ${fmtMin(last.min)}, was ${rises[rises.length - 1]} above lying, at or above the ${thr}-beat rise clinicians look for. There was no later reading to show whether it lasted. Worth sharing; a clinician may repeat the test for longer.`, "visit");
+    L("hr", `Your last reading, at minute ${fmtMin(last.min)}, was ${fmtN(rises[rises.length - 1])} above lying, at or above the ${thr}-beat rise clinicians look for. There was no later reading to show whether it lasted. Worth sharing; a clinician may repeat the test for longer.`, "visit");
   } else if (hrStatus === "below") {
-    const lead = peakRise > 0 ? `Your heart rate went up by ${peakRise} beats a minute at most, under the ${thr}-beat rise clinicians look for in this test.` : `Your heart rate didn't rise above your lying rate, so it stayed under the ${thr}-beat rise clinicians look for in this test.`;
+    const lead = peakRise > 0 ? `Your heart rate went up by ${fmtN(peakRise)} beats a minute at most, under the ${thr}-beat rise clinicians look for in this test.` : `Your heart rate didn't rise above your lying rate, so it stayed under the ${thr}-beat rise clinicians look for in this test.`;
     L("hr", `${lead} One test is one snapshot, and results change with time of day, fluids, medicines and your cycle. If standing makes you feel unwell, share this anyway. How you feel matters as much as the number.`, feelAny || symHeavy ? "visit" : "self");
   } else {
     L("hr", "There aren't enough readings to work out a rise. Cyra needs a lying heart rate and at least two upright readings. What you entered is saved.");
@@ -922,13 +968,19 @@ export function standResult(test, opts = {}) {
   if (restHigh) L("restHigh", "A lying heart rate of 100 or more is something clinicians check separately. Mention it.", "visit");
   if (hr120) L("hr120", `Your standing heart rate reached ${peakHr}. Clinicians note readings of 120 or more.`);
   if (t.bp === true) {
-    const s = drop ? Math.max(0, drop.s) : 0, d = drop ? Math.max(0, drop.d) : 0;
+    const s = drop ? Math.max(0, drop.s) : 0, d = drop ? Math.max(0, drop.d) : 0, S = fmtN(s), Dd = fmtN(d);
+    const NONE = {
+      all: "No blood pressure was taken, so this test can't show whether your blood pressure dropped. Clinicians usually want both.",
+      lying: "No lying-down blood pressure was taken, so this test can't show whether your blood pressure dropped on standing. Clinicians usually want both.",
+      standing: "No standing blood pressure was taken, so this test can't show whether your blood pressure dropped. Clinicians usually want both.",
+      early: "No standing blood pressure was taken in the first 3 minutes, when clinicians check for a drop, so this test can't show one. The later readings held steady.",
+    };
     if (bpStatus === "drop") {
-      const by = s > 0 ? `by ${s} (top number)${d >= T.ohDia ? ` and ${d} (bottom number)` : ""}` : `by ${d} (bottom number)`;
+      const by = s > 0 ? `by ${S} (top number)${d >= T.ohDia ? ` and ${Dd} (bottom number)` : ""}` : `by ${Dd} (bottom number)`;
       L("bp", `Your blood pressure dropped ${by} within 3 minutes of standing. That's the size of drop clinicians check for separately from POTS, and they read it together with your heart rate. Please share this result soon.`, "now", t.fainted === "yes" ? "faint" : null);
-    } else if (bpStatus === "single_drop") L("bp", `One reading in the first 3 minutes showed a drop of ${s}/${d}. Worth sharing; a repeat test can show whether it lasts.`, "visit");
-    else if (bpStatus === "late_drop") L("bp", `Your blood pressure dropped after minute 3 (by ${s}/${d} at minute ${fmtMin(drop.min)}). Mention it. Clinicians look at later drops too.`, "visit");
-    else if (bpStatus === "none") L("bp", "No blood pressure was taken, so this test can't show whether your blood pressure dropped. Clinicians usually want both.");
+    } else if (bpStatus === "single_drop") L("bp", `One reading in the first 3 minutes showed a drop of ${S}/${Dd}. Worth sharing; a repeat test can show whether it lasts.`, "visit");
+    else if (bpStatus === "late_drop") L("bp", `Your blood pressure dropped after minute 3 (by ${S}/${Dd} at minute ${fmtMin(drop.min)}). Mention it. Clinicians look at later drops too.`, "visit");
+    else if (bpStatus === "none") L("bp", NONE[bpMissing]);
     else L("bp", "Your blood pressure held steady while you were upright.");
   }
   if (supineHigh && supineCount >= T.supineTests) L("supineHigh", `Your lying-down blood pressure was ${T.supineSys}/${T.supineDia} or higher on ${supineCount} tests. That's something clinicians track, especially with some POTS medicines. Mention it.`, "visit");
@@ -943,7 +995,7 @@ export function standResult(test, opts = {}) {
   }
   return {
     thr, baseHr, baseSys, baseDia, peakRise, peakMin, peakHr, sustainedAt: pair ? [pair[0].min, pair[1].min] : null,
-    hrStatus, restHigh, counted, edited: t.edited === true, hr120, bpStatus, drop, supineHigh, crisis, complete, minutesUp,
+    hrStatus, restHigh, counted, edited: t.edited === true, hr120, bpStatus, bpMissing, drop, supineHigh, crisis, complete, minutesUp,
     headline, lines,
   };
 }

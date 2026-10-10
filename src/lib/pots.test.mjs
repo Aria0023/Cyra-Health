@@ -113,6 +113,25 @@ test("a: newer ids and enum values survive a round trip; malformed ones are drop
   assert.equal(d.eps[0].pos, "hammock");
 });
 
+test("a: settings and test enums from a newer v:1 build survive a round trip", () => {
+  const raw = {
+    v: 1,
+    settings: { units: { fluid: "cup", salt: "mmolNa" }, paper: "legal", goals: { by: "dietitian" }, testPlan: "monthly", test: { method: "tilt", restMin: 15, sched: "every2", device: "ring" } },
+    tests: [{ id: "t1", date: D, t: "09:00", method: "tilt", restMin: 15, sched: "every2", device: "ring", status: "done" }],
+  };
+  const p = cleanPots(JSON.parse(json(cleanPots(raw))));
+  const s = p.settings;
+  assert.deepEqual([s.units.fluid, s.units.salt, s.paper, s.goals.by, s.testPlan], ["cup", "mmolNa", "legal", "dietitian", "monthly"]);
+  assert.deepEqual([s.test.method, s.test.restMin, s.test.sched, s.test.device], ["tilt", 15, "every2", "ring"]);
+  const t = p.tests[0];
+  assert.deepEqual([t.method, t.restMin, t.sched, t.device], ["tilt", 15, "every2", "ring"]);
+  // only unreadable values fall back to the default
+  const bad = cleanPots({ v: 1, settings: { test: { restMin: 0, sched: "1 3 5" } }, tests: [{ id: "t1", date: D, t: "09:00", restMin: 45, sched: 7 }] });
+  assert.deepEqual([bad.settings.test.restMin, bad.settings.test.sched, bad.tests[0].restMin, bad.tests[0].sched], [5, "1-3-5-10", 5, "1-3-5-10"]);
+  // an unknown fluid unit displays as ml
+  assert.equal(fmtFluid(1250, s.units), "1.25 L");
+});
+
 test("a: an archived custom symptom keeps its label and its history", () => {
   const p = cleanPots({ v: 1, settings: { customSym: [{ id: "c_abc12345", label: "Toe ache", archived: true }] }, days: { [D]: { sym: { c_abc12345: 2 } } } });
   assert.deepEqual(p.settings.customSym, [{ id: "c_abc12345", label: "Toe ache", archived: true }]);
@@ -138,11 +157,25 @@ test("a: lists are capped keeping the newest; tests sorted; tombstones never cap
   assert.equal(p.gone.length, 5000);
   assert.equal(p.meds.length, 30);
   assert.equal(p.meds[0].id, "m5");
+  // Adding at a cap keeps the newest, like the sanitizer: the new entry is always saved.
+  let q = on();
+  for (let i = 0; i < 5; i++) q = addSession(q, D, { id: `s${i}`, t: `0${i}:00`, mode: "walk" });
+  assert.deepEqual(q.days[D].move.map((x) => x.id), ["s1", "s2", "s3", "s4"]);
+  let r = on();
+  for (let i = 0; i < 31; i++) r = addEpisode(r, D, { id: `e${i}`, t: "10:00", sym: ["p_dzy"] });
+  assert.equal(r.days[D].eps.length, 30);
+  assert.equal(r.days[D].eps[29].id, "e30");
+  const full = cleanPots({ ...on(), tests });
+  assert.equal(full.tests.length, 500);
+  const added = upsertTest(full, { id: "new", date: D, t: "09:00", status: "running" });
+  assert.equal(added.tests.length, 500);
+  assert.equal(added.tests[added.tests.length - 1].id, "new", "a running test auto-saves at the cap");
+  assert.equal(cleanPots(added).tests.length, 500);
 });
 
 const messy = () => ({
   v: 1, epoch: "e1", epochAt: 5, on: true, since: D, extra: { z: [1] },
-  settings: { units: { fluid: "oz", salt: "bad" }, goals: { fluidMl: 2500.4, by: "me" }, presets: [{ id: "glass", label: " Glass ", kind: "water", ml: 250 }, { id: "BAD ID", label: "x" }], symTop: ["p_dzy", "p_dzy", "nope"], customTrig: [{ id: "x_aa", label: "  Wind  " }, { id: "c_aa", label: "wrong prefix" }], context: { status: "checking", onset: { ym: "2025-13", after: ["covid", "Bad Value"] }, conditions: ["eds"] }, questions: [{ id: "q1", text: "  Why?  " }, { id: "q2", text: "" }], test: { restMin: 7, cue: false } },
+  settings: { units: { fluid: "oz", salt: "Bad Value!" }, goals: { fluidMl: 2500.4, by: "me" }, presets: [{ id: "glass", label: " Glass ", kind: "water", ml: 250 }, { id: "BAD ID", label: "x" }], symTop: ["p_dzy", "p_dzy", "nope"], customTrig: [{ id: "x_aa", label: "  Wind  " }, { id: "c_aa", label: "wrong prefix" }], context: { status: "checking", onset: { ym: "2025-13", after: ["covid", "Bad Value"] }, conditions: ["eds"] }, questions: [{ id: "q1", text: "  Why?  " }, { id: "q2", text: "" }], test: { restMin: 70, cue: false, method: "Lean Test" } },
   days: { [D]: { rating: 3, up: 4.2, quick: "yes", sym: { p_dzy: 2.4 }, trig: ["t_heat", "t_heat"], iv: { ml: 1000, note: " clinic " }, doses: [{ id: "d1", medId: "m1", t: "08:05", slot: "08:00", state: "taken" }, { id: "d2", t: "08:05", state: "taken" }], aids: { m2: true, m3: "yes" }, eps: [{ id: "e1", t: "11:00", sym: ["p_psy"], sev: 3, faint: "almost", injured: "no", mins: 0 }], move: [{ id: "s1", t: "07:00", mode: "recumbent_bike", step: 9, main: 20 }], sleep: "poor", plan: { pl1: true, pl2: false }, note: "  felt bad  " }, [D2]: {} },
   tests: [{ id: "t2", date: D2, t: "08:00", status: "running", upd: 1, rest: [{ min: 4, hr: 70, how: "counted" }, { min: "5" }], up: [{ min: 1, atSec: 61, hr: 99, feel: ["p_vis", "bad"] }] }, { id: "t1", date: D, t: "09:00", status: "weird status!", ctx: { comp: "yes", mlBefore: 750 } }],
   tilt: [{ id: "tl1", date: D, told: "  normal-ish  ", hrRise: 35.6, fainted: "no" }],
@@ -163,6 +196,7 @@ test("a: idempotent, and stand-test status is never changed by the sanitizer", (
   assert.deepEqual(once.settings.context.onset, { ym: null, after: ["covid"] });
   assert.deepEqual(once.settings.questions, [{ id: "q1", text: "Why?" }]);
   assert.equal(once.settings.test.restMin, 5);
+  assert.equal(once.settings.test.method, "stand");
   assert.equal(once.settings.test.cue, false);
   assert.equal(once.days[D].note, "felt bad");
   assert.equal(once.days[D].iv.note, "clinic");
@@ -383,6 +417,12 @@ test("c: single readings: a peak that doesn't last (single_mid) vs a peak at the
   assert.equal(mid.hrStatus, "single_mid");
   assert.equal(mid.peakMin, 1);
   assert.ok(textOf(mid).includes("borderline"));
+  // minutes 1 and 2 both crossed (too early for a pair); minute 3 fell back: the sentence says so
+  assert.ok(textOf(mid).includes("went up by as much as 32 (minute 1), but by minute 3 it had come back under the 30-beat rise"), textOf(mid));
+  assert.ok(!textOf(mid).includes("the next one didn't stay") && !textOf(mid).includes("One reading"));
+  const dip = R(mk(REST70, [[1, 80], [3, 102], [5, 85], [10, 90]]));
+  assert.equal(dip.hrStatus, "single_mid");
+  assert.ok(textOf(dip).includes("as much as 32 (minute 3), but by minute 5"));
   const last10 = R(mk(REST70, [[1, 80], [3, 85], [5, 90], [10, 101]]));
   assert.equal(last10.hrStatus, "single_last");
   assert.ok(textOf(last10).includes("at minute 10") && textOf(last10).includes("no later reading"));
@@ -451,7 +491,21 @@ test("c: blood pressure: drop at minute 3 vs 4, single early drop, late drop, no
   assert.ok(!off.lines.some((l) => l.kind === "bp"));
   const noLyingBp = R(mk(REST70, [[1, 90, 118, 78], [3, 95, 118, 78]], { bp: true }));
   assert.equal(noLyingBp.bpStatus, "none");
-  assert.ok(textOf(noLyingBp).includes("No blood pressure was taken"));
+  assert.equal(noLyingBp.bpMissing, "lying");
+  assert.ok(textOf(noLyingBp).includes("No lying-down blood pressure was taken"));
+  const noBpAtAll = R(mk(REST70, [[1, 90], [3, 95]], { bp: true }));
+  assert.deepEqual([noBpAtAll.bpStatus, noBpAtAll.bpMissing], ["none", "all"]);
+  assert.ok(textOf(noBpAtAll).includes("No blood pressure was taken"));
+  // BP on and a lying BP, but every upright reading skipped BP: never "held steady"
+  const lyingOnly = R(mk(rest, [[1, 90], [3, 95], [5, 96], [10, 97]], { bp: true }));
+  assert.deepEqual([lyingOnly.bpStatus, lyingOnly.bpMissing], ["none", "standing"]);
+  assert.ok(textOf(lyingOnly).includes("No standing blood pressure was taken"));
+  assert.ok(!textOf(lyingOnly).includes("held steady"));
+  // standing BP only after minute 3, no later drop: can't speak for the first 3 minutes
+  const lateOnly = R(mk(rest, [[1, 90], [3, 95], [5, 96, 118, 78], [10, 97, 118, 78]], { bp: true }));
+  assert.deepEqual([lateOnly.bpStatus, lateOnly.bpMissing], ["none", "early"]);
+  assert.ok(textOf(lateOnly).includes("in the first 3 minutes, when clinicians check for a drop"));
+  assert.equal(steady.bpMissing, null);
 });
 
 test("c: supine high, crisis, resting HR 99 vs 100, high standing HR", () => {
@@ -462,6 +516,17 @@ test("c: supine high, crisis, resting HR 99 vs 100, high standing HR", () => {
   assert.equal(R(mk(REST70, [[1, 90, 185, 95], [3, 95, 130, 85]], { bp: true })).crisis, true);
   assert.equal(R(mk(REST70, [[1, 90, 130, 85], [3, 95, 130, 85]], { bp: true })).crisis, false);
   assert.equal(R(mk([[4, 99], [5, 99]], [[1, 110], [3, 112]])).restHigh, false);
+  // thresholds use the unrounded mean: 99.5 isn't 100, a 19.5 drop isn't 20, a 29.5 rise isn't 30
+  const half = R(mk([[4, 99, 119, 79], [5, 100, 120, 80]], [[1, 110, 100, 79], [3, 112, 100, 79]], { bp: true }));
+  assert.equal(half.baseHr, 99.5);
+  assert.equal(half.restHigh, false);
+  assert.equal(half.bpStatus, "no_drop");
+  assert.ok(half.headline.startsWith("Lying: 99.5."), half.headline);
+  const rise295 = R(mk([[4, 70], [5, 71]], [[1, 100], [3, 100]]));
+  assert.equal(rise295.hrStatus, "below");
+  assert.ok(textOf(rise295).includes("went up by 29.5 beats a minute at most"));
+  const sym = { ...mk([[4, 99, 119, 79], [5, 100, 120, 80]], [[1, 110, 100, 79]], { bp: true }), feel: ["p_dzy"] };
+  assert.equal(interruptFor(sym, { type: "reading", pos: "up", reading: { min: 3, hr: 112, sys: 100, dia: 79 } }), null, "the live card and the result agree");
   const rh = R(mk([[4, 100], [5, 100]], [[1, 110], [3, 112]]));
   assert.equal(rh.restHigh, true);
   assert.equal(rh.lines.find((l) => l.kind === "restHigh").urgency, "visit");
@@ -491,6 +556,8 @@ test("c: edited, heart-rate medicine, stopped, pregnancy and midlife lines", () 
   const preg = R({ ...base, restPos: "left" }, { stage: "preg" });
   assert.ok(preg.headline.startsWith("Lying on left side: 68."));
   assert.ok(textOf(preg).includes("That's a rise of 36. Outside pregnancy, clinicians use 30."));
+  assert.equal(preg.lines.find((l) => l.kind === "hr").urgency, null);
+  assert.deepEqual(preg.lines.filter((l) => l.kind === "advice").map((l) => [l.text, l.urgency]), [["Share this test, and ask whether an in-clinic standing test or a tilt test would help.", "visit"]]);
   assert.ok(!textOf(preg).includes("stayed up at minutes"));
   assert.ok(textOf(preg).includes("Heart rate normally rises during pregnancy"));
   assert.ok(textOf(R(base, { stage: "peri", firstFinding: true })).includes("more common from midlife"));
@@ -566,10 +633,40 @@ test("c2: blood-pressure crisis and low-BP cases; with BP off only the HR and ch
   const off = mk(REST70, [[1, 120]]);
   assert.equal(interruptFor(off, { type: "reading", pos: "up", reading: { min: 3, hr: 101 } }), null);
   assert.equal(interruptFor(off, { type: "reading", pos: "up", reading: { min: 3, hr: 100 } }).kind, "hrFall");
-  // typos outside the input ranges never raise a card
+  // a real extreme reading outside the input-sanity range (not stored) still raises its card
+  const fast = mk(REST70, [[1, 110, 110, 75]], { bp: true });
+  const up3 = (reading) => interruptFor(fast, { type: "reading", pos: "up", reading: { min: 3, ...reading } });
+  assert.equal(up3({ hr: 225 }).kind, "hrHigh");
+  assert.equal(up3({ hr: 300 }).kind, "hrHigh");
+  assert.equal(up3({ hr: 100, sys: 270, dia: 100 }).kind, "bpCrisis");
+  assert.equal(up3({ hr: 100, sys: 150, dia: 165 }).kind, "bpCrisis");
+  assert.equal(up3({ hr: 100, sys: 55, dia: 35 }).kind, "bpLow");
+  assert.equal(up3({ hr: 28 }).kind, "hrFall");
+  assert.equal(interruptFor(mk([], []), { type: "reading", pos: "rest", reading: { min: 4, hr: 230 } }).kind, "hrHigh");
+  // only impossible values (past the plausibility cap) are ignored as typos
   assert.equal(interruptFor(off, { type: "reading", pos: "up", reading: { min: 3, hr: 1700 } }), null);
   assert.equal(interruptFor(t, { type: "reading", pos: "up", reading: { min: 3, sys: 1185, dia: 79, hr: 119 } }), null);
+  assert.equal(up3({ hr: 301 }), null);
   assert.equal(interruptFor(t, null), null);
+  // the early drop while symptomatic needs only one number
+  assert.equal(interruptFor(symptomatic, { type: "reading", pos: "up", reading: { min: 1, hr: 100, sys: 95 } }).kind, "bpLow");
+  assert.equal(interruptFor(symptomatic, { type: "reading", pos: "up", reading: { min: 1, hr: 100, dia: 69 } }).kind, "bpLow");
+  assert.equal(interruptFor(symptomatic, { type: "reading", pos: "up", reading: { min: 1, hr: 100, sys: 101 } }), null);
+  assert.equal(interruptFor(t, { type: "reading", pos: "up", reading: { min: 1, hr: 100, sys: 95 } }), null, "not without symptoms");
+});
+
+test("c4: POTS_BANNED catches diagnoses stated, hedged or denied, and lets the disclaimers through", () => {
+  for (const bad of [
+    "You have POTS.", "you do not have POTS", "You don't have POTS", "You don’t have POTS", "You may have POTS", "You might have POTS",
+    "You likely have POTS", "You probably have POTS", "You could have POTS", "You've got POTS", "You’ve got POTS",
+    "This result is consistent with POTS", "This rules out POTS", "This test confirms POTS", "The rise suggests POTS",
+    "It indicates POTS", "points to POTS", "diagnosed with", "a positive test", "negative", "abnormal", "a normal result", "late", "missed",
+  ]) assert.ok(POTS_BANNED.test(bad), bad);
+  for (const ok of [
+    "Cyra can't diagnose POTS; only a clinician can.", "Some people with POTS notice symptoms shift with their cycle",
+    "conditions like POTS (postural orthostatic tachycardia syndrome)", "Is it safe for me to start an exercise plan?",
+    "late_drop", "Could a standing test or tilt-table test help explain why I feel unwell when I stand?",
+  ]) assert.ok(!POTS_BANNED.test(ok), ok);
 });
 
 test("c2: safety copy is free of banned wording and names the local emergency number", () => {
@@ -647,27 +744,61 @@ test("c4: 17 symptoms and 15 triggers, unique, well-formed, never a check-in or 
 });
 
 /* ================= c5. Simple view "Took my meds" ================= */
+const at = (h, m, s = 0, day = 8) => new Date(2026, 9, day, h, m, s).getTime();
+const pairs = (plan) => plan.logged.map((x) => [x.medId, x.slot]);
 test("c5: logs exactly what it promised, once; a 30-minute repeat guard; logs again later", () => {
-  let p = upsertMed(on(), { id: "mido", lib: "mido", name: "Midodrine", kind: "rx", times: ["08:00", "12:00"] });
-  p = upsertMed(p, { id: "prop", lib: "prop", name: "Propranolol", kind: "rx" });
-  p = upsertMed(p, { id: "comp", lib: "comp_waist", name: "Compression (waist-high)", kind: "aid" });
-  const at = (h, m, s = 0) => new Date(2026, 9, 8, h, m, s).getTime();
-  const promised = medsNowPlan(p, D, at(12, 4));
-  assert.deepEqual(promised.logged.map((x) => [x.medId, x.slot]), [["mido", "12:00"], ["prop", null]]);
-  const first = logMedsNow(p, D, at(12, 4));
-  assert.deepEqual(first.logged.map((x) => [x.medId, x.slot]), promised.logged.map((x) => [x.medId, x.slot]));
-  assert.deepEqual(first.p.days[D].doses.map((d) => [d.medId, d.slot, d.t, d.state]), [["mido", "12:00", "12:04", "taken"], ["prop", null, "12:04", "taken"]]);
+  // No medicine has times: each one logs once per tap, guarded for 30 minutes.
+  let u = upsertMed(on(), { id: "prop", lib: "prop", name: "Propranolol", kind: "rx" });
+  u = upsertMed(u, { id: "iron", lib: "iron", name: "Iron", kind: "supp" });
+  u = upsertMed(u, { id: "comp", lib: "comp_waist", name: "Compression (waist-high)", kind: "aid" });
+  const promised = medsNowPlan(u, D, at(12, 4));
+  assert.deepEqual(pairs(promised), [["prop", null], ["iron", null]]);
+  const first = logMedsNow(u, D, at(12, 4));
+  assert.deepEqual(pairs(first), pairs(promised));
+  assert.deepEqual(first.p.days[D].doses.map((d) => [d.medId, d.slot, d.t, d.state]), [["prop", null, "12:04", "taken"], ["iron", null, "12:04", "taken"]]);
   assert.deepEqual(first.logged.map((x) => x.id), first.p.days[D].doses.map((d) => d.id));
   const second = logMedsNow(first.p, D, at(12, 4, 5));
   assert.deepEqual(second.logged, []);
-  assert.deepEqual(second.guarded.map((g) => [g.medId, g.t]), [["mido", "12:04"], ["prop", "12:04"]]);
+  assert.deepEqual(second.guarded.map((g) => [g.medId, g.t]), [["prop", "12:04"], ["iron", "12:04"]]);
   assert.equal(second.p.days[D].doses.length, 2);
   const later = logMedsNow(first.p, D, at(12, 35));
-  assert.deepEqual(later.logged.map((x) => [x.medId, x.slot]), [["prop", null]]);
-  assert.equal(later.p.days[D].doses.length, 3);
-  // a stopped med is no longer active
-  const stopped = stopMed(p, "prop", "2026-10-07");
-  assert.deepEqual(medsNowPlan(stopped, D, at(12, 4)).logged.map((x) => x.medId), ["mido"]);
+  assert.deepEqual(pairs(later), [["prop", null], ["iron", null]]);
+  assert.equal(later.p.days[D].doses.length, 4);
+});
+
+test("c5: with any planned times, only timed medicines log, one dose each per tap", () => {
+  // Mixed list: Iron (no times) is never logged by the tile while Midodrine has times.
+  let p = upsertMed(on(), { id: "mido", lib: "mido", name: "Midodrine", kind: "rx", times: ["08:00", "12:00", "16:00"] });
+  p = upsertMed(p, { id: "iron", lib: "iron", name: "Iron", kind: "supp" });
+  for (const [h, slot] of [[8, "08:00"], [12, "12:00"], [16, "16:00"]]) {
+    const r = logMedsNow(p, D, at(h, 5));
+    assert.deepEqual(pairs(r), [["mido", slot]]);
+    p = r.p;
+  }
+  assert.deepEqual(p.days[D].doses.map((d) => [d.medId, d.slot, d.t]), [["mido", "08:00", "08:05"], ["mido", "12:00", "12:05"], ["mido", "16:00", "16:05"]]);
+  assert.deepEqual(pairs(medsNowPlan(p, D, at(17, 0))), [], "nothing due, so nothing logged");
+  // Once the timed medicine is stopped, the untimed one logs again.
+  assert.deepEqual(pairs(medsNowPlan(stopMed(p, "mido", "2026-10-07"), D, at(12, 4))), [["iron", null]]);
+  // Two slots in the window: one tap logs one dose (the latest slot at or before now) ...
+  let q = upsertMed(on(), { id: "pyri", lib: "pyri", name: "Pyridostigmine", kind: "rx", times: ["08:00", "10:00"] });
+  const both = logMedsNow(q, D, at(10, 0));
+  assert.deepEqual(both.p.days[D].doses.map((d) => [d.slot, d.t]), [["10:00", "10:00"]]);
+  // ... the earlier slot is never logged after a later one (no false dose at 10:45)
+  assert.deepEqual(pairs(medsNowPlan(both.p, D, at(10, 45))), []);
+  assert.deepEqual(pairs(medsNowPlan(q, D, at(9, 0))), [["pyri", "08:00"]]);
+  assert.deepEqual(pairs(medsNowPlan(q, D, at(7, 30))), [["pyri", "08:00"]], "else the next slot within the hour");
+  q = logDose(q, D, { medId: "pyri", slot: "08:00", state: "skipped", t: "08:10" });
+  assert.deepEqual(pairs(medsNowPlan(q, D, at(9, 30))), [["pyri", "10:00"]]);
+});
+
+test("c5: the repeat guard works across midnight", () => {
+  const p = upsertMed(on(), { id: "prop", name: "Propranolol", kind: "rx" });
+  const late = logMedsNow(p, D, at(23, 50));
+  assert.equal(late.logged.length, 1);
+  const after = logMedsNow(late.p, D2, at(0, 5, 0, 9));
+  assert.deepEqual(after.logged, []);
+  assert.deepEqual(after.guarded.map((g) => [g.medId, g.t]), [["prop", "23:50"]]);
+  assert.equal(logMedsNow(late.p, D2, at(0, 21, 0, 9)).logged.length, 1, "31 minutes later it logs");
 });
 
 /* ================= d. units, totals, due doses ================= */
@@ -697,6 +828,11 @@ test("d: day totals: IV kept apart, electrolytes count twice, missing is not zer
   p = setIv(p, D, { ml: 1000, note: "" });
   const t = dayTotals(p, D);
   assert.deepEqual([t.fluidMl, t.naMg, t.ivMl, t.iv, t.nIntake, t.hasFluid, t.hasSodium], [750, 980, 1000, true, 3, true, true]);
+  // A salty snack whose sodium she doesn't know is logged, amount unknown (never 0).
+  const snack = addIntake(on(), D, { kind: "food", label: "Salty snack", ml: null, naMg: null, presetId: "snack" });
+  assert.equal(snack.days[D].intake.length, 1);
+  assert.deepEqual([dayTotals(snack, D).nIntake, dayTotals(snack, D).naMg, dayTotals(snack, D).hasSodium, dayTotals(snack, D).fluidMl], [1, null, false, null]);
+  assert.equal(addIntake(on(), D, { ml: null, naMg: null }).days[D], undefined, "nothing at all to log");
   const saltOnly = dayTotals(addIntake(on(), D, { kind: "salt", naMg: 580 }), D);
   assert.equal(saltOnly.fluidMl, null);
   assert.equal(saltOnly.naMg, 580);

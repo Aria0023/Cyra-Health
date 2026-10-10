@@ -477,8 +477,9 @@ which is cleared on every change of stage into pregnancy.
 
 **A13.4 Standing test constants (normative).**
 - Rest before standing: 5 or 10 min (defaults: active stand 5, lean 10). Lying readings at rest minutes
-  restMin−1 and restMin; baseline HR = mean of the last two lying readings (or the one taken),
-  rounded to a whole beat (baseline BP likewise, over lying readings with both numbers).
+  restMin−1 and restMin; baseline HR = mean of the last two lying readings (or the one taken)
+  (baseline BP likewise, over lying readings with both numbers). Thresholds are compared with the
+  unrounded mean; numbers are shown whole or to one decimal (a half beat shows as .5).
 - Upright readings: at minutes 1, 3, 5, 10, or every minute 1–10 (BP only at 1, 3, 5, 10). Minute 0 = the
   user's "I'm up" tap. Timing is wall-clock. Late readings keep their actual time. Test ends at minute 10
   (hard stop of the clock at 10:30).
@@ -493,12 +494,17 @@ which is cleared on every change of stage into pregnancy.
 - Orthostatic BP drop: systolic ≥ 20 or diastolic ≥ 10 below baseline within 3 min ("drop" when ≥ 2 early
   readings meet it or the last early reading at ≥ 3 min does; "single_drop" for one; "late_drop" after 3 min).
 - Supine high: lying ≥ 140/90 (visit note when on ≥ 2 tests). Live crisis interrupt: any ≥ 180/120.
-  Live low interrupt: upright systolic ≤ 80, or an early drop while symptomatic.
+  Live low interrupt: upright systolic ≤ 80, or an early drop while symptomatic (systolic and diastolic
+  each checked on its own, so one typed number is enough).
 - Live interrupts that need no BP: turning on the Vision dimming, Sick or Short of breath feel chip while
   upright ("Lie down now and raise your legs. You can stop here.", Stop first); the Chest pain chip goes
   straight to Stopped with the chest urgent card; an upright HR ≥ 20 bpm below the previous upright reading;
   any HR ≥ 170.
-- Input sanity: HR 30–220, systolic 60–260, diastolic 30–160.
+- Input sanity: HR 30–220, systolic 60–260, diastolic 30–160 (outside = "That looks unusual. Check the
+  number?" and not stored). The live interrupts check the value as typed up to a plausibility cap
+  (HR 20–300, systolic 40–300, diastolic 20–250), so an extreme real reading still raises its card.
+- Blood pressure result: "held steady" only when a lying BP and at least one standing BP in the first
+  3 minutes were taken; otherwise the result says which blood pressure wasn't taken.
 - Safety: the safety screen and two gates precede every test; a red Stop (≥ 56 px, #A04545/#FFF) sits directly
   under the phase heading and again in a sticky bar, in every running phase; inputs are never auto-focused; the
   runner is the page's `<main>` with an `h1`; Stop leads to lie-down guidance and the urgent-care card; a faint

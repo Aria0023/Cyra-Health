@@ -117,7 +117,11 @@ export const THRESH = {
   lowSys: 80,                         // live low-BP interrupt (upright)
   hrFall: 20, hrHigh: 170,            // live interrupts that need no BP
   staleMin: 30,                       // a running test untouched this long is "interrupted" at launch
+  repeatMin: 30,                      // "Took my meds" skips a medicine taken this recently
   range: { hr: [30, 220], sys: [60, 260], dia: [30, 160] },   // input sanity; outside = not stored
+  // Live safety checks use the value as typed, up to these caps (beyond them it can only be a
+  // typo): a confirmed HR of 230 or a BP of 270/130 still raises its card, though it isn't stored.
+  plaus: { hr: [20, 300], sys: [40, 300], dia: [20, 250] },
 };
 
 /** The one emergency phrase every card uses (owner decision D11). */
@@ -161,8 +165,9 @@ export const GUIDE_COPY = [
   [{ b: "Don't raise salt or fluids without your clinician's OK if you have" }, " high blood pressure; heart, kidney or liver disease; have been told to limit salt or fluids; or are pregnant. High blood pressure in pregnancy, including pre-eclampsia, makes this especially important. Some POTS medicines also change what's right for you."],
 ];
 
-/** Words POTS output must never contain: no diagnosis stated or denied, no test called
+/** Words POTS output must never contain: no diagnosis stated, hedged ("you may have POTS",
+    "consistent with POTS") or denied ("you don't have POTS", "rules out POTS"), no test called
     positive / negative / (ab)normal, and no "late" or "missed". Checked by unit tests over
     every string the POTS engine returns and by e2e checks of the rendered POTS screens; it
     is not a whole-bundle grep (other screens legitimately say "Rh-negative"). */
-export const POTS_BANNED = /\b(you (do not|don't) have|you have) POTS\b(?! whether)|\bdiagnosed with\b|\b(positive|negative|abnormal|normal result)\b|\b(late|missed)\b/i;
+export const POTS_BANNED = /\byou(?:['’]ve)?\s+(?:(?:may|might|probably|likely|could|would|definitely|certainly|do not|don['’]t|do)\s+)?(?:have|got)\s+POTS\b(?! whether)|\b(?:consistent with|suggest(?:s|ive of)?|confirms?|rules? out|indicates?|points? to)\s+POTS\b|\bdiagnosed with\b|\b(positive|negative|abnormal|normal result)\b|\b(late|missed)\b/i;
