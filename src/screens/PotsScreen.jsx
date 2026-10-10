@@ -8,8 +8,11 @@ import { POTS_LOCKED_COPY } from "../lib/potsConstants.js";
 
    - A `pots` written by a newer build is shown read-only: one card, no writes.
    - First run: short setup cards, each skippable; finishing or skipping the last one sets
-     setupDone. Card 1 ("What would help?") chooses which Today cards show (settings.show);
-     later slices add their own cards through `setupCards` ({ id, title, children, next }).
+     setupDone. Card 1 ("What would help?") chooses which Today cards show (settings.show),
+     and offers only the tools this build has: `shows` lists the settings.show keys whose card
+     or section exists, added by the slice that ships it. With nothing to offer and no other
+     card, there is no setup yet (setupDone stays false, so the first run comes once the tools
+     do). Later slices add their own cards through `setupCards` ({ id, title, children, next }).
    - Sections (Today · Stand test · Move · Patterns · Report) are a button group, not a
      nested tablist. A section shows only once it has content (`sections`, filled by the
      slices that build each one); Stand test also needs settings.show.test and Move
@@ -20,11 +23,11 @@ const HINT = "Kept on this device. Never part of weekly counts. Cyra can't diagn
 
 /* Card 1: what Today shows. Choices stay on this card until Next saves them; Skip keeps what
    was there. */
-function WhatHelps({ show, setShow }) {
+function WhatHelps({ choices, show, setShow }) {
   return (
     <>
       <div className="mcrow" role="group" aria-label="What would help?" style={{ marginBottom: 10 }}>
-        {SHOW_CHOICES.map(([k, l]) => (
+        {choices.map(([k, l]) => (
           <button key={k} type="button" aria-pressed={!!show[k]} className={`mc ${show[k] ? "on" : ""}`} onClick={() => setShow({ ...show, [k]: !show[k] })}>{l}</button>
         ))}
       </div>
@@ -33,7 +36,7 @@ function WhatHelps({ show, setShow }) {
   );
 }
 
-export default function PotsScreen({ pots, setPots, locked, potsSec, setPotsSec, sections = {}, setupCards = [] }) {
+export default function PotsScreen({ pots, setPots, locked, potsSec, setPotsSec, sections = {}, setupCards = [], shows = [] }) {
   const headRef = useRef(null), cardRef = useRef(null);
   const [step, setStep] = useState(0);
   const [show, setShow] = useState(() => ({ ...(pots?.settings?.show || {}) }));
@@ -53,11 +56,12 @@ export default function PotsScreen({ pots, setPots, locked, potsSec, setPotsSec,
     );
   }
 
-  if (!pots.setupDone) {
-    const cards = [
-      { id: "help", title: "What would help?", children: <WhatHelps show={show} setShow={setShow} />, next: () => setPots((p) => setSettings(p, { show })) },
-      ...setupCards,
-    ];
+  const choices = SHOW_CHOICES.filter(([k]) => shows.includes(k));
+  const cards = pots.setupDone ? [] : [
+    ...(choices.length ? [{ id: "help", title: "What would help?", children: <WhatHelps choices={choices} show={show} setShow={setShow} />, next: () => setPots((p) => setSettings(p, { show })) }] : []),
+    ...setupCards,
+  ];
+  if (cards.length) {
     const i = Math.min(step, cards.length - 1), card = cards[i], last = i === cards.length - 1;
     const go = (save) => {
       if (save) card.next?.();

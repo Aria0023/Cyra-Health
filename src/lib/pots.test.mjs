@@ -4,7 +4,7 @@
    c4 ids, c5 logMedsNow, d units and totals, e weekly-count isolation, plus source greps. */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import {
   POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, newEpoch, markStaleRunning, newId, eraseLog, interruptFor,
   addIntake, setIv, removeItem, setRating, setUp, cycleSym, setSym, toggleTrig, addEpisode, logDose, setAid, addVitals,
@@ -999,13 +999,22 @@ test("s2: samePots ignores key order and undefined keys, and sees real changes",
 });
 
 /* ================= source greps (A13, design 11.6) ================= */
-test("source: POTS engine files make no network or storage call and never deep-clone with structuredClone", () => {
-  const dir = new URL("./", import.meta.url);
-  const files = readdirSync(dir).filter((f) => /^pots.*\.js$/.test(f));
-  assert.ok(files.includes("pots.js") && files.includes("potsConstants.js"));
-  for (const f of files) {
-    const src = readFileSync(new URL(f, dir), "utf8");
-    for (const bad of ["fetch(", "apiPost", "apiGet", "contribute(", "localStorage", "sessionStorage", "structuredClone", "XMLHttpRequest", "WebSocket", "sendBeacon"]) assert.ok(!src.includes(bad), `${f} contains ${bad}`);
-    assert.ok(!/from\s+["']\.\/(api|pulse|storage|notifications|wearables)\.js["']/.test(src), `${f} imports a networked module`);
+test("source: POTS files make no network or storage call and never deep-clone with structuredClone", () => {
+  // Every POTS-only source file: the engine (src/lib/pots*.js), the POTS tab
+  // (src/screens/PotsScreen.jsx) and everything under src/components/pots/ (the Settings
+  // switch today; each later slice's components land there and are covered automatically).
+  const lib = new URL("./", import.meta.url), src = new URL("../", import.meta.url);
+  const walk = (dir) => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(new URL(`${e.name}/`, dir)) : /\.(js|jsx|mjs)$/.test(e.name) && !/\.test\./.test(e.name) ? [new URL(e.name, dir)] : [])) : []);
+  const files = [
+    ...readdirSync(lib).filter((f) => /^pots.*\.js$/.test(f)).map((f) => new URL(f, lib)),
+    new URL("screens/PotsScreen.jsx", src),
+    ...walk(new URL("components/pots/", src)),
+  ];
+  const names = files.map((u) => u.pathname.split("/src/")[1]);
+  for (const must of ["lib/pots.js", "lib/potsConstants.js", "screens/PotsScreen.jsx", "components/pots/PotsAddon.jsx"]) assert.ok(names.includes(must), `${must} is scanned`);
+  for (const u of files) {
+    const text = readFileSync(u, "utf8"), f = u.pathname.split("/src/")[1];
+    for (const bad of ["fetch(", "apiPost", "apiGet", "contribute(", "localStorage", "sessionStorage", "indexedDB", "structuredClone", "XMLHttpRequest", "WebSocket", "sendBeacon"]) assert.ok(!text.includes(bad), `${f} contains ${bad}`);
+    assert.ok(!/from\s+["'][^"']*\/(api|pulse|storage|notifications|wearables)\.js["']/.test(text), `${f} imports a networked or storage module`);
   }
 });

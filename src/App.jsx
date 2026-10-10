@@ -349,16 +349,14 @@ export default function CyraDemo() {
     setPots((p) => turnOff(erase ? eraseLog(p) : p));
     ping(erase ? "POTS log erased and the POTS tab hidden" : "POTS tab hidden. Your POTS log is kept");
   };
-  /* Every change of stage INTO Pregnancy (from another stage this device had) asks the prenatal
-     team's exercise answer again: a "yes" given before this pregnancy never carries over. Loading
-     the record isn't a change; choosing a stage again passes through "no stage", so the last
-     stage she had is what counts. */
-  const potsStage = useRef(null);
-  useEffect(() => {
-    if (!hydrated || !stage) return;
-    if (stage === "preg" && potsStage.current && potsStage.current !== "preg") setPots(resetPregClearance);
-    potsStage.current = stage;
-  }, [stage, hydrated]);
+  /* Every change of stage INTO Pregnancy asks the prenatal team's exercise answer again: a "yes"
+     given before this pregnancy, or in an earlier one, never carries over. The answer is cleared
+     by her own stage actions, never by what the record says the stage was: when she taps
+     "<stageName> · change" (written to disk together with the empty stage, so a reload at the
+     stage chooser can't bring it back) and again whenever she or registration picks Pregnancy.
+     Loading, restoring or adopting a record isn't a change of stage, so a restore stays literal
+     (D4) and another tab's fresh answer is never cleared here. */
+  const chooseStage = (s) => { if (s === "preg") setPots(resetPregClearance); setStage(s); };
   const addKick = () => {
     const n = kicks + 1;
     setKicks(n);
@@ -713,7 +711,7 @@ export default function CyraDemo() {
     // leaves the device only when she moves it herself: inside an encrypted backup she
     // exports, and implied by the doctor-email text she chooses to send.
     const route = rulesRoute(ob);
-    setStage(route.stage); setStageName(route.label); setWelcome(route.welcome);
+    chooseStage(route.stage); setStageName(route.label); setWelcome(route.welcome);
     setDraft({}); setAppTab("home"); setPregTab("home"); setObBusy(false);
   };
 
@@ -766,8 +764,11 @@ export default function CyraDemo() {
         // POTS: another tab's newer epoch (an erase or a restore there) wins wholesale; within
         // one epoch both tabs' entries are kept and a removal or a cleared value stays removed
         // (a 3-way merge against what this tab last saved or adopted, lib/pots.js mergePots).
+        // A POTS tap made here while storage.load() was pending is already in state but not in
+        // this snapshot: rebase it onto the merge (3-way, this snapshot as the base) instead of
+        // overwriting it; the autosave that tap scheduled then saves it.
         const pm = mergePots(latest && latest.v === 1 ? latest.pots : undefined, out.pots, potsBase.current);
-        if (!samePots(pm, out.pots)) { out = { ...out, pots: pm }; setPots(pm); }
+        if (!samePots(pm, out.pots)) { const mine = out.pots; out = { ...out, pots: pm }; setPots((cur) => (cur === mine ? pm : mergePots(pm, cur, mine))); }
       }
       storage.save(out).then(() => {
         potsBase.current = out.pots;
@@ -799,7 +800,8 @@ export default function CyraDemo() {
       // changes nothing the stored copy is taken as it is (no save goes back and forth). The
       // stored copy becomes the merge base, so what this tab changed still counts as its change.
       const m = mergePots(saved.pots, cur.pots, potsBase.current);
-      setters.pots(samePots(m, saved.pots) ? saved.pots : m);
+      const took = cleanPots(samePots(m, saved.pots) ? saved.pots : m);
+      setPots((now) => (now === cur.pots ? took : mergePots(took, now, cur.pots))); // keeps a tap made since `cur` was read
       potsBase.current = cleanPots(saved.pots);
     }
     const today = (v) => JSON.stringify([v.stage, v.stage === "preg" ? v.pregLog?.[todayIso] ?? null : (v.days || []).find((d) => d.date === todayIso) ?? null, v.kickTally ?? null]);
@@ -1312,7 +1314,7 @@ export default function CyraDemo() {
     setRegAnswers(answers);
     // Reminders only when she ticked "Remind me"; unticked also cancels anything left over.
     applyReminders(!!reg.notifOptin);
-    setStage(sid);
+    chooseStage(sid);
     setStageName(slabel);
     setDraft({});
     setAppTab("home"); setPregTab("home");
@@ -1369,7 +1371,7 @@ export default function CyraDemo() {
           <button className="stagechip" onClick={() => setShowSettings((v) => !v)} aria-label="Settings and your data" aria-expanded={showSettings}>⚙</button>
         </header>
         {settingsSheet}
-        <IntakeScreen org={org} acct={acct} ob={ob} setOb={setOb} obBusy={obBusy} setObBusy={setObBusy} setStage={setStage} setStageName={setStageName} setWelcome={setWelcome} setAppTab={setAppTab} setPregTab={setPregTab} finishOnboarding={finishOnboarding} />
+        <IntakeScreen org={org} acct={acct} ob={ob} setOb={setOb} obBusy={obBusy} setObBusy={setObBusy} setStage={chooseStage} setStageName={setStageName} setWelcome={setWelcome} setAppTab={setAppTab} setPregTab={setPregTab} finishOnboarding={finishOnboarding} />
       </Shell>
     );
   }
@@ -1395,7 +1397,7 @@ export default function CyraDemo() {
         {stage && <span className="acctchip">{acct.anon ? "Anonymous" : acct.name || "You"}{research && hasServer() ? " · sharing counts ✓" : ""}</span>}
         {stage && orgId === "cyra" && <button className="stagechip" onClick={() => setShowPal((s) => !s)} aria-label="Color palette" aria-expanded={showPal}>🎨</button>}
         {stage && <button className="stagechip" onClick={() => setShowSettings((s) => !s)} aria-label="Check-in settings" aria-expanded={showSettings}>⚙</button>}
-        {stage && <button className="stagechip" onClick={() => { setStage(null); setOb({ step: 0, preg: null, age: null, per: null, vms: null }); setWelcome(""); }}>{stageName} · change</button>}
+        {stage && <button className="stagechip" onClick={() => { setPots(resetPregClearance); setStage(null); setOb({ step: 0, preg: null, age: null, per: null, vms: null }); setWelcome(""); }}>{stageName} · change</button>}
       </header>
 
       {/* ============ APP ============ */}
