@@ -701,13 +701,21 @@ export const stopMed = guard((p, id, day) => {
 });
 /** "Remove completely" (after a confirm): the medicine goes and is tombstoned. */
 export const removeMed = guard((p, id) => (p.meds.some((x) => x.id === id) ? { ...p, meds: p.meds.filter((x) => x.id !== id), gone: uniq([...p.gone, id]) } : p));
-/** Change settings. Nested objects (units, show, goals, test, context) merge one level. */
+/** Change settings. Nested objects (units, show, goals, test, context) merge one level.
+    An item that leaves one of the id lists (presets, plan, questions, her own symptoms and
+    triggers) is tombstoned, as removeItem does, so the next save's merge against the stored
+    copy, or a stale tab, can't bring it back. A reorder keeps every id, so tombstones nothing. */
 export const setSettings = guard((p, patch) => {
   if (!isObj(patch)) return p;
   const cur = p.settings, next = { ...cur };
   for (const [k, v] of Object.entries(patch)) next[k] = isObj(v) && isObj(cur[k]) ? { ...cur[k], ...v } : v;
-  return { ...p, settings: cleanSettings(next) };
+  const settings = cleanSettings(next);
+  const dropped = SETTINGS_ARRAYS.filter((k) => k in patch).flatMap((k) => { const keep = new Set(ids(settings[k])); return ids(cur[k]).filter((id) => !keep.has(id)); });
+  return dropped.length ? { ...p, settings, gone: uniq([...p.gone, ...dropped]) } : { ...p, settings };
 });
+/** "Remove" one of her plan items: it goes and is tombstoned (a stale tab can't merge it back).
+    Ticks on past days stay with their days. */
+export const removePlanItem = guard((p, id) => (p.settings.plan.some((x) => x.id === id) ? setSettings(p, { plan: p.settings.plan.filter((x) => x.id !== id) }) : p));
 const CUSTOM_KEY = { sym: "customSym", trig: "customTrig" };
 /** Add her own symptom ("sym") or trigger ("trig"), at most 20 in use (100 with archived).
     Re-adding an archived name brings it back. */
@@ -784,6 +792,15 @@ export function nearFaintDays(p, day) {
 }
 
 /* ---------- medicines: what's due ---------- */
+/** The time a dose for planned `slot` is logged at when she taps "Took it" for it: on an
+    earlier day, the slot's own time; today, the slot's time only when it is more than 3 hours
+    past (she is catching up), otherwise now. Never a time that hasn't happened yet. */
+export function doseTime(slot, isToday, nowMs = Date.now()) {
+  const now = nowHHMM(nowMs), s = toMin(slot);
+  if (s == null) return now;
+  if (!isToday) return slot;
+  return s < toMin(now) - 180 ? slot : now;
+}
 /** Medicines and supports active on `day` (started on or before it, not stopped before it). */
 export const activeMeds = (p, day) => (isObj(p) && Array.isArray(p.meds) ? p.meds.filter((m) => (!m.started || m.started <= day) && (!m.stopped || m.stopped >= day)) : []);
 /** Planned slots not logged yet, from `back` minutes ago to `ahead` minutes from now

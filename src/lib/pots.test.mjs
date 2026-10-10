@@ -12,7 +12,7 @@ import {
   setSessionFaint, addTilt, upsertMed, stopMed, removeMed, setSettings, addCustom, archiveCustom, upsertPreset,
   logMedsNow, medsNowPlan, dayTotals, dueDoses, standResult, mlToOz, ozToMl, saltGToNaMg, naMgToSaltG, fmtFluid, fmtSodium,
   OZ_ML, NA_PER_G_SALT, ID_RE, TAG_RE, localeUnits, turnOn, turnOff, finishSetup, resetPregClearance, samePots,
-  removePreset, updateItem, raiseSym, markQuick, setFaintPause, markOffered, nearFaintDays,
+  removePreset, updateItem, raiseSym, markQuick, setFaintPause, markOffered, nearFaintDays, removePlanItem, doseTime,
 } from "./pots.js";
 import { POTS_SYM, POTS_TRIG, POTS_BANNED, SAFETY_COPY, GUIDE_COPY, GUIDE_VERIFIED, POTS_MED_LIB, RUNNER_FEEL, FEEL_STOP, POTS_LOCKED_COPY, POTS_ERASE } from "./potsConstants.js";
 import { SYM, PSYM, GSYM } from "./constants.js";
@@ -1029,6 +1029,48 @@ test("s3: removePreset removes and tombstones a button, so a stale tab can't mer
   assert.ok(!mergePots(q, p, p).settings.presets.some((x) => x.id === "glass"), "a stale tab doesn't bring it back");
   assert.equal(removePreset(p, "nope"), p);
   const locked = { v: 2 }; assert.equal(removePreset(locked, "glass"), locked);
+});
+
+test("s3: removing a plan item tombstones it: the next save's merge and a stale tab can't bring it back", () => {
+  const saved = setSettings(on(), { plan: [{ id: "pl1", label: "Compression stockings" }, { id: "pl2", label: "Sit to shower" }] });
+  assert.deepEqual(saved.gone, [], "adding items tombstones nothing");
+  const removed = removePlanItem(saved, "pl1");
+  assert.deepEqual(removed.settings.plan.map((x) => x.id), ["pl2"]);
+  assert.ok(removed.gone.includes("pl1"));
+  // the single-tab autosave: mergePots(stored, local, base) with stored = base = the saved copy
+  assert.deepEqual(mergePots(saved, removed, saved).settings.plan.map((x) => x.id), ["pl2"], "the save keeps it removed");
+  // a stale tab (still has it, base = the old saved copy) saves after the removal was stored
+  const stale = setSettings(saved, { plan: [...saved.settings.plan, { id: "pl3", label: "Salt at breakfast" }] });
+  assert.deepEqual(mergePots(removed, stale, saved).settings.plan.map((x) => x.id), ["pl2", "pl3"], "the stale tab's new item stays, the removed one doesn't return");
+  // the same rule for any removal through setSettings; a reorder tombstones nothing
+  assert.ok(setSettings(saved, { plan: [saved.settings.plan[1]] }).gone.includes("pl1"));
+  assert.deepEqual(setSettings(saved, { plan: [...saved.settings.plan].reverse() }).gone, []);
+  assert.equal(removePlanItem(saved, "nope"), saved);
+  const locked = { v: 2 }; assert.equal(removePlanItem(locked, "pl1"), locked);
+});
+
+test("s3: doseTime never records a time that hasn't happened yet", () => {
+  const at = (hhmm) => new Date(`${D}T${hhmm}:00`).getTime();
+  assert.equal(doseTime("20:00", true, at("16:30")), "16:30", "a slot 3.5 h ahead logs now");
+  assert.equal(doseTime("20:00", true, at("16:00")), "16:00", "a slot 4 h ahead logs now");
+  assert.equal(doseTime("12:00", true, at("11:30")), "11:30", "a slot just ahead logs now");
+  assert.equal(doseTime("08:00", true, at("09:30")), "09:30", "a slot within 3 h past logs now");
+  assert.equal(doseTime("08:00", true, at("11:00")), "11:00", "exactly 3 h past logs now");
+  assert.equal(doseTime("08:00", true, at("11:01")), "08:00", "more than 3 h past: she is catching up, the slot's time");
+  assert.equal(doseTime("20:00", false, at("09:00")), "20:00", "an earlier day keeps the slot's time");
+  assert.equal(doseTime(null, true, at("09:00")), "09:00");
+  assert.equal(doseTime(null, false, at("09:00")), "09:00");
+});
+
+test("s3: a single reading (no test, resting) past the input-sanity range still raises its card", () => {
+  const card = (reading) => (interruptFor(null, { type: "reading", reading, pos: "rest" }) || {}).kind || null;
+  assert.equal(card({ hr: 230 }), "hrHigh", "HR 230 is outside the stored range but still a very fast heart rate");
+  assert.equal(card({ hr: 200 }), "hrHigh");
+  assert.equal(card({ sys: 270, dia: 130 }), "bpCrisis");
+  assert.equal(card({ sys: 150, dia: 165 }), "bpCrisis");
+  assert.equal(card({ sys: 185, dia: 100 }), "bpCrisis");
+  assert.equal(card({ hr: 400 }), null, "past the plausibility cap it can only be a typo");
+  assert.equal(card({ hr: 96, sys: 70, dia: 40 }), null, "the low-BP card is upright only");
 });
 
 test("s3: raiseSym only raises; markQuick, setFaintPause and markOffered set one field; nearFaintDays counts days, not episodes", () => {

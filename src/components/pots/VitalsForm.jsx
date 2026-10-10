@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { nowHHMM } from "../../lib/pots.js";
+import { nowHHMM, interruptFor } from "../../lib/pots.js";
 import { THRESH, SAFETY_COPY } from "../../lib/potsConstants.js";
 import { numOf, numProps } from "./ui.js";
 
@@ -7,12 +7,15 @@ import { numOf, numProps } from "./ui.js";
    written to days[iso].vit. No threshold sentence: these aren't timed tests. A number outside
    the sane range shows "That looks unusual. Check the number?" and isn't saved until fixed or
    cleared. A very fast heart rate or a very high blood pressure shows the same safety copy as
-   the stand test's live cards (SAFETY_COPY, clinician sign-off Q1). */
+   the stand test's live cards (SAFETY_COPY, clinician sign-off Q1), decided by the same rule
+   (interruptFor): the value as typed counts up to the plausibility caps, so a real extreme
+   reading outside the input-sanity range (HR 230, 270/130) still raises its card, though it
+   isn't saved. In pregnancy the card adds the maternity-team line, as every UrgentCard does. */
 const POS = [["lying", "Lying"], ["sitting", "Sitting"], ["standing", "Standing"]];
 const R = THRESH.range;
 const out = (v, [lo, hi]) => v != null && (v < lo || v > hi);
 
-export default function VitalsForm({ v, isToday, onSave, onCancel, headRef, announce }) {
+export default function VitalsForm({ v, isToday, preg = false, onSave, onCancel, headRef, announce }) {
   const [pos, setPos] = useState(v ? v.pos : null);
   const [hr, setHr] = useState(v && v.hr != null ? String(v.hr) : "");
   const [sys, setSys] = useState(v && v.sys != null ? String(v.sys) : "");
@@ -21,7 +24,9 @@ export default function VitalsForm({ v, isToday, onSave, onCancel, headRef, anno
   const [err, setErr] = useState("");
   const n = { hr: numOf(hr), sys: numOf(sys), dia: numOf(dia) };
   const bad = { hr: out(n.hr, R.hr), sys: out(n.sys, R.sys), dia: out(n.dia, R.dia) };
-  const high = (n.hr != null && n.hr >= THRESH.hrHigh && !bad.hr) ? "hrHigh" : ((n.sys != null && n.sys >= THRESH.crisisSys && !bad.sys) || (n.dia != null && n.dia >= THRESH.crisisDia && !bad.dia)) ? "bpCrisis" : null;
+  // Resting position: only the very-fast-heart-rate and very-high-reading cards apply here.
+  const ev = interruptFor(null, { type: "reading", reading: n, pos: "rest" });
+  const high = ev && (ev.kind === "hrHigh" || ev.kind === "bpCrisis") ? ev.kind : null;
   // Announced once when her typing makes the card appear (never for a reading opened to edit).
   const seen = useRef(high);
   useEffect(() => { if (high && high !== seen.current) announce?.(SAFETY_COPY.interrupt[high].copy); seen.current = high; }, [high]); // eslint-disable-line
@@ -51,7 +56,7 @@ export default function VitalsForm({ v, isToday, onSave, onCancel, headRef, anno
       {field("pots-vit-dia", "Bottom number (diastolic)", dia, setDia, bad.dia)}
       <label className="lab" htmlFor="pots-vit-t">Time</label>
       <input id="pots-vit-t" className="inp" type="time" aria-label="Time" value={t} onChange={(e) => setT(e.target.value)} />
-      {high && <div className="plaincard urgent" style={{ marginBottom: 10 }}><span className="uchip u-now">Now</span><p className="plain">{SAFETY_COPY.interrupt[high].copy}</p></div>}
+      {high && <div className="plaincard urgent" data-urgent={high} style={{ marginBottom: 10 }}><span className="uchip u-now">Now</span><p className="plain">{SAFETY_COPY.interrupt[high].copy}</p>{preg && <p className="plain">{SAFETY_COPY.urgent.pregSuffix}</p>}</div>}
       {err && <p className="errhint" role="alert" style={{ marginTop: 0, marginBottom: 10 }}>{err}</p>}
       <button type="button" className="cta" onClick={save}>{v ? "Save changes" : "Save reading"}</button>
       <button type="button" className="ghostbtn" onClick={onCancel}>Cancel</button>

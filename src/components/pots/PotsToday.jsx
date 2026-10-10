@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { POTS_RELATED } from "../../lib/potsConstants.js";
 import {
-  addIntake, removeItem, updateItem, setRating, setUp, setSleep, setNote, addEpisode, addVitals, logDose, upsertPreset,
-  setSettings, setFaintPause, raiseSym, markQuick, nearFaintDays, medsNowPlan, activeMeds, dayTotals, fmtFluid, fmtSodium, newId, nowHHMM,
+  addIntake, removeItem, updateItem, setRating, setUp, setSleep, setNote, setSym, addEpisode, addVitals, logDose, upsertPreset,
+  setSettings, setFaintPause, raiseSym, markQuick, nearFaintDays, medsNowPlan, activeMeds, dayTotals, fmtFluid, fmtSodium, newId, nowHHMM, doseTime,
 } from "../../lib/pots.js";
 import Advice from "../Advice.jsx";
 import FluidSalt from "./FluidSalt.jsx";
@@ -10,7 +10,7 @@ import AmountSheet, { SodiumAsk } from "./AmountSheet.jsx";
 import GoalSheet from "./GoalSheet.jsx";
 import PotsSymptoms, { PotsTriggers } from "./PotsSymptoms.jsx";
 import EpisodeForm from "./EpisodeForm.jsx";
-import MedsToday, { doseTime, DoseFix } from "./MedsToday.jsx";
+import MedsToday, { DoseFix } from "./MedsToday.jsx";
 import MedEditor from "./MedEditor.jsx";
 import PlanToday from "./PlanToday.jsx";
 import VitalsForm from "./VitalsForm.jsx";
@@ -28,7 +28,9 @@ export const TODAY_FOOT = "Saved on this device as you tap. Cyra's server never 
 export const NEAR_FAINT = "Nearly fainting most days is worth raising soon. Bring your log.";
 const RATINGS = [[1, "Good"], [2, "Okay"], [3, "Rough"], [4, "Bad"]];
 const SLEEP = [["good", "Slept well"], ["fair", "So-so"], ["poor", "Rough night"]];
-const NA_ASK = ["electrolyte", "broth", "tablet", "food", "salt"];
+// A drink button asks its sodium once when it is an electrolyte or broth; every salt button does.
+const NA_ASK = ["electrolyte", "broth"];
+const asksSodium = (pr) => pr.naMg == null && pr.naSkip !== true && (pr.ml == null || NA_ASK.includes(pr.kind));
 const POS_WORD = { lying: "Lying", sitting: "Sitting", standing: "Standing" };
 
 export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay, ping, stage, stageName, checkin, symMap, conditions }) {
@@ -42,6 +44,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
   const [fixOpen, setFixOpen] = useState(false);
   const [logOpen, setLogOpen] = useState(false);
   const [badOffer, setBadOffer] = useState(false);
+  const [fixHint, setFixHint] = useState(false);
   const [live, announce] = useAnnounce();
   const opener = useRef(null), headRef = useRef(null), topRef = useRef(null);
   const [focusBack, setFocusBack] = useState(null); // null | true (the opener) | an element id
@@ -49,7 +52,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
   useEffect(() => { if (sheet) headRef.current?.focus(); }, [sheet]);
   useEffect(() => {
     if (!focusBack) return;
-    const el = typeof focusBack === "string" ? document.getElementById(focusBack) : opener.current;
+    const el = focusBack === "top" ? null : typeof focusBack === "string" ? document.getElementById(focusBack) : opener.current;
     setFocusBack(null);
     if (el && el.isConnected && el.getClientRects().length) el.focus(); else topRef.current?.focus();
   }, [focusBack]);
@@ -59,11 +62,20 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
   const tot = dayTotals(pots, day);
   const whenWord = isToday ? "today" : `on ${dayLabel(day)}`;
   const remember = (x) => setLast({ ...x, day });
+  /* Undo takes back the whole tap: the items it added and, for "I feel bad now", each symptom
+     severity it raised (back to what it was, unless she has changed it since). */
   const undo = () => {
     if (!last) return;
-    setPots((p) => last.ids.reduce((q, id) => removeItem(q, last.day, id), p));
+    setPots((p) => {
+      let q = last.ids.reduce((x, id) => removeItem(x, last.day, id), p);
+      for (const [id, [prev, raised]] of Object.entries(last.sym || {})) {
+        if ((((q.days[last.day] || {}).sym || {})[id] || 0) === raised) q = setSym(q, last.day, id, prev);
+      }
+      return q;
+    });
     ping(`Removed: ${last.text}`);
     setLast(null);
+    setFocusBack("top"); // the Undo row goes with it
   };
   const toastFor = (item) => {
     if (item.ml != null) ping(`Added ${amountText(item.ml, units)}. ${fmtFluid((tot.fluidMl || 0) + item.ml, units)} ${whenWord}`);
@@ -77,7 +89,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
     setPots((p) => { const q = addIntake(p, day, item); return quick ? markQuick(q, day) : q; });
     remember({ ids: [id], text: `${intakeText(item, units)} at ${ampm(t)}` });
     toastFor(item);
-    if (pr.naMg == null && pr.naSkip !== true && NA_ASK.includes(pr.kind)) open({ kind: "naAsk", preset: pr, itemId: id, text: `${intakeText(item, units)} at ${ampm(t)}` });
+    if (asksSodium(pr)) open({ kind: "naAsk", preset: pr, itemId: id, text: `${intakeText(item, units)} at ${ampm(t)}` });
   };
   const saveAmount = (entry, { asButton, buttonLabel }) => {
     const item0 = sheet.item;
@@ -114,19 +126,16 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
     setPots((p) => { const cur = p.settings.presets.find((x) => x.id === preset.id); return cur ? upsertPreset(p, { ...cur, naSkip: true }) : p; });
     close();
   };
+  /* A new or changed episode that makes the near-faint advice appear (3 or more days in 7)
+     announces it, as the safety cards do. */
   const saveEpisode = (ep, { exerciseFaint }) => {
-    const ex = sheet.ep;
-    if (ex) {
-      setPots((p) => { const q = updateItem(p, day, ex.id, ep); return exerciseFaint ? setFaintPause(q, todayIso) : q; });
-      ping("Episode saved.");
-    } else {
-      const id = newId();
-      const before = nearFaintDays(pots, day), had = (d.eps || []).some((e) => e.faint === "almost");
-      setPots((p) => { const q = addEpisode(p, day, { ...ep, id }); return exerciseFaint ? setFaintPause(q, todayIso) : q; });
-      remember({ ids: [id], text: `Episode at ${ampm(ep.t)}` });
-      ping("Episode saved.");
-      if (ep.faint === "almost" && !had && before + 1 >= 3) announce(NEAR_FAINT);
-    }
+    const ex = sheet.ep, id = ex ? ex.id : newId();
+    const apply = (p) => (ex ? updateItem(p, day, id, ep) : addEpisode(p, day, { ...ep, id }));
+    const before = nearFaintDays(pots, day), after = nearFaintDays(apply(pots), day);
+    setPots((p) => { const q = apply(p); return exerciseFaint ? setFaintPause(q, todayIso) : q; });
+    if (!ex) remember({ ids: [id], text: `Episode at ${ampm(ep.t)}` });
+    ping("Episode saved.");
+    if (before < 3 && after >= 3) announce(NEAR_FAINT);
     close();
   };
   const saveVitals = (v) => {
@@ -163,8 +172,11 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
   };
   const saveBad = ({ sym, sev }) => {
     const id = newId(), t = nowHHMM();
+    // What each symptom's day severity was, and what this tap raised it to (for Undo).
+    const cur = ((pots.days[todayIso] || {}).sym) || {};
+    const raised = Object.fromEntries(sym.filter((x) => (cur[x] || 0) < sev).map((x) => [x, [cur[x] || 0, sev]]));
     setPots((p) => markQuick(sym.reduce((q, x) => raiseSym(q, todayIso, x, sev), addEpisode(p, todayIso, { id, t, sym, sev })), todayIso));
-    remember({ ids: [id], text: `Episode at ${ampm(t)}` });
+    setLast({ ids: [id], sym: raised, text: `Episode at ${ampm(t)}`, day: todayIso });
     ping("Saved. Rest if you need to.");
     close();
   };
@@ -174,11 +186,19 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
     if (next === 4 && !simple && !Object.entries(pots.days).some(([k, x]) => k !== day && x.rating === 4)) setBadOffer(true);
     if (next !== 4) setBadOffer(false);
   };
-  const goSimple = (on) => { setPots((p) => setSettings(p, { simple: on })); if (on) setDay(null); };
+  // Switching views replaces the tapped button: focus goes to the given control in the new view.
+  const goSimple = (on, focusId = on ? "pots-full-btn" : "pots-simple-btn") => { setPots((p) => setSettings(p, { simple: on })); if (on) setDay(null); setFocusBack(focusId); };
 
-  // Earliest day she can fix up: 30 days back, or any older day that already has POTS data.
-  const keys = Object.keys(pots.days).sort();
-  const minDay = keys[0] && keys[0] < addDays(todayIso, -30) ? keys[0] : addDays(todayIso, -30);
+  // Earliest day she can fix up: 30 days back, or any older day that already has POTS data
+  // (a brand-new day can only be backfilled within the last 30 days).
+  const keys = Object.keys(pots.days).sort(), back30 = addDays(todayIso, -30);
+  const minDay = keys[0] && keys[0] < back30 ? keys[0] : back30;
+  const pickDay = (v) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || v > todayIso) return;
+    if (v < back30 && !pots.days[v]) { setFixHint(true); return; }
+    setFixHint(false);
+    setDay(v === todayIso ? null : v);
+  };
   const rel = POTS_RELATED[stage] || [];
   const overlap = rel.filter((id) => ((checkin && checkin.sym) || {})[id] > 0).map((id) => `${symMap[id] || id} (${SEV_WORD[checkin.sym[id]] || "logged"})`);
   const sleepPicked = d.sleep != null ? d.sleep : checkin && checkin.sleepQ ? checkin.sleepQ : null;
@@ -192,7 +212,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
       case "naAsk": return <SodiumAsk {...common} preset={sheet.preset} onSave={naSave} onSkip={naSkip} />;
       case "goal": return <GoalSheet {...common} pots={pots} setPots={setPots} units={units} conditions={conditions} preg={preg} today={todayIso} onDone={(r) => { if (r === "saved") ping("Goals saved"); if (r === "cleared") ping("Goals cleared"); close(); }} />;
       case "episode": return <EpisodeForm {...common} pots={pots} ep={sheet.ep || null} isToday={isToday} preg={preg} announce={announce} onSave={saveEpisode} onCancel={() => close()} />;
-      case "vitals": return <VitalsForm {...common} v={sheet.v || null} isToday={isToday} announce={announce} onSave={saveVitals} onCancel={() => close()} />;
+      case "vitals": return <VitalsForm {...common} v={sheet.v || null} isToday={isToday} preg={preg} announce={announce} onSave={saveVitals} onCancel={() => close()} />;
       case "medEdit": return <MedEditor {...common} pots={pots} setPots={setPots} today={todayIso} pregOrTtc={pregOrTtc} ping={ping} onClose={() => close()} onGoCard={(w) => { if (simple) goSimple(false); close(w === "fluid" ? "pots-fluid-h" : "pots-salt-h"); }} />;
       case "medsCard": return (
         <section aria-labelledby="pots-medsheet-h">
@@ -243,33 +263,34 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
           <p className="plain" style={{ marginBottom: 4 }}><b>Today · {dayLabel(day)}</b></p>
         ) : (
           <div className="card" style={{ display: "block", marginBottom: 10 }}>
-            <p><b>Fixing up {dayLabel(day)}</b> <button type="button" className="linkbtn" onClick={() => { setDay(null); setFixOpen(false); }}>Back to today</button></p>
+            <p><b>Fixing up {dayLabel(day)}</b> <button type="button" className="linkbtn" onClick={() => { setDay(null); setFixOpen(false); setFixHint(false); setFocusBack("pots-fix-btn"); }}>Back to today</button></p>
           </div>
         )}
         {!simple && (
           <div style={{ marginBottom: 8 }}>
-            <button type="button" className="linkbtn" aria-expanded={fixOpen} aria-controls="pots-fix" onClick={() => setFixOpen((v) => !v)}>Fix up an earlier day</button>
+            <button type="button" id="pots-fix-btn" className="linkbtn" aria-expanded={fixOpen} aria-controls="pots-fix" onClick={() => setFixOpen((v) => !v)}>Fix up an earlier day</button>
             <div id="pots-fix" hidden={!fixOpen}>
-              <input className="inp" type="date" aria-label="Day to fix up" min={minDay} max={todayIso} value={day} style={{ marginTop: 6 }}
-                onChange={(e) => { const v = e.target.value; if (/^\d{4}-\d{2}-\d{2}$/.test(v) && v >= minDay && v <= todayIso) setDay(v === todayIso ? null : v); }} />
+              <input className="inp" type="date" aria-label="Day to fix up" aria-describedby={fixHint ? "pots-fix-hint" : undefined} min={minDay} max={todayIso} value={day} style={{ marginTop: 6 }}
+                onChange={(e) => pickDay(e.target.value)} />
+              {fixHint && <p className="hint" id="pots-fix-hint" role="status" style={{ margin: "0 0 8px" }}>You can add a new day from the last 30 days. Older days can be changed only if they already have POTS entries.</p>}
             </div>
           </div>
         )}
         {/* 2. Simple view switch */}
-        {!simple && <button type="button" className="linkbtn" aria-pressed={false} style={{ marginBottom: 10 }} onClick={() => goSimple(true)}>Simple view</button>}
+        {!simple && <button type="button" id="pots-simple-btn" className="linkbtn" aria-pressed={false} style={{ marginBottom: 10 }} onClick={() => goSimple(true)}>Simple view</button>}
 
         {/* 3. How's today? */}
         <p className="lab" id="pots-rate-l">How's today?</p>
         <div className="mcrow" role="group" aria-labelledby="pots-rate-l" style={{ marginBottom: 8 }}>
-          {RATINGS.map(([v, l]) => <button type="button" key={v} className={`mc ${d.rating === v ? "on" : ""}`} style={{ minHeight: 56, flex: "1 1 0" }} aria-pressed={d.rating === v} onClick={() => rate(v)}>{l}</button>)}
+          {RATINGS.map(([v, l]) => <button type="button" key={v} id={`pots-rate-${v}`} className={`mc ${d.rating === v ? "on" : ""}`} style={{ minHeight: 56, flex: "1 1 0" }} aria-pressed={d.rating === v} onClick={() => rate(v)}>{l}</button>)}
         </div>
         {d.rating >= 3 && <p className="hint" style={{ margin: "0 0 10px" }}>Sorry today's hard. Log one thing or nothing. Both are fine.</p>}
         {badOffer && !simple && (
           <div className="plaincard" style={{ marginBottom: 12 }}>
             <p className="plain">Switch to Simple view?</p>
             <div className="wearbtns">
-              <button type="button" className="sbtn" onClick={() => { setBadOffer(false); goSimple(true); }}>Yes</button>
-              <button type="button" className="sbtn" onClick={() => setBadOffer(false)}>No thanks</button>
+              <button type="button" className="sbtn" onClick={() => { setBadOffer(false); goSimple(true, "pots-rate-4"); }}>Yes</button>
+              <button type="button" className="sbtn" onClick={() => { setBadOffer(false); setFocusBack("pots-rate-4"); }}>No thanks</button>
             </div>
           </div>
         )}
@@ -292,7 +313,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
             {/* 6. Today's plan */}
             <PlanToday pots={pots} day={day} isToday={isToday} units={units} setPots={setPots} onDose={logSlot} />
             {/* 7. Fluids and sodium */}
-            {s.show.fluid && <FluidSalt pots={pots} day={day} units={units} setPots={setPots} onPreset={(pr) => logPreset(pr)} onOther={(mode) => open({ kind: "amount", mode })} onGoal={() => open({ kind: "goal" })} />}
+            {s.show.fluid && <FluidSalt pots={pots} day={day} whenWord={whenWord} units={units} setPots={setPots} onPreset={(pr) => logPreset(pr)} onOther={(mode) => open({ kind: "amount", mode })} onGoal={() => open({ kind: "goal" })} />}
             {/* 8. Right now */}
             {s.show.sym && <PotsSymptoms pots={pots} day={day} setPots={setPots} announce={announce} preg={preg} onEpisode={() => open({ kind: "episode" })} />}
             {nearFaint && <div style={{ marginBottom: 12 }}><Advice urgency="visit">{NEAR_FAINT}</Advice></div>}
@@ -316,7 +337,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
             <textarea id="pots-note" key={`${day}:${d.note || ""}`} className="inp" rows={3} maxLength={500} aria-label="Note for your clinician" defaultValue={d.note || ""}
               onBlur={(e) => { if (e.target.value.trim() !== (d.note || "")) setPots((p) => setNote(p, day, e.target.value)); }} />
             {/* 15. Today's log */}
-            <button type="button" className="disclosure" aria-expanded={logOpen} aria-controls="pots-log" onClick={() => setLogOpen((v) => !v)}>
+            <button type="button" id="pots-log-btn" className="disclosure" aria-expanded={logOpen} aria-controls="pots-log" onClick={() => setLogOpen((v) => !v)}>
               <span>{isToday ? `Today's log · ${logItems.length} item${logItems.length === 1 ? "" : "s"}` : `Log for ${dayLabel(day)}`}</span><span aria-hidden="true">{logOpen ? "−" : "+"}</span>
             </button>
             <div id="pots-log" className="bodypanel" hidden={!logOpen}>
@@ -326,7 +347,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
                   <div className="medinfo"><b>{hm(it.x.t)}</b><span>{it.text}</span></div>
                   <div className="wearbtns">
                     {it.type !== "move" && <button type="button" className="sbtn" aria-label={`Edit ${it.text} at ${hm(it.x.t)}`} onClick={() => edit(it)}>Edit</button>}
-                    <button type="button" className="sbtn" aria-label={`Remove ${it.text} at ${hm(it.x.t)}`} onClick={() => { setPots((p) => removeItem(p, day, it.x.id)); ping(`Removed: ${it.text}`); if (last && last.ids.includes(it.x.id)) setLast(null); }}>Remove</button>
+                    <button type="button" className="sbtn" aria-label={`Remove ${it.text} at ${hm(it.x.t)}`} onClick={() => { setPots((p) => removeItem(p, day, it.x.id)); ping(`Removed: ${it.text}`); if (last && last.ids.includes(it.x.id)) setLast(null); setFocusBack("pots-log-btn"); }}>Remove</button>
                   </div>
                 </div>
               ))}

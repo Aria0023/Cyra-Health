@@ -27,7 +27,7 @@ export default function QuickLog({ pots, units, plan, last, onDrink, onSalt, onM
         <button type="button" className="route" onClick={onFeelBad}>I feel bad now<span>Pick what's happening</span></button>
       </div>
       <LastRow last={last} onUndo={onUndo} big />
-      <button type="button" className="linkbtn" style={{ marginTop: 10 }} onClick={onFull}>Full view</button>
+      <button type="button" id="pots-full-btn" className="linkbtn" style={{ marginTop: 10 }} onClick={onFull}>Full view</button>
     </>
   );
 }
@@ -38,7 +38,7 @@ export function LastRow({ last, onUndo, big = false }) {
   return (
     <div className="medrow" style={{ borderTop: "none" }} aria-live="off">
       <div className="medinfo"><span>{big ? "Last logged" : "Last"}</span><b>{last.text}</b></div>
-      <button type="button" className="sbtn" style={big ? { minHeight: 56, padding: "7px 20px" } : undefined} aria-label={`Undo: ${last.text}`} onClick={onUndo}>Undo</button>
+      <button type="button" className="sbtn" data-undo="" style={big ? { minHeight: 56, padding: "7px 20px" } : undefined} aria-label={`Undo: ${last.text}`} onClick={onUndo}>Undo</button>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { POTS_SYM, POTS_ERASE } from "../../lib/potsConstants.js";
-import { setSettings, upsertPreset, removePreset, addCustom, archiveCustom, eraseLog, newId, fmtFluid, fmtSodium } from "../../lib/pots.js";
+import { setSettings, upsertPreset, removePreset, removePlanItem, addCustom, archiveCustom, eraseLog, newId, fmtFluid, fmtSodium } from "../../lib/pots.js";
 import Details from "../Details.jsx";
 import GoalSheet from "./GoalSheet.jsx";
 import MedEditor from "./MedEditor.jsx";
@@ -18,25 +18,27 @@ const FLUID_KINDS = [["water", "Water"], ["electrolyte", "Electrolyte drink"], [
 const SALT_KINDS = [["tablet", "Salt tablet"], ["food", "Salty food"], ["salt", "Table salt"], ["other", "Other salt"]];
 
 function Head({ id, children }) {
-  return <h3 className="lab" id={id} style={{ marginTop: 18 }}>{children}</h3>;
+  return <h3 className="lab" id={id} tabIndex={-1} style={{ marginTop: 18 }}>{children}</h3>;
 }
 
-/** One drink / salt button's edit form. */
+/** One drink / salt button's edit form. An unchanged amount keeps its stored ml (oz are shown
+    rounded), and a kind a newer build wrote is kept unless she picks another. */
 function PresetForm({ pr, units, onSave, onCancel }) {
   const drink = pr ? pr.ml != null : true;
   const [isDrink, setIsDrink] = useState(drink);
   const [label, setLabel] = useState(pr ? pr.label : "");
-  const [ml, setMl] = useState(pr ? mlIn(pr.ml, units) : "");
+  const [ml0] = useState(pr ? mlIn(pr.ml, units) : "");
+  const [ml, setMl] = useState(ml0);
   const [na, setNa] = useState(pr && pr.naMg != null ? String(pr.naMg) : "");
   const [kind, setKind] = useState(pr ? pr.kind : "water");
   const [err, setErr] = useState("");
   const kinds = isDrink ? FLUID_KINDS : SALT_KINDS;
   const save = () => {
-    const m = isDrink ? toMl(numOf(ml), units) : null, n = numOf(na);
+    const m = isDrink ? (pr && pr.ml != null && ml === ml0 ? pr.ml : toMl(numOf(ml), units)) : null, n = numOf(na);
     if (!label.trim()) { setErr("Give the button a name."); return; }
     if (isDrink && (m == null || m < 1 || m > 5000)) { setErr("Add the amount for a drink button."); return; }
     if (n != null && (n < 1 || n > 20000)) { setErr("Check the sodium number (mg from the label)."); return; }
-    const next = { ...(pr || {}), label: label.trim(), kind: kinds.some(([k]) => k === kind) ? kind : kinds[0][0], ml: m, naMg: n == null ? null : Math.round(n) };
+    const next = { ...(pr || {}), label: label.trim(), kind: kinds.some(([k]) => k === kind) || (pr && pr.kind === kind && isDrink === drink) ? kind : kinds[0][0], ml: m, naMg: n == null ? null : Math.round(n) };
     if (n != null) delete next.naSkip;
     onSave(next);
   };
@@ -70,6 +72,15 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
   const [newSym, setNewSym] = useState(""), [newTrig, setNewTrig] = useState(""), [newPlan, setNewPlan] = useState("");
   const subHead = useRef(null), opener = useRef(null), askRef = useRef(null);
   const [back, setBack] = useState(false);
+  // An inline form or confirm that closes hands focus to the control that opened it (by id,
+  // since that control may have been re-rendered), or to its section heading.
+  const [focusTo, setFocusTo] = useState(null); // [id, fallback id]
+  useEffect(() => {
+    if (!focusTo) return;
+    setFocusTo(null);
+    (document.getElementById(focusTo[0]) || document.getElementById(focusTo[1]))?.focus();
+  }, [focusTo]);
+  const closePr = (id) => { setEditPr(null); setFocusTo([id === "new" ? "pots-set-addbtn" : `pots-prchg-${id}`, "pots-set-btns"]); };
   useEffect(() => { if (sub) subHead.current?.focus(); }, [sub]);
   useEffect(() => { if (!back) return; setBack(false); if (opener.current?.isConnected) opener.current.focus(); }, [back]);
   useEffect(() => { if (ask) askRef.current?.focus(); }, [ask]);
@@ -129,18 +140,20 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
           <div className="medrow" style={{ flexWrap: "wrap" }}>
             <div className="medinfo" style={{ flex: "1 1 150px" }}><b>{pr.label}</b><span>{[pr.ml != null ? amountText(pr.ml, units) : null, pr.naMg != null ? naText(pr.naMg, units) : "sodium not set", (pr.id === s.defaultFluid && pr.ml != null) || (pr.id === s.defaultSalt && pr.ml == null) ? "in Simple view" : null].filter(Boolean).join(" · ")}</span></div>
             <div className="wearbtns" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
-              <button type="button" className="sbtn" aria-label={`Change ${pr.label}`} onClick={() => setEditPr(editPr === pr.id ? null : pr.id)}>Change</button>
+              <button type="button" id={`pots-prchg-${pr.id}`} className="sbtn" aria-label={`Change ${pr.label}`} aria-expanded={editPr === pr.id} onClick={() => setEditPr(editPr === pr.id ? null : pr.id)}>Change</button>
               <button type="button" className="sbtn" aria-label={`Move ${pr.label} up`} disabled={i === 0} onClick={() => set({ presets: move(presets, i, -1) })}>↑</button>
               <button type="button" className="sbtn" aria-label={`Move ${pr.label} down`} disabled={i === presets.length - 1} onClick={() => set({ presets: move(presets, i, 1) })}>↓</button>
-              {!((pr.id === s.defaultFluid && pr.ml != null) || (pr.id === s.defaultSalt && pr.ml == null)) && <button type="button" className="sbtn" aria-label={`Use ${pr.label} in Simple view`} onClick={() => set(pr.ml != null ? { defaultFluid: pr.id } : { defaultSalt: pr.id })}>Use in Simple view</button>}
-              <button type="button" className="sbtn" aria-label={`Remove ${pr.label}`} onClick={() => { setPots((p) => removePreset(p, pr.id)); ping(`${pr.label} button removed`); }}>Remove</button>
+              {!((pr.id === s.defaultFluid && pr.ml != null) || (pr.id === s.defaultSalt && pr.ml == null)) && <button type="button" className="sbtn" aria-label={`Use ${pr.label} in Simple view`} onClick={() => { set(pr.ml != null ? { defaultFluid: pr.id } : { defaultSalt: pr.id }); setFocusTo([`pots-prchg-${pr.id}`, "pots-set-btns"]); }}>Use in Simple view</button>}
+              <button type="button" className="sbtn" aria-label={`Remove ${pr.label}`} onClick={() => { setPots((p) => removePreset(p, pr.id)); ping(`${pr.label} button removed`); setFocusTo(["pots-set-btns", "pots-set-btns"]); }}>Remove</button>
             </div>
           </div>
-          {editPr === pr.id && <PresetForm pr={pr} units={units} onCancel={() => setEditPr(null)} onSave={(next) => { setPots((p) => upsertPreset(p, next)); setEditPr(null); ping("Saved"); }} />}
+          {editPr === pr.id && <PresetForm pr={pr} units={units} onCancel={() => closePr(pr.id)} onSave={(next) => { setPots((p) => upsertPreset(p, next)); closePr(pr.id); ping("Saved"); }} />}
         </div>
       ))}
-      {editPr === "new" && <PresetForm pr={null} units={units} onCancel={() => setEditPr(null)} onSave={(next) => { setPots((p) => upsertPreset(p, { ...next, id: newId() })); setEditPr(null); ping(`${next.label} button added`); }} />}
-      {presets.length < 16 ? (editPr !== "new" && <button type="button" className="linkbtn" style={{ marginTop: 8 }} onClick={() => setEditPr("new")}>+ Add a button</button>) : <p className="hint">You have 16 buttons, the most there can be. Remove one to add another.</p>}
+      {presets.length < 16
+        ? <button type="button" id="pots-set-addbtn" className="linkbtn" style={{ marginTop: 8 }} aria-expanded={editPr === "new"} onClick={() => setEditPr(editPr === "new" ? null : "new")}>+ Add a button</button>
+        : <p className="hint">You have 16 buttons, the most there can be. Remove one to add another.</p>}
+      {editPr === "new" && <PresetForm pr={null} units={units} onCancel={() => closePr("new")} onSave={(next) => { setPots((p) => upsertPreset(p, { ...next, id: newId() })); closePr("new"); ping(`${next.label} button added`); }} />}
 
       <Head id="pots-set-sym">My symptoms</Head>
       <p className="hint" style={{ marginBottom: 6 }}>Your first 8 chips, in order. The rest are under "More symptoms".</p>
@@ -150,7 +163,7 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
           <div className="wearbtns" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
             <button type="button" className="sbtn" aria-label={`Move ${symLabel(pots, id)} up`} disabled={i === 0} onClick={() => set({ symTop: move(top, i, -1) })}>↑</button>
             <button type="button" className="sbtn" aria-label={`Move ${symLabel(pots, id)} down`} disabled={i === top.length - 1} onClick={() => set({ symTop: move(top, i, 1) })}>↓</button>
-            <button type="button" className="sbtn" aria-label={`Take ${symLabel(pots, id)} out of your first 8`} onClick={() => set({ symTop: top.filter((x) => x !== id) })}>Take out</button>
+            <button type="button" className="sbtn" aria-label={`Take ${symLabel(pots, id)} out of your first 8`} onClick={() => { set({ symTop: top.filter((x) => x !== id) }); setFocusTo(["pots-set-sym", "pots-set-sym"]); }}>Take out</button>
           </div>
         </div>
       ))}
@@ -161,9 +174,9 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
           <div className="medrow" key={id}>
             <div className="medinfo"><b>{symLabel(pots, id)}</b>{own ? <span>Your own</span> : null}</div>
             <div className="wearbtns" style={{ flexWrap: "wrap", justifyContent: "flex-end" }}>
-              {top.length < 8 && <button type="button" className="sbtn" aria-label={`Add ${symLabel(pots, id)} to your first 8`} onClick={() => set({ symTop: [...top, id] })}>Add to first 8</button>}
-              <button type="button" className="sbtn" aria-label={`Hide ${symLabel(pots, id)}`} onClick={() => set({ symHidden: [...s.symHidden, id] })}>Hide</button>
-              {own && <button type="button" className="sbtn" aria-label={`Remove ${own.label}`} onClick={() => { setPots((p) => archiveCustom(p, "sym", id)); ping(`${own.label} removed. Past days keep it.`); }}>Remove</button>}
+              {top.length < 8 && <button type="button" className="sbtn" aria-label={`Add ${symLabel(pots, id)} to your first 8`} onClick={() => { set({ symTop: [...top, id] }); setFocusTo(["pots-set-sym", "pots-set-sym"]); }}>Add to first 8</button>}
+              <button type="button" className="sbtn" aria-label={`Hide ${symLabel(pots, id)}`} onClick={() => { set({ symHidden: [...s.symHidden, id] }); setFocusTo(["pots-set-sym", "pots-set-sym"]); }}>Hide</button>
+              {own && <button type="button" className="sbtn" aria-label={`Remove ${own.label}`} onClick={() => { setPots((p) => archiveCustom(p, "sym", id)); ping(`${own.label} removed. Past days keep it.`); setFocusTo(["pots-set-sym", "pots-set-sym"]); }}>Remove</button>}
             </div>
           </div>
         );
@@ -172,7 +185,7 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
       {hidden.map((id) => (
         <div className="medrow" key={id}>
           <div className="medinfo"><b>{symLabel(pots, id)}</b></div>
-          <button type="button" className="sbtn" aria-label={`Show ${symLabel(pots, id)}`} onClick={() => set({ symHidden: s.symHidden.filter((x) => x !== id) })}>Show</button>
+          <button type="button" className="sbtn" aria-label={`Show ${symLabel(pots, id)}`} onClick={() => { set({ symHidden: s.symHidden.filter((x) => x !== id) }); setFocusTo(["pots-set-sym", "pots-set-sym"]); }}>Show</button>
         </div>
       ))}
       <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 10 }}>
@@ -186,7 +199,7 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
       {ownTrig.map((x) => (
         <div className="medrow" key={x.id}>
           <div className="medinfo"><b>{x.label}</b></div>
-          <button type="button" className="sbtn" aria-label={`Remove ${x.label}`} onClick={() => { setPots((p) => archiveCustom(p, "trig", x.id)); ping(`${x.label} removed. Past days keep it.`); }}>Remove</button>
+          <button type="button" className="sbtn" aria-label={`Remove ${x.label}`} onClick={() => { setPots((p) => archiveCustom(p, "trig", x.id)); ping(`${x.label} removed. Past days keep it.`); setFocusTo(["pots-set-trig", "pots-set-trig"]); }}>Remove</button>
         </div>
       ))}
       <div style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 8 }}>
@@ -205,7 +218,7 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
       {s.plan.map((it) => (
         <div className="medrow" key={it.id}>
           <div className="medinfo"><b>{it.label}</b></div>
-          <button type="button" className="sbtn" aria-label={`Remove ${it.label} from your plan`} onClick={() => set({ plan: s.plan.filter((x) => x.id !== it.id) })}>Remove</button>
+          <button type="button" className="sbtn" aria-label={`Remove ${it.label} from your plan`} onClick={() => { setPots((p) => removePlanItem(p, it.id)); setFocusTo(["pots-set-plan", "pots-set-plan"]); }}>Remove</button>
         </div>
       ))}
       {s.plan.length < 12 && (
@@ -227,12 +240,12 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
       <p className="rfoot" style={{ marginTop: 4 }}>{REMINDERS_LINE}</p>
 
       <Head id="pots-set-del">Delete POTS log</Head>
-      {!ask && <button type="button" className="ghostbtn" style={{ marginTop: 0 }} onClick={() => setAsk(true)}>Delete POTS log</button>}
+      {!ask && <button type="button" id="pots-set-delbtn" className="ghostbtn" style={{ marginTop: 0 }} onClick={() => setAsk(true)}>Delete POTS log</button>}
       {ask && (
         <div className="plaincard urgent" style={{ marginBottom: 10 }}>
           <p className="plain" tabIndex={-1} ref={askRef}>{POTS_ERASE}</p>
           <button type="button" className="cta" style={{ background: "#A04545" }} onClick={() => { setPots((p) => eraseLog(p)); setAsk(false); ping("POTS log erased"); onBack(); }}>Delete POTS log</button>
-          <button type="button" className="ghostbtn" onClick={() => setAsk(false)}>Keep it</button>
+          <button type="button" className="ghostbtn" onClick={() => { setAsk(false); setFocusTo(["pots-set-delbtn", "pots-set-del"]); }}>Keep it</button>
         </div>
       )}
       <button type="button" className="ghostbtn" onClick={onBack}>Back to Today</button>

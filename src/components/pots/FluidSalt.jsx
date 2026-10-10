@@ -7,12 +7,12 @@ import { amountText, naText, isOz, isGSalt, numOf, numProps } from "./ui.js";
    here suggests an amount: goals are hers, and sodium comes from labels she copies. */
 
 /** Progress against her own goal, in her display unit. Stored values are ml / mg sodium. */
-function GoalMeter({ label, total, goal, by, conv, unitWord, goalText }) {
+function GoalMeter({ label, whenWord, total, goal, by, conv, unitWord, goalText }) {
   const t = total == null ? 0 : conv(total), gl = conv(goal);
   const reached = total != null && total >= goal;
   return (
     <>
-      <div className="goalbar" role="progressbar" aria-valuemin={0} aria-valuemax={gl} aria-valuenow={Math.min(t, gl)} aria-label={`${label} today, ${t} of your ${gl} ${unitWord}`}>
+      <div className="goalbar" role="progressbar" aria-valuemin={0} aria-valuemax={gl} aria-valuenow={Math.min(t, gl)} aria-label={`${label} ${whenWord}, ${t} of your ${gl} ${unitWord}`}>
         <div className="goalfill" style={{ width: `${Math.min(100, ((total || 0) / goal) * 100)}%` }} />
       </div>
       <p className="hint" style={{ margin: "0 0 8px" }}>{reached ? "Goal reached" : `of ${goalText} · ${by === "clinician" ? "your clinician's goal" : "your goal"}`}</p>
@@ -22,7 +22,9 @@ function GoalMeter({ label, total, goal, by, conv, unitWord, goalText }) {
 const ozConv = (ml) => Math.round(mlToOz(ml));
 const gConv = (mg) => Math.round(naMgToSaltG(mg) * 10) / 10;
 
-/** The IV fluids row: given by a clinic, shown on its own, never part of the oral total. */
+/** The IV fluids row: given by a clinic, shown on its own, never part of the oral total. The
+    two fields are keyed on the day only, so saving one on blur never remounts the other (the
+    field she just moved into keeps focus and the phone keyboard stays up). */
 function IvRow({ iv, day, setPots }) {
   const on = !!iv;
   const put = (patch) => setPots((p) => setIv(p, day, { ...(((p.days || {})[day] || {}).iv || {}), ...patch }));
@@ -30,7 +32,7 @@ function IvRow({ iv, day, setPots }) {
     <div style={{ marginTop: 10 }}>
       <button type="button" className={`mc ${on ? "on" : ""}`} aria-pressed={on} onClick={() => setPots((p) => setIv(p, day, on ? null : { ml: null, note: "" }))}>IV fluids today (given by a clinic)</button>
       {on && (
-        <div style={{ marginTop: 4 }} key={`${day}:${iv.ml ?? ""}:${iv.note || ""}`}>
+        <div style={{ marginTop: 4 }} key={day}>
           <label className="lab" htmlFor="pots-iv-ml" style={{ marginTop: 8 }}>How much (ml)</label>
           <input id="pots-iv-ml" className="inp" {...numProps()} aria-label="How much (ml)" defaultValue={iv.ml ?? ""} onBlur={(e) => { const v = numOf(e.target.value); put({ ml: v == null ? null : Math.round(v) }); }} />
           <label className="lab" htmlFor="pots-iv-note" style={{ marginTop: 0 }}>Note (optional)</label>
@@ -41,12 +43,12 @@ function IvRow({ iv, day, setPots }) {
   );
 }
 
-export default function FluidSalt({ pots, day, units, setPots, onPreset, onOther, onGoal }) {
+export default function FluidSalt({ pots, day, whenWord = "today", units, setPots, onPreset, onOther, onGoal }) {
   const tot = dayTotals(pots, day), g = pots.settings.goals, presets = pots.settings.presets;
   const iv = (pots.days[day] || {}).iv || null;
   const fromDrinks = ((pots.days[day] || {}).intake || []).filter((x) => x.ml != null && x.naMg != null).reduce((a, x) => a + x.naMg, 0);
   const drinks = presets.filter((x) => x.ml != null);
-  const salts = presets.filter((x) => x.ml == null && (x.naMg != null || ["tablet", "food", "salt"].includes(x.kind)));
+  const salts = presets.filter((x) => x.ml == null); // every salt button, whatever its kind
   const naLabel = (pr) => (pr.naMg != null ? ` · ${pr.kind === "salt" ? "about " : ""}${naText(pr.naMg, units)}` : "");
   return (
     <>
@@ -57,7 +59,7 @@ export default function FluidSalt({ pots, day, units, setPots, onPreset, onOther
           {tot.iv && <span style={{ fontSize: 13, fontWeight: 500, color: "var(--soft)" }}>{` · plus ${tot.ivMl != null ? fmtFluid(tot.ivMl, units) : "some"} IV`}</span>}
         </p>
         {g.fluidMl != null
-          ? <GoalMeter label="Fluids" total={tot.fluidMl} goal={g.fluidMl} by={g.by} conv={isOz(units) ? ozConv : (x) => x} unitWord={isOz(units) ? "fluid ounces" : "millilitres"} goalText={fmtFluid(g.fluidMl, units)} />
+          ? <GoalMeter label="Fluids" whenWord={whenWord} total={tot.fluidMl} goal={g.fluidMl} by={g.by} conv={isOz(units) ? ozConv : (x) => x} unitWord={isOz(units) ? "fluid ounces" : "millilitres"} goalText={fmtFluid(g.fluidMl, units)} />
           : <button type="button" className="linkbtn" style={{ margin: "2px 0 8px" }} onClick={onGoal}>Set a goal</button>}
         <div className="mcrow">
           {drinks.map((pr) => (
@@ -77,7 +79,7 @@ export default function FluidSalt({ pots, day, units, setPots, onPreset, onOther
         </p>
         {fromDrinks > 0 && <p className="hint" style={{ margin: "0 0 6px" }}>{`Includes ${naText(fromDrinks, units)} (from drinks)`}</p>}
         {g.naMg != null
-          ? <GoalMeter label="Sodium" total={tot.naMg} goal={g.naMg} by={g.by} conv={isGSalt(units) ? gConv : (x) => x} unitWord={isGSalt(units) ? "grams of salt" : "milligrams of sodium"} goalText={fmtSodium(g.naMg, units)} />
+          ? <GoalMeter label="Sodium" whenWord={whenWord} total={tot.naMg} goal={g.naMg} by={g.by} conv={isGSalt(units) ? gConv : (x) => x} unitWord={isGSalt(units) ? "grams of salt" : "milligrams of sodium"} goalText={fmtSodium(g.naMg, units)} />
           : <button type="button" className="linkbtn" style={{ margin: "2px 0 8px" }} onClick={onGoal}>Set a goal</button>}
         <div className="mcrow">
           {salts.map((pr) => (

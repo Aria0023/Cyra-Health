@@ -18,16 +18,24 @@ function whenTime(w, set) {
   return now;
 }
 
-/** item: an intake being edited (or null for a new one); mode "fluid" | "salt".
+/** item: an intake being edited (or null for a new one); mode "fluid" | "salt". Editing keeps
+    the stored amounts exactly unless she changes that number or its unit (oz and g salt are
+    shown rounded, so converting back unasked would drift: 250 ml shows as 8.5 oz). A kind a
+    newer build wrote passes through untouched, with its label, unless she picks another.
     onSave({ kind, label, ml, naMg, t }, { asButton, buttonLabel }) */
 export default function AmountSheet({ mode, item, units, isToday, onSave, onCancel, headRef }) {
   const salt = mode === "salt";
   const kinds = salt ? SALT_KINDS : FLUID_KINDS;
-  const [amt, setAmt] = useState(() => (item ? (salt ? naIn(item.naMg, isGSalt(units)) : mlIn(item.ml, units)) : ""));
-  const [oz, setOz] = useState(isOz(units));
-  const [na, setNa] = useState(() => (item && !salt ? naIn(item.naMg, isGSalt(units)) : ""));
-  const [gSalt, setGSalt] = useState(isGSalt(units));
-  const [kind, setKind] = useState(() => (item && kinds.some(([k]) => k === item.kind) ? item.kind : salt ? "tablet" : "water"));
+  const [init] = useState(() => ({
+    amt: item ? (salt ? naIn(item.naMg, isGSalt(units)) : mlIn(item.ml, units)) : "",
+    na: item && !salt ? naIn(item.naMg, isGSalt(units)) : "",
+    oz: isOz(units), gSalt: isGSalt(units),
+  }));
+  const [amt, setAmt] = useState(init.amt);
+  const [oz, setOz] = useState(init.oz);
+  const [na, setNa] = useState(init.na);
+  const [gSalt, setGSalt] = useState(init.gSalt);
+  const [kind, setKind] = useState(() => (item && item.kind ? item.kind : salt ? "tablet" : "water"));
   const [when, setWhen] = useState(item || !isToday ? "set" : "now");
   const [t, setT] = useState(item ? item.t : isToday ? nowHHMM() : "12:00");
   const [asButton, setAsButton] = useState(false);
@@ -37,13 +45,16 @@ export default function AmountSheet({ mode, item, units, isToday, onSave, onCanc
   const u = { fluid: oz ? "oz" : "ml", salt: gSalt ? "gSalt" : "mgNa" };
   const save = () => {
     const a = numOf(amt), n = salt ? null : numOf(na);
-    const ml = salt ? null : toMl(a, u), naMg = salt ? toNaMg(a, gSalt) : toNaMg(n, gSalt);
+    const sameAmt = item && amt === init.amt && (salt ? gSalt === init.gSalt : oz === init.oz);
+    const sameNa = item && !salt && na === init.na && gSalt === init.gSalt;
+    const ml = salt ? null : sameAmt ? item.ml : toMl(a, u);
+    const naMg = salt ? (sameAmt ? item.naMg : toNaMg(a, gSalt)) : sameNa ? item.naMg : toNaMg(n, gSalt);
     if ((ml == null && naMg == null) || (ml != null && (ml < 1 || ml > 5000)) || (naMg != null && (naMg < 1 || naMg > 20000))) {
       setErr(salt ? "Add an amount of sodium or salt, from the label." : "Add an amount, up to 5,000 ml at a time.");
       return;
     }
-    const label = (item && item.kind === kind && item.label) || (name.trim() || KIND_LABEL[kind]);
-    onSave({ kind, label: label.slice(0, 30), ml, naMg, t: whenTime(when, t) }, { asButton, buttonLabel: (name.trim() || KIND_LABEL[kind]).slice(0, 30) });
+    const label = (item && item.kind === kind && item.label) || (name.trim() || KIND_LABEL[kind] || "Other");
+    onSave({ kind, label: label.slice(0, 30), ml, naMg, t: whenTime(when, t) }, { asButton, buttonLabel: (name.trim() || KIND_LABEL[kind] || "Other").slice(0, 30) });
   };
   const amountLabel = salt ? (gSalt ? "Amount, grams of salt" : "Amount, milligrams of sodium") : (oz ? "Amount, fluid ounces" : "Amount, millilitres");
   return (

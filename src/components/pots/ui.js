@@ -65,14 +65,19 @@ export const numProps = (decimal = false) => ({ type: "text", inputMode: decimal
 /** The screen-owned safety announcement (design 4.4, "Announcing safety cards"): one empty
     sr-only role="alert" node rendered from mount; a card that appears because of an answer she
     just picked writes its first sentence into it once. The node is cleared first, so the same
-    sentence picked again later is read again. Cards rendered on load are never announced. */
+    sentence picked again later is read again. Cards rendered on load are never announced.
+    Calls made together (one tap that shows two cards, e.g. a faint while exercising) are
+    joined in call order, so a later one never cancels an earlier one: the emergency sentence,
+    announced first, is always read. */
 export function useAnnounce() {
   const [live, setLive] = useState("");
-  const timer = useRef(null);
+  const timer = useRef(null), queue = useRef([]);
   const announce = (text) => {
+    const s = firstSentence(text);
+    if (s && !queue.current.includes(s)) queue.current.push(s);
     clearTimeout(timer.current);
     setLive("");
-    timer.current = setTimeout(() => setLive(firstSentence(text)), 60);
+    timer.current = setTimeout(() => { setLive(queue.current.join(" ")); queue.current = []; }, 60);
   };
   return [live, announce];
 }

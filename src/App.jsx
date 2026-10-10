@@ -46,7 +46,7 @@ import { storage } from "./lib/storage.js";
 import { encryptBackup, decryptBackup } from "./lib/backup.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
 import { isNative, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
-import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, logDose, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
+import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, logDose, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
 /* What persists on the device: the health record and settings. Never UI state.
@@ -200,6 +200,7 @@ export default function CyraDemo() {
      lib/pots.js action, each of which leaves a locked record unchanged. */
   const [pots, setPots] = useState(POTS_EMPTY);
   const [potsSec, setPotsSec] = useState("today"); // the POTS tab's section (UI only, not saved)
+  const [potsHomeLast, setPotsHomeLast] = useState(null); // Home "POTS today": the dose its "Took it" just logged, for its Undo row (UI only)
   const [potsDate, setPotsDate] = useState(null); // POTS → Today's logging day while fixing up an earlier one; null = today (UI only, so every launch starts on today)
   const potsBase = useRef(null); // the `pots` this tab last saved or took from storage: the base of the 3-way merge (mergePots)
   const wipingRef = useRef(false); // Delete everything / Start over in progress: nothing may be saved any more
@@ -1401,7 +1402,9 @@ export default function CyraDemo() {
       showJournal={showJournal} setShowJournal={setShowJournal} journal={journal} jDraft={jDraft} setJDraft={setJDraft} setJournal={setJournal}
       potsCard={potsTab && potsOk
         ? <PotsHome pots={pots} totals={potsTotals} todayIso={todayIso} onQuickLog={() => openPots(true)}
-            onTook={(med, slot) => { const t = nowHHMM(); setPots((p) => logDose(p, todayIso, { id: newPotsId(), medId: med.id, slot, state: "taken", t })); ping(`${med.name} logged at ${t.replace(/^0/, "")}`); }} />
+            last={potsHomeLast && potsHomeLast.day === todayIso ? potsHomeLast : null}
+            onUndo={() => { const l = potsHomeLast; if (!l) return; setPots((p) => removePotsItem(p, l.day, l.id)); setPotsHomeLast(null); ping(`Removed: ${l.text}`); }}
+            onTook={(med, slot) => { const t = nowHHMM(), id = newPotsId(); setPots((p) => logDose(p, todayIso, { id, medId: med.id, slot, state: "taken", t })); setPotsHomeLast({ id, day: todayIso, text: `${med.name} ${slot.replace(/^0/, "")} at ${t.replace(/^0/, "")}` }); ping(`${med.name} logged at ${t.replace(/^0/, "")}`); }} />
         : potsOffer ? <PotsOffer onOn={() => { setPots((p) => markOffered(p, todayIso)); potsOn(); }} onNot={() => setPots((p) => markOffered(p, todayIso))} /> : null}
     />
   );

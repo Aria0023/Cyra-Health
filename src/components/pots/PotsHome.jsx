@@ -1,10 +1,21 @@
+import { useEffect, useRef, useState } from "react";
 import { fmtFluid, fmtSodium, dueDoses, nowHHMM, toMin } from "../../lib/pots.js";
 import { hm } from "./ui.js";
+import { LastRow } from "./QuickLog.jsx";
 
 /* Home's "POTS today" card (design 1.5), right under the check-in button while POTS tools are
    on. "Today's insight" is never replaced: POTS has its own card. Totals come from App
-   (dayTotals); missing is never zero. One planned dose that's due can be logged from here. */
-export default function PotsHome({ pots, totals, todayIso, onTook, onQuickLog }) {
+   (dayTotals); missing is never zero. One planned dose that's due can be logged from here, and
+   the dose just logged can be undone from the "Last" row (the last thing logged can always be
+   undone). Its "Took it" button goes once the dose is logged, so focus moves to that Undo. */
+export default function PotsHome({ pots, totals, todayIso, onTook, onQuickLog, last = null, onUndo }) {
+  const box = useRef(null), card = useRef(null);
+  const [undone, setUndone] = useState(0);
+  useEffect(() => {
+    if (last && (!document.activeElement || document.activeElement === document.body)) box.current?.querySelector("[data-undo]")?.focus();
+  }, [last]);
+  // After Undo (its row goes), focus the card's "Took it" again, or Quick log.
+  useEffect(() => { if (undone) card.current?.querySelector(".takebtn, .route")?.focus(); }, [undone]);
   const units = pots.settings.units, g = totals.goals;
   const parts = [];
   if (totals.fluidMl != null) parts.push(`Fluids ${fmtFluid(totals.fluidMl, units)}${g.fluidMl != null ? ` of your ${fmtFluid(g.fluidMl, units)}` : ""}`);
@@ -14,8 +25,9 @@ export default function PotsHome({ pots, totals, todayIso, onTook, onQuickLog })
   return (
     <>
       <p className="section-lab">POTS today</p>
-      <div className="plaincard" style={{ marginBottom: 10 }}>
+      <div className="plaincard" style={{ marginBottom: 10 }} ref={card}>
         <p className="plain">{parts.length ? parts.join(" · ") : "Nothing logged yet. That's fine."}</p>
+        <div ref={box}><LastRow last={last} onUndo={() => { onUndo(); setUndone((n) => n + 1); }} /></div>
         {due && (
           <div className="medrow">
             <div className="medinfo"><b>{`${due.med.name} · ${hm(due.slot)}`}</b></div>
