@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { removeTilt, newId } from "../../lib/pots.js";
 import { Choice } from "./StandSafety.jsx";
 import { numOf, numProps, dayLabel } from "./ui.js";
@@ -47,8 +47,12 @@ export function TiltForm({ today, onSave, onCancel, headRef }) {
   );
 }
 
-/** Her saved tilt-table results, newest first, word for word. */
+/** Her saved tilt-table results, newest first, word for word. Remove asks first: what she
+    typed goes for good (it is tombstoned, so no other window brings it back). */
 export function TiltList({ pots, setPots, ping, onRemoved }) {
+  const [asking, setAsking] = useState(null); // id of the result whose Remove confirm is open
+  const confirmRef = useRef(null);
+  useEffect(() => { if (asking) confirmRef.current?.focus(); }, [asking]);
   const list = [...(pots.tilt || [])].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   if (!list.length) return null;
   return (
@@ -58,9 +62,18 @@ export function TiltList({ pots, setPots, ping, onRemoved }) {
         const head = [dayLabel(x.date), x.where].filter(Boolean).join(" · ");
         const sub = [x.hrRise != null ? `heart-rate rise they mentioned: ${x.hrRise}` : null, x.bpNote || null, x.fainted ? FAINT_WORD[x.fainted] || null : null].filter(Boolean).join(" · ");
         return (
-          <div className="medrow" key={x.id}>
-            <div className="medinfo"><b>{head}</b>{x.told ? <span style={{ whiteSpace: "pre-wrap" }}>{x.told}</span> : null}{sub ? <span>{sub}</span> : null}</div>
-            <button type="button" className="sbtn" aria-label={`Remove the tilt-table result from ${dayLabel(x.date)}`} onClick={() => { setPots((p) => removeTilt(p, x.id)); ping("Tilt-table result removed"); onRemoved?.(); }}>Remove</button>
+          <div key={x.id}>
+            <div className="medrow">
+              <div className="medinfo"><b>{head}</b>{x.told ? <span style={{ whiteSpace: "pre-wrap" }}>{x.told}</span> : null}{sub ? <span>{sub}</span> : null}</div>
+              <button type="button" id={`pots-tilt-rm-${x.id}`} className="sbtn" aria-label={`Remove the tilt-table result from ${dayLabel(x.date)}`} aria-expanded={asking === x.id} onClick={() => setAsking(asking === x.id ? null : x.id)}>Remove</button>
+            </div>
+            {asking === x.id && (
+              <div className="plaincard urgent" style={{ margin: "4px 0 10px" }}>
+                <p className="plain" tabIndex={-1} ref={confirmRef}>{`Remove the ${dayLabel(x.date)} tilt-table result? What you typed is removed from your POTS log.`}</p>
+                <button type="button" className="cta" style={{ background: "#A04545", marginTop: 10 }} onClick={() => { setPots((p) => removeTilt(p, x.id)); setAsking(null); ping("Tilt-table result removed"); onRemoved?.(); }}>Remove</button>
+                <button type="button" className="ghostbtn" onClick={() => { setAsking(null); document.getElementById(`pots-tilt-rm-${x.id}`)?.focus(); }}>Keep it</button>
+              </div>
+            )}
           </div>
         );
       })}

@@ -6,7 +6,7 @@ import {
 import { RUNNER_FEEL, SAFETY_COPY, THRESH } from "../../lib/potsConstants.js";
 import UrgentCard, { urgentText } from "./UrgentCard.jsx";
 import { StandSafety, StandSetup, Choice, CheckRow, methodDefaults } from "./StandSafety.jsx";
-import StandResult, { EditReadings, resultFor, riseText, methodWord } from "./StandResult.jsx";
+import StandResult, { EditReadings, resultFor, riseText, riseShown, methodWord } from "./StandResult.jsx";
 import { TrendChart, fmtN } from "./HrChart.jsx";
 import { TiltForm, TiltList } from "./TiltNotes.jsx";
 import VitalsForm from "./VitalsForm.jsx";
@@ -103,13 +103,14 @@ function useWakeLock() {
 }
 
 /* ---------- a reading that has come due ---------- */
-function DueCard({ card, bp, standAt, now, onSave, onSkip, onFeel, headRef }) {
+function DueCard({ card, bp, standAt, now, onSave, onSkip, onFeel, headRef, over }) {
   const up = card.pos === "up";
   const [hr, setHr] = useState(""), [sys, setSys] = useState(""), [dia, setDia] = useState("");
   const [counted, setCounted] = useState(false);
   const [count, setCount] = useState(null); // null | { endAt } | "ask"
   const [beats, setBeats] = useState("");
   const [feel, setFeel] = useState([]);
+  const added = useRef(new Set()); // chips this card wrote into test.feel (so turning one off undoes only its own)
   const [err, setErr] = useState("");
   const n = { hr: numOf(hr), sys: bp ? numOf(sys) : null, dia: bp ? numOf(dia) : null };
   const b = { hr: bad(n.hr, R.hr), sys: bad(n.sys, R.sys), dia: bad(n.dia, R.dia) };
@@ -133,16 +134,20 @@ function DueCard({ card, bp, standAt, now, onSave, onSkip, onFeel, headRef }) {
     const reading = { min: card.min, hr: r(n.hr), sys: r(n.sys), dia: r(n.dia), ...(counted && n.hr != null ? { how: "counted" } : {}) };
     onSave(up ? { ...reading, atSec: Math.round((Date.now() - standAt) / 1000), feel } : reading);
   };
+  /* A chip is recorded in the test's feel the moment it is turned on (design 4.8.5), so it is
+     kept even if this reading is then skipped, or the test is stopped from here. */
   const toggleFeel = (fid) => {
     const on = !feel.includes(fid);
     setFeel(on ? [...feel, fid] : feel.filter((x) => x !== fid));
-    if (on) onFeel(fid);
+    if (on) { if (onFeel(fid, true)) added.current.add(fid); } else if (added.current.has(fid)) { added.current.delete(fid); onFeel(fid, false); }
   };
   return (
     <section className="plaincard" aria-labelledby={`${id}-h`} style={{ marginBottom: 12 }}>
       <h2 className="obq" id={`${id}-h`} tabIndex={-1} ref={headRef}>{title}</h2>
       {!up && <p className="hint" style={{ margin: "0 0 6px" }}>{`Rest minute ${card.min}. Stay lying down.`}</p>}
-      {late && <p className="hint" style={{ margin: "0 0 6px" }}>That's fine. Cyra notes the time you entered it.</p>}
+      {over && <p className="plain" style={{ margin: "0 0 6px" }}>{`If you took the minute ${card.min} reading before you sat down, add it now. Otherwise skip it.`}</p>}
+      {/* Only upright readings store the time they were entered (atSec), so only they say so. */}
+      {up && late && <p className="hint" style={{ margin: "0 0 6px" }}>That's fine. Cyra notes the time you entered it.</p>}
       {field("hr", "Heart rate (beats per minute)", hr, setHr)}
       {counted && n.hr != null && <p className="hint" style={{ margin: "0 0 8px" }}>Counted for 15 seconds, times 4.</p>}
       {bp && (
@@ -193,7 +198,7 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
   const [status, say] = useAnnounce();            // role="status": "Lying reading due", "Stand up now", ...
   const [unlockCue, cue] = useCue(st.cue !== false);
   const [wake, unwake, noLock] = useWakeLock();
-  const h1 = useRef(null), cardHead = useRef(null);
+  const h1 = useRef(null), cardHead = useRef(null), confirmRef = useRef(null);
   const [full] = useState(() => !st.safetySeen || st.safetySeen < addDays(todayIso, -90));
   const [setup, setSetup] = useState(() => ({ method: st.method === "lean" ? "lean" : "stand", restMin: st.restMin === 10 ? 10 : 5, sched: st.sched === "every" ? "every" : "1-3-5-10", bp: st.bp === true, device: st.device || null }));
   const [ctx, setCtx] = useState({ meds: null, rateMed: null, comp: null, ate2h: null });
@@ -217,6 +222,11 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
   useEffect(() => { if (full) setPots((p) => setSettings(p, { test: { safetySeen: todayIso } })); }, []); // eslint-disable-line
   // Each phase change focuses the phase heading (never an input).
   useEffect(() => { h1.current?.focus(); }, [phase]);
+  // The Discard confirm takes focus once, when it opens (never again on a redraw).
+  useEffect(() => { if (discard) confirmRef.current?.focus(); }, [!!discard]); // eslint-disable-line
+  // A dismissed safety card hands focus to the open reading card, or else the phase heading,
+  // so focus never drops to the page.
+  useEffect(() => { if (run.focusTok) (cardHead.current || h1.current)?.focus(); }, [run.focusTok]); // eslint-disable-line
   // A test removed in another window (or a record replaced there) ends the run here.
   useEffect(() => { if (run.id && !test) end("This test was removed in another window"); }, [run.id, !!test]); // eslint-disable-line
   // Heartbeat while she waits: keeps upd fresh so another window shows the "running" card.
@@ -236,8 +246,13 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
   const due = checks.filter((c) => now >= c.dueAt && !run.done.includes(c.key));
   const card = due[0] || null;
   const upMs = run.standAt ? now - run.standAt : 0;
+  // The test ends at 10:30 upright (A13.4 hard stop): she is told to sit down, and a reading
+  // still open then can be added (if she took it while standing) or skipped.
+  const over = phase === "up" && upMs >= THRESH.upMaxMin * MIN;
 
-  /* Phase transitions and "came due" events. */
+  /* Phase transitions and "came due" events. A safety card that is still open holds the
+     phase where it is: the card stays on screen until she answers it (Stop, continue or
+     Recheck), even when it came from the last reading of the phase. */
   const seen = useRef(new Set());
   useEffect(() => {
     if (!test) return;
@@ -247,11 +262,13 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
       say(c.pos === "rest" ? "Lying reading due" : `Minute ${c.min} reading`);
       cue();
     }
+    if (over && !seen.current.has("over")) { seen.current.add("over"); if (due.length) { say("Time's up, sit down now"); cue(); } }
+    if (run.interrupt) return;
     if (phase === "rest" && checks.length && checks.every((c) => run.done.includes(c.key))) {
       go("stand"); say("Stand up now"); cue();
     } else if (phase === "up" && checks.length) {
       const last = checks[checks.length - 1];
-      if (run.done.includes(last.key) || (upMs >= THRESH.upMaxMin * MIN && !due.length)) finish();
+      if (run.done.includes(last.key) || (over && !due.length)) finish();
     }
   }); // eslint-disable-line
   // A card that comes due takes focus on its heading, unless she is typing somewhere.
@@ -277,7 +294,7 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
   };
   const finish = () => {
     writeTest((t) => ({ ...t, status: "done" }));
-    go("finish", { interrupt: null, stopT: nowHHMM() });
+    go("finish", { stopT: nowHHMM() });
     say("Test finished"); cue();
   };
   const startResting = () => {
@@ -308,6 +325,15 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
     writeTest((t) => ({ ...t, feel: on ? [...(t.feel || []), fid] : (t.feel || []).filter((x) => x !== fid) }));
     if (on) showInterrupt(interruptFor(test, { type: "feel", id: fid, pos: phase === "up" ? "up" : "rest" }));
   };
+  /* A chip on a due card: written to test.feel at once (and onto the reading when it's saved),
+     then any safety card. Returns whether it added the id (it was not already in test.feel). */
+  const cardFeel = (fid, on) => {
+    const had = (test.feel || []).includes(fid);
+    if (on && !had) writeTest((t) => ((t.feel || []).includes(fid) ? t : { ...t, feel: [...(t.feel || []), fid] }));
+    if (!on) writeTest((t) => ({ ...t, feel: (t.feel || []).filter((x) => x !== fid) }));
+    if (on) showInterrupt(interruptFor(test, { type: "feel", id: fid, pos: "up" }));
+    return on && !had;
+  };
   const answerFaint = (v) => {
     const f = test.fainted === v ? null : v;
     setPots((p) => setTestFaint(p, run.id, f, run.stopT));
@@ -322,14 +348,13 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
       <p className="plain">{run.interrupt.copy}</p>
       {preg && <p className="plain">{SAFETY_COPY.urgent.pregSuffix}</p>}
       <button type="button" className="cta" onClick={() => stop()}>{run.interrupt.buttons[0]}</button>
-      <button type="button" className="ghostbtn" onClick={() => setRun((r) => ({ ...r, interrupt: null, done: r.interrupt.kind === "bpCrisis" && r.interrupt.key ? r.done.filter((k) => k !== r.interrupt.key) : r.done }))}>{run.interrupt.buttons[1]}</button>
+      <button type="button" className="ghostbtn" onClick={() => setRun((r) => ({ ...r, interrupt: null, focusTok: (r.focusTok || 0) + 1, done: r.interrupt.kind === "bpCrisis" && r.interrupt.key ? r.done.filter((k) => k !== r.interrupt.key) : r.done }))}>{run.interrupt.buttons[1]}</button>
     </div>
   );
   const wakeHint = noLock && isRunning(phase) && <p className="hint" style={{ margin: "0 0 10px" }}>Keep your screen on during the test. Tap it now and then.</p>;
   const dueCard = card && (
-    <DueCard key={card.key} card={card} bp={!!test.bp && (card.pos === "rest" || test.sched !== "every" || bpAsked(card.min))} standAt={run.standAt} now={now} headRef={cardHead}
-      onSave={(reading, typed) => saveReading(card, reading, typed)} onSkip={() => markDone(card.key)}
-      onFeel={(fid) => showInterrupt(interruptFor(test, { type: "feel", id: fid, pos: "up" }))} />
+    <DueCard key={card.key} card={card} bp={!!test.bp && (card.pos === "rest" || test.sched !== "every" || bpAsked(card.min))} standAt={run.standAt} now={now} headRef={cardHead} over={over}
+      onSave={(reading, typed) => saveReading(card, reading, typed)} onSkip={() => markDone(card.key)} onFeel={cardFeel} />
   );
   const lean = (test ? test.method : setup.method) === "lean";
 
@@ -367,18 +392,18 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
     );
   } else if (phase === "up" && test) {
     const next = checks.find((c) => now < c.dueAt);
-    heading = lean ? "Leaning · stay still" : "Standing · stay still";
+    heading = over ? "You're done. Sit down now, and get up slowly later." : lean ? "Leaning · stay still" : "Standing · stay still";
     body = (
       <>
         {stopBtn(true)}
         {intr}
-        {/* The clock stops at 10:30 (A13.4); a reading still open then can be saved or skipped. */}
+        {/* The clock stops at 10:30 (A13.4); a reading still open then can be added or skipped. */}
         <div className="pots-timer" role="timer" aria-label="Time upright">{mmssUp(Math.min(upMs, THRESH.upMaxMin * MIN))}</div>
         {next && !card && <p className="plain" style={{ textAlign: "center" }}>{`Next reading at minute ${next.min} · in ${mmss(next.dueAt - now)}`}</p>}
         {wakeHint}
         {dueCard}
         {/* "How do you feel?" stays available the whole time: on the due card while one is open, here otherwise. */}
-        {!card && (
+        {!card && !over && (
           <>
             <p className="lab" id="pots-run-feel">How do you feel?</p>
             <div className="wrapchips" role="group" aria-labelledby="pots-run-feel" style={{ marginBottom: 10 }}>
@@ -416,7 +441,7 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
         )}
         {discard && (
           <div className="plaincard" style={{ marginTop: 14 }}>
-            <p className="plain" tabIndex={-1} ref={(el) => el && el.focus()}>Discard this test? Its readings are removed from your POTS log.</p>
+            <p className="plain" tabIndex={-1} ref={confirmRef}>Discard this test? Its readings are removed from your POTS log.</p>
             {(test.fainted === "yes" || test.fainted === "almost") && <CheckRow on={discard.keepFaint} onToggle={() => setDiscard((d) => ({ keepFaint: !d.keepFaint }))}>Keep the faint in my log</CheckRow>}
             <button type="button" className="cta" style={{ background: "#A04545", marginTop: 10 }} onClick={() => { const k = discard.keepFaint; setPots((p) => deleteTest(p, run.id, { keepFaint: k })); end("Test discarded"); }}>Discard test</button>
             <button type="button" className="ghostbtn" onClick={() => setDiscard(null)}>Keep it</button>
@@ -486,8 +511,11 @@ export function StandSection({ pots, setPots, stage, todayIso, ping, running, on
   const [all, setAll] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [live, announce] = useAnnounce();
-  const topRef = useRef(null), sheetHead = useRef(null);
+  const topRef = useRef(null), sheetHead = useRef(null), confirmRef = useRef(null);
   const [focusBack, setFocusBack] = useState(null);
+  // A Delete or Discard confirm takes focus once, when it opens (not on every redraw).
+  const confirmKey = rowAct && (rowAct.kind === "del" || rowAct.kind === "discard") ? `${rowAct.kind}:${rowAct.id}` : null;
+  useEffect(() => { if (confirmKey) confirmRef.current?.focus(); }, [confirmKey]);
   useEffect(() => { if (focusKey) topRef.current?.focus(); }, [focusKey]);
   useEffect(() => { if (sheet) sheetHead.current?.focus(); }, [sheet]);
   useEffect(() => {
@@ -566,7 +594,7 @@ export function StandSection({ pots, setPots, stage, todayIso, ping, running, on
             )}
             {asking && (
               <>
-                <p className="plain" tabIndex={-1} ref={(el) => el && el.focus()}>Discard this test? Its readings are removed from your POTS log.</p>
+                <p className="plain" tabIndex={-1} ref={confirmRef}>Discard this test? Its readings are removed from your POTS log.</p>
                 <button type="button" className="cta" style={{ background: "#A04545" }} onClick={() => { setPots((p) => deleteTest(p, t.id)); setRowAct(null); ping("Test discarded"); setFocusBack("pots-stand-start"); }}>Discard test</button>
                 <button type="button" className="ghostbtn" onClick={() => { setRowAct(null); setFocusBack(`pots-int-${t.id}`); }}>Keep it</button>
               </>
@@ -576,7 +604,7 @@ export function StandSection({ pots, setPots, stage, todayIso, ping, running, on
       })}
       {last && lastR && (
         <div className="card">
-          <div className="num">{lastR.peakRise == null ? "—" : `${lastR.peakRise > 0 ? "+" : ""}${fmtN(lastR.peakRise)}`}</div>
+          <div className="num" aria-hidden={riseShown(lastR) == null || undefined}>{riseShown(lastR) ?? "—"}</div>
           <p><b>{`Last test · ${shortDay(last.date)} · ${methodWord(last.method)}`}</b><br />{lastR.headline || riseText(last, lastR)}</p>
         </div>
       )}
@@ -611,7 +639,7 @@ export function StandSection({ pots, setPots, stage, todayIso, ping, running, on
             )}
             {act && act.kind === "del" && (
               <div className="plaincard urgent" style={{ margin: "4px 0 10px" }}>
-                <p className="plain" tabIndex={-1} ref={(el) => el && el.focus()}>{`Delete the ${when} test? Its readings are removed from your POTS log.`}</p>
+                <p className="plain" tabIndex={-1} ref={confirmRef}>{`Delete the ${when} test? Its readings are removed from your POTS log.`}</p>
                 {linkedFaint(t) && <CheckRow on={act.keepFaint} onToggle={() => setRowAct({ ...act, keepFaint: !act.keepFaint })}>Keep the faint in my log</CheckRow>}
                 <button type="button" className="cta" style={{ background: "#A04545", marginTop: 10 }} onClick={() => { setPots((p) => deleteTest(p, t.id, { keepFaint: act.keepFaint })); setRowAct(null); ping("Test deleted"); setFocusBack("pots-tests-h"); }}>Delete test</button>
                 <button type="button" className="ghostbtn" onClick={() => { setRowAct(null); setFocusBack(`pots-del-${t.id}`); }}>Keep it</button>

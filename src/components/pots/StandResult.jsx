@@ -31,6 +31,11 @@ export function resultFor(pots, test, stage) {
   return standResult(test, { ...base, daySym: ((pots.days || {})[test.date] || {}).sym || null, supineCount, firstFinding: !!first && first.id === test.id });
 }
 
+/** The big number on a result card: the largest rise ("+36"), or null (shown as "—") when
+    the readings aren't enough to work one out, so a single upright reading never shows a rise
+    the result itself won't evaluate. */
+export const riseShown = (r) => (r.hrStatus === "insufficient" || r.peakRise == null ? null : `${r.peakRise > 0 ? "+" : ""}${fmtN(r.peakRise)}`);
+
 /** One line for lists and the Today card: "rise 34", "stopped at minute 4" or "not enough readings for a rise". */
 export function riseText(test, r) {
   const stoppedAt = test.status === "stopped" && Number.isFinite(test.stoppedAt) ? test.stoppedAt : null;
@@ -62,7 +67,11 @@ function NumbersTable({ pots, test, result }) {
       return { k: `u${r.min}`, m: `${fmtM(r.min)}${late}`, hr: r.hr, how: r.how, rise: Number.isFinite(r.hr) && base != null ? fmtN(r.hr - base) : "", bp: bp(r), felt: (r.feel || []).map((id) => feelWord(pots, id)).join(", ") };
     }),
   ];
+  // Chips tapped between readings (test.feel) that no reading already lists.
+  const listed = new Set((test.up || []).flatMap((r) => r.feel || []));
+  const also = [...new Set(test.feel || [])].filter((id) => !listed.has(id)).map((id) => feelWord(pots, id));
   return (
+    <>
     <table className="rtab">
       <caption className="sr-only">{`Readings from the ${dayLabel(test.date)} test`}</caption>
       <thead><tr><th scope="col">Minute</th><th scope="col">Heart rate</th><th scope="col">Rise</th><th scope="col">Blood pressure</th><th scope="col">How you felt</th></tr></thead>
@@ -72,6 +81,8 @@ function NumbersTable({ pots, test, result }) {
         ))}
       </tbody>
     </table>
+    {also.length > 0 && <p className="plain" style={{ marginTop: 8 }}>{`During the test you also noted: ${also.join(", ")}.`}</p>}
+    </>
   );
 }
 
@@ -85,18 +96,24 @@ export function EditReadings({ test, setPots, onDone, headRef }) {
   const [up, setUp] = useState(() => (test.up || []).map((r) => ({ hr: toS(r.hr), sys: toS(r.sys), dia: toS(r.dia) })));
   const [err, setErr] = useState("");
   const lying = test.restPos === "left" ? "Lying on left side" : "Lying";
-  const row = (list, setList, i, label) => {
+  const row = (list, setList, i, label, idp) => {
     const v = list[i], n = { hr: numOf(v.hr), sys: numOf(v.sys), dia: numOf(v.dia) };
     const b = { hr: bad(n.hr, R.hr), sys: bad(n.sys, R.sys), dia: bad(n.dia, R.dia) };
+    // Every box has its own visible label (the numbers are pre-filled, so a placeholder would
+    // never show), and its aria-label repeats it.
+    const errId = `${idp}-${i}-err`;
     const f = (k, word) => (
-      <input className={`inp ${b[k] ? "inpErr" : ""}`} {...numProps()} aria-label={`${label}, ${word}`} aria-invalid={b[k] || undefined} placeholder={word} value={v[k]} style={{ flex: "1 1 0", minWidth: 0 }}
-        onChange={(e) => { const val = e.target.value; setList((l) => l.map((x, j) => (j === i ? { ...x, [k]: val } : x))); setErr(""); }} />
+      <div style={{ flex: "1 1 0", minWidth: 0 }}>
+        <label className="hint" htmlFor={`${idp}-${i}-${k}`} style={{ display: "block", margin: "0 0 2px" }}>{word}</label>
+        <input id={`${idp}-${i}-${k}`} className={`inp ${b[k] ? "inpErr" : ""}`} {...numProps()} aria-label={`${label}, ${word.toLowerCase()}`} aria-invalid={b[k] || undefined} aria-describedby={b[k] ? errId : undefined} value={v[k]} style={{ width: "100%" }}
+          onChange={(e) => { const val = e.target.value; setList((l) => l.map((x, j) => (j === i ? { ...x, [k]: val } : x))); setErr(""); }} />
+      </div>
     );
     return (
       <div key={label} role="group" aria-label={label} style={{ marginBottom: 6 }}>
         <p className="plain" style={{ margin: "8px 0 4px" }}><b>{label}</b></p>
-        <div style={{ display: "flex", gap: 6 }}>{f("hr", "heart rate")}{f("sys", "top number")}{f("dia", "bottom number")}</div>
-        {(b.hr || b.sys || b.dia) && <p className="errhint" style={{ marginTop: 0, marginBottom: 8 }}>That looks unusual. Check the number?</p>}
+        <div style={{ display: "flex", gap: 6 }}>{f("hr", "Heart rate")}{f("sys", "Top number")}{f("dia", "Bottom number")}</div>
+        {(b.hr || b.sys || b.dia) && <p className="errhint" id={errId} style={{ marginTop: 0, marginBottom: 8 }}>That looks unusual. Check the number?</p>}
       </div>
     );
   };
@@ -112,8 +129,8 @@ export function EditReadings({ test, setPots, onDone, headRef }) {
     <section className="plaincard" aria-labelledby="pots-edit-h">
       <h2 className="obq" id="pots-edit-h" tabIndex={-1} ref={headRef}>{`Edit readings · ${dayLabel(test.date)}`}</h2>
       <p className="hint" style={{ margin: "0 0 6px" }}>Fix a number you typed wrong. Clear a box to remove that number. The result will say the readings were corrected.</p>
-      {(test.rest || []).map((r, i) => row(rest, setRest, i, `${lying}, rest minute ${fmtM(r.min)}`))}
-      {(test.up || []).map((r, i) => row(up, setUp, i, `Minute ${fmtM(r.min)}`))}
+      {(test.rest || []).map((r, i) => row(rest, setRest, i, `${lying}, rest minute ${fmtM(r.min)}`, "pots-edr"))}
+      {(test.up || []).map((r, i) => row(up, setUp, i, `Minute ${fmtM(r.min)}`, "pots-edu"))}
       {err && <p className="errhint" role="alert" style={{ marginTop: 0, marginBottom: 10 }}>{err}</p>}
       <button type="button" className="cta" onClick={save}>Save changes</button>
       <button type="button" className="ghostbtn" onClick={() => onDone(false)}>Cancel</button>
@@ -127,7 +144,7 @@ export default function StandResult({ pots, test, stage }) {
   return (
     <>
       <div className="card">
-        <div className="num" aria-hidden={r.peakRise == null || undefined}>{r.peakRise == null ? "—" : `${r.peakRise > 0 ? "+" : ""}${fmtN(r.peakRise)}`}</div>
+        <div className="num" aria-hidden={riseShown(r) == null || undefined}>{riseShown(r) ?? "—"}</div>
         <p>{r.headline || "No rise could be worked out from these readings."}</p>
       </div>
       {r.lines.map((l, i) => <Line key={`${l.kind}-${i}`} l={l} preg={preg} />)}
