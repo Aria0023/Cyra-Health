@@ -738,6 +738,51 @@ export const upsertPreset = guard((p, preset) => {
   return { ...p, settings: { ...p.settings, presets: has ? cur.map((x) => (x.id === it.id ? { ...it, upd: Date.now() } : x)) : [...cur, it] } };
 });
 
+/** "Remove" a drink / salt button: it goes and is tombstoned, so a stale tab can't merge it
+    back. A default that pointed at it moves to the first remaining button of its kind. */
+export const removePreset = guard((p, id) => {
+  const cur = p.settings.presets;
+  if (!cur.some((x) => x.id === id)) return p;
+  const presets = cur.filter((x) => x.id !== id), s = { ...p.settings, presets };
+  const firstOf = (fluid) => (presets.find((x) => (fluid ? x.ml != null : x.ml == null)) || {}).id;
+  if (s.defaultFluid === id && firstOf(true)) s.defaultFluid = firstOf(true);
+  if (s.defaultSalt === id && firstOf(false)) s.defaultSalt = firstOf(false);
+  return { ...p, settings: s, gone: uniq([...p.gone, id]) };
+});
+/** Today's log → Edit: merge `patch` into the logged intake, dose, episode, reading or
+    session with this id (sets `upd`, re-cleans it). An invalid result leaves it as it was. */
+const CLEAN_ITEM = { intake: cleanIntake, doses: cleanDose, eps: cleanEp, vit: cleanVit, move: cleanSession };
+export const updateItem = guard((p, day, id, patch) => {
+  const d = (p.days || {})[day];
+  if (!d || !isId(id) || !isObj(patch)) return p;
+  const key = DAY_ARRAYS.find((k) => (d[k] || []).some((x) => x.id === id));
+  if (!key) return p;
+  return withDay(p, day, (x) => {
+    const it = CLEAN_ITEM[key]({ ...x[key].find((i) => i.id === id), ...patch, id, upd: Date.now() });
+    return it ? { ...x, [key]: x[key].map((i) => (i.id === id ? it : i)) } : x;
+  });
+});
+/** A symptom's day severity raised to at least `sev` (Simple view "I feel bad now"); never lowered. */
+export const raiseSym = guard((p, day, id, sev) => {
+  const cur = ((((p.days || {})[day] || {}).sym || {})[id]) || 0, n = int(sev, 1, 3);
+  return n && n > cur ? setSym(p, day, id, n) : p;
+});
+/** Something was logged from Simple view that day (`quick`). */
+export const markQuick = guard((p, day) => withDay(p, day, (d) => (d.quick === true ? d : { ...d, quick: true })));
+/** Fainting or nearly fainting during exercise: step-up options pause until she reports being
+    checked (design 4.4 / 4.10; the Move section reads it). */
+export const setFaintPause = guard((p, day) => (isIso(day) ? { ...p, move: { ...p.move, faintPause: day } } : p));
+/** The one-time registration offer card (owner decision D2) was answered: it never returns. */
+export const markOffered = guard((p, day) => (isIso(day) && p.offered !== day ? { ...p, offered: day } : p));
+/** Days in the 7 ending on `day` (that day included) with at least one "almost" fainted
+    episode, from every source (her episodes and test or session faint answers alike). */
+export function nearFaintDays(p, day) {
+  if (!isObj(p) || isLockedPots(p) || !isIso(day)) return 0;
+  let n = 0, d = day;
+  for (let i = 0; i < 7; i++, d = prevDay(d)) if ((((p.days || {})[d] || {}).eps || []).some((e) => e.faint === "almost")) n++;
+  return n;
+}
+
 /* ---------- medicines: what's due ---------- */
 /** Medicines and supports active on `day` (started on or before it, not stopped before it). */
 export const activeMeds = (p, day) => (isObj(p) && Array.isArray(p.meds) ? p.meds.filter((m) => (!m.started || m.started <= day) && (!m.stopped || m.stopped >= day)) : []);

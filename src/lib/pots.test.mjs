@@ -12,8 +12,9 @@ import {
   setSessionFaint, addTilt, upsertMed, stopMed, removeMed, setSettings, addCustom, archiveCustom, upsertPreset,
   logMedsNow, medsNowPlan, dayTotals, dueDoses, standResult, mlToOz, ozToMl, saltGToNaMg, naMgToSaltG, fmtFluid, fmtSodium,
   OZ_ML, NA_PER_G_SALT, ID_RE, TAG_RE, localeUnits, turnOn, turnOff, finishSetup, resetPregClearance, samePots,
+  removePreset, updateItem, raiseSym, markQuick, setFaintPause, markOffered, nearFaintDays,
 } from "./pots.js";
-import { POTS_SYM, POTS_TRIG, POTS_BANNED, SAFETY_COPY, GUIDE_COPY, GUIDE_VERIFIED, POTS_MED_LIB, RUNNER_FEEL, FEEL_STOP, POTS_LOCKED_COPY } from "./potsConstants.js";
+import { POTS_SYM, POTS_TRIG, POTS_BANNED, SAFETY_COPY, GUIDE_COPY, GUIDE_VERIFIED, POTS_MED_LIB, RUNNER_FEEL, FEEL_STOP, POTS_LOCKED_COPY, POTS_ERASE } from "./potsConstants.js";
 import { SYM, PSYM, GSYM } from "./constants.js";
 
 const D = "2026-10-08", D2 = "2026-10-09";
@@ -996,6 +997,70 @@ test("s2: samePots ignores key order and undefined keys, and sees real changes",
   assert.ok(!samePots(a, setRating(a, D, 2)) && !samePots(a, turnOff(a)));
   // a merge that changed nothing is the same content as the stored copy
   assert.ok(samePots(mergePots(a, reordered, a), a));
+});
+
+/* ================= s3: the daily loop's helpers ================= */
+test("s3: updateItem edits a logged intake, dose, episode or reading in place, with upd; invalid edits change nothing", () => {
+  let p = addIntake(on(), D, { id: "i1", t: "09:40", kind: "water", label: "Glass", ml: 250 });
+  p = logDose(p, D, { id: "d1", medId: "m1", slot: "08:00", state: "taken", t: "08:05" });
+  p = addEpisode(p, D, { id: "e1", t: "10:00", sym: ["p_dzy"], sev: 2 });
+  p = addVitals(p, D, { id: "v1", t: "11:00", pos: "standing", hr: 96 });
+  const q = updateItem(p, D, "i1", { ml: 300, naMg: 120, t: "09:45" });
+  const it = q.days[D].intake[0];
+  assert.equal(it.ml, 300); assert.equal(it.naMg, 120); assert.equal(it.t, "09:45"); assert.ok(it.upd > 0);
+  assert.equal(updateItem(p, D, "d1", { t: "08:20", state: "skipped" }).days[D].doses[0].state, "skipped");
+  assert.deepEqual(updateItem(p, D, "e1", { sym: ["p_dzy", "p_fog"], faint: "almost" }).days[D].eps[0].sym, ["p_dzy", "p_fog"]);
+  assert.equal(updateItem(p, D, "v1", { hr: 400 }).days[D].vit[0].hr, null, "an out-of-range value is dropped, as the sanitizer does");
+  assert.equal(updateItem(p, D, "i1", { t: "25:00" }), p, "a bad time leaves the item as it was");
+  assert.equal(updateItem(p, D, "nope", { ml: 1 }), p);
+  assert.equal(updateItem(p, D2, "i1", { ml: 1 }), p);
+  assert.equal(updateItem(p, D, "i1", null), p);
+  // the original is never mutated, and a merge picks the edited copy (changed vs base)
+  assert.equal(p.days[D].intake[0].ml, 250);
+  assert.equal(mergePots(p, q, p).days[D].intake[0].ml, 300);
+});
+
+test("s3: removePreset removes and tombstones a button, so a stale tab can't merge it back; defaults move on", () => {
+  const p = setSettings(on(), { defaultFluid: "glass", defaultSalt: "tab" });
+  const q = removePreset(removePreset(p, "glass"), "tab");
+  assert.ok(!q.settings.presets.some((x) => x.id === "glass" || x.id === "tab"));
+  assert.ok(q.gone.includes("glass") && q.gone.includes("tab"));
+  assert.equal(q.settings.defaultFluid, "bottle"); assert.equal(q.settings.defaultSalt, "snack");
+  assert.ok(!mergePots(q, p, p).settings.presets.some((x) => x.id === "glass"), "a stale tab doesn't bring it back");
+  assert.equal(removePreset(p, "nope"), p);
+  const locked = { v: 2 }; assert.equal(removePreset(locked, "glass"), locked);
+});
+
+test("s3: raiseSym only raises; markQuick, setFaintPause and markOffered set one field; nearFaintDays counts days, not episodes", () => {
+  let p = setSym(on(), D, "p_dzy", 2);
+  assert.equal(raiseSym(p, D, "p_dzy", 1), p);
+  assert.equal(raiseSym(p, D, "p_dzy", 3).days[D].sym.p_dzy, 3);
+  assert.equal(raiseSym(p, D, "p_fog", 2).days[D].sym.p_fog, 2);
+  assert.equal(markQuick(p, D).days[D].quick, true);
+  assert.equal(markQuick(on(), D2).days[D2].quick, true, "a Simple-view log on a new day marks it");
+  assert.equal(setFaintPause(on(), D).move.faintPause, D);
+  { const base = on(); assert.equal(setFaintPause(base, "bad"), base); assert.equal(markOffered(base, "bad"), base); }
+  assert.equal(markOffered(on(), D).offered, D);
+  const locked = { v: 2 };
+  for (const f of [(x) => raiseSym(x, D, "p_dzy", 3), (x) => markQuick(x, D), (x) => setFaintPause(x, D), (x) => markOffered(x, D)]) assert.equal(f(locked), locked);
+  // near-faint days: "almost" episodes on 3 different days in the 7 ending on D; two on one day count once
+  const days = ["2026-10-01", "2026-10-03", "2026-10-05", "2026-10-08"];
+  let q = on();
+  q = addEpisode(q, days[0], { t: "09:00", faint: "almost" }); // 7 days before D (Oct 2 - 8 is the window): outside
+  q = addEpisode(q, days[1], { t: "09:00", faint: "almost" });
+  q = addEpisode(q, days[2], { t: "09:00", faint: "almost" });
+  q = addEpisode(q, days[2], { t: "10:00", faint: "almost" });
+  assert.equal(nearFaintDays(q, D), 2);
+  q = setTestFaint(upsertTest(q, { id: "t1", date: D, t: "09:00", status: "done", rest: [], up: [] }), "t1", "almost");
+  assert.equal(nearFaintDays(q, D), 3, "a test's near-faint counts (from its linked episode)");
+  q = addEpisode(q, D, { t: "11:00", faint: "yes", sym: ["p_psy"] });
+  assert.equal(nearFaintDays(q, D), 3, "a full faint isn't a near-faint");
+  assert.equal(nearFaintDays({ v: 2 }, D), 0);
+});
+
+test("s3: the erase confirm names what eraseLog keeps (display choices only)", () => {
+  for (const kept of ["units", "paper size", "Simple view", "which cards show", "the order of Cyra's own symptom chips", "your stand-test setup", "the teen threshold setting", "whether notes and cycle details go in reports"]) assert.ok(POTS_ERASE.includes(kept), kept);
+  assert.ok(!POTS_BANNED.test(POTS_ERASE));
 });
 
 /* ================= source greps (A13, design 11.6) ================= */

@@ -176,3 +176,7 @@ export const POTS_BANNED = /\byou(?:['’]ve)?\s+(?:(?:may|might|probably|likely
     stored `pots` was written by a newer build (lib/pots.js isLockedPots): this build leaves
     it untouched. */
 export const POTS_LOCKED_COPY = "Update Cyra to see your POTS log. It was saved by a newer version of Cyra, so this version leaves it untouched.";
+
+/** "Delete POTS log" confirm (Settings → Add-ons → "Hide it and erase", and POTS settings). It
+    lists exactly what lib/pots.js eraseLog keeps; PRIVACY-AUDIT checks it word for word. */
+export const POTS_ERASE = "Erase your POTS log from this device? Standing tests, drinks and salt, symptoms, triggers, episodes, medicines, movement, your goals, your plan and visit questions, the symptom and trigger names you added, your drink and salt buttons, and what you told Cyra for your report all go for good. Only display choices stay: units, paper size, Simple view, which cards show, the order of Cyra's own symptom chips, your stand-test setup, the teen threshold setting and whether notes and cycle details go in reports. Your check-ins aren't touched. Backups you saved earlier still have it.";

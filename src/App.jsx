@@ -46,7 +46,7 @@ import { storage } from "./lib/storage.js";
 import { encryptBackup, decryptBackup } from "./lib/backup.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
 import { isNative, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
-import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits } from "./lib/pots.js";
+import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, logDose, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
 /* What persists on the device: the health record and settings. Never UI state.
@@ -96,6 +96,11 @@ import PregTodayScreen from "./screens/PregTodayScreen.jsx";
 import PregCalendarScreen from "./screens/PregCalendarScreen.jsx";
 import MilestonesScreen from "./screens/MilestonesScreen.jsx";
 import PotsScreen from "./screens/PotsScreen.jsx";
+import PotsToday from "./components/pots/PotsToday.jsx";
+import PotsSettings from "./components/pots/PotsSettings.jsx";
+import PotsHome, { PotsOffer } from "./components/pots/PotsHome.jsx";
+import GoalSheet from "./components/pots/GoalSheet.jsx";
+import { MedSetup } from "./components/pots/MedEditor.jsx";
 
 export default function CyraDemo() {
   const [orgId, setOrgId] = useState("cyra");
@@ -195,6 +200,7 @@ export default function CyraDemo() {
      lib/pots.js action, each of which leaves a locked record unchanged. */
   const [pots, setPots] = useState(POTS_EMPTY);
   const [potsSec, setPotsSec] = useState("today"); // the POTS tab's section (UI only, not saved)
+  const [potsDate, setPotsDate] = useState(null); // POTS → Today's logging day while fixing up an earlier one; null = today (UI only, so every launch starts on today)
   const potsBase = useRef(null); // the `pots` this tab last saved or took from storage: the base of the 3-way merge (mergePots)
   const wipingRef = useRef(false); // Delete everything / Start over in progress: nothing may be saved any more
   const saveTimer = useRef(null);  // the pending autosave, cancelled by a wipe
@@ -349,6 +355,15 @@ export default function CyraDemo() {
     setPots((p) => turnOff(erase ? eraseLog(p) : p));
     ping(erase ? "POTS log erased and the POTS tab hidden" : "POTS tab hidden. Your POTS log is kept");
   };
+  /* Home: the "POTS today" card while it's on (totals from dayTotals; "Today's insight" is never
+     replaced), or, once, the offer card for someone who ticked "POTS or dysautonomia" at
+     registration (owner decision D2). The offer never turns POTS on by itself, and answering it
+     (either button) means it never comes back; it isn't shown to someone who has ever turned
+     POTS on. The registration answer is read here, on screen, and nowhere else. */
+  const potsOk = !isLockedPots(pots);
+  const potsTotals = useMemo(() => dayTotals(pots, todayIso), [pots, todayIso]);
+  const potsOffer = potsOk && !pots.on && !pots.since && !pots.offered && Array.isArray(regAnswers?.conditions) && regAnswers.conditions.includes("POTS or dysautonomia");
+  const openPots = (simple = false) => { if (simple) setPots((p) => setPotsSettings(p, { simple: true })); setPotsSec("today"); setPotsDate(null); goTab("pots"); };
   /* Every change of stage INTO Pregnancy asks the prenatal team's exercise answer again: a "yes"
      given before this pregnancy, or in an earlier one, never carries over. The answer is cleared
      by her own stage actions, never by what the record says the stage was: when she taps
@@ -1384,10 +1399,28 @@ export default function CyraDemo() {
       showMeds={showMeds} setShowMeds={setShowMeds} meds={meds} medLog={medLog} medEffects={medEffects} setMedLog={setMedLog} newMed={newMed} setNewMed={setNewMed} setMeds={setMeds} ping={ping}
       showAppts={showAppts} setShowAppts={setShowAppts} upcoming={upcoming} past={past} daysUntil={daysUntil} setAppts={setAppts} newAppt={newAppt} setNewAppt={setNewAppt}
       showJournal={showJournal} setShowJournal={setShowJournal} journal={journal} jDraft={jDraft} setJDraft={setJDraft} setJournal={setJournal}
+      potsCard={potsTab && potsOk
+        ? <PotsHome pots={pots} totals={potsTotals} todayIso={todayIso} onQuickLog={() => openPots(true)}
+            onTook={(med, slot) => { const t = nowHHMM(); setPots((p) => logDose(p, todayIso, { id: newPotsId(), medId: med.id, slot, state: "taken", t })); ping(`${med.name} logged at ${t.replace(/^0/, "")}`); }} />
+        : potsOffer ? <PotsOffer onOn={() => { setPots((p) => markOffered(p, todayIso)); potsOn(); }} onNot={() => setPots((p) => markOffered(p, todayIso))} /> : null}
     />
   );
   const askView = <AskScreen org={org} stage={stage} askQ={askQ} setAskQ={setAskQ} runAsk={runAsk} askBusy={askBusy} askOut={askOut} askAI={askAI} setAskAI={setAskAI} aiAvailable={aiAvailable} />;
-  const potsView = <PotsScreen pots={pots} setPots={setPots} locked={isLockedPots(pots)} potsSec={potsSec} setPotsSec={setPotsSec} />;
+  /* POTS tab: the Today section, POTS settings and the first-run cards (goals, medicines). The
+     tools this build has decide what "What would help?" and POTS settings offer (POTS_SHOWS). */
+  const potsDay = potsDate && potsDate < todayIso ? potsDate : todayIso;
+  const potsConditions = Array.isArray(regAnswers?.conditions) ? regAnswers.conditions : [];
+  const POTS_SHOWS = ["fluid", "sym", "meds"];
+  const potsView = (
+    <PotsScreen pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"}
+      sections={potsOk ? { today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} /> } : {}}
+      settings={potsOk ? ({ headRef, onBack }) => <PotsSettings pots={pots} setPots={setPots} stage={stage} stageName={stageName} conditions={potsConditions} ping={ping} shows={POTS_SHOWS} today={todayIso} headRef={headRef} onBack={onBack} /> : null}
+      setupCards={potsOk ? [
+        { id: "goals", title: "Any goals from your clinician?", skip: { label: "No goals yet, just track", big: true },
+          body: (saveRef) => <GoalSheet setup pots={pots} setPots={setPots} units={pots.settings.units} conditions={potsConditions} preg={stage === "preg"} today={todayIso} saveRef={saveRef} /> },
+        { id: "meds", title: "Any POTS medicines or supports?", skip: { label: "Skip, add later" }, body: (saveRef) => <MedSetup setPots={setPots} saveRef={saveRef} /> },
+      ] : []} />
+  );
   const connView = <ConnectScreen relationship={relationship} setRelationship={setRelationship} conn={conn} setConn={setConn} intimacy={intimacy} setIntimacy={setIntimacy} after={after} setAfter={setAfter} setConnLog={setConnLog} todayIso={todayIso} ping={ping} />;
 
   return (
@@ -1417,7 +1450,7 @@ export default function CyraDemo() {
             </nav>
 
             {pregTab === "today" && (
-              <PregTodayScreen pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
+              <PregTodayScreen onPots={potsTab ? () => openPots() : null} pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
             )}
             {pregTab === "cal" && (
               <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={dayScore} scoreColor={scoreColor} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} onEdit={startEdit} ping={ping} />
@@ -1439,7 +1472,7 @@ export default function CyraDemo() {
             </nav>
 
             {appTab === "today" && (
-              <TodayScreen pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} setDays={setDays} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
+              <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} setDays={setDays} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
             )}
             {appTab === "cal" && (
               <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />

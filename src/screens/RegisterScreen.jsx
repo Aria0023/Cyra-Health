@@ -184,7 +184,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
       {rs.key === "health" && (
         <>
           <p className="lab">Relevant conditions (tap any)</p>
-          <RMulti k="conditions" opts={["PCOS", "Endometriosis", "Thyroid", "Diabetes", "Anemia", "Migraines", "High blood pressure", "Anxiety/depression", "None"]} />
+          <RMulti k="conditions" opts={["PCOS", "Endometriosis", "Thyroid", "Diabetes", "Anemia", "Migraines", "High blood pressure", "Anxiety/depression", "POTS or dysautonomia", "None"]} />
           <p className="lab">Family history worth noting</p>
           <RMulti k="familyHx" opts={["Early menopause", "Osteoporosis", "Breast/ovarian cancer", "Heart disease", "None / unsure"]} />
           <p className="lab">On regular medication or hormones?</p>

@@ -246,6 +246,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:fo
 .pots .mc, .pots .takebtn, .pots .sbtn, .pots .linkbtn, .pots .pill, .pots .chip { min-height:44px; }
 .pots .obq { margin:0 0 10px; }
 .minichip.big { min-height:44px; padding:10px 15px; font-size:13px; }
+.pots .wearbtns { flex-shrink:1; flex-wrap:wrap; justify-content:flex-end; min-width:0; }
+.pots .medinfo { min-width:0; overflow-wrap:anywhere; }
+.pots .inp, .pots .slider { min-height:44px; }
+.pots .linkbtn, .pots .ghostbtn, .pots .sbtn, .pots .scalehead b, .potslink { color:color-mix(in srgb, var(--primary) 80%, var(--ink)); }
+.pots .disclosure, .potslink { min-height:44px; }
 .potsgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
 .potsgrid .route { min-height:72px; justify-content:center; align-items:flex-start; text-align:left; font-size:14px; padding:12px; }
 .potsgrid .route span { font-size:12px; }

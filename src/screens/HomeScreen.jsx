@@ -6,7 +6,8 @@ import Details from "../components/Details.jsx";
 
 /* Home (default tab): greeting + streak, check-in CTA, today's top insight,
    wearable cards, milestones, coming up, pulse, monthly recap, and the
-   collapsible Wearables / What I'm trying / Appointments / Journal sections. */
+   collapsible Wearables / What I'm trying / Appointments / Journal sections. With POTS tools
+   on, a "POTS today" card (potsCard, built in App.jsx) sits under the check-in button. */
 /* A trial without enough logged days on both sides of its start date (App.jsx medEffects):
    how many more it needs, or, when the days left can't get there, that it can't be compared. */
 const plural = (n) => `${n} logged day${n === 1 ? "" : "s"}`;
@@ -46,6 +47,7 @@ export default function HomeScreen({
   showMeds, setShowMeds, meds, medLog, medEffects, setMedLog, newMed, setNewMed, setMeds, ping,
   showAppts, setShowAppts, upcoming, past, daysUntil, setAppts, newAppt, setNewAppt,
   showJournal, setShowJournal, journal, jDraft, setJDraft, setJournal,
+  potsCard = null,
 }) {
   const hour = new Date().getHours();
   const connectedCount = Object.values(wearSources).filter((w) => w && !w.pending).length;
@@ -64,6 +66,8 @@ export default function HomeScreen({
       <p className="hint" style={{ marginTop: -6 }}>{streakLine}</p>
 
       <button className="cta" onClick={() => goTab("today")}>{entryOn(todayIso) ? "Update today's check-in" : "Check in — about 30 seconds"}</button>
+      {/* POTS add-on (App.jsx): the "POTS today" card while it's on, or the one-time offer card. Never replaces Today's insight. */}
+      {potsCard}
 
       <p className="section-lab">Today's insight</p>
       <div className="card"><div className="num">{homeInsight.num}</div><p>{homeInsight.text}</p></div>
