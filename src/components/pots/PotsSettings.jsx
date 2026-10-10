@@ -6,11 +6,13 @@ import GoalSheet from "./GoalSheet.jsx";
 import MedEditor from "./MedEditor.jsx";
 import { symOrder } from "./PotsSymptoms.jsx";
 import { symLabel, amountText, naText, numOf, numProps, isOz, toMl, mlIn } from "./ui.js";
+import { Choice, METHODS, methodDefaults } from "./StandSafety.jsx";
 
 /* POTS settings (design 4.12): the "POTS settings" link at the bottom of the POTS tab. This
-   version has what the daily loop uses: Simple view, units, which Today cards show, goals,
-   drink and salt buttons, her symptoms and triggers, medicines and supports, her plan, and
-   Delete POTS log. Her own symptoms and triggers are archived on "Remove" (past days keep
+   version has what the daily loop and the stand test use: Simple view, units, which Today cards
+   show, the stand-test defaults with the sound / vibration cue and the teen threshold, goals,
+   drink and salt buttons, her symptoms and triggers, medicines and supports, her plan with the
+   standing-test rhythm, and Delete POTS log. Her own symptoms and triggers are archived on "Remove" (past days keep
    their names); only Delete POTS log clears them. */
 export const REMINDERS_LINE = "Cyra doesn't send medicine or drink reminders. The only reminder Cyra can send is your check-in reminder, if you turned it on. If reminders help you, your phone's clock app can set them.";
 export const SHOW_CHOICES = [["test", "Stand test"], ["fluid", "Fluids & salt"], ["sym", "Symptoms"], ["meds", "Meds & supports"], ["move", "Movement"]];
@@ -128,6 +130,28 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
         </>
       )}
 
+      {shows.includes("test") && (
+        <>
+          <Head id="pots-set-test">Stand test</Head>
+          <div className="medrow" style={{ borderTop: "none" }}>
+            <div className="medinfo"><b id="pots-set-teen">Use the teen threshold (ages 12–19)</b><span>Results compare with a 40-beat rise instead of 30.</span></div>
+            <button type="button" className={`takebtn ${s.teen ? "on" : ""}`} aria-pressed={s.teen} aria-describedby="pots-set-teen" onClick={() => set({ teen: !s.teen })}>{s.teen ? "✓ On" : "Turn on"}</button>
+          </div>
+          <Choice id="pots-set-method" label="Usual test" value={s.test.method === "lean" ? "lean" : "stand"} options={METHODS} onPick={(v) => set({ test: { method: v, ...methodDefaults(v) } })} />
+          <Choice id="pots-set-rest" label="Rest first for" value={s.test.restMin} options={[[5, "5 minutes"], [10, "10 minutes"]]} onPick={(v) => set({ test: { restMin: v } })} />
+          <Choice id="pots-set-sched" label="Readings while upright" value={s.test.sched} options={[["1-3-5-10", "At 1, 3, 5 and 10 minutes"], ["every", "Every minute"]]} onPick={(v) => set({ test: { sched: v } })} />
+          <Choice id="pots-set-dev" label="Measuring with" value={s.test.device} options={[["watch", "Watch"], ["cuff", "Blood-pressure cuff"], ["oximeter", "Finger pulse meter"], ["counted", "Counting my pulse"], ["other", "Other"]]} onPick={(v) => set({ test: { device: s.test.device === v ? null : v } })} />
+          <div className="medrow" style={{ marginTop: 10 }}>
+            <div className="medinfo"><b id="pots-set-bp">Blood pressure too</b><span>Ask for blood pressure as well as heart rate.</span></div>
+            <button type="button" className={`takebtn ${s.test.bp ? "on" : ""}`} aria-pressed={s.test.bp} aria-describedby="pots-set-bp" onClick={() => set({ test: { bp: !s.test.bp } })}>{s.test.bp ? "✓ On" : "Turn on"}</button>
+          </div>
+          <div className="medrow">
+            <div className="medinfo"><b id="pots-set-cue">Sound and vibration</b><span>A short tone, and a buzz on phones that support it, when a reading is due, when it's time to stand and when the test ends.</span></div>
+            <button type="button" className={`takebtn ${s.test.cue !== false ? "on" : ""}`} aria-pressed={s.test.cue !== false} aria-describedby="pots-set-cue" onClick={() => set({ test: { cue: s.test.cue === false } })}>{s.test.cue !== false ? "✓ On" : "Turn on"}</button>
+          </div>
+        </>
+      )}
+
       <Head id="pots-set-goals">Goals</Head>
       <div className="medrow" style={{ borderTop: "none" }}>
         <div className="medinfo"><b>Your daily goals</b><span>{goalLine}</span></div>
@@ -227,6 +251,7 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
           <button type="button" className="sbtn" onClick={() => { const l = newPlan.trim(); if (l) { set({ plan: [...s.plan, { id: newId(), label: l.slice(0, 40) }] }); setNewPlan(""); } }}>Add</button>
         </div>
       )}
+      {shows.includes("test") && <Choice id="pots-set-rhythm" label="Standing test rhythm" value={s.testPlan} options={[["weekly", "About weekly"], ["visits", "Before visits"], ["asked", "When my clinician asks"]]} onPick={(v) => set({ testPlan: s.testPlan === v ? null : v })} />}
       <Details label="Things that help many people">
         <p>Talk these through with your clinician:</p>
         <ul>

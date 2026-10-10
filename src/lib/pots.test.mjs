@@ -13,6 +13,7 @@ import {
   logMedsNow, medsNowPlan, dayTotals, dueDoses, standResult, mlToOz, ozToMl, saltGToNaMg, naMgToSaltG, fmtFluid, fmtSodium,
   OZ_ML, NA_PER_G_SALT, ID_RE, TAG_RE, localeUnits, turnOn, turnOff, finishSetup, resetPregClearance, samePots,
   removePreset, updateItem, raiseSym, markQuick, setFaintPause, markOffered, nearFaintDays, removePlanItem, doseTime,
+  restChecks, standChecks, bpAsked, savedUpTo, testTrend, median, removeTilt, RESULT_FOOT,
 } from "./pots.js";
 import { POTS_SYM, POTS_TRIG, POTS_BANNED, SAFETY_COPY, GUIDE_COPY, GUIDE_VERIFIED, POTS_MED_LIB, RUNNER_FEEL, FEEL_STOP, POTS_LOCKED_COPY, POTS_ERASE } from "./potsConstants.js";
 import { SYM, PSYM, GSYM } from "./constants.js";
@@ -1103,6 +1104,103 @@ test("s3: raiseSym only raises; markQuick, setFaintPause and markOffered set one
 test("s3: the erase confirm names what eraseLog keeps (display choices only)", () => {
   for (const kept of ["units", "paper size", "Simple view", "which cards show", "the order of Cyra's own symptom chips", "your stand-test setup", "the teen threshold setting", "whether notes and cycle details go in reports"]) assert.ok(POTS_ERASE.includes(kept), kept);
   assert.ok(!POTS_BANNED.test(POTS_ERASE));
+});
+
+/* ================= s4: the standing test (schedule, trend, tilt notes, runner writes) ================= */
+test("s4: rest readings at restMin-1 and restMin; upright at 1, 3, 5, 10 or every minute; BP only at 1, 3, 5, 10", () => {
+  assert.deepEqual(restChecks(5), [4, 5]);
+  assert.deepEqual(restChecks(10), [9, 10]);
+  assert.deepEqual(restChecks("x"), [4, 5]);
+  assert.deepEqual(standChecks("1-3-5-10"), [1, 3, 5, 10]);
+  assert.deepEqual(standChecks("every"), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  assert.deepEqual(standChecks("newer"), [1, 3, 5, 10]);
+  assert.deepEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].filter(bpAsked), [1, 3, 5, 10]);
+});
+
+test("s4: savedUpTo names the last upright minute with a reading (0 before standing)", () => {
+  assert.equal(savedUpTo(mk(REST70, [])), 0);
+  assert.equal(savedUpTo(mk(REST70, [[1, 90], [3, 95], [5, null]])), 3);
+  assert.equal(savedUpTo(mk(REST70, [[1, 90], [3, 95], [5, 99]])), 5);
+  assert.equal(savedUpTo(null), 0);
+});
+
+test("s4: testTrend lists finished tests with a rise, oldest first; running and insufficient tests are left out", () => {
+  let p = on();
+  p = upsertTest(p, mk([[4, 66], [5, 70]], [[1, 88], [3, 96], [5, 101], [10, 104]], { id: "a", date: "2026-10-01" }));
+  p = upsertTest(p, mk(REST70, [[1, 80], [3, 85]], { id: "b", date: "2026-10-03", status: "stopped", stoppedAt: 3 }));
+  p = upsertTest(p, mk(REST70, [[1, 90]], { id: "c", date: "2026-10-04" }));
+  p = upsertTest(p, mk(REST70, [[1, 90], [3, 95]], { id: "d", date: "2026-10-05", status: "running" }));
+  p = upsertTest(p, mk(REST70, [[1, 85], [3, 90], [5, 92], [10, 95]], { id: "e", date: "2026-09-30", method: "lean" }));
+  const tr = testTrend(p);
+  assert.deepEqual(tr.map((x) => x.id), ["e", "a", "b"]);
+  assert.deepEqual(tr.find((x) => x.id === "a"), { id: "a", date: "2026-10-01", t: "09:00", method: "stand", rise: 36, complete: true });
+  assert.equal(tr.find((x) => x.id === "b").complete, false);
+  assert.equal(tr.find((x) => x.id === "e").method, "lean");
+  assert.deepEqual(testTrend({ v: 2 }), []);
+  assert.deepEqual(testTrend(null), []);
+});
+
+test("s4: median", () => {
+  assert.equal(median([]), null);
+  assert.equal(median([34]), 34);
+  assert.equal(median([40, 20, 30]), 30);
+  assert.equal(median([20, 30, 40, 50]), 35);
+});
+
+test("s4: removeTilt removes and tombstones a tilt note, so a stale tab can't merge it back", () => {
+  let p = addTilt(on(), { id: "tl1", date: D, told: "Rise of 35, they said" });
+  p = addTilt(p, { id: "tl2", date: D2, where: "City clinic" });
+  const base = p;
+  const q = removeTilt(p, "tl1");
+  assert.deepEqual(q.tilt.map((x) => x.id), ["tl2"]);
+  assert.ok(q.gone.includes("tl1"));
+  assert.equal(removeTilt(q, "nope"), q);
+  assert.deepEqual(mergePots(base, q, base).tilt.map((x) => x.id), ["tl2"]); // stale stored copy
+  assert.deepEqual(mergePots(q, base, base).tilt.map((x) => x.id), ["tl2"]); // stale local copy
+  const locked = { v: 2, tilt: [{ id: "x" }] };
+  assert.equal(removeTilt(locked, "x"), locked);
+});
+
+test("s4: the runner's writes: created running, readings replace by minute, Stop saves stopped, a kept flag passes through", () => {
+  const t0 = { ...mk([], [], { id: "run1", status: "running", upd: 0 }), rest: [], up: [] };
+  let p = upsertTest(on(), t0);
+  assert.equal(p.tests[0].status, "running");
+  assert.ok(p.tests[0].upd > 0);
+  const add = (q, list, r) => upsertTest(q, { ...q.tests[0], [list]: [...q.tests[0][list].filter((x) => x.min !== r.min), r].sort((a, b) => a.min - b.min) });
+  p = add(p, "rest", { min: 4, hr: 66, sys: null, dia: null });
+  p = add(p, "rest", { min: 5, hr: 70, sys: null, dia: null });
+  p = add(p, "up", { min: 1, atSec: 61, hr: 88, sys: null, dia: null, feel: [] });
+  p = add(p, "up", { min: 1, atSec: 70, hr: 89, sys: null, dia: null, feel: ["p_dzy"], how: "counted" }); // a recheck replaces minute 1
+  assert.deepEqual(p.tests[0].up.map((r) => [r.min, r.hr, r.how]), [[1, 89, "counted"]]);
+  p = upsertTest(p, { ...p.tests[0], status: "stopped", stoppedAt: 1.4, why: "symptoms" });
+  assert.equal(p.tests[0].status, "stopped");
+  assert.equal(p.tests[0].stoppedAt, 1.4);
+  p = upsertTest(p, { ...p.tests[0], status: "interrupted", kept: true });
+  assert.equal(cleanPots(p).tests[0].kept, true);
+  assert.equal(markStaleRunning(p, Date.now() + 3600000), p); // nothing running: unchanged
+});
+
+test("s4: a test left running is marked interrupted only after 30 minutes without activity", () => {
+  const now = 10_000_000;
+  const p = { ...on(), tests: [{ ...mk(REST70, [[1, 90]], { id: "r1", status: "running" }), upd: now - 29 * 60000 }, { ...mk(REST70, [[1, 90], [3, 99]], { id: "r2", status: "running", date: D2 }), upd: now - 31 * 60000 }] };
+  const q = markStaleRunning(p, now);
+  assert.deepEqual(q.tests.map((t) => t.status), ["running", "interrupted"]);
+  assert.equal(savedUpTo(q.tests[1]), 3);
+});
+
+test("s4: every line of every result the runner can show, and its fixed ending, is free of banned wording", () => {
+  const cases = [
+    mk(REST70, [[1, 88], [3, 96], [5, 101], [10, 104]], { bp: true, rest: [{ min: 4, hr: 70, sys: 150, dia: 95 }, { min: 5, hr: 70, sys: 150, dia: 95 }], up: [{ min: 1, atSec: 60, hr: 100, sys: 120, dia: 80, feel: ["p_vis"] }, { min: 3, atSec: 180, hr: 104, sys: 118, dia: 79, feel: [] }], fainted: "yes" }),
+    mk([[4, 101], [5, 103]], [[1, 130], [3, 125]], { status: "stopped", stoppedAt: 3.2, why: "faint", edited: true, ctx: { rateMed: "yes" } }),
+    mk(REST70, [], { status: "stopped", stoppedAt: 0 }),
+    mk(REST70, [[1, 80], [3, 85]], { status: "interrupted" }),
+  ];
+  for (const t of cases) for (const stage of ["peri", "periods", "preg"]) for (const teen of [false, true]) {
+    const r = standResult(t, { stage, teen, supineCount: 2, firstFinding: true, daySym: { p_dzy: 2 } });
+    for (const l of r.lines) { assertClean(l.text, `${stage} ${l.kind}`); assert.ok(!DOSE_RE.test(l.text), l.text); }
+    if (r.headline) assertClean(r.headline, "headline");
+  }
+  assertClean(RESULT_FOOT, "RESULT_FOOT");
 });
 
 /* ================= source greps (A13, design 11.6) ================= */

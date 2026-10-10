@@ -46,7 +46,7 @@ import { storage } from "./lib/storage.js";
 import { encryptBackup, decryptBackup } from "./lib/backup.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
 import { isNative, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
-import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, logDose, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
+import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
 /* What persists on the device: the health record and settings. Never UI state.
@@ -101,6 +101,7 @@ import PotsSettings from "./components/pots/PotsSettings.jsx";
 import PotsHome, { PotsOffer } from "./components/pots/PotsHome.jsx";
 import GoalSheet from "./components/pots/GoalSheet.jsx";
 import { MedSetup } from "./components/pots/MedEditor.jsx";
+import { StandRunner, StandSection } from "./components/pots/StandTest.jsx";
 
 export default function CyraDemo() {
   const [orgId, setOrgId] = useState("cyra");
@@ -203,6 +204,11 @@ export default function CyraDemo() {
   const [potsHomeLast, setPotsHomeLast] = useState(null); // Home "POTS today": the dose its "Took it" just logged, for its Undo row (UI only)
   const [potsDate, setPotsDate] = useState(null); // POTS → Today's logging day while fixing up an earlier one; null = today (UI only, so every launch starts on today)
   const potsBase = useRef(null); // the `pots` this tab last saved or took from storage: the base of the 3-way merge (mergePots)
+  /* The standing test or session running in this tab (UI only, never saved): while it is set the
+     runner takes over the page (see the render below). { kind: "test", id, phase, phaseStart,
+     standAt, done: [checkpoint keys handled], interrupt, ... } (components/pots/StandTest.jsx). */
+  const [potsRun, setPotsRun] = useState(null);
+  const [potsStandFocus, setPotsStandFocus] = useState(0); // bumped when a run ends: the Stand test section takes focus
   const wipingRef = useRef(false); // Delete everything / Start over in progress: nothing may be saved any more
   const saveTimer = useRef(null);  // the pending autosave, cancelled by a wipe
   const pendingSave = useRef(null); // that autosave's write, run at once when the app is hidden or closed (flushSave)
@@ -362,9 +368,12 @@ export default function CyraDemo() {
      (either button) means it never comes back; it isn't shown to someone who has ever turned
      POTS on. The registration answer is read here, on screen, and nowhere else. */
   const potsOk = !isLockedPots(pots);
+  // A record replaced mid-test by one this build can't read (another tab restored it) ends the run.
+  useEffect(() => { if (potsRun && !potsOk) setPotsRun(null); }, [potsRun, potsOk]);
   const potsTotals = useMemo(() => dayTotals(pots, todayIso), [pots, todayIso]);
   const potsOffer = potsOk && !pots.on && !pots.since && !pots.offered && Array.isArray(regAnswers?.conditions) && regAnswers.conditions.includes("POTS or dysautonomia");
   const openPots = (simple = false) => { if (simple) setPots((p) => setPotsSettings(p, { simple: true })); setPotsSec("today"); setPotsDate(null); goTab("pots"); };
+  const openStandTest = () => { setPotsSec("stand"); goTab("pots"); };
   /* Every change of stage INTO Pregnancy asks the prenatal team's exercise answer again: a "yes"
      given before this pregnancy, or in an earlier one, never carries over. The answer is cleared
      by her own stage actions, never by what the record says the stage was: when she taps
@@ -747,7 +756,15 @@ export default function CyraDemo() {
   // is saved over it; RecordUnavailableScreen offers Try again.
   const hydrate = () => storage.load().then(
     (saved) => {
-      try { if (saved && saved.v === 1 && saved.phase === "app") { applySaved(saved); potsBase.current = saved.pots === undefined ? null : cleanPots(saved.pots); } }
+      try {
+        if (saved && saved.v === 1 && saved.phase === "app") {
+          applySaved(saved); potsBase.current = saved.pots === undefined ? null : cleanPots(saved.pots);
+          // A stand test left "running" with no activity for 30 minutes was interrupted (the app
+          // closed mid-test): it keeps every reading it saved and is offered as Keep it / Discard.
+          // Only here, at launch: a cross-tab adopt never marks another window's live test.
+          setPots((p) => markStaleRunning(p, Date.now()));
+        }
+      }
       finally { setRecordUnavailable(false); setHydrated(true); }
     },
     (e) => { setRecordLocked(!!e?.locked); setRecordUnavailable(true); },
@@ -1401,7 +1418,7 @@ export default function CyraDemo() {
       showAppts={showAppts} setShowAppts={setShowAppts} upcoming={upcoming} past={past} daysUntil={daysUntil} setAppts={setAppts} newAppt={newAppt} setNewAppt={setNewAppt}
       showJournal={showJournal} setShowJournal={setShowJournal} journal={journal} jDraft={jDraft} setJDraft={setJDraft} setJournal={setJournal}
       potsCard={potsTab && potsOk
-        ? <PotsHome pots={pots} totals={potsTotals} todayIso={todayIso} onQuickLog={() => openPots(true)}
+        ? <PotsHome pots={pots} totals={potsTotals} todayIso={todayIso} onQuickLog={() => openPots(true)} onStandTest={openStandTest}
             last={potsHomeLast && potsHomeLast.day === todayIso ? potsHomeLast : null}
             onUndo={() => { const l = potsHomeLast; if (!l) return; setPots((p) => removePotsItem(p, l.day, l.id)); setPotsHomeLast(null); ping(`Removed: ${l.text}`); }}
             onTook={(med, slot) => { const t = nowHHMM(), id = newPotsId(); setPots((p) => logDose(p, todayIso, { id, medId: med.id, slot, state: "taken", t })); setPotsHomeLast({ id, day: todayIso, text: `${med.name} ${slot.replace(/^0/, "")} at ${t.replace(/^0/, "")}` }); ping(`${med.name} logged at ${t.replace(/^0/, "")}`); }} />
@@ -1413,10 +1430,14 @@ export default function CyraDemo() {
      tools this build has decide what "What would help?" and POTS settings offer (POTS_SHOWS). */
   const potsDay = potsDate && potsDate < todayIso ? potsDate : todayIso;
   const potsConditions = Array.isArray(regAnswers?.conditions) ? regAnswers.conditions : [];
-  const POTS_SHOWS = ["fluid", "sym", "meds"];
+  const POTS_SHOWS = ["test", "fluid", "sym", "meds"];
   const potsView = (
     <PotsScreen pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"}
-      sections={potsOk ? { today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} /> } : {}}
+      sections={potsOk ? {
+        today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => setPotsSec("stand")} />,
+        stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focusKey={potsStandFocus}
+          onStart={() => setPotsRun({ kind: "test", id: null, phase: "safety", phaseStart: Date.now(), standAt: null, done: [], interrupt: null })} />,
+      } : {}}
       settings={potsOk ? ({ headRef, onBack }) => <PotsSettings pots={pots} setPots={setPots} stage={stage} stageName={stageName} conditions={potsConditions} ping={ping} shows={POTS_SHOWS} today={todayIso} headRef={headRef} onBack={onBack} /> : null}
       setupCards={potsOk ? [
         { id: "goals", title: "Any goals from your clinician?", skip: { label: "No goals yet, just track", big: true },
@@ -1424,6 +1445,19 @@ export default function CyraDemo() {
         { id: "meds", title: "Any POTS medicines or supports?", skip: { label: "Skip, add later" }, body: (saveRef) => <MedSetup setPots={setPots} saveRef={saveRef} /> },
       ] : []} />
   );
+  /* Running takeover (design 3.3-7): while a stand test runs, the runner is the page — its single
+     <main> with one h1 — instead of the header chips, the tab bar and the tab content (the
+     wordmark stays). Stop or finishing are the only ways out, so a tab switch, Settings, a
+     restore, a wipe or a stage change can't happen mid-test. */
+  if (potsRun && potsOk) {
+    return (
+      <Shell style={style} toast={toast}>
+        <header className="mast"><span className="mark">{org.name}<span className="sub">{org.tag}</span></span></header>
+        <StandRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping}
+          onEnd={() => { setPotsRun(null); setPotsSec("stand"); setPotsStandFocus((n) => n + 1); }} />
+      </Shell>
+    );
+  }
   const connView = <ConnectScreen relationship={relationship} setRelationship={setRelationship} conn={conn} setConn={setConn} intimacy={intimacy} setIntimacy={setIntimacy} after={after} setAfter={setAfter} setConnLog={setConnLog} todayIso={todayIso} ping={ping} />;
 
   return (

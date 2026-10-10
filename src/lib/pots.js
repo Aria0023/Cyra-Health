@@ -1098,5 +1098,38 @@ export function standResult(test, opts = {}) {
 /** The fixed ending under every result. */
 export const RESULT_FOOT = "Cyra compares your numbers with published thresholds (Heart Rhythm Society 2015). It doesn't diagnose. One home test is one snapshot.";
 
+/* ---------- standing test: the schedule, the trend, tilt notes ---------- */
+/** Lying readings are taken at rest minutes restMin - 1 and restMin (A13.4). */
+export const restChecks = (restMin) => { const m = int(restMin, 2, 30) ?? 5; return [m - 1, m]; };
+/** Upright checkpoints: every minute 1-10, or minutes 1, 3, 5 and 10 (the default). */
+export const standChecks = (sched) => (sched === "every" ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] : [1, 3, 5, 10]);
+/** Blood pressure is asked only at minutes 1, 3, 5 and 10, in every-minute mode too. */
+export const bpAsked = (min) => [1, 3, 5, 10].includes(min);
+/** The last upright minute a test saved a reading for (0 when it never got past the rest):
+    "Your Oct 9 test was saved up to minute 5." */
+export const savedUpTo = (test) => Math.max(0, ...((isObj(test) && Array.isArray(test.up) ? test.up : []).filter((r) => fin(r.min) && (fin(r.hr) || fin(r.sys) || fin(r.dia))).map((r) => r.min)));
+/** Stand tests over time (design 5.8): every test that isn't still running and has a rise to
+    show (a lying heart rate and at least two upright readings), oldest first:
+    [{ id, date, t, method, rise, complete }]. `complete` = done and reached minute 9.5; the
+    "Your tests over time" chart and the median use complete tests of one method only. The rise
+    is the same number the result shows (standResult); nothing is stored. */
+export function testTrend(p) {
+  if (!isObj(p) || isLockedPots(p) || !Array.isArray(p.tests)) return [];
+  return p.tests.filter((x) => x.status !== "running").map((x) => {
+    const r = standResult(x);
+    return r.hrStatus === "insufficient" ? null : { id: x.id, date: x.date, t: x.t, method: x.method, rise: r.peakRise, complete: r.complete };
+  }).filter(Boolean).sort(byDateTime);
+}
+/** The middle value (the mean of the two middle values for an even count); null when empty. */
+export function median(a) {
+  const s = (Array.isArray(a) ? a : []).filter(fin).sort((x, y) => x - y);
+  if (!s.length) return null;
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+/** Remove a tilt-table note she added by mistake: it goes and is tombstoned, so a stale tab
+    can't merge it back. */
+export const removeTilt = guard((p, id) => (p.tilt.some((x) => x.id === id) ? { ...p, tilt: p.tilt.filter((x) => x.id !== id), gone: uniq([...p.gone, id]) } : p));
+
 /** This device's local day; re-exported so POTS screens key days the same way. */
 export { localDay };

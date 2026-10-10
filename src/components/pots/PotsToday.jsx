@@ -15,6 +15,8 @@ import MedEditor from "./MedEditor.jsx";
 import PlanToday from "./PlanToday.jsx";
 import VitalsForm from "./VitalsForm.jsx";
 import QuickLog, { LastRow, FeelBad } from "./QuickLog.jsx";
+import { resultFor, riseText } from "./StandResult.jsx";
+import { fmtN } from "./HrChart.jsx";
 import { hm, ampm, dayLabel, addDays, SEV_WORD, intakeText, amountText, symLabel, medName, useAnnounce } from "./ui.js";
 
 /* POTS → Today (design 4.2, Full view) and Simple view (4.3). Every tap commits at once
@@ -33,7 +35,7 @@ const NA_ASK = ["electrolyte", "broth"];
 const asksSodium = (pr) => pr.naMg == null && pr.naSkip !== true && (pr.ml == null || NA_ASK.includes(pr.kind));
 const POS_WORD = { lying: "Lying", sitting: "Sitting", standing: "Standing" };
 
-export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay, ping, stage, stageName, checkin, symMap, conditions }) {
+export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay, ping, stage, stageName, checkin, symMap, conditions, onStandTest }) {
   const s = pots.settings, units = s.units, simple = s.simple === true, preg = stage === "preg";
   const pregOrTtc = preg || stageName === "Trying to Conceive";
   const day = simple ? todayIso : dayIn;
@@ -204,6 +206,14 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
   const sleepPicked = d.sleep != null ? d.sleep : checkin && checkin.sleepQ ? checkin.sleepQ : null;
   const sleepFromCheckin = d.sleep == null && !!(checkin && checkin.sleepQ);
   const nearFaint = nearFaintDays(pots, day) >= 3;
+  // Stand test card: the latest finished, stopped or interrupted test ("Oct 3 · heart rate rose 34").
+  const lastTest = [...(pots.tests || [])].reverse().find((t) => t.status !== "running") || null;
+  const lastLine = (() => {
+    if (!lastTest) return "No tests yet";
+    const r = resultFor(pots, lastTest, stage), when = new Date(`${lastTest.date}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const what = r.hrStatus !== "insufficient" && r.peakRise > 0 ? `heart rate rose ${fmtN(r.peakRise)}` : riseText(lastTest, r);
+    return `Last test: ${when} · ${what}`;
+  })();
 
   const sheetView = sheet && (() => {
     const common = { headRef };
@@ -319,11 +329,15 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
             {nearFaint && <div style={{ marginBottom: 12 }}><Advice urgency="visit">{NEAR_FAINT}</Advice></div>}
             {/* 9. Medicines & supports */}
             {s.show.meds && <MedsToday pots={pots} day={day} isToday={isToday} setPots={setPots} remember={remember} onEdit={() => open({ kind: "medEdit" })} />}
-            {/* Single readings (the stand test arrives in a later version) */}
-            <section className="plaincard" aria-labelledby="pots-vit-card-h" style={{ marginBottom: 12 }}>
-              <h2 className="lab" id="pots-vit-card-h" style={{ marginTop: 0 }}>Heart rate and blood pressure</h2>
-              <button type="button" className="linkbtn" onClick={() => open({ kind: "vitals" })}>Add a single reading</button>
-            </section>
+            {/* 10. Stand test */}
+            {s.show.test && (
+              <section className="plaincard" aria-labelledby="pots-stand-card-h" style={{ marginBottom: 12 }}>
+                <h2 className="lab" id="pots-stand-card-h" style={{ marginTop: 0 }}>Stand test</h2>
+                <p className="plain">{lastLine}</p>
+                <button type="button" className="cta" onClick={onStandTest}>Start a stand test</button>
+                <button type="button" className="linkbtn" style={{ display: "block", marginTop: 10 }} onClick={() => open({ kind: "vitals" })}>Add a single reading</button>
+              </section>
+            )}
             {/* 11. Triggers */}
             {s.show.sym && <PotsTriggers pots={pots} day={day} setPots={setPots} />}
             {/* 12. Sleep last night */}

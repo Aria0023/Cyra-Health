@@ -8,7 +8,7 @@ import { LastRow } from "./QuickLog.jsx";
    (dayTotals); missing is never zero. One planned dose that's due can be logged from here, and
    the dose just logged can be undone from the "Last" row (the last thing logged can always be
    undone). Its "Took it" button goes once the dose is logged, so focus moves to that Undo. */
-export default function PotsHome({ pots, totals, todayIso, onTook, onQuickLog, last = null, onUndo }) {
+export default function PotsHome({ pots, totals, todayIso, onTook, onQuickLog, onStandTest, last = null, onUndo }) {
   const box = useRef(null), card = useRef(null);
   const [undone, setUndone] = useState(0);
   useEffect(() => {
@@ -36,6 +36,7 @@ export default function PotsHome({ pots, totals, todayIso, onTook, onQuickLog, l
         )}
         <div className="routes" style={{ marginTop: 10 }}>
           <button type="button" className="route" onClick={onQuickLog}>Quick log<span>for foggy days</span></button>
+          {pots.settings.show.test && <button type="button" className="route" onClick={onStandTest}>Stand test<span>about 15–25 minutes</span></button>}
         </div>
       </div>
     </>
@@ -48,7 +49,7 @@ export function PotsOffer({ onOn, onNot }) {
   return (
     <div className="plaincard" style={{ margin: "14px 0 6px" }} role="region" aria-labelledby="pots-offer-h">
       <p className="plain" style={{ marginBottom: 6 }}><b id="pots-offer-h">POTS tools</b></p>
-      <p className="plain">You mentioned POTS. Cyra can add drinks and salt, symptoms and medicines, all kept on this device.</p>
+      <p className="plain">You mentioned POTS. Cyra can add a guided standing test, drinks and salt, symptoms and medicines, all kept on this device.</p>
       <div className="wearbtns">
         <button type="button" className="takebtn" onClick={onOn}>Turn on</button>
         <button type="button" className="sbtn" onClick={onNot}>Not now</button>

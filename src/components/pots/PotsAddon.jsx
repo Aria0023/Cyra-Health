@@ -38,7 +38,7 @@ export default function PotsAddon({ pots, stageName, onOn, onOff }) {
   return (
     <>
       <div className="medrow" style={{ borderTop: "none", padding: "4px 0 8px" }}>
-        <div className="medinfo"><b id="pots-addon-title">POTS tools</b><span>{on ? "On. Find it in the POTS tab." : `For a racing heart, dizziness or feeling faint when you're upright, with or without a diagnosis. Adds a POTS tab: drinks and salt, symptoms and medicines. Works alongside ${stageName || "your life stage"}. It doesn't change your life stage.`}</span></div>
+        <div className="medinfo"><b id="pots-addon-title">POTS tools</b><span>{on ? "On. Find it in the POTS tab." : `For a racing heart, dizziness or feeling faint when you're upright, with or without a diagnosis. Adds a POTS tab: a guided standing test, drinks and salt, symptoms and medicines. Works alongside ${stageName || "your life stage"}. It doesn't change your life stage.`}</span></div>
         <button ref={switchRef} className={`takebtn ${on ? "on" : ""}`} aria-pressed={on} aria-describedby="pots-addon-title"
           aria-expanded={on ? open : undefined} aria-controls={open ? CARD_ID : undefined}
           onClick={() => { if (on) setAsk(ask ? null : "off"); else { setAsk(null); onOn(); } }}>{on ? "✓ On" : "Turn on"}</button>
