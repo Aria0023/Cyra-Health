@@ -223,7 +223,7 @@ export default function HomeScreen({
           {upcoming.map((a) => (
             <div className="medrow" key={a.id}>
               <div className="medinfo"><b>{a.who || "Appointment"}</b><span>{fmt(a.date)} · in {daysUntil(a.date)} day{daysUntil(a.date) === 1 ? "" : "s"}</span></div>
-              {daysUntil(a.date) <= 7 && <button className="takebtn on" onClick={() => goTab("report")}>Prep report</button>}
+              {daysUntil(a.date) <= 7 && stage !== "preg" && <button className="takebtn on" onClick={() => goTab("report")}>Prep report</button>}
             </div>
           ))}
           {past.filter((a) => !a.note).map((a) => (
@@ -237,7 +237,7 @@ export default function HomeScreen({
           <p className="lab" style={{ margin: "10px 0 6px" }}>Add an appointment</p>
           <input className="inp" type="date" aria-label="Appointment date" value={newAppt.date} onChange={(e) => setNewAppt((x) => ({ ...x, date: e.target.value }))} />
           <input className="inp" placeholder="With whom (optional)" aria-label="With whom (optional)" value={newAppt.who} onChange={(e) => setNewAppt((x) => ({ ...x, who: e.target.value }))} />
-          <button className="cta" onClick={() => { if (!newAppt.date) return ping("Pick a date"); setAppts((x) => [...x, { id: Date.now(), ...newAppt, note: "" }]); setNewAppt({ date: "", who: "" }); ping("Added — it shows on Home, with a prompt to prep your report in the week before"); }}>Add</button>
+          <button className="cta" onClick={() => { if (!newAppt.date) return ping("Pick a date"); setAppts((x) => [...x, { id: Date.now(), ...newAppt, note: "" }]); setNewAppt({ date: "", who: "" }); ping(stage === "preg" ? "Added — it shows on Home under Coming up" : "Added — it shows on Home, with a prompt to prep your report in the week before"); }}>Add</button>
         </div>
       )}
 
