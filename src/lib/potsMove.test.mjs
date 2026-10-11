@@ -6,7 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { freshEmpty, cleanPots, addSession, setSessionFaint, addEpisode, resetPregClearance, mergePots, nearFaintDays, localDay } from "./pots.js";
+import { freshEmpty, cleanPots, addSession, setSessionFaint, addEpisode, resetPregClearance, mergePots, nearFaintDays, localDay, markStaleRunning, sessionsFull, setFaintPause } from "./pots.js";
 import {
   moveState, moveOption, setProgram, clearFaintPause, setNextDay, skipNextDay, nextDayPending, deleteSession, planLine, progress,
   weeklyCounts, sessionDefaults, allSessions, hasMoveData, planWeek, leftWorse, wentOkay, MOVE_COPY, MOVE_STEPS, weekdayOf,
@@ -132,6 +132,101 @@ test("S7: hold and ease off, and the order ease off > hold > ready", () => {
   for (const [x, why] of [[setProgram(both, { pem: "yes" }, TODAY), "pacing mode"], [{ ...both, move: { ...both.move, faintPause: TODAY } }, "faint pause"], [setProgram(both, { cleared: "anyway" }, TODAY), "no clinician's yes"]]) {
     assert.equal(moveOption(x, { today: TODAY }), null, `no options: ${why}`);
   }
+});
+
+test("S7 review: no step-up straight after a crash, a forced stop or a much-worse session", () => {
+  // The reviewers' case: 9 okay Step 1 sessions over 28 days, then yesterday's crashed.
+  let p = cleared(on(), {}, 40);
+  for (const d of [28, 25, 22, 19, 16, 13, 10, 7, 4]) p = ses(p, d);
+  assert.equal(moveOption(p, { today: TODAY }).kind, "ready", "control: the history alone is ready");
+  const crash = ses(p, 1, { next: "crash" });
+  let r = moveOption(crash, { today: TODAY });
+  assert.deepEqual([r.kind, r.copy], ["hold", MOVE_COPY.holdCrash], "a single crash: hold with the crash wording, never ready");
+  const crashOld = ses(p, 3, { next: "crash" });
+  assert.equal(moveOption(crashOld, { today: TODAY }).kind, "hold", "a crash days ago, still the latest session: hold");
+  const stopped = ses(p, 0, { after: 3, stopped: true, next: null });
+  r = moveOption(stopped, { today: TODAY });
+  assert.deepEqual([r.kind, r.copy], ["hold", MOVE_COPY.holdStopped], "a session she had to stop today: hold, never ready");
+  r = moveOption(ses(p, 0, { after: 2, next: null }), { today: TODAY });
+  assert.deepEqual([r.kind, r.copy], ["hold", MOVE_COPY.holdMuchWorse], "much worse right after: hold");
+  // One session in the last week left her worse, but the latest went fine: no option at all.
+  const mixed = ses(ses(p, 3, { after: 2 }), 1, { after: 0, next: null });
+  assert.equal(moveOption(mixed, { today: TODAY }), null, "a worse session in the last 7 days: no ready");
+  // Ease off at Step 1 names no step to go back to; at Step 2 it does.
+  const e1 = ses(ses(p, 3, { after: 2 }), 1, { next: "worse" });
+  r = moveOption(e1, { today: TODAY });
+  assert.deepEqual([r.kind, r.copy, r.back], ["ease", MOVE_COPY.easeStep1, null]);
+  assert.ok(!/step back/.test(MOVE_COPY.easeStep1) && !/step back/.test(MOVE_COPY.easeSomeStep1));
+  for (const s of [MOVE_COPY.holdCrash, MOVE_COPY.holdStopped, MOVE_COPY.holdMuchWorse, MOVE_COPY.easeStep1, MOVE_COPY.easeSomeStep1, MOVE_COPY.paused]) clean(s, "review copy");
+});
+
+test("S7 review: a corrected or discarded session faint takes back only the pause it set", () => {
+  const base = ses(cleared(on()), 0, { id: "mt1" });
+  // Yes, then No (a mis-tap corrected): no episode, no pause, no report line.
+  let p = setSessionFaint(base, TODAY, "mt1", "yes");
+  assert.deepEqual([p.move.faintPause, p.move.faintPauseSrc], [TODAY, "mt1"]);
+  let q = setSessionFaint(p, TODAY, "mt1", "no");
+  assert.ok(q.move.faintPause === null && !q.move.faintPauseSrc && !(q.days[TODAY].eps || []).length, "Yes -> No: pause and episode gone");
+  assert.ok(!modelTexts(reportModel(q, { today: TODAY, stage: "peri" })).some((t) => t.startsWith("After an exercise faint")), "no false pause line in the report");
+  assert.ok(moveState(q, "peri").stepUps);
+  q = setSessionFaint(p, TODAY, "mt1", null);
+  assert.equal(q.move.faintPause, null, "Yes -> cleared: pause gone");
+  // Discard without the faint: pause gone; discard keeping it: pause stays.
+  assert.equal(deleteSession(p, TODAY, "mt1", { keepFaint: false }).move.faintPause, null);
+  assert.equal(deleteSession(p, TODAY, "mt1").move.faintPause, TODAY, "the faint kept in her log keeps the pause");
+  // A pause already on (from her own exercise episode) is neither moved nor taken back by a session.
+  let o = setFaintPause(addEpisode(base, ago(2), { sym: ["p_psy"], faint: "yes", pos: "exercise" }), ago(2));
+  o = setSessionFaint(o, TODAY, "mt1", "almost");
+  assert.deepEqual([o.move.faintPause, o.move.faintPauseSrc], [ago(2), undefined], "an earlier pause stays as it was");
+  o = setSessionFaint(o, TODAY, "mt1", "no");
+  assert.equal(o.move.faintPause, ago(2), "correcting the session leaves the earlier pause");
+  // Two session faints: correcting the one that set the pause keeps it while the other stands.
+  let t2 = setSessionFaint(ses(base, 0, { id: "mt2", t: "18:00" }), TODAY, "mt1", "yes");
+  t2 = setSessionFaint(t2, TODAY, "mt2", "yes");
+  assert.equal(setSessionFaint(t2, TODAY, "mt1", "no").move.faintPause, TODAY, "the other exercise faint keeps the pause");
+  // "I've been checked" clears the source too; the sanitizer keeps a valid source and is idempotent.
+  assert.ok(!clearFaintPause(p).move.faintPauseSrc);
+  assert.equal(cleanPots(p).move.faintPauseSrc, "mt1");
+  assert.deepEqual(cleanPots(p), cleanPots(cleanPots(p)));
+});
+
+test("S7 review: Today's plan never offers a session while an exercise faint pauses movement", () => {
+  let p = setProgram(cleared(on()), { days: [0, 1, 2, 3, 4, 5, 6], step: 2 }, TODAY);
+  assert.equal(planLine(p, { stage: "peri", day: TODAY }), "Movement: Step 2 session today");
+  p = setSessionFaint(ses(p, 1, { id: "fp1", step: 2 }), ago(1), "fp1", "yes");
+  const line = planLine(p, { stage: "peri", day: TODAY });
+  assert.equal(line, MOVE_COPY.paused);
+  assert.ok(!/session today/.test(line));
+  assert.equal(planLine(clearFaintPause(p), { stage: "peri", day: TODAY }), "Movement: Step 2 session today", "after \"I've been checked\"");
+  assert.equal(planLine(setProgram(p, { pem: "yes" }, TODAY), { stage: "peri", day: TODAY }), null, "pacing mode still has no plan line");
+});
+
+test("S7 review: pacing sessions have no step; 4 sessions a day at most; a session the app closed is marked", () => {
+  // Pacing: no step stored, and the CSV row names none.
+  let p = setProgram(on(), { pem: "yes" }, ago(5));
+  p = addSession(p, ago(1), { id: "pc1", t: "10:00", mode: "walk", step: null, main: 10, after: 0 });
+  assert.equal(p.days[ago(1)].move[0].step, null);
+  assert.deepEqual(cleanPots(p), cleanPots(cleanPots(p)));
+  const row = toCSV(reportModel(p, { today: TODAY, stage: "peri" })).split("\r\n").find((l) => l.startsWith('"session"'));
+  assert.ok(row && !row.includes("step="), row);
+  // Four a day: a fifth is refused, the first is kept.
+  let f = on();
+  for (let i = 0; i < 4; i++) f = addSession(f, TODAY, { id: `cap${i}`, t: `1${i}:00`, mode: "walk" });
+  assert.ok(sessionsFull(f, TODAY) && !sessionsFull(f, ago(1)));
+  assert.equal(addSession(f, TODAY, { id: "cap4", t: "15:00", mode: "walk" }), f, "a fifth is refused");
+  // A guided session still running at launch, untouched for over 30 minutes: stopped and interrupted.
+  const now = Date.now();
+  let r = addSession(cleared(on()), TODAY, { id: "run1", t: "09:00", mode: "rowing", step: 1, warm: 5, main: 0, guided: true, running: true });
+  r = addSession(r, TODAY, { id: "run2", t: "11:00", mode: "rowing", step: 1, guided: true, running: true });
+  r = { ...r, days: { ...r.days, [TODAY]: { ...r.days[TODAY], move: r.days[TODAY].move.map((x) => (x.id === "run1" ? { ...x, upd: now - 31 * 60000 } : { ...x, upd: now - 5 * 60000 })) } } };
+  const m = markStaleRunning(r, now);
+  const [a, b] = m.days[TODAY].move;
+  assert.ok(a.stopped === true && a.interrupted === true && a.running === undefined && a.warm === 5, "stale: ended early, minutes kept");
+  assert.ok(b.running === true && !b.stopped, "a session touched 5 minutes ago may still be running in another window");
+  assert.equal(markStaleRunning(m, now), m, "nothing more to mark: the same object");
+  const model = reportModel(cleanPots(m), { today: TODAY, stage: "peri" });
+  assert.ok(modelTexts(model).some((t) => t.includes("1 stopped early (1 because the app closed)")));
+  assert.ok(toCSV(model).includes("app_closed=yes"));
 });
 
 test("S7 / c3: a session faint logs one linked exercise episode and pauses step-ups; no double count", () => {

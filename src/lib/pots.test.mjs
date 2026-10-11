@@ -159,10 +159,10 @@ test("a: lists are capped keeping the newest; tests sorted; tombstones never cap
   assert.equal(p.gone.length, 5000);
   assert.equal(p.meds.length, 30);
   assert.equal(p.meds[0].id, "m5");
-  // Adding at a cap keeps the newest, like the sanitizer: the new entry is always saved.
+  // Sessions: a fifth on one day is refused, never made room for by dropping her first one.
   let q = on();
   for (let i = 0; i < 5; i++) q = addSession(q, D, { id: `s${i}`, t: `0${i}:00`, mode: "walk" });
-  assert.deepEqual(q.days[D].move.map((x) => x.id), ["s1", "s2", "s3", "s4"]);
+  assert.deepEqual(q.days[D].move.map((x) => x.id), ["s0", "s1", "s2", "s3"]);
   let r = on();
   for (let i = 0; i < 31; i++) r = addEpisode(r, D, { id: `e${i}`, t: "10:00", sym: ["p_dzy"] });
   assert.equal(r.days[D].eps.length, 30);
@@ -722,8 +722,12 @@ test("c3: a session faint writes an exercise episode and pauses step-ups; counts
   p = addEpisode(p, D, { sym: ["p_psy"], faint: "almost" });
   const near = Object.values(p.days).flatMap((d) => d.eps || []).filter((e) => e.faint === "almost").length;
   assert.equal(near, 3, "session, test and her own episode, each once");
+  // Corrected to No: the linked episode goes, and so does the pause only this session set
+  // (no other exercise faint is logged); with another exercise faint logged, the pause stays.
+  const withOther = setSessionFaint(addEpisode(p, D, { sym: ["p_psy"], faint: "yes", pos: "exercise" }), D, "ses1", "no");
+  assert.equal(withOther.move.faintPause, D, "another exercise faint keeps the pause until she reports being checked");
   p = setSessionFaint(p, D, "ses1", "no");
-  assert.equal(p.move.faintPause, D, "the pause stays until she reports being checked");
+  assert.equal(p.move.faintPause, null, "a corrected answer takes back the pause it set");
   assert.equal(p.days[D].eps.filter((e) => e.src === "ses1").length, 0);
 });
 

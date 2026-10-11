@@ -174,10 +174,14 @@ function cleanVit(x) {
 function cleanSession(x) {
   if (!isObj(x) || !isId(x.id) || !hhmm(x.t)) return null;
   return shape(x, {
-    upd: updN(x.upd), mode: en(x.mode) || "other", step: int(x.step, 1, 4) || 1,
+    // No step in pacing mode (there is no step plan then): step stays null.
+    upd: updN(x.upd), mode: en(x.mode) || "other", step: int(x.step, 1, 4),
     warm: int(x.warm, 0, 30) ?? 0, main: int(x.main, 0, 120) ?? 0, cool: int(x.cool, 0, 30) ?? 0,
     guided: x.guided === true, stopped: x.stopped === true, effort: int(x.effort, 0, 10), after: int(x.after, 0, 3),
     worse: tags(x.worse, 20), faint: en(x.faint), next: en(x.next),
+    // A guided session is `running` from its start until it reaches the rest or is stopped;
+    // `interrupted` marks one the app closed mid-session (markStaleRunning).
+    running: x.running === true ? true : undefined, interrupted: x.interrupted === true ? true : undefined,
   });
 }
 /** One logged day. Sparse: a field that isn't set is absent (that is how a cleared rating,
@@ -325,7 +329,7 @@ export function cleanPots(raw) {
     tests: (Array.isArray(raw.tests) ? raw.tests.map(cleanTest).filter(Boolean) : []).sort(byDateTime).slice(-500),
     tilt: list(raw.tilt, cleanTilt, 50),
     meds: list(raw.meds, cleanMed, 30),
-    move: shape(m, { program: cleanProgram(m.program), faintPause: iso(m.faintPause) }),
+    move: shape(m, { program: cleanProgram(m.program), faintPause: iso(m.faintPause), faintPauseSrc: isId(m.faintPauseSrc) ? m.faintPauseSrc : undefined }),
     // Tombstones are never capped within an epoch; a new epoch empties them.
     gone: uniq((Array.isArray(raw.gone) ? raw.gone : []).filter(isId)),
   });
@@ -365,12 +369,19 @@ export function eraseLog(p, nowMs = Date.now()) {
 }
 
 /** At launch only: a "running" test untouched for more than 30 minutes is marked
-    "interrupted" (it keeps every reading it saved). Returns `p` itself when nothing changed. */
+    "interrupted" (it keeps every reading it saved), and so is a guided movement session still
+    `running` (the runner refreshes its `upd` every few minutes): it is marked stopped and
+    interrupted, keeping the minutes it saved. Returns `p` itself when nothing changed. */
 export function markStaleRunning(p, nowMs = Date.now()) {
   if (!isObj(p) || isLockedPots(p) || !Array.isArray(p.tests)) return p;
-  const stale = (x) => x.status === "running" && nowMs - (x.upd || 0) > THRESH.staleMin * 60000;
-  if (!p.tests.some(stale)) return p;
-  return { ...p, tests: p.tests.map((x) => (stale(x) ? { ...x, status: "interrupted", upd: nowMs } : x)) };
+  const old = (x) => nowMs - (x.upd || 0) > THRESH.staleMin * 60000;
+  const stale = (x) => x.status === "running" && old(x);
+  const staleSes = (x) => isObj(x) && x.running === true && old(x);
+  const dayKeys = Object.keys(isObj(p.days) ? p.days : {}).filter((k) => isObj(p.days[k]) && Array.isArray(p.days[k].move) && p.days[k].move.some(staleSes));
+  if (!p.tests.some(stale) && !dayKeys.length) return p;
+  const days = { ...p.days };
+  for (const k of dayKeys) days[k] = { ...days[k], move: days[k].move.map((x) => (staleSes(x) ? { ...x, running: undefined, stopped: true, interrupted: true, upd: nowMs } : x)) };
+  return { ...p, days, tests: p.tests.some(stale) ? p.tests.map((x) => (stale(x) ? { ...x, status: "interrupted", upd: nowMs } : x)) : p.tests };
 }
 
 /* ---------- the Settings switch (design 1.2) ---------- */
@@ -595,8 +606,13 @@ export const addVitals = guard((p, day, v) => {
   if (r.hr == null && r.sys == null && r.dia == null) return p;
   return withDay(p, day, (d) => { const vit = appendItem(p, d.vit, withNewId({ ...fill({ t: nowHHMM(), pos: null }, v), ...r }), cleanVit, 30); return vit ? { ...d, vit } : d; });
 });
+/** At most this many sessions a day. A fifth is refused (the screens say so first), never
+    made room for by dropping one she already logged. */
+export const SESSIONS_PER_DAY = 4;
+export const sessionsFull = (p, day) => ((((isObj(p) && p.days) || {})[day] || {}).move || []).length >= SESSIONS_PER_DAY;
 export const addSession = guard((p, day, s) => withDay(p, day, (d) => {
-  const move = appendItem(p, d.move, withNewId(fill({ t: nowHHMM() }, s)), cleanSession, 4);
+  if ((d.move || []).length >= SESSIONS_PER_DAY) return d;
+  const move = appendItem(p, d.move, withNewId(fill({ t: nowHHMM() }, s)), cleanSession, SESSIONS_PER_DAY);
   return move ? { ...d, move } : d;
 }));
 export const updateSession = guard((p, day, id, patch) => withDay(p, day, (d) => {
@@ -670,15 +686,32 @@ export const setTestFaint = guard((p, id, faint, t) => {
   const q = upsertTest(p, { ...test0, fainted: f });
   return linkFaint(q, test0.date, test0.id, f, "stoodup", hhmm(t) || test0.t);
 });
+/** Is there an exercise faint or near-faint episode on or after `from` (other than `exceptSrc`'s)? */
+function exerciseFaintSince(p, from, exceptSrc) {
+  return Object.entries(p.days || {}).some(([iso, d]) => iso >= from && isObj(d) && (d.eps || []).some((e) => e.pos === "exercise" && (e.faint === "yes" || e.faint === "almost") && (!exceptSrc || e.src !== exceptSrc)));
+}
+/** Undo the step-up pause a session's faint answer set, once that answer is corrected (No, or
+    cleared) or the session is discarded with its faint: only when this session set the pause
+    (move.faintPauseSrc) and no other exercise faint or near-faint is logged since that day, so
+    a real faint, or a pause from another faint, always stays until she reports being checked. */
+export const releaseFaintPause = guard((p, src) => {
+  const m = isObj(p.move) ? p.move : {};
+  if (!isIso(m.faintPause) || !isId(src) || m.faintPauseSrc !== src || exerciseFaintSince(p, m.faintPause, src)) return p;
+  return { ...p, move: { ...m, faintPause: null, faintPauseSrc: undefined } };
+});
 /** The same for a movement session; Yes / Almost also pauses step-up options
-    (move.faintPause) until she reports being checked. */
+    (move.faintPause) until she reports being checked, recording the session that set the pause
+    (move.faintPauseSrc) unless a pause is already on (it stays as it was). Changing the answer
+    to No, or clearing it, takes back a pause only this session set (releaseFaintPause). */
 export const setSessionFaint = guard((p, day, id, faint, t) => {
   const s = (((p.days || {})[day] || {}).move || []).find((x) => x.id === id);
   if (!s) return p;
   const f = pick(faint, ["no", "almost", "yes"], null);
   let q = updateSession(p, day, id, { faint: f });
   q = linkFaint(q, day, id, f, "exercise", hhmm(t) || s.t);
-  if (f === "yes" || f === "almost") q = { ...q, move: { ...q.move, faintPause: day } };
+  if (f === "yes" || f === "almost") {
+    if (!isIso((q.move || {}).faintPause)) q = { ...q, move: { ...q.move, faintPause: day, faintPauseSrc: id } };
+  } else q = releaseFaintPause(q, id);
   return q;
 });
 /** A tilt-table result, kept as she was told it. */
@@ -779,7 +812,7 @@ export const raiseSym = guard((p, day, id, sev) => {
 export const markQuick = guard((p, day) => withDay(p, day, (d) => (d.quick === true ? d : { ...d, quick: true })));
 /** Fainting or nearly fainting during exercise: step-up options pause until she reports being
     checked (design 4.4 / 4.10; the Move section reads it). */
-export const setFaintPause = guard((p, day) => (isIso(day) ? { ...p, move: { ...p.move, faintPause: day } } : p));
+export const setFaintPause = guard((p, day) => (isIso(day) ? { ...p, move: { ...p.move, faintPause: day, faintPauseSrc: undefined } } : p));
 /** The one-time registration offer card (owner decision D2) was answered: it never returns. */
 export const markOffered = guard((p, day) => (isIso(day) && p.offered !== day ? { ...p, offered: day } : p));
 /** Days in the 7 ending on `day` (that day included) with at least one "almost" fainted

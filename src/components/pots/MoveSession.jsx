@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { addSession, updateSession, setSessionFaint, newId, nowHHMM } from "../../lib/pots.js";
-import { moveState, sessionDefaults, deleteSession, MOVE_MODES, AFTER_OPTS, MOVE_COPY } from "../../lib/potsMove.js";
+import { addSession, updateSession, setSessionFaint, sessionsFull, newId, nowHHMM } from "../../lib/pots.js";
+import { moveState, sessionDefaults, deleteSession, MOVE_MODES, AFTER_OPTS, NEXT_OPTS, MOVE_COPY } from "../../lib/potsMove.js";
 import UrgentCard, { urgentText } from "./UrgentCard.jsx";
 import { Choice, CheckRow } from "./StandSafety.jsx";
 import { useCue, useWakeLock } from "./StandTest.jsx";
@@ -20,9 +20,15 @@ import { numOf, numProps, addDays, symLabel, useAnnounce } from "./ui.js";
      plan, and the main part stays blank until she has set one (owner decision D9).
    - All timing is wall-clock (Date.now() against the part's start, less any pause); a 250 ms
      interval only redraws, so a locked screen or a backgrounded tab never skews a part. A part
-     that ran out while she was away simply moves on when she comes back.
-   - The session is saved when it starts and again at every part and every answer (minutes
-     actually done, `guided`, `stopped`), so a closed app never loses it.
+     that runs out on its own hands over to the next part at the moment it ran out, not when she
+     comes back: parts that ran out while she was away are chained on the wall clock, each saved
+     with its full planned minutes. Only "End this part now" starts the next part at the tap.
+   - The session is saved when it starts (`running`) and again at every part and every answer
+     (minutes actually done, `guided`, `stopped`), and its `upd` is refreshed every few minutes
+     while a part runs, so a closed app never loses it; one the app closed mid-session is marked
+     stopped and interrupted at the next launch (lib/pots.js markStaleRunning).
+   - At most 4 sessions a day: a fifth is refused with a message, never by dropping one.
+   - In pacing mode there is no step plan, so the session has no step.
    - The red Stop sits directly under the heading and again in a sticky bar in every running
      part; inputs are never focused automatically, and each part change focuses its heading.
    - "Did you faint or nearly faint?" is asked on Stop and at the end (unless answered on Stop).
@@ -40,6 +46,8 @@ const HEAD = { setup: "Start a session", warm: "Warm up · easy pace", main: "Ma
 const TIMER_LABEL = { warm: "Time left warming up", main: "Time left in the main part", cool: "Time left cooling down" };
 const LINE = { warm: "Easy pace to warm up.", main: "A pace where you could still talk in short sentences.", cool: "Easy pace to cool down." };
 const PART_WORD = { warm: "Warm up", main: "Main part", cool: "Cool down" };
+const FULL_TEXT = "You've logged 4 sessions on this day, the most Cyra keeps.";
+const BEAT = 4 * MIN; // refresh a running session's upd this often (staleness is 30 minutes)
 const mmss = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const whole = (s, lo, hi) => { const n = numOf(s); return n != null && Number.isInteger(n) && n >= lo && n <= hi ? n : null; };
 
@@ -61,6 +69,9 @@ function MinutesFields({ id, v, setV, errKey }) {
     </div>
   );
 }
+
+/** The step a new session is at: her chosen step, or none in pacing mode (no step plan then). */
+const stepFor = (p, stage) => { const st = moveState(p, stage); return st.pacing ? null : (st.program || {}).step || 1; };
 
 /** Effort, how she feels, which symptoms got worse, and (optionally) the faint question. Every
     answer is written at once through onPatch / onFaint. */
@@ -138,16 +149,36 @@ export function SessionRunner({ run, setRun, pots, setPots, stage, todayIso, pin
   const lenMs = isPart(phase) ? plan[phase] * MIN : 0;
   const minsDone = () => Math.max(0, Math.min(plan[phase], Math.round(((run.paused ?? Date.now()) - run.phaseStart - (run.pausedMs || 0)) / MIN)));
   const nextPart = (ph) => PARTS.slice(PARTS.indexOf(ph) + 1).find((k) => plan[k] > 0) || "rest";
-  /* Move on to the next part (or the rest and after-questions), saving the minutes done. */
+  const announceNext = (nx) => { say(nx === "rest" ? "Session finished. Rest now" : PART_WORD[nx]); cue(); };
+  /* "End this part now": save the minutes done and start the next part (or the rest and
+     after-questions) at this moment. */
   const advance = (mins) => {
     const ph = phase, nx = nextPart(ph);
-    write({ [ph]: mins });
+    write({ [ph]: mins, ...(nx === "rest" ? { running: undefined } : {}) });
     go(nx);
-    say(nx === "rest" ? "Session finished. Rest now" : PART_WORD[nx]);
-    cue();
+    announceNext(nx);
   };
-  // A part whose time is up moves on by itself (also when she comes back to the page).
-  useEffect(() => { if (isPart(phase) && ses && !run.paused && elapsed >= lenMs) advance(plan[phase]); }); // eslint-disable-line
+  /* Parts whose time is up move on by themselves, chained on the wall clock: the next part
+     starts when the last one ran out, so after a locked screen or a hidden page every part that
+     ran out meanwhile is saved with its full minutes and the current part's clock is right. */
+  useEffect(() => {
+    if (!isPart(phase) || !ses || run.paused) return;
+    const t = Date.now(), patch = {};
+    let ph = phase, at = run.phaseStart + (run.pausedMs || 0);
+    while (isPart(ph) && t - at >= plan[ph] * MIN) { patch[ph] = plan[ph]; at += plan[ph] * MIN; ph = nextPart(ph); }
+    if (ph === phase) return;
+    if (ph === "rest") patch.running = undefined;
+    write(patch);
+    setRun((r) => ({ ...r, phase: ph, phaseStart: at, paused: null, pausedMs: 0 }));
+    announceNext(ph);
+  }); // eslint-disable-line
+  // While a part runs, refresh the saved session now and then, so a relaunch can tell a running
+  // session from one the app closed mid-way.
+  useEffect(() => {
+    if (!isPart(phase) || !run.id) return undefined;
+    const h = setInterval(() => write({}), BEAT);
+    return () => clearInterval(h);
+  }, [phase, run.id]); // eslint-disable-line
 
   const start = () => {
     const warm = setup.warm.trim() === "" ? 0 : whole(setup.warm, 0, 30), main = whole(setup.main, 1, 120), cool = setup.cool.trim() === "" ? 0 : whole(setup.cool, 0, 30);
@@ -155,16 +186,17 @@ export function SessionRunner({ run, setRun, pots, setPots, stage, todayIso, pin
     if (warm == null) { setErr({ key: "warm", text: "Warm up: use 0 to 30 minutes." }); return; }
     if (main == null) { setErr({ key: "main", text: "Add how long the main part is, from 1 to 120 minutes." }); return; }
     if (cool == null) { setErr({ key: "cool", text: "Cool down: use 0 to 30 minutes." }); return; }
+    if (sessionsFull(pots, todayIso)) { setErr({ key: "full", text: FULL_TEXT }); return; }
     unlockCue();
     const id = newId(), t = nowHHMM();
-    setPots((p) => addSession(p, todayIso, { id, t, mode: setup.mode, step: (moveState(p, stage).program || {}).step || 1, warm: 0, main: 0, cool: 0, guided: true, stopped: false, effort: null, after: null, worse: [], faint: null, next: null }));
+    setPots((p) => addSession(p, todayIso, { id, t, mode: setup.mode, step: stepFor(p, stage), warm: 0, main: 0, cool: 0, guided: true, stopped: false, effort: null, after: null, worse: [], faint: null, next: null, running: true, upd: Date.now() }));
     const first = warm > 0 ? "warm" : "main";
     go(first, { id, day: todayIso, plan: { warm, main, cool } });
     say(PART_WORD[first]);
     wake();
   };
   const stop = () => {
-    write({ [phase]: minsDone(), stopped: true, after: ses && ses.after != null ? ses.after : 3 });
+    write({ [phase]: minsDone(), stopped: true, after: ses && ses.after != null ? ses.after : 3, running: undefined });
     go("stopped", { stopT: nowHHMM() });
   };
   const pause = () => setRun((r) => (r.paused ? { ...r, pausedMs: (r.pausedMs || 0) + (Date.now() - r.paused), paused: null } : { ...r, paused: Date.now() }));
@@ -184,6 +216,7 @@ export function SessionRunner({ run, setRun, pots, setPots, stage, todayIso, pin
         <p className="hint" style={{ margin: "10px 0 4px" }}>Every number is yours to change.</p>
         <MinutesFields id="pots-ses" v={setup} setV={(v) => { setSetup(v); setErr(null); }} errKey={err && err.key} />
         {st.program && st.program.hrNote && <p className="plain">{`Heart-rate range from your clinician or physio: ${st.program.hrNote}`}</p>}
+        {st.paused && <p className="plain">{MOVE_COPY.faint}</p>}
         <p className="hint">Have a drink before and after.</p>
         {err && <p className="errhint" role="alert" style={{ marginTop: 0 }}>{err.text}</p>}
         <button type="button" className="cta" onClick={start}>Start</button>
@@ -200,7 +233,7 @@ export function SessionRunner({ run, setRun, pots, setPots, stage, todayIso, pin
         {phase === "main" && st.program && st.program.hrNote && <p className="plain" style={{ textAlign: "center" }}>{`Heart-rate range from your clinician or physio: ${st.program.hrNote}`}</p>}
         <p className="hint" style={{ textAlign: "center", margin: "0 0 10px" }}>{nx === "rest" ? "Then rest sitting or lying down." : `Then: ${PART_WORD[nx].toLowerCase()}, ${plan[nx]} min.`}</p>
         {noLock && <p className="hint" style={{ margin: "0 0 10px" }}>Keep your screen on during the session. Tap it now and then.</p>}
-        <button type="button" className="ghostbtn" aria-pressed={!!run.paused} onClick={pause}>{run.paused ? "Resume" : "Pause"}</button>
+        <button type="button" className="ghostbtn" onClick={pause}>{run.paused ? "Resume" : "Pause"}</button>
         <button type="button" className="linkbtn" style={{ display: "block", marginTop: 10 }} onClick={() => advance(minsDone())}>End this part now</button>
       </>
     );
@@ -272,9 +305,10 @@ export function SessionLog({ pots, setPots, stage, todayIso, ping, announce, hea
     if (warm == null) { setErr({ key: "warm", text: "Warm up: use 0 to 30 minutes." }); return; }
     if (main == null) { setErr({ key: "main", text: "Add how long the main part was, from 0 to 120 minutes." }); return; }
     if (cool == null) { setErr({ key: "cool", text: "Cool down: use 0 to 30 minutes." }); return; }
+    if (sessionsFull(pots, day)) { setErr({ key: "full", text: FULL_TEXT }); return; }
     const id = newId();
     setPots((p) => {
-      let q = addSession(p, day, { id, t, mode, step: (moveState(p, stage).program || {}).step || 1, warm, main, cool, guided: false, stopped: false, effort: ses.effort, after: ses.after, worse: ses.worse, faint: null, next: null });
+      let q = addSession(p, day, { id, t, mode, step: stepFor(p, stage), warm, main, cool, guided: false, stopped: false, effort: ses.effort, after: ses.after, worse: ses.worse, faint: null, next: null });
       if (ses.faint) q = setSessionFaint(q, day, id, ses.faint, t);
       return q;
     });
@@ -300,6 +334,48 @@ export function SessionLog({ pots, setPots, stage, todayIso, ping, announce, hea
       <EndQuestions id="pots-mlog-end" pots={pots} ses={ses} preg={preg} showFaint afterLabel="How did you feel right after?" onPatch={(patch) => setSes((x) => ({ ...x, ...patch }))} onFaint={pickFaint} />
       {err && <p className="errhint" role="alert" style={{ marginTop: 10 }}>{err.text}</p>}
       <button type="button" className="cta" style={{ marginTop: 14 }} onClick={save}>Save session</button>
+      <button type="button" className="ghostbtn" onClick={() => onDone(false)}>Cancel</button>
+    </section>
+  );
+}
+
+/* ---------- Today's log → Edit on a session ---------- */
+/** Correct a saved session: what she did, the minutes, effort, how she felt right after, which
+    symptoms got worse, the faint answer and (for an earlier day) how she felt the next day. A
+    draft until "Save changes"; a changed faint answer goes through setSessionFaint, so its
+    linked episode and the step-up pause follow it. */
+export function SessionEdit({ pots, setPots, ses: s0, day, todayIso, preg, announce, headRef, onDone }) {
+  const [mode, setMode] = useState(s0.mode);
+  const [mins, setMins] = useState({ warm: String(s0.warm ?? 0), main: String(s0.main ?? 0), cool: String(s0.cool ?? 0) });
+  const [ses, setSes] = useState({ effort: s0.effort ?? null, after: s0.after ?? null, worse: s0.worse || [], faint: s0.faint ?? null });
+  const [next, setNext] = useState(s0.next ?? null);
+  const [err, setErr] = useState(null);
+  const pickFaint = (v) => { const f = ses.faint === v ? null : v; setSes((x) => ({ ...x, faint: f })); if (f === "yes") announce(urgentText("faint")); };
+  const save = () => {
+    const warm = mins.warm.trim() === "" ? 0 : whole(mins.warm, 0, 30), main = whole(mins.main, 0, 120), cool = mins.cool.trim() === "" ? 0 : whole(mins.cool, 0, 30);
+    if (warm == null) { setErr({ key: "warm", text: "Warm up: use 0 to 30 minutes." }); return; }
+    if (main == null) { setErr({ key: "main", text: "Add how long the main part was, from 0 to 120 minutes." }); return; }
+    if (cool == null) { setErr({ key: "cool", text: "Cool down: use 0 to 30 minutes." }); return; }
+    const patch = { mode: mode || s0.mode, warm, main, cool, effort: ses.effort, after: ses.after, worse: ses.worse, next, ...(next != null ? { nextSkip: undefined } : {}) };
+    setPots((p) => {
+      let q = updateSession(p, day, s0.id, patch);
+      const cur = ((((q.days || {})[day] || {}).move) || []).find((x) => x.id === s0.id);
+      if (cur && (cur.faint ?? null) !== ses.faint) q = setSessionFaint(q, day, s0.id, ses.faint, s0.t);
+      return q;
+    });
+    onDone(true);
+  };
+  return (
+    <section aria-labelledby="pots-sedit-h">
+      <h2 className="obq" id="pots-sedit-h" tabIndex={-1} ref={headRef}>{`Session at ${s0.t}`}</h2>
+      {s0.interrupted && <p className="hint">The app closed during this session, so it ended early.</p>}
+      <Choice id="pots-sedit-mode" label="What did you do?" value={mode} options={MOVE_MODES} onPick={(v) => { setMode(v); setErr(null); }} />
+      {preg && mode === "floor" && <p className="plain" style={{ marginTop: 8 }}>{MOVE_COPY.pregFloor}</p>}
+      <div style={{ marginTop: 10 }}><MinutesFields id="pots-sedit" v={mins} setV={(v) => { setMins(v); setErr(null); }} errKey={err && err.key} /></div>
+      <EndQuestions id="pots-sedit-end" pots={pots} ses={ses} preg={preg} showFaint afterLabel="How did you feel right after?" onPatch={(patch) => setSes((x) => ({ ...x, ...patch }))} onFaint={pickFaint} />
+      {day < todayIso && <Choice id="pots-sedit-next" label="How did you feel the next day?" value={next} options={NEXT_OPTS} onPick={(v) => setNext((x) => (x === v ? null : v))} />}
+      {err && <p className="errhint" role="alert" style={{ marginTop: 10 }}>{err.text}</p>}
+      <button type="button" className="cta" style={{ marginTop: 14 }} onClick={save}>Save changes</button>
       <button type="button" className="ghostbtn" onClick={() => onDone(false)}>Cancel</button>
     </section>
   );

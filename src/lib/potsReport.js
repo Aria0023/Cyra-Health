@@ -211,10 +211,10 @@ function moveBlocks(p, { sessions, range, today, stage, inc, eps }) {
     weeks.push({ from, to, n: s.length, worse: s.filter((x) => x.next === "worse").length, crash: s.filter((x) => x.next === "crash").length });
   }
   if (weeks.length) blocks.push({ t: "weeks", weeks, label: `Exercise sessions per week, ${fmtRange(weeks[0].from, range.to)}: ${weeks.map((w) => `week from ${fmtDay(w.from)}, ${plural(w.n, "session")}${w.worse || w.crash ? ` (next day worse ${w.worse}, crashed ${w.crash})` : ""}`).join("; ")}.` });
-  const guided = sessions.filter((x) => x.guided).length, stopped = sessions.filter((x) => x.stopped).length;
+  const guided = sessions.filter((x) => x.guided).length, stopped = sessions.filter((x) => x.stopped).length, closed = sessions.filter((x) => x.stopped && x.interrupted).length;
   const mainSum = sessions.reduce((a, x) => a + (fin(x.main) ? x.main : 0), 0), longest = sessions.reduce((a, x) => (fin(x.main) && x.main > a ? x.main : a), 0);
   const easy = sessions.reduce((a, x) => a + (fin(x.warm) ? x.warm : 0) + (fin(x.cool) ? x.cool : 0), 0);
-  blocks.push({ t: "p", text: `Sessions in this period: ${sessions.length} (${guided} with Cyra's timer${stopped ? `, ${stopped} stopped early` : ""}). Main part: ${mainSum} min in all, longest ${longest} min; warm-up and cool-down ${easy} min.` });
+  blocks.push({ t: "p", text: `Sessions in this period: ${sessions.length} (${guided} with Cyra's timer${stopped ? `, ${stopped} stopped early${closed ? ` (${closed} because the app closed)` : ""}` : ""}). Main part: ${mainSum} min in all, longest ${longest} min; warm-up and cool-down ${easy} min.` });
   const rec = sessions.filter((x) => RECUMBENT.includes(x.mode)).length, upr = sessions.filter((x) => UPRIGHT.includes(x.mode)).length;
   const modes = [...new Set(sessions.map((x) => x.mode))].map((m) => `${modeWord(m).toLowerCase()} ${sessions.filter((x) => x.mode === m).length}`).join(", ");
   blocks.push({ t: "p", text: `Lying or seated: ${rec} · upright: ${upr} · other: ${sessions.length - rec - upr} (${modes}).` });
@@ -692,7 +692,7 @@ export function toCSV(model) {
     if (inc.move) {
       for (const m of (sessions || []).filter((x) => x.date === d)) {
         R("session", d, m.t, m.mode, fin(m.main) ? m.main : "", "min", "", "", "",
-          kv([["step", m.step], ["warm", m.warm], ["cool", m.cool], ["guided", m.guided ? "yes" : "no"], ["effort", m.effort], ["after", AFTER_CSV[m.after]], ["next", m.next], ["worse", (m.worse || []).map((id) => symName(p, id)).join(", ")], ["fainted", m.faint], ["stopped", m.stopped ? "yes" : "no"]]));
+          kv([["step", m.step], ["warm", m.warm], ["cool", m.cool], ["guided", m.guided ? "yes" : "no"], ["effort", m.effort], ["after", AFTER_CSV[m.after]], ["next", m.next], ["worse", (m.worse || []).map((id) => symName(p, id)).join(", ")], ["fainted", m.faint], ["stopped", m.stopped ? "yes" : "no"], ["app_closed", m.interrupted ? "yes" : null]]));
       }
     }
   }

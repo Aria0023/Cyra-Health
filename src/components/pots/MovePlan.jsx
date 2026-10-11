@@ -16,7 +16,8 @@ import { numOf, numProps, useAnnounce } from "./ui.js";
    - Gate 1, asked first: the crash-after-effort (PEM) question. Yes or Not sure turns on pacing
      mode: no step plan and no step-up option ever, while sessions can still be logged.
    - Gate 2: has a clinician or physio said it's OK to start? The plan shows with any answer,
-     with a "check first" advice unless it is Yes. In pregnancy a separate prenatal-team answer
+     and the "check first" advice shows whenever the answer isn't Yes (also before she answers,
+     since a session can already be started then). In pregnancy a separate prenatal-team answer
      is used (cleared on every change of stage into Pregnancy), and the plan and every option
      show only after its yes.
    - She picks her step; Cyra never moves her. Options (ready, hold, ease off) are offered for
@@ -147,7 +148,7 @@ export default function MovePlan({ pots, setPots, stage, todayIso, ping, onStart
           {preg
             ? <Choice id="pots-move-clearq" label={MOVE_COPY.clearPregQ} value={pr.clearedPreg ?? null} options={CLEAR_PREG_OPTS} onPick={(v) => set({ clearedPreg: pr.clearedPreg === v ? null : v })} />
             : <Choice id="pots-move-clearq" label={MOVE_COPY.clearQ} value={pr.cleared ?? null} options={CLEAR_OPTS} onPick={(v) => set({ cleared: pr.cleared === v ? null : v })} />}
-          {!preg && pr.cleared != null && pr.cleared !== "yes" && <div style={{ marginTop: 10 }}><Advice urgency="visit">{MOVE_COPY.clearAdvice}</Advice></div>}
+          {!preg && pr.cleared !== "yes" && <div style={{ marginTop: 10 }}><Advice urgency="visit">{MOVE_COPY.clearAdvice}</Advice></div>}
           {preg && pr.clearedPreg !== "yes" && <p className="plain" style={{ marginTop: 10 }}>{MOVE_COPY.pregWait}</p>}
         </div>
       )}
@@ -162,7 +163,7 @@ export default function MovePlan({ pots, setPots, stage, todayIso, ping, onStart
             </div>
           )}
           {prog && <p className="plain" id="pots-move-progress"><b>{prog.text}</b></p>}
-          {line && <p className="plain">{line}</p>}
+          {line && !st.paused && <p className="plain">{line}</p>}
         </>
       )}
       {st.asked && weeks.some((w) => w.n > 0) && <WeekBars weeks={weeks} ramp={ramp} />}

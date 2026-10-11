@@ -18,7 +18,7 @@
    - Sessions live in days[iso].move (lib/pots.js addSession / updateSession); a faint answer on
      a session also writes a linked episode and pauses the options (lib/pots.js
      setSessionFaint). Derived values (options, weeks, counts) are computed, never stored. */
-import { isLockedPots, updateSession, removeItem, localDay } from "./pots.js";
+import { isLockedPots, updateSession, removeItem, releaseFaintPause, localDay } from "./pots.js";
 
 const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -73,8 +73,15 @@ export const MOVE_COPY = {
   mainPlaceholder: "e.g. what your clinician suggested",
   hold: "Yesterday was harder. Many people repeat the same session until it sits well.",
   holdOlder: "Your last session was harder the next day. Many people repeat the same session until it sits well.",
+  holdCrash: "You crashed after your last session. Many people rest, then go back to an easier session. Tell your clinician or physio, and ask about pacing if it keeps happening.",
+  holdStopped: "You had to stop your last session. Many people rest, then repeat the same session or an easier one until it sits well.",
+  holdMuchWorse: "Your last session left you much worse. Many people rest, then repeat the same session or an easier one until it sits well.",
   ease: "Your last two sessions left you worse afterwards. It's fine to stay here, step back, or add a rest day. Tell your clinician or physio if it keeps happening.",
   easeSome: "Two of your sessions in the last week left you worse afterwards. It's fine to stay here, step back, or add a rest day. Tell your clinician or physio if it keeps happening.",
+  // At Step 1 there is no lower step to go back to.
+  easeStep1: "Your last two sessions left you worse afterwards. It's fine to stay here, shorten the main part, or add a rest day. Tell your clinician or physio if it keeps happening.",
+  easeSomeStep1: "Two of your sessions in the last week left you worse afterwards. It's fine to stay here, shorten the main part, or add a rest day. Tell your clinician or physio if it keeps happening.",
+  paused: "Movement: on hold until you've been checked after fainting or nearly fainting during exercise.",
   ready: (n) => `This step seems to be going okay. Options for next time: stay here, add a couple of minutes, or try Step ${n}. Check with your clinician or physio if you're unsure.`,
   faint: "Fainting or nearly fainting during exercise needs a same-day check before you exercise again.",
   stopped: "Sit or lie down, with your legs up if you're lightheaded. Have a drink.",
@@ -123,7 +130,10 @@ export const leftWorse = (s) => s.next === "worse" || s.next === "crash" || (fin
 export const wentOkay = (s) => fin(s.after) && s.after <= 1 && (s.next == null || s.next === "better" || s.next === "same");
 
 /** Which option, if any, the Move section offers today (design 4.10). Never automatic: she taps
-    any step change herself. Ease off beats hold, and hold beats ready.
+    any step change herself. Ease off beats hold, and hold beats ready. Hold follows any latest
+    session that left her worse (a next day rated worse or crashed, or "much worse" / "had to
+    stop" right after), and ready is never offered while any session in the last 7 days left her
+    worse, so a step-up is never suggested straight after a crash or a forced stop.
     -> null | { kind: "ease", copy, back: step-1|null } | { kind: "hold", copy } | { kind: "ready", copy, next } */
 export function moveOption(p, { stage = null, today } = {}) {
   const st = moveState(p, stage);
@@ -136,13 +146,17 @@ export function moveOption(p, { stage = null, today } = {}) {
   if (worse.length >= 2) {
     const last2 = all.slice(-2);
     const lastTwo = last2.length === 2 && last2.every((s) => s.date >= addDays(today, -6) && leftWorse(s));
-    return { kind: "ease", copy: lastTwo ? MOVE_COPY.ease : MOVE_COPY.easeSome, back: step > 1 ? step - 1 : null };
+    const copy = step > 1 ? (lastTwo ? MOVE_COPY.ease : MOVE_COPY.easeSome) : lastTwo ? MOVE_COPY.easeStep1 : MOVE_COPY.easeSomeStep1;
+    return { kind: "ease", copy, back: step > 1 ? step - 1 : null };
   }
-  // Hold: her latest session felt worse the next day.
+  // Hold: her latest session left her worse (the next day, or right after).
   const last = all[all.length - 1];
+  if (last && last.next === "crash") return { kind: "hold", copy: MOVE_COPY.holdCrash };
   if (last && last.next === "worse") return { kind: "hold", copy: last.date === addDays(today, -1) ? MOVE_COPY.hold : MOVE_COPY.holdOlder };
-  // Ready: at least 6 sessions at this step over at least 14 days, 80% or more of them okay.
-  if (step >= 4) return null;
+  if (last && leftWorse(last)) return { kind: "hold", copy: last.after >= 3 ? MOVE_COPY.holdStopped : MOVE_COPY.holdMuchWorse };
+  // Ready: at least 6 sessions at this step over at least 14 days, 80% or more of them okay, and
+  // none in the last 7 days left her worse.
+  if (step >= 4 || worse.length) return null;
   const since = stepSince(pr);
   const at = all.filter((s) => s.step === step && (!since || s.date >= since));
   if (at.length < 6 || dayDiff(at[0].date, at[at.length - 1].date) + 1 < 14) return null;
@@ -176,10 +190,14 @@ export function weeklyCounts(p, today, weeks = 8) {
 }
 /** The movement line for Today's plan on `day`: "Movement: Step 1 session today" on a planned
     weekday, "Rest day. Rest is part of the plan." on the others; null with no plan to show
-    (pacing mode, pregnancy before the prenatal team's yes, or no days chosen). */
+    (pacing mode, pregnancy before the prenatal team's yes, or no days chosen). After an exercise
+    faint (move.faintPause) it never offers a session: it says movement is on hold until she has
+    been checked. */
 export function planLine(p, { stage = null, day } = {}) {
   const st = moveState(p, stage);
-  if (!st.planShown || !isIso(day) || !Array.isArray(st.program.days) || !st.program.days.length) return null;
+  if (!st.planShown || !isIso(day)) return null;
+  if (st.paused) return MOVE_COPY.paused;
+  if (!Array.isArray(st.program.days) || !st.program.days.length) return null;
   return st.program.days.includes(weekdayOf(day)) ? `Movement: Step ${st.program.step || 1} session today` : MOVE_COPY.restDay;
 }
 /** Yesterday's sessions still waiting for "How do you feel today after yesterday's session?":
@@ -226,16 +244,21 @@ export const setProgram = guard((p, patch, today) => {
   return { ...p, move: { ...(isObj(p.move) ? p.move : {}), program: next } };
 });
 /** "I've been checked": step-up options may show again after an exercise faint. */
-export const clearFaintPause = guard((p) => (isObj(p.move) && p.move.faintPause ? { ...p, move: { ...p.move, faintPause: null } } : p));
+export const clearFaintPause = guard((p) => (isObj(p.move) && p.move.faintPause ? { ...p, move: { ...p.move, faintPause: null, faintPauseSrc: undefined } } : p));
 /** The next-day answer for each of `ids` on `day` (better / same / worse / crash, or null to
     clear); answering also takes away an earlier "Skip". */
 export const setNextDay = guard((p, day, ids, next) => (Array.isArray(ids) ? ids : [ids]).reduce((q, id) => updateSession(q, day, id, { next: next == null ? null : next, nextSkip: undefined }), p));
 /** "Skip" on the next-day question: it isn't asked again for these sessions. */
 export const skipNextDay = guard((p, day, ids) => (Array.isArray(ids) ? ids : [ids]).reduce((q, id) => updateSession(q, day, id, { nextSkip: true }), p));
-/** Discard a session (tombstoned). Its linked faint episode stays unless keepFaint is false. */
+/** Discard a session (tombstoned). Its linked faint episode stays unless keepFaint is false;
+    then a step-up pause only its faint set is taken back too (lib/pots.js releaseFaintPause). */
 export const deleteSession = guard((p, day, id, { keepFaint = true } = {}) => {
   let q = removeItem(p, day, id);
   if (q === p) return p;
-  if (!keepFaint) { const ex = (((q.days || {})[day] || {}).eps || []).find((e) => e.src === id); if (ex) q = removeItem(q, day, ex.id); }
+  if (!keepFaint) {
+    const ex = (((q.days || {})[day] || {}).eps || []).find((e) => e.src === id);
+    if (ex) q = removeItem(q, day, ex.id);
+    q = releaseFaintPause(q, id);
+  }
   return q;
 });

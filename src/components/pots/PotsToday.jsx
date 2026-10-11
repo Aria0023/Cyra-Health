@@ -17,6 +17,7 @@ import VitalsForm from "./VitalsForm.jsx";
 import QuickLog, { LastRow, FeelBad } from "./QuickLog.jsx";
 import { resultFor, riseText } from "./StandResult.jsx";
 import { nextDayPending, setNextDay, skipNextDay, planLine, modeWord, NEXT_OPTS, MOVE_COPY } from "../../lib/potsMove.js";
+import { SessionEdit } from "./MoveSession.jsx";
 import { fmtN } from "./HrChart.jsx";
 import { hm, ampm, dayLabel, addDays, SEV_WORD, intakeText, amountText, symLabel, medName, useAnnounce } from "./ui.js";
 
@@ -250,6 +251,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
         );
       }
       case "bad": return <FeelBad {...common} pots={pots} preg={preg} announce={announce} onSave={saveBad} onCancel={() => close()} />;
+      case "session": return <SessionEdit {...common} pots={pots} setPots={setPots} ses={sheet.ses} day={day} todayIso={todayIso} preg={preg} announce={announce} onDone={(saved) => { if (saved) ping("Session saved."); close(); }} />;
       default: return null;
     }
   })();
@@ -261,13 +263,14 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
     ...(d.doses || []).map((x) => ({ x, type: "dose", text: `${medName(pots, x.medId)} ${x.state === "skipped" ? "skipped" : "taken"}${x.slot ? ` (planned ${hm(x.slot)})` : ""}` })),
     ...(d.eps || []).map((x) => ({ x, type: "ep", text: `Episode: ${[x.sym.map((id) => symLabel(pots, id)).join(", "), x.faint === "yes" ? "fainted" : x.faint === "almost" ? "almost fainted" : "", x.sev ? SEV_WORD[x.sev] : ""].filter(Boolean).join(" · ")}` })),
     ...(d.vit || []).map((x) => ({ x, type: "vit", text: `${posWord(x)} reading: ${[x.hr != null ? `heart rate ${x.hr}` : null, x.sys != null || x.dia != null ? `${x.sys ?? "?"}/${x.dia ?? "?"}` : null].filter(Boolean).join(" · ")}` })),
-    ...(d.move || []).map((x) => ({ x, type: "move", text: `${modeWord(x.mode)} session${x.main ? ` · main part ${x.main} min` : ""}` })),
+    ...(d.move || []).map((x) => ({ x, type: "move", text: `${modeWord(x.mode)} session${x.main ? ` · main part ${x.main} min` : ""}${x.interrupted ? " · ended early (the app closed)" : x.stopped ? " · stopped early" : x.running ? " · not finished" : ""}` })),
   ].sort((a, b) => (a.x.t < b.x.t ? -1 : a.x.t > b.x.t ? 1 : 0));
   const edit = (it) => {
     if (it.type === "intake") open({ kind: "amount", mode: it.x.ml != null ? "fluid" : "salt", item: it.x });
     else if (it.type === "ep") open({ kind: "episode", ep: it.x });
     else if (it.type === "vit") open({ kind: "vitals", v: it.x });
     else if (it.type === "dose") open({ kind: "dose", dose: it.x });
+    else if (it.type === "move") open({ kind: "session", ses: it.x });
   };
 
   return (
@@ -359,7 +362,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
               <section className="plaincard" aria-labelledby="pots-next-l" style={{ marginBottom: 12 }}>
                 <p className="lab" id="pots-next-l" style={{ marginTop: 0 }}>{MOVE_COPY.nextQ}</p>
                 <div className="mcrow" role="group" aria-labelledby="pots-next-l">
-                  {NEXT_OPTS.map(([v, l]) => <button type="button" key={v} className="mc" aria-pressed={false} onClick={() => answerNext(v)}>{l}</button>)}
+                  {NEXT_OPTS.map(([v, l]) => <button type="button" key={v} className="mc" onClick={() => answerNext(v)}>{l}</button>)}
                 </div>
                 <button type="button" className="linkbtn" style={{ display: "block", marginTop: 8 }} onClick={skipNext}>Skip</button>
               </section>
@@ -379,7 +382,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
                 <div className="medrow" key={it.x.id}>
                   <div className="medinfo"><b>{hm(it.x.t)}</b><span>{it.text}</span></div>
                   <div className="wearbtns">
-                    {it.type !== "move" && <button type="button" className="sbtn" aria-label={`Edit ${it.text} at ${hm(it.x.t)}`} onClick={() => edit(it)}>Edit</button>}
+                    <button type="button" className="sbtn" aria-label={`Edit ${it.text} at ${hm(it.x.t)}`} onClick={() => edit(it)}>Edit</button>
                     <button type="button" className="sbtn" aria-label={`Remove ${it.text} at ${hm(it.x.t)}`} onClick={() => { setPots((p) => removeItem(p, day, it.x.id)); ping(`Removed: ${it.text}`); if (last && last.ids.includes(it.x.id)) setLast(null); setFocusBack("pots-log-btn"); }}>Remove</button>
                   </div>
                 </div>
