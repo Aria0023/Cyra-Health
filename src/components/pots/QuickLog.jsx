@@ -73,7 +73,7 @@ export function FeelBad({ pots, preg, announce, onSave, onCancel, headRef }) {
       </div>
       {sym.includes("p_chest") && <UrgentCard variant="chest" preg={preg} />}
       {sym.includes("p_sob") && sev === 3 && <UrgentCard variant="breath" preg={preg} />}
-      {sym.includes("p_psy") && sev === 3 && <div style={{ marginBottom: 8 }}><Advice urgency="visit">{PSY_ADVICE}</Advice></div>}
+      {sym.includes("p_psy") && sev === 3 && <div style={{ marginBottom: 8 }}><Advice urgency="visit" alone>{PSY_ADVICE}</Advice></div>}
       <div className="mcrow" role="group" aria-label="How bad?" style={{ marginBottom: 12 }}>
         {[[1, "Mild"], [2, "Moderate"], [3, "Severe"]].map(([v, l]) => <button type="button" key={v} className={`mc ${sev === v ? "on" : ""}`} aria-pressed={sev === v} onClick={() => pickSev(v)}>{l}</button>)}
       </div>

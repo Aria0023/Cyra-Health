@@ -54,7 +54,7 @@ function Line({ l, preg }) {
     <>
       {l.urgent && <UrgentCard variant={l.urgent} preg={preg} />}
       {l.urgency
-        ? <div className="icard"><Advice urgency={l.urgency}>{l.text}</Advice></div>
+        ? <div className="icard"><Advice urgency={l.urgency} alone>{l.text}</Advice></div>
         : <p className="plain">{l.text}</p>}
     </>
   );

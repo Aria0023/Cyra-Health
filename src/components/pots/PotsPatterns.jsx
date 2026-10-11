@@ -27,6 +27,8 @@ import { SEV_WORD, naText } from "./ui.js";
      Cycle, Trying to Conceive and Perimenopause. Pregnancy and Menopause have no cycle card. */
 const rgb = (c) => `rgb(${c.join(",")})`;
 const short = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+/** "Mon 5", kept on one line: the 7-day table's Day column (the week never repeats a weekday). */
+const weekDay = (iso) => { const d = new Date(`${iso}T12:00:00`); return `${d.toLocaleDateString("en-US", { weekday: "short" })}\u00a0${d.getDate()}`; };
 const lc1 = (s) => (s ? s[0].toLowerCase() + s.slice(1) : s);
 /** The device a watch or ring reading came from, as the card tag names it. */
 const wearName = (src) => (src === "healthkit" ? (platform() === "android" ? "watch" : "Apple Watch") : src === "oura" ? "ring" : "wearable");
@@ -111,7 +113,7 @@ function WeekView({ pots, pat, ramp }) {
           <tbody>
             {[...w.days].reverse().map((d) => (
               <tr key={d.date}>
-                <td>{short(d.date)}</td>
+                <td>{weekDay(d.date)}</td>
                 <td>{d.rating ? RATING_WORD[d.rating] : "not rated"}</td>
                 <td>{d.fluidMl == null ? "not logged" : fmtFluid(d.fluidMl, units)}</td>
                 <td>{d.naMg == null ? "not logged" : naFmt(d.naMg)}</td>

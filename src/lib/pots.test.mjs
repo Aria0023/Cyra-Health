@@ -415,6 +415,16 @@ test("c: thresholds 29 / 30 / 31 and the sustained pair", () => {
   assert.deepEqual(r.sustainedAt, [3, 5]);
 });
 
+test("c: the met sentence names every upright minute at or above the threshold", () => {
+  const hrLine = (up) => { const r = R(mk(REST70, up)); assert.equal(r.hrStatus, "met"); return r.lines.find((l) => l.kind === "hr").text; };
+  // A later reading that was also up (here the peak) is named, so the rise never reads as if it dropped.
+  assert.match(hrLine([[1, 80], [3, 101], [5, 102], [10, 106]]), /went up by 36 beats a minute and stayed up at minutes 3, 5 and 10\. /);
+  assert.match(hrLine([[1, 100], [3, 100], [5, 100], [10, 100]]), /and stayed up at minutes 1, 3, 5 and 10\. /);
+  assert.match(hrLine([[1, 80], [3, 101], [5, 102], [10, 90]]), /and stayed up at minutes 3 and 5\. /);
+  assert.match(hrLine([[1, 80], [3, 101], [5, 102], [7, 90], [10, 106]]), /and stayed up at minutes 3 and 5, then was up again at minute 10\. /);
+  assert.match(hrLine([[1, 101], [2, 80], [3, 101], [5, 102]]), /went up by 32 beats a minute, was up at minute 1, and stayed up at minutes 3 and 5\. /);
+});
+
 test("c: the native-e2e fixture (lying 66/70; upright 88, 96, 101, 104)", () => {
   const r = R(mk([[4, 66], [5, 70]], [[1, 88], [3, 96], [5, 101], [10, 104]]));
   assert.equal(r.hrStatus, "met");

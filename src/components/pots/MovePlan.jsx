@@ -149,7 +149,7 @@ export default function MovePlan({ pots, setPots, stage, todayIso, ping, onStart
           {preg
             ? <Choice id="pots-move-clearq" label={MOVE_COPY.clearPregQ} value={pr.clearedPreg ?? null} options={CLEAR_PREG_OPTS} onPick={(v) => set({ clearedPreg: pr.clearedPreg === v ? null : v })} />
             : <Choice id="pots-move-clearq" label={MOVE_COPY.clearQ} value={pr.cleared ?? null} options={CLEAR_OPTS} onPick={(v) => set({ cleared: pr.cleared === v ? null : v })} />}
-          {!preg && pr.cleared !== "yes" && <div style={{ marginTop: 10 }}><Advice urgency="visit">{MOVE_COPY.clearAdvice}</Advice></div>}
+          {!preg && pr.cleared !== "yes" && <div style={{ marginTop: 10 }}><Advice urgency="visit" alone>{MOVE_COPY.clearAdvice}</Advice></div>}
           {preg && pr.clearedPreg !== "yes" && <p className="plain" style={{ marginTop: 10 }}>{MOVE_COPY.pregWait}</p>}
         </div>
       )}

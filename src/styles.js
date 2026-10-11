@@ -49,6 +49,7 @@ export const css = `
 .card p { margin:0; font-size:13px; line-height:1.5; }
 .icard { margin-bottom:12px; }
 .advice { display:flex; gap:9px; align-items:flex-start; background:color-mix(in srgb, var(--primary) 10%, var(--card)); border:1.5px solid var(--line); border-top:none; border-radius:0 0 13px 13px; padding:10px 15px; }
+.advice-alone { border-top:1.5px solid var(--line); border-radius:13px; }
 .uchip { flex-shrink:0; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; border-radius:999px; padding:3px 9px; }
 .u-now { background:#F3DBDB; color:#A04545; } .u-visit { background:color-mix(in srgb, var(--primary) 16%, var(--card)); color:color-mix(in srgb, var(--primary) 80%, var(--ink)); } .u-self { background:#E7EFE9; color:#43604F; }
 .atext { font-size:12.5px; line-height:1.5; }

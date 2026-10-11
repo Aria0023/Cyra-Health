@@ -1002,6 +1002,7 @@ export function interruptFor(test, event, opts = {}) {
 
 /* ---------- standing test: the result (computed at render, never stored) ---------- */
 const fmtMin = (m) => (Number.isInteger(m) ? String(m) : String(Math.round(m * 10) / 10));
+const andList = (a) => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`);
 /** A shown number: whole, or to one decimal (a two-reading baseline can end in .5). The
     thresholds are always checked on the unrounded value, so text and finding agree. */
 const fmtN = (x) => (Number.isInteger(x) ? String(x) : String(Math.round(x * 10) / 10));
@@ -1096,7 +1097,18 @@ export function standResult(test, opts = {}) {
   if (hrStatus === "met") {
     // In pregnancy only the met sentence is replaced (§4.8.6); the Advice line still follows.
     if (preg) L("hr", `That's a rise of ${fmtN(peakRise)}. Outside pregnancy, clinicians use ${thr}.`);
-    else L("hr", `Your heart rate went up by ${fmtN(peakRise)} beats a minute and stayed up at minutes ${fmtMin(pair[0].min)} and ${fmtMin(pair[1].min)}. That's at or above the ${thr}-beat rise clinicians look for in a standing test${teenClause}. It isn't a diagnosis: dehydration, illness, some medicines and time spent in bed can do this too. But it's exactly the kind of result to show your clinician.`);
+    else {
+      // Every upright minute at or above thr is named: the unbroken run around the pair
+      // ("stayed up at minutes 3, 5 and 10"), plus any outside it, so a later reading that
+      // was also up (often the peak) never reads as if the rise had dropped.
+      const over = upHr.map((r, i) => rises[i] >= thr);
+      let a = upHr.indexOf(pair[0]), b = a + 1;
+      while (a > 0 && over[a - 1]) a--;
+      while (b + 1 < upHr.length && over[b + 1]) b++;
+      const run = upHr.slice(a, b + 1).map((r) => r.min), before = overMins.filter((m) => m < run[0]), after = overMins.filter((m) => m > run[run.length - 1]);
+      const mins = (ms) => `minute${ms.length > 1 ? "s" : ""} ${andList(ms.map(fmtMin))}`;
+      L("hr", `Your heart rate went up by ${fmtN(peakRise)} beats a minute${before.length ? `, was up at ${mins(before)},` : ""} and stayed up at ${mins(run)}${after.length ? `, then was up again at ${mins(after)}` : ""}. That's at or above the ${thr}-beat rise clinicians look for in a standing test${teenClause}. It isn't a diagnosis: dehydration, illness, some medicines and time spent in bed can do this too. But it's exactly the kind of result to show your clinician.`);
+    }
     L("advice", share, "visit");
   } else if (hrStatus === "single_mid") {
     // Built from the data: the first taken reading after the peak that is back under thr.

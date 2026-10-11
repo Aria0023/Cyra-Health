@@ -1,4 +1,5 @@
 import { RAMPS } from "../../lib/constants.js";
+import { tickAt } from "../../lib/potsReport.js";
 
 /* Stand-test charts (design 4.8.6, 5.8). Inline SVG, role="img", with an aria-label that holds
    the whole series, so the chart never carries meaning a screen reader can't get. Data colour
@@ -23,6 +24,11 @@ export function HrChart({ test, result, stage }) {
   const maxMin = Math.max(10, ...pts.map((r) => r.min));
   const x = (m) => L + (m / maxMin) * (W - L - R), y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
   const line = rgb(rampFor(stage).rough);
+  // A value label sits above its point, or below it when the baseline, threshold or axis line
+  // would run through the digits (a reading just under the threshold, say).
+  const rules = [H - B, ...(base != null ? [y(base), y(base + thr)] : [])];
+  const clear = (ty) => rules.every((ry) => ry < ty - 11 || ry > ty + 3);
+  const labelY = (v) => (clear(y(v) - 8) || !clear(y(v) + 16) ? y(v) - 8 : y(v) + 16);
   const label = `Heart rate ${base != null ? `lying ${fmtN(base)}; ` : ""}${pts.map((r) => `minute ${fmtM(r.min)}, ${r.hr}`).join("; ")}${base != null ? `; threshold ${thr} above lying` : ""}.`;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={label} style={{ display: "block", margin: "6px 0 10px" }}>
@@ -44,7 +50,7 @@ export function HrChart({ test, result, stage }) {
       {pts.map((r) => (
         <g key={r.min}>
           <circle cx={x(r.min)} cy={y(r.hr)} r="4" fill={line} />
-          <text x={x(r.min)} y={y(r.hr) - 8} fontSize="11" fontWeight="700" textAnchor="middle" fill="var(--ink)">{r.hr}</text>
+          <text x={x(r.min)} y={labelY(r.hr)} fontSize="11" fontWeight="700" textAnchor="middle" fill="var(--ink)">{r.hr}</text>
         </g>
       ))}
     </svg>
@@ -62,6 +68,9 @@ export function TrendChart({ rows, thr, stage, methodLabel }) {
   const lo = Math.floor(Math.min(...vals) / 10) * 10, hi = Math.ceil((Math.max(...vals) + 6) / 10) * 10;
   const x = (i) => (rows.length === 1 ? (L + W - R) / 2 : L + (i / (rows.length - 1)) * (W - L - R)), y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
   const day = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  // As in HrChart: a value label goes below its dot when the threshold line would cross it.
+  const labelY = (v) => { const ty = y(v) - 9, ry = y(thr); return ry < ty - 11 || ry > ty + 3 ? ty : y(v) + 17; };
+  const tick = rows.length <= 6 ? () => true : tickAt(rows.length, (W - L - R) / (rows.length - 1), 34, Math.ceil(rows.length / 6));
   const label = `Heart-rate rise over your ${methodLabel} tests: ${rows.map((r) => `${day(r.date)}, ${fmtN(r.rise)}`).join("; ")}; threshold ${thr}.`;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={label} style={{ display: "block", margin: "6px 0 8px" }}>
@@ -72,8 +81,8 @@ export function TrendChart({ rows, thr, stage, methodLabel }) {
         return (
           <g key={r.id}>
             <circle cx={x(i)} cy={y(r.rise)} r="5" fill={c} />
-            <text x={x(i)} y={y(r.rise) - 9} fontSize="11" fontWeight="700" textAnchor="middle" fill="var(--ink)">{fmtN(r.rise)}</text>
-            {(rows.length <= 6 || i % Math.ceil(rows.length / 6) === 0 || i === rows.length - 1) && <text x={x(i)} y={H - 10} fontSize="10.5" textAnchor="middle" fill="var(--ink)">{day(r.date)}</text>}
+            <text x={x(i)} y={labelY(r.rise)} fontSize="11" fontWeight="700" textAnchor="middle" fill="var(--ink)">{fmtN(r.rise)}</text>
+            {tick(i) && <text x={x(i)} y={H - 10} fontSize="10.5" textAnchor="middle" fill="var(--ink)">{day(r.date)}</text>}
           </g>
         );
       })}

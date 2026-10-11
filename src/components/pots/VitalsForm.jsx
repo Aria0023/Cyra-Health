@@ -64,7 +64,7 @@ export default function VitalsForm({ v, isToday, preg = false, onSave, onCancel,
       <label className="lab" htmlFor="pots-vit-t">Time</label>
       <input id="pots-vit-t" className="inp" type="time" aria-label="Time" value={t} onChange={(e) => setT(e.target.value)} />
       {high && <div className="plaincard urgent" data-urgent={high} style={{ marginBottom: 10 }}><span className="uchip u-now">Now</span><p className="plain">{highCopy}</p>{preg && high !== "bpPregSevere" && <p className="plain">{SAFETY_COPY.urgent.pregSuffix}</p>}</div>}
-      {pregHigh && <div className="icard" style={{ marginBottom: 10 }}><Advice urgency="today">{SAFETY_COPY.pregBpHigh}</Advice></div>}
+      {pregHigh && <div className="icard" style={{ marginBottom: 10 }}><Advice urgency="today" alone>{SAFETY_COPY.pregBpHigh}</Advice></div>}
       {err && <p className="errhint" role="alert" style={{ marginTop: 0, marginBottom: 10 }}>{err}</p>}
       <button type="button" className="cta" onClick={save}>{v ? "Save changes" : "Save reading"}</button>
       <button type="button" className="ghostbtn" onClick={onCancel}>Cancel</button>

@@ -81,7 +81,7 @@ export default function PotsSymptoms({ pots, day, setPots, onEpisode, announce, 
       </div>
       {sym.p_chest > 0 && <UrgentCard variant="chest" preg={preg} />}
       {sym.p_sob === 3 && <UrgentCard variant="breath" preg={preg} />}
-      {sym.p_psy === 3 && <div style={{ marginBottom: 8 }}><Advice urgency="visit">{PSY_ADVICE}</Advice></div>}
+      {sym.p_psy === 3 && <div style={{ marginBottom: 8 }}><Advice urgency="visit" alone>{PSY_ADVICE}</Advice></div>}
       <button type="button" className="ghostbtn" onClick={onEpisode}>Something's happening: log an episode</button>
     </section>
   );

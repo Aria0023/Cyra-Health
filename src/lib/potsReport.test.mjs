@@ -11,7 +11,7 @@ import {
   freshEmpty, upsertTest, addIntake, setIv, setRating, setUp, setSym, toggleTrig, addEpisode, upsertMed, logDose, setAid, setSettings,
   addTilt, addVitals, setNote, setTestFaint, deleteTest,
 } from "./pots.js";
-import { reportModel, toCSV, csvCell, summaryText, emailParts, reportPdf, modelTexts, visitQuestions, reportRange, paperFor, pdfLossy, CSV_HEADER } from "./potsReport.js";
+import { reportModel, toCSV, csvCell, summaryText, emailParts, reportPdf, modelTexts, visitQuestions, reportRange, paperFor, pdfLossy, CSV_HEADER, tickAt } from "./potsReport.js";
 import { PdfDoc, winAnsi, textWidth, wrapLines } from "./pdf.js";
 import { POTS_BANNED } from "./potsConstants.js";
 
@@ -281,6 +281,10 @@ test("g: 'Cycle or pregnancy details' off leaves out stage, pregnancy, overlap a
   const pOn = reportModel(fixture(), preg);
   assert.ok(pOn.header.context.includes("Life stage: Pregnant (week not recorded in Cyra)"));
   assert.ok(toCSV(pOn).includes(`"checkin_overlap","2026-10-08",,"Dizziness",2,"severity",,,2,"from cycle/pregnancy check-in"`));
+  assert.ok(modelTexts(pOn).includes("Also logged in her pregnancy check-in: Dizziness (1 day)."));
+  const periOn = reportModel(fixture(), base());
+  assert.ok(modelTexts(periOn).some((t) => t.startsWith("Also logged in her check-in: Brain fog (1 day)")));
+  assert.ok(!modelTexts(periOn).some((t) => /cycle\/pregnancy|pregnancy check-in/.test(t)));
   assert.ok(pOn.questions.generated.some((q) => q.id === "q_preg" && q.stageBased));
   assert.ok(modelTexts(pOn).some((t) => /I'm pregnant/.test(t)));
   const pOff = reportModel(fixture(), { ...preg, include: { cycle: false } });
@@ -481,5 +485,18 @@ test("source: report files make no network or storage call", () => {
   for (const f of ["../components/pots/PotsReport.jsx", "./potsReport.js", "../App.jsx"]) {
     const text = readFileSync(new URL(f, import.meta.url), "utf8");
     assert.ok(!/import\(\s*["'][^"']*pdf\.js["']\s*\)/.test(text), `${f} loads pdf.js lazily`);
+  }
+});
+
+test("g: chart date labels never crowd each other or the last one", () => {
+  const labelled = (n, step, gap, every) => { const t = tickAt(n, step, gap, every); return [...Array(n).keys()].filter(t); };
+  // 30 days on screen (every 7th + last): the 7th-day label that would sit one bar before the last is dropped.
+  assert.deepEqual(labelled(30, 11, 34, 7), [0, 7, 14, 21, 29]);
+  assert.deepEqual(labelled(31, 330 / 31, 34, 7), [0, 7, 14, 21, 30]);
+  for (const [n, step, gap, every] of [[30, 11, 34, 7], [90, 330 / 90, 34, 7], [200, 330 / 200, 34, 7], [30, 17, 20, 5], [90, 520 / 90, 20, 5], [14, 330 / 14, 34, 2]]) {
+    const xs = labelled(n, step, gap, every).map((i) => i * step);
+    assert.equal(xs.length >= 2, true);
+    assert.ok(labelled(n, step, gap, every).includes(n - 1), `last labelled (${n})`);
+    for (let i = 1; i < xs.length; i++) assert.ok(xs[i] - xs[i - 1] >= gap - 1e-9, `${n} days: labels ${xs[i - 1]} and ${xs[i]} too close`);
   }
 });

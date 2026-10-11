@@ -360,7 +360,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
             {s.show.fluid && <FluidSalt pots={pots} day={day} whenWord={whenWord} units={units} setPots={setPots} onPreset={(pr) => logPreset(pr)} onOther={(mode) => open({ kind: "amount", mode })} onGoal={() => open({ kind: "goal" })} />}
             {/* 8. Right now */}
             {s.show.sym && <PotsSymptoms pots={pots} day={day} setPots={setPots} announce={announce} preg={preg} onEpisode={() => open({ kind: "episode" })} />}
-            {nearFaint && <div style={{ marginBottom: 12 }}><Advice urgency="visit">{NEAR_FAINT}</Advice></div>}
+            {nearFaint && <div style={{ marginBottom: 12 }}><Advice urgency="visit" alone>{NEAR_FAINT}</Advice></div>}
             {/* 9. Medicines & supports */}
             {s.show.meds && <MedsToday pots={pots} day={day} isToday={isToday} setPots={setPots} remember={remember} onRemoved={doseRemoved} onEdit={() => open({ kind: "medEdit" })} />}
             {/* 10. Stand test */}

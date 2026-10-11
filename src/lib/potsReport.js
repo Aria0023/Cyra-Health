@@ -46,6 +46,14 @@ export const fmtDay = (iso) => D(iso, { month: "short", day: "numeric" });
 export const fmtDayY = (iso) => D(iso, { month: "short", day: "numeric", year: "numeric" });
 /** "Sep 11 – Oct 10, 2026" (years on both ends when they differ). */
 export const fmtRange = (a, b) => (a.slice(0, 4) === b.slice(0, 4) ? `${fmtDay(a)} – ${fmtDayY(b)}` : `${fmtDayY(a)} – ${fmtDayY(b)}`);
+/** Which of `n` evenly spaced bars or points get a date label: the last, and every `every`th
+    (widened until labels sit at least `gap` apart), dropping a periodic one that would sit
+    closer than `gap` to the last, so no two labels overlap. `step` is the distance between
+    neighbours, in the chart's own units. -> (i) => boolean. */
+export const tickAt = (n, step, gap, every) => {
+  const k = every * Math.max(1, Math.ceil(gap / (every * step)));
+  return (i) => i === n - 1 || (i % k === 0 && (n - 1 - i) * step >= gap);
+};
 /** "08:05" -> "8:05". */
 const hm = (t) => (typeof t === "string" ? t.replace(/^0(\d)/, "$1") : "");
 const n1 = (x) => (Number.isInteger(x) ? String(x) : String(Math.round(x * 10) / 10));
@@ -431,7 +439,7 @@ export function reportModel(p, opts = {}) {
     if (inc.cycle && overlap.length) {
       const by = new Map();
       for (const o of overlap) by.set(o.label, (by.get(o.label) || 0) + 1);
-      blocks.push({ t: "p", text: `Also logged in her cycle/pregnancy check-in: ${[...by.entries()].map(([l, n]) => `${l} (${plural(n, "day")})`).join(", ")}.` });
+      blocks.push({ t: "p", text: `Also logged in her ${preg ? "pregnancy " : ""}check-in: ${[...by.entries()].map(([l, n]) => `${l} (${plural(n, "day")})`).join(", ")}.` });
     }
     if (eps.length) {
       const pos = new Map();
@@ -801,7 +809,10 @@ function drawHr(doc, x, y, w, h, c) {
   doc.line(L, py(c.base), R, py(c.base), { dash: [3, 2], rgb: INK, width: 0.6 });
   doc.line(L, py(c.base + c.thr), R, py(c.base + c.thr), { dash: [1, 2], rgb: INK, width: 0.6 });
   doc.poly(c.pts.map((q) => [px(q.min), py(q.hr)]), { rgb: RAMP.rough, width: 1.4 });
-  for (const q of c.pts) { doc.dot(px(q.min), py(q.hr), 1.8, { rgb: RAMP.rough }); doc.text(px(q.min), py(q.hr) - 4, String(q.hr), { size: 6.5, bold: true, align: "center" }); }
+  // As on screen (HrChart.jsx): a value label goes below its point when a line would cross it.
+  const rules = [B, py(c.base), py(c.base + c.thr)], clear = (ty) => rules.every((ry) => ry < ty - 6.5 || ry > ty + 1.8);
+  const labelY = (v) => (clear(py(v) - 4) || !clear(py(v) + 8.5) ? py(v) - 4 : py(v) + 8.5);
+  for (const q of c.pts) { doc.dot(px(q.min), py(q.hr), 1.8, { rgb: RAMP.rough }); doc.text(px(q.min), labelY(q.hr), String(q.hr), { size: 6.5, bold: true, align: "center" }); }
   doc.text(x, y + h - 2, `dashed: ${c.rest.toLowerCase()} ${n1(c.base)} · dotted: +${c.thr}`, { size: 6.5, rgb: SOFT });
 }
 function drawTrend(doc, x, y, w, h, b) {
@@ -812,11 +823,12 @@ function drawTrend(doc, x, y, w, h, b) {
   const px = (i) => (b.rows.length === 1 ? (L + R) / 2 : L + (i / (b.rows.length - 1)) * (R - L)), py = (v) => T + (1 - (v - lo) / (hi - lo)) * (B - T);
   doc.line(L, py(b.thr), R, py(b.thr), { dash: [3, 2], rgb: INK, width: 0.6 });
   doc.text(R + 4, py(b.thr) + 2, `+${b.thr}`, { size: 6.5, rgb: SOFT });
-  const every = Math.max(1, Math.ceil(b.rows.length / 10));
+  const tick = tickAt(b.rows.length, b.rows.length > 1 ? (R - L) / (b.rows.length - 1) : R - L, 20, Math.max(1, Math.ceil(b.rows.length / 10)));
   b.rows.forEach((r, i) => {
     doc.dot(px(i), py(r.rise), 2.4, { rgb: r.rise >= b.thr ? RAMP.rough : RAMP.good });
-    doc.text(px(i), py(r.rise) - 5, n1(r.rise), { size: 6.5, bold: true, align: "center" });
-    if (i % every === 0 || i === b.rows.length - 1) doc.text(px(i), B + 9, fmtDay(r.date), { size: 6, align: "center", rgb: SOFT });
+    const ty = py(r.rise) - 5, ry = py(b.thr);
+    doc.text(px(i), ry < ty - 6.5 || ry > ty + 1.8 ? ty : py(r.rise) + 9, n1(r.rise), { size: 6.5, bold: true, align: "center" });
+    if (tick(i)) doc.text(px(i), B + 9, fmtDay(r.date), { size: 6, align: "center", rgb: SOFT });
   });
 }
 function drawBars(doc, x, y, w, h, b) {
@@ -824,7 +836,7 @@ function drawBars(doc, x, y, w, h, b) {
   const L = x + 4, R = x + w - 4, T = y + 22, B = y + h - 14;
   const max = Math.max(1, b.goal || 0, ...b.days.map((d) => d.v || 0)) * 1.1;
   const step = (R - L) / b.days.length, bw = Math.max(2, step * 0.7);
-  const py = (v) => B - (v / max) * (B - T);
+  const py = (v) => B - (v / max) * (B - T), tick = tickAt(b.days.length, step, 20, 5);
   doc.line(L, B, R, B, { rgb: RULE, width: 0.6 });
   b.days.forEach((d, i) => {
     const cx = L + step * i + step / 2;
@@ -832,7 +844,7 @@ function drawBars(doc, x, y, w, h, b) {
       doc.rect(cx - bw / 2, py(d.v), bw, B - py(d.v), { fill: RAMP.mid });
       if (b.days.length <= 31) doc.text(cx, py(d.v) - 2, b.units && b.units.fluid === "oz" ? String(Math.round(d.v / 29.5735)) : n1(Math.round(d.v / 100) / 10), { size: 5, align: "center" });
     } else doc.text(cx, B - 2, "–", { size: 6, align: "center", rgb: SOFT });
-    if (i % 5 === 0 || i === b.days.length - 1) doc.text(cx, B + 8, fmtDay(d.date), { size: 5.5, align: "center", rgb: SOFT });
+    if (tick(i)) doc.text(cx, B + 8, fmtDay(d.date), { size: 5.5, align: "center", rgb: SOFT });
   });
   if (b.goal != null) doc.line(L, py(b.goal), R, py(b.goal), { dash: [3, 2], rgb: INK, width: 0.7 });
   doc.text(R, T - 6, b.units && b.units.fluid === "oz" ? "labels in oz · – not logged" : "labels in litres · – not logged", { size: 6, align: "right", rgb: SOFT });

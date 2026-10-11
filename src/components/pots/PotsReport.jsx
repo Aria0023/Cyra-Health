@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { setSettings, newId } from "../../lib/pots.js";
 import { hasMoveData } from "../../lib/potsMove.js";
-import { reportModel, toCSV, summaryText, emailParts, reportPdf, modelTexts, pdfLossy, fmtDay, questionIn, questionParts } from "../../lib/potsReport.js";
+import { reportModel, toCSV, summaryText, emailParts, reportPdf, modelTexts, pdfLossy, fmtDay, questionIn, questionParts, tickAt } from "../../lib/potsReport.js";
 import { PdfDoc } from "../../lib/pdf.js";
 import { saveFile } from "../../lib/files.js";
 import { isNative } from "../../lib/native.js";
@@ -44,7 +44,7 @@ function FluidBars({ b, stage }) {
   const ramp = RAMPS[stage] || RAMPS.peri;
   const W = 340, H = 130, L = 6, R = 6, T = 14, B = 26;
   const max = Math.max(1, b.goal || 0, ...b.days.map((d) => d.v || 0)) * 1.1;
-  const step = (W - L - R) / b.days.length, bw = Math.max(2, step * 0.7);
+  const step = (W - L - R) / b.days.length, bw = Math.max(2, step * 0.7), tick = tickAt(b.days.length, step, 34, 7);
   const y = (v) => H - B - (v / max) * (H - T - B);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={b.label} style={{ display: "block", margin: "6px 0 10px" }}>
@@ -54,7 +54,7 @@ function FluidBars({ b, stage }) {
         return (
           <g key={d.date}>
             {d.v != null && <rect x={cx - bw / 2} y={y(d.v)} width={bw} height={H - B - y(d.v)} fill={rgb(ramp.mid)} />}
-            {(i % 7 === 0 || i === b.days.length - 1) && <text x={cx} y={H - B + 14} fontSize="10" textAnchor="middle" fill="var(--ink)">{fmtDay(d.date)}</text>}
+            {tick(i) && <text x={cx} y={H - B + 14} fontSize="10" textAnchor="middle" fill="var(--ink)">{fmtDay(d.date)}</text>}
           </g>
         );
       })}
@@ -69,7 +69,7 @@ function WeekBarsSvg({ b, stage }) {
   const ramp = RAMPS[stage] || RAMPS.peri;
   const W = 340, H = 120, L = 6, R = 6, T = 14, B = 24;
   const max = Math.max(1, ...b.weeks.map((k) => k.n)) * 1.15;
-  const step = (W - L - R) / b.weeks.length, bw = Math.max(4, step * 0.6);
+  const step = (W - L - R) / b.weeks.length, bw = Math.max(4, step * 0.6), tick = tickAt(b.weeks.length, step, 34, 2);
   const y = (v) => H - B - (v / max) * (H - T - B);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={b.label} style={{ display: "block", margin: "6px 0 10px" }}>
@@ -80,11 +80,40 @@ function WeekBarsSvg({ b, stage }) {
           <g key={k.from}>
             {k.n > 0 && <rect x={cx - bw / 2} y={y(k.n)} width={bw} height={H - B - y(k.n)} fill={rgb(ramp.mid)} />}
             <text x={cx} y={y(k.n) - 3} fontSize="10" textAnchor="middle" fill="var(--ink)">{k.n}</text>
-            {(i % 2 === 0 || i === b.weeks.length - 1) && <text x={cx} y={H - B + 14} fontSize="10" textAnchor="middle" fill="var(--ink)">{fmtDay(k.from)}</text>}
+            {tick(i) && <text x={cx} y={H - B + 14} fontSize="10" textAnchor="middle" fill="var(--ink)">{fmtDay(k.from)}</text>}
           </g>
         );
       })}
     </svg>
+  );
+}
+
+/** A report table in a keyboard-scrollable region. When it is wider than the screen, a hint
+    above it says so (and describes the region), so the hidden columns aren't missed. */
+function ScrollTable({ b }) {
+  const ref = useRef(null), hintId = useId();
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const check = () => setWide(el.scrollWidth > el.clientWidth + 1);
+    check();
+    if (typeof ResizeObserver === "undefined") { window.addEventListener("resize", check); return () => window.removeEventListener("resize", check); }
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [b]);
+  return (
+    <>
+      {wide && <p className="hint" id={hintId} style={{ margin: "4px 0 0" }}>Scroll sideways to see all columns.</p>}
+      <div ref={ref} className="potstablewrap" role="region" aria-label={b.caption} aria-describedby={wide ? hintId : undefined} tabIndex={0}>
+        <table className="rtab potsrtab">
+          <caption>{b.caption}</caption>
+          <thead><tr>{b.head.map((c) => <th scope="col" key={c}>{c}</th>)}</tr></thead>
+          <tbody>{b.rows.map((r, ri) => <tr key={ri}>{r.map((c, ci) => <td key={ci}>{c}</td>)}</tr>)}</tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
@@ -104,17 +133,7 @@ function Preview({ model, stage }) {
             const k = `${sec.id}-${j}`;
             if (b.t === "p") return <p key={k} className={b.small ? "rfoot" : "plain"} style={{ margin: "0 0 6px" }}>{b.text}</p>;
             if (b.t === "list") return <div key={k}>{b.items.map((q) => <p className="script" key={q}>{q}</p>)}</div>;
-            if (b.t === "table") {
-              return (
-                <div key={k} className="potstablewrap" role="region" aria-label={b.caption} tabIndex={0}>
-                  <table className="rtab potsrtab">
-                    <caption>{b.caption}</caption>
-                    <thead><tr>{b.head.map((c) => <th scope="col" key={c}>{c}</th>)}</tr></thead>
-                    <tbody>{b.rows.map((r, ri) => <tr key={ri}>{r.map((c, ci) => <td key={ci}>{c}</td>)}</tr>)}</tbody>
-                  </table>
-                </div>
-              );
-            }
+            if (b.t === "table") return <ScrollTable key={k} b={b} />;
             if (b.t === "hr") return <div key={k}>{b.charts.map((c) => <div key={c.test.id}><p className="plain" style={{ margin: "8px 0 0" }}><b>{c.title}</b></p><HrChart test={c.test} result={c.result} stage={stage} /></div>)}</div>;
             if (b.t === "trend") return <div key={k}><p className="plain" style={{ margin: "8px 0 0" }}><b>{`Largest rise in each complete ${b.methodLabel}${b.median != null ? ` (median ${Math.round(b.median * 10) / 10})` : ""}`}</b></p><TrendChart rows={b.rows} thr={b.thr} stage={stage} methodLabel={b.methodLabel} /></div>;
             if (b.t === "bars") return <div key={k}><p className="plain" style={{ margin: "8px 0 0" }}><b>{`Oral fluid per day${b.goal != null ? " (dashed: your goal)" : ""}`}</b></p><FluidBars b={b} stage={stage} /></div>;
