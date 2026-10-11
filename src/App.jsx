@@ -106,6 +106,8 @@ import PotsHome, { PotsOffer } from "./components/pots/PotsHome.jsx";
 import GoalSheet from "./components/pots/GoalSheet.jsx";
 import { MedSetup } from "./components/pots/MedEditor.jsx";
 import { StandRunner, StandSection } from "./components/pots/StandTest.jsx";
+import MovePlan from "./components/pots/MovePlan.jsx";
+import { SessionRunner } from "./components/pots/MoveSession.jsx";
 import PotsReport from "./components/pots/PotsReport.jsx";
 import PotsPatterns from "./components/pots/PotsPatterns.jsx";
 
@@ -212,9 +214,12 @@ export default function CyraDemo() {
   const potsBase = useRef(null); // the `pots` this tab last saved or took from storage: the base of the 3-way merge (mergePots)
   /* The standing test or session running in this tab (UI only, never saved): while it is set the
      runner takes over the page (see the render below). { kind: "test", id, phase, phaseStart,
-     standAt, done: [checkpoint keys handled], interrupt, ... } (components/pots/StandTest.jsx). */
+     standAt, done: [checkpoint keys handled], interrupt, ... } (components/pots/StandTest.jsx), or
+     { kind: "session", id, day, phase, phaseStart, plan, paused, pausedMs, ... }
+     (components/pots/MoveSession.jsx). */
   const [potsRun, setPotsRun] = useState(null);
-  const [potsStandFocus, setPotsStandFocus] = useState(0); // bumped when a run ends: the Stand test section takes focus
+  const [potsStandFocus, setPotsStandFocus] = useState(0); // bumped when a test ends: the Stand test section takes focus
+  const [potsMoveFocus, setPotsMoveFocus] = useState(0); // bumped when a session ends: the Move section takes focus
   const wipingRef = useRef(false); // Delete everything / Start over in progress: nothing may be saved any more
   const saveTimer = useRef(null);  // the pending autosave, cancelled by a wipe
   const pendingSave = useRef(null); // that autosave's write, run at once when the app is hidden or closed (flushSave)
@@ -1451,11 +1456,11 @@ export default function CyraDemo() {
     />
   );
   const askView = <AskScreen org={org} stage={stage} askQ={askQ} setAskQ={setAskQ} runAsk={runAsk} askBusy={askBusy} askOut={askOut} askAI={askAI} setAskAI={setAskAI} aiAvailable={aiAvailable} />;
-  /* POTS tab: the Today section, POTS settings and the first-run cards (goals, medicines). The
-     tools this build has decide what "What would help?" and POTS settings offer (POTS_SHOWS). */
+  /* POTS tab: its sections, POTS settings and the first-run cards (goals, medicines). The tools
+     this build has decide what "What would help?" and POTS settings offer (POTS_SHOWS). */
   const potsDay = potsDate && potsDate < todayIso ? potsDate : todayIso;
   const potsConditions = Array.isArray(regAnswers?.conditions) ? regAnswers.conditions : [];
-  const POTS_SHOWS = ["test", "fluid", "sym", "meds"];
+  const POTS_SHOWS = ["test", "fluid", "sym", "meds", "move"];
   const potsView = (
     <PotsScreen pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"}
       sections={potsOk ? {
@@ -1464,6 +1469,8 @@ export default function CyraDemo() {
         patterns: <PotsPatterns pots={pots} stage={stage} stageName={stageName} todayIso={todayIso} starts={ins.starts} checkin={potsCheckin} wearData={wearData} connected={potsWearConnected} />,
         stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focusKey={potsStandFocus} cyc={potsCyc}
           onStart={() => setPotsRun({ kind: "test", id: null, phase: "safety", phaseStart: Date.now(), standAt: null, done: [], interrupt: null })} />,
+        move: <MovePlan pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} focusKey={potsMoveFocus}
+          onStart={() => setPotsRun({ kind: "session", id: null, day: todayIso, phase: "setup", phaseStart: Date.now(), plan: null, paused: null, pausedMs: 0 })} />,
       } : {}}
       settings={potsOk ? ({ headRef, onBack }) => <PotsSettings pots={pots} setPots={setPots} stage={stage} stageName={stageName} conditions={potsConditions} ping={ping} shows={POTS_SHOWS} today={todayIso} headRef={headRef} onBack={onBack} /> : null}
       setupCards={potsOk ? [
@@ -1472,16 +1479,19 @@ export default function CyraDemo() {
         { id: "meds", title: "Any POTS medicines or supports?", skip: { label: "Skip, add later" }, body: (saveRef) => <MedSetup setPots={setPots} saveRef={saveRef} /> },
       ] : []} />
   );
-  /* Running takeover (design 3.3-7): while a stand test runs, the runner is the page — its single
-     <main> with one h1 — instead of the header chips, the tab bar and the tab content (the
-     wordmark stays). Stop or finishing are the only ways out, so a tab switch, Settings, a
-     restore, a wipe or a stage change can't happen mid-test. */
+  /* Running takeover (design 3.3-7): while a stand test or a guided movement session runs, the
+     runner is the page — its single <main> with one h1 — instead of the header chips, the tab bar
+     and the tab content (the wordmark stays). Stop or finishing are the only ways out, so a tab
+     switch, Settings, a restore, a wipe or a stage change can't happen mid-test or mid-session. */
   if (potsRun && potsOk) {
     return (
       <Shell style={style} toast={toast}>
         <header className="mast"><span className="mark">{org.name}<span className="sub">{org.tag}</span></span></header>
-        <StandRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} cyc={potsCyc}
-          onEnd={() => { setPotsRun(null); setPotsSec("stand"); setPotsStandFocus((n) => n + 1); }} />
+        {potsRun.kind === "session"
+          ? <SessionRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping}
+              onEnd={() => { setPotsRun(null); setPotsSec("move"); setPotsMoveFocus((n) => n + 1); }} />
+          : <StandRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} cyc={potsCyc}
+              onEnd={() => { setPotsRun(null); setPotsSec("stand"); setPotsStandFocus((n) => n + 1); }} />}
       </Shell>
     );
   }

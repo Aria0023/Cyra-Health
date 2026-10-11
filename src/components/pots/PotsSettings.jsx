@@ -8,6 +8,7 @@ import { symOrder } from "./PotsSymptoms.jsx";
 import { symLabel, amountText, naText, numOf, numProps, isOz, toMl, mlIn } from "./ui.js";
 import { Choice, METHODS, methodDefaults } from "./StandSafety.jsx";
 import { STATUS_OPTS, ONSET_OPTS, COND_OPTS } from "../../lib/potsReport.js";
+import { moveState, setProgram, MOVE_COPY, MOVE_STEPS, PEM_OPTS, CLEAR_OPTS, CLEAR_PREG_OPTS } from "../../lib/potsMove.js";
 
 /* "For your report" (design 4.12): what she tells Cyra for the report's context line. Only
    the report reads it; it never comes from her registration answers. */
@@ -54,8 +55,9 @@ function Multi({ id, label, value, options, onPick }) {
    version has what the daily loop and the stand test use: Simple view, units, which Today cards
    show, the stand-test defaults with the sound / vibration cue and the teen threshold, goals,
    drink and salt buttons, her symptoms and triggers, medicines and supports, her plan with the
-   standing-test rhythm, what she tells Cyra for her report and its paper size, and Delete POTS log. Her own symptoms and triggers are archived on "Remove" (past days keep
-   their names); only Delete POTS log clears them. */
+   standing-test rhythm, her Move answers and step, what she tells Cyra for her report and its
+   paper size, and Delete POTS log. Her own symptoms and triggers are archived on "Remove" (past
+   days keep their names); only Delete POTS log clears them. */
 export const REMINDERS_LINE = "Cyra doesn't send medicine or drink reminders. The only reminder Cyra can send is your check-in reminder, if you turned it on. If reminders help you, your phone's clock app can set them.";
 export const SHOW_CHOICES = [["test", "Stand test"], ["fluid", "Fluids & salt"], ["sym", "Symptoms"], ["meds", "Meds & supports"], ["move", "Movement"]];
 const FLUID_KINDS = [["water", "Water"], ["electrolyte", "Electrolyte drink"], ["broth", "Broth or soup"], ["other", "Other drink"]];
@@ -188,7 +190,7 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
             <button type="button" className={`takebtn ${s.test.bp ? "on" : ""}`} aria-pressed={s.test.bp} aria-describedby="pots-set-bp" onClick={() => set({ test: { bp: !s.test.bp } })}>{s.test.bp ? "✓ On" : "Turn on"}</button>
           </div>
           <div className="medrow">
-            <div className="medinfo"><b id="pots-set-cue">Sound and vibration</b><span>A short tone, and a buzz on phones that support it, when a reading is due, when it's time to stand and when the test ends.</span></div>
+            <div className="medinfo"><b id="pots-set-cue">Sound and vibration</b><span>A short tone, and a buzz on phones that support it, when a reading is due, when it's time to stand and when the test ends, and when the time for each part of an exercise session is up.</span></div>
             <button type="button" className={`takebtn ${s.test.cue !== false ? "on" : ""}`} aria-pressed={s.test.cue !== false} aria-describedby="pots-set-cue" onClick={() => set({ test: { cue: s.test.cue === false } })}>{s.test.cue !== false ? "✓ On" : "Turn on"}</button>
           </div>
         </>
@@ -305,6 +307,22 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
         <p>Sources: Heart Rhythm Society 2015; Canadian Cardiovascular Society 2020.</p>
       </Details>
       <p className="rfoot" style={{ marginTop: 4 }}>{REMINDERS_LINE}</p>
+
+      {shows.includes("move") && (() => {
+        const mv = moveState(pots, stage), pr = mv.program;
+        const setP = (patch) => setPots((p) => setProgram(p, patch, today));
+        return (
+          <>
+            <Head id="pots-set-move">Movement</Head>
+            <Choice id="pots-set-pem" label={MOVE_COPY.pemQ} value={pr ? pr.pem : null} options={PEM_OPTS} onPick={(v) => setP({ pem: pr && pr.pem === v ? null : v })}
+              hint={mv.pacing ? "Pacing mode is on: no step-up options, and sessions can still be logged." : null} />
+            {preg
+              ? <Choice id="pots-set-clearp" label={MOVE_COPY.clearPregQ} value={pr ? pr.clearedPreg ?? null : null} options={CLEAR_PREG_OPTS} onPick={(v) => setP({ clearedPreg: pr && pr.clearedPreg === v ? null : v })} />
+              : <Choice id="pots-set-clear" label={MOVE_COPY.clearQ} value={pr ? pr.cleared ?? null : null} options={CLEAR_OPTS} onPick={(v) => setP({ cleared: pr && pr.cleared === v ? null : v })} />}
+            {mv.planShown && <Choice id="pots-set-step" label="Your step" value={pr.step || 1} options={MOVE_STEPS.map((x) => [x.step, `Step ${x.step}`])} onPick={(v) => setP({ step: v })} hint="You choose your step. Cyra never moves you on by itself." />}
+          </>
+        );
+      })()}
 
       <Head id="pots-set-report">For your report</Head>
       <p className="hint" style={{ marginBottom: 6 }}>Used only in the report you make on the Report section. All optional.</p>

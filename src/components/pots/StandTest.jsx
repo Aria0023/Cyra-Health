@@ -59,8 +59,9 @@ const shortDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US"
 const byMin = (a, b) => a.min - b.min;
 const isRunning = (ph) => ph === "rest" || ph === "stand" || ph === "up";
 
-/* ---------- small device helpers (all on the device) ---------- */
-function useCue(enabled) {
+/* ---------- small device helpers (all on the device; the movement session runner,
+   MoveSession.jsx, uses them too) ---------- */
+export function useCue(enabled) {
   const ctx = useRef(null);
   const unlock = () => {
     if (!enabled || ctx.current) return;
@@ -81,7 +82,7 @@ function useCue(enabled) {
   useEffect(() => () => { try { ctx.current?.close(); } catch { /* already closed */ } }, []);
   return [unlock, play];
 }
-function useWakeLock() {
+export function useWakeLock() {
   const lock = useRef(null), want = useRef(false);
   const [noLock, setNoLock] = useState(false);
   const request = async () => {

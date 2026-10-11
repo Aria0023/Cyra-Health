@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { setSettings, newId } from "../../lib/pots.js";
+import { hasMoveData } from "../../lib/potsMove.js";
 import { reportModel, toCSV, summaryText, emailParts, reportPdf, modelTexts, pdfLossy, fmtDay, questionIn, questionParts } from "../../lib/potsReport.js";
 import { saveFile } from "../../lib/files.js";
 import { isNative } from "../../lib/native.js";
@@ -25,11 +26,11 @@ export const REPORT_HINT = "Make a report to send or print. Cyra itself sends no
 export const WINANSI_WARNING = "Some characters you typed, such as in your own symptom or medicine names, can't be shown in the PDF and will appear as '?' or be left out. The spreadsheet keeps them exactly.";
 const NONE = []; // a stable default, so the report isn't rebuilt on every render
 const PERIODS = [["30", "Last 30 days"], ["90", "Last 90 days"], ["all", "Everything"]];
-const PARTS = [["tests", "Stand tests, single readings and tilt-table results"], ["sym", "Symptoms, ratings and episodes"], ["fluid", "Fluids and sodium"], ["meds", "Medicines and supports"], ["patterns", "Patterns from my log"]];
+const PARTS = [["tests", "Stand tests, single readings and tilt-table results"], ["sym", "Symptoms, ratings and episodes"], ["fluid", "Fluids and sodium"], ["meds", "Medicines and supports"], ["move", "Movement"], ["patterns", "Patterns from my log"]];
 
 /** What a generated question is about, per Report part, for the "stay out of the files" note
     (the only question drawn from ratings is the cycle-pattern one). */
-const PART_TOPIC = { tests: "your stand tests", fluid: "your fluid and salt goal", meds: "your medicines", patterns: "your cycle pattern", sym: "your cycle pattern" };
+const PART_TOPIC = { tests: "your stand tests", fluid: "your fluid and salt goal", meds: "your medicines", move: "exercise", patterns: "your cycle pattern", sym: "your cycle pattern" };
 export const PATTERNS_NEED_SYM = "Patterns compare your rated days, so they go in only with \"Symptoms, ratings and episodes\" ticked too.";
 const andWords = (a) => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`);
 const rgb = (c) => `rgb(${c.join(",")})`;
@@ -55,6 +56,31 @@ function FluidBars({ b, stage }) {
         );
       })}
       {b.goal != null && <line x1={L} y1={y(b.goal)} x2={W - R} y2={y(b.goal)} stroke="var(--ink)" strokeWidth="1.2" strokeDasharray="4 4" />}
+    </svg>
+  );
+}
+
+/** Exercise sessions per week, as the PDF draws them (ramp().mid), with the count on each bar.
+    Every value is in the aria-label. */
+function WeekBarsSvg({ b, stage }) {
+  const ramp = RAMPS[stage] || RAMPS.peri;
+  const W = 340, H = 120, L = 6, R = 6, T = 14, B = 24;
+  const max = Math.max(1, ...b.weeks.map((k) => k.n)) * 1.15;
+  const step = (W - L - R) / b.weeks.length, bw = Math.max(4, step * 0.6);
+  const y = (v) => H - B - (v / max) * (H - T - B);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={b.label} style={{ display: "block", margin: "6px 0 10px" }}>
+      <line x1={L} y1={H - B} x2={W - R} y2={H - B} stroke="var(--line)" strokeWidth="1.5" />
+      {b.weeks.map((k, i) => {
+        const cx = L + step * i + step / 2;
+        return (
+          <g key={k.from}>
+            {k.n > 0 && <rect x={cx - bw / 2} y={y(k.n)} width={bw} height={H - B - y(k.n)} fill={rgb(ramp.mid)} />}
+            <text x={cx} y={y(k.n) - 3} fontSize="10" textAnchor="middle" fill="var(--ink)">{k.n}</text>
+            {(i % 2 === 0 || i === b.weeks.length - 1) && <text x={cx} y={H - B + 14} fontSize="10" textAnchor="middle" fill="var(--ink)">{fmtDay(k.from)}</text>}
+          </g>
+        );
+      })}
     </svg>
   );
 }
@@ -89,6 +115,7 @@ function Preview({ model, stage }) {
             if (b.t === "hr") return <div key={k}>{b.charts.map((c) => <div key={c.test.id}><p className="plain" style={{ margin: "8px 0 0" }}><b>{c.title}</b></p><HrChart test={c.test} result={c.result} stage={stage} /></div>)}</div>;
             if (b.t === "trend") return <div key={k}><p className="plain" style={{ margin: "8px 0 0" }}><b>{`Largest rise in each complete ${b.methodLabel}${b.median != null ? ` (median ${Math.round(b.median * 10) / 10})` : ""}`}</b></p><TrendChart rows={b.rows} thr={b.thr} stage={stage} methodLabel={b.methodLabel} /></div>;
             if (b.t === "bars") return <div key={k}><p className="plain" style={{ margin: "8px 0 0" }}><b>{`Oral fluid per day${b.goal != null ? " (dashed: your goal)" : ""}`}</b></p><FluidBars b={b} stage={stage} /></div>;
+            if (b.t === "weeks") return <div key={k}><p className="plain" style={{ margin: "8px 0 0" }}><b>Exercise sessions per week</b></p><WeekBarsSvg b={b} stage={stage} /></div>;
             return null;
           })}
         </section>
@@ -101,7 +128,8 @@ function Preview({ model, stage }) {
 export default function PotsReport({ pots, setPots, stage, stageName, todayIso, ping, firstName = "", checkin, checkinLabels, starts = NONE, locale }) {
   const s = pots.settings;
   const [period, setPeriod] = useState("30");
-  const [parts, setParts] = useState({ tests: true, sym: true, fluid: true, meds: true, patterns: true });
+  // "Movement" starts ticked when she has logged a session or answered the Move questions.
+  const [parts, setParts] = useState(() => ({ tests: true, sym: true, fluid: true, meds: true, move: hasMoveData(pots), patterns: true }));
   const [withName, setWithName] = useState(false);
   const [busy, setBusy] = useState(null); // "pdf" | "csv" | null
   const [newQ, setNewQ] = useState("");
@@ -110,7 +138,7 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
   const model = useMemo(
     () => reportModel(pots, { period, today: todayIso, include, name: firstName, stage, stageName, checkin, checkinLabels, starts, locale }),
     // `include` is rebuilt each render; its parts are listed one by one.
-    [pots, period, todayIso, parts.tests, parts.sym, parts.fluid, parts.meds, parts.patterns, include.cycle, include.notes, include.name, firstName, stage, stageName, checkin, checkinLabels, starts, locale], // eslint-disable-line
+    [pots, period, todayIso, parts.tests, parts.sym, parts.fluid, parts.meds, parts.move, parts.patterns, include.cycle, include.notes, include.name, firstName, stage, stageName, checkin, checkinLabels, starts, locale], // eslint-disable-line
   );
   if (!model) return null;
   const email = emailParts(model), summary = summaryText(model);

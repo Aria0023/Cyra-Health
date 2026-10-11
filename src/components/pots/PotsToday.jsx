@@ -16,6 +16,7 @@ import PlanToday from "./PlanToday.jsx";
 import VitalsForm from "./VitalsForm.jsx";
 import QuickLog, { LastRow, FeelBad } from "./QuickLog.jsx";
 import { resultFor, riseText } from "./StandResult.jsx";
+import { nextDayPending, setNextDay, skipNextDay, planLine, modeWord, NEXT_OPTS, MOVE_COPY } from "../../lib/potsMove.js";
 import { fmtN } from "./HrChart.jsx";
 import { hm, ampm, dayLabel, addDays, SEV_WORD, intakeText, amountText, symLabel, medName, useAnnounce } from "./ui.js";
 
@@ -206,6 +207,13 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
   const sleepPicked = d.sleep != null ? d.sleep : checkin && checkin.sleepQ ? checkin.sleepQ : null;
   const sleepFromCheckin = d.sleep == null && !!(checkin && checkin.sleepQ);
   const nearFaint = nearFaintDays(pots, day) >= 3;
+  // 13. The next-day question about yesterday's sessions (only on today, with Move shown).
+  const nextDue = isToday && s.show.move ? nextDayPending(pots, todayIso) : [];
+  const yesterday = addDays(todayIso, -1);
+  const answerNext = (v) => { const ids = nextDue.map((x) => x.id); setPots((p) => setNextDay(p, yesterday, ids, v)); ping("Saved. Thanks."); setFocusBack("pots-note"); };
+  const skipNext = () => { const ids = nextDue.map((x) => x.id); setPots((p) => skipNextDay(p, yesterday, ids)); setFocusBack("pots-note"); };
+  // Today's plan: the movement line ("Movement: Step 1 session today" / rest day), with Move shown.
+  const moveLine = s.show.move ? planLine(pots, { stage, day }) : null;
   // Stand test card: the latest finished, stopped or interrupted test ("Oct 3 · heart rate rose 34").
   const lastTest = [...(pots.tests || [])].reverse().find((t) => t.status !== "running") || null;
   const lastLine = (() => {
@@ -253,7 +261,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
     ...(d.doses || []).map((x) => ({ x, type: "dose", text: `${medName(pots, x.medId)} ${x.state === "skipped" ? "skipped" : "taken"}${x.slot ? ` (planned ${hm(x.slot)})` : ""}` })),
     ...(d.eps || []).map((x) => ({ x, type: "ep", text: `Episode: ${[x.sym.map((id) => symLabel(pots, id)).join(", "), x.faint === "yes" ? "fainted" : x.faint === "almost" ? "almost fainted" : "", x.sev ? SEV_WORD[x.sev] : ""].filter(Boolean).join(" · ")}` })),
     ...(d.vit || []).map((x) => ({ x, type: "vit", text: `${posWord(x)} reading: ${[x.hr != null ? `heart rate ${x.hr}` : null, x.sys != null || x.dia != null ? `${x.sys ?? "?"}/${x.dia ?? "?"}` : null].filter(Boolean).join(" · ")}` })),
-    ...(d.move || []).map((x) => ({ x, type: "move", text: "Movement session" })),
+    ...(d.move || []).map((x) => ({ x, type: "move", text: `${modeWord(x.mode)} session${x.main ? ` · main part ${x.main} min` : ""}` })),
   ].sort((a, b) => (a.x.t < b.x.t ? -1 : a.x.t > b.x.t ? 1 : 0));
   const edit = (it) => {
     if (it.type === "intake") open({ kind: "amount", mode: it.x.ml != null ? "fluid" : "salt", item: it.x });
@@ -321,7 +329,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
             {/* 5. Overlap with the check-in (read only) */}
             {overlap.length > 0 && <p className="rfoot" style={{ margin: "0 0 12px" }}>{`Already in ${isToday ? "today's" : "that day's"} check-in: ${overlap.join(", ")}. No need to log it twice${s.reportCycle !== false ? "; your POTS report shows both" : ""}.`}</p>}
             {/* 6. Today's plan */}
-            <PlanToday pots={pots} day={day} isToday={isToday} units={units} setPots={setPots} onDose={logSlot} />
+            <PlanToday pots={pots} day={day} isToday={isToday} units={units} setPots={setPots} onDose={logSlot} moveLine={moveLine} />
             {/* 7. Fluids and sodium */}
             {s.show.fluid && <FluidSalt pots={pots} day={day} whenWord={whenWord} units={units} setPots={setPots} onPreset={(pr) => logPreset(pr)} onOther={(mode) => open({ kind: "amount", mode })} onGoal={() => open({ kind: "goal" })} />}
             {/* 8. Right now */}
@@ -346,6 +354,16 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
               {SLEEP.map(([v, l]) => <button type="button" key={v} className={`pill ${sleepPicked === v ? "pill-on" : ""}`} aria-pressed={sleepPicked === v} onClick={() => setPots((p) => setSleep(p, day, d.sleep === v ? null : v))}>{l}</button>)}
             </div>
             {sleepFromCheckin && <p className="hint" style={{ margin: "0 0 14px" }}>{isToday ? "From today's check-in. Tap to change." : "From that day's check-in. Tap to change."}</p>}
+            {/* 13. Movement next-day prompt */}
+            {nextDue.length > 0 && (
+              <section className="plaincard" aria-labelledby="pots-next-l" style={{ marginBottom: 12 }}>
+                <p className="lab" id="pots-next-l" style={{ marginTop: 0 }}>{MOVE_COPY.nextQ}</p>
+                <div className="mcrow" role="group" aria-labelledby="pots-next-l">
+                  {NEXT_OPTS.map(([v, l]) => <button type="button" key={v} className="mc" aria-pressed={false} onClick={() => answerNext(v)}>{l}</button>)}
+                </div>
+                <button type="button" className="linkbtn" style={{ display: "block", marginTop: 8 }} onClick={skipNext}>Skip</button>
+              </section>
+            )}
             {/* 14. Note for your clinician */}
             <label className="lab" htmlFor="pots-note">Note for your clinician</label>
             <textarea id="pots-note" key={`${day}:${d.note || ""}`} className="inp" rows={3} maxLength={500} aria-label="Note for your clinician" aria-describedby="pots-note-hint" defaultValue={d.note || ""}

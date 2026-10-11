@@ -14,8 +14,8 @@
    - Never in any output: watch, ring or health-app readings or anything derived from them
      (they are not an input either: "Patterns from her log" is lib/potsPatterns.js run without
      them), the journal, the Connect log, the main check-in scales.
-   - Typed notes (day, episode, test, IV and medicine notes, and what she typed about a
-     tilt-table result) only with "Notes I typed"; her
+   - Typed notes (day, episode, test, IV and medicine notes, what she typed about a tilt-table
+     result, and the heart-rate range she noted for exercise) only with "Notes I typed"; her
      first name only with "Put my first name on it"; the life-stage label, "Pregnant", cycle
      days, the cycle pattern, the check-in overlap and the stage-based visit questions only
      with "Cycle or pregnancy details". The rest position ("lying on left side") always stays: it is how the test was
@@ -28,6 +28,7 @@
 import { POTS_SYM, POTS_TRIG, POTS_MED_LIB, POTS_RELATED, THRESH } from "./potsConstants.js";
 import { standResult, median, fmtFluid, fmtSodium, isLockedPots, localDay, toMin } from "./pots.js";
 import { patterns, dayRows, cycleGroups, cycleLabelOn, isCycleStage, episodesByDose, medLine, REPORT_FOOT, PREG_NOTE as PREG_PATTERN_NOTE } from "./potsPatterns.js";
+import { moveState, allSessions, hasMoveData, planWeek, modeWord, MOVE_STEPS, RECUMBENT, UPRIGHT, WEEKDAYS } from "./potsMove.js";
 import { RAMPS } from "./constants.js";
 
 /* ---------- small helpers ---------- */
@@ -110,7 +111,7 @@ export const paperFor = (p, locale) => (p.settings.paper === "letter" || p.setti
 /* ---------- visit questions (design 6.6) ---------- */
 /** The generated "Questions for my next visit", from POTS data and app state only. Each is
     { id, text, stageBased, part }; stage-based ones go into a file only with "Cycle or pregnancy
-    details", and one drawn from Report parts (`part`: "tests", "fluid", "meds", or a list such
+    details", and one drawn from Report parts (`part`: "tests", "fluid", "meds", "move", or a list such
     as ["patterns", "sym"]) only while every one of those parts is ticked (on screen they always
     show). `tests` are the finished tests
     to read (oldest first); `cycle` is the cycle card (lib/potsPatterns.js cycleGroups). */
@@ -127,8 +128,11 @@ export function visitQuestions(p, { tests = [], stage = null, stageName = null, 
   const prog = p.move && p.move.program;
   if (prog) {
     const cleared = stage === "preg" ? prog.clearedPreg : prog.cleared;
-    if (cleared !== "yes") add("q_exercise", "Is it safe for me to start an exercise plan, and where should I start?");
-    if (prog.pem === "yes" || prog.pem === "unsure") add("q_pem", "I crash after effort. Could this be post-exertional malaise, and how should I pace?");
+    // In pacing mode (crashing after effort: yes or not sure) there is no step plan to start,
+    // so the pacing question takes the place of "where should I start?".
+    const pacing = prog.pem === "yes" || prog.pem === "unsure";
+    if (cleared !== "yes" && !pacing) add("q_exercise", "Is it safe for me to start an exercise plan, and where should I start?", false, "move");
+    if (pacing) add("q_pem", "I crash after effort. Could this be post-exertional malaise, and how should I pace?", false, "move");
   }
   // The cycle card is shown and her rough days lean clearly towards the period: a lead of at
   // least 25 points, the card's own visit rule (lib/potsPatterns.js cycleGroups `top`). It is
@@ -166,10 +170,67 @@ export const questionParts = (q) => (Array.isArray(q.part) ? q.part : q.part ? [
 export const questionIn = (q, inc) => (inc.cycle || !q.stageBased) && questionParts(q).every((k) => inc[k] !== false);
 /** The Report part a pattern factor draws on (lib/potsPatterns.js factorList): drinks, salt and
     IV fluids are "Fluids and sodium"; medicine timing and supports are "Medicines and supports";
-    exercise the day before is "Movement" (its box arrives with the Move section); sleep, heat,
+    exercise the day before is "Movement"; sleep, heat,
     triggers and hot flashes sit with "Symptoms, ratings and episodes", which every pattern
     needs anyway because the outcome is her day rating. */
 export const factorPart = (f) => (["fluid", "sodium", "iv"].includes(f.key) ? "fluid" : f.kind === "med" || f.key.startsWith("med:") || f.key.startsWith("aid:") ? "meds" : f.key === "moved" ? "move" : "sym");
+
+/* ---------- movement (design 6.2 section 5) ---------- */
+const AFTER_WORD = { 0: "fine", 1: "a bit worse", 2: "much worse", 3: "had to stop" };
+const AFTER_CSV = { 0: "fine", 1: "a_bit_worse", 2: "much_worse", 3: "had_to_stop" };
+const NEXT_WORD = { better: "better", same: "the same", worse: "worse", crash: "crashed" };
+const PEM_WORD = { yes: "yes", no: "no", unsure: "not sure" };
+const CLEAR_WORD = { yes: "yes", later: "not yet, she'll ask first", anyway: "not yet, she chose to see the plan anyway" };
+const countLine = (lead, words, vals) => `${lead}${Object.entries(words).map(([k, w]) => `${w} ${vals.filter((v) => String(v) === k).length}`).join(", ")}, not answered ${vals.filter((v) => v == null || !(String(v) in words)).length}.`;
+
+/** The Movement section's blocks, third person, for `sessions` in the report period. */
+function moveBlocks(p, { sessions, range, today, stage, inc, eps }) {
+  const st = moveState(p, stage), pr = st.program, blocks = [];
+  if (pr && pr.pem != null) blocks.push({ t: "p", text: `Often crashes 12 to 72 hours after effort, for a day or more (her answer): ${PEM_WORD[pr.pem] || "other answer"}.${st.pacing ? " Cyra's pacing mode is on for her: it shows no step-up options." : ""}` });
+  if (pr && !st.pacing) {
+    if (!st.preg && pr.cleared != null) blocks.push({ t: "p", text: `OK from a clinician or physio to start an exercise plan (her answer): ${CLEAR_WORD[pr.cleared] || "other answer"}${pr.cleared === "yes" && pr.clearedOn ? ` (${fmtDayY(pr.clearedOn)})` : ""}.` });
+    if (st.preg && inc.cycle && pr.clearedPreg != null) blocks.push({ t: "p", text: `OK from her prenatal team to start an exercise plan (her answer): ${CLEAR_WORD[pr.clearedPreg] || "other answer"}${pr.clearedPreg === "yes" && pr.clearedPregOn ? ` (${fmtDayY(pr.clearedPregOn)})` : ""}.` });
+    // In pregnancy before the prenatal team's yes there is no step plan on her screen, and the
+    // plan shown there is a pregnancy detail: no step line then, or without cycle details.
+    if (st.planShown && (!st.preg || inc.cycle)) {
+      const sd = MOVE_STEPS.find((x) => x.step === (pr.step || 1));
+      const days = (pr.days || []).length ? WEEKDAYS.filter(([n]) => pr.days.includes(n)).map(([, l]) => l).join(", ") : null;
+      blocks.push({ t: "p", text: `Her step in Cyra's plan, which she chooses herself: Step ${sd.step} (${sd.name.toLowerCase()}), week ${planWeek(pr, today)} of her plan.${days ? ` Planned days: ${days}.` : ""}${fin(pr.mainMin) ? ` Main part she set: ${pr.mainMin} min.` : ""}` });
+      if (inc.notes && pr.hrNote) blocks.push({ t: "p", text: `Heart-rate range she noted from her clinician or physio: ${pr.hrNote}` });
+    }
+  }
+  if (isObj(p.move) && p.move.faintPause) blocks.push({ t: "p", text: `After an exercise faint on ${fmtDayY(p.move.faintPause)}, step-up options are paused until she reports being checked.` });
+  if (!sessions.length) { blocks.push({ t: "p", text: "No exercise sessions logged in this period." }); return blocks; }
+  // Sessions per week: whole 7-day blocks ending on the last day of the period, at most 8 (a
+  // part-week at the start of the period is counted in the totals below, not drawn as a week).
+  const nW = Math.min(8, Math.floor(range.n / 7));
+  const weeks = [];
+  for (let k = nW - 1; k >= 0; k--) {
+    const to = addDays(range.to, -7 * k), from = addDays(to, -6);
+    const s = sessions.filter((x) => x.date >= from && x.date <= to);
+    weeks.push({ from, to, n: s.length, worse: s.filter((x) => x.next === "worse").length, crash: s.filter((x) => x.next === "crash").length });
+  }
+  if (weeks.length) blocks.push({ t: "weeks", weeks, label: `Exercise sessions per week, ${fmtRange(weeks[0].from, range.to)}: ${weeks.map((w) => `week from ${fmtDay(w.from)}, ${plural(w.n, "session")}${w.worse || w.crash ? ` (next day worse ${w.worse}, crashed ${w.crash})` : ""}`).join("; ")}.` });
+  const guided = sessions.filter((x) => x.guided).length, stopped = sessions.filter((x) => x.stopped).length;
+  const mainSum = sessions.reduce((a, x) => a + (fin(x.main) ? x.main : 0), 0), longest = sessions.reduce((a, x) => (fin(x.main) && x.main > a ? x.main : a), 0);
+  const easy = sessions.reduce((a, x) => a + (fin(x.warm) ? x.warm : 0) + (fin(x.cool) ? x.cool : 0), 0);
+  blocks.push({ t: "p", text: `Sessions in this period: ${sessions.length} (${guided} with Cyra's timer${stopped ? `, ${stopped} stopped early` : ""}). Main part: ${mainSum} min in all, longest ${longest} min; warm-up and cool-down ${easy} min.` });
+  const rec = sessions.filter((x) => RECUMBENT.includes(x.mode)).length, upr = sessions.filter((x) => UPRIGHT.includes(x.mode)).length;
+  const modes = [...new Set(sessions.map((x) => x.mode))].map((m) => `${modeWord(m).toLowerCase()} ${sessions.filter((x) => x.mode === m).length}`).join(", ");
+  blocks.push({ t: "p", text: `Lying or seated: ${rec} · upright: ${upr} · other: ${sessions.length - rec - upr} (${modes}).` });
+  blocks.push({ t: "p", text: countLine("How she felt right after: ", AFTER_WORD, sessions.map((x) => x.after)) });
+  blocks.push({ t: "p", text: countLine("How she felt the next day: ", NEXT_WORD, sessions.map((x) => x.next)) });
+  const worse = new Map();
+  for (const x of sessions) for (const id of x.worse || []) worse.set(id, (worse.get(id) || 0) + 1);
+  if (worse.size) blocks.push({ t: "p", text: `Symptoms that got worse after a session: ${[...worse.entries()].sort((a, b) => b[1] - a[1]).map(([id, n]) => `${symName(p, id)} (${n})`).join(", ")}.` });
+  // Faints during exercise: from episodes (every source) with symptoms included, else from the
+  // sessions' own answers. A session faint is also an episode, so nothing is counted twice.
+  const ex = inc.sym
+    ? eps.filter((e) => e.pos === "exercise" && (e.faint === "yes" || e.faint === "almost")).map((e) => ({ date: e.date, faint: e.faint }))
+    : sessions.filter((x) => x.faint === "yes" || x.faint === "almost").map((x) => ({ date: x.date, faint: x.faint }));
+  blocks.push({ t: "p", text: ex.length ? `Faints or near-faints during exercise: ${ex.length} (${ex.map((e) => `${fmtDay(e.date)}, ${FAINT_WORD[e.faint]}`).join("; ")}).` : "No faint or near-faint during exercise was logged in this period." });
+  return blocks;
+}
 
 /* ---------- the model ---------- */
 const testBpWord = (r) => {
@@ -186,7 +247,8 @@ const bpText = (r) => (fin(r.sys) || fin(r.dia) ? `${r.sys ?? "?"}/${r.dia ?? "?
 
 /** Everything the report says, for the period and choices given. opts:
     period ("30" | "90" | "all"), today (local "YYYY-MM-DD"), include { tests, sym, fluid,
-    meds, patterns, cycle, notes, name } (cycle and notes default to her remembered choices),
+    meds, move, patterns, cycle, notes, name } (cycle and notes default to her remembered choices,
+    move to whether she has any session or Move answers),
     name (her first name; used only with include.name), stage, stageName, checkin (iso -> that
     day's check-in entry or null; read only with include.cycle), checkinLabels (check-in symptom
     id -> label), starts (her logged period starts; cycle days and the cycle pattern, in files
@@ -196,7 +258,7 @@ export function reportModel(p, opts = {}) {
   const starts = Array.isArray(opts.starts) ? opts.starts : [];
   if (!isObj(p) || isLockedPots(p)) return null;
   const s = p.settings, units = s.units;
-  const inc = { tests: true, sym: true, fluid: true, meds: true, patterns: true, cycle: s.reportCycle !== false, notes: s.reportNotes === true, name: false, ...(isObj(opts.include) ? opts.include : {}) };
+  const inc = { tests: true, sym: true, fluid: true, meds: true, move: hasMoveData(p), patterns: true, cycle: s.reportCycle !== false, notes: s.reportNotes === true, name: false, ...(isObj(opts.include) ? opts.include : {}) };
   const who = inc.name && typeof name === "string" && name.trim() ? name.trim() : "";
   const range = reportRange(p, period, today);
   const teen = s.teen === true, thr = teen ? THRESH.hrTeen : THRESH.hr;
@@ -441,6 +503,16 @@ export function reportModel(p, opts = {}) {
     sections.push({ id: "meds", title: "Medicines and supports", blocks });
   }
 
+  /* 5. Movement (design 6.2 section 5): her Move answers (self-reported), her step and week,
+     sessions per week, minutes, lying-or-seated vs upright, how she felt right after and the
+     next day, and exercise faints. Exercise faints come from her episodes (every source: the
+     episode sheet, a session's faint answer) only with "Symptoms, ratings and episodes", since
+     episodes belong to that part; otherwise from the sessions' own faint answers. In pregnancy
+     the prenatal team's answer is a pregnancy detail, so it goes in only with "Cycle or
+     pregnancy details". The heart-rate range she noted is typed text: only with notes. */
+  const sessions = allSessions(p).filter((x) => inRange(x.date, range));
+  if (inc.move) sections.push({ id: "move", title: "Movement", blocks: moveBlocks(p, { sessions, range, today, stage, inc, eps }) });
+
   /* 6. Cycle pattern (cycle stages, 90 days, design 5.6) and 7. Patterns from her log
      (design 5.3 and 5.7): observations, not causes. Built by lib/potsPatterns.js from the POTS
      log only, plus check-in sleep and hot flashes and her period starts only with cycle
@@ -500,7 +572,7 @@ export function reportModel(p, opts = {}) {
   const latestT = allDone.length ? allDone[allDone.length - 1] : null;
   const latestR = latestT ? standResult(latestT, { teen }) : null;
   const in90 = allDone.filter((t) => t.date >= addDays(today, -89) && t.date <= today).length;
-  const sessions30 = 0; // movement sessions arrive with the Move section
+  const sessions30 = allSessions(p).filter((x) => x.date >= addDays(today, -29) && x.date <= today).length;
   const summary = {
     rated: inc.sym ? `Days rated: ${rated} of ${range.n} (good ${ratings[1]}, okay ${ratings[2]}, rough ${ratings[3]}, bad ${ratings[4]})` : null,
     test: inc.tests && latestT ? `Latest standing test: ${fmtDayY(latestT.date)}, ${methodWord(latestT.method).toLowerCase()}. ${latestR.baseHr != null ? `Lying heart rate ${n1(latestR.baseHr)}` : "No lying heart rate"}${latestR.hrStatus === "insufficient" ? ", not enough readings for a rise" : preg && inc.cycle ? `, largest rise ${n1(latestR.peakRise)} (outside pregnancy, clinicians use ${thr}${latestR.hrStatus.startsWith("single") ? `; ${SUSTAINED_SENTENCE[latestR.hrStatus]}` : ""})` : `, largest rise ${n1(latestR.peakRise)}, sustained ${thr} or more: ${SUSTAINED_SENTENCE[latestR.hrStatus]}`}. Blood pressure: ${latestT.bp ? testBpWord(latestR) : "not taken"}.${preg && inc.cycle ? " I'm pregnant, and heart rate normally rises during pregnancy; these thresholds come from studies of people who weren't pregnant." : ""}` : null,
@@ -509,7 +581,7 @@ export function reportModel(p, opts = {}) {
     faint: inc.sym ? `Fainted: ${nFaint} · Almost fainted: ${nAlmost}` : null,
     fluid: inc.fluid ? [fluidDays ? `Fluids: about ${fmtFluid(fluidSum / fluidDays, units)} a day on logged days${g.fluidMl != null ? ` (goal ${fmtFluid(g.fluidMl, units)}${g.by === "clinician" ? ", set by my clinician" : g.by === "me" ? ", my own goal" : ""})` : ""}` : "Fluids: none logged", naDays ? `Sodium: about ${fmtSodium(naSum / naDays, { salt: "mgNa" })} a day on logged days${g.naMg != null ? ` (goal ${fmtSodium(g.naMg, { salt: "mgNa" })})` : ""}` : null].filter(Boolean).join(". ") : null,
     meds: inc.meds ? ((p.meds || []).filter((m) => m.kind !== "aid" && !m.stopped).length ? `POTS medicines: ${(p.meds || []).filter((m) => m.kind !== "aid" && !m.stopped).map((m) => m.name).join(", ")}` : "POTS medicines: none on my list") : null,
-    sessions: sessions30 ? `Exercise sessions in the last 30 days: ${sessions30}` : null,
+    sessions: inc.move ? `Exercise sessions in the last 30 days: ${sessions30}` : null,
   };
 
   return {
@@ -518,7 +590,7 @@ export function reportModel(p, opts = {}) {
     files: { pdf: `cyra-report-${today}.pdf`, csv: `cyra-data-${today}.csv` },
     header, sections, summary,
     questions: { generated, own: s.questions || [] },
-    data: { p, days, tests, tilt, overlap, results, cycleDays: new Map(tests.map((t) => [t.id, cycleOf(t)]).filter(([, c]) => c)), patterns: patternsShown },
+    data: { p, days, tests, tilt, overlap, results, sessions, cycleDays: new Map(tests.map((t) => [t.id, cycleOf(t)]).filter(([, c]) => c)), patterns: patternsShown },
   };
 }
 
@@ -539,7 +611,7 @@ const kv = (pairs) => pairs.filter(([, v]) => v != null && v !== "").map(([k, v]
     period, nothing derived from a watch or ring, typed notes only with "Notes I typed". */
 export function toCSV(model) {
   if (!model) return "";
-  const { data: { p, days, tests, tilt, overlap, results, cycleDays }, inc } = model;
+  const { data: { p, days, tests, tilt, overlap, results, cycleDays, sessions }, inc } = model;
   const rows = [];
   const R = (record, date, time, item, value, unit, position, minute, severity, detail) => rows.push([record, date, time, item, value, unit, position, minute, severity, detail]);
   const note = (s) => (inc.notes && s ? s : null);
@@ -558,7 +630,7 @@ export function toCSV(model) {
   const medName = (id) => ((p.meds || []).find((m) => m.id === id) || {}).name || "Other medicine";
   const byDate = new Map();
   for (const t of tests) byDate.set(t.date, [...(byDate.get(t.date) || []), t]);
-  const allDates = [...new Set([...days, ...tests.map((t) => t.date), ...tilt.map((t) => t.date), ...overlap.map((o) => o.date)])].sort();
+  const allDates = [...new Set([...days, ...tests.map((t) => t.date), ...tilt.map((t) => t.date), ...overlap.map((o) => o.date), ...(sessions || []).map((x) => x.date)])].sort();
   for (const d of allDates) {
     const x = p.days[d] || {};
     if (inc.sym) {
@@ -617,6 +689,12 @@ export function toCSV(model) {
       }
       for (const x2 of tilt.filter((t) => t.date === d)) R("tilt_note", d, "", "tilt", fin(x2.hrRise) ? x2.hrRise : "", "bpm", "", "", "", kv([["where", note(x2.where)], ["told", note(x2.told)], ["bp_note", note(x2.bpNote)], ["fainted", x2.fainted]]));
     }
+    if (inc.move) {
+      for (const m of (sessions || []).filter((x) => x.date === d)) {
+        R("session", d, m.t, m.mode, fin(m.main) ? m.main : "", "min", "", "", "",
+          kv([["step", m.step], ["warm", m.warm], ["cool", m.cool], ["guided", m.guided ? "yes" : "no"], ["effort", m.effort], ["after", AFTER_CSV[m.after]], ["next", m.next], ["worse", (m.worse || []).map((id) => symName(p, id)).join(", ")], ["fainted", m.faint], ["stopped", m.stopped ? "yes" : "no"]]));
+      }
+    }
   }
   return `﻿${[CSV_HEADER, ...rows.map((r) => r.map(csvCell).join(","))].join("\r\n")}\r\n`;
 }
@@ -663,7 +741,7 @@ export function modelTexts(model) {
       if (b.t === "list") out.push(...b.items);
       if (b.t === "table") out.push(b.caption, ...b.head, ...b.rows.flat());
       if (b.t === "hr") for (const c of b.charts) out.push(c.title, c.label);
-      if (b.t === "trend" || b.t === "bars") out.push(b.label);
+      if (b.t === "trend" || b.t === "bars" || b.t === "weeks") out.push(b.label);
     }
   }
   return out.filter((x) => typeof x === "string");
@@ -725,6 +803,22 @@ function drawBars(doc, x, y, w, h, b) {
   doc.text(R, T - 6, b.units && b.units.fluid === "oz" ? "labels in oz · – not logged" : "labels in litres · – not logged", { size: 6, align: "right", rgb: SOFT });
 }
 
+function drawWeeks(doc, x, y, w, h, b) {
+  doc.text(x, y + 8, "Exercise sessions per week", { size: 8, bold: true });
+  const L = x + 4, R = x + w - 4, T = y + 22, B = y + h - 14;
+  const max = Math.max(1, ...b.weeks.map((k) => k.n)) * 1.15;
+  const step = (R - L) / b.weeks.length, bw = Math.max(4, step * 0.6);
+  const py = (v) => B - (v / max) * (B - T);
+  doc.line(L, B, R, B, { rgb: RULE, width: 0.6 });
+  b.weeks.forEach((k, i) => {
+    const cx = L + step * i + step / 2;
+    if (k.n) doc.rect(cx - bw / 2, py(k.n), bw, B - py(k.n), { fill: RAMP.mid });
+    doc.text(cx, py(k.n) - 2, `${k.n}${k.worse || k.crash ? ` (w${k.worse} c${k.crash})` : ""}`, { size: 6, align: "center" });
+    doc.text(cx, B + 8, `from ${fmtDay(k.from)}`, { size: 5.5, align: "center", rgb: SOFT });
+  });
+  doc.text(R, T - 6, "count of sessions · (w, c) next day worse, crashed", { size: 6, align: "right", rgb: SOFT });
+}
+
 /** The PDF for `model`, drawn with `PdfDoc` (lib/pdf.js, passed in so that module stays in
     its own lazily loaded chunk). -> Uint8Array. */
 export function reportPdf(model, PdfDoc) {
@@ -756,6 +850,7 @@ export function reportPdf(model, PdfDoc) {
         y += h + 12;
       } else if (b.t === "trend") { y = doc.ensure(y, 110); drawTrend(doc, X, y, W, 100, b); y += 112; }
       else if (b.t === "bars") { y = doc.ensure(y, 120); drawBars(doc, X, y, W, 110, b); y += 122; }
+      else if (b.t === "weeks") { y = doc.ensure(y, 100); drawWeeks(doc, X, y, W, 90, b); y += 102; }
     }
   });
   doc.footer((n, m, d) => d.text(d.W / 2, d.H - 24, `Page ${n} of ${m} · Cyra · Observations, not a diagnosis.`, { size: 7.5, align: "center", rgb: SOFT }));
