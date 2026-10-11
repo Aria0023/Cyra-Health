@@ -77,7 +77,7 @@ function MainLength({ value, onSave }) {
   );
 }
 
-export default function MovePlan({ pots, setPots, stage, todayIso, ping, onStart, focusKey }) {
+export default function MovePlan({ pots, setPots, stage, todayIso, ping, onStart, focus = false, onFocused }) {
   const preg = stage === "preg";
   const st = moveState(pots, stage), pr = st.program;
   const [sheet, setSheet] = useState(null); // null | "log"
@@ -85,7 +85,8 @@ export default function MovePlan({ pots, setPots, stage, todayIso, ping, onStart
   const [live, announce] = useAnnounce();
   const topRef = useRef(null), sheetHead = useRef(null);
   const [focusTo, setFocusTo] = useState(null); // an element id, or "top"
-  useEffect(() => { if (focusKey) topRef.current?.focus(); }, [focusKey]);
+  // Focus moves to the section heading only when App asked for it (one-shot), never on a chip tap.
+  useEffect(() => { if (focus) { topRef.current?.focus(); onFocused?.(); } }, [focus]); // eslint-disable-line
   useEffect(() => { if (sheet) sheetHead.current?.focus(); }, [sheet]);
   useEffect(() => {
     if (!focusTo) return;

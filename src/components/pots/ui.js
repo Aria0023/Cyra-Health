@@ -1,7 +1,7 @@
 /* Small display helpers shared by the POTS components (no state, no storage, no network).
    Labels for symptoms, triggers and medicines, the time and date formats the design uses,
    amounts in her display units, and the screen-owned safety announcement (urgentLive). */
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { POTS_SYM, POTS_TRIG, POTS_MED_LIB } from "../../lib/potsConstants.js";
 import { localDay, mlToOz, fmtSodium, NA_PER_G_SALT, OZ_ML } from "../../lib/pots.js";
 
@@ -101,4 +101,39 @@ export function useAnnounce() {
     timer.current = setTimeout(() => { setLive(queue.current.join(" ")); queue.current = []; }, 60);
   };
   return [live, announce];
+}
+
+/** Keeps a running test's or session's sticky Stop bar in reach while she types (design 4.8.5).
+    Where the on-screen keyboard only shrinks the visual viewport (iOS Safari and WKWebView,
+    Chrome's default), a bar stuck to the bottom of the page sits behind the keyboard: this
+    returns the height the keyboard covers (0 where the page itself shrinks, or with no
+    keyboard), which the runner uses as the bar's bottom offset plus a spacer of the same height
+    after it. When a field takes focus or the keyboard opens, the page scrolls just enough that
+    the field isn't under the bar. */
+export function useKbLift(barRef) {
+  const [kb, setKb] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    let raf = 0;
+    const clear = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => { raf = requestAnimationFrame(() => {
+        const el = document.activeElement, bar = barRef.current;
+        if (!bar || !el || !/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) return;
+        const over = el.getBoundingClientRect().bottom - bar.getBoundingClientRect().top + 8;
+        if (over > 0) window.scrollBy(0, over);
+      }); });
+    };
+    const measure = () => setKb(vv ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0);
+    const onResize = () => { measure(); clear(); };
+    if (vv) { vv.addEventListener("resize", onResize); vv.addEventListener("scroll", measure); }
+    document.addEventListener("focusin", clear);
+    measure();
+    return () => {
+      cancelAnimationFrame(raf);
+      if (vv) { vv.removeEventListener("resize", onResize); vv.removeEventListener("scroll", measure); }
+      document.removeEventListener("focusin", clear);
+    };
+  }, []); // barRef is a stable ref
+  return kb;
 }

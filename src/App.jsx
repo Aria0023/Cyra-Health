@@ -229,8 +229,11 @@ export default function CyraDemo() {
      { kind: "session", id, day, phase, phaseStart, plan, paused, pausedMs, ... }
      (components/pots/MoveSession.jsx). */
   const [potsRun, setPotsRun] = useState(null);
-  const [potsStandFocus, setPotsStandFocus] = useState(0); // bumped when a test ends: the Stand test section takes focus
-  const [potsMoveFocus, setPotsMoveFocus] = useState(0); // bumped when a session ends: the Move section takes focus
+  /* One-shot focus request for a POTS section ("stand" | "move" | null): set when a test or
+     session ends, or by Today's "Start a stand test", and cleared by the section once it has
+     moved focus to its heading, so a later chip tap to that section leaves focus on the chip. */
+  const [potsFocus, setPotsFocus] = useState(null);
+  const potsFocused = () => setPotsFocus(null);
   const wipingRef = useRef(false); // Delete everything / Start over in progress: nothing may be saved any more
   const saveTimer = useRef(null);  // the pending autosave, cancelled by a wipe
   const pendingSave = useRef(null); // that autosave's write, run at once when the app is hidden or closed (flushSave)
@@ -1507,12 +1510,12 @@ export default function CyraDemo() {
   const potsView = (
     <PotsScreen pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"} storageDriver={storageDriver}
       sections={potsOk ? {
-        today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => setPotsSec("stand")} storageDriver={storageDriver} syncDay={syncDay} />,
+        today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => { setPotsSec("stand"); setPotsFocus("stand"); }} storageDriver={storageDriver} syncDay={syncDay} />,
         report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={acct.anon ? "" : (acct.name || "").trim()} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} />,
         patterns: <PotsPatterns pots={pots} stage={stage} stageName={stageName} todayIso={todayIso} starts={ins.starts} checkin={potsCheckin} wearData={wearData} connected={potsWearConnected} />,
-        stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focusKey={potsStandFocus} cyc={potsCyc}
+        stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focus={potsFocus === "stand"} onFocused={potsFocused} cyc={potsCyc}
           onStart={() => setPotsRun({ kind: "test", id: null, phase: "safety", phaseStart: Date.now(), standAt: null, done: [], interrupt: null })} />,
-        move: <MovePlan pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} focusKey={potsMoveFocus}
+        move: <MovePlan pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} focus={potsFocus === "move"} onFocused={potsFocused}
           onStart={() => setPotsRun({ kind: "session", id: null, day: todayIso, phase: "setup", phaseStart: Date.now(), plan: null, paused: null, pausedMs: 0 })} />,
       } : {}}
       settings={potsOk ? ({ headRef, onBack }) => <PotsSettings pots={pots} setPots={setPots} stage={stage} stageName={stageName} conditions={potsConditions} ping={ping} shows={POTS_SHOWS} today={todayIso} headRef={headRef} onBack={onBack} /> : null}
@@ -1532,9 +1535,9 @@ export default function CyraDemo() {
         <header className="mast"><span className="mark">{org.name}<span className="sub">{org.tag}</span></span></header>
         {potsRun.kind === "session"
           ? <SessionRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping}
-              onEnd={() => { setPotsRun(null); setPotsSec("move"); setPotsMoveFocus((n) => n + 1); }} />
+              onEnd={() => { setPotsRun(null); setPotsSec("move"); setPotsFocus("move"); }} />
           : <StandRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} cyc={potsCyc}
-              onEnd={() => { setPotsRun(null); setPotsSec("stand"); setPotsStandFocus((n) => n + 1); }} />}
+              onEnd={() => { setPotsRun(null); setPotsSec("stand"); setPotsFocus("stand"); }} />}
       </Shell>
     );
   }

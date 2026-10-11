@@ -521,7 +521,9 @@ which is cleared on every change of stage into pregnancy.
 - Blood pressure result: "held steady" only when a lying BP and at least one standing BP in the first
   3 minutes were taken; otherwise the result says which blood pressure wasn't taken.
 - Safety: the safety screen and two gates precede every test; a red Stop (≥ 56 px, #A04545/#FFF) sits directly
-  under the phase heading and again in a sticky bar, in every running phase; inputs are never auto-focused; the
+  under the phase heading and again in a sticky bar, in every running phase (the bar is lifted above an on-screen
+  keyboard that only shrinks the visual viewport, and a focused field is scrolled clear of it, so a Stop stays in
+  view while she types; the app toast sits above the bar and never takes a tap); inputs are never auto-focused; the
   runner is the page's `<main>` with an `h1`; Stop leads to lie-down guidance and the urgent-care card; a faint
   or near-faint answer is also logged as an episode; readings auto-save and can be corrected later (marked
   "edited"); a running test older than 30 min without activity is marked interrupted at launch, and another

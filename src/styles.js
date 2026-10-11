@@ -246,6 +246,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:fo
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 .pots .cta, .pots .ghostbtn { min-height:56px; }
 .pots .mc, .pots .takebtn, .pots .sbtn, .pots .linkbtn, .pots .pill, .pots .chip { min-height:44px; }
+.pots .linkbtn, .pots .sbtn { min-width:44px; }
 .pots .obq { margin:0 0 10px; }
 .minichip.big { min-height:44px; padding:10px 15px; font-size:13px; }
 .pots .wearbtns { flex-shrink:1; flex-wrap:wrap; justify-content:flex-end; min-width:0; }
@@ -262,6 +263,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:fo
 .cta.stopbtn { background:#A04545; color:#FFF; min-height:56px; font-size:15px; }
 .cta.stopbtn.top { margin:2px 0 12px; }
 .stopbar { position:sticky; bottom:0; z-index:5; background:var(--paper); padding:10px 0 calc(10px + env(safe-area-inset-bottom, 0px)); margin-top:12px; }
+html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + env(safe-area-inset-bottom, 0px)); }
 .potsreport .routes { flex-wrap:wrap; }
 .potsreport .route { flex:1 1 140px; min-height:56px; color:color-mix(in srgb, var(--primary) 80%, var(--ink)); }
 .potsreport .route[aria-disabled="true"] { border-style:dashed; cursor:default; }
@@ -272,5 +274,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:fo
 .potsrtab th, .potsrtab td { padding-right:8px; vertical-align:top; white-space:pre-line; color:var(--ink); }
 .plaincard.urgent { border:2px solid #A04545; }
 .plaincard.urgent .uchip { display:inline-block; margin-bottom:6px; }
-.toast { position:fixed; left:50%; transform:translateX(-50%); bottom:20px; background:var(--ink); color:#FFF; font-size:13px; padding:9px 16px; border-radius:999px; max-width:86%; text-align:center; z-index:9; }
+.toast { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(20px + env(safe-area-inset-bottom, 0px)); background:var(--ink); color:#FFF; font-size:13px; padding:9px 16px; border-radius:999px; max-width:86%; text-align:center; z-index:9; pointer-events:none; }
+.cy:has(.stopbar) .toast { bottom:calc(86px + env(safe-area-inset-bottom, 0px)); }
 `;

@@ -7,9 +7,12 @@ import { hm, libFor } from "./ui.js";
    never suggests a medicine, an amount or a change. A slot she hasn't logged stays unknown:
    never "missed" or "late". A past one reads "Planned 8:00 · Took it?" until the day ends.
    Supports (kind "aid") are a yes/no "Wearing it today". */
+/** "Midodrine 8:00 taken at 8:05": how a dose reads in the Undo row and the "Removed:" toast. */
+export const doseText = (name, d) => `${name}${d.slot ? ` ${hm(d.slot)}` : ""} ${d.state === "skipped" ? "skipped" : "taken"} at ${hm(d.t)}`;
+
 export const MEDS_FOOT = "Cyra keeps only what you enter, such as names, times and your own note. It never suggests a medicine, an amount, or a change to when you take one. That's for you and your clinician.";
 
-function MedRow({ med, doses, aids, isToday, day, setPots, remember }) {
+function MedRow({ med, doses, aids, isToday, day, setPots, remember, onRemoved }) {
   const lib = libFor(med);
   const mine = doses.filter((d) => d.medId === med.id);
   const logged = new Set(mine.filter((d) => d.slot).map((d) => d.slot));
@@ -42,6 +45,12 @@ function MedRow({ med, doses, aids, isToday, day, setPots, remember }) {
     (document.getElementById(focusTo) || document.getElementById("pots-meds-h"))?.focus();
   }, [focusTo]);
   const doseBtn = (id) => `pots-dose-${id}`;
+  // Removing a dose (the × chip or the time fix's Remove) is announced like Today's-log Remove,
+  // and drops a now-stale Undo row for it.
+  const remove = (d) => {
+    setPots((p) => removeItem(p, day, d.id));
+    onRemoved?.(d.id, doseText(med.name, d));
+  };
   const sub = [lib?.cls, med.times.length ? `planned ${med.times.map(hm).join(" · ")}` : null].filter(Boolean).join(" · ");
   if (med.kind === "aid") {
     const worn = aids[med.id];
@@ -71,12 +80,12 @@ function MedRow({ med, doses, aids, isToday, day, setPots, remember }) {
           {mine.filter((d) => d.id !== nearDose?.id).map((d) => (
             <span key={d.id} style={{ display: "inline-flex", gap: 4 }}>
               <button type="button" id={doseBtn(d.id)} className="sbtn" aria-label={`Change time of ${hm(d.t)} dose of ${med.name}`} onClick={() => setFix(d.id)}>{d.state === "skipped" ? `Skipped ${d.slot ? hm(d.slot) : ""}`.trim() : hm(d.t)}</button>
-              <button type="button" className="sbtn" aria-label={`Remove ${hm(d.t)} dose of ${med.name}`} onClick={() => { setPots((p) => removeItem(p, day, d.id)); setFocusTo("pots-meds-h"); }}>×</button>
+              <button type="button" className="sbtn" aria-label={`Remove ${hm(d.t)} dose of ${med.name}`} onClick={() => { remove(d); setFocusTo("pots-meds-h"); }}>×</button>
             </span>
           ))}
         </div>
       )}
-      {fix && mine.some((d) => d.id === fix) && <DoseFix dose={mine.find((d) => d.id === fix)} name={med.name} onDone={(patch) => { if (patch === "remove") setPots((p) => removeItem(p, day, fix)); else if (patch) setPots((p) => updateItem(p, day, fix, patch)); setFocusTo(doseBtn(fix)); setFix(null); }} />}
+      {fix && mine.some((d) => d.id === fix) && <DoseFix dose={mine.find((d) => d.id === fix)} name={med.name} onDone={(patch) => { if (patch === "remove") remove(mine.find((d) => d.id === fix)); else if (patch) setPots((p) => updateItem(p, day, fix, patch)); setFocusTo(doseBtn(fix)); setFix(null); }} />}
     </div>
   );
 }
@@ -101,7 +110,7 @@ export function DoseFix({ dose, name, onDone }) {
   );
 }
 
-export default function MedsToday({ pots, day, isToday, setPots, remember, onEdit }) {
+export default function MedsToday({ pots, day, isToday, setPots, remember, onRemoved, onEdit }) {
   const d = pots.days[day] || {};
   const doses = d.doses || [], aids = d.aids || {};
   const meds = activeMeds(pots, day);
@@ -109,7 +118,7 @@ export default function MedsToday({ pots, day, isToday, setPots, remember, onEdi
     <section className="plaincard" aria-labelledby="pots-meds-h" style={{ marginBottom: 12 }}>
       <h2 className="lab" id="pots-meds-h" style={{ marginTop: 0 }} tabIndex={-1}>Medicines &amp; supports</h2>
       {!meds.length && <p className="hint" style={{ margin: "0 0 6px" }}>Nothing added yet.</p>}
-      {meds.map((m) => <MedRow key={m.id} med={m} doses={doses} aids={aids} isToday={isToday} day={day} setPots={setPots} remember={remember} />)}
+      {meds.map((m) => <MedRow key={m.id} med={m} doses={doses} aids={aids} isToday={isToday} day={day} setPots={setPots} remember={remember} onRemoved={onRemoved} />)}
       <button type="button" className="linkbtn" style={{ marginTop: 6 }} onClick={onEdit}>Add or change medicines</button>
       <p className="rfoot">{MEDS_FOOT}</p>
     </section>

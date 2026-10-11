@@ -10,7 +10,7 @@ import StandResult, { EditReadings, resultFor, riseText, riseShown, methodWord }
 import { TrendChart, fmtN } from "./HrChart.jsx";
 import { TiltForm, TiltList } from "./TiltNotes.jsx";
 import VitalsForm from "./VitalsForm.jsx";
-import { numOf, numProps, addDays, useAnnounce } from "./ui.js";
+import { numOf, numProps, addDays, useAnnounce, useKbLift } from "./ui.js";
 
 /* The guided standing test (design 4.8; spec A13.4).
 
@@ -199,7 +199,8 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
   const [status, say] = useAnnounce();            // role="status": "Lying reading due", "Stand up now", ...
   const [unlockCue, cue] = useCue(st.cue !== false);
   const [wake, unwake, noLock] = useWakeLock();
-  const h1 = useRef(null), cardHead = useRef(null), confirmRef = useRef(null);
+  const h1 = useRef(null), cardHead = useRef(null), confirmRef = useRef(null), barRef = useRef(null);
+  const kb = useKbLift(barRef); // the sticky Stop stays above the on-screen keyboard
   const [full] = useState(() => !st.safetySeen || st.safetySeen < addDays(todayIso, -90));
   const [setup, setSetup] = useState(() => ({ method: st.method === "lean" ? "lean" : "stand", restMin: st.restMin === 10 ? 10 : 5, sched: st.sched === "every" ? "every" : "1-3-5-10", bp: st.bp === true, device: st.device || null }));
   const [ctx, setCtx] = useState({ meds: null, rateMed: null, comp: null, ate2h: null });
@@ -477,7 +478,8 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
         </div>
       ) : <h1 className="disp" tabIndex={-1} ref={h1}>{heading}</h1>}
       {body}
-      {isRunning(phase) && test && <div className="stopbar">{stopBtn(false)}</div>}
+      {isRunning(phase) && test && <div className="stopbar" ref={barRef} style={kb ? { bottom: kb } : undefined}>{stopBtn(false)}</div>}
+      {isRunning(phase) && test && kb > 0 && <div aria-hidden="true" style={{ height: kb }} />}
     </main>
   );
 }
@@ -504,7 +506,7 @@ function ByPosition({ pots }) {
   );
 }
 
-export function StandSection({ pots, setPots, stage, todayIso, ping, running, onStart, focusKey, cyc = null }) {
+export function StandSection({ pots, setPots, stage, todayIso, ping, running, onStart, focus = false, onFocused, cyc = null }) {
   const preg = stage === "preg";
   const [sheet, setSheet] = useState(null); // null | { kind: "open"|"edit"|"vitals"|"tilt", id? }
   const [rowAct, setRowAct] = useState(null); // null | { kind: "note"|"del"|"discard", id, ... }
@@ -517,7 +519,8 @@ export function StandSection({ pots, setPots, stage, todayIso, ping, running, on
   // A Delete or Discard confirm takes focus once, when it opens (not on every redraw).
   const confirmKey = rowAct && (rowAct.kind === "del" || rowAct.kind === "discard") ? `${rowAct.kind}:${rowAct.id}` : null;
   useEffect(() => { if (confirmKey) confirmRef.current?.focus(); }, [confirmKey]);
-  useEffect(() => { if (focusKey) topRef.current?.focus(); }, [focusKey]);
+  // Focus moves to the section heading only when App asked for it (one-shot), never on a chip tap.
+  useEffect(() => { if (focus) { topRef.current?.focus(); onFocused?.(); } }, [focus]); // eslint-disable-line
   useEffect(() => { if (sheet) sheetHead.current?.focus(); }, [sheet]);
   useEffect(() => {
     if (!focusBack) return;

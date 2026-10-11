@@ -10,7 +10,7 @@ import AmountSheet, { SodiumAsk } from "./AmountSheet.jsx";
 import GoalSheet from "./GoalSheet.jsx";
 import PotsSymptoms, { PotsTriggers } from "./PotsSymptoms.jsx";
 import EpisodeForm from "./EpisodeForm.jsx";
-import MedsToday, { DoseFix } from "./MedsToday.jsx";
+import MedsToday, { DoseFix, doseText } from "./MedsToday.jsx";
 import MedEditor from "./MedEditor.jsx";
 import PlanToday from "./PlanToday.jsx";
 import VitalsForm from "./VitalsForm.jsx";
@@ -81,6 +81,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
   const tot = dayTotals(pots, day);
   const whenWord = isToday ? "today" : `on ${dayLabel(day)}`;
   const remember = (x, on = day) => setLast({ ...x, day: on });
+  const doseRemoved = (id, text) => { ping(`Removed: ${text}`); setLast((l) => (l && l.ids.includes(id) ? null : l)); };
   /* The day a new timed entry is filed under. On "today" it is the date at the moment of the tap
      (App moves to a new day at midnight and on resume; this covers a tap that lands first, and
      tells App to catch up). An earlier day she picked to fix up stays that day. */
@@ -259,7 +260,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
         <section aria-labelledby="pots-medsheet-h">
           <h2 className="obq" id="pots-medsheet-h" tabIndex={-1} ref={headRef}>Nothing due now</h2>
           <p className="hint">No planned dose is due in the hour ahead or the last 3 hours. You can still log any medicine here.</p>
-          <MedsToday pots={pots} day={todayIso} isToday setPots={setPots} remember={remember} onEdit={() => setSheet({ kind: "medEdit" })} />
+          <MedsToday pots={pots} day={todayIso} isToday setPots={setPots} remember={remember} onRemoved={doseRemoved} onEdit={() => setSheet({ kind: "medEdit" })} />
           <button type="button" className="ghostbtn" onClick={() => close()}>Done</button>
         </section>
       );
@@ -268,7 +269,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
         return (
           <section className="plaincard" aria-labelledby="pots-dose-h">
             <h2 className="obq" id="pots-dose-h" tabIndex={-1} ref={headRef}>{`${name} dose`}</h2>
-            <DoseFix dose={sheet.dose} name={name} onDone={(patch) => { if (patch === "remove") setPots((p) => removeItem(p, day, sheet.dose.id)); else if (patch) setPots((p) => updateItem(p, day, sheet.dose.id, patch)); close(); }} />
+            <DoseFix dose={sheet.dose} name={name} onDone={(patch) => { if (patch === "remove") { setPots((p) => removeItem(p, day, sheet.dose.id)); doseRemoved(sheet.dose.id, doseText(name, sheet.dose)); } else if (patch) setPots((p) => updateItem(p, day, sheet.dose.id, patch)); close(); }} />
           </section>
         );
       }
@@ -361,7 +362,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
             {s.show.sym && <PotsSymptoms pots={pots} day={day} setPots={setPots} announce={announce} preg={preg} onEpisode={() => open({ kind: "episode" })} />}
             {nearFaint && <div style={{ marginBottom: 12 }}><Advice urgency="visit">{NEAR_FAINT}</Advice></div>}
             {/* 9. Medicines & supports */}
-            {s.show.meds && <MedsToday pots={pots} day={day} isToday={isToday} setPots={setPots} remember={remember} onEdit={() => open({ kind: "medEdit" })} />}
+            {s.show.meds && <MedsToday pots={pots} day={day} isToday={isToday} setPots={setPots} remember={remember} onRemoved={doseRemoved} onEdit={() => open({ kind: "medEdit" })} />}
             {/* 10. Stand test */}
             {s.show.test && (
               <section className="plaincard" aria-labelledby="pots-stand-card-h" style={{ marginBottom: 12 }}>

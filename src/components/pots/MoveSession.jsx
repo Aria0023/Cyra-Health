@@ -5,7 +5,7 @@ import UrgentCard, { urgentText } from "./UrgentCard.jsx";
 import { Choice, CheckRow } from "./StandSafety.jsx";
 import { useCue, useWakeLock } from "./StandTest.jsx";
 import { symOrder } from "./PotsSymptoms.jsx";
-import { numOf, numProps, addDays, symLabel, useAnnounce } from "./ui.js";
+import { numOf, numProps, addDays, symLabel, useAnnounce, useKbLift } from "./ui.js";
 
 /* Movement sessions (design 4.10): the guided session timer and "Log a session I did".
 
@@ -123,7 +123,8 @@ export function SessionRunner({ run, setRun, pots, setPots, stage, todayIso, pin
   const [status, say] = useAnnounce();             // role="status": "Main part", "Cool down", ...
   const [unlockCue, cue] = useCue(pots.settings.test.cue !== false);
   const [wake, unwake, noLock] = useWakeLock();
-  const h1 = useRef(null), confirmRef = useRef(null);
+  const h1 = useRef(null), confirmRef = useRef(null), barRef = useRef(null);
+  const kb = useKbLift(barRef); // the sticky Stop stays above the on-screen keyboard
   const [setup, setSetup] = useState(() => { const d = sessionDefaults(pots); return { mode: d.mode, warm: String(d.warm), main: d.main == null ? "" : String(d.main), cool: String(d.cool) }; });
   const [err, setErr] = useState(null); // null | { key, text }
   const [discard, setDiscard] = useState(null); // null | { keepFaint }
@@ -283,7 +284,8 @@ export function SessionRunner({ run, setRun, pots, setPots, stage, todayIso, pin
         <div role="alert"><h1 className="disp" tabIndex={-1} ref={h1}>{MOVE_COPY.stopped}</h1></div>
       ) : <h1 className="disp" tabIndex={-1} ref={h1}>{heading}</h1>}
       {body}
-      {isPart(phase) && ses && <div className="stopbar">{stopBtn(false)}</div>}
+      {isPart(phase) && ses && <div className="stopbar" ref={barRef} style={kb ? { bottom: kb } : undefined}>{stopBtn(false)}</div>}
+      {isPart(phase) && ses && kb > 0 && <div aria-hidden="true" style={{ height: kb }} />}
     </main>
   );
 }
