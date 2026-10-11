@@ -6,7 +6,10 @@
 export const css = `
 .cy { background:var(--paper); color:var(--ink); font-family:'Karla Variable','Karla',sans-serif; min-height:100vh; max-width:430px; margin:0 auto; padding:18px 16px 48px; box-sizing:border-box; transition:background .35s; }
 .cy * { box-sizing:border-box; }
-.mast { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.mast { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:6px; margin-bottom:10px; }
+/* Narrow phones: the header chips first narrow (their text wraps inside), and only when even that doesn't fit does the last one move to a second row, so the page never scrolls sideways. */
+.mast > .mark { margin-right:auto; }
+.mast > .stagechip, .mast > .acctchip { flex:1 1 min-content; max-width:max-content; margin-right:0; }
 .mark { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:24px; }
 .sub { font-size:10px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:color-mix(in srgb, var(--primary) 80%, var(--ink)); margin-left:7px; vertical-align:3px; }
 .orgsel { display:flex; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:3px; }
