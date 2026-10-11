@@ -3,7 +3,7 @@ import Advice from "../components/Advice.jsx";
 
 /* Cycle & Peri — Patterns: 60-day stripe field, insight + advice cards,
    trial before/after cards, symptom-frequency bars. */
-export default function PatternsScreen({ ins, symIds, ramp, scoreColor, stage, medEffects }) {
+export default function PatternsScreen({ ins, symIds, ramp, scoreColor, stage, medEffects, potsOn = false }) {
   return (
     <main>
       <h1 className="disp">Your last 60 days</h1>
@@ -53,6 +53,8 @@ export default function PatternsScreen({ ins, symIds, ramp, scoreColor, stage, m
           <div key={c.id} className="brow"><span className="blab">{c.label}</span><div className="btrack"><div className="bfill" style={{ width: `${(c.days / 30) * 100}%`, background: `linear-gradient(90deg,${scoreColor(0.62)},${scoreColor(Math.max(0, 0.55 - (c.days / 30) * 0.55))})` }} /></div><span className="bval">{c.days}</span></div>
         ))}
       </div>
+      {/* POTS tools: their patterns live in the POTS tab only (never in insights() or this screen). */}
+      {potsOn && <p className="hint" style={{ marginTop: 16 }}>Your POTS patterns are in the POTS tab.</p>}
     </main>
   );
 }

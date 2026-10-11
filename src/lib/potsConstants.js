@@ -122,6 +122,27 @@ export const THRESH = {
   // Live safety checks use the value as typed, up to these caps (beyond them it can only be a
   // typo): a confirmed HR of 230 or a BP of 270/130 still raises its card, though it isn't stored.
   plaus: { hr: [20, 300], sys: [40, 300], dia: [20, 250] },
+  // Patterns (A13.5): how much data Cyra needs before it compares anything, and what counts as
+  // a difference. The outcome is always her own rating (rough = 3-4) among rated days; unrated
+  // days and unlogged exposures are unknown, never zero.
+  pat: {
+    rated: 14, side: 5, rough: 4, diff: 0.2, ratio: 1.3,   // a factor card: all of these
+    cards: 3, wearCards: 1,                                // at most 3 cards, at most 1 from a watch or ring
+    medianDays: 10,                                        // "less than usual" (no goal set) needs 10 logged days
+    wearPaired: 14,                                        // a watch or ring factor needs 14 paired days
+    trigDays: 5,                                           // a trigger is compared once tagged on 5 rated days
+    symDays: 10,                                           // "Days with {symptom} moderate or strong" once logged on 10 days
+    gvr: 4, gvrRow: 3,                                     // good vs rough: 4 good and 4 rough days; 3 values a side per row
+    week: 4,                                               // 7-day comparison: 4 rated days in each week
+    pace: 7, paceBack: 30,                                 // today's pace: 7 earlier days with drinks, in the last 30
+    sinceDays: 60,                                         // "Since you started" once there are more than 60 days
+    cycleStarts: 2, cycleStartDays: 120, cycleWin: 90,     // cycle groups: 2 logged starts in 120 days; 90-day window
+    cycleGroup: 4, cycleCycles: 2, cycleSpread: 0.25,      // 2 groups with 4 rated days, 2 completed cycles; visit at 25 points
+    cycleDayMax: 45,                                       // a cycle day is shown only within 45 days of the last start
+    medSide: 14, medMin: 5,                                // medicine since starting: 14 days each side, 5 rated each side
+    epsDosedDays: 7, epsTimed: 10,                         // episodes by time since a dose: 7 dosed days, 10 episodes
+    doseWithin: 120,                                       // "logged within 2 hours of its time"
+  },
 };
 
 /** The one emergency phrase every card uses (owner decision D11). */

@@ -23,11 +23,12 @@ export const FIXED_LINE = "Watch and ring readings aren't included in this repor
 export const WARNING = "This file isn't locked. Anyone who gets it can read it. Send it straight to your clinician or their patient portal, and avoid group chats or shared folders.";
 export const REPORT_HINT = "Make a report to send or print. Cyra itself sends nothing; the file goes only where you take it.";
 export const WINANSI_WARNING = "Some characters you typed, such as in your own symptom or medicine names, can't be shown in the PDF and will appear as '?' or be left out. The spreadsheet keeps them exactly.";
+const NONE = []; // a stable default, so the report isn't rebuilt on every render
 const PERIODS = [["30", "Last 30 days"], ["90", "Last 90 days"], ["all", "Everything"]];
-const PARTS = [["tests", "Stand tests, single readings and tilt-table results"], ["sym", "Symptoms, ratings and episodes"], ["fluid", "Fluids and sodium"], ["meds", "Medicines and supports"]];
+const PARTS = [["tests", "Stand tests, single readings and tilt-table results"], ["sym", "Symptoms, ratings and episodes"], ["fluid", "Fluids and sodium"], ["meds", "Medicines and supports"], ["patterns", "Patterns from my log"]];
 
 /** What a generated question is about, per Report part, for the "stay out of the files" note. */
-const PART_TOPIC = { tests: "your stand tests", fluid: "your fluid and salt goal", meds: "your medicines" };
+const PART_TOPIC = { tests: "your stand tests", fluid: "your fluid and salt goal", meds: "your medicines", patterns: "your cycle pattern" };
 const andWords = (a) => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`);
 const rgb = (c) => `rgb(${c.join(",")})`;
 
@@ -95,19 +96,19 @@ function Preview({ model, stage }) {
   );
 }
 
-export default function PotsReport({ pots, setPots, stage, stageName, todayIso, ping, firstName = "", checkin, checkinLabels, locale }) {
+export default function PotsReport({ pots, setPots, stage, stageName, todayIso, ping, firstName = "", checkin, checkinLabels, starts = NONE, locale }) {
   const s = pots.settings;
   const [period, setPeriod] = useState("30");
-  const [parts, setParts] = useState({ tests: true, sym: true, fluid: true, meds: true });
+  const [parts, setParts] = useState({ tests: true, sym: true, fluid: true, meds: true, patterns: true });
   const [withName, setWithName] = useState(false);
   const [busy, setBusy] = useState(null); // "pdf" | "csv" | null
   const [newQ, setNewQ] = useState("");
   const phone = isNative();
   const include = { ...parts, cycle: s.reportCycle !== false, notes: s.reportNotes === true, name: withName && !!firstName };
   const model = useMemo(
-    () => reportModel(pots, { period, today: todayIso, include, name: firstName, stage, stageName, checkin, checkinLabels, locale }),
+    () => reportModel(pots, { period, today: todayIso, include, name: firstName, stage, stageName, checkin, checkinLabels, starts, locale }),
     // `include` is rebuilt each render; its parts are listed one by one.
-    [pots, period, todayIso, parts.tests, parts.sym, parts.fluid, parts.meds, include.cycle, include.notes, include.name, firstName, stage, stageName, checkin, checkinLabels, locale], // eslint-disable-line
+    [pots, period, todayIso, parts.tests, parts.sym, parts.fluid, parts.meds, parts.patterns, include.cycle, include.notes, include.name, firstName, stage, stageName, checkin, checkinLabels, starts, locale], // eslint-disable-line
   );
   if (!model) return null;
   const email = emailParts(model), summary = summaryText(model);
@@ -164,7 +165,7 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
       <div role="group" aria-labelledby="pots-rep-inc">
         {PARTS.map(([k, l]) => <CheckRow key={k} on={parts[k]} onToggle={() => setParts((x) => ({ ...x, [k]: !x[k] }))}>{l}</CheckRow>)}
         <CheckRow id="pots-rep-cycle" on={include.cycle} onToggle={() => set({ reportCycle: !include.cycle })}>Cycle or pregnancy details</CheckRow>
-        <p className="hint" style={{ margin: "4px 0 0" }}>Untick to leave out your life stage, pregnancy and the symptoms your check-ins also logged.</p>
+        <p className="hint" style={{ margin: "4px 0 0" }}>Untick to leave out your life stage, cycle days, pregnancy and the symptoms your check-ins also logged.</p>
         <CheckRow on={include.notes} onToggle={() => set({ reportNotes: !include.notes })}>Notes I typed</CheckRow>
         {firstName && <CheckRow on={withName} onToggle={() => setWithName((v) => !v)}>Put my first name on it</CheckRow>}
       </div>

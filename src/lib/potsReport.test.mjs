@@ -70,7 +70,8 @@ test("g: header, sections and neutral file names", () => {
   assert.equal(m.header.line, "POTS log summary · Prepared by the patient · Sep 11 – Oct 10, 2026");
   assert.match(m.header.made, /^Made with the Cyra app on Oct 10, 2026 from the patient's own entries/);
   assert.equal(m.header.rated, "Rated days: 9 of 30 · good 2, okay 3, rough 2, bad 2");
-  assert.deepEqual(m.sections.map((s) => s.id), ["tests", "sym", "fluid", "meds", "questions"]);
+  // S6: "Patterns from her log" (on by default) sits before the questions.
+  assert.deepEqual(m.sections.map((s) => s.id), ["tests", "sym", "fluid", "meds", "patterns", "questions"]);
   assert.deepEqual(m.files, { pdf: "cyra-report-2026-10-10.pdf", csv: "cyra-data-2026-10-10.csv" });
   assert.equal(emailParts(m).subject, "My health log summary ahead of my appointment");
   assert.ok(m.enough);

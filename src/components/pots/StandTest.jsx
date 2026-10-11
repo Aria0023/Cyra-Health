@@ -190,7 +190,7 @@ function DueCard({ card, bp, standAt, now, onSave, onSkip, onFeel, headRef, over
 }
 
 /* ---------- the runner ---------- */
-export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping, onEnd }) {
+export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping, onEnd, cyc = null }) {
   const preg = stage === "preg";
   const st = pots.settings.test;
   const [now, setNow] = useState(() => Date.now());
@@ -454,7 +454,7 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
     const saveNote = () => { if (note.trim() !== (test.note || "")) writeTest((t) => ({ ...t, note: note.trim().slice(0, 500) })); };
     body = (
       <>
-        <StandResult pots={pots} test={test} stage={stage} />
+        <StandResult pots={pots} test={test} stage={stage} cyc={cyc} />
         <label className="lab" htmlFor="pots-res-note">Note about this test (optional)</label>
         <textarea id="pots-res-note" className="inp" rows={3} maxLength={500} aria-label="Note about this test (optional)" value={note} onChange={(e) => setNote(e.target.value)} onBlur={saveNote} />
         <button type="button" className="cta" onClick={() => { saveNote(); end("Saved. Rest now if you need to."); }}>Done</button>
@@ -503,7 +503,7 @@ function ByPosition({ pots }) {
   );
 }
 
-export function StandSection({ pots, setPots, stage, todayIso, ping, running, onStart, focusKey }) {
+export function StandSection({ pots, setPots, stage, todayIso, ping, running, onStart, focusKey, cyc = null }) {
   const preg = stage === "preg";
   const [sheet, setSheet] = useState(null); // null | { kind: "open"|"edit"|"vitals"|"tilt", id? }
   const [rowAct, setRowAct] = useState(null); // null | { kind: "note"|"del"|"discard", id, ... }
@@ -552,7 +552,7 @@ export function StandSection({ pots, setPots, stage, todayIso, ping, running, on
         {sheet.kind === "open" && (
           <section aria-labelledby="pots-open-h">
             <h2 className="obq" id="pots-open-h" tabIndex={-1} ref={sheetHead}>{`${methodWord(sheetTest.method)} · ${shortDay(sheetTest.date)}, ${sheetTest.t.replace(/^0/, "")}`}</h2>
-            <StandResult pots={pots} test={sheetTest} stage={stage} />
+            <StandResult pots={pots} test={sheetTest} stage={stage} cyc={cyc} />
             {sheetTest.note && <p className="plain" style={{ whiteSpace: "pre-wrap" }}><b>Your note: </b>{sheetTest.note}</p>}
             <button type="button" className="ghostbtn" onClick={() => close(`pots-open-${sheetTest.id}`)}>Back to stand tests</button>
           </section>

@@ -107,6 +107,7 @@ import GoalSheet from "./components/pots/GoalSheet.jsx";
 import { MedSetup } from "./components/pots/MedEditor.jsx";
 import { StandRunner, StandSection } from "./components/pots/StandTest.jsx";
 import PotsReport from "./components/pots/PotsReport.jsx";
+import PotsPatterns from "./components/pots/PotsPatterns.jsx";
 
 export default function CyraDemo() {
   const [orgId, setOrgId] = useState("cyra");
@@ -380,6 +381,11 @@ export default function CyraDemo() {
   // while "Cycle or pregnancy details" is ticked (lib/potsReport.js). It never gets
   // registration answers or wearable readings.
   const potsCheckin = useMemo(() => (iso) => entryOn(iso), [stage, days, pregLog]); // eslint-disable-line
+  // POTS → Patterns compares watch and ring readings on screen only (never in a POTS file); HRV
+  // only when exactly one source is connected (lib/potsPatterns.js). Cycle days and cycle groups
+  // use the period starts her check-ins logged (ins.starts), in a cycle stage only.
+  const potsWearConnected = useMemo(() => Object.entries(wearSources).filter(([, v]) => v && !v.pending && !v.demo).map(([k]) => k), [wearSources]);
+  const potsCyc = useMemo(() => ({ starts: ins.starts, stageName }), [ins, stageName]);
   const potsOffer = potsOk && !pots.on && !pots.since && !pots.offered && Array.isArray(regAnswers?.conditions) && regAnswers.conditions.includes("POTS or dysautonomia");
   const openPots = (simple = false) => { if (simple) setPots((p) => setPotsSettings(p, { simple: true })); setPotsSec("today"); setPotsDate(null); goTab("pots"); };
   const openStandTest = () => { setPotsSec("stand"); goTab("pots"); };
@@ -1447,8 +1453,9 @@ export default function CyraDemo() {
     <PotsScreen pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"}
       sections={potsOk ? {
         today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => setPotsSec("stand")} />,
-        report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={acct.anon ? "" : (acct.name || "").trim()} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} />,
-        stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focusKey={potsStandFocus}
+        report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={acct.anon ? "" : (acct.name || "").trim()} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} />,
+        patterns: <PotsPatterns pots={pots} stage={stage} stageName={stageName} todayIso={todayIso} starts={ins.starts} checkin={potsCheckin} wearData={wearData} connected={potsWearConnected} />,
+        stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focusKey={potsStandFocus} cyc={potsCyc}
           onStart={() => setPotsRun({ kind: "test", id: null, phase: "safety", phaseStart: Date.now(), standAt: null, done: [], interrupt: null })} />,
       } : {}}
       settings={potsOk ? ({ headRef, onBack }) => <PotsSettings pots={pots} setPots={setPots} stage={stage} stageName={stageName} conditions={potsConditions} ping={ping} shows={POTS_SHOWS} today={todayIso} headRef={headRef} onBack={onBack} /> : null}
@@ -1466,7 +1473,7 @@ export default function CyraDemo() {
     return (
       <Shell style={style} toast={toast}>
         <header className="mast"><span className="mark">{org.name}<span className="sub">{org.tag}</span></span></header>
-        <StandRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping}
+        <StandRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} cyc={potsCyc}
           onEnd={() => { setPotsRun(null); setPotsSec("stand"); setPotsStandFocus((n) => n + 1); }} />
       </Shell>
     );
@@ -1527,7 +1534,7 @@ export default function CyraDemo() {
             {appTab === "cal" && (
               <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />
             )}
-            {appTab === "patterns" && <PatternsScreen ins={ins} symIds={symIds} ramp={ramp} scoreColor={scoreColor} stage={stage} medEffects={medEffects} />}
+            {appTab === "patterns" && <PatternsScreen ins={ins} symIds={symIds} ramp={ramp} scoreColor={scoreColor} stage={stage} medEffects={medEffects} potsOn={potsTab && potsOk} />}
             {appTab === "report" && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} />}
             {appTab === "pots" && potsTab && potsView}
             {appTab === "shelf" && <CareScreen shelfItems={shelfItems} />}

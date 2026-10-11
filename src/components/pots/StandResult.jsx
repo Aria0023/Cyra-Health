@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { standResult, editTestReadings, RESULT_FOOT } from "../../lib/pots.js";
 import { RUNNER_FEEL, THRESH } from "../../lib/potsConstants.js";
+import { cycleLabelOn } from "../../lib/potsPatterns.js";
 import Advice from "../Advice.jsx";
 import Details from "../Details.jsx";
 import UrgentCard from "./UrgentCard.jsx";
@@ -20,15 +21,19 @@ const feelWord = (pots, id) => (RUNNER_FEEL.find((x) => x.id === id) || {}).labe
 const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
 /** The result with everything it needs from the rest of the log: the teen setting, the stage,
-    that day's symptoms, how many tests had a high lying blood pressure (this one included), and
-    whether this is her first heart-rate or blood-pressure finding (the midlife line). */
-export function resultFor(pots, test, stage) {
+    that day's symptoms, how many tests had a high lying blood pressure (this one included),
+    whether this is her first heart-rate or blood-pressure finding (the midlife line), and, in a
+    cycle stage, the cycle day of the test from her logged period starts ("Cycle day 24 (week
+    before your period)"; `cyc` = { starts, stageName }, lib/potsPatterns.js). A label only:
+    nothing is inferred from it. */
+export function resultFor(pots, test, stage, cyc = null) {
   const done = (pots.tests || []).filter((x) => x.status !== "running");
   const base = { teen: pots.settings.teen === true, stage };
   const supineCount = done.filter((x) => standResult(x, base).supineHigh).length;
   const finding = (x) => { const r = standResult(x, base); return ["met", "single_mid", "single_last"].includes(r.hrStatus) || r.bpStatus === "drop"; };
   const first = done.find(finding);
-  return standResult(test, { ...base, daySym: ((pots.days || {})[test.date] || {}).sym || null, supineCount, firstFinding: !!first && first.id === test.id });
+  const cycle = cyc ? cycleLabelOn(test.date, cyc.starts, stage, cyc.stageName) : null;
+  return standResult(test, { ...base, daySym: ((pots.days || {})[test.date] || {}).sym || null, supineCount, firstFinding: !!first && first.id === test.id, cycle });
 }
 
 /** The big number on a result card: the largest rise ("+36"), or null (shown as "—") when
@@ -139,8 +144,8 @@ export function EditReadings({ test, setPots, onDone, headRef }) {
 }
 
 /** The result itself. `test` is the stored test; nothing here is stored. */
-export default function StandResult({ pots, test, stage }) {
-  const r = resultFor(pots, test, stage), preg = stage === "preg";
+export default function StandResult({ pots, test, stage, cyc = null }) {
+  const r = resultFor(pots, test, stage, cyc), preg = stage === "preg";
   return (
     <>
       <div className="card">
