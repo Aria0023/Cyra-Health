@@ -232,6 +232,8 @@ export const css = `
 @media (prefers-reduced-motion: reduce) { .cy * { transition:none !important; animation:none !important; } }
 button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline:3px solid var(--primary); outline-offset:2px; border-radius:8px; }
 .tab { min-height:44px; padding:12px 10px; }
+/* The tab bar scrolls sideways (overflow-x:auto), which clips anything drawn outside it, so a tab's ring sits just inside the tab. */
+.tab:focus-visible { outline-offset:-3px; }
 .mc, .pill, .takebtn, .sbtn, .orgbtn, .stagechip, .topbtn, .linkbtn, .ghost, .route { min-height:44px; }
 .minichip { min-height:40px; }
 .sdot.on, .c-per-mark { outline:1.5px solid rgba(0,0,0,.35); }

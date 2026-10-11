@@ -65,6 +65,9 @@ const DEVICE_ONLY = ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pu
    saved except the per-device consents and this browser's reminder addresses). */
 const RECORD = PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders");
 const recordSig = (o) => JSON.stringify(RECORD.map((k) => o?.[k] ?? null));
+// The tab bar scrolls sideways. Chromium doesn't scroll a partly hidden tab into view when the
+// keyboard focuses it, so a focused tab (and its ring) could sit half off the edge.
+const tabIntoView = (e) => e.currentTarget.scrollIntoView?.({ block: "nearest", inline: "nearest" });
 const ZERO_SCALES = { fatigue: 0, pain: 0, moodq: 0, stress: 0 };
 /* Push addresses Cyra's server still has to forget (every one is retried until confirmed). */
 const cleanPending = (v) => (Array.isArray(v) ? [...new Set(v.filter((e) => typeof e === "string" && /^https:\/\//.test(e) && e.length <= 2048))].slice(0, 100) : []);
@@ -1518,7 +1521,7 @@ export default function CyraDemo() {
             <nav aria-label="Sections">
               <div className="tabs" role="tablist">
                 {[["home", "Home"], ["today", "Today"], ...(potsTab ? [["pots", "POTS"]] : []), ["cal", "Calendar"], ["mile", "Milestones"], ["connect", "Connect"], ["ask", "Ask"]].map(([id, l]) => (
-                  <button key={id} role="tab" aria-selected={pregTab === id} className={`tab ${pregTab === id ? "tab-on" : ""}`} onClick={() => setPregTab(id)}>{l}</button>
+                  <button key={id} role="tab" aria-selected={pregTab === id} className={`tab ${pregTab === id ? "tab-on" : ""}`} onClick={() => setPregTab(id)} onFocus={tabIntoView}>{l}</button>
                 ))}
               </div>
             </nav>
@@ -1540,7 +1543,7 @@ export default function CyraDemo() {
             <nav aria-label="Sections">
               <div className="tabs" role="tablist">
                 {[["home", "Home"], ["today", "Today"], ...(potsTab ? [["pots", "POTS"]] : []), ["cal", "Calendar"], ["patterns", "Patterns"], ["connect", "Connect"], ["report", "Report"], ["shelf", "Care"], ["ask", "Ask"]].map(([id, l]) => (
-                  <button key={id} role="tab" aria-selected={appTab === id} className={`tab ${appTab === id ? "tab-on" : ""}`} onClick={() => setAppTab(id)}>{l}</button>
+                  <button key={id} role="tab" aria-selected={appTab === id} className={`tab ${appTab === id ? "tab-on" : ""}`} onClick={() => setAppTab(id)} onFocus={tabIntoView}>{l}</button>
                 ))}
               </div>
             </nav>
