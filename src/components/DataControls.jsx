@@ -108,7 +108,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
       <Details label="What can leave this device">
         <p>Features you turn on (reminders in a browser, weekly counts, Cyra's AI, Oura, Fitbit/Garmin/Whoop) each say, before you turn them on, what they send and where.</p>
         <p>Restoring a backup brings back its wearable connections on this device.</p>
-        <p>Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase and never include watch or ring readings.</p>
+        <p>Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase and never include readings Cyra gets from a connected watch, ring or health app.</p>
       </Details>
       <div className="mcrow">
         <button className={`mc ${mode === "export" ? "on" : ""}`} onClick={() => switchTo("export")}>Encrypted backup</button>

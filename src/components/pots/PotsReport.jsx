@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { setSettings, newId } from "../../lib/pots.js";
 import { hasMoveData } from "../../lib/potsMove.js";
 import { reportModel, toCSV, summaryText, emailParts, reportPdf, modelTexts, pdfLossy, fmtDay, questionIn, questionParts } from "../../lib/potsReport.js";
+import { PdfDoc } from "../../lib/pdf.js";
 import { saveFile } from "../../lib/files.js";
 import { isNative } from "../../lib/native.js";
 import { RAMPS } from "../../lib/constants.js";
@@ -11,16 +12,18 @@ import { CheckRow, Choice } from "./StandSafety.jsx";
 
 /* POTS → Report (design 6.1): "For your clinician". A report she makes and takes herself: a
    PDF, a spreadsheet, a summary to copy, or an email draft. Cyra itself sends nothing: the
-   files are built on this device (lib/potsReport.js; the PDF writer lib/pdf.js is loaded only
-   when she taps it) and go only where she saves or shares them (lib/files.js). No watch, ring
-   or health-app reading is an input here, registration answers aren't either, and typed notes,
+   files are built on this device (lib/potsReport.js and the PDF writer lib/pdf.js, both in the
+   main bundle, so making a report fetches nothing, not even a file from Cyra's own host) and go
+   only where she saves or shares them (lib/files.js). No reading Cyra gets from a connected
+   watch, ring or health app is an input here (numbers she types herself are, whatever she
+   measured them with, and the test's "Measuring with" choice goes in with them), registration answers aren't either, and typed notes,
    her first name and her life-stage details go in only while she ticks them. Every file is
    an ordinary unlocked file, and the screen says so every time.
 
    The preview below the buttons is an on-screen copy of exactly what the PDF holds, with real
    tables and labelled charts; it and the spreadsheet are the accessible versions of the PDF,
    which is untagged. Her own visit questions are kept in settings.questions. */
-export const FIXED_LINE = "Watch and ring readings aren't included in this report or spreadsheet.";
+export const FIXED_LINE = "Readings Cyra gets from a connected watch, ring or health app aren't included in this report or spreadsheet. Heart rates and blood pressures you type in yourself are, even if you read them off a watch.";
 export const WARNING = "This file isn't locked. Anyone who gets it can read it. Send it straight to your clinician or their patient portal, and avoid group chats or shared folders.";
 export const REPORT_HINT = "Make a report to send or print. Cyra itself sends nothing; the file goes only where you take it.";
 export const WINANSI_WARNING = "Some characters you typed, such as in your own symptom or medicine names, can't be shown in the PDF and will appear as '?' or be left out. The spreadsheet keeps them exactly.";
@@ -151,11 +154,8 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
     try {
       let data, name, mime, title;
       if (kind === "pdf") {
-        // The PDF writer is its own chunk, fetched on the first tap. It can fail to load (offline
-        // since the app opened, or a new version deployed while this tab stayed open): say what
-        // to do instead of showing the browser's module error.
-        let PdfDoc;
-        try { ({ PdfDoc } = await import("../../lib/pdf.js")); } catch { ping("Couldn't load the PDF maker. Reload Cyra and try again, or save the spreadsheet."); return; }
+        // The PDF writer is bundled with the app (no POTS-only file is fetched from the host,
+        // and it works offline).
         data = reportPdf(model, PdfDoc); name = model.files.pdf; mime = "application/pdf"; title = "Cyra report";
       } else {
         data = toCSV(model); name = model.files.csv; mime = "text/csv;charset=utf-8"; title = "Cyra spreadsheet";

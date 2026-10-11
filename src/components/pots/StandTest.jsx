@@ -313,10 +313,10 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
   };
   const saveReading = (c, reading, typed) => {
     // A value past the input range isn't saved, but a real extreme reading still raises its card.
-    if (!reading) { showInterrupt(interruptFor(test, { type: "reading", reading: { ...typed, min: c.min }, pos: c.pos }), c.key); return; }
+    if (!reading) { showInterrupt(interruptFor(test, { type: "reading", reading: { ...typed, min: c.min }, pos: c.pos }, { preg }), c.key); return; }
     const list = c.pos === "rest" ? "rest" : "up";
     const others = { ...test, [list]: (test[list] || []).filter((x) => x.min !== c.min) };
-    const ev = interruptFor(others, { type: "reading", reading, pos: c.pos });
+    const ev = interruptFor(others, { type: "reading", reading, pos: c.pos }, { preg });
     writeTest((t) => ({ ...t, [list]: [...(t[list] || []).filter((x) => x.min !== c.min), reading].sort(byMin) }));
     markDone(c.key);
     showInterrupt(ev, c.key);
@@ -324,7 +324,7 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
   const toggleTestFeel = (fid) => {
     const on = !(test.feel || []).includes(fid);
     writeTest((t) => ({ ...t, feel: on ? [...(t.feel || []), fid] : (t.feel || []).filter((x) => x !== fid) }));
-    if (on) showInterrupt(interruptFor(test, { type: "feel", id: fid, pos: phase === "up" ? "up" : "rest" }));
+    if (on) showInterrupt(interruptFor(test, { type: "feel", id: fid, pos: phase === "up" ? "up" : "rest" }, { preg }));
   };
   /* A chip on a due card: written to test.feel at once (and onto the reading when it's saved),
      then any safety card. Returns whether it added the id (it was not already in test.feel). */
@@ -332,7 +332,7 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
     const had = (test.feel || []).includes(fid);
     if (on && !had) writeTest((t) => ((t.feel || []).includes(fid) ? t : { ...t, feel: [...(t.feel || []), fid] }));
     if (!on) writeTest((t) => ({ ...t, feel: (t.feel || []).filter((x) => x !== fid) }));
-    if (on) showInterrupt(interruptFor(test, { type: "feel", id: fid, pos: "up" }));
+    if (on) showInterrupt(interruptFor(test, { type: "feel", id: fid, pos: "up" }, { preg }));
     return on && !had;
   };
   const answerFaint = (v) => {
@@ -347,9 +347,9 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
     <div className="plaincard urgent" role="alert" style={{ marginBottom: 12 }}>
       <span className="uchip u-now">Now</span>
       <p className="plain">{run.interrupt.copy}</p>
-      {preg && <p className="plain">{SAFETY_COPY.urgent.pregSuffix}</p>}
+      {preg && run.interrupt.kind !== "bpPregSevere" && <p className="plain">{SAFETY_COPY.urgent.pregSuffix}</p>}
       <button type="button" className="cta" onClick={() => stop()}>{run.interrupt.buttons[0]}</button>
-      <button type="button" className="ghostbtn" onClick={() => setRun((r) => ({ ...r, interrupt: null, focusTok: (r.focusTok || 0) + 1, done: r.interrupt.kind === "bpCrisis" && r.interrupt.key ? r.done.filter((k) => k !== r.interrupt.key) : r.done }))}>{run.interrupt.buttons[1]}</button>
+      <button type="button" className="ghostbtn" onClick={() => setRun((r) => ({ ...r, interrupt: null, focusTok: (r.focusTok || 0) + 1, done: (r.interrupt.kind === "bpCrisis" || r.interrupt.kind === "bpPregSevere") && r.interrupt.key ? r.done.filter((k) => k !== r.interrupt.key) : r.done }))}>{run.interrupt.buttons[1]}</button>
     </div>
   );
   const wakeHint = noLock && isRunning(phase) && <p className="hint" style={{ margin: "0 0 10px" }}>Keep your screen on during the test. Tap it now and then.</p>;
@@ -472,8 +472,8 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
       <p className="sr-only" role="status" aria-live="polite">{status}</p>
       {phase === "stopped" && test ? (
         <div role="alert">
-          <h1 className="disp" tabIndex={-1} ref={h1}>Lie down and raise your legs</h1>
-          <p className="plain">Stay down until you feel steady. There's no rush to do anything else.</p>
+          <h1 className="disp" tabIndex={-1} ref={h1}>{SAFETY_COPY.stoppedHead[preg ? "preg" : "std"]}</h1>
+          <p className="plain">{preg ? "Not flat on your back. " : ""}Stay down until you feel steady. There's no rush to do anything else.</p>
         </div>
       ) : <h1 className="disp" tabIndex={-1} ref={h1}>{heading}</h1>}
       {body}

@@ -493,13 +493,21 @@ which is cleared on every change of stage into pregnancy.
 - High standing HR note: any upright HR ≥ 120.
 - Orthostatic BP drop: systolic ≥ 20 or diastolic ≥ 10 below baseline within 3 min ("drop" when ≥ 2 early
   readings meet it or the last early reading at ≥ 3 min does; "single_drop" for one; "late_drop" after 3 min).
-- Supine high: lying ≥ 140/90 (visit note when on ≥ 2 tests). Live crisis interrupt: any ≥ 180/120.
+- Supine high: lying ≥ 140/90 (visit note when on ≥ 2 tests). Live crisis interrupt: any ≥ 180/120; upright,
+  its second button only reopens the reading ("I typed it wrong") and the copy says to stop the test before
+  resting, so the standing clock never runs while she sits.
+- Pregnancy blood pressure (ACOG PB 222; copy pending clinician sign-off): any reading ≥ 160/110, lying or
+  upright, raises a live maternity-unit card (before the crisis check) and an urgent line on the result from the
+  first test; ≥ 140/90 adds a same-day ("Today") maternity-team line on the result and under a single reading.
+  With either, the result never says the blood pressure "held steady" ("didn't drop") and the pregnancy caveat
+  drops "rather than reading too much into them".
   Live low interrupt: upright systolic ≤ 80, or an early drop while symptomatic (systolic and diastolic
   each checked on its own, so one typed number is enough).
 - Live interrupts that need no BP: turning on the Vision dimming, Sick or Short of breath feel chip while
   upright ("Lie down now and raise your legs. You can stop here.", Stop first); the Chest pain chip goes
   straight to Stopped with the chest urgent card; an upright HR ≥ 20 bpm below the previous upright reading;
-  any HR ≥ 170.
+  any HR ≥ 170. In pregnancy every lie-down instruction (these cards, the Stopped heading and the faint card's
+  "Otherwise" line) says left side, not flat on the back.
 - Input sanity: HR 30–220, systolic 60–260, diastolic 30–160 (outside = "That looks unusual. Check the
   number?" and not stored). The live interrupts check the value as typed up to a plausibility cap
   (HR 20–300, systolic 40–300, diastolic 20–250), so an extreme real reading still raises its card.
@@ -521,15 +529,22 @@ Wearable factors need ≥ 14 paired days and appear on screen only. Good vs roug
 each row ≥ 3 values per side. 7-day comparison: ≥ 4 rated days in each week. Today pace: ≥ 7 earlier days.
 Cycle groups use logged starts only (period = start..start+4; week before = 7 days before a logged next start;
 other) and need ≥ 2 starts in 120 days, ≥ 2 groups with ≥ 4 rated days and ≥ 2 completed cycles; not shown in
-pregnancy or menopause. Medicine since starting: 14 days each side, ≥ 5 rated days each side.
+pregnancy or menopause. Medicine since starting: 14 days each side, ≥ 5 rated days each side. Card advice:
+"test on purpose" only for factors she can safely vary (sleep, heat, her trigger tags, supports); medicines and
+IV fluids go to the clinician without self-changes; fluids and salt change only with a clinician's OK; exercise
+follows her plan; cycle tags, hot flashes and wearable cards are "worth mentioning" only.
 
 **A13.6 Exports.** The POTS report (PDF, in-house writer, base-14 Helvetica) and spreadsheet (one tidy CSV,
 UTF-8 BOM, formula-injection guard) are built on the device and leave only through a web download or the phone
 share sheet; the phone's cache copy is deleted after sharing and swept at launch and wipe. File names, share
 titles and email subjects are neutral (`cyra-report-{date}.pdf`, `cyra-data-{date}.csv`). Exports never contain
 wearable readings or anything derived from them, never contain registration answers, and never contain typed
-notes or the user's name unless she ticks them; life stage, cycle days and check-in overlap are included only
-while "Cycle or pregnancy details" is ticked (default on). Every export screen states that the file isn't locked.
+notes or the user's name unless she ticks them; life stage, cycle days (her "On my period" and "Week before my
+period" tags included) and check-in overlap are included only while "Cycle or pregnancy details" is ticked
+(default on). Numbers she types are hers whatever she measured them with; the screen says readings Cyra gets
+from a connected watch, ring or health app aren't included. The PDF writer is in the main bundle, so making a
+report fetches nothing. The report's "sustained" wording names the minutes that reached the threshold and never
+claims fewer did. Every export screen states that the file isn't locked.
 
 **A13.7 Reminders.** The add-on adds no notification. A8 still applies: one check-in reminder at most. A
 care-plan checklist is shown in the app only, with no "late", "missed" or streak language. Any future

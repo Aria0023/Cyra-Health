@@ -114,6 +114,11 @@ export const THRESH = {
   ohSys: 20, ohDia: 10, ohMin: 3,     // orthostatic BP drop within 3 minutes
   supineSys: 140, supineDia: 90, supineTests: 2,
   crisisSys: 180, crisisDia: 120,     // live crisis interrupt
+  // Pregnancy (ACOG Practice Bulletin 222): 160/110 or higher is the severe range (a live card
+  // in any position, and an urgent line on the result); 140/90 or higher needs a call to the
+  // maternity team that day (a line on the result and under a single reading). Pending Q1.
+  pregSevereSys: 160, pregSevereDia: 110,
+  pregHighSys: 140, pregHighDia: 90,
   lowSys: 80,                         // live low-BP interrupt (upright)
   hrFall: 20, hrHigh: 170,            // live interrupts that need no BP
   staleMin: 30,                       // a running test untouched this long is "interrupted" at launch
@@ -162,12 +167,34 @@ export const SAFETY_COPY = {
     chest: "Chest pain or tightness needs checking. If it's new, severe, spreads to your arm, jaw or back, or comes with shortness of breath, sweating or fainting, call your local emergency number now (911 in the US). If it's your usual POTS pattern and settles when you lie down, note it for your clinician.",
     breath: "If you're struggling to breathe, your lips look blue, or it came on suddenly with chest pain, call your local emergency number now (911 in the US). Otherwise, call your clinician today.",
     pregSuffix: "…and call your maternity team today.",
+    // Pregnancy: a blood pressure of 160/110 or higher (THRESH.pregSevere*). Its own call line,
+    // so no pregSuffix follows it.
+    pregBp: "That's a very high blood pressure for pregnancy. Call your maternity unit now, even if you feel well. If you have a bad headache, vision changes, pain under your ribs, breathlessness or sudden swelling, or can't reach them, call your local emergency number (911 in the US).",
+    // Pregnancy: the faint card's "Otherwise:" line, on her left side rather than flat on her back.
+    faintOtherwisePreg: " lie down on your left side, not flat on your back, until you feel steady, sip a drink once you're fully alert, and tell your clinician soon, especially if fainting is new or happening more.",
   },
+  /* Pregnancy versions of the live cards that tell her to lie down (design 4.8, A13.4): on
+     her left side, not flat on her back, as the test's own rest does. Same buttons. (No
+     bpCrisis version: in pregnancy 160/110 already raises bpPregSevere.) */
+  interruptPreg: {
+    feel: "Lie down on your left side now, not flat on your back. You can stop here.",
+    hrFall: "Your heart rate just fell quickly after rising. That can happen before a faint. Lie down on your left side now, not flat on your back. You can stop here.",
+    hrHigh: "That's a very fast heart rate. Lie down on your left side now, not flat on your back. If it doesn't settle within a few minutes of lying down, or you have chest pain, trouble breathing or feel faint, call your local emergency number (911 in the US).",
+    bpLow: "Your blood pressure has dropped. Lie down on your left side now, not flat on your back. You can stop here.",
+  },
+  /* Pregnancy, 140/90 up to the severe range: a same-day line on the result and under a single reading. */
+  pregBpHigh: "In pregnancy, call your maternity team today about a reading of 140/90 or higher, even if you feel well.",
+  /* The Stopped screen's heading. */
+  stoppedHead: { std: "Lie down and raise your legs", preg: "Lie down on your left side" },
   interrupt: {
     feel: { copy: "Lie down now and raise your legs. You can stop here.", stop: "Stop and lie down", go: "I feel okay, continue" },
     hrFall: { copy: "Your heart rate just fell quickly after rising. That can happen before a faint. Lie down now and raise your legs. You can stop here.", stop: "Stop and lie down", go: "I feel okay, continue" },
     hrHigh: { copy: "That's a very fast heart rate. Lie down now and raise your legs. If it doesn't settle within a few minutes of lying down, or you have chest pain, trouble breathing or feel faint, call your local emergency number (911 in the US).", stop: "Stop and lie down", go: "I feel okay, continue" },
-    bpCrisis: { copy: "That's a very high reading. Sit or lie down, rest 5 minutes, and measure again. If it's still that high, or you have chest pain, shortness of breath, back pain, numbness or weakness, vision changes or trouble speaking, call your local emergency number (911 in the US).", stop: "Stop the test", go: "Recheck" },
+    // Upright, "Recheck" would keep the standing clock running while she sits to rest: there
+    // the second button only reopens the reading to fix a typo (goUp), and the copy says to stop first.
+    bpCrisis: { copy: "That's a very high reading. Sit or lie down, rest 5 minutes, and measure again. If it's still that high, or you have chest pain, shortness of breath, back pain, numbness or weakness, vision changes or trouble speaking, call your local emergency number (911 in the US).", copyUp: "That's a very high reading. Stop the test, then sit or lie down, rest 5 minutes, and measure again. If it's still that high, or you have chest pain, shortness of breath, back pain, numbness or weakness, vision changes or trouble speaking, call your local emergency number (911 in the US).", stop: "Stop the test", go: "Recheck", goUp: "I typed it wrong" },
+    // Pregnancy, 160/110 or higher in any position (it comes before bpCrisis in pregnancy).
+    bpPregSevere: { copy: "That's a very high blood pressure for pregnancy. Stop the test and rest sitting, or lying on your left side, and call your maternity unit now, even if you feel well. If you have a bad headache, vision changes, pain under your ribs, breathlessness or sudden swelling, or can't reach them, call your local emergency number (911 in the US).", stop: "Stop the test", go: "I typed it wrong" },
     bpLow: { copy: "Your blood pressure has dropped. Lie down now and raise your legs. You can stop here.", stop: "Stop and lie down", go: "I feel okay, continue" },
   },
 };

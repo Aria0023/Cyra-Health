@@ -64,7 +64,7 @@ export const MOVE_COPY = {
   pregFloor: "After the first trimester, avoid lying flat on your back for long.",
   education: [
     "Why start lying down: when you're horizontal, your heart doesn't have to fight gravity, so your muscles and heart can get fitter without setting off symptoms. Research programs for POTS (Fu and Levine and colleagues in Dallas; the international POTS registry) started with recumbent bikes, rowing machines and swimming, and moved upright only after several weeks. Many people felt better after about three months. Cyra's plan follows the same general idea in simpler form. It isn't their program and it isn't a prescription.",
-    "A session: about 5 minutes easy to warm up, then the main part at a pace where you could still talk in short sentences, then 5 minutes easy and a rest sitting or lying down. Have a drink before and after.",
+    "A session: about 5 minutes easy to warm up, then the main part at an easy pace you could talk in full sentences at (Step 1), or short sentences once you're building, then 5 minutes easy and a rest sitting or lying down. Have a drink before and after.",
     "Rest days matter. Most programs leave a day between sessions.",
     "Strength, about twice a week: legs and core, done lying or seated.",
   ],

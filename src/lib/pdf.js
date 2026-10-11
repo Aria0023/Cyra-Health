@@ -1,8 +1,9 @@
 /* A minimal PDF 1.4 writer for the POTS clinician report (design 6.2, owner decision D5).
    No dependency, no network, no font file: it uses the two base-14 fonts every PDF reader
    has (Helvetica and Helvetica-Bold, WinAnsiEncoding), so nothing is embedded and the file
-   is built entirely on the device. Loaded only from the export handler
-   (`await import("./lib/pdf.js")`), so it is its own chunk and costs nothing until used.
+   is built entirely on the device. Imported statically by the Report section, so it is part
+   of the main bundle: making a PDF fetches nothing from the host (no POTS-only file a server
+   could see requested) and works offline.
 
    What it can draw: text (with real glyph widths, so wrapping and tables fit), lines (solid
    or dashed), rectangles, polylines and wrapped tables with automatic page breaks and a

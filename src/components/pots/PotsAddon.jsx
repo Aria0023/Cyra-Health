@@ -2,6 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { POTS_LOCKED_COPY, POTS_ERASE } from "../../lib/potsConstants.js";
 import { isLockedPots } from "../../lib/pots.js";
 import Details from "../Details.jsx";
+import { potsUnsaved } from "./ui.js";
+
+/** "Exactly what's kept", first line, by where the record really is (ui.js potsUnsaved). */
+const KEPT = {
+  saved: "Everything you log in POTS tools is stored on this device with the rest of your record, and goes into an encrypted backup if you save one.",
+  memory: "Everything you log in POTS tools is kept with the rest of your record, which right now is only in memory for this session (see Your data below): it's lost when you close Cyra unless you save an encrypted backup.",
+  stale: "Everything you log in POTS tools is kept with the rest of your record, but Cyra couldn't confirm your latest changes were saved on this device (see Your data below). It goes into an encrypted backup if you save one.",
+};
 
 /* Settings → Add-ons: the POTS tools switch (lib/pots.js, spec A13). It shows only once a life
    stage is chosen and never changes it. Turning off asks first: hide the tab and keep the log,
@@ -15,7 +23,7 @@ import Details from "../Details.jsx";
    here, never on arrival. */
 const CARD_ID = "pots-off-card";
 
-export default function PotsAddon({ pots, stageName, onOn, onOff }) {
+export default function PotsAddon({ pots, stageName, onOn, onOff, storageDriver = null }) {
   const [ask, setAsk] = useState(null); // null | "off" (turn-off card) | "erase" (erase confirm)
   const [focusTo, setFocusTo] = useState(null); // null | "switch" | "off" | "erase"
   const switchRef = useRef(null), offRef = useRef(null), eraseRef = useRef(null);
@@ -60,7 +68,7 @@ export default function PotsAddon({ pots, stageName, onOn, onOff }) {
       )}
       <Details label="Exactly what's kept">
         <ul>
-          <li>Everything you log in POTS tools is stored on this device with the rest of your record, and goes into an encrypted backup if you save one.</li>
+          <li>{KEPT[potsUnsaved(storageDriver) || "saved"]}</li>
           <li>None of it is part of weekly counts, and none of it is sent to Cyra's server or Cyra's AI.</li>
           <li>A report or spreadsheet you make is an ordinary file, not locked with a passphrase. It goes only where you save or send it.</li>
           <li>Turning POTS tools off hides the tab and keeps what you logged, unless you choose to erase it.</li>

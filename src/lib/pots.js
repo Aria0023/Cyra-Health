@@ -964,11 +964,14 @@ const plaus = (v, [lo, hi]) => (fin(v) && v >= lo && v <= hi ? v : null);
     otherwise show the card with buttons [Stop, continue] (Stop first). The reading is
     checked as typed, even outside the input-sanity range (which only decides what is
     stored and when "That looks unusual" shows); only values past THRESH.plaus are ignored
-    as impossible. */
-export function interruptFor(test, event) {
+    as impossible. `opts.preg` (pregnancy): the lie-down cards say left side, not flat on her
+    back (SAFETY_COPY.interruptPreg), and 160/110 or higher raises bpPregSevere in any position,
+    before the crisis check. Upright, a high-BP card's second button only reopens the reading to
+    fix a typo ("I typed it wrong"), so the standing clock never runs while she sits to rest. */
+export function interruptFor(test, event, opts = {}) {
   if (!isObj(event)) return null;
-  const C = SAFETY_COPY.interrupt;
-  const card = (kind) => ({ kind, copy: C[kind].copy, stop: false, buttons: [C[kind].stop, C[kind].go] });
+  const C = SAFETY_COPY.interrupt, preg = isObj(opts) && opts.preg === true, upPos = event.pos === "up";
+  const card = (kind) => ({ kind, copy: (preg && SAFETY_COPY.interruptPreg[kind]) || (upPos && C[kind].copyUp) || C[kind].copy, stop: false, buttons: [C[kind].stop, (upPos && C[kind].goUp) || C[kind].go] });
   if (event.type === "feel") {
     // Chest pain stops the test in any position (safety first; the lie-down card is upright only).
     if (event.id === "p_chest") return { kind: "chest", copy: SAFETY_COPY.urgent.chest, stop: true, urgent: "chest", buttons: [] };
@@ -979,6 +982,7 @@ export function interruptFor(test, event) {
   const P = THRESH.plaus, hr = plaus(r.hr, P.hr), sys = plaus(r.sys, P.sys), dia = plaus(r.dia, P.dia);
   const t = isObj(test) ? test : {};
   if (hr != null && hr >= THRESH.hrHigh) return card("hrHigh");
+  if (preg && ((sys != null && sys >= THRESH.pregSevereSys) || (dia != null && dia >= THRESH.pregSevereDia))) return card("bpPregSevere");
   if ((sys != null && sys >= THRESH.crisisSys) || (dia != null && dia >= THRESH.crisisDia)) return card("bpCrisis");
   if (up && sys != null && sys <= THRESH.lowSys) return card("bpLow");
   if (up && (sys != null || dia != null) && fin(r.min) && r.min <= THRESH.ohMin) {
@@ -1006,7 +1010,7 @@ const fmtN = (x) => (Number.isInteger(x) ? String(x) : String(Math.round(x * 10)
     "below" advice), supineCount (tests with a high lying BP, this one included),
     firstFinding (first met / single / drop result, for the midlife line), cycle
     ({ day, weekBefore } when known). Returns the numbers plus `headline` and `lines`:
-    [{ kind, text, urgency: "now"|"visit"|"self"|null, urgent: UrgentCard variant|null }],
+    [{ kind, text, urgency: "now"|"today"|"visit"|"self"|null, urgent: UrgentCard variant|null }],
     each the exact copy of the design, stage-aware. It never diagnoses. */
 export function standResult(test, opts = {}) {
   const { teen = false, stage = null, daySym = null, supineCount = 0, firstFinding = false, cycle = null } = opts;
@@ -1030,6 +1034,9 @@ export function standResult(test, opts = {}) {
     }
   }
   const hrStatus = insufficient ? "insufficient" : pair ? "met" : peakRise >= thr ? (rises[rises.length - 1] >= thr ? "single_last" : "single_mid") : "below";
+  // The minutes whose rise reached thr (for the report's words, which must not say "only the
+  // last reading" or "one reading" when two or more did).
+  const overMins = insufficient ? [] : upHr.filter((r, i) => rises[i] >= thr).map((r) => r.min);
   const restHigh = baseHr != null && baseHr >= T.restHigh;
   const counted = !insufficient && Math.abs(peakRise - thr) <= T.countedBand && [...baseReads, upHr[peakI], ...(pair || [])].some((r) => r && r.how === "counted");
   const hr120 = upHr.some((r) => r.hr >= T.hr120);
@@ -1061,6 +1068,12 @@ export function standResult(test, opts = {}) {
   const complete = t.status === "done" && upHr.some((r) => r.min >= T.completeMin);
   const minutesUp = t.status === "stopped" && fin(t.stoppedAt) ? t.stoppedAt : up.length ? up[up.length - 1].min : 0;
   const preg = stage === "preg";
+  // Pregnancy (THRESH.preg*, ACOG PB 222): any lying or upright reading of 160/110 or higher is
+  // "severe", 140/90 or higher "high". Shown from the first test, with no supineTests wait.
+  const pregRead = preg ? [...(t.rest || []), ...up] : [];
+  const atLeast = (r, sy, di) => (fin(r.sys) && r.sys >= sy) || (fin(r.dia) && r.dia >= di);
+  const pregBp = pregRead.some((r) => atLeast(r, T.pregSevereSys, T.pregSevereDia)) ? "severe" : pregRead.some((r) => atLeast(r, T.pregHighSys, T.pregHighDia)) ? "high" : null;
+  const steady = pregBp ? "didn't drop" : "held steady";
   const feelAny = (t.feel || []).length > 0 || up.some((r) => (r.feel || []).length > 0);
   const symHeavy = isObj(daySym) && Object.values(daySym).some((v) => v >= 2);
 
@@ -1070,6 +1083,8 @@ export function standResult(test, opts = {}) {
     : `${t.restPos === "left" ? "Lying on left side" : "Lying"}: ${fmtN(baseHr)}. Highest standing: ${peakHr} at minute ${fmtMin(peakMin)}. ${peakRise > 0 ? `That's a rise of ${fmtN(peakRise)} beats a minute.` : "That's no rise above lying."}`;
   if (t.edited === true) L("edited", "Some readings were corrected after the test.");
   if (isObj(cycle) && fin(cycle.day)) L("cycle", `Cycle day ${cycle.day}${cycle.weekBefore ? " (week before your period)" : ""}`);
+  if (pregBp === "severe") L("pregBp", `One or more readings in this test were ${T.pregSevereSys}/${T.pregSevereDia} or higher.`, null, "pregBp");
+  else if (pregBp === "high") L("pregBp", `One or more readings in this test were ${T.pregHighSys}/${T.pregHighDia} or higher. ${SAFETY_COPY.pregBpHigh}`, "today");
 
   const teenClause = teen ? "" : " (40 or more for ages 12–19)";
   const share = "Share this test, and ask whether an in-clinic standing test or a tilt test would help.";
@@ -1102,7 +1117,7 @@ export function standResult(test, opts = {}) {
       all: "No blood pressure was taken, so this test can't show whether your blood pressure dropped. Clinicians usually want both.",
       lying: "No lying-down blood pressure was taken, so this test can't show whether your blood pressure dropped on standing. Clinicians usually want both.",
       standing: "No standing blood pressure was taken, so this test can't show whether your blood pressure dropped. Clinicians usually want both.",
-      early: "No standing blood pressure was taken in the first 3 minutes, when clinicians check for a drop, so this test can't show one. The later readings held steady.",
+      early: `No standing blood pressure was taken in the first 3 minutes, when clinicians check for a drop, so this test can't show one. The later readings ${steady}.`,
     };
     if (bpStatus === "drop") {
       const by = s > 0 ? `by ${S} (top number)${d >= T.ohDia ? ` and ${Dd} (bottom number)` : ""}` : `by ${Dd} (bottom number)`;
@@ -1110,7 +1125,7 @@ export function standResult(test, opts = {}) {
     } else if (bpStatus === "single_drop") L("bp", `One reading in the first 3 minutes showed a drop of ${S}/${Dd}. Worth sharing; a repeat test can show whether it lasts.`, "visit");
     else if (bpStatus === "late_drop") L("bp", `Your blood pressure dropped after minute 3 (by ${S}/${Dd} at minute ${fmtMin(drop.min)}). Mention it. Clinicians look at later drops too.`, "visit");
     else if (bpStatus === "none") L("bp", NONE[bpMissing]);
-    else L("bp", "Your blood pressure held steady while you were upright.");
+    else L("bp", `Your blood pressure ${steady} while you were upright.`);
   }
   if (supineHigh && supineCount >= T.supineTests) L("supineHigh", `Your lying-down blood pressure was ${T.supineSys}/${T.supineDia} or higher on ${supineCount} tests. That's something clinicians track, especially with some POTS medicines. Mention it.`, "visit");
   if (isObj(t.ctx) && t.ctx.rateMed === "yes") L("rateMed", "You took a heart-rate medicine today, which can make the rise smaller.");
@@ -1118,13 +1133,13 @@ export function standResult(test, opts = {}) {
     const when = fin(t.stoppedAt) && t.stoppedAt > 0 ? `at minute ${fmtMin(t.stoppedAt)}` : "before standing up";
     L("stopped", `You stopped ${when}${t.why === "faint" ? " because you felt faint" : ""}. That's okay. The readings you have still count, and how long you could stay upright is useful to your clinician.`);
   }
-  if (preg) L("preg", "Heart rate normally rises during pregnancy, and these thresholds come from studies of people who weren't pregnant. Share the numbers with your prenatal team rather than reading too much into them.");
+  if (preg) L("preg", `Heart rate normally rises during pregnancy, and these thresholds come from studies of people who weren't pregnant. Share the numbers with your prenatal team${pregBp ? "" : " rather than reading too much into them"}.`);
   if (stage === "peri" && firstFinding && (["met", "single_mid", "single_last"].includes(hrStatus) || bpStatus === "drop")) {
     L("midlife", "Palpitations and dizziness have other causes too, such as thyroid problems, anaemia, heart-rhythm problems and medicines, and these become more common from midlife. Ask about them alongside this result.");
   }
   return {
     thr, baseHr, baseSys, baseDia, peakRise, peakMin, peakHr, sustainedAt: pair ? [pair[0].min, pair[1].min] : null,
-    hrStatus, restHigh, counted, edited: t.edited === true, hr120, bpStatus, bpMissing, drop, supineHigh, crisis, complete, minutesUp,
+    hrStatus, overMins, restHigh, counted, edited: t.edited === true, hr120, bpStatus, bpMissing, drop, supineHigh, crisis, pregBp, complete, minutesUp,
     headline, lines,
   };
 }

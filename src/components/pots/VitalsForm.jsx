@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { nowHHMM, interruptFor } from "../../lib/pots.js";
 import { THRESH, SAFETY_COPY } from "../../lib/potsConstants.js";
 import { numOf, numProps } from "./ui.js";
+import Advice from "../Advice.jsx";
 
 /* "Add a single reading" (design 4.7): one heart rate and/or blood pressure by position,
    written to days[iso].vit. No threshold sentence: these aren't timed tests. A number outside
@@ -10,7 +11,10 @@ import { numOf, numProps } from "./ui.js";
    the stand test's live cards (SAFETY_COPY, clinician sign-off Q1), decided by the same rule
    (interruptFor): the value as typed counts up to the plausibility caps, so a real extreme
    reading outside the input-sanity range (HR 230, 270/130) still raises its card, though it
-   isn't saved. In pregnancy the card adds the maternity-team line, as every UrgentCard does. */
+   isn't saved. In pregnancy the card adds the maternity-team line, as every UrgentCard does,
+   says left side rather than flat on her back, and a blood pressure of 160/110 or higher raises
+   its own maternity-unit card (SAFETY_COPY.urgent.pregBp); 140/90 or higher shows a same-day
+   line (SAFETY_COPY.pregBpHigh, THRESH.preg*). */
 const POS = [["lying", "Lying"], ["sitting", "Sitting"], ["standing", "Standing"]];
 const R = THRESH.range;
 const out = (v, [lo, hi]) => v != null && (v < lo || v > hi);
@@ -25,11 +29,14 @@ export default function VitalsForm({ v, isToday, preg = false, onSave, onCancel,
   const n = { hr: numOf(hr), sys: numOf(sys), dia: numOf(dia) };
   const bad = { hr: out(n.hr, R.hr), sys: out(n.sys, R.sys), dia: out(n.dia, R.dia) };
   // Resting position: only the very-fast-heart-rate and very-high-reading cards apply here.
-  const ev = interruptFor(null, { type: "reading", reading: n, pos: "rest" });
-  const high = ev && (ev.kind === "hrHigh" || ev.kind === "bpCrisis") ? ev.kind : null;
+  const ev = interruptFor(null, { type: "reading", reading: n, pos: "rest" }, { preg });
+  const high = ev && (ev.kind === "hrHigh" || ev.kind === "bpCrisis" || ev.kind === "bpPregSevere") ? ev.kind : null;
+  // Not a test, so the pregnancy card here has no "Stop the test".
+  const highCopy = high === "bpPregSevere" ? SAFETY_COPY.urgent.pregBp : high ? ev.copy : "";
+  const pregHigh = preg && !high && ((n.sys != null && !bad.sys && n.sys >= THRESH.pregHighSys) || (n.dia != null && !bad.dia && n.dia >= THRESH.pregHighDia));
   // Announced once when her typing makes the card appear (never for a reading opened to edit).
   const seen = useRef(high);
-  useEffect(() => { if (high && high !== seen.current) announce?.(SAFETY_COPY.interrupt[high].copy); seen.current = high; }, [high]); // eslint-disable-line
+  useEffect(() => { if (high && high !== seen.current) announce?.(highCopy); seen.current = high; }, [high]); // eslint-disable-line
   const field = (id, label, val, set, isBad) => (
     <>
       <label className="lab" htmlFor={id}>{label}</label>
@@ -56,7 +63,8 @@ export default function VitalsForm({ v, isToday, preg = false, onSave, onCancel,
       {field("pots-vit-dia", "Bottom number (diastolic)", dia, setDia, bad.dia)}
       <label className="lab" htmlFor="pots-vit-t">Time</label>
       <input id="pots-vit-t" className="inp" type="time" aria-label="Time" value={t} onChange={(e) => setT(e.target.value)} />
-      {high && <div className="plaincard urgent" data-urgent={high} style={{ marginBottom: 10 }}><span className="uchip u-now">Now</span><p className="plain">{SAFETY_COPY.interrupt[high].copy}</p>{preg && <p className="plain">{SAFETY_COPY.urgent.pregSuffix}</p>}</div>}
+      {high && <div className="plaincard urgent" data-urgent={high} style={{ marginBottom: 10 }}><span className="uchip u-now">Now</span><p className="plain">{highCopy}</p>{preg && high !== "bpPregSevere" && <p className="plain">{SAFETY_COPY.urgent.pregSuffix}</p>}</div>}
+      {pregHigh && <div className="icard" style={{ marginBottom: 10 }}><Advice urgency="today">{SAFETY_COPY.pregBpHigh}</Advice></div>}
       {err && <p className="errhint" role="alert" style={{ marginTop: 0, marginBottom: 10 }}>{err}</p>}
       <button type="button" className="cta" onClick={save}>{v ? "Save changes" : "Save reading"}</button>
       <button type="button" className="ghostbtn" onClick={onCancel}>Cancel</button>

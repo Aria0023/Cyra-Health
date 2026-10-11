@@ -19,7 +19,7 @@ import { resultFor, riseText } from "./StandResult.jsx";
 import { nextDayPending, setNextDay, skipNextDay, planLine, modeWord, NEXT_OPTS, MOVE_COPY } from "../../lib/potsMove.js";
 import { SessionEdit } from "./MoveSession.jsx";
 import { fmtN } from "./HrChart.jsx";
-import { hm, ampm, dayLabel, addDays, SEV_WORD, intakeText, amountText, symLabel, medName, useAnnounce } from "./ui.js";
+import { hm, ampm, dayLabel, addDays, SEV_WORD, intakeText, amountText, symLabel, medName, useAnnounce, potsUnsaved } from "./ui.js";
 
 /* POTS → Today (design 4.2, Full view) and Simple view (4.3). Every tap commits at once
    through a lib/pots.js action in a functional update (saved on this device by the record
@@ -29,6 +29,11 @@ import { hm, ampm, dayLabel, addDays, SEV_WORD, intakeText, amountText, symLabel
    hand focus back to the button that opened them. The section owns one role="alert" node
    (urgentLive) for safety cards that appear because of an answer she just picked. */
 export const TODAY_FOOT = "Saved on this device as you tap. Cyra's server never gets your POTS log, and it isn't part of weekly counts.";
+/** The footer while the record isn't being saved (lib/storage.js driver, ui.js potsUnsaved). */
+export const TODAY_FOOT_UNSAVED = {
+  memory: "Not being saved: Cyra couldn't open this browser's storage, so what you log here is lost when you close Cyra. Cyra's server never gets your POTS log, and it isn't part of weekly counts.",
+  stale: "Cyra couldn't confirm your latest taps were saved on this device; they may be lost when you close Cyra. Cyra's server never gets your POTS log, and it isn't part of weekly counts.",
+};
 export const NEAR_FAINT = "Nearly fainting most days is worth raising soon. Bring your log.";
 const RATINGS = [[1, "Good"], [2, "Okay"], [3, "Rough"], [4, "Bad"]];
 const SLEEP = [["good", "Slept well"], ["fair", "So-so"], ["poor", "Rough night"]];
@@ -37,7 +42,7 @@ const NA_ASK = ["electrolyte", "broth"];
 const asksSodium = (pr) => pr.naMg == null && pr.naSkip !== true && (pr.ml == null || NA_ASK.includes(pr.kind));
 const POS_WORD = { lying: "Lying", sitting: "Sitting", standing: "Standing" };
 
-export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay, ping, stage, stageName, checkin, symMap, conditions, onStandTest }) {
+export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay, ping, stage, stageName, checkin, symMap, conditions, onStandTest, storageDriver = null }) {
   const s = pots.settings, units = s.units, simple = s.simple === true, preg = stage === "preg";
   const pregOrTtc = preg || stageName === "Trying to Conceive";
   const day = simple ? todayIso : dayIn;
@@ -393,7 +398,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
           </>
         )}
         {/* 17. Footer */}
-        <p className="rfoot">{TODAY_FOOT}</p>
+        <p className="rfoot">{potsUnsaved(storageDriver) ? TODAY_FOOT_UNSAVED[potsUnsaved(storageDriver)] : TODAY_FOOT}</p>
       </div>
     </div>
   );

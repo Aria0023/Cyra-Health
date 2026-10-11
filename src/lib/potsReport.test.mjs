@@ -330,10 +330,43 @@ test("g: the summary text", () => {
   assert.match(s, /I can bring the full PDF and spreadsheet to the visit\.$/);
   // A rise reached only at the last reading, or once with a lower one after it, isn't a "no".
   const last = summaryText(reportModel(upsertTest(fixture(), TEST({ up: [{ min: 1, hr: 80 }, { min: 3, hr: 85 }, { min: 5, hr: 90 }, { min: 10, hr: 104 }] })), base()));
-  assert.match(last, /largest rise 36, sustained 30 or more: only the last reading reached it, so it isn't known whether it lasted\./);
+  assert.match(last, /largest rise 36, sustained 30 or more: only the last reading \(minute 10\) reached it, so it isn't known whether it lasted\./);
   const mid = summaryText(reportModel(upsertTest(fixture(), TEST({ up: [{ min: 1, hr: 80 }, { min: 3, hr: 100 }, { min: 5, hr: 90 }, { min: 10, hr: 92 }] })), base()));
-  assert.match(mid, /largest rise 32, sustained 30 or more: one reading reached it and the next was lower\./);
-  for (const t of [last, mid]) assert.ok(!POTS_BANNED.test(t), t);
+  assert.match(mid, /largest rise 32, sustained 30 or more: one reading reached it \(minute 3\), and the last reading was under it\./);
+  // Two or more readings reached it, but no sustained pair: every one of them is named.
+  const skip = reportModel(upsertTest(fixture(), TEST({ up: [{ min: 1, hr: 85 }, { min: 3, hr: 104 }, { min: 10, hr: 103 }] })), base());
+  const skipT = summaryText(skip);
+  assert.match(skipT, /sustained 30 or more: reached it at minutes 3 and 10, but not on two readings in a row that show it lasted \(the second at minute 3 or later, within 5 minutes of the first\); the last reading was one of them, so it isn't known whether it lasted\./);
+  assert.match(toCSV(skip), /sustained=no pair, last at or above; over_threshold_min=3\|10/);
+  const every = summaryText(reportModel(upsertTest(fixture(), TEST({ sched: "every", up: [{ min: 1, hr: 108 }, { min: 2, hr: 106 }, { min: 3, hr: 80 }, { min: 10, hr: 84 }] })), base()));
+  assert.match(every, /reached it at minutes 1 and 2, but not on two readings in a row that show it lasted .*; the last reading was under it\./);
+  for (const t of [skipT, every]) assert.ok(!/only the last|one reading reached/.test(t), t);
+  for (const t of [last, mid, skipT, every]) assert.ok(!POTS_BANNED.test(t), t);
+});
+
+test("g: with cycle details unticked, the period tags stay out of every output", () => {
+  // 30 rated days; "On my period" on 6 of them (all rough), "Week before my period" on 5, and
+  // one episode tagged with both.
+  let p = fixture();
+  for (let i = 0; i < 30; i++) {
+    const d = `2026-${i < 10 ? "10" : "09"}-${String(i < 10 ? 10 - i : 40 - i).padStart(2, "0")}`;
+    const per = i % 5 === 0, pre = i % 6 === 1;
+    p = setRating(p, d, per ? 4 : i % 3 === 0 ? 3 : 1);
+    if (per) p = toggleTrig(p, d, "t_period");
+    if (pre) p = toggleTrig(p, d, "t_premens");
+  }
+  p = addEpisode(p, "2026-10-05", { id: "e2", t: "10:00", sym: ["p_dzy"], sev: 2, pos: "standing", faint: "no", injured: false, mins: 1, trig: ["t_period", "t_premens", "t_heat"], helped: [], note: "" });
+  const CYC = /on my period|week before my period|her period|t_period|t_premens/i;
+  for (const [stage, stageName] of [["periods", "My Cycle"], ["peri", "Perimenopause"], ["preg", "Pregnancy"], ["ttc", "Trying to Conceive"]]) {
+    const off = reportModel(p, base({ stage, stageName, include: { tests: true, sym: true, fluid: true, meds: true, move: false, patterns: true, cycle: false, notes: false, name: false } }));
+    const out = allOut(off);
+    assert.ok(!CYC.test(out), `${stage}: ${(out.match(new RegExp(`.{0,80}(${CYC.source}).{0,40}`, "i")) || [""])[0]}`);
+    assert.match(toCSV(off), /triggers=Heat or hot weather/, "other triggers stay");
+    const on = reportModel(p, base({ stage, stageName, include: { tests: true, sym: true, fluid: true, meds: true, move: false, patterns: true, cycle: true, notes: false, name: false } }));
+    const onOut = allOut(on);
+    assert.match(onOut, /On my period \(\d+ days\)/, `${stage}: the tags still go in with cycle details`);
+    assert.match(toCSV(on), /"trigger","[^"]+",,"Week before my period",1/);
+  }
 });
 
 /* ---------- pdf.js ---------- */
@@ -416,9 +449,12 @@ test("source: report files make no network or storage call", () => {
     for (const bad of ["fetch(", "apiPost", "apiGet", "contribute(", "localStorage", "sessionStorage", "indexedDB", "structuredClone", "XMLHttpRequest", "WebSocket", "sendBeacon"]) assert.ok(!text.includes(bad), `${f} contains ${bad}`);
     assert.ok(!/from\s+["'][^"']*\/(api|pulse|storage|notifications|wearables)\.js["']/.test(text), `${f} imports a networked or storage module`);
   }
-  // pdf.js stays out of the main bundle: nothing imports it statically.
+  // pdf.js is in the main bundle: the Report section imports it statically and nothing loads
+  // it lazily, so the first PDF makes no request (not even for a POTS-only chunk from the host).
+  const rep = readFileSync(new URL("../components/pots/PotsReport.jsx", import.meta.url), "utf8");
+  assert.ok(/import\s*\{\s*PdfDoc\s*\}\s*from\s+["']\.\.\/\.\.\/lib\/pdf\.js["']/.test(rep), "PotsReport.jsx imports pdf.js statically");
   for (const f of ["../components/pots/PotsReport.jsx", "./potsReport.js", "../App.jsx"]) {
     const text = readFileSync(new URL(f, import.meta.url), "utf8");
-    assert.ok(!/import\s[^;]*from\s+["'][^"']*\/pdf\.js["']/.test(text), `${f} imports pdf.js statically`);
+    assert.ok(!/import\(\s*["'][^"']*pdf\.js["']\s*\)/.test(text), `${f} loads pdf.js lazily`);
   }
 });

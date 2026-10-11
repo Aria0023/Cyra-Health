@@ -44,7 +44,10 @@ const isPart = (ph) => PARTS.includes(ph);
 const FAINT_OPTS = [["no", "No"], ["almost", "Almost"], ["yes", "Yes"]];
 const HEAD = { setup: "Start a session", warm: "Warm up · easy pace", main: "Main part", cool: "Cool down · easy pace", rest: MOVE_COPY.rest };
 const TIMER_LABEL = { warm: "Time left warming up", main: "Time left in the main part", cool: "Time left cooling down" };
-const LINE = { warm: "Easy pace to warm up.", main: "A pace where you could still talk in short sentences.", cool: "Easy pace to cool down." };
+const LINE = { warm: "Easy pace to warm up.", cool: "Easy pace to cool down." };
+/** The main part's pace cue, by the session's step (ses.step; null in pacing mode): Step 1 and
+    pacing mode keep the plan's full-sentences pace (MOVE_STEPS step 1) and never step it up. */
+export const mainLine = (step) => (step == null || step <= 1 ? "An easy pace where you could talk in full sentences." : "A pace where you could still talk in short sentences.");
 const PART_WORD = { warm: "Warm up", main: "Main part", cool: "Cool down" };
 const FULL_TEXT = "You've logged 4 sessions on this day, the most Cyra keeps.";
 const BEAT = 4 * MIN; // refresh a running session's upd this often (staleness is 30 minutes)
@@ -229,7 +232,7 @@ export function SessionRunner({ run, setRun, pots, setPots, stage, todayIso, pin
       <>
         {stopBtn(true)}
         <div className="pots-timer" role="timer" aria-label={TIMER_LABEL[phase]}>{mmss(lenMs - elapsed)}</div>
-        <p className="plain" style={{ textAlign: "center" }}>{run.paused ? "Paused." : LINE[phase]}</p>
+        <p className="plain" style={{ textAlign: "center" }}>{run.paused ? "Paused." : phase === "main" ? mainLine(ses.step) : LINE[phase]}</p>
         {phase === "main" && st.program && st.program.hrNote && <p className="plain" style={{ textAlign: "center" }}>{`Heart-rate range from your clinician or physio: ${st.program.hrNote}`}</p>}
         <p className="hint" style={{ textAlign: "center", margin: "0 0 10px" }}>{nx === "rest" ? "Then rest sitting or lying down." : `Then: ${PART_WORD[nx].toLowerCase()}, ${plan[nx]} min.`}</p>
         {noLock && <p className="hint" style={{ margin: "0 0 10px" }}>Keep your screen on during the session. Tap it now and then.</p>}

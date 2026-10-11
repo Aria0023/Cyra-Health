@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { setSettings, finishSetup } from "../lib/pots.js";
 import { POTS_LOCKED_COPY } from "../lib/potsConstants.js";
 import UrgentCard from "../components/pots/UrgentCard.jsx";
+import { potsSaved } from "../components/pots/ui.js";
 
 /* POTS tab (spec A13; lib/pots.js). An optional add-on inside whichever single life stage
    she has: it never shows a stage choice and never changes the stage. Everything here is
@@ -24,7 +25,10 @@ import UrgentCard from "../components/pots/UrgentCard.jsx";
      which opens `settings({ headRef, onBack })` in place of the section. */
 const SECTIONS = [["today", "Today"], ["stand", "Stand test"], ["move", "Move"], ["patterns", "Patterns"], ["report", "Report"]];
 const SHOW_CHOICES = [["test", "Stand test"], ["fluid", "Fluids & salt"], ["sym", "Symptoms"], ["meds", "Meds & supports"], ["move", "Movement"]];
-const HINT = "Kept on this device and ready for your clinician. Never part of weekly counts. Cyra can't diagnose POTS; only a clinician can, and good notes make that visit faster.";
+const HINT_TAIL = "Never part of weekly counts. Cyra can't diagnose POTS; only a clinician can, and good notes make that visit faster.";
+const HINT = `Kept on this device and ready for your clinician. ${HINT_TAIL}`;
+// While the record isn't being saved (ui.js potsSaved), the hint says so instead.
+const HINT_UNSAVED = `Not being saved on this device right now (see Settings → Your data). ${HINT_TAIL}`;
 
 /* Card 1: what Today shows. Choices stay on this card until Next saves them; Skip keeps what
    was there. */
@@ -54,7 +58,8 @@ function HelpNow({ preg }) {
   );
 }
 
-export default function PotsScreen({ pots, setPots, locked, potsSec, setPotsSec, sections = {}, setupCards = [], shows = [], settings = null, preg = false }) {
+export default function PotsScreen({ pots, setPots, locked, potsSec, setPotsSec, sections = {}, setupCards = [], shows = [], settings = null, preg = false, storageDriver = null }) {
+  const hint = potsSaved(storageDriver) ? HINT : HINT_UNSAVED;
   const headRef = useRef(null), cardRef = useRef(null), saveRef = useRef(null), setHeadRef = useRef(null), setLinkRef = useRef(null);
   const [step, setStep] = useState(0);
   const [show, setShow] = useState(() => ({ ...(pots?.settings?.show || {}) }));
@@ -90,7 +95,7 @@ export default function PotsScreen({ pots, setPots, locked, potsSec, setPotsSec,
     return (
       <main className="pots">
         <h1 className="disp" tabIndex={-1} ref={headRef}>POTS</h1>
-        <p className="hint">{HINT}</p>
+        <p className="hint">{hint}</p>
         <section className="plaincard" aria-labelledby="pots-setup-title">
           {cards.length > 1 && <p className="stepno" style={{ marginBottom: 4 }}>Step {i + 1} of {cards.length}</p>}
           <h2 id="pots-setup-title" className="obq" style={{ marginTop: 0 }} tabIndex={-1} ref={cardRef}>{card.title}</h2>
@@ -113,7 +118,7 @@ export default function PotsScreen({ pots, setPots, locked, potsSec, setPotsSec,
   return (
     <main className="pots">
       <h1 className="disp" tabIndex={-1} ref={headRef}>POTS</h1>
-      <p className="hint">{HINT}</p>
+      <p className="hint">{hint}</p>
       {avail.length > 1 && !inSettings && (
         <div className="mcrow" role="group" aria-label="POTS sections" style={{ marginBottom: 14 }}>
           {avail.map(([id, l]) => (

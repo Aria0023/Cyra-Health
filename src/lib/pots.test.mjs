@@ -621,7 +621,10 @@ test("c2: blood-pressure crisis and low-BP cases; with BP off only the HR and ch
   const t = mk(rest, [[1, 90, 118, 78]], { bp: true });
   const crisis = interruptFor(t, { type: "reading", pos: "up", reading: { min: 3, hr: 95, sys: 185, dia: 95 } });
   assert.equal(crisis.kind, "bpCrisis");
-  assert.deepEqual(crisis.buttons, ["Stop the test", "Recheck"]);
+  // Upright the second button only reopens the reading (a typo); lying, it rechecks.
+  assert.deepEqual(crisis.buttons, ["Stop the test", "I typed it wrong"]);
+  assert.match(crisis.copy, /^That's a very high reading\. Stop the test, then sit or lie down/);
+  assert.deepEqual(interruptFor(t, { type: "reading", pos: "rest", reading: { min: 5, hr: 70, sys: 185, dia: 95 } }).buttons, ["Stop the test", "Recheck"]);
   assert.equal(interruptFor(t, { type: "reading", pos: "rest", reading: { min: 5, hr: 70, sys: 150, dia: 120 } }).kind, "bpCrisis");
   assert.equal(interruptFor(t, { type: "reading", pos: "up", reading: { min: 3, hr: 95, sys: 80, dia: 50 } }).kind, "bpLow");
   assert.equal(interruptFor(t, { type: "reading", pos: "up", reading: { min: 3, hr: 95, sys: 81, dia: 75 } }), null);
@@ -681,6 +684,72 @@ test("c2: safety copy is free of banned wording and names the local emergency nu
   assert.equal(GUIDE_VERIFIED, false);
   assert.ok(!/litres|grams/.test(json(GUIDE_COPY[0])), "unverified figures stay out until sign-off");
   for (const m of POTS_MED_LIB) assert.ok(!DOSE_RE.test(json(m)), m.name);
+});
+
+test("c2: pregnancy: 160/110 raises its own card in any position; 140/90 a same-day line on the result", () => {
+  const preg = { preg: true };
+  const t = mk([[4, 70, 168, 112], [5, 70, 166, 112]], [[1, 90, 165, 110], [3, 92, 166, 111], [5, 92, 164, 110], [10, 93, 165, 112]], { bp: true, restPos: "left" });
+  const lying = interruptFor(t, { type: "reading", pos: "rest", reading: { min: 5, hr: 70, sys: 166, dia: 112 } }, preg);
+  assert.equal(lying.kind, "bpPregSevere");
+  assert.match(lying.copy, /call your maternity unit now/);
+  assert.match(lying.copy, /\(911 in the US\)/);
+  assert.deepEqual(lying.buttons, ["Stop the test", "I typed it wrong"]);
+  assert.equal(interruptFor(t, { type: "reading", pos: "up", reading: { min: 3, hr: 92, sys: 150, dia: 110 } }, preg).kind, "bpPregSevere");
+  assert.equal(interruptFor(t, { type: "reading", pos: "up", reading: { min: 3, hr: 92, sys: 200, dia: 95 } }, preg).kind, "bpPregSevere", "before the crisis card in pregnancy");
+  assert.equal(interruptFor(t, { type: "reading", pos: "up", reading: { min: 3, hr: 92, sys: 159, dia: 109 } }, preg), null);
+  // Outside pregnancy nothing changes: 165/112 raises no card.
+  assert.equal(interruptFor(t, { type: "reading", pos: "up", reading: { min: 3, hr: 92, sys: 165, dia: 112 } }), null);
+  const sev = R(t, { stage: "preg", supineCount: 1 });
+  assert.equal(sev.pregBp, "severe");
+  const line = sev.lines.find((l) => l.kind === "pregBp");
+  assert.equal(line.urgent, "pregBp");
+  assert.ok(SAFETY_COPY.urgent.pregBp.includes("(911 in the US)"));
+  assert.ok(sev.lines.findIndex((l) => l.kind === "pregBp") < sev.lines.findIndex((l) => l.kind === "bp"));
+  const txt = textOf(sev);
+  assert.ok(!txt.includes("held steady"), txt);
+  assert.ok(!txt.includes("reading too much"), txt);
+  assert.match(txt, /Your blood pressure didn't drop while you were upright\./);
+  const hi = R(mk([[4, 70, 145, 92], [5, 70, 144, 92]], [[1, 90, 140, 90], [3, 92, 142, 91]], { bp: true, restPos: "left" }), { stage: "preg" });
+  assert.equal(hi.pregBp, "high");
+  const hl = hi.lines.find((l) => l.kind === "pregBp");
+  assert.equal(hl.urgency, "today"); assert.equal(hl.urgent, null);
+  assert.match(hl.text, /call your maternity team today/);
+  assert.equal(interruptFor(t, { type: "reading", pos: "rest", reading: { min: 5, hr: 70, sys: 145, dia: 92 } }, preg), null);
+  // Not pregnant: the same readings keep today's wording.
+  const std = R(t, { supineCount: 1 });
+  assert.equal(std.pregBp, null);
+  assert.ok(!std.lines.some((l) => l.kind === "pregBp"));
+  assert.match(textOf(std), /held steady/);
+  const ok = R(mk([[4, 70, 118, 76], [5, 70, 118, 76]], [[1, 90, 120, 80], [3, 92, 118, 79]], { bp: true, restPos: "left" }), { stage: "preg" });
+  assert.equal(ok.pregBp, null);
+  assert.match(textOf(ok), /rather than reading too much into them/);
+});
+
+test("c2: pregnancy: the lie-down cards say left side, not flat on her back", () => {
+  const t = mk(REST70, [[1, 120]], { restPos: "left" });
+  const preg = { preg: true };
+  const cards = [
+    interruptFor(t, { type: "feel", id: "p_vis", pos: "up" }, preg),
+    interruptFor(t, { type: "reading", pos: "up", reading: { min: 3, hr: 99 } }, preg),
+    interruptFor(t, { type: "reading", pos: "up", reading: { min: 3, hr: 175 } }, preg),
+    interruptFor({ ...t, bp: true }, { type: "reading", pos: "up", reading: { min: 3, hr: 110, sys: 78, dia: 50 } }, preg),
+  ];
+  assert.deepEqual(cards.map((c) => c.kind), ["feel", "hrFall", "hrHigh", "bpLow"]);
+  for (const c of cards) {
+    assert.match(c.copy, /left side/);
+    assert.ok(!/raise your legs/.test(c.copy), c.copy);
+    assert.equal(c.copy, SAFETY_COPY.interruptPreg[c.kind]);
+  }
+  assert.equal(interruptFor(t, { type: "feel", id: "p_vis", pos: "up" }).copy, "Lie down now and raise your legs. You can stop here.");
+  assert.equal(SAFETY_COPY.stoppedHead.preg, "Lie down on your left side");
+  assert.match(SAFETY_COPY.urgent.faintOtherwisePreg, /left side, not flat on your back/);
+});
+
+test("c: overMins lists every upright minute at or above the threshold", () => {
+  assert.deepEqual(R(mk(REST70, [[1, 85], [3, 105], [10, 104]])).overMins, [3, 10]);
+  const every = R(mk(REST70, [[1, 110], [2, 108], [3, 80], [10, 86]], { sched: "every" }));
+  assert.equal(every.hrStatus, "single_mid");
+  assert.deepEqual(every.overMins, [1, 2]);
 });
 
 /* ================= c3. faint linking ================= */

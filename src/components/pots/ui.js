@@ -20,6 +20,13 @@ export const addDays = (iso, n) => { const [y, m, d] = iso.split("-").map(Number
 /** The first sentence of a safety text (what urgentLive announces). */
 export const firstSentence = (s) => { const m = /^[\s\S]*?[.!?](?=\s|$)/.exec(s || ""); return m ? m[0] : s || ""; };
 export const SEV_WORD = { 1: "mild", 2: "moderate", 3: "strong" };
+/** Whether the record really is being saved on this device (lib/storage.js driver(), as App
+    holds it in storageDriver). null is "not probed yet" (a few ms at launch) and keeps the
+    usual copy; "memory", "unreadable" and "stale" get the truthful variants below, so no
+    POTS line says "saved on this device" while it isn't. */
+export const potsSaved = (d) => d == null || d === "indexeddb" || d === "app-sandbox";
+/** "memory" or "unreadable" (nothing is being saved) vs "stale" (saving stopped working). */
+export const potsUnsaved = (d) => (potsSaved(d) ? null : d === "stale" ? "stale" : "memory");
 
 /** Her own symptom / trigger lists (archived ones keep their names for past days). */
 export function symLabel(pots, id) {

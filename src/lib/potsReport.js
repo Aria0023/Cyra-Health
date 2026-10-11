@@ -17,14 +17,15 @@
    - Typed notes (day, episode, test, IV and medicine notes, what she typed about a tilt-table
      result, and the heart-rate range she noted for exercise) only with "Notes I typed"; her
      first name only with "Put my first name on it"; the life-stage label, "Pregnant", cycle
-     days, the cycle pattern, the check-in overlap and the stage-based visit questions only
+     days (her "On my period" and "Week before my period" tags included), the cycle pattern,
+     the check-in overlap and the stage-based visit questions only
      with "Cycle or pregnancy details". The rest position ("lying on left side") always stays: it is how the test was
      done.
    - Nothing is diagnosed: results are compared with published thresholds, in the same words
      as the stand-test result, and every string is checked against POTS_BANNED by the tests.
    File names, the PDF title and the email subject are neutral (cyra-report-{date}.pdf,
    cyra-data-{date}.csv, "Cyra report", "My health log summary…"): the condition appears only
-   inside the file. */
+   inside the files and in the summary / email body, which she sees in full before sending. */
 import { POTS_SYM, POTS_TRIG, POTS_MED_LIB, POTS_RELATED, THRESH } from "./potsConstants.js";
 import { standResult, median, fmtFluid, fmtSodium, isLockedPots, localDay, toMin } from "./pots.js";
 import { patterns, dayRows, cycleGroups, cycleLabelOn, isCycleStage, episodesByDose, medLine, REPORT_FOOT, PREG_NOTE as PREG_PATTERN_NOTE } from "./potsPatterns.js";
@@ -65,10 +66,21 @@ const MED_KIND = { rx: "Prescription", otc: "Over the counter", supp: "Supplemen
 const FAINT_WORD = { yes: "fainted", almost: "almost fainted", no: "didn't faint" };
 const MEDS_WORD = { taken: "taken", not_yet: "not yet", none: "takes none" };
 const YN = (v) => (v === true ? "yes" : v === false ? "no" : "not noted");
-const SUSTAINED_WORD = { met: "yes", single_mid: "single, later lower", single_last: "single, last reading", below: "no", insufficient: "insufficient" };
-/** The same answers in the summary's sentence. single_last isn't a "no": nothing shows
-    whether that rise lasted (design 13 #8). */
-const SUSTAINED_SENTENCE = { met: "yes", single_mid: "one reading reached it and the next was lower", single_last: "only the last reading reached it, so it isn't known whether it lasted", below: "no" };
+/** The PDF cell and CSV `sustained` field: short codes that claim nothing about how many
+    readings reached the threshold (the minutes go next to them, from standResult overMins). */
+const SUSTAINED_WORD = { met: "yes", single_mid: "no pair, last under", single_last: "no pair, last at or above", below: "no", insufficient: "insufficient" };
+const minWord = (mins) => `${mins.length === 1 ? "minute" : "minutes"} ${andList(mins.map(n1))}`;
+/** The summary's answer to "sustained {thr} or more", built from the readings like the
+    on-screen result (design 13 #8): single_last isn't a "no", since nothing shows whether that
+    rise lasted, and neither status claims fewer readings reached it than did. */
+function sustainedSentence(r) {
+  if (r.hrStatus === "met") return "yes";
+  if (r.hrStatus === "below" || !r.hrStatus.startsWith("single")) return "no";
+  const mins = r.overMins || [], last = r.hrStatus === "single_last";
+  const rule = `not on two readings in a row that show it lasted (the second at minute ${THRESH.pairMinMin} or later, within ${THRESH.pairGapMax} minutes of the first)`;
+  if (mins.length <= 1) return last ? `only the last reading (minute ${n1(mins[0] ?? r.peakMin)}) reached it, so it isn't known whether it lasted` : `one reading reached it (minute ${n1(mins[0] ?? r.peakMin)}), and the last reading was under it`;
+  return last ? `reached it at ${minWord(mins)}, but ${rule}; the last reading was one of them, so it isn't known whether it lasted` : `reached it at ${minWord(mins)}, but ${rule}; the last reading was under it`;
+}
 /** The stand-test result's pregnancy line (design 4.8.6), for the Standing tests section. */
 const PREG_NOTE = "Heart rate normally rises during pregnancy, and these thresholds come from studies of people who weren't pregnant. Share the numbers with your prenatal team rather than reading too much into them.";
 /** The report's words for the stand-test settings in POTS settings → For your report. */
@@ -172,8 +184,16 @@ export const questionIn = (q, inc) => (inc.cycle || !q.stageBased) && questionPa
     IV fluids are "Fluids and sodium"; medicine timing and supports are "Medicines and supports";
     exercise the day before is "Movement"; sleep, heat,
     triggers and hot flashes sit with "Symptoms, ratings and episodes", which every pattern
-    needs anyway because the outcome is her day rating. */
-export const factorPart = (f) => (["fluid", "sodium", "iv"].includes(f.key) ? "fluid" : f.kind === "med" || f.key.startsWith("med:") || f.key.startsWith("aid:") ? "meds" : f.key === "moved" ? "move" : "sym");
+    needs anyway because the outcome is her day rating. The "On my period" and "Week before my
+    period" tags are cycle days, so they also need "Cycle or pregnancy details". */
+export const factorPart = (f) => (f.key === "trig:t_period" || f.key === "trig:t_premens" ? "cycle" : ["fluid", "sodium", "iv"].includes(f.key) ? "fluid" : f.kind === "med" || f.key.startsWith("med:") || f.key.startsWith("aid:") ? "meds" : f.key === "moved" ? "move" : "sym");
+
+/** The two built-in trigger tags that are cycle days ("On my period", "Week before my
+    period"): in a file only with "Cycle or pregnancy details" (trigger line, CSV trigger rows,
+    episode triggers and Patterns alike). */
+const CYCLE_TRIG = new Set(["t_period", "t_premens"]);
+export const cycleTrig = (id) => CYCLE_TRIG.has(id);
+const trigOk = (inc) => (id) => inc.cycle || !cycleTrig(id);
 
 /* ---------- movement (design 6.2 section 5) ---------- */
 const AFTER_WORD = { 0: "fine", 1: "a bit worse", 2: "much worse", 3: "had to stop" };
@@ -239,7 +259,7 @@ const testBpWord = (r) => {
     case "drop": return `drop within 3 min (${sd})`;
     case "single_drop": return `one early drop (${sd})`;
     case "late_drop": return `drop after minute 3 (${sd} at min ${n1(d.min)})`;
-    case "no_drop": return "held steady";
+    case "no_drop": return r.pregBp ? "no drop" : "held steady";
     default: return r.bpMissing === "lying" ? "no lying BP" : r.bpMissing === "standing" ? "no standing BP" : r.bpMissing === "early" ? "none in first 3 min" : "not taken";
   }
 };
@@ -286,7 +306,7 @@ export function reportModel(p, opts = {}) {
     if (fin(x.rating) && ratings[x.rating] != null) ratings[x.rating]++;
     if (fin(x.up)) ups.push(x.up);
     for (const [id, v] of Object.entries(x.sym || {})) { const c = symDays.get(id) || { n: 0, strong: 0 }; c.n++; if (v >= 2) c.strong++; symDays.set(id, c); }
-    for (const id of x.trig || []) trigDays.set(id, (trigDays.get(id) || 0) + 1);
+    for (const id of (x.trig || []).filter(trigOk(inc))) trigDays.set(id, (trigDays.get(id) || 0) + 1);
     for (const e of x.eps || []) eps.push({ ...e, date: d });
     let fl = null, na = null;
     for (const it of x.intake || []) { if (fin(it.ml)) fl = (fl || 0) + it.ml; if (fin(it.naMg)) na = (na || 0) + it.naMg; }
@@ -350,7 +370,7 @@ export function reportModel(p, opts = {}) {
           [restHr.length ? `HR ${restHr.join(", ")}${r.baseHr != null ? ` (base ${n1(r.baseHr)})` : ""}` : "HR not taken", restBp.length ? `BP ${restBp.join(", ")}` : null].filter(Boolean).join("\n"),
           up.length ? up.join("\n") : "none",
           r.peakHr != null && r.hrStatus !== "insufficient" ? `${r.peakHr} (min ${n1(r.peakMin)})\n${r.peakRise > 0 ? "+" : ""}${n1(r.peakRise)}` : "—",
-          `${SUSTAINED_WORD[r.hrStatus]}${t.edited ? "\nedited" : ""}`,
+          `${SUSTAINED_WORD[r.hrStatus]}${r.hrStatus.startsWith("single") && (r.overMins || []).length ? `\nmin ${r.overMins.map(n1).join(", ")}` : ""}${t.edited ? "\nedited" : ""}`,
           t.bp ? testBpWord(r) : "BP not taken",
           [stop, t.fainted ? `Faint: ${FAINT_WORD[t.fainted] || "other"}` : null, t.pooling === "yes" ? "Legs red or purple" : null, cycleOf(t) ? `Cycle day ${cycleOf(t).day}${cycleOf(t).weekBefore ? " (week before her period)" : ""}` : null, felt.length ? `Felt: ${felt.join(", ")}` : null].filter(Boolean).join("\n"),
         ];
@@ -376,7 +396,8 @@ export function reportModel(p, opts = {}) {
     }
     // In pregnancy (and only with cycle details, so the file doesn't disclose it otherwise)
     // every result carries the pregnancy caveat of the stand-test result (design 4.8.6, A13.4).
-    if (preg && inc.cycle && shown.length) blocks.push({ t: "p", text: PREG_NOTE });
+    // With a reading of 140/90 or higher it ends at "prenatal team", as on the result.
+    if (preg && inc.cycle && shown.length) blocks.push({ t: "p", text: shown.some((t) => results.get(t.id).pregBp) ? PREG_NOTE.replace(" rather than reading too much into them", "") : PREG_NOTE });
     blocks.push({ t: "p", text: "Reference: a sustained rise of ≥30 bpm (≥40 at ages 12–19) within 10 min of standing, without orthostatic hypotension, is the heart-rate criterion in the 2015 HRS consensus statement. OH: drop ≥20 systolic or ≥10 diastolic within 3 min (Freeman 2011).", small: true });
     if (teen) blocks.push({ t: "p", text: "She uses the 40-beat threshold for ages 12–19 in Cyra.", small: true });
     const vit = days.flatMap((d) => (dayOf(d).vit || []).map((v) => ({ ...v, date: d })));
@@ -570,12 +591,12 @@ export function reportModel(p, opts = {}) {
   /* The summary (6.4): first person, no notes, no wearables. */
   const allDone = (p.tests || []).filter((t) => t.status !== "running");
   const latestT = allDone.length ? allDone[allDone.length - 1] : null;
-  const latestR = latestT ? standResult(latestT, { teen }) : null;
+  const latestR = latestT ? standResult(latestT, { teen, stage }) : null;
   const in90 = allDone.filter((t) => t.date >= addDays(today, -89) && t.date <= today).length;
   const sessions30 = allSessions(p).filter((x) => x.date >= addDays(today, -29) && x.date <= today).length;
   const summary = {
     rated: inc.sym ? `Days rated: ${rated} of ${range.n} (good ${ratings[1]}, okay ${ratings[2]}, rough ${ratings[3]}, bad ${ratings[4]})` : null,
-    test: inc.tests && latestT ? `Latest standing test: ${fmtDayY(latestT.date)}, ${methodWord(latestT.method).toLowerCase()}. ${latestR.baseHr != null ? `Lying heart rate ${n1(latestR.baseHr)}` : "No lying heart rate"}${latestR.hrStatus === "insufficient" ? ", not enough readings for a rise" : preg && inc.cycle ? `, largest rise ${n1(latestR.peakRise)} (outside pregnancy, clinicians use ${thr}${latestR.hrStatus.startsWith("single") ? `; ${SUSTAINED_SENTENCE[latestR.hrStatus]}` : ""})` : `, largest rise ${n1(latestR.peakRise)}, sustained ${thr} or more: ${SUSTAINED_SENTENCE[latestR.hrStatus]}`}. Blood pressure: ${latestT.bp ? testBpWord(latestR) : "not taken"}.${preg && inc.cycle ? " I'm pregnant, and heart rate normally rises during pregnancy; these thresholds come from studies of people who weren't pregnant." : ""}` : null,
+    test: inc.tests && latestT ? `Latest standing test: ${fmtDayY(latestT.date)}, ${methodWord(latestT.method).toLowerCase()}. ${latestR.baseHr != null ? `Lying heart rate ${n1(latestR.baseHr)}` : "No lying heart rate"}${latestR.hrStatus === "insufficient" ? ", not enough readings for a rise" : preg && inc.cycle ? `, largest rise ${n1(latestR.peakRise)} (outside pregnancy, clinicians use ${thr}${latestR.hrStatus.startsWith("single") ? `; ${sustainedSentence(latestR)}` : ""})` : `, largest rise ${n1(latestR.peakRise)}, sustained ${thr} or more: ${sustainedSentence(latestR)}`}. Blood pressure: ${latestT.bp ? testBpWord(latestR) : "not taken"}.${preg && inc.cycle ? " I'm pregnant, and heart rate normally rises during pregnancy; these thresholds come from studies of people who weren't pregnant." : ""}` : null,
     tests90: inc.tests ? `Standing tests in the last 90 days: ${in90}` : null,
     sym: inc.sym && symRows.length ? `Most frequent POTS symptoms: ${symRows.slice(0, 3).map((x) => `${x.label} (${plural(x.n, "day")})`).join(", ")}` : null,
     faint: inc.sym ? `Fainted: ${nFaint} · Almost fainted: ${nAlmost}` : null,
@@ -638,7 +659,7 @@ export function toCSV(model) {
       if (fin(x.up)) R("day_upright", d, "", "upright", x.up, "scale", "", "", "", "");
       for (const [id, v] of Object.entries(x.sym || {})) R("symptom_day", d, "", symName(p, id), v, "severity", "", "", v, known(p, id, "sym") ? "" : id);
       if (inc.cycle) for (const o of overlap.filter((o) => o.date === d)) R("checkin_overlap", d, "", o.label, o.sev, "severity", "", "", o.sev, "from cycle/pregnancy check-in");
-      for (const id of x.trig || []) R("trigger", d, "", trigName(p, id), 1, "", "", "", "", known(p, id, "trig") ? "" : id);
+      for (const id of (x.trig || []).filter(trigOk(inc))) R("trigger", d, "", trigName(p, id), 1, "", "", "", "", known(p, id, "trig") ? "" : id);
     }
     if (inc.fluid) {
       for (const it of [...(x.intake || [])].sort((a, b) => (a.t < b.t ? -1 : a.t > b.t ? 1 : 0))) {
@@ -656,7 +677,7 @@ export function toCSV(model) {
       for (const e of [...(x.eps || [])].sort((a, b) => (a.t < b.t ? -1 : 1))) {
         const src = e.src ? `${SRC_CSV[linkSource(p, e)]} ${e.src}` : null;
         R("episode", d, e.t, e.sym.map((id) => symName(p, id)).join("; ") || (e.faint ? "Faint" : "Episode"), fin(e.mins) ? e.mins : "", "min", e.pos ? POS_WORD[e.pos] || e.pos : "", "", fin(e.sev) ? e.sev : "",
-          kv([["faint", e.faint], ["injured", e.injured ? "yes" : "no"], ["triggers", (e.trig || []).map((id) => trigName(p, id)).join(", ")], ["helped", (e.helped || []).map((h) => HELPED_WORD[h] || "Other").join(", ")], ["source", src], ["note", note(e.note)]]));
+          kv([["faint", e.faint], ["injured", e.injured ? "yes" : "no"], ["triggers", (e.trig || []).filter(trigOk(inc)).map((id) => trigName(p, id)).join(", ")], ["helped", (e.helped || []).map((h) => HELPED_WORD[h] || "Other").join(", ")], ["source", src], ["note", note(e.note)]]));
       }
       if (inc.notes && x.note) R("note", d, "", "day_note", "", "", "", "", "", x.note);
     }
@@ -671,7 +692,7 @@ export function toCSV(model) {
         const r = results.get(t.id), c = t.ctx || {};
         const felt = [...new Set([...(t.feel || []), ...(t.up || []).flatMap((u) => u.feel || [])])].map((id) => symName(p, id)).join(", ");
         R("stand_summary", d, t.t, "max_rise", r.hrStatus !== "insufficient" && fin(r.peakRise) ? Math.round(r.peakRise * 10) / 10 : "", "bpm", "", "", "",
-          kv([["test_id", t.id], ["method", t.method], ["rest", `${t.restPos === "left" ? "left side" : "back"} ${t.restMin} min`], ["device", t.device], ["lying_hr", r.baseHr != null ? Math.round(r.baseHr * 10) / 10 : null], ["peak_hr", r.hrStatus !== "insufficient" ? r.peakHr : null], ["peak_min", r.hrStatus !== "insufficient" ? r.peakMin : null], ["threshold", r.thr], ["sustained", SUSTAINED_WORD[r.hrStatus]], ["bp_finding", t.bp ? testBpWord(r) : "not taken"], ["status", t.status], ["stopped_at", t.status === "stopped" ? t.stoppedAt : null], ["why", t.why], ["fainted", t.fainted], ["meds", c.meds], ["rate_med", c.rateMed], ["compression", c.comp == null ? null : c.comp ? "yes" : "no"], ["ate_2h", c.ate2h == null ? null : c.ate2h ? "yes" : "no"], ["fluid_before_ml", c.mlBefore], ["cycle_day", cycleDays.get(t.id)?.day], ["week_before_period", cycleDays.get(t.id)?.weekBefore ? "yes" : null], ["pooling", t.pooling], ["felt", felt], ["edited", t.edited ? "yes" : null], ["threshold_note", model.preg && inc.cycle ? "from studies outside pregnancy" : null], ["note", note(t.note)]]));
+          kv([["test_id", t.id], ["method", t.method], ["rest", `${t.restPos === "left" ? "left side" : "back"} ${t.restMin} min`], ["device", t.device], ["lying_hr", r.baseHr != null ? Math.round(r.baseHr * 10) / 10 : null], ["peak_hr", r.hrStatus !== "insufficient" ? r.peakHr : null], ["peak_min", r.hrStatus !== "insufficient" ? r.peakMin : null], ["threshold", r.thr], ["sustained", SUSTAINED_WORD[r.hrStatus]], ["over_threshold_min", r.hrStatus.startsWith("single") ? (r.overMins || []).map(n1).join("|") : null], ["bp_finding", t.bp ? testBpWord(r) : "not taken"], ["status", t.status], ["stopped_at", t.status === "stopped" ? t.stoppedAt : null], ["why", t.why], ["fainted", t.fainted], ["meds", c.meds], ["rate_med", c.rateMed], ["compression", c.comp == null ? null : c.comp ? "yes" : "no"], ["ate_2h", c.ate2h == null ? null : c.ate2h ? "yes" : "no"], ["fluid_before_ml", c.mlBefore], ["cycle_day", cycleDays.get(t.id)?.day], ["week_before_period", cycleDays.get(t.id)?.weekBefore ? "yes" : null], ["pooling", t.pooling], ["felt", felt], ["edited", t.edited ? "yes" : null], ["threshold_note", model.preg && inc.cycle ? "from studies outside pregnancy" : null], ["note", note(t.note)]]));
         const lyingPos = t.restPos === "left" ? "left" : "lying";
         for (const rd of [...(t.rest || [])].sort((a, b) => a.min - b.min)) {
           const det = kv([["test_id", t.id], ["method", t.method], ["phase", "rest"], ["counted", rd.how === "counted" ? "yes" : null], ["edited", t.edited ? "yes" : null]]);
@@ -716,14 +737,16 @@ export function summaryText(model) {
     ...(model.who ? ["", model.who] : []),
   ].join("\n");
 }
-/** The email draft: a neutral subject (a mail preview never names a condition) and the summary. */
+/** The email draft: a neutral subject (so a mail list or notification shows no condition in
+    the subject line) and the summary, which names POTS in its body (design 6.4); she sees the
+    whole body in the Summary preview before she sends it. */
 export function emailParts(model) {
   return { subject: `My health log summary ahead of my appointment${model && model.who ? ` — ${model.who}` : ""}`, body: summaryText(model) };
 }
 
 /* Characters the PDF (WinAnsi, lib/pdf.js winAnsi) can show: printable ASCII, Latin-1, the 27
    WinAnsi extras, the symbols it writes as text (≥ -> ">=" and so on) and spaces. Kept here,
-   not imported from lib/pdf.js, so that writer stays in its own lazily loaded chunk. */
+   so this module needs nothing from lib/pdf.js. */
 const PDF_OK = /^[\x20-\x7e\xa0-\xff\u20ac\u201a\u0192\u201e\u2026\u2020\u2021\u02c6\u2030\u0160\u2039\u0152\u017d\u2018\u2019\u201c\u201d\u2022\u2013\u2014\u02dc\u2122\u0161\u203a\u0153\u017e\u0178≥≤→←≈✓✔×−‑‐\t\n\r\f\v\u2000-\u200a\u202f\u205f\u3000]*$/;
 /** True when the PDF can't show some of `str` exactly (it would print "?" or leave an emoji
     out): the Report section then says so. */
@@ -819,8 +842,8 @@ function drawWeeks(doc, x, y, w, h, b) {
   doc.text(R, T - 6, "count of sessions · (w, c) next day worse, crashed", { size: 6, align: "right", rgb: SOFT });
 }
 
-/** The PDF for `model`, drawn with `PdfDoc` (lib/pdf.js, passed in so that module stays in
-    its own lazily loaded chunk). -> Uint8Array. */
+/** The PDF for `model`, drawn with `PdfDoc` (lib/pdf.js, passed in by the caller, so this
+    module stays independent of the writer). -> Uint8Array. */
 export function reportPdf(model, PdfDoc) {
   const doc = new PdfDoc({ paper: model.paper });
   doc.page();

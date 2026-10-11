@@ -328,6 +328,25 @@ export function factorList(p, rows, ctx = {}, { you = true, wear = true } = {}) 
 /* ---------- cards ---------- */
 const ADVICE_SELF = "Worth testing on purpose for a week, and mentioning at your next visit.";
 const ADVICE_MED = "Bring this to your clinician. It's your log, not proof a medicine works or doesn't, because lots changes from day to day. Don't change how you take anything without them.";
+/** Advice by factor: "test on purpose" only for things she can safely vary herself (sleep,
+    heat, her trigger tags, compression and other supports). IV fluids are a clinic's
+    treatment; fluids and salt change only with a clinician's OK (GUIDE_COPY); exercise
+    follows her plan; her period, the week before it, hot flashes and watch or ring readings
+    can't be varied on purpose. -> { urgency, advice } */
+const ADVICE_NOTE = "Worth mentioning at your next visit.";
+const ADVICE_BY = {
+  iv: ["visit", "Bring this to your clinician. IV fluids are their decision, so don't change when you have them on your own."],
+  fluid: ["self", "Worth mentioning at your next visit. Change how much you drink only with your clinician's OK."],
+  sodium: ["self", "Worth mentioning at your next visit. Change how much salt you have only with your clinician's OK."],
+  moved: ["self", "Worth mentioning at your next visit, or to whoever guides your exercise. Don't stop or step up your plan because of this alone."],
+  "trig:t_period": ["self", ADVICE_NOTE], "trig:t_premens": ["self", ADVICE_NOTE], hf: ["self", ADVICE_NOTE],
+};
+export function adviceFor(f) {
+  if (f.kind === "med") return { urgency: "visit", advice: ADVICE_MED };
+  if (f.kind === "wear") return { urgency: "self", advice: ADVICE_NOTE };
+  const a = ADVICE_BY[f.key];
+  return a ? { urgency: a[0], advice: a[1] } : { urgency: "self", advice: ADVICE_SELF };
+}
 export const PATTERN_FOOT = "Cyra checks about a dozen things, so some differences will be chance. Treat these as hunches to test with your clinician, not answers.";
 export const SYMPTOM_FOOT = "You're looking at one symptom, so treat any difference here as a hunch too.";
 export const REPORT_FOOT = "Several factors were checked; some differences may be chance.";
@@ -354,7 +373,7 @@ function rank(factors, results, prevResults, outcomeLabel) {
     if (x.f.kind === "wear") wearN++;
     const w = cardWords(x.res, x.f.phrases, outcomeLabel);
     cards.push({ key: x.f.key, kind: x.f.kind, name: x.f.name, num: w.num, text: w.text, parts: w.parts, repeated: x.repeated,
-      urgency: x.f.kind === "med" ? "visit" : "self", advice: x.f.kind === "med" ? ADVICE_MED : ADVICE_SELF, src: x.f.src || null, res: x.res });
+      ...adviceFor(x.f), src: x.f.src || null, res: x.res });
   }
   const checked = [];
   for (const x of items) {

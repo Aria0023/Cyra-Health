@@ -48,7 +48,7 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
       {stage && (
         <>
           <p className="section-lab" style={{ margin: "14px 0 8px" }}>Add-ons</p>
-          <PotsAddon pots={pots} stageName={stageName} onOn={onPotsOn} onOff={onPotsOff} />
+          <PotsAddon pots={pots} stageName={stageName} onOn={onPotsOn} onOff={onPotsOff} storageDriver={storageDriver} />
         </>
       )}
       <p className="section-lab" style={{ margin: "14px 0 8px" }}>Reminders</p>

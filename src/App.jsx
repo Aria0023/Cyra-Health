@@ -1473,9 +1473,9 @@ export default function CyraDemo() {
   const potsConditions = Array.isArray(regAnswers?.conditions) ? regAnswers.conditions : [];
   const POTS_SHOWS = ["test", "fluid", "sym", "meds", "move"];
   const potsView = (
-    <PotsScreen pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"}
+    <PotsScreen pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"} storageDriver={storageDriver}
       sections={potsOk ? {
-        today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => setPotsSec("stand")} />,
+        today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => setPotsSec("stand")} storageDriver={storageDriver} />,
         report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={acct.anon ? "" : (acct.name || "").trim()} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} />,
         patterns: <PotsPatterns pots={pots} stage={stage} stageName={stageName} todayIso={todayIso} starts={ins.starts} checkin={potsCheckin} wearData={wearData} connected={potsWearConnected} />,
         stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focusKey={potsStandFocus} cyc={potsCyc}

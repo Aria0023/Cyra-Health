@@ -4,11 +4,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { freshEmpty, cleanPots } from "./pots.js";
+import { freshEmpty, cleanPots, turnOn, setIv, setRating } from "./pots.js";
 import {
   dayRows, compareFactor, factorList, goodVsRough, cycleGroups, cycleGroupOn, cycleDayOn, cycleLabelOn, medBeforeAfter,
   episodesByDose, todayPace, weekSummary, patterns, testGroups, windowRange, sinceOffered, addDays, cardWords, isCycleStage,
-  GVR_WAIT, CYCLE_WAIT, PACE_WAIT, PATTERN_FOOT, SYMPTOM_FOOT, REPORT_FOOT,
+  GVR_WAIT, CYCLE_WAIT, PACE_WAIT, PATTERN_FOOT, SYMPTOM_FOOT, REPORT_FOOT, adviceFor,
 } from "./potsPatterns.js";
 import { reportModel, toCSV, modelTexts, visitQuestions, questionIn, factorPart } from "./potsReport.js";
 import { POTS_BANNED, THRESH } from "./potsConstants.js";
@@ -285,6 +285,27 @@ test("f: 'Seen last month too' when the 30 days before pass the gates in the sam
   assert.equal(short.cards.find((c) => c.key === "fluid").repeated, false, "nothing logged the month before");
   assert.ok(pat.cards.length <= THRESH.pat.cards);
   assert.equal(pat.footer, PATTERN_FOOT);
+});
+test("f: card advice: 'test on purpose' only for what she can safely vary herself", () => {
+  // IV fluids every third day, good days after them and rough days otherwise.
+  let p = turnOn(freshEmpty(), { day: "2026-09-11" });
+  for (let i = 0; i < 30; i++) {
+    const d = addDays(TODAY, -i);
+    if (i % 3 === 1) p = setIv(p, d, { ml: 1000 });
+    p = setRating(p, d, (i + 1) % 3 === 1 ? 1 : 3);
+  }
+  const iv = patterns(p, { window: "30", today: TODAY, stage: "periods" }).cards.find((c) => c.key === "iv");
+  assert.ok(iv, "the IV card shows");
+  assert.equal(iv.urgency, "visit");
+  assert.match(iv.advice, /don't change when you have them on your own/);
+  const SELF = /testing on purpose/;
+  for (const key of ["iv", "fluid", "sodium", "moved", "trig:t_period", "trig:t_premens", "hf"]) assert.ok(!SELF.test(adviceFor({ kind: "plain", key }).advice), key);
+  assert.ok(!SELF.test(adviceFor({ kind: "wear", key: "wear:rhr" }).advice));
+  assert.match(adviceFor({ kind: "plain", key: "sodium" }).advice, /only with your clinician's OK/);
+  assert.equal(adviceFor({ kind: "plain", key: "trig:t_period" }).advice, "Worth mentioning at your next visit.");
+  for (const key of ["sleep", "heat", "trig:t_shower", "aid:m1"]) assert.match(adviceFor({ kind: "plain", key }).advice, SELF, key);
+  assert.equal(adviceFor({ kind: "med", key: "med:m1" }).urgency, "visit");
+  for (const key of ["iv", "fluid", "sodium", "moved", "hf", "sleep"]) assert.ok(!POTS_BANNED.test(adviceFor({ kind: "plain", key }).advice), key);
 });
 test("f: watch and ring provenance: HRV only with one connected source, over its rows; RHR over the dominant source", () => {
   const p = rich({ days: 40 });
