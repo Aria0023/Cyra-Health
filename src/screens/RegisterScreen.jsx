@@ -15,7 +15,9 @@ import Details, { WebReminderFacts } from "../components/Details.jsx";
    Apple/Google/Facebook prefill, the name and email the provider sends, which the server
    holds in memory under a one-time code until the device collects them, or 5 minutes at
    most. Answers also leave inside an encrypted backup the user saves (minus the ZIP and
-   the age band). Required: an age band, a stage, cycle length and regularity, at least one
+   the age band). No registration answer goes into a POTS report or spreadsheet
+   (lib/potsReport.js reads POTS data and app state only; tested). The first name is added
+   only if she ticks it. Required: an age band, a stage, cycle length and regularity, at least one
    goal, and the consent box. Everything else can be skipped. */
 const RSTEPS = [
   { key: "account", title: "Set up Cyra on this device", sub: "There's no Cyra account. Your name, email and answers are saved on this device. Lose the device or clear the browser and you lose them, unless you saved an encrypted backup, which keeps most of them." },
@@ -212,14 +214,14 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
               <li>Your health log is stored on this device, and your patterns are worked out here.</li>
               <li>Nothing about your health leaves this device unless you turn on a feature that sends it, or take it out yourself.</li>
               <li>Never sold. Care partners get nothing from Cyra about you.</li>
-              <li>Doctor sharing happens only when you press send.</li>
+              <li>Doctor sharing happens only when you send it or save a file yourself.</li>
               <li>Delete everything from Settings, anytime. It also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop.</li>
               <li>A backup is a file you keep, locked with a passphrase only you know. Cyra never receives the file or the passphrase, so we can't read it or recover a lost passphrase.</li>
             </ul>
             <Details label="The details">
               <ul>
                 <li>Features that send something: weekly counts, Cyra's AI and wearable syncs. Each one tells you what it sends before you turn it on.</li>
-                <li>Taking it out yourself means a doctor summary you open in email or copy, or a backup file you save, which stays locked with your passphrase.</li>
+                <li>Taking it out yourself means a doctor summary you open in email or copy, a POTS report or spreadsheet you save or share, which isn't locked, or a backup file you save, which stays locked with your passphrase.</li>
                 <li>If Delete everything can't confirm that reminders are off and Oura and Fitbit/Garmin/Whoop are disconnected, Cyra tells you what did and didn't happen, and keeps your record on this device until you choose.</li>
                 <li>Deleting can't pull back what already left: anonymous counts you shared stay counted, questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy.</li>
               </ul>

@@ -23,7 +23,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
      time and time zone (plus the last day a reminder went out, so there is never a
      second one) (lib/notifications.js); phone reminders are scheduled on the phone;
    - only when she starts it: the encrypted backup file (lib/backup.js), the
-     doctor-summary email draft (mailto) and the copied summary text (ReportScreen).
+     doctor-summary email draft (mailto) and the copied summary text (ReportScreen);
+   - user-started file exports (POTS report PDF/CSV, lib/files.js): a web download, or the
+     phone share sheet via a plaintext file in the app cache that is deleted after sharing and
+     swept at launch and wipe. No network. The POTS summary email draft and copied summary
+     text work like the doctor summary (components/pots/PotsReport.jsx).
    Backend requests use ./lib/api.js (fetch), except the sign-in, Oura and Terra
    connection windows. These are browser navigations to `${API_BASE}/api/oauth/:id/start`,
    `${API_BASE}/api/integrations/oura/start` and the Terra widget URL that
@@ -102,6 +106,7 @@ import PotsHome, { PotsOffer } from "./components/pots/PotsHome.jsx";
 import GoalSheet from "./components/pots/GoalSheet.jsx";
 import { MedSetup } from "./components/pots/MedEditor.jsx";
 import { StandRunner, StandSection } from "./components/pots/StandTest.jsx";
+import PotsReport from "./components/pots/PotsReport.jsx";
 
 export default function CyraDemo() {
   const [orgId, setOrgId] = useState("cyra");
@@ -371,6 +376,10 @@ export default function CyraDemo() {
   // A record replaced mid-test by one this build can't read (another tab restored it) ends the run.
   useEffect(() => { if (potsRun && !potsOk) setPotsRun(null); }, [potsRun, potsOk]);
   const potsTotals = useMemo(() => dayTotals(pots, todayIso), [pots, todayIso]);
+  // POTS → Report reads the day's check-in only for the "also in check-in" lines, and only
+  // while "Cycle or pregnancy details" is ticked (lib/potsReport.js). It never gets
+  // registration answers or wearable readings.
+  const potsCheckin = useMemo(() => (iso) => entryOn(iso), [stage, days, pregLog]); // eslint-disable-line
   const potsOffer = potsOk && !pots.on && !pots.since && !pots.offered && Array.isArray(regAnswers?.conditions) && regAnswers.conditions.includes("POTS or dysautonomia");
   const openPots = (simple = false) => { if (simple) setPots((p) => setPotsSettings(p, { simple: true })); setPotsSec("today"); setPotsDate(null); goTab("pots"); };
   const openStandTest = () => { setPotsSec("stand"); goTab("pots"); };
@@ -734,7 +743,8 @@ export default function CyraDemo() {
     // is deterministic. The resulting stage reaches Cyra's server only inside the opt-in
     // weekly counts (lib/pulse.js); the counts read itself sends no stage. Otherwise it
     // leaves the device only when she moves it herself: inside an encrypted backup she
-    // exports, and implied by the doctor-email text she chooses to send.
+    // exports, and implied by the doctor-email text she chooses to send, or in a POTS report
+    // or spreadsheet she exports, only when she leaves 'Cycle or pregnancy details' ticked.
     const route = rulesRoute(ob);
     chooseStage(route.stage); setStageName(route.label); setWelcome(route.welcome);
     setDraft({}); setAppTab("home"); setPregTab("home"); setObBusy(false);
@@ -909,13 +919,14 @@ export default function CyraDemo() {
     return () => { document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("pagehide", flushSave); sub?.then((h) => h.remove()).catch(() => {}); };
   }, []); // eslint-disable-line
 
-  /* Phone: a backup copy an interrupted share left in the app's cache (app closed or killed
-     while the share sheet was open). Run at every launch, before and whether or not the
-     record loads (no share can be under way in a freshly started app), and by Delete
-     everything and Start over once they reach this device's clean-up. */
+  /* Phone: a backup copy, POTS report or POTS spreadsheet an interrupted share left in the
+     app's cache (app closed or killed while the share sheet was open). Run at every launch,
+     before and whether or not the record loads (no share can be under way in a freshly
+     started app), and by Delete everything and Start over once they reach this device's
+     clean-up. Only Cyra's own export names match; nothing else in the cache is touched. */
   const sweepBackupCache = async () => {
     const { files = [] } = await Filesystem.readdir({ path: "", directory: Directory.Cache });
-    for (const f of files) { const n = typeof f === "string" ? f : f?.name; if (/^cyra-backup-.*\.cyra\.json$/.test(n || "")) await Filesystem.deleteFile({ path: n, directory: Directory.Cache }).catch(() => {}); }
+    for (const f of files) { const n = typeof f === "string" ? f : f?.name; if (/^cyra-(backup-.*\.cyra\.json|(report|data)-\d{4}-\d{2}-\d{2}\.(pdf|csv))$/.test(n || "")) await Filesystem.deleteFile({ path: n, directory: Directory.Cache }).catch(() => {}); }
   };
   const exportBackup = async (passphrase) => {
     // The backup carries the record, minus what belongs to this device only: the ZIP and the
@@ -1358,7 +1369,8 @@ export default function CyraDemo() {
     // each flag at most once a week, never on the day it was logged). They are also in any
     // encrypted backup she exports (the ZIP and the age band are left out of it), and her
     // first name is in the doctor-email subject when she uses Open in email or Copy email
-    // (Report).
+    // (Report). A POTS report or spreadsheet uses no registration answer; her first name goes
+    // on it only if she ticks "Put my first name on it" (lib/potsReport.js).
     setWelcome(`Welcome${name ? `, ${name}` : ""} — your ${slabel} space is ready.`);
     setPhase("app");
   };
@@ -1435,6 +1447,7 @@ export default function CyraDemo() {
     <PotsScreen pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"}
       sections={potsOk ? {
         today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => setPotsSec("stand")} />,
+        report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={acct.anon ? "" : (acct.name || "").trim()} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} />,
         stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focusKey={potsStandFocus}
           onStart={() => setPotsRun({ kind: "test", id: null, phase: "safety", phaseStart: Date.now(), standAt: null, done: [], interrupt: null })} />,
       } : {}}
@@ -1515,7 +1528,7 @@ export default function CyraDemo() {
               <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />
             )}
             {appTab === "patterns" && <PatternsScreen ins={ins} symIds={symIds} ramp={ramp} scoreColor={scoreColor} stage={stage} medEffects={medEffects} />}
-            {appTab === "report" && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} />}
+            {appTab === "report" && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} />}
             {appTab === "pots" && potsTab && potsView}
             {appTab === "shelf" && <CareScreen shelfItems={shelfItems} />}
             {appTab === "ask" && askView}

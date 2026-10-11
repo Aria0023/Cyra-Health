@@ -108,6 +108,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
       <Details label="What can leave this device">
         <p>Features you turn on (reminders in a browser, weekly counts, Cyra's AI, Oura, Fitbit/Garmin/Whoop) each say, before you turn them on, what they send and where.</p>
         <p>Restoring a backup brings back its wearable connections on this device.</p>
+        <p>Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase and never include watch or ring readings.</p>
       </Details>
       <div className="mcrow">
         <button className={`mc ${mode === "export" ? "on" : ""}`} onClick={() => switchTo("export")}>Encrypted backup</button>
@@ -134,12 +135,13 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
       {mode === "import" && <RestoreForm onImport={onImport} onDone={() => setMode(null)} compact />}
       {mode === "wipe" && !blocked && (
         <div className="plaincard" style={{ marginTop: 10 }}>
-          <p className="plain"><b>Delete everything on this device?</b> Every check-in, note, appointment and setting goes for good. This also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop. Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.</p>
+          <p className="plain"><b>Delete everything on this device?</b> Every check-in, POTS log, note, appointment and setting goes for good. This also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop. Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.</p>
           <Details label="More about deleting">
             <ul>
               <li>If Cyra's server, Oura or Fitbit/Garmin/Whoop can't confirm that, Cyra tells you what did and didn't end and keeps your record on this device until you choose.</li>
               <li>Anonymous counts you already shared stay counted. Questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy.</li>
               {isNative() && <li>Apple Health or Health Connect access stays on until you turn it off in your phone's settings.</li>}
+              <li>Report files you already saved or shared aren't on this device's record. Delete them wherever you put them.</li>
               {keepsWeekNote && <li>So this device isn't counted twice, Cyra keeps only this week's date here (nothing else, nothing about your health) and deletes it the first time Cyra opens after this week ends.</li>}
             </ul>
           </Details>

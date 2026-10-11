@@ -24,7 +24,7 @@ import UrgentCard from "../components/pots/UrgentCard.jsx";
      which opens `settings({ headRef, onBack })` in place of the section. */
 const SECTIONS = [["today", "Today"], ["stand", "Stand test"], ["move", "Move"], ["patterns", "Patterns"], ["report", "Report"]];
 const SHOW_CHOICES = [["test", "Stand test"], ["fluid", "Fluids & salt"], ["sym", "Symptoms"], ["meds", "Meds & supports"], ["move", "Movement"]];
-const HINT = "Kept on this device. Never part of weekly counts. Cyra can't diagnose POTS; only a clinician can, and good notes make that visit faster.";
+const HINT = "Kept on this device and ready for your clinician. Never part of weekly counts. Cyra can't diagnose POTS; only a clinician can, and good notes make that visit faster.";
 
 /* Card 1: what Today shows. Choices stay on this card until Next saves them; Skip keeps what
    was there. */

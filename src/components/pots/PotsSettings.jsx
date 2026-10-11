@@ -7,12 +7,26 @@ import MedEditor from "./MedEditor.jsx";
 import { symOrder } from "./PotsSymptoms.jsx";
 import { symLabel, amountText, naText, numOf, numProps, isOz, toMl, mlIn } from "./ui.js";
 import { Choice, METHODS, methodDefaults } from "./StandSafety.jsx";
+import { STATUS_OPTS, ONSET_OPTS, COND_OPTS } from "../../lib/potsReport.js";
+
+/* "For your report" (design 4.12): what she tells Cyra for the report's context line. Only
+   the report reads it; it never comes from her registration answers. */
+function Multi({ id, label, value, options, onPick }) {
+  return (
+    <>
+      <p className="lab" id={id}>{label}</p>
+      <div className="mcrow" role="group" aria-labelledby={id} style={{ flexWrap: "wrap" }}>
+        {options.map(([v, l]) => { const on = value.includes(v); return <button type="button" key={v} className={`mc ${on ? "on" : ""}`} aria-pressed={on} onClick={() => onPick(on ? value.filter((x) => x !== v) : [...value, v])}>{l}</button>; })}
+      </div>
+    </>
+  );
+}
 
 /* POTS settings (design 4.12): the "POTS settings" link at the bottom of the POTS tab. This
    version has what the daily loop and the stand test use: Simple view, units, which Today cards
    show, the stand-test defaults with the sound / vibration cue and the teen threshold, goals,
    drink and salt buttons, her symptoms and triggers, medicines and supports, her plan with the
-   standing-test rhythm, and Delete POTS log. Her own symptoms and triggers are archived on "Remove" (past days keep
+   standing-test rhythm, what she tells Cyra for her report and its paper size, and Delete POTS log. Her own symptoms and triggers are archived on "Remove" (past days keep
    their names); only Delete POTS log clears them. */
 export const REMINDERS_LINE = "Cyra doesn't send medicine or drink reminders. The only reminder Cyra can send is your check-in reminder, if you turned it on. If reminders help you, your phone's clock app can set them.";
 export const SHOW_CHOICES = [["test", "Stand test"], ["fluid", "Fluids & salt"], ["sym", "Symptoms"], ["meds", "Meds & supports"], ["move", "Movement"]];
@@ -263,6 +277,20 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
         <p>Sources: Heart Rhythm Society 2015; Canadian Cardiovascular Society 2020.</p>
       </Details>
       <p className="rfoot" style={{ marginTop: 4 }}>{REMINDERS_LINE}</p>
+
+      <Head id="pots-set-report">For your report</Head>
+      <p className="hint" style={{ marginBottom: 6 }}>Used only in the report you make on the Report section. All optional.</p>
+      <Choice id="pots-set-status" label="Where are you with POTS?" value={s.context.status} options={STATUS_OPTS} onPick={(v) => set({ context: { status: s.context.status === v ? null : v } })} />
+      <label className="lab" htmlFor="pots-set-onset">When did it start?</label>
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+        <input id="pots-set-onset" className="inp" type="month" aria-label="When it started (month and year)" max={today.slice(0, 7)} value={s.context.onset.ym || ""}
+          onChange={(e) => { const v = e.target.value; if (!v || /^\d{4}-(0[1-9]|1[0-2])$/.test(v)) set({ context: { onset: { ...s.context.onset, ym: v || null } } }); }} />
+        {s.context.onset.ym && <button type="button" className="sbtn" aria-label="Clear when it started" onClick={() => { set({ context: { onset: { ...s.context.onset, ym: null } } }); setFocusTo(["pots-set-onset", "pots-set-report"]); }}>Clear</button>}
+      </div>
+      <Multi id="pots-set-after" label="Did anything come just before?" value={s.context.onset.after} options={ONSET_OPTS} onPick={(v) => set({ context: { onset: { ...s.context.onset, after: v } } })} />
+      <Multi id="pots-set-cond" label="Other conditions for your report" value={s.context.conditions} options={COND_OPTS} onPick={(v) => set({ context: { conditions: v } })} />
+      <Choice id="pots-set-paper" label="Paper size" value={s.paper === "letter" || s.paper === "a4" ? s.paper : null} options={[["letter", "Letter"], ["a4", "A4"]]} onPick={(v) => set({ paper: s.paper === v ? null : v })}
+        hint={s.paper === "letter" || s.paper === "a4" ? null : "Not chosen: Letter if your device is set to US or Canadian English, A4 otherwise."} />
 
       <Head id="pots-set-del">Delete POTS log</Head>
       {!ask && <button type="button" id="pots-set-delbtn" className="ghostbtn" style={{ marginTop: 0 }} onClick={() => setAsk(true)}>Delete POTS log</button>}

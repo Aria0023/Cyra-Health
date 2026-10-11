@@ -319,7 +319,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
               {d.up != null && <button type="button" className="linkbtn" onClick={() => setPots((p) => setUp(p, day, null))}>Clear</button>}
             </div>
             {/* 5. Overlap with the check-in (read only) */}
-            {overlap.length > 0 && <p className="rfoot" style={{ margin: "0 0 12px" }}>{`Already in ${isToday ? "today's" : "that day's"} check-in: ${overlap.join(", ")}. No need to log it twice.`}</p>}
+            {overlap.length > 0 && <p className="rfoot" style={{ margin: "0 0 12px" }}>{`Already in ${isToday ? "today's" : "that day's"} check-in: ${overlap.join(", ")}. No need to log it twice${s.reportCycle !== false ? "; your POTS report shows both" : ""}.`}</p>}
             {/* 6. Today's plan */}
             <PlanToday pots={pots} day={day} isToday={isToday} units={units} setPots={setPots} onDose={logSlot} />
             {/* 7. Fluids and sodium */}
@@ -348,8 +348,9 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
             {sleepFromCheckin && <p className="hint" style={{ margin: "0 0 14px" }}>{isToday ? "From today's check-in. Tap to change." : "From that day's check-in. Tap to change."}</p>}
             {/* 14. Note for your clinician */}
             <label className="lab" htmlFor="pots-note">Note for your clinician</label>
-            <textarea id="pots-note" key={`${day}:${d.note || ""}`} className="inp" rows={3} maxLength={500} aria-label="Note for your clinician" defaultValue={d.note || ""}
+            <textarea id="pots-note" key={`${day}:${d.note || ""}`} className="inp" rows={3} maxLength={500} aria-label="Note for your clinician" aria-describedby="pots-note-hint" defaultValue={d.note || ""}
               onBlur={(e) => { if (e.target.value.trim() !== (d.note || "")) setPots((p) => setNote(p, day, e.target.value)); }} />
+            <p className="hint" id="pots-note-hint" style={{ margin: "0 0 12px" }}>Goes in your report only if you include notes.</p>
             {/* 15. Today's log */}
             <button type="button" id="pots-log-btn" className="disclosure" aria-expanded={logOpen} aria-controls="pots-log" onClick={() => setLogOpen((v) => !v)}>
               <span>{isToday ? `Today's log · ${logItems.length} item${logItems.length === 1 ? "" : "s"}` : `Log for ${dayLabel(day)}`}</span><span aria-hidden="true">{logOpen ? "−" : "+"}</span>

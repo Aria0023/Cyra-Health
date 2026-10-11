@@ -260,6 +260,14 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:fo
 .cta.stopbtn { background:#A04545; color:#FFF; min-height:56px; font-size:15px; }
 .cta.stopbtn.top { margin:2px 0 12px; }
 .stopbar { position:sticky; bottom:0; z-index:5; background:var(--paper); padding:10px 0 calc(10px + env(safe-area-inset-bottom, 0px)); margin-top:12px; }
+.potsreport .routes { flex-wrap:wrap; }
+.potsreport .route { flex:1 1 140px; min-height:56px; color:color-mix(in srgb, var(--primary) 80%, var(--ink)); }
+.potsreport .route[aria-disabled="true"] { border-style:dashed; cursor:default; }
+.potstablewrap { overflow-x:auto; margin:4px 0 10px; }
+.potstablewrap:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+.potsrtab { font-size:11.5px; }
+.potsrtab caption { text-align:left; font-weight:700; font-size:12.5px; color:var(--ink); padding:6px 0 4px; }
+.potsrtab th, .potsrtab td { padding-right:8px; vertical-align:top; white-space:pre-line; color:var(--ink); }
 .plaincard.urgent { border:2px solid #A04545; }
 .plaincard.urgent .uchip { display:inline-block; margin-bottom:6px; }
 .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:20px; background:var(--ink); color:#FFF; font-size:13px; padding:9px 16px; border-radius:999px; max-width:86%; text-align:center; z-index:9; }
