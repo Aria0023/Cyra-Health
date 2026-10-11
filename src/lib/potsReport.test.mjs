@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   freshEmpty, upsertTest, addIntake, setIv, setRating, setUp, setSym, toggleTrig, addEpisode, upsertMed, logDose, setAid, setSettings,
-  addTilt, addVitals, setNote, setTestFaint,
+  addTilt, addVitals, setNote, setTestFaint, deleteTest,
 } from "./pots.js";
 import { reportModel, toCSV, csvCell, summaryText, emailParts, reportPdf, modelTexts, visitQuestions, reportRange, paperFor, pdfLossy, CSV_HEADER } from "./potsReport.js";
 import { PdfDoc, winAnsi, textWidth, wrapLines } from "./pdf.js";
@@ -126,6 +126,87 @@ test("g: a faint linked to a test is listed once", () => {
   assert.equal(faints.rows.filter((r) => r[6] === "Stand test").length, 1);
   assert.ok(m.sections[1].blocks.some((b) => b.text === "Fainted: 1 · Almost fainted: 1"));
   assert.equal(toCSV(m).split("\r\n").filter((l) => l.includes("source=stand test t1")).length, 1);
+});
+
+test("g: a faint kept after its stand test was deleted still says it came from a stand test", () => {
+  let p = setTestFaint(fixture(), "t1", "yes", "09:12");
+  p = deleteTest(p, "t1"); // "Keep the faint in my log" (the default)
+  const m = reportModel(p, base());
+  const faints = m.sections[1].blocks.find((b) => b.t === "table" && b.caption === "Faints and near-faints");
+  assert.deepEqual(faints.rows.map((r) => r[6]).sort(), ["Logged", "Stand test (deleted)"]);
+  assert.ok(!modelTexts(m).some((t) => /Exercise session/.test(t)));
+  const csv = toCSV(m);
+  assert.ok(csv.includes("source=deleted stand test t1"));
+  assert.ok(!/source=session/.test(csv));
+});
+
+test("g: unticking stand tests leaves their numbers out of the questions too", () => {
+  const t = TEST({ rest: [{ min: 4, hr: 104, sys: 150, dia: 95 }, { min: 5, hr: 106, sys: 152, dia: 97 }], up: [{ min: 1, hr: 140, sys: 120, dia: 80 }, { min: 3, hr: 146, sys: 118, dia: 78 }, { min: 5, hr: 145 }, { min: 10, hr: 146 }] });
+  // Two tests with a high lying blood pressure, so the supine question is generated too.
+  const p = upsertTest(upsertTest(fixture(), t), { ...t, id: "t2", date: "2026-10-09" });
+  const on = reportModel(p, base());
+  for (const id of ["q_test", "q_supine", "q_drop", "q_resthigh"]) assert.ok(on.questions.generated.some((q) => q.id === id && q.part === "tests"), id);
+  const off = reportModel(p, base({ include: { tests: false } }));
+  const out = allOut(off);
+  for (const bad of [/standing test on/, /lying-down/i, /dropped when I stood/, /rise of 41/, /151\/96/, /\b105\b/]) assert.ok(!bad.test(out), `${bad} with stand tests unticked`);
+  // The fluid-goal question follows the fluids box, the pregnancy one the medicines box.
+  const goal = setSettings(fixture(), { goals: { by: "me" } });
+  assert.ok(modelTexts(reportModel(goal, base())).some((x) => /fluid and salt goal/.test(x)));
+  assert.ok(!allOut(reportModel(goal, base({ include: { fluid: false } }))).includes("fluid and salt goal"));
+  const preg = base({ stage: "preg", stageName: "Pregnancy" });
+  assert.ok(modelTexts(reportModel(fixture(), preg)).some((x) => /I'm pregnant/.test(x)));
+  assert.ok(!allOut(reportModel(fixture(), { ...preg, include: { meds: false } })).includes("POTS medicines OK"));
+});
+
+test("g: medicine counts include days backfilled before POTS was turned on, and start at her first log", () => {
+  let p = { ...freshEmpty(), on: true, epoch: "e1", epochAt: 1, since: TODAY };
+  p = upsertMed(p, { id: "m9", lib: "mido", name: "Midodrine", kind: "rx", times: ["08:00"], started: null });
+  for (const d of ["2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09", TODAY]) p = logDose(p, d, { id: `d${d.slice(8)}`, medId: "m9", slot: "08:00", state: "taken", t: "08:00" });
+  let row = reportModel(p, base()).sections.find((s) => s.id === "meds").blocks[0].rows[0];
+  assert.equal(row[4], "6 of 6 days");
+  assert.equal(row[5], "taken 6 · skipped 0 · not logged 0");
+  // Added today with no start date: the days before it never count as unlogged.
+  let q = { ...freshEmpty(), on: true, epoch: "e1", epochAt: 1, since: "2026-09-10" };
+  q = upsertMed(q, { id: "m9", lib: "mido", name: "Midodrine", kind: "rx", times: ["08:00"], started: null });
+  q = logDose(q, TODAY, { id: "dt", medId: "m9", slot: "08:00", state: "taken", t: "08:00" });
+  row = reportModel(q, base()).sections.find((s) => s.id === "meds").blocks[0].rows[0];
+  assert.equal(row[4], "1 of 1 day");
+  assert.equal(row[5], "taken 1 · skipped 0 · not logged 0");
+  // Nothing logged and no start date: nothing is counted.
+  q = upsertMed(q, { id: "m8", lib: "fludro", name: "Fludrocortisone", kind: "rx", times: ["09:00"], started: null });
+  row = reportModel(q, base()).sections.find((s) => s.id === "meds").blocks[0].rows.find((r) => r[0] === "Fludrocortisone");
+  assert.equal(row[4], "none logged");
+});
+
+test("g: the usual logged time rounds a half-minute median to a real time", () => {
+  let p = { ...freshEmpty(), on: true, epoch: "e1", epochAt: 1, since: "2026-10-01" };
+  p = upsertMed(p, { id: "m9", lib: "mido", name: "Midodrine", kind: "rx", times: ["08:00", "09:00"], started: "2026-10-01" });
+  p = logDose(p, "2026-10-08", { id: "a1", medId: "m9", slot: "08:00", state: "taken", t: "07:59" });
+  p = logDose(p, "2026-10-09", { id: "a2", medId: "m9", slot: "08:00", state: "taken", t: "08:00" });
+  p = logDose(p, "2026-10-08", { id: "b1", medId: "m9", slot: "09:00", state: "taken", t: "08:59" });
+  p = logDose(p, "2026-10-09", { id: "b2", medId: "m9", slot: "09:00", state: "taken", t: "09:00" });
+  const row = reportModel(p, base()).sections.find((s) => s.id === "meds").blocks[0].rows[0];
+  assert.equal(row[6], "8:00 → 8:00\n9:00 → 9:00");
+});
+
+test("g: in pregnancy the files carry the pregnancy note, only with cycle details", () => {
+  const p = upsertTest(fixture(), TEST({ restPos: "left", up: [{ min: 1, hr: 100 }, { min: 3, hr: 105 }, { min: 5, hr: 106 }, { min: 10, hr: 108 }] }));
+  const preg = base({ stage: "preg", stageName: "Pregnancy" });
+  const on = reportModel(p, preg);
+  assert.ok(on.sections[0].blocks.some((b) => b.t === "p" && /^Heart rate normally rises during pregnancy/.test(b.text)));
+  assert.match(summaryText(on), /largest rise 40 \(outside pregnancy, clinicians use 30\)\. Blood pressure: .*I'm pregnant, and heart rate normally rises during pregnancy/);
+  assert.ok(!/sustained 30 or more/.test(summaryText(on)));
+  assert.match(toCSV(on), /stand_summary.*threshold_note=from studies outside pregnancy/);
+  for (const t of [...modelTexts(on), summaryText(on)]) assert.ok(!POTS_BANNED.test(t), t);
+  const off = reportModel(p, { ...preg, include: { cycle: false } });
+  assert.ok(!/pregnan/i.test(allOut(off)));
+  assert.match(summaryText(off), /sustained 30 or more: yes/);
+  // "Pregnancy" as what came just before her symptoms is a pregnancy detail too.
+  const q = setSettings(p, { context: { onset: { after: ["pregnancy", "covid"] } } });
+  assert.ok(reportModel(q, preg).header.context.includes("Just before they started: pregnancy and COVID-19"));
+  const qOff = reportModel(q, { ...preg, include: { cycle: false } });
+  assert.ok(qOff.header.context.includes("Just before they started: COVID-19"));
+  assert.ok(!/pregnan/i.test(allOut(qOff)));
 });
 
 /* ---------- CSV ---------- */
@@ -246,6 +327,12 @@ test("g: the summary text", () => {
   assert.match(s, /- Most frequent POTS symptoms: Dizzy or lightheaded \(9 days\)/);
   assert.match(s, /- POTS medicines: Midodrine\n/);
   assert.match(s, /I can bring the full PDF and spreadsheet to the visit\.$/);
+  // A rise reached only at the last reading, or once with a lower one after it, isn't a "no".
+  const last = summaryText(reportModel(upsertTest(fixture(), TEST({ up: [{ min: 1, hr: 80 }, { min: 3, hr: 85 }, { min: 5, hr: 90 }, { min: 10, hr: 104 }] })), base()));
+  assert.match(last, /largest rise 36, sustained 30 or more: only the last reading reached it, so it isn't known whether it lasted\./);
+  const mid = summaryText(reportModel(upsertTest(fixture(), TEST({ up: [{ min: 1, hr: 80 }, { min: 3, hr: 100 }, { min: 5, hr: 90 }, { min: 10, hr: 92 }] })), base()));
+  assert.match(mid, /largest rise 32, sustained 30 or more: one reading reached it and the next was lower\./);
+  for (const t of [last, mid]) assert.ok(!POTS_BANNED.test(t), t);
 });
 
 /* ---------- pdf.js ---------- */

@@ -11,6 +11,34 @@ import { STATUS_OPTS, ONSET_OPTS, COND_OPTS } from "../../lib/potsReport.js";
 
 /* "For your report" (design 4.12): what she tells Cyra for the report's context line. Only
    the report reads it; it never comes from her registration answers. */
+const YM = /^\d{4}-(0[1-9]|1[0-2])$/;
+/** "When did it start?": a month field. Browsers without a month picker (desktop Firefox and
+    Safari) show it as a plain text box, so what she types is kept as a draft and saved only
+    once it is a whole year and month (YYYY-MM) no later than this month; a partial entry is
+    never thrown away while she types. */
+function OnsetMonth({ value, max, onSave, onClear }) {
+  const [draft, setDraft] = useState(value || "");
+  const [bad, setBad] = useState(false);
+  // A change from elsewhere (Clear, another tab) replaces the draft.
+  useEffect(() => { setDraft((d) => (d === (value || "") ? d : value || "")); setBad(false); }, [value]);
+  const ok = (v) => YM.test(v) && v <= max;
+  const change = (v) => {
+    setDraft(v);
+    if (v === "") { setBad(false); if (value) onSave(null); } else if (ok(v)) { setBad(false); if (v !== value) onSave(v); }
+  };
+  return (
+    <>
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+        <input id="pots-set-onset" className="inp" type="month" aria-label="When it started (month and year)" placeholder="YYYY-MM" max={max} value={draft}
+          aria-invalid={bad ? "true" : undefined} aria-describedby={bad ? "pots-set-onset-err" : undefined}
+          onChange={(e) => change(e.target.value)} onBlur={() => setBad(draft !== "" && !ok(draft))} />
+        {value && <button type="button" className="sbtn" aria-label="Clear when it started" onClick={onClear}>Clear</button>}
+      </div>
+      {bad && <p className="errhint" id="pots-set-onset-err" role="alert" style={{ marginTop: 4 }}>Use year and month, like 2024-03, no later than this month.</p>}
+    </>
+  );
+}
+
 function Multi({ id, label, value, options, onPick }) {
   return (
     <>
@@ -282,11 +310,8 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
       <p className="hint" style={{ marginBottom: 6 }}>Used only in the report you make on the Report section. All optional.</p>
       <Choice id="pots-set-status" label="Where are you with POTS?" value={s.context.status} options={STATUS_OPTS} onPick={(v) => set({ context: { status: s.context.status === v ? null : v } })} />
       <label className="lab" htmlFor="pots-set-onset">When did it start?</label>
-      <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-        <input id="pots-set-onset" className="inp" type="month" aria-label="When it started (month and year)" max={today.slice(0, 7)} value={s.context.onset.ym || ""}
-          onChange={(e) => { const v = e.target.value; if (!v || /^\d{4}-(0[1-9]|1[0-2])$/.test(v)) set({ context: { onset: { ...s.context.onset, ym: v || null } } }); }} />
-        {s.context.onset.ym && <button type="button" className="sbtn" aria-label="Clear when it started" onClick={() => { set({ context: { onset: { ...s.context.onset, ym: null } } }); setFocusTo(["pots-set-onset", "pots-set-report"]); }}>Clear</button>}
-      </div>
+      <OnsetMonth value={s.context.onset.ym} max={today.slice(0, 7)} onSave={(ym) => set({ context: { onset: { ...s.context.onset, ym } } })}
+        onClear={() => { set({ context: { onset: { ...s.context.onset, ym: null } } }); setFocusTo(["pots-set-onset", "pots-set-report"]); }} />
       <Multi id="pots-set-after" label="Did anything come just before?" value={s.context.onset.after} options={ONSET_OPTS} onPick={(v) => set({ context: { onset: { ...s.context.onset, after: v } } })} />
       <Multi id="pots-set-cond" label="Other conditions for your report" value={s.context.conditions} options={COND_OPTS} onPick={(v) => set({ context: { conditions: v } })} />
       <Choice id="pots-set-paper" label="Paper size" value={s.paper === "letter" || s.paper === "a4" ? s.paper : null} options={[["letter", "Letter"], ["a4", "A4"]]} onPick={(v) => set({ paper: s.paper === v ? null : v })}

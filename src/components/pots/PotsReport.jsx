@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { setSettings, newId } from "../../lib/pots.js";
-import { reportModel, toCSV, summaryText, emailParts, reportPdf, modelTexts, pdfLossy, fmtDay } from "../../lib/potsReport.js";
+import { reportModel, toCSV, summaryText, emailParts, reportPdf, modelTexts, pdfLossy, fmtDay, questionIn } from "../../lib/potsReport.js";
 import { saveFile } from "../../lib/files.js";
 import { isNative } from "../../lib/native.js";
 import { RAMPS } from "../../lib/constants.js";
@@ -26,6 +26,9 @@ export const WINANSI_WARNING = "Some characters you typed, such as in your own s
 const PERIODS = [["30", "Last 30 days"], ["90", "Last 90 days"], ["all", "Everything"]];
 const PARTS = [["tests", "Stand tests, single readings and tilt-table results"], ["sym", "Symptoms, ratings and episodes"], ["fluid", "Fluids and sodium"], ["meds", "Medicines and supports"]];
 
+/** What a generated question is about, per Report part, for the "stay out of the files" note. */
+const PART_TOPIC = { tests: "your stand tests", fluid: "your fluid and salt goal", meds: "your medicines" };
+const andWords = (a) => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`);
 const rgb = (c) => `rgb(${c.join(",")})`;
 
 /** Oral fluid per day, as the PDF draws it: a bar per logged day (ramp().mid), nothing for a
@@ -117,7 +120,11 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
     try {
       let data, name, mime, title;
       if (kind === "pdf") {
-        const { PdfDoc } = await import("../../lib/pdf.js");
+        // The PDF writer is its own chunk, fetched on the first tap. It can fail to load (offline
+        // since the app opened, or a new version deployed while this tab stayed open): say what
+        // to do instead of showing the browser's module error.
+        let PdfDoc;
+        try { ({ PdfDoc } = await import("../../lib/pdf.js")); } catch { ping("Couldn't load the PDF maker. Reload Cyra and try again, or save the spreadsheet."); return; }
         data = reportPdf(model, PdfDoc); name = model.files.pdf; mime = "application/pdf"; title = "Cyra report";
       } else {
         data = toCSV(model); name = model.files.csv; mime = "text/csv;charset=utf-8"; title = "Cyra spreadsheet";
@@ -138,7 +145,13 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
     ping("Handing off to your email… If nothing opens, use Copy summary text instead.");
   };
   const gate = model.enough ? {} : { "aria-disabled": "true", "aria-describedby": "pots-rep-gate" };
+  // While a file is being made its button reads as unavailable but keeps focus (a disabled
+  // button would drop focus to the page); exportFile's busy guard ignores a second tap.
+  const busyGate = (kind) => (busy === kind ? { ...gate, "aria-disabled": "true" } : gate);
   const gen = model.questions.generated, own = model.questions.own;
+  // Report parts she unticked that keep one of the generated questions out of the files
+  // (a life-stage question already has its own note while cycle details are unticked).
+  const partsOut = PARTS.filter(([k]) => !parts[k] && gen.some((q) => q.part === k && (include.cycle || !q.stageBased) && !questionIn(q, include)));
   const addQ = () => { const t = newQ.trim().slice(0, 200); if (!t || own.length >= 10) return; set({ questions: [...own, { id: newId(), text: t }] }); setNewQ(""); };
 
   return (
@@ -161,6 +174,7 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
         <p className="hint" style={{ margin: "0 0 8px" }}>These go in your report. Cyra suggests some from your log for the period above; add your own.</p>
         {gen.map((q) => <p className="script" key={q.id}>{q.text}</p>)}
         {!include.cycle && gen.some((q) => q.stageBased) && <p className="hint" style={{ margin: "0 0 8px" }}>Questions about your life stage stay out of the files while "Cycle or pregnancy details" is unticked.</p>}
+        {partsOut.length > 0 && <p className="hint" style={{ margin: "0 0 8px" }}>{`Questions about ${andWords(partsOut.map(([k]) => PART_TOPIC[k]))} stay out of the files while ${partsOut.length === 1 ? `"${partsOut[0][1]}" is` : "those parts are"} unticked.`}</p>}
         {own.map((q) => (
           <div className="medrow" key={q.id}>
             <div className="medinfo"><span style={{ color: "var(--ink)", fontSize: 14 }}>{q.text}</span></div>
@@ -180,8 +194,8 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
       {lossyText && <p className="hint">{WINANSI_WARNING}</p>}
       {!model.enough && <p className="plain" id="pots-rep-gate"><b>Log a standing test or a few days first.</b></p>}
       <div className="routes" style={{ flexWrap: "wrap" }}>
-        <button type="button" className="route" {...gate} disabled={busy === "pdf"} onClick={() => exportFile("pdf")}>{phone ? "Share PDF report…" : "Save PDF report"}<span>charts and tables</span></button>
-        <button type="button" className="route" {...gate} disabled={busy === "csv"} onClick={() => exportFile("csv")}>{phone ? "Share spreadsheet…" : "Save spreadsheet (CSV)"}<span>every reading</span></button>
+        <button type="button" className="route" {...busyGate("pdf")} onClick={() => exportFile("pdf")}>{phone ? "Share PDF report…" : "Save PDF report"}<span>charts and tables</span></button>
+        <button type="button" className="route" {...busyGate("csv")} onClick={() => exportFile("csv")}>{phone ? "Share spreadsheet…" : "Save spreadsheet (CSV)"}<span>every reading</span></button>
         <button type="button" className="route" {...gate} onClick={copy}>Copy summary text<span>for a portal message</span></button>
       </div>
       <div className="routes" style={{ marginTop: 8 }}>

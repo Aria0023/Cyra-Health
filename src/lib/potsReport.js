@@ -61,6 +61,11 @@ const FAINT_WORD = { yes: "fainted", almost: "almost fainted", no: "didn't faint
 const MEDS_WORD = { taken: "taken", not_yet: "not yet", none: "takes none" };
 const YN = (v) => (v === true ? "yes" : v === false ? "no" : "not noted");
 const SUSTAINED_WORD = { met: "yes", single_mid: "single, later lower", single_last: "single, last reading", below: "no", insufficient: "insufficient" };
+/** The same answers in the summary's sentence. single_last isn't a "no": nothing shows
+    whether that rise lasted (design 13 #8). */
+const SUSTAINED_SENTENCE = { met: "yes", single_mid: "one reading reached it and the next was lower", single_last: "only the last reading reached it, so it isn't known whether it lasted", below: "no" };
+/** The stand-test result's pregnancy line (design 4.8.6), for the Standing tests section. */
+const PREG_NOTE = "Heart rate normally rises during pregnancy, and these thresholds come from studies of people who weren't pregnant. Share the numbers with your prenatal team rather than reading too much into them.";
 /** The report's words for the stand-test settings in POTS settings → For your report. */
 export const STATUS_OPTS = [["diagnosed", "Diagnosed"], ["checking", "Being checked"], ["unsure", "Not sure yet"]];
 export const ONSET_OPTS = [["infection", "An infection"], ["covid", "COVID-19"], ["pregnancy", "Pregnancy"], ["surgery", "Surgery or injury"], ["concussion", "Concussion"], ["unsure", "Not sure"], ["none", "Nothing I know of"]];
@@ -100,18 +105,20 @@ export const paperFor = (p, locale) => (p.settings.paper === "letter" || p.setti
 
 /* ---------- visit questions (design 6.6) ---------- */
 /** The generated "Questions for my next visit", from POTS data and app state only. Each is
-    { id, text, stageBased }; stage-based ones go into a file only with "Cycle or pregnancy
-    details" (on screen they always show). `tests` are the finished tests to read (oldest first). */
+    { id, text, stageBased, part }; stage-based ones go into a file only with "Cycle or pregnancy
+    details", and one drawn from a Report part (`part`: "tests", "fluid" or "meds") only while
+    that part is ticked (on screen they always show). `tests` are the finished tests to read
+    (oldest first). */
 export function visitQuestions(p, { tests = [], stage = null, stageName = null, teen = false } = {}) {
   if (!isObj(p) || isLockedPots(p)) return [];
   const s = p.settings, out = [];
-  const add = (id, text, stageBased = false) => out.push({ id, text, stageBased });
+  const add = (id, text, stageBased = false, part = null) => out.push({ id, text, stageBased, part });
   const res = tests.map((t) => ({ t, r: standResult(t, { teen }) }));
   const latest = (pred) => res.filter(pred).pop();
   const hr = latest(({ r }) => ["met", "single_mid", "single_last"].includes(r.hrStatus));
-  if (hr) add("q_test", `My standing test on ${fmtDay(hr.t.date)} showed a heart-rate rise of ${n1(hr.r.peakRise)}. Could we confirm it with an in-clinic standing test or a tilt test?`);
+  if (hr) add("q_test", `My standing test on ${fmtDay(hr.t.date)} showed a heart-rate rise of ${n1(hr.r.peakRise)}. Could we confirm it with an in-clinic standing test or a tilt test?`, false, "tests");
   if (s.context.status !== "diagnosed") add("q_causes", "Could we check for other causes, like a blood count and iron, thyroid, and my medicines?");
-  if ((s.goals.fluidMl == null && s.goals.naMg == null) || s.goals.by === "me") add("q_goal", "What daily fluid and salt goal is right for me, given my blood pressure, heart and kidneys?");
+  if ((s.goals.fluidMl == null && s.goals.naMg == null) || s.goals.by === "me") add("q_goal", "What daily fluid and salt goal is right for me, given my blood pressure, heart and kidneys?", false, "fluid");
   const prog = p.move && p.move.program;
   if (prog) {
     const cleared = stage === "preg" ? prog.clearedPreg : prog.cleared;
@@ -119,16 +126,33 @@ export function visitQuestions(p, { tests = [], stage = null, stageName = null, 
     if (prog.pem === "yes" || prog.pem === "unsure") add("q_pem", "I crash after effort. Could this be post-exertional malaise, and how should I pace?");
   }
   const meds = (p.meds || []).filter((m) => m.kind !== "aid" && !m.stopped);
-  if ((stage === "preg" || stageName === "Trying to Conceive") && meds.length) add("q_preg", `I'm ${stage === "preg" ? "pregnant" : "planning a pregnancy"}. Are my POTS medicines OK to continue?`, true);
+  if ((stage === "preg" || stageName === "Trying to Conceive") && meds.length) add("q_preg", `I'm ${stage === "preg" ? "pregnant" : "planning a pregnancy"}. Are my POTS medicines OK to continue?`, true, "meds");
   const onset = monthYear(s.context.onset && s.context.onset.ym);
   if (stage === "peri" && onset) add("q_midlife", `My symptoms started around ${onset}. Should we also look at heart-rhythm, thyroid and other causes that become more common from midlife?`, true);
   const sup = latest(({ r }) => r.supineHigh);
-  if (sup) add("q_supine", `My lying-down blood pressure has been ${Math.round(sup.r.baseSys)}/${Math.round(sup.r.baseDia)}. Is that a concern with my medicines?`);
-  if (res.some(({ r }) => r.bpStatus === "drop")) add("q_drop", "My blood pressure dropped when I stood up. Should we look at that separately?");
+  if (sup) add("q_supine", `My lying-down blood pressure has been ${Math.round(sup.r.baseSys)}/${Math.round(sup.r.baseDia)}. Is that a concern with my medicines?`, false, "tests");
+  if (res.some(({ r }) => r.bpStatus === "drop")) add("q_drop", "My blood pressure dropped when I stood up. Should we look at that separately?", false, "tests");
   const rh = latest(({ r }) => r.restHigh);
-  if (rh) add("q_resthigh", `My lying-down heart rate was ${Math.round(rh.r.baseHr)}. Should we look at that separately?`);
+  if (rh) add("q_resthigh", `My lying-down heart rate was ${Math.round(rh.r.baseHr)}. Should we look at that separately?`, false, "tests");
   return out;
 }
+
+/** Where a linked faint came from, decided positively: a stand test still on her list, a
+    movement session still logged, or, once that record was deleted ("Keep the faint in my
+    log"), the position the link wrote: "stoodup" for a test, "exercise" for a session. */
+function linkSource(p, e) {
+  if (!e.src) return null;
+  if ((p.tests || []).some((t) => t.id === e.src)) return "test";
+  if (Object.values(p.days || {}).some((d) => isObj(d) && Array.isArray(d.move) && d.move.some((m) => isObj(m) && m.id === e.src))) return "session";
+  if (e.pos === "stoodup") return "test_deleted";
+  if (e.pos === "exercise") return "session_deleted";
+  return "deleted";
+}
+const SRC_WORD = { test: "Stand test", session: "Exercise session", test_deleted: "Stand test (deleted)", session_deleted: "Exercise session (deleted)", deleted: "Deleted record" };
+const SRC_CSV = { test: "stand test", session: "session", test_deleted: "deleted stand test", session_deleted: "deleted session", deleted: "deleted record" };
+
+/** Whether a generated question goes into the files for these Include choices. */
+export const questionIn = (q, inc) => (inc.cycle || !q.stageBased) && (!q.part || inc[q.part] !== false);
 
 /* ---------- the model ---------- */
 const testBpWord = (r) => {
@@ -199,7 +223,9 @@ export function reportModel(p, opts = {}) {
   /* Header. */
   const ctx = s.context, context = [];
   if (ctx.status) context.push(`Where she is with POTS: ${optWord(STATUS_OPTS, ctx.status).toLowerCase()}`);
-  const onset = monthYear(ctx.onset && ctx.onset.ym), after = ((ctx.onset && ctx.onset.after) || []).map((v) => ONSET_WORD[v] || "something else");
+  // "Pregnancy" as what came just before is a pregnancy detail: it goes in only with
+  // "Cycle or pregnancy details", like the life-stage line.
+  const onset = monthYear(ctx.onset && ctx.onset.ym), after = ((ctx.onset && ctx.onset.after) || []).filter((v) => inc.cycle || v !== "pregnancy").map((v) => ONSET_WORD[v] || "something else");
   if (onset) context.push(`Symptoms started: ${onset}`);
   if (after.length) context.push(`Just before they started: ${andList(after)}`);
   if ((ctx.conditions || []).length) context.push(`Other conditions: ${ctx.conditions.map((v) => optWord(COND_OPTS, v)).join(", ")}`);
@@ -260,6 +286,9 @@ export function reportModel(p, opts = {}) {
       }
       if (blocks.some((b) => b.t === "trend")) blocks.push({ t: "p", text: "Tests done at different times of day, cycle days or with different medicines aren't directly comparable.", small: true });
     }
+    // In pregnancy (and only with cycle details, so the file doesn't disclose it otherwise)
+    // every result carries the pregnancy caveat of the stand-test result (design 4.8.6, A13.4).
+    if (preg && inc.cycle && shown.length) blocks.push({ t: "p", text: PREG_NOTE });
     blocks.push({ t: "p", text: "Reference: a sustained rise of ≥30 bpm (≥40 at ages 12–19) within 10 min of standing, without orthostatic hypotension, is the heart-rate criterion in the 2015 HRS consensus statement. OH: drop ≥20 systolic or ≥10 diastolic within 3 min (Freeman 2011).", small: true });
     if (teen) blocks.push({ t: "p", text: "She uses the 40-beat threshold for ages 12–19 in Cyra.", small: true });
     const vit = days.flatMap((d) => (dayOf(d).vit || []).map((v) => ({ ...v, date: d })));
@@ -295,7 +324,7 @@ export function reportModel(p, opts = {}) {
     } else blocks.push({ t: "p", text: "No episodes logged in this period." });
     blocks.push({ t: "p", text: `Fainted: ${nFaint} · Almost fainted: ${nAlmost}` });
     if (faints.length) {
-      const srcWord = (e) => (e.src ? ((p.tests || []).some((t) => t.id === e.src) ? "Stand test" : "Exercise session") : "Logged");
+      const srcWord = (e) => (e.src ? SRC_WORD[linkSource(p, e)] : "Logged");
       blocks.push({ t: "table", caption: "Faints and near-faints", head: ["Date", "Time", "Faint", "Where", "Minutes", "Hurt", "From"], widths: [62, 45, 90, 95, 55, 45, 123], rows: faints.map((e) => [fmtDay(e.date), hm(e.t), FAINT_WORD[e.faint], e.pos ? POS_WORD[e.pos] || "Other" : "—", fin(e.mins) ? String(e.mins) : "—", e.injured ? "yes" : "no", srcWord(e)]) });
     }
     if (trigRows.length) blocks.push({ t: "p", text: `Most-tagged triggers: ${trigRows.slice(0, 5).map((x) => `${x.label} (${plural(x.n, "day")})`).join(", ")}.` });
@@ -333,17 +362,31 @@ export function reportModel(p, opts = {}) {
     const meds = (p.meds || []).filter((m) => (!m.started || m.started <= range.to) && (!m.stopped || m.stopped >= range.from));
     if (!meds.length) blocks.push({ t: "p", text: "No medicines or supports on her list for this period." });
     else {
+      // The first day she logged this medicine or support, on any date: "Fix up an earlier
+      // day" can log doses before she turned POTS on, and those count like any other.
+      const firstLog = (m) => {
+        let f = null;
+        for (const [d, x] of Object.entries(p.days || {})) {
+          if (!ISO.test(d) || !isObj(x) || (f && d >= f)) continue;
+          if (m.kind === "aid" ? isObj(x.aids) && typeof x.aids[m.id] === "boolean" : (x.doses || []).some((ds) => ds.medId === m.id)) f = d;
+        }
+        return f;
+      };
       const rows = meds.map((m) => {
         const lib = POTS_MED_LIB.find((x) => x.id === m.lib);
-        const start = [range.from, m.started, p.since].filter(Boolean).sort().pop(), end = m.stopped && m.stopped < range.to ? m.stopped : range.to;
+        // Counting starts at the Started date she entered, or at the first day she logged it
+        // (whichever is earlier), never before the period. With neither, nothing is counted,
+        // so days before she added it never read as unlogged.
+        const from = [m.started, firstLog(m)].filter(Boolean).sort()[0] || null;
+        const start = from && from > range.from ? from : range.from, end = m.stopped && m.stopped < range.to ? m.stopped : range.to;
         const active = [];
-        for (let d = start; d <= end; d = addDays(d, 1)) active.push(d);
+        if (from) for (let d = start; d <= end; d = addDays(d, 1)) active.push(d);
         const dates = m.started || m.stopped ? `${m.started ? `from ${fmtDay(m.started)}` : ""}${m.stopped ? `${m.started ? " " : ""}stopped ${fmtDay(m.stopped)}` : ""}` : "—";
         const base = [m.name, (lib && lib.cls) || MED_KIND[m.kind] || "Other", dates, m.times.length ? m.times.map(hm).join(", ") : "none set"];
         if (m.kind === "aid") {
           let worn = 0, not = 0;
           for (const d of active) { const a = (dayOf(d).aids || {})[m.id]; if (a === true) worn++; else if (a === false) not++; }
-          return [...base, `worn ${plural(worn, "day")}, not worn ${not}`, "—", "—", ...(inc.notes ? [m.note || "—"] : [])];
+          return [...base, active.length ? `worn ${plural(worn, "day")}, not worn ${not}` : "none logged", "—", "—", ...(inc.notes ? [m.note || "—"] : [])];
         }
         let any = 0, taken = 0, skipped = 0, notLogged = 0;
         const bySlot = new Map(m.times.map((t) => [t, []]));
@@ -353,12 +396,16 @@ export function reportModel(p, opts = {}) {
           for (const x of ds) { if (x.state === "taken") { taken++; if (x.slot && bySlot.has(x.slot)) bySlot.get(x.slot).push(toMin(x.t)); } else if (x.state === "skipped") skipped++; }
           if (d < range.to) for (const t of m.times) if (!ds.some((x) => x.slot === t)) notLogged++;
         }
-        const usual = m.times.length ? m.times.map((t) => { const md = median(bySlot.get(t)); return `${hm(t)} → ${md == null ? "—" : hm(`${String(Math.floor(md / 60)).padStart(2, "0")}:${String(Math.round(md % 60)).padStart(2, "0")}`)}`; }).join("\n") : "—";
+        // The median of an even count can end in .5: round it to whole minutes before
+        // splitting, so 479.5 reads 8:00, never 7:60.
+        const usual = m.times.length ? m.times.map((t) => { const md = median(bySlot.get(t)); const r = md == null ? null : Math.round(md); return `${hm(t)} → ${r == null ? "—" : hm(`${String(Math.floor(r / 60) % 24).padStart(2, "0")}:${String(r % 60).padStart(2, "0")}`)}`; }).join("\n") : "—";
+        if (!active.length) return [...base, "none logged", "none logged", usual, ...(inc.notes ? [m.note || "—"] : [])];
         return [...base, `${any} of ${plural(active.length, "day")}`, `taken ${taken} · skipped ${skipped}${m.times.length ? ` · not logged ${notLogged}` : ""}`, usual, ...(inc.notes ? [m.note || "—"] : [])];
       });
       const head = ["Name", "Class", "Dates", "Planned times", "Days with a dose logged", "Doses", "Usual logged time", ...(inc.notes ? ["Her note"] : [])];
       const widths = inc.notes ? [62, 70, 55, 50, 58, 70, 60, 90] : [75, 85, 65, 60, 65, 85, 80];
       blocks.push({ t: "table", caption: "Medicines and supports", head, widths, rows, size: 7.5 });
+      blocks.push({ t: "p", text: "Day counts start at the start date she entered, or at the first day she logged it if that was earlier or no start date was entered.", small: true });
     }
     blocks.push({ t: "p", text: inc.notes ? "Medicine names, times and notes are as she entered them. Cyra never suggests a medicine, a dose or a change." : "Medicine names and times are as she entered them. Cyra never suggests a medicine, a dose or a change.", small: true });
     sections.push({ id: "meds", title: "Medicines and supports", blocks });
@@ -367,7 +414,7 @@ export function reportModel(p, opts = {}) {
   /* 8. Patient's questions */
   const generated = visitQuestions(p, { tests, stage, stageName, teen });
   const own = (s.questions || []).map((q) => q.text);
-  const qList = [...generated.filter((q) => inc.cycle || !q.stageBased).map((q) => q.text), ...own];
+  const qList = [...generated.filter((q) => questionIn(q, inc)).map((q) => q.text), ...own];
   if (qList.length) sections.push({ id: "questions", title: "Patient's questions", blocks: [{ t: "list", items: qList }] });
 
   /* 9. Notes (only if included) */
@@ -392,7 +439,7 @@ export function reportModel(p, opts = {}) {
   const sessions30 = 0; // movement sessions arrive with the Move section
   const summary = {
     rated: inc.sym ? `Days rated: ${rated} of ${range.n} (good ${ratings[1]}, okay ${ratings[2]}, rough ${ratings[3]}, bad ${ratings[4]})` : null,
-    test: inc.tests && latestT ? `Latest standing test: ${fmtDayY(latestT.date)}, ${methodWord(latestT.method).toLowerCase()}. ${latestR.baseHr != null ? `Lying heart rate ${n1(latestR.baseHr)}` : "No lying heart rate"}${latestR.hrStatus !== "insufficient" ? `, largest rise ${n1(latestR.peakRise)}, sustained ${thr} or more: ${latestR.hrStatus === "met" ? "yes" : "no"}` : ", not enough readings for a rise"}. Blood pressure: ${latestT.bp ? testBpWord(latestR) : "not taken"}.` : null,
+    test: inc.tests && latestT ? `Latest standing test: ${fmtDayY(latestT.date)}, ${methodWord(latestT.method).toLowerCase()}. ${latestR.baseHr != null ? `Lying heart rate ${n1(latestR.baseHr)}` : "No lying heart rate"}${latestR.hrStatus === "insufficient" ? ", not enough readings for a rise" : preg && inc.cycle ? `, largest rise ${n1(latestR.peakRise)} (outside pregnancy, clinicians use ${thr}${latestR.hrStatus.startsWith("single") ? `; ${SUSTAINED_SENTENCE[latestR.hrStatus]}` : ""})` : `, largest rise ${n1(latestR.peakRise)}, sustained ${thr} or more: ${SUSTAINED_SENTENCE[latestR.hrStatus]}`}. Blood pressure: ${latestT.bp ? testBpWord(latestR) : "not taken"}.${preg && inc.cycle ? " I'm pregnant, and heart rate normally rises during pregnancy; these thresholds come from studies of people who weren't pregnant." : ""}` : null,
     tests90: inc.tests ? `Standing tests in the last 90 days: ${in90}` : null,
     sym: inc.sym && symRows.length ? `Most frequent POTS symptoms: ${symRows.slice(0, 3).map((x) => `${x.label} (${plural(x.n, "day")})`).join(", ")}` : null,
     faint: inc.sym ? `Fainted: ${nFaint} · Almost fainted: ${nAlmost}` : null,
@@ -471,7 +518,7 @@ export function toCSV(model) {
     }
     if (inc.sym) {
       for (const e of [...(x.eps || [])].sort((a, b) => (a.t < b.t ? -1 : 1))) {
-        const src = e.src ? ((p.tests || []).some((t) => t.id === e.src) ? `stand test ${e.src}` : `session ${e.src}`) : null;
+        const src = e.src ? `${SRC_CSV[linkSource(p, e)]} ${e.src}` : null;
         R("episode", d, e.t, e.sym.map((id) => symName(p, id)).join("; ") || (e.faint ? "Faint" : "Episode"), fin(e.mins) ? e.mins : "", "min", e.pos ? POS_WORD[e.pos] || e.pos : "", "", fin(e.sev) ? e.sev : "",
           kv([["faint", e.faint], ["injured", e.injured ? "yes" : "no"], ["triggers", (e.trig || []).map((id) => trigName(p, id)).join(", ")], ["helped", (e.helped || []).map((h) => HELPED_WORD[h] || "Other").join(", ")], ["source", src], ["note", note(e.note)]]));
       }
@@ -488,7 +535,7 @@ export function toCSV(model) {
         const r = results.get(t.id), c = t.ctx || {};
         const felt = [...new Set([...(t.feel || []), ...(t.up || []).flatMap((u) => u.feel || [])])].map((id) => symName(p, id)).join(", ");
         R("stand_summary", d, t.t, "max_rise", r.hrStatus !== "insufficient" && fin(r.peakRise) ? Math.round(r.peakRise * 10) / 10 : "", "bpm", "", "", "",
-          kv([["test_id", t.id], ["method", t.method], ["rest", `${t.restPos === "left" ? "left side" : "back"} ${t.restMin} min`], ["device", t.device], ["lying_hr", r.baseHr != null ? Math.round(r.baseHr * 10) / 10 : null], ["peak_hr", r.hrStatus !== "insufficient" ? r.peakHr : null], ["peak_min", r.hrStatus !== "insufficient" ? r.peakMin : null], ["threshold", r.thr], ["sustained", SUSTAINED_WORD[r.hrStatus]], ["bp_finding", t.bp ? testBpWord(r) : "not taken"], ["status", t.status], ["stopped_at", t.status === "stopped" ? t.stoppedAt : null], ["why", t.why], ["fainted", t.fainted], ["meds", c.meds], ["rate_med", c.rateMed], ["compression", c.comp == null ? null : c.comp ? "yes" : "no"], ["ate_2h", c.ate2h == null ? null : c.ate2h ? "yes" : "no"], ["fluid_before_ml", c.mlBefore], ["pooling", t.pooling], ["felt", felt], ["edited", t.edited ? "yes" : null], ["note", note(t.note)]]));
+          kv([["test_id", t.id], ["method", t.method], ["rest", `${t.restPos === "left" ? "left side" : "back"} ${t.restMin} min`], ["device", t.device], ["lying_hr", r.baseHr != null ? Math.round(r.baseHr * 10) / 10 : null], ["peak_hr", r.hrStatus !== "insufficient" ? r.peakHr : null], ["peak_min", r.hrStatus !== "insufficient" ? r.peakMin : null], ["threshold", r.thr], ["sustained", SUSTAINED_WORD[r.hrStatus]], ["bp_finding", t.bp ? testBpWord(r) : "not taken"], ["status", t.status], ["stopped_at", t.status === "stopped" ? t.stoppedAt : null], ["why", t.why], ["fainted", t.fainted], ["meds", c.meds], ["rate_med", c.rateMed], ["compression", c.comp == null ? null : c.comp ? "yes" : "no"], ["ate_2h", c.ate2h == null ? null : c.ate2h ? "yes" : "no"], ["fluid_before_ml", c.mlBefore], ["pooling", t.pooling], ["felt", felt], ["edited", t.edited ? "yes" : null], ["threshold_note", model.preg && inc.cycle ? "from studies outside pregnancy" : null], ["note", note(t.note)]]));
         const lyingPos = t.restPos === "left" ? "left" : "lying";
         for (const rd of [...(t.rest || [])].sort((a, b) => a.min - b.min)) {
           const det = kv([["test_id", t.id], ["method", t.method], ["phase", "rest"], ["counted", rd.how === "counted" ? "yes" : null], ["edited", t.edited ? "yes" : null]]);
