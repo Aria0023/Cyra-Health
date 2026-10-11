@@ -66,8 +66,16 @@ const DEVICE_ONLY = ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pu
 const RECORD = PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders");
 const recordSig = (o) => JSON.stringify(RECORD.map((k) => o?.[k] ?? null));
 // The tab bar scrolls sideways. Chromium doesn't scroll a partly hidden tab into view when the
-// keyboard focuses it, so a focused tab (and its ring) could sit half off the edge.
-const tabIntoView = (e) => e.currentTarget.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+// keyboard focuses it, so a focused tab (and its ring) could sit half off the edge. Only keyboard
+// focus counts, and only the tab bar moves (sideways): scrollIntoView would also scroll the page,
+// and a tab that kept focus after a tap gets focus again when she comes back to the app.
+const tabIntoView = (e) => {
+  const t = e.currentTarget, bar = t.parentElement;
+  if (!bar || !t.matches?.(":focus-visible")) return;
+  const tr = t.getBoundingClientRect(), br = bar.getBoundingClientRect();
+  if (tr.left < br.left) bar.scrollLeft -= br.left - tr.left;
+  else if (tr.right > br.right) bar.scrollLeft += tr.right - br.right;
+};
 const ZERO_SCALES = { fatigue: 0, pain: 0, moodq: 0, stress: 0 };
 /* Push addresses Cyra's server still has to forget (every one is retried until confirmed). */
 const cleanPending = (v) => (Array.isArray(v) ? [...new Set(v.filter((e) => typeof e === "string" && /^https:\/\//.test(e) && e.length <= 2048))].slice(0, 100) : []);
