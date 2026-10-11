@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { setSettings, newId } from "../../lib/pots.js";
-import { reportModel, toCSV, summaryText, emailParts, reportPdf, modelTexts, pdfLossy, fmtDay, questionIn } from "../../lib/potsReport.js";
+import { reportModel, toCSV, summaryText, emailParts, reportPdf, modelTexts, pdfLossy, fmtDay, questionIn, questionParts } from "../../lib/potsReport.js";
 import { saveFile } from "../../lib/files.js";
 import { isNative } from "../../lib/native.js";
 import { RAMPS } from "../../lib/constants.js";
@@ -27,8 +27,10 @@ const NONE = []; // a stable default, so the report isn't rebuilt on every rende
 const PERIODS = [["30", "Last 30 days"], ["90", "Last 90 days"], ["all", "Everything"]];
 const PARTS = [["tests", "Stand tests, single readings and tilt-table results"], ["sym", "Symptoms, ratings and episodes"], ["fluid", "Fluids and sodium"], ["meds", "Medicines and supports"], ["patterns", "Patterns from my log"]];
 
-/** What a generated question is about, per Report part, for the "stay out of the files" note. */
-const PART_TOPIC = { tests: "your stand tests", fluid: "your fluid and salt goal", meds: "your medicines", patterns: "your cycle pattern" };
+/** What a generated question is about, per Report part, for the "stay out of the files" note
+    (the only question drawn from ratings is the cycle-pattern one). */
+const PART_TOPIC = { tests: "your stand tests", fluid: "your fluid and salt goal", meds: "your medicines", patterns: "your cycle pattern", sym: "your cycle pattern" };
+export const PATTERNS_NEED_SYM = "Patterns compare your rated days, so they go in only with \"Symptoms, ratings and episodes\" ticked too.";
 const andWords = (a) => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`);
 const rgb = (c) => `rgb(${c.join(",")})`;
 
@@ -152,7 +154,8 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
   const gen = model.questions.generated, own = model.questions.own;
   // Report parts she unticked that keep one of the generated questions out of the files
   // (a life-stage question already has its own note while cycle details are unticked).
-  const partsOut = PARTS.filter(([k]) => !parts[k] && gen.some((q) => q.part === k && (include.cycle || !q.stageBased) && !questionIn(q, include)));
+  const partsOut = PARTS.filter(([k]) => !parts[k] && gen.some((q) => questionParts(q).includes(k) && (include.cycle || !q.stageBased) && !questionIn(q, include)));
+  const topicsOut = [...new Set(partsOut.map(([k]) => PART_TOPIC[k]))];
   const addQ = () => { const t = newQ.trim().slice(0, 200); if (!t || own.length >= 10) return; set({ questions: [...own, { id: newId(), text: t }] }); setNewQ(""); };
 
   return (
@@ -164,6 +167,7 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
       <p className="lab" id="pots-rep-inc">Include</p>
       <div role="group" aria-labelledby="pots-rep-inc">
         {PARTS.map(([k, l]) => <CheckRow key={k} on={parts[k]} onToggle={() => setParts((x) => ({ ...x, [k]: !x[k] }))}>{l}</CheckRow>)}
+        {parts.patterns && !parts.sym && <p className="hint" style={{ margin: "4px 0 0" }}>{PATTERNS_NEED_SYM}</p>}
         <CheckRow id="pots-rep-cycle" on={include.cycle} onToggle={() => set({ reportCycle: !include.cycle })}>Cycle or pregnancy details</CheckRow>
         <p className="hint" style={{ margin: "4px 0 0" }}>Untick to leave out your life stage, cycle days, pregnancy and the symptoms your check-ins also logged.</p>
         <CheckRow on={include.notes} onToggle={() => set({ reportNotes: !include.notes })}>Notes I typed</CheckRow>
@@ -175,7 +179,7 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
         <p className="hint" style={{ margin: "0 0 8px" }}>These go in your report. Cyra suggests some from your log for the period above; add your own.</p>
         {gen.map((q) => <p className="script" key={q.id}>{q.text}</p>)}
         {!include.cycle && gen.some((q) => q.stageBased) && <p className="hint" style={{ margin: "0 0 8px" }}>Questions about your life stage stay out of the files while "Cycle or pregnancy details" is unticked.</p>}
-        {partsOut.length > 0 && <p className="hint" style={{ margin: "0 0 8px" }}>{`Questions about ${andWords(partsOut.map(([k]) => PART_TOPIC[k]))} stay out of the files while ${partsOut.length === 1 ? `"${partsOut[0][1]}" is` : "those parts are"} unticked.`}</p>}
+        {partsOut.length > 0 && <p className="hint" style={{ margin: "0 0 8px" }}>{`Questions about ${andWords(topicsOut)} stay out of the files while ${partsOut.length === 1 ? `"${partsOut[0][1]}" is` : "those parts are"} unticked.`}</p>}
         {own.map((q) => (
           <div className="medrow" key={q.id}>
             <div className="medinfo"><span style={{ color: "var(--ink)", fontSize: 14 }}>{q.text}</span></div>

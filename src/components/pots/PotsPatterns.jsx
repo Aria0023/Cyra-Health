@@ -3,7 +3,7 @@ import {
   patterns, sinceOffered, paceText, isCycleStage, medLine, RATING_WORD,
   TODAY_NOTE, WEEK_NOTE, TREND_NOTE, CYCLE_NOTE, CYCLE_PERI, PREG_NOTE, MED_ADVICE,
 } from "../../lib/potsPatterns.js";
-import { fmtFluid, fmtSodium } from "../../lib/pots.js";
+import { fmtFluid, fmtSodium, activeMeds } from "../../lib/pots.js";
 import { THRESH } from "../../lib/potsConstants.js";
 import { RAMPS } from "../../lib/constants.js";
 import { platform } from "../../lib/native.js";
@@ -62,13 +62,17 @@ function DayBars({ title, days, get, fmt, goal, ramp, label }) {
   );
 }
 
-/** "Planned doses logged: 2 of 3 · other doses 1": taken doses of planned slots against the slots
-    planned today, and taken doses with no planned time (a medicine without times) apart. */
-function doseLine(pots, iso, tot) {
+/** "Planned doses logged: 2 of 3 · other doses 1": the planned slots of today's medicines with a
+    dose logged taken (each slot once, however often it was logged) against the slots planned,
+    and every other taken dose apart (a medicine without times, a slot logged again, a medicine
+    not on today's plan), so the first number can never pass the second. */
+function doseLine(pots, iso) {
   const taken = (((pots.days || {})[iso] || {}).doses || []).filter((d) => d.state === "taken");
-  const slotted = taken.filter((d) => d.slot).length, other = taken.length - slotted;
-  if (!tot.dueDoses) return `Doses logged: ${taken.length}`;
-  return `Planned doses logged: ${slotted} of ${tot.dueDoses}${other ? ` · other doses ${other}` : ""}`;
+  const planned = new Set(activeMeds(pots, iso).filter((m) => m.kind !== "aid").flatMap((m) => m.times.map((t) => `${m.id} ${t}`)));
+  if (!planned.size) return `Doses logged: ${taken.length}`;
+  const done = new Set(taken.map((d) => `${d.medId} ${d.slot}`).filter((k) => planned.has(k)));
+  const other = taken.length - done.size;
+  return `Planned doses logged: ${done.size} of ${planned.size}${other ? ` · other doses ${other}` : ""}`;
 }
 
 function TodayView({ pots, pat, nowMin, stage, cyc }) {
@@ -80,7 +84,7 @@ function TodayView({ pots, pat, nowMin, stage, cyc }) {
     t.rating ? `How's today: ${RATING_WORD[t.rating]}` : "How's today: not rated yet",
     t.sym.length ? `Symptoms: ${t.sym.map((s) => `${s.label} (${SEV_WORD[s.sev]})`).join(", ")}` : "Symptoms: none logged",
     `Episodes: ${t.eps}${t.faints || t.nearFaints ? ` (${[t.faints ? `fainted ${t.faints}` : null, t.nearFaints ? `almost fainted ${t.nearFaints}` : null].filter(Boolean).join(", ")})` : ""}`,
-    doseLine(pots, pat.range.to, tot),
+    doseLine(pots, pat.range.to),
     ...(t.test ? [`Stand test: ${riseText(t.test, resultFor(pots, t.test, stage, cyc))}`] : []),
   ];
   return (
@@ -159,7 +163,7 @@ function MonthView({ pots, pat, stage, stageName, outcome, setOutcome, window })
       <h3 className="lab" id="pots-pat-cards">What stood out</h3>
       {known < THRESH.pat.rated && (
         <p className="plain">{pat.outcome
-          ? `Cyra compares once it has at least ${THRESH.pat.rated} rated days with symptoms logged in this window. There are ${known} so far.`
+          ? `Cyra compares once it has at least ${THRESH.pat.rated} days with symptoms logged in this window. There are ${known} so far.`
           : `Cyra compares days once you've rated at least ${THRESH.pat.rated} in this window. You've rated ${known} so far.`}</p>
       )}
       {pat.cards.length ? pat.cards.map((c) => <Card key={c.key} c={c} />) : <p className="plain">Nothing stands out yet.</p>}

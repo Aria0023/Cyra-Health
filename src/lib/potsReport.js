@@ -110,8 +110,9 @@ export const paperFor = (p, locale) => (p.settings.paper === "letter" || p.setti
 /* ---------- visit questions (design 6.6) ---------- */
 /** The generated "Questions for my next visit", from POTS data and app state only. Each is
     { id, text, stageBased, part }; stage-based ones go into a file only with "Cycle or pregnancy
-    details", and one drawn from a Report part (`part`: "tests", "fluid", "meds" or "patterns")
-    only while that part is ticked (on screen they always show). `tests` are the finished tests
+    details", and one drawn from Report parts (`part`: "tests", "fluid", "meds", or a list such
+    as ["patterns", "sym"]) only while every one of those parts is ticked (on screen they always
+    show). `tests` are the finished tests
     to read (oldest first); `cycle` is the cycle card (lib/potsPatterns.js cycleGroups). */
 export function visitQuestions(p, { tests = [], stage = null, stageName = null, teen = false, cycle = null } = {}) {
   if (!isObj(p) || isLockedPots(p)) return [];
@@ -129,8 +130,10 @@ export function visitQuestions(p, { tests = [], stage = null, stageName = null, 
     if (cleared !== "yes") add("q_exercise", "Is it safe for me to start an exercise plan, and where should I start?");
     if (prog.pem === "yes" || prog.pem === "unsure") add("q_pem", "I crash after effort. Could this be post-exertional malaise, and how should I pace?");
   }
-  // The cycle card is shown and her rough days lean towards the period (lib/potsPatterns.js cycleGroups).
-  if (cycle && cycle.shown && cycle.top) add("q_cycle", `My symptoms seem worse ${cycle.top === "weekBefore" ? "the week before" : "during"} my period. Is that worth planning around?`, true, "patterns");
+  // The cycle card is shown and her rough days lean clearly towards the period: a lead of at
+  // least 25 points, the card's own visit rule (lib/potsPatterns.js cycleGroups `top`). It is
+  // drawn from her day ratings, so in a file it needs "Symptoms, ratings and episodes" too.
+  if (cycle && cycle.shown && cycle.top) add("q_cycle", `My symptoms seem worse ${cycle.top === "weekBefore" ? "the week before" : "during"} my period. Is that worth planning around?`, true, ["patterns", "sym"]);
   const meds = (p.meds || []).filter((m) => m.kind !== "aid" && !m.stopped);
   if ((stage === "preg" || stageName === "Trying to Conceive") && meds.length) add("q_preg", `I'm ${stage === "preg" ? "pregnant" : "planning a pregnancy"}. Are my POTS medicines OK to continue?`, true, "meds");
   const onset = monthYear(s.context.onset && s.context.onset.ym);
@@ -157,8 +160,16 @@ function linkSource(p, e) {
 const SRC_WORD = { test: "Stand test", session: "Exercise session", test_deleted: "Stand test (deleted)", session_deleted: "Exercise session (deleted)", deleted: "Deleted record" };
 const SRC_CSV = { test: "stand test", session: "session", test_deleted: "deleted stand test", session_deleted: "deleted session", deleted: "deleted record" };
 
+/** The Report parts a generated question draws on (none, one or several). */
+export const questionParts = (q) => (Array.isArray(q.part) ? q.part : q.part ? [q.part] : []);
 /** Whether a generated question goes into the files for these Include choices. */
-export const questionIn = (q, inc) => (inc.cycle || !q.stageBased) && (!q.part || inc[q.part] !== false);
+export const questionIn = (q, inc) => (inc.cycle || !q.stageBased) && questionParts(q).every((k) => inc[k] !== false);
+/** The Report part a pattern factor draws on (lib/potsPatterns.js factorList): drinks, salt and
+    IV fluids are "Fluids and sodium"; medicine timing and supports are "Medicines and supports";
+    exercise the day before is "Movement" (its box arrives with the Move section); sleep, heat,
+    triggers and hot flashes sit with "Symptoms, ratings and episodes", which every pattern
+    needs anyway because the outcome is her day rating. */
+export const factorPart = (f) => (["fluid", "sodium", "iv"].includes(f.key) ? "fluid" : f.kind === "med" || f.key.startsWith("med:") || f.key.startsWith("aid:") ? "meds" : f.key === "moved" ? "move" : "sym");
 
 /* ---------- the model ---------- */
 const testBpWord = (r) => {
@@ -433,8 +444,12 @@ export function reportModel(p, opts = {}) {
   /* 6. Cycle pattern (cycle stages, 90 days, design 5.6) and 7. Patterns from her log
      (design 5.3 and 5.7): observations, not causes. Built by lib/potsPatterns.js from the POTS
      log only, plus check-in sleep and hot flashes and her period starts only with cycle
-     details; never with watch or ring readings. */
-  if (inc.patterns && inc.cycle && cycleCard && cycleCard.shown) {
+     details; never with watch or ring readings. Every pattern counts rough days, so both
+     sections need "Symptoms, ratings and episodes"; and each observation follows the part it
+     draws on (factorPart): with a part unticked its factors aren't even compared, and with
+     medicines unticked there is no before/after line, so no unticked part reaches a file
+     through Patterns. */
+  if (inc.patterns && inc.sym && inc.cycle && cycleCard && cycleCard.shown) {
     const G = [["period", "Period days"], ["weekBefore", "Week before her period"], ["other", "Other days"]];
     sections.push({ id: "cycle", title: "Cycle pattern", blocks: [
       { t: "table", caption: `Rough POTS days by cycle group, last 90 days (${plural(cycleCard.k, "cycle")})`, head: ["Days", "Rough days", "Rated days"], widths: [215, 150, 150],
@@ -447,9 +462,10 @@ export function reportModel(p, opts = {}) {
     sections.push({ id: "cycle", title: "POTS and pregnancy", blocks: [{ t: "p", text: PREG_PATTERN_NOTE.slice(0, PREG_PATTERN_NOTE.indexOf(" Bring ")) }] });
   }
   let patternsShown = null;
-  if (inc.patterns) {
+  if (inc.patterns && inc.sym) {
     const pat = patterns(p, { window: period === "30" ? "30" : "90", range: { from: range.from, to: range.to }, today, stage, stageName, you: false,
-      checkin: inc.cycle && typeof checkin === "function" ? checkin : null, starts: inc.cycle ? starts : [] });
+      checkin: inc.cycle && typeof checkin === "function" ? checkin : null, starts: inc.cycle ? starts : [],
+      keep: (f) => inc[factorPart(f)] !== false, meds: inc.meds !== false });
     const items = [...pat.cards.map((c) => c.text), ...pat.meds.filter((m) => m.beforeAfter && m.beforeAfter.ready).map((m) => medLine(m.name, m.beforeAfter))];
     patternsShown = items;
     sections.push({ id: "patterns", title: "Patterns from her log", blocks: [

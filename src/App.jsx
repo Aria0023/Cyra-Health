@@ -380,7 +380,14 @@ export default function CyraDemo() {
   // POTS → Report reads the day's check-in only for the "also in check-in" lines, and only
   // while "Cycle or pregnancy details" is ticked (lib/potsReport.js). It never gets
   // registration answers or wearable readings.
-  const potsCheckin = useMemo(() => (iso) => entryOn(iso), [stage, days, pregLog]); // eslint-disable-line
+  // A lookup built once per log change (the first entry for a date wins, as days.find did), so
+  // Patterns and the report read a long log in one pass instead of searching it day by day.
+  const potsCheckin = useMemo(() => {
+    if (stage === "preg") return (iso) => pregLog[iso];
+    const by = new Map();
+    for (const d of days) if (d && !by.has(d.date)) by.set(d.date, d);
+    return (iso) => by.get(iso);
+  }, [stage, days, pregLog]);
   // POTS → Patterns compares watch and ring readings on screen only (never in a POTS file); HRV
   // only when exactly one source is connected (lib/potsPatterns.js). Cycle days and cycle groups
   // use the period starts her check-ins logged (ins.starts), in a cycle stage only.

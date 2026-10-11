@@ -10,7 +10,7 @@ import {
   episodesByDose, todayPace, weekSummary, patterns, testGroups, windowRange, sinceOffered, addDays, cardWords, isCycleStage,
   GVR_WAIT, CYCLE_WAIT, PACE_WAIT, PATTERN_FOOT, SYMPTOM_FOOT, REPORT_FOOT,
 } from "./potsPatterns.js";
-import { reportModel, toCSV, modelTexts, visitQuestions, questionIn } from "./potsReport.js";
+import { reportModel, toCSV, modelTexts, visitQuestions, questionIn, factorPart } from "./potsReport.js";
 import { POTS_BANNED, THRESH } from "./potsConstants.js";
 
 const TODAY = "2026-10-10";
@@ -397,6 +397,13 @@ function reportLog() {
   p.tests = [{ id: "t1", date: ago(52), t: "08:30", upd: 1, method: "stand", restPos: "back", restMin: 5, sched: "1-3-5-10", bp: false, rest: [{ min: 4, hr: 66 }, { min: 5, hr: 70 }], up: [{ min: 1, atSec: 60, hr: 88 }, { min: 3, atSec: 180, hr: 96 }, { min: 5, atSec: 300, hr: 101 }, { min: 10, atSec: 600, hr: 104 }], feel: [], status: "done" }];
   return cleanPots(p);
 }
+/** reportLog with every rated day in the week before a period rated Bad and the rest Good:
+    rough days lean far more than 25 points towards the week before. */
+function leanLog() {
+  const p = reportLog();
+  for (const [d, x] of Object.entries(p.days)) x.rating = cycleGroupOn(d, STARTS) === "weekBefore" ? 4 : 1;
+  return cleanPots(p);
+}
 const ropts = (over = {}) => ({ period: "90", today: TODAY, stage: "periods", stageName: "My Cycle", starts: STARTS, ...over });
 test("report: 'Patterns from her log' lists what stood out, in the third person, with the chance footer", () => {
   const m = reportModel(reportLog(), ropts());
@@ -418,8 +425,11 @@ test("report: cycle days and the cycle pattern only with 'Cycle or pregnancy det
   const cyc = m.sections.find((s) => s.id === "cycle");
   assert.equal(cyc.title, "Cycle pattern");
   assert.match(cyc.blocks[1].text, /^From 2 cycles, rough POTS days came on: Period days .* Week before her period .* Other days /);
-  assert.ok(m.questions.generated.some((q) => q.id === "q_cycle" && q.stageBased && q.part === "patterns"));
-  const off = reportModel(reportLog(), ropts({ include: { cycle: false } }));
+  // This log's rough days don't lean 25 points towards the period, so no cycle question.
+  assert.ok(!m.questions.generated.some((q) => q.id === "q_cycle"));
+  const lean = reportModel(leanLog(), ropts());
+  assert.ok(lean.questions.generated.some((q) => q.id === "q_cycle" && q.stageBased && q.part.join() === "patterns,sym"));
+  const off = reportModel(leanLog(), ropts({ include: { cycle: false } }));
   const csvOff = toCSV(off);
   assert.ok(!/cycle_day|week_before_period/.test(csvOff));
   assert.ok(!off.sections.some((s) => s.id === "cycle"));
@@ -465,6 +475,155 @@ test("report: check-in sleep and hot flashes feed the report's patterns only wit
   assert.equal(reads, 0);
   reportModel(p, ropts({ stage: "peri", stageName: "Perimenopause", checkin }));
   assert.ok(reads > 0);
+});
+
+/* ================= review fixes (S6) ================= */
+/** 60 days: a medicine with a time ("SecretMed", started 20 days ago, on time on some days and
+    3 hours off on others), a leg compression support, drinks and salt under a goal on rough
+    days, heat tags, and ratings. Everything Patterns can compare, so each part can be unticked. */
+function partsLog() {
+  const p = on();
+  p.since = ago(59);
+  p.settings.goals = { fluidMl: 2000, naMg: 2000, by: "clinician", set: ago(60) };
+  p.meds = [
+    { id: "m1", lib: null, name: "SecretMed", kind: "rx", times: ["08:00"], note: "", started: ago(20), stopped: null },
+    { id: "a1", lib: "comp_leg", name: "Compression (leg)", kind: "aid", times: [], note: "", started: null, stopped: null },
+  ];
+  for (let i = 0; i < 60; i++) {
+    const rough = i % 3 === 0;
+    p.days[ago(i)] = {
+      rating: rough ? 4 : 1,
+      sym: { p_dzy: rough ? 3 : 1 },
+      trig: rough ? ["t_heat", "t_stand"] : [],
+      intake: [{ id: `a${i}`, t: "09:00", kind: "electrolyte", label: "Drink", ml: rough ? 600 : 2400, naMg: rough ? 400 : 2400 }],
+      ...(i % 9 === 0 ? { iv: { ml: 1000, note: "" } } : {}),
+      aids: { a1: !rough },
+      ...(i < 20 ? { doses: [{ id: `d${i}`, medId: "m1", slot: "08:00", t: rough ? "11:30" : "08:05", state: "taken" }] } : {}),
+    };
+  }
+  return cleanPots(p);
+}
+test("report: every pattern follows the part it draws on; no unticked part reaches a file through Patterns", () => {
+  const p = partsLog();
+  const run = (include) => reportModel(p, { period: "90", today: TODAY, stage: "peri", stageName: "Perimenopause", include });
+  const all = run({});
+  const pat = (m) => (m.sections.find((s) => s.id === "patterns") || { blocks: [] }).blocks.flatMap((b) => b.items || []).join("\n");
+  assert.match(pat(all), /drank less than her goal|salt was under her goal/);
+  assert.match(pat(all), /Before SecretMed: rough days/, "with every part ticked the medicine shows up in Patterns");
+  // Medicines and supports unticked: no medicine or support name anywhere in the files.
+  const noMeds = run({ meds: false });
+  for (const t of [...modelTexts(noMeds), toCSV(noMeds)]) assert.ok(!/SecretMed|ompression/.test(t), t);
+  assert.ok(pat(noMeds).length > 0, "the other observations stay");
+  // Fluids and sodium unticked: no drink, salt or IV observation.
+  const noFluid = run({ fluid: false });
+  assert.ok(!/drank|salt was|IV fluids|goal/.test(pat(noFluid)), pat(noFluid));
+  // Left-out factors are dropped before ranking, so the next ones in line take their places.
+  assert.match(pat(noFluid), /days she tagged heat/);
+  assert.match(pat(noFluid), /compression \(leg\)/);
+  assert.ok(!modelTexts(noFluid).some((t) => /drank|salt was under|IV fluids/.test(t)));
+  // Symptoms, ratings and episodes unticked: ratings are the outcome, so no Patterns, no cycle
+  // pattern, no rough-day count and no cycle question anywhere.
+  for (const stage of [["peri", "Perimenopause"], ["periods", "My Cycle"]]) {
+    const noSym = reportModel(leanLog(), { period: "90", today: TODAY, stage: stage[0], stageName: stage[1], starts: STARTS, include: { sym: false } });
+    assert.ok(!noSym.sections.some((s) => s.id === "patterns" || s.title === "Cycle pattern"), stage[1]);
+    assert.ok(!modelTexts(noSym).some((t) => /rough|Rough|rated days|Rated days|my period/.test(t)), stage[1]);
+    assert.ok(!/day_rating/.test(toCSV(noSym)));
+    assert.ok(noSym.questions.generated.some((q) => q.id === "q_cycle"), "on screen the cycle question still shows");
+    assert.ok(!noSym.questions.generated.filter((q) => questionIn(q, noSym.inc)).some((q) => q.id === "q_cycle"), "but not in the files");
+  }
+  // All three unticked: the reviewers' case (only tests and questions remain).
+  const none = run({ meds: false, fluid: false, sym: false });
+  assert.deepEqual(none.sections.map((s) => s.id), ["tests", "questions"]);
+  assert.ok(!modelTexts(none).some((t) => /SecretMed|ompression|drank|Rough days/.test(t)));
+  // factorPart: which box each factor follows.
+  assert.equal(factorPart({ key: "fluid", kind: "plain" }), "fluid");
+  assert.equal(factorPart({ key: "iv", kind: "plain" }), "fluid");
+  assert.equal(factorPart({ key: "med:m1", kind: "med" }), "meds");
+  assert.equal(factorPart({ key: "aid:a1", kind: "plain" }), "meds");
+  assert.equal(factorPart({ key: "trig:t_stand", kind: "plain" }), "sym");
+  assert.equal(factorPart({ key: "moved", kind: "plain" }), "move");
+  for (const s of [...modelTexts(all), ...modelTexts(noMeds), ...modelTexts(noFluid)]) assertClean(s, "report parts");
+});
+test("report: a medicine's before and after days come from the report period only", () => {
+  const p = on();
+  p.since = ago(199);
+  p.meds = [{ id: "m1", lib: "ivab", name: "Ivabradine", kind: "rx", times: [], note: "", started: ago(150), stopped: null }];
+  for (let i = 0; i < 200; i++) p.days[ago(i)] = { rating: i > 150 ? 4 : 1 };
+  const q = cleanPots(p);
+  const texts = (period) => modelTexts(reportModel(q, { period, today: TODAY })).join("\n");
+  assert.ok(!/Before Ivabradine/.test(texts("30")), "a start 150 days ago is outside a 30-day report");
+  assert.ok(!/Before Ivabradine/.test(texts("90")));
+  assert.match(texts("all"), /Before Ivabradine: rough days 14 of 14\. Since: 0 of 14\./);
+  // On screen, "Medicines since starting" isn't tied to the window.
+  assert.ok(patterns(q, { window: "30", today: TODAY }).meds[0].beforeAfter.ready);
+  // A start inside the period but near its first day compares only the period's own days.
+  const p2 = on();
+  p2.since = ago(59);
+  p2.meds = [{ id: "m1", lib: null, name: "Nearstart", kind: "rx", times: [], note: "", started: ago(25), stopped: null }];
+  for (let i = 0; i < 60; i++) p2.days[ago(i)] = { rating: i > 25 ? 4 : 1 };
+  const m30 = reportModel(cleanPots(p2), { period: "30", today: TODAY });
+  // 4 rated days before the start are inside the period (ago(29)..ago(26)): under 5, so no line.
+  assert.ok(!modelTexts(m30).some((t) => /Before Nearstart/.test(t)));
+  assert.match(modelTexts(reportModel(cleanPots(p2), { period: "90", today: TODAY })).join("\n"), /Before Nearstart: rough days 14 of 14\. Since: 0 of 14\./);
+});
+test("cycle question: only when the lead is at least 25 points (the card's visit rule)", () => {
+  const starts = [ago(84), ago(56), ago(28), ago(0)];
+  const rowsWith = (share) => {
+    const out = [], seen = { period: 0, weekBefore: 0, other: 0 }, tot = { period: 0, weekBefore: 0, other: 0 };
+    for (let i = 89; i >= 0; i--) { const g = cycleGroupOn(ago(i), starts); if (g) tot[g]++; }
+    for (let i = 89; i >= 0; i--) {
+      const d = ago(i), g = cycleGroupOn(d, starts);
+      const k = g ? seen[g]++ : 0;
+      out.push({ date: d, rated: true, rough: g ? k < Math.round(share[g] * tot[g]) : false });
+    }
+    return out;
+  };
+  const opts = { stage: "periods", stageName: "My Cycle", today: TODAY };
+  const small = cycleGroups(rowsWith({ period: 0.44, weekBefore: 0.33, other: 0.33 }), starts, opts);
+  assert.equal(small.shown, true); assert.equal(small.urgency, "self"); assert.equal(small.top, null);
+  const mid = cycleGroups(rowsWith({ period: 0.5, weekBefore: 0.34, other: 0.34 }), starts, opts);
+  assert.equal(mid.urgency, "self"); assert.equal(mid.top, null);
+  const big = cycleGroups(rowsWith({ period: 0.63, weekBefore: 0.33, other: 0.33 }), starts, opts);
+  assert.equal(big.urgency, "visit"); assert.equal(big.top, "period");
+  const q = (cycle) => visitQuestions(reportLog(), { stage: "periods", stageName: "My Cycle", cycle }).some((x) => x.id === "q_cycle");
+  assert.equal(q(small), false); assert.equal(q(mid), false); assert.equal(q(big), true);
+});
+test("today isn't over: its drinks and salt so far are never compared with a goal or the usual", () => {
+  const p = on();
+  p.settings.goals = { fluidMl: 2000, naMg: null, by: "me", set: ago(30) };
+  for (let i = 0; i < 12; i++) p.days[ago(i)] = { rating: 2, intake: [{ id: `a${i}`, t: "09:00", kind: "water", label: "Glass", ml: i === 0 ? 250 : 2500, naMg: i === 0 ? 100 : 1000 }] };
+  const q = cleanPots(p);
+  const withToday = dayRows(q, { from: ago(11), to: TODAY, today: TODAY });
+  const last = withToday.at(-1);
+  assert.equal(last.partial, true);
+  assert.equal(last.fluidMl, 250, "the total so far is still shown");
+  assert.equal(last.belowFluidGoal, null);
+  assert.equal(last.belowNaGoal, null, "the median fallback leaves today out too");
+  assert.equal(withToday[0].belowNaGoal, false, "earlier days still compare with the median of the earlier days");
+  const asPast = dayRows(q, { from: ago(11), to: TODAY });
+  assert.equal(asPast.at(-1).belowFluidGoal, true, "a finished day is compared as before");
+  // The 30-day window passes today through.
+  assert.equal(patterns(q, { window: "30", today: TODAY }).rows.at(-1).partial, true);
+});
+test("the period tags read as sentences, on screen and in the third-person report", () => {
+  const p = on();
+  for (let i = 0; i < 30; i++) p.days[ago(i)] = { rating: i % 4 === 0 ? 4 : 1, trig: i % 4 === 0 ? ["t_period", "t_premens"] : [] };
+  const q = cleanPots(p), rows = dayRows(q, { from: ago(29), to: TODAY });
+  const ph = (you) => Object.fromEntries(factorList(q, rows, {}, { you }).filter((f) => f.key.startsWith("trig:")).map((f) => [f.key, f.phrases]));
+  assert.deepEqual(ph(true)["trig:t_period"], ["days you were on your period", "other days"]);
+  assert.deepEqual(ph(false)["trig:t_period"], ["days she was on her period", "other days"]);
+  assert.deepEqual(ph(true)["trig:t_premens"], ["days in the week before your period", "other days"]);
+  assert.deepEqual(ph(false)["trig:t_premens"], ["days in the week before her period", "other days"]);
+  const texts = patterns(q, { window: "30", today: TODAY }).cards.map((c) => c.text).join("\n");
+  assert.ok(!/tagged on my period|tagged week before my period/i.test(texts), texts);
+});
+test("dayRows' cycle index gives the same group and cycle day as cycleGroupOn and cycleDayOn", () => {
+  const starts = [ago(140), ago(112), ago(80), ago(51), ago(22), ago(22), "bad", ago(3)];
+  const rows = dayRows(cleanPots(on()), { from: ago(170), to: addDays(TODAY, 10), starts });
+  for (const r of rows) {
+    assert.equal(r.cycleGroup, cycleGroupOn(r.date, starts), r.date);
+    assert.equal(r.cycleDay, cycleDayOn(r.date, starts), r.date);
+  }
 });
 
 /* ================= source ================= */

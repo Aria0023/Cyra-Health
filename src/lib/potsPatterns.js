@@ -31,6 +31,15 @@ const isIso = (v) => typeof v === "string" && ISO.test(v);
 export const addDays = (iso, n) => { const [y, m, d] = iso.split("-").map(Number); return localDay(new Date(y, m - 1, d + n)); };
 /** Whole calendar days from `a` to `b`. */
 export const dayDiff = (a, b) => Math.round((new Date(`${b}T12:00:00`) - new Date(`${a}T12:00:00`)) / 86400000);
+/** Every local day key from `from` to `to`, both included, stepping one Date (at noon, so a
+    clock change never skips or repeats a day) instead of building a new one per day. */
+function eachDay(from, to) {
+  const out = [];
+  const [y, m, d] = from.split("-").map(Number);
+  const c = new Date(y, m - 1, d, 12);
+  for (let s = from; s <= to; c.setDate(c.getDate() + 1), s = localDay(c)) out.push(s);
+  return out;
+}
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const lc1 = (s) => (typeof s === "string" && s ? s[0].toLowerCase() + s.slice(1) : s);
 const n1 = (x) => (Number.isInteger(x) ? String(x) : String(Math.round(x * 10) / 10));
@@ -100,6 +109,28 @@ export function cycleDayOn(iso, starts) {
   const n = dayDiff(s[s.length - 1], iso);
   return n <= P.cycleDayMax ? n + 1 : null;
 }
+/** Cycle group and cycle day for every day in [from, to] at once, from cleaned starts `S`: the
+    same answers as cycleGroupOn and cycleDayOn, without re-reading the starts for each day.
+    -> Map(iso -> { group, day }). */
+function cycleIndex(S, from, to) {
+  const out = new Map();
+  if (!S.length || !isIso(from) || !isIso(to) || from > to) return out;
+  const period = new Set(), before = new Set();
+  for (const s of S) for (let i = 0; i <= 4; i++) period.add(addDays(s, i));
+  for (let i = 1; i < S.length; i++) for (let k = 1; k <= 7; k++) before.add(addDays(S[i], -k));
+  const end = addDays(S[S.length - 1], 4);
+  let j = -1, since = 0;
+  for (const d of eachDay(from, to)) {
+    let moved = false;
+    while (j + 1 < S.length && S[j + 1] <= d) { j++; moved = true; }
+    since = moved ? dayDiff(S[j], d) : since + 1;
+    out.set(d, {
+      group: period.has(d) ? "period" : before.has(d) ? "weekBefore" : S[0] <= d && d <= end ? "other" : null,
+      day: j >= 0 && since <= P.cycleDayMax ? since + 1 : null,
+    });
+  }
+  return out;
+}
 /** The label a stand-test result carries: { day, weekBefore } or null (design 5.6: a label
     only; nothing is inferred from it). Only in a cycle stage. */
 export function cycleLabelOn(iso, starts, stage, stageName) {
@@ -111,7 +142,8 @@ export function cycleLabelOn(iso, starts, stage, stageName) {
 /* ---------- day rows ---------- */
 /** One row per calendar day in [from, to] (design 5.2). ctx: from, to, stage, starts (logged
     period starts), checkin (iso -> that day's check-in entry) or days / pregLog to build it,
-    wearData (watch or ring rows; on screen only). */
+    wearData (watch or ring rows; on screen only), today (that row is marked `partial`: the day
+    isn't over, so its drinks and salt so far aren't compared with a goal). */
 function checkinFor(ctx) {
   if (typeof ctx.checkin === "function") return (d) => { const c = ctx.checkin(d); return isObj(c) ? c : null; };
   if (ctx.stage === "preg") { const log = isObj(ctx.pregLog) ? ctx.pregLog : {}; return (d) => (isObj(log[d]) ? log[d] : null); }
@@ -130,12 +162,13 @@ function slotRule(m, doses) {
   return ok;
 }
 /** "Below" a goal, or (no goal set) below her median of logged days in the window, which needs
-    10 logged days; otherwise unknown. */
+    10 logged days; otherwise unknown. Today is still going (`partial`): its total so far is
+    never compared with a whole day's goal or usual amount, and doesn't move the median. */
 function goalSplit(rows, key, goal, out, basisKey) {
-  const logged = rows.filter((r) => r[key] != null).map((r) => r[key]);
+  const logged = rows.filter((r) => r[key] != null && !r.partial).map((r) => r[key]);
   let cut = null, basis = null;
   if (fin(goal)) { cut = goal; basis = "goal"; } else if (logged.length >= P.medianDays) { cut = median(logged); basis = "usual"; }
-  for (const r of rows) { r[basisKey] = basis; r[out] = cut == null || r[key] == null ? null : r[key] < cut; }
+  for (const r of rows) { r[basisKey] = basis; r[out] = cut == null || r[key] == null || r.partial ? null : r[key] < cut; }
 }
 export function dayRows(p, ctx = {}) {
   if (!isObj(p) || isLockedPots(p)) return [];
@@ -149,12 +182,15 @@ export function dayRows(p, ctx = {}) {
   const everMoved = Object.values(days).some((d) => isObj(d) && Array.isArray(d.move) && d.move.length > 0);
   // Watch and ring rows (illustrative demo rows are never compared).
   const wear = new Map((Array.isArray(wearData) ? wearData : []).filter((w) => isObj(w) && isIso(w.date) && !w.demo).map((w) => [w.date, w]));
-  const S = cleanStarts(starts);
+  const cyc = cycleIndex(cleanStarts(starts), from, to);
   const testDays = new Set((p.tests || []).filter((t) => t.status !== "running").map((t) => t.date));
+  const today = isIso(ctx.today) ? ctx.today : null;
   const rows = [];
-  for (let d = from; d <= to; d = addDays(d, 1)) {
+  let prevIso = addDays(from, -1);
+  for (const d of eachDay(from, to)) {
     const x = isObj(days[d]) ? days[d] : {};
-    const prev = isObj(days[addDays(d, -1)]) ? days[addDays(d, -1)] : null;
+    const prev = isObj(days[prevIso]) ? days[prevIso] : null;
+    prevIso = d;
     const rating = [1, 2, 3, 4].includes(x.rating) ? x.rating : null;
     let fl = null, na = null;
     for (const it of x.intake || []) { if (fin(it.ml)) fl = (fl || 0) + it.ml; if (fin(it.naMg)) na = (na || 0) + it.naMg; }
@@ -166,7 +202,7 @@ export function dayRows(p, ctx = {}) {
     const eps = x.eps || [];
     const sym = isObj(x.sym) ? { ...x.sym } : {};
     rows.push({
-      date: d, logged: Object.keys(x).length > 0,
+      date: d, logged: Object.keys(x).length > 0, partial: d === today,
       rated: rating != null, rating, rough: rating == null ? null : rating >= 3, good: rating == null ? null : rating === 1,
       up: fin(x.up) ? x.up : null,
       fluidMl: fl, naMg: na, belowFluidGoal: null, belowNaGoal: null, fluidBasis: null, naBasis: null,
@@ -184,7 +220,7 @@ export function dayRows(p, ctx = {}) {
       hfDay: stage === "peri" && c ? (isObj(c.__q) && c.__q.hf != null ? null : fin(csym.hf) && csym.hf >= 2) : null,
       rhr: w && fin(w.rhr) ? w.rhr : null, hrv: w && fin(w.hrv) ? w.hrv : null, sleep: w && fin(w.sleep) ? w.sleep : null, wearSource: w ? w.sourceId || null : null,
       symSev: sym, symAny: Object.keys(sym).length > 0,
-      cycleGroup: cycleGroupOn(d, S), cycleDay: cycleDayOn(d, S),
+      cycleGroup: (cyc.get(d) || {}).group ?? null, cycleDay: (cyc.get(d) || {}).day ?? null,
       eps: eps.length, faints: eps.filter((e) => e.faint === "yes").length, nearFaints: eps.filter((e) => e.faint === "almost").length,
       test: testDays.has(d),
     });
@@ -239,7 +275,7 @@ function wearSourceFor(rows, kind, connected) {
     only). -> [{ key, name, kind: "plain" | "med" | "wear", fn, phrases: [exposed, other],
     minPaired?, src?, missing? }]; `missing` marks one Cyra can't compute yet (with why). */
 export function factorList(p, rows, ctx = {}, { you = true, wear = true } = {}) {
-  const V = you ? { y: "you", r: "your" } : { y: "she", r: "her" };
+  const V = you ? { y: "you", r: "your", was: "were" } : { y: "she", r: "her", was: "was" };
   const out = [];
   const add = (f) => out.push({ kind: "plain", ...f });
   const basisF = rows.find((r) => r.fluidBasis)?.fluidBasis || null, basisN = rows.find((r) => r.naBasis)?.naBasis || null;
@@ -256,7 +292,12 @@ export function factorList(p, rows, ctx = {}, { you = true, wear = true } = {}) 
   for (const [id, n] of [...tagN].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))) {
     if (n < P.trigDays) continue;
     const label = trigName(p, id), word = POTS_TRIG.some((x) => x.id === id) ? lc1(label) : label;
-    add({ key: `trig:${id}`, name: label, fn: (r) => (r.rated ? r.trig.has(id) : null), phrases: [`days ${V.y} tagged ${word}`, `days ${V.y} didn't`] });
+    // The two period tags are written in her voice ("On my period"): give them a sentence of
+    // their own, so neither the screen nor the third-person report reads "tagged on my period".
+    const phrases = id === "t_period" ? [`days ${V.y} ${V.was} on ${V.r} period`, "other days"]
+      : id === "t_premens" ? [`days in the week before ${V.r} period`, "other days"]
+      : [`days ${V.y} tagged ${word}`, `days ${V.y} didn't`];
+    add({ key: `trig:${id}`, name: label, fn: (r) => (r.rated ? r.trig.has(id) : null), phrases });
   }
   if (rows.some((r) => r.ivPrev != null)) add({ key: "iv", name: "IV fluids the day before", fn: (r) => r.ivPrev, phrases: ["days after IV fluids", "other days"] });
   for (const m of p.meds || []) {
@@ -351,8 +392,9 @@ export function goodVsRough(rows, p, { units = { fluid: "ml", salt: "mgNa" }, cy
     const gs = g.filter(Boolean).length, rs = r.filter(Boolean).length;
     out.push({ label, good: ok ? `${gs} of ${g.length}` : "—", rough: ok ? `${rs} of ${r.length}` : "—", size: ok ? Math.abs(gs / g.length - rs / r.length) : -1 });
   };
-  avg("Average fluids (days logged)", (r) => r.fluidMl, (v) => fmtFluid(v, units));
-  avg("Average sodium (days logged)", (r) => r.naMg, (v) => (units && units.salt === "gSalt" ? fmtSodium(v, units) : `${fmtSodium(v, units)} sodium`));
+  // Today isn't over: its drinks and salt so far would pull a whole-day average down.
+  avg("Average fluids (days logged)", (r) => (r.partial ? null : r.fluidMl), (v) => fmtFluid(v, units));
+  avg("Average sodium (days logged)", (r) => (r.partial ? null : r.naMg), (v) => (units && units.salt === "gSalt" ? fmtSodium(v, units) : `${fmtSodium(v, units)} sodium`));
   share("A poor night before", (r) => r.sleepPoor);
   share("Exercised the day before", (r) => r.movedPrev);
   share("Heat tagged", (r) => r.heat);
@@ -395,9 +437,11 @@ export function cycleGroups(rows, starts, { stage = null, stageName = null, toda
   const s = cleanStarts(starts).filter((x) => !today || x <= today);
   const from = today ? addDays(today, -(P.cycleWin - 1)) : null;
   const win = rows.filter((r) => r.rated && (!from || (r.date >= from && r.date <= today)));
+  const dates = win.map((r) => r.date).sort();
+  const idx = dates.length ? cycleIndex(s, dates[0], dates[dates.length - 1]) : new Map();
   const groups = {};
   for (const g of ["period", "weekBefore", "other"]) {
-    const in_ = win.filter((r) => cycleGroupOn(r.date, s) === g);
+    const in_ = win.filter((r) => (idx.get(r.date) || {}).group === g);
     groups[g] = { n: in_.length, a: in_.filter((r) => r.rough).length, enough: in_.length >= P.cycleGroup };
   }
   let k = 0;
@@ -409,12 +453,15 @@ export function cycleGroups(rows, starts, { stage = null, stageName = null, toda
   const shares = Object.entries(groups).filter(([, g]) => g.enough).map(([key, g]) => ({ key, v: g.a / g.n }));
   const max = Math.max(...shares.map((x) => x.v)), min = Math.min(...shares.map((x) => x.v));
   const tops = shares.filter((x) => x.v === max);
+  const urgency = max - min >= P.cycleSpread - EPS ? "visit" : "self";
   return {
     shown: true, k, groups,
     sentence: `From ${k} cycles, rough POTS days came on: ${["period", "weekBefore", "other"].map(part).join(" · ")}.`,
-    urgency: max - min >= P.cycleSpread - EPS ? "visit" : "self",
-    // The group with the most rough days, when it is around the period (for the visit question).
-    top: tops.length === 1 && max > min && tops[0].key !== "other" ? tops[0].key : null,
+    urgency,
+    // The group with the most rough days, for the visit question ("My symptoms seem worse…"):
+    // only when it is around the period AND leads by the card's own visit rule (25 points), so
+    // a day or two more never becomes a claim in her voice in a clinician file.
+    top: urgency === "visit" && tops.length === 1 && tops[0].key !== "other" ? tops[0].key : null,
   };
 }
 
@@ -522,8 +569,12 @@ export function testGroups(p, { teen = false } = {}) {
     today's pace), stage, stageName, starts, checkin | days | pregLog, wearData and connected
     (watch and ring: on screen only; omit them for anything that leaves the device), outcome (a
     symptom id: "Days with {symptom} moderate or strong" instead of rough days), you (second
-    person, default true). -> { window, range, rated, rows, today, pace, week, cards, checked,
-    footer, outcomes, outcome, goodVsRough, cycle, meds, tests }. */
+    person, default true), keep (factor -> boolean: only the factors a caller may show are
+    compared, before ranking, so a factor left out is never replaced by a guess about it), meds
+    (false: no "Medicines since starting"). A file's caller passes `range`: then a medicine's
+    before and after days are only days inside that range, as its header states.
+    -> { window, range, rated, rows, today, pace, week, cards, checked, footer, outcomes,
+    outcome, goodVsRough, cycle, meds, tests }. */
 export function patterns(p, ctx = {}) {
   if (!isObj(p) || isLockedPots(p)) return null;
   const today = isIso(ctx.today) ? ctx.today : localDay(new Date());
@@ -531,7 +582,9 @@ export function patterns(p, ctx = {}) {
   const range = ctx.range && isIso(ctx.range.from) && isIso(ctx.range.to) ? ctx.range : windowRange(p, window, today);
   const { stage = null, stageName = null, starts = [], connected = [], you = true } = ctx;
   const wearData = Array.isArray(ctx.wearData) ? ctx.wearData : [];
-  const base = { stage, starts, checkin: ctx.checkin, days: ctx.days, pregLog: ctx.pregLog, wearData };
+  const base = { stage, starts, checkin: ctx.checkin, days: ctx.days, pregLog: ctx.pregLog, wearData, today };
+  const keep = typeof ctx.keep === "function" ? ctx.keep : () => true;
+  const clip = !!(ctx.range && isIso(ctx.range.from) && isIso(ctx.range.to));
   const rows = dayRows(p, { ...base, ...range });
   const out = { window, range, rated: rows.filter((r) => r.rated).length, rows, today: null, pace: null, week: null, cards: [], checked: [], footer: null, outcomes: [], outcome: null, goodVsRough: null, cycle: null, meds: [], tests: [] };
   if (window === "today") {
@@ -551,7 +604,7 @@ export function patterns(p, ctx = {}) {
   out.outcome = sym ? sym.id : null;
   // A day with no symptom entries is unknown, not "absent".
   const outcome = sym ? (r) => (r.symAny ? (r.symSev[sym.id] || 0) >= 2 : null) : null;
-  const factors = factorList(p, rows, { stage, connected }, { you, wear: you && wearData.length > 0 });
+  const factors = factorList(p, rows, { stage, connected }, { you, wear: you && wearData.length > 0 }).filter(keep);
   const compute = (rs) => factors.map((f) => (f.missing ? null : compareFactor(rs, f, { outcome })));
   const results = compute(rows);
   // "Seen last month too": the 30 days before pass the gates in the same direction.
@@ -567,11 +620,14 @@ export function patterns(p, ctx = {}) {
   out.goodVsRough = goodVsRough(rows, p, { units: p.settings.units, cycle: isCycleStage(stage, stageName), connected, wear: you && wearData.length > 0 });
   const rows90 = dayRows(p, { ...base, from: addDays(today, -(P.cycleWin - 1)), to: today });
   out.cycle = cycleGroups(rows90, starts, { stage, stageName, today });
-  // Medicines since starting: those she started while already logging POTS days.
+  // Medicines since starting: those she started while already logging POTS days. In a file
+  // (`clip`), only a start inside the range counts, and only the range's own days are compared.
   const first = firstDay(p, today);
-  for (const m of p.meds || []) {
+  for (const m of ctx.meds === false ? [] : p.meds || []) {
     if (m.kind === "aid") continue;
-    const mrows = isIso(m.started) && m.started > first && m.started <= today ? dayRows(p, { ...base, from: addDays(m.started, -P.medSide), to: today }) : null;
+    const start = isIso(m.started) && m.started > first && m.started <= today && (!clip || (m.started >= range.from && m.started <= range.to));
+    const from0 = start ? addDays(m.started, -P.medSide) : null;
+    const mrows = start ? dayRows(p, { ...base, from: clip && from0 < range.from ? range.from : from0, to: clip ? range.to : today }) : null;
     const ba = mrows ? medBeforeAfter(p, m, mrows) : null;
     const eps = episodesByDose(p, m, rows);
     if (ba || eps) out.meds.push({ id: m.id, name: m.name, beforeAfter: ba, eps });
