@@ -5,7 +5,7 @@ import Details from "../Details.jsx";
 import GoalSheet from "./GoalSheet.jsx";
 import MedEditor from "./MedEditor.jsx";
 import { symOrder } from "./PotsSymptoms.jsx";
-import { symLabel, amountText, naText, numOf, numProps, isOz, toMl, mlIn } from "./ui.js";
+import { symLabel, amountText, naText, numOf, notNum, numProps, isOz, toMl, mlIn } from "./ui.js";
 import { Choice, METHODS, methodDefaults } from "./StandSafety.jsx";
 import { STATUS_OPTS, ONSET_OPTS, COND_OPTS } from "../../lib/potsReport.js";
 import { moveState, setProgram, MOVE_COPY, MOVE_STEPS, PEM_OPTS, CLEAR_OPTS, CLEAR_PREG_OPTS } from "../../lib/potsMove.js";
@@ -83,7 +83,7 @@ function PresetForm({ pr, units, onSave, onCancel }) {
     const m = isDrink ? (pr && pr.ml != null && ml === ml0 ? pr.ml : toMl(numOf(ml), units)) : null, n = numOf(na);
     if (!label.trim()) { setErr("Give the button a name."); return; }
     if (isDrink && (m == null || m < 1 || m > 5000)) { setErr("Add the amount for a drink button."); return; }
-    if (n != null && (n < 1 || n > 20000)) { setErr("Check the sodium number (mg from the label)."); return; }
+    if (notNum(na) || (n != null && (n < 1 || n > 20000))) { setErr("Check the sodium number (mg from the label)."); return; }
     const next = { ...(pr || {}), label: label.trim(), kind: kinds.some(([k]) => k === kind) || (pr && pr.kind === kind && isDrink === drink) ? kind : kinds[0][0], ml: m, naMg: n == null ? null : Math.round(n) };
     if (n != null) delete next.naSkip;
     onSave(next);

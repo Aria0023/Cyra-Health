@@ -257,7 +257,12 @@ export default function CyraDemo() {
   // Until two cycles are logged, predictions start from the registration answers (last period, usual length).
   const pred = useMemo(() => predict(ins, stage === "preg" ? null : regAnswers), [ins, regAnswers, stage]);
   const predWaits = stage !== "preg" && !pred && predictionWaits(ins, regAnswers);
-  const todayIso = localDay(); // this device's calendar day, never the UTC date
+  /* This device's calendar day, never the UTC date. Kept as state so the whole app moves to the
+     new day together: at local midnight (a timer, checked at least once a minute, since timers
+     pause while a device sleeps) and whenever the app comes back (visible, focused, resumed or
+     restored), so nothing logged after midnight is filed under the day before. */
+  const [todayIso, setTodayIso] = useState(() => localDay());
+  const syncDay = () => { const now = localDay(); setTodayIso((cur) => (cur === now ? cur : now)); return now; };
   const pregWeek = 22, trimester = 2;
   const toastTimer = useRef(null);
   const ping = (m) => { clearTimeout(toastTimer.current); setToast(m); toastTimer.current = setTimeout(() => setToast(""), 2600); };
@@ -341,15 +346,26 @@ export default function CyraDemo() {
     flow: e?.flow ?? null, disch: e?.disch ?? null, odor: e?.odor ?? null, bodyOdor: e?.bodyOdor ?? null, kicks: Math.max(e?.kicks || 0, tally),
   });
   const formFor = (iso) => formFrom(entryOn(iso), stage === "preg" && iso === todayIso && kickTally?.day === iso ? kickTally.n || 0 : 0);
+  // A form's contents for comparing (unset symptoms, key order and the quick-answer bookkeeping
+  // __q, which a saved quick check-in keeps in the form, don't count; an unanswered sleep
+  // question saves as "fair").
+  const formKey = (f) => JSON.stringify([Object.entries(f.draft || {}).filter(([k, v]) => v && k !== "__q").sort(), f.sleepQ || "fair", Object.entries(f.scales || {}).sort(), f.flow ?? null, f.disch ?? null, f.odor ?? null, f.bodyOdor ?? null, f.kicks || 0]);
   const applyForm = (f) => { setDraft(f.draft); setSleepQ(f.sleepQ); setScales(f.scales); setFlow(f.flow); setDisch(f.disch); setOdor(f.odor); setBodyOdor(f.bodyOdor); setKicks(f.kicks); };
   const editSnap = useRef(null); // today's form, put aside while another day is edited
   const formStage = useRef(null);
+  const formDay = useRef(null); // the day the open form was loaded for
   const [formRev, setFormRev] = useState(0); // bumped when the record is replaced (backup restored, another tab saved)
   useEffect(() => {
     if (!hydrated || !stage) return;
     const f = formFor(todayIso);
     const sameStage = formStage.current === stage; formStage.current = stage;
+    const prevDay = formDay.current; formDay.current = todayIso;
     if (editDate && sameStage) { editSnap.current = f; return; } // an edit stays open; today's form comes back after it
+    // Midnight (or a resume next morning) with a check-in half filled in: it stays open as an
+    // edit of the day it was started on, so saving files it there, and nothing she picked is wiped.
+    if (sameStage && prevDay && prevDay < todayIso && formKey({ draft, sleepQ, scales, flow, disch, odor, bodyOdor, kicks }) !== formKey(formFor(prevDay))) {
+      editSnap.current = f; setEditPeriod(stage !== "preg" && isPeriodDay(entryOn(prevDay))); setEditDate(prevDay); return;
+    }
     editSnap.current = null; setEditDate(null); applyForm(f);
   }, [hydrated, todayIso, stage, formRev]); // eslint-disable-line
   const startEdit = (iso) => {
@@ -381,7 +397,7 @@ export default function CyraDemo() {
   // "Hide the POTS tab (keep my POTS log)", or "Hide it and erase my POTS log" (a new epoch, so
   // no other open tab can merge the erased entries back).
   const potsOff = ({ erase = false } = {}) => {
-    setPots((p) => turnOff(erase ? eraseLog(p) : p));
+    setPots((p) => turnOff(erase ? eraseLog(p) : p)); setPotsHomeLast(null);
     ping(erase ? "POTS log erased and the POTS tab hidden" : "POTS tab hidden. Your POTS log is kept");
   };
   /* Home: the "POTS today" card while it's on (totals from dayTotals; "Today's insight" is never
@@ -393,6 +409,10 @@ export default function CyraDemo() {
   // A record replaced mid-test by one this build can't read (another tab restored it) ends the run.
   useEffect(() => { if (potsRun && !potsOk) setPotsRun(null); }, [potsRun, potsOk]);
   const potsTotals = useMemo(() => dayTotals(pots, todayIso), [pots, todayIso]);
+  // Home's Undo row shows only while that dose is still in the log: an erase, a restore, a
+  // removal in Today's log or in another tab (or another tab having logged that dose first)
+  // takes the row away, so it never offers to undo something that isn't there.
+  const potsHomeLive = potsHomeLast && potsHomeLast.day === todayIso && (((pots.days || {})[potsHomeLast.day] || {}).doses || []).some((x) => x && x.id === potsHomeLast.id) ? potsHomeLast : null;
   // POTS → Report reads the day's check-in only for the "also in check-in" lines, and only
   // while "Cycle or pregnancy details" is ticked (lib/potsReport.js). It never gets
   // registration answers or wearable readings.
@@ -794,9 +814,14 @@ export default function CyraDemo() {
   // A record that exists but can't be read (phone only) keeps hydrated false, so nothing
   // is saved over it; RecordUnavailableScreen offers Try again.
   const hydrate = () => storage.load().then(
-    (saved) => {
+    async (saved) => {
       try {
         if (saved && saved.v === 1 && saved.phase === "app") {
+          // A record with no `pots` at all was last saved by a build from before POTS (a tab left
+          // open across the deploy): this build always writes it. The web keeps a second copy of
+          // the POTS log that such a build never touches (lib/storage.js POTS_KEY); it is taken
+          // back here, and the autosave that follows writes it into the record again.
+          if (!("pots" in saved)) { const copy = await storage.loadPotsCopy(); if (copy && typeof copy === "object") saved = { ...saved, pots: copy }; }
           applySaved(saved); potsBase.current = saved.pots === undefined ? null : cleanPots(saved.pots);
           // A stand test left "running" with no activity for 30 minutes was interrupted (the app
           // closed mid-test): it keeps every reading it saved and is offered as Keep it / Discard.
@@ -941,11 +966,18 @@ export default function CyraDemo() {
   }, []); // eslint-disable-line
   useEffect(() => {
     // Hidden, closed or sent to the background: a save still waiting on its 400 ms timer is written now.
-    const onVisible = () => { if (document.visibilityState === "visible") { drainTerraNow(); retryPushForget(); retryTerraOff(); } else flushSave(); };
+    const onVisible = () => { if (document.visibilityState === "visible") { syncDay(); drainTerraNow(); retryPushForget(); retryTerraOff(); } else flushSave(); };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("pagehide", flushSave);
-    const sub = isNative() ? CapApp.addListener("appStateChange", (st) => { if (st?.isActive) { drainTerraNow(); retryTerraOff(); } else flushSave(); }) : null;
-    return () => { document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("pagehide", flushSave); sub?.then((h) => h.remove()).catch(() => {}); };
+    // Back from the background, a restored page or a focused window: the day may have changed.
+    window.addEventListener("pageshow", syncDay); window.addEventListener("focus", syncDay);
+    const sub = isNative() ? CapApp.addListener("appStateChange", (st) => { if (st?.isActive) { syncDay(); drainTerraNow(); retryTerraOff(); } else flushSave(); }) : null;
+    // Local midnight while the app stays open. Checked at least once a minute, because a timer
+    // doesn't count the time a device spends asleep and the clock or time zone can change.
+    let dayTimer = null;
+    const armDay = () => { const n = new Date(), next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 0, 1); dayTimer = setTimeout(() => { syncDay(); armDay(); }, Math.max(1000, Math.min(next - n, 60000))); };
+    armDay();
+    return () => { document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("pagehide", flushSave); window.removeEventListener("pageshow", syncDay); window.removeEventListener("focus", syncDay); clearTimeout(dayTimer); sub?.then((h) => h.remove()).catch(() => {}); };
   }, []); // eslint-disable-line
 
   /* Phone: a backup copy, POTS report or POTS spreadsheet an interrupted share left in the
@@ -1018,7 +1050,7 @@ export default function CyraDemo() {
        merging its own older entries back in. A log from a newer build stays untouched. */
     const restoredPots = newEpoch(saved.pots ?? freshEmpty(), Date.now());
     applySaved({ ...saved, pots: restoredPots, wearSources: wear }, { skip: [...DEVICE_ONLY, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
-    potsBase.current = restoredPots;
+    potsBase.current = restoredPots; setPotsHomeLast(null);
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
@@ -1460,9 +1492,9 @@ export default function CyraDemo() {
       showJournal={showJournal} setShowJournal={setShowJournal} journal={journal} jDraft={jDraft} setJDraft={setJDraft} setJournal={setJournal}
       potsCard={potsTab && potsOk
         ? <PotsHome pots={pots} totals={potsTotals} todayIso={todayIso} onQuickLog={() => openPots(true)} onStandTest={openStandTest}
-            last={potsHomeLast && potsHomeLast.day === todayIso ? potsHomeLast : null}
-            onUndo={() => { const l = potsHomeLast; if (!l) return; setPots((p) => removePotsItem(p, l.day, l.id)); setPotsHomeLast(null); ping(`Removed: ${l.text}`); }}
-            onTook={(med, slot) => { const t = nowHHMM(), id = newPotsId(); setPots((p) => logDose(p, todayIso, { id, medId: med.id, slot, state: "taken", t })); setPotsHomeLast({ id, day: todayIso, text: `${med.name} ${slot.replace(/^0/, "")} at ${t.replace(/^0/, "")}` }); ping(`${med.name} logged at ${t.replace(/^0/, "")}`); }} />
+            last={potsHomeLive}
+            onUndo={() => { const l = potsHomeLive; setPotsHomeLast(null); if (!l) return; setPots((p) => removePotsItem(p, l.day, l.id)); ping(`Removed: ${l.text}`); }}
+            onTook={(med, slot) => { const day = syncDay(), t = nowHHMM(), id = newPotsId(); setPots((p) => logDose(p, day, { id, medId: med.id, slot, state: "taken", t })); setPotsHomeLast({ id, day, text: `${med.name} ${slot.replace(/^0/, "")} at ${t.replace(/^0/, "")}` }); ping(`${med.name} logged at ${t.replace(/^0/, "")}`); }} />
         : potsOffer ? <PotsOffer onOn={() => { setPots((p) => markOffered(p, todayIso)); potsOn(); }} onNot={() => setPots((p) => markOffered(p, todayIso))} /> : null}
     />
   );
@@ -1475,7 +1507,7 @@ export default function CyraDemo() {
   const potsView = (
     <PotsScreen pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"} storageDriver={storageDriver}
       sections={potsOk ? {
-        today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => setPotsSec("stand")} storageDriver={storageDriver} />,
+        today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => setPotsSec("stand")} storageDriver={storageDriver} syncDay={syncDay} />,
         report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={acct.anon ? "" : (acct.name || "").trim()} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} />,
         patterns: <PotsPatterns pots={pots} stage={stage} stageName={stageName} todayIso={todayIso} starts={ins.starts} checkin={potsCheckin} wearData={wearData} connected={potsWearConnected} />,
         stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focusKey={potsStandFocus} cyc={potsCyc}

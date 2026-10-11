@@ -251,6 +251,31 @@ test("g: notes and her name only when she opts in", () => {
   assert.ok(!/·  ·/.test(reportModel(fixture(), base({ name: "", include: { name: true } })).header.line));
 });
 
+test("g: the pregnancy caveat follows each test (done in pregnancy), not the stage she is in now", () => {
+  const up = [{ min: 1, hr: 100 }, { min: 3, hr: 105 }, { min: 5, hr: 106 }, { min: 10, hr: 108 }];
+  const pregT = TEST({ id: "t2", date: "2026-10-09", restPos: "left", up });
+  // After the birth: a test done in pregnancy keeps its caveat in every file, with cycle details on.
+  const after = upsertTest(fixture(), pregT), cyc = base({ stage: "periods", stageName: "My Cycle" });
+  const m = reportModel(after, cyc);
+  const note = m.sections[0].blocks.find((b) => b.t === "p" && /heart rate normally rises during pregnancy/i.test(b.text));
+  assert.ok(note && /^For the tests done in pregnancy \(lying on left side\): heart rate normally rises/.test(note.text), note && note.text);
+  const csv = toCSV(m);
+  assert.match(csv, /stand_summary[^\n]*test_id=t2[^\n]*threshold_note=from studies outside pregnancy/);
+  assert.doesNotMatch(csv, /stand_summary[^\n]*test_id=t1[^\n]*threshold_note/);
+  assert.match(summaryText(m), /largest rise 40 \(outside pregnancy, clinicians use 30\)\..*This test was done in pregnancy/);
+  assert.doesNotMatch(summaryText(m), /I'm pregnant/);
+  for (const t of [...modelTexts(m), summaryText(m)]) assert.ok(!POTS_BANNED.test(t), t);
+  // Cycle details off: no pregnancy word anywhere, the rest position still shown.
+  const off = reportModel(after, { ...cyc, include: { cycle: false } });
+  assert.ok(!/pregnan/i.test(allOut(off)));
+  assert.match(toCSV(off), /rest=left side/);
+  // Pregnant now, test done before: no caveat on that test, and the summary says which is which.
+  const before = reportModel(fixture(), base({ stage: "preg", stageName: "Pregnancy" }));
+  assert.ok(!before.sections[0].blocks.some((b) => b.t === "p" && /heart rate normally rises during pregnancy/i.test(b.text)));
+  assert.doesNotMatch(toCSV(before), /threshold_note/);
+  assert.match(summaryText(before), /sustained 30 or more: .*I'm pregnant now; this test was done before I set Cyra to Pregnancy\./);
+});
+
 test("g: 'Cycle or pregnancy details' off leaves out stage, pregnancy, overlap and stage-based questions", () => {
   const preg = base({ stage: "preg", stageName: "Pregnancy", checkin: (d) => (d === D ? { sym: { dzy: 2 } } : null), checkinLabels: { dzy: "Dizziness" } });
   const pOn = reportModel(fixture(), preg);

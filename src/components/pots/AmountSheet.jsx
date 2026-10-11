@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { nowHHMM, toMin } from "../../lib/pots.js";
-import { isOz, isGSalt, numOf, numProps, toMl, toNaMg, mlIn, naIn } from "./ui.js";
+import { isOz, isGSalt, numOf, notNum, numProps, toMl, toNaMg, mlIn, naIn } from "./ui.js";
 
 /* "Other amount" (design 4.5) for a drink or for salt, and the same form to edit a logged
    one (Today's log → Edit). Every field is optional except one amount. Cyra never guesses
@@ -49,7 +49,7 @@ export default function AmountSheet({ mode, item, units, isToday, onSave, onCanc
     const sameNa = item && !salt && na === init.na && gSalt === init.gSalt;
     const ml = salt ? null : sameAmt ? item.ml : toMl(a, u);
     const naMg = salt ? (sameAmt ? item.naMg : toNaMg(a, gSalt)) : sameNa ? item.naMg : toNaMg(n, gSalt);
-    if ((ml == null && naMg == null) || (ml != null && (ml < 1 || ml > 5000)) || (naMg != null && (naMg < 1 || naMg > 20000))) {
+    if (notNum(amt) || (!salt && notNum(na)) || (ml == null && naMg == null) || (ml != null && (ml < 1 || ml > 5000)) || (naMg != null && (naMg < 1 || naMg > 20000))) {
       setErr(salt ? "Add an amount of sodium or salt, from the label." : "Add an amount, up to 5,000 ml at a time.");
       return;
     }

@@ -20,7 +20,8 @@
      days (her "On my period" and "Week before my period" tags included), the cycle pattern,
      the check-in overlap and the stage-based visit questions only
      with "Cycle or pregnancy details". The rest position ("lying on left side") always stays: it is how the test was
-     done.
+     done. The pregnancy caveat on a test (PREG_NOTE, threshold_note, the summary's rise wording)
+     follows that test (done lying on the left side, i.e. in pregnancy), not her stage now.
    - Nothing is diagnosed: results are compared with published thresholds, in the same words
      as the stand-test result, and every string is checked against POTS_BANNED by the tests.
    File names, the PDF title and the email subject are neutral (cyra-report-{date}.pdf,
@@ -394,10 +395,16 @@ export function reportModel(p, opts = {}) {
       }
       if (blocks.some((b) => b.t === "trend")) blocks.push({ t: "p", text: "Tests done at different times of day, cycle days or with different medicines aren't directly comparable.", small: true });
     }
-    // In pregnancy (and only with cycle details, so the file doesn't disclose it otherwise)
-    // every result carries the pregnancy caveat of the stand-test result (design 4.8.6, A13.4).
-    // With a reading of 140/90 or higher it ends at "prenatal team", as on the result.
-    if (preg && inc.cycle && shown.length) blocks.push({ t: "p", text: shown.some((t) => results.get(t.id).pregBp) ? PREG_NOTE.replace(" rather than reading too much into them", "") : PREG_NOTE });
+    // Every test done in pregnancy (lying on the left side; standResult) carries the pregnancy
+    // caveat of the stand-test result (design 4.8.6, A13.4), whatever her stage is now, and only
+    // with cycle details, so the file doesn't disclose it otherwise. When the shown tests mix
+    // pregnancy and other tests, the note says which ones it is about. With a reading of 140/90
+    // or higher it ends at "prenatal team", as on the result.
+    const pregShown = inc.cycle ? shown.filter((t) => t.restPos === "left") : [];
+    if (pregShown.length) {
+      const note = pregShown.some((t) => results.get(t.id).pregBp) ? PREG_NOTE.replace(" rather than reading too much into them", "") : PREG_NOTE;
+      blocks.push({ t: "p", text: pregShown.length < shown.length ? `For the tests done in pregnancy (lying on left side): ${note[0].toLowerCase()}${note.slice(1)}` : note });
+    }
     blocks.push({ t: "p", text: "Reference: a sustained rise of ≥30 bpm (≥40 at ages 12–19) within 10 min of standing, without orthostatic hypotension, is the heart-rate criterion in the 2015 HRS consensus statement. OH: drop ≥20 systolic or ≥10 diastolic within 3 min (Freeman 2011).", small: true });
     if (teen) blocks.push({ t: "p", text: "She uses the 40-beat threshold for ages 12–19 in Cyra.", small: true });
     const vit = days.flatMap((d) => (dayOf(d).vit || []).map((v) => ({ ...v, date: d })));
@@ -592,11 +599,16 @@ export function reportModel(p, opts = {}) {
   const allDone = (p.tests || []).filter((t) => t.status !== "running");
   const latestT = allDone.length ? allDone[allDone.length - 1] : null;
   const latestR = latestT ? standResult(latestT, { teen, stage }) : null;
+  // The rise wording follows the test (done in pregnancy or not); "I'm pregnant" follows her stage now.
+  const latestPreg = !!latestT && latestT.restPos === "left" && inc.cycle;
+  const pregTail = !inc.cycle ? "" : latestPreg && preg ? " I'm pregnant, and heart rate normally rises during pregnancy; these thresholds come from studies of people who weren't pregnant."
+    : latestPreg ? " This test was done in pregnancy, when heart rate normally rises; these thresholds come from studies of people who weren't pregnant."
+    : preg ? " I'm pregnant now; this test was done before I set Cyra to Pregnancy." : "";
   const in90 = allDone.filter((t) => t.date >= addDays(today, -89) && t.date <= today).length;
   const sessions30 = allSessions(p).filter((x) => x.date >= addDays(today, -29) && x.date <= today).length;
   const summary = {
     rated: inc.sym ? `Days rated: ${rated} of ${range.n} (good ${ratings[1]}, okay ${ratings[2]}, rough ${ratings[3]}, bad ${ratings[4]})` : null,
-    test: inc.tests && latestT ? `Latest standing test: ${fmtDayY(latestT.date)}, ${methodWord(latestT.method).toLowerCase()}. ${latestR.baseHr != null ? `Lying heart rate ${n1(latestR.baseHr)}` : "No lying heart rate"}${latestR.hrStatus === "insufficient" ? ", not enough readings for a rise" : preg && inc.cycle ? `, largest rise ${n1(latestR.peakRise)} (outside pregnancy, clinicians use ${thr}${latestR.hrStatus.startsWith("single") ? `; ${sustainedSentence(latestR)}` : ""})` : `, largest rise ${n1(latestR.peakRise)}, sustained ${thr} or more: ${sustainedSentence(latestR)}`}. Blood pressure: ${latestT.bp ? testBpWord(latestR) : "not taken"}.${preg && inc.cycle ? " I'm pregnant, and heart rate normally rises during pregnancy; these thresholds come from studies of people who weren't pregnant." : ""}` : null,
+    test: inc.tests && latestT ? `Latest standing test: ${fmtDayY(latestT.date)}, ${methodWord(latestT.method).toLowerCase()}. ${latestR.baseHr != null ? `Lying heart rate ${n1(latestR.baseHr)}` : "No lying heart rate"}${latestR.hrStatus === "insufficient" ? ", not enough readings for a rise" : latestPreg ? `, largest rise ${n1(latestR.peakRise)} (outside pregnancy, clinicians use ${thr}${latestR.hrStatus.startsWith("single") ? `; ${sustainedSentence(latestR)}` : ""})` : `, largest rise ${n1(latestR.peakRise)}, sustained ${thr} or more: ${sustainedSentence(latestR)}`}. Blood pressure: ${latestT.bp ? testBpWord(latestR) : "not taken"}.${pregTail}` : null,
     tests90: inc.tests ? `Standing tests in the last 90 days: ${in90}` : null,
     sym: inc.sym && symRows.length ? `Most frequent POTS symptoms: ${symRows.slice(0, 3).map((x) => `${x.label} (${plural(x.n, "day")})`).join(", ")}` : null,
     faint: inc.sym ? `Fainted: ${nFaint} · Almost fainted: ${nAlmost}` : null,
@@ -692,7 +704,7 @@ export function toCSV(model) {
         const r = results.get(t.id), c = t.ctx || {};
         const felt = [...new Set([...(t.feel || []), ...(t.up || []).flatMap((u) => u.feel || [])])].map((id) => symName(p, id)).join(", ");
         R("stand_summary", d, t.t, "max_rise", r.hrStatus !== "insufficient" && fin(r.peakRise) ? Math.round(r.peakRise * 10) / 10 : "", "bpm", "", "", "",
-          kv([["test_id", t.id], ["method", t.method], ["rest", `${t.restPos === "left" ? "left side" : "back"} ${t.restMin} min`], ["device", t.device], ["lying_hr", r.baseHr != null ? Math.round(r.baseHr * 10) / 10 : null], ["peak_hr", r.hrStatus !== "insufficient" ? r.peakHr : null], ["peak_min", r.hrStatus !== "insufficient" ? r.peakMin : null], ["threshold", r.thr], ["sustained", SUSTAINED_WORD[r.hrStatus]], ["over_threshold_min", r.hrStatus.startsWith("single") ? (r.overMins || []).map(n1).join("|") : null], ["bp_finding", t.bp ? testBpWord(r) : "not taken"], ["status", t.status], ["stopped_at", t.status === "stopped" ? t.stoppedAt : null], ["why", t.why], ["fainted", t.fainted], ["meds", c.meds], ["rate_med", c.rateMed], ["compression", c.comp == null ? null : c.comp ? "yes" : "no"], ["ate_2h", c.ate2h == null ? null : c.ate2h ? "yes" : "no"], ["fluid_before_ml", c.mlBefore], ["cycle_day", cycleDays.get(t.id)?.day], ["week_before_period", cycleDays.get(t.id)?.weekBefore ? "yes" : null], ["pooling", t.pooling], ["felt", felt], ["edited", t.edited ? "yes" : null], ["threshold_note", model.preg && inc.cycle ? "from studies outside pregnancy" : null], ["note", note(t.note)]]));
+          kv([["test_id", t.id], ["method", t.method], ["rest", `${t.restPos === "left" ? "left side" : "back"} ${t.restMin} min`], ["device", t.device], ["lying_hr", r.baseHr != null ? Math.round(r.baseHr * 10) / 10 : null], ["peak_hr", r.hrStatus !== "insufficient" ? r.peakHr : null], ["peak_min", r.hrStatus !== "insufficient" ? r.peakMin : null], ["threshold", r.thr], ["sustained", SUSTAINED_WORD[r.hrStatus]], ["over_threshold_min", r.hrStatus.startsWith("single") ? (r.overMins || []).map(n1).join("|") : null], ["bp_finding", t.bp ? testBpWord(r) : "not taken"], ["status", t.status], ["stopped_at", t.status === "stopped" ? t.stoppedAt : null], ["why", t.why], ["fainted", t.fainted], ["meds", c.meds], ["rate_med", c.rateMed], ["compression", c.comp == null ? null : c.comp ? "yes" : "no"], ["ate_2h", c.ate2h == null ? null : c.ate2h ? "yes" : "no"], ["fluid_before_ml", c.mlBefore], ["cycle_day", cycleDays.get(t.id)?.day], ["week_before_period", cycleDays.get(t.id)?.weekBefore ? "yes" : null], ["pooling", t.pooling], ["felt", felt], ["edited", t.edited ? "yes" : null], ["threshold_note", t.restPos === "left" && inc.cycle ? "from studies outside pregnancy" : null], ["note", note(t.note)]]));
         const lyingPos = t.restPos === "left" ? "left" : "lying";
         for (const rd of [...(t.rest || [])].sort((a, b) => a.min - b.min)) {
           const det = kv([["test_id", t.id], ["method", t.method], ["phase", "rest"], ["counted", rd.how === "counted" ? "yes" : null], ["edited", t.edited ? "yes" : null]]);

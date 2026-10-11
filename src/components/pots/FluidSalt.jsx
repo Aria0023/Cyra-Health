@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { dayTotals, fmtFluid, fmtSodium, setIv, mlToOz, naMgToSaltG } from "../../lib/pots.js";
 import { amountText, naText, isOz, isGSalt, numOf, numProps } from "./ui.js";
 
@@ -22,21 +23,33 @@ function GoalMeter({ label, whenWord, total, goal, by, conv, unitWord, goalText 
 const ozConv = (ml) => Math.round(mlToOz(ml));
 const gConv = (mg) => Math.round(naMgToSaltG(mg) * 10) / 10;
 
-/** The IV fluids row: given by a clinic, shown on its own, never part of the oral total. The
-    two fields are keyed on the day only, so saving one on blur never remounts the other (the
-    field she just moved into keeps focus and the phone keyboard stays up). */
+/** The IV fluids row: given by a clinic, shown on its own, never part of the oral total. Both
+    fields save as she types (the record autosave, flushed when the app is hidden or closed), from
+    a local draft that follows the stored value when the day changes or the value changes
+    elsewhere while she isn't typing in that field. The amount is saved once it reads as a number
+    (empty clears it); the text she typed stays as typed. */
 function IvRow({ iv, day, setPots }) {
   const on = !!iv;
   const put = (patch) => setPots((p) => setIv(p, day, { ...(((p.days || {})[day] || {}).iv || {}), ...patch }));
+  const mlNow = iv ? iv.ml ?? null : null, noteNow = iv ? iv.note || "" : "";
+  const [mlDraft, setMlDraft] = useState(mlNow == null ? "" : String(mlNow));
+  const [noteDraft, setNoteDraft] = useState(noteNow);
+  const shownDay = useRef(day);
+  useEffect(() => {
+    const moved = shownDay.current !== day; shownDay.current = day;
+    const focus = typeof document === "undefined" ? null : document.activeElement?.id;
+    if (moved || focus !== "pots-iv-ml") setMlDraft((v) => (!moved && (numOf(v) == null ? null : Math.round(numOf(v))) === mlNow ? v : mlNow == null ? "" : String(mlNow)));
+    if (moved || focus !== "pots-iv-note") setNoteDraft((v) => (!moved && v.trim() === noteNow ? v : noteNow));
+  }, [day, mlNow, noteNow]);
   return (
     <div style={{ marginTop: 10 }}>
       <button type="button" className={`mc ${on ? "on" : ""}`} aria-pressed={on} onClick={() => setPots((p) => setIv(p, day, on ? null : { ml: null, note: "" }))}>IV fluids today (given by a clinic)</button>
       {on && (
         <div style={{ marginTop: 4 }} key={day}>
           <label className="lab" htmlFor="pots-iv-ml" style={{ marginTop: 8 }}>How much (ml)</label>
-          <input id="pots-iv-ml" className="inp" {...numProps()} aria-label="How much (ml)" defaultValue={iv.ml ?? ""} onBlur={(e) => { const v = numOf(e.target.value); put({ ml: v == null ? null : Math.round(v) }); }} />
+          <input id="pots-iv-ml" className="inp" {...numProps()} aria-label="How much (ml)" value={mlDraft} onChange={(e) => { const s = e.target.value; setMlDraft(s); const v = numOf(s); if (v != null || !s.trim()) put({ ml: v == null ? null : Math.round(v) }); }} />
           <label className="lab" htmlFor="pots-iv-note" style={{ marginTop: 0 }}>Note (optional)</label>
-          <input id="pots-iv-note" className="inp" aria-label="IV fluids note (optional)" maxLength={200} defaultValue={iv.note || ""} onBlur={(e) => put({ note: e.target.value })} />
+          <input id="pots-iv-note" className="inp" aria-label="IV fluids note (optional)" maxLength={200} value={noteDraft} onChange={(e) => { const v = e.target.value; setNoteDraft(v); put({ note: v }); }} />
         </div>
       )}
     </div>

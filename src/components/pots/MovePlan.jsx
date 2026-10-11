@@ -205,7 +205,7 @@ export default function MovePlan({ pots, setPots, stage, todayIso, ping, onStart
           <div style={{ marginTop: 10 }}><MainLength value={pr.mainMin ?? null} onSave={(n) => set({ mainMin: n })} /></div>
           <label className="lab" htmlFor="pots-move-hr">Heart-rate range from your clinician or physio (optional)</label>
           <input id="pots-move-hr" className="inp" maxLength={120} aria-label="Heart-rate range from your clinician or physio (optional)" aria-describedby="pots-move-hr-hint" value={hr}
-            onChange={(e) => setHr(e.target.value)} onBlur={() => { if (hr.trim() !== (pr.hrNote || "")) set({ hrNote: hr }); }} />
+            onChange={(e) => { const v = e.target.value; setHr(v); if (v.trim() !== (pr.hrNote || "")) set({ hrNote: v }); }} />
           <p className="hint" id="pots-move-hr-hint" style={{ margin: "0 0 10px" }}>In their words. Cyra never suggests a range.</p>
         </>
       )}

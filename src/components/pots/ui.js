@@ -57,8 +57,22 @@ export function intakeText(x, units) {
   const label = x.label || "Drink";
   return parts.length ? `${label} ${parts.join(" · ")}` : label;
 }
-/** A typed number ("" or not a number -> null). Accepts a decimal comma. */
-export const numOf = (s) => { const t = String(s ?? "").trim().replace(",", "."); if (!t) return null; const n = Number(t); return Number.isFinite(n) ? n : null; };
+/** A typed number ("" or not a number -> null). Thousands grouping ("2,500", "1.000",
+    "1 000") is read as the whole number, never as a decimal, so a 2,500 ml goal or a
+    1,000 mg label is never stored 1000x too small; otherwise one comma is a decimal comma
+    ("1,5" -> 1.5). A grouped number in a decimal unit (1,000 oz, 1.500 g salt) lands outside
+    the fields' range checks, which then show their error. */
+const GROUPED = /^[1-9]\d{0,2}([,. \u00a0\u202f])\d{3}(\1\d{3})*$/;
+export const numOf = (s) => {
+  let t = String(s ?? "").trim();
+  if (!t) return null;
+  t = GROUPED.test(t) ? t.replace(/[,. \u00a0\u202f]/g, "") : t.replace(",", ".");
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+};
+/** Typed text that isn't a number (and isn't empty): a field shows an error for it instead of
+    reading it as "left empty". */
+export const notNum = (s) => String(s ?? "").trim() !== "" && numOf(s) == null;
 /** Typed amounts to stored units: ml and mg sodium, whole numbers. */
 export const toMl = (v, units) => (v == null ? null : Math.round(isOz(units) ? v * OZ_ML : v));
 export const toNaMg = (v, gSalt) => (v == null ? null : Math.round(gSalt ? v * NA_PER_G_SALT : v));

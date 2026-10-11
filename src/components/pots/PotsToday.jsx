@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { POTS_RELATED } from "../../lib/potsConstants.js";
 import {
   addIntake, removeItem, updateItem, setRating, setUp, setSleep, setNote, setSym, addEpisode, addVitals, logDose, upsertPreset,
-  setSettings, setFaintPause, raiseSym, markQuick, nearFaintDays, medsNowPlan, activeMeds, dayTotals, fmtFluid, fmtSodium, newId, nowHHMM, doseTime,
+  setSettings, setFaintPause, raiseSym, markQuick, nearFaintDays, medsNowPlan, activeMeds, dayTotals, fmtFluid, fmtSodium, newId, nowHHMM, doseTime, localDay,
 } from "../../lib/pots.js";
 import Advice from "../Advice.jsx";
 import FluidSalt from "./FluidSalt.jsx";
@@ -42,7 +42,7 @@ const NA_ASK = ["electrolyte", "broth"];
 const asksSodium = (pr) => pr.naMg == null && pr.naSkip !== true && (pr.ml == null || NA_ASK.includes(pr.kind));
 const POS_WORD = { lying: "Lying", sitting: "Sitting", standing: "Standing" };
 
-export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay, ping, stage, stageName, checkin, symMap, conditions, onStandTest, storageDriver = null }) {
+export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay, ping, stage, stageName, checkin, symMap, conditions, onStandTest, storageDriver = null, syncDay = null }) {
   const s = pots.settings, units = s.units, simple = s.simple === true, preg = stage === "preg";
   const pregOrTtc = preg || stageName === "Trying to Conceive";
   const day = simple ? todayIso : dayIn;
@@ -55,6 +55,16 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
   const [badOffer, setBadOffer] = useState(false);
   const [fixHint, setFixHint] = useState(false);
   const [live, announce] = useAnnounce();
+  /* The day note is saved as she types (the record autosave, flushed when the app is hidden or
+     closed), so "Saved on this device as you tap" holds for it too. The text she sees is a local
+     draft (the stored note is trimmed); it follows the stored note when another day is shown, or
+     when the note changes elsewhere (Undo, another tab, a restore) while she isn't typing in it. */
+  const [noteDraft, setNoteDraft] = useState(d.note || "");
+  const noteDay = useRef(day);
+  useEffect(() => {
+    const moved = noteDay.current !== day; noteDay.current = day;
+    if (moved || typeof document === "undefined" || document.activeElement?.id !== "pots-note") setNoteDraft((v) => (!moved && v.trim() === (d.note || "") ? v : d.note || ""));
+  }, [day, d.note]);
   const opener = useRef(null), headRef = useRef(null), topRef = useRef(null);
   const [focusBack, setFocusBack] = useState(null); // null | true (the opener) | an element id
 
@@ -70,7 +80,12 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
 
   const tot = dayTotals(pots, day);
   const whenWord = isToday ? "today" : `on ${dayLabel(day)}`;
-  const remember = (x) => setLast({ ...x, day });
+  const remember = (x, on = day) => setLast({ ...x, day: on });
+  /* The day a new timed entry is filed under. On "today" it is the date at the moment of the tap
+     (App moves to a new day at midnight and on resume; this covers a tap that lands first, and
+     tells App to catch up). An earlier day she picked to fix up stays that day. */
+  const nowDay = () => (syncDay ? syncDay() : localDay());
+  const tapDay = () => (isToday ? nowDay() : day);
   /* Undo takes back the whole tap: the items it added and, for "I feel bad now", each symptom
      severity it raised (back to what it was, unless she has changed it since). */
   const undo = () => {
@@ -86,19 +101,20 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
     setLast(null);
     setFocusBack("top"); // the Undo row goes with it
   };
-  const toastFor = (item) => {
-    if (item.ml != null) ping(`Added ${amountText(item.ml, units)}. ${fmtFluid((tot.fluidMl || 0) + item.ml, units)} ${whenWord}`);
-    else if (item.naMg != null) ping(`Sodium added. ${fmtSodium((tot.naMg || 0) + item.naMg, units)} ${whenWord}`);
+  const toastFor = (item, on = day) => {
+    const tt = on === day ? tot : dayTotals(pots, on);
+    if (item.ml != null) ping(`Added ${amountText(item.ml, units)}. ${fmtFluid((tt.fluidMl || 0) + item.ml, units)} ${whenWord}`);
+    else if (item.naMg != null) ping(`Sodium added. ${fmtSodium((tt.naMg || 0) + item.naMg, units)} ${whenWord}`);
     else ping(`${item.label} logged`);
   };
   const logPreset = (pr, quick = false) => {
     if (!pr) return;
-    const id = newId(), t = nowHHMM();
+    const id = newId(), t = nowHHMM(), on = tapDay();
     const item = { id, t, kind: pr.kind, label: pr.label, ml: pr.ml, naMg: pr.naMg, presetId: pr.id };
-    setPots((p) => { const q = addIntake(p, day, item); return quick ? markQuick(q, day) : q; });
-    remember({ ids: [id], text: `${intakeText(item, units)} at ${ampm(t)}` });
-    toastFor(item);
-    if (asksSodium(pr)) open({ kind: "naAsk", preset: pr, itemId: id, text: `${intakeText(item, units)} at ${ampm(t)}` });
+    setPots((p) => { const q = addIntake(p, on, item); return quick ? markQuick(q, on) : q; });
+    remember({ ids: [id], text: `${intakeText(item, units)} at ${ampm(t)}` }, on);
+    toastFor(item, on);
+    if (asksSodium(pr)) open({ kind: "naAsk", preset: pr, itemId: id, day: on, text: `${intakeText(item, units)} at ${ampm(t)}` });
   };
   const saveAmount = (entry, { asButton, buttonLabel }) => {
     const item0 = sheet.item;
@@ -106,27 +122,27 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
       setPots((p) => updateItem(p, day, item0.id, entry));
       ping("Saved");
     } else {
-      const id = newId(), item = { ...entry, id };
+      const id = newId(), item = { ...entry, id }, on = tapDay();
       setPots((p) => {
-        let q = addIntake(p, day, item);
+        let q = addIntake(p, on, item);
         if (asButton) q = upsertPreset(q, { label: buttonLabel, kind: entry.kind, ml: entry.ml, naMg: entry.naMg });
         return q;
       });
       if (asButton && s.presets.length >= 16) ping("You have 16 buttons already, so this one wasn't added. Remove one in POTS settings first.");
-      else toastFor(item);
-      remember({ ids: [id], text: `${intakeText(item, units)} at ${ampm(item.t)}` });
+      else toastFor(item, on);
+      remember({ ids: [id], text: `${intakeText(item, units)} at ${ampm(item.t)}` }, on);
     }
     close();
   };
   const naSave = (mg) => {
-    const { preset, itemId, text } = sheet;
+    const { preset, itemId, text } = sheet, on = sheet.day || day;
     setPots((p) => {
       const cur = p.settings.presets.find((x) => x.id === preset.id);
       let q = p;
       if (cur) { const next = { ...cur, naMg: mg }; delete next.naSkip; q = upsertPreset(q, next); }
-      return updateItem(q, day, itemId, { naMg: mg });
+      return updateItem(q, on, itemId, { naMg: mg });
     });
-    ping(`Sodium added. ${fmtSodium((tot.naMg || 0) + mg, units)} ${whenWord}`);
+    ping(`Sodium added. ${fmtSodium(((on === day ? tot : dayTotals(pots, on)).naMg || 0) + mg, units)} ${whenWord}`);
     if (last && last.ids[0] === itemId) setLast({ ...last, text: text.replace(/ at /, ` · ${fmtSodium(mg, units)}${units.salt === "gSalt" ? "" : " sodium"} at `) });
     close();
   };
@@ -138,11 +154,11 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
   /* A new or changed episode that makes the near-faint advice appear (3 or more days in 7)
      announces it, as the safety cards do. */
   const saveEpisode = (ep, { exerciseFaint }) => {
-    const ex = sheet.ep, id = ex ? ex.id : newId();
-    const apply = (p) => (ex ? updateItem(p, day, id, ep) : addEpisode(p, day, { ...ep, id }));
-    const before = nearFaintDays(pots, day), after = nearFaintDays(apply(pots), day);
-    setPots((p) => { const q = apply(p); return exerciseFaint ? setFaintPause(q, todayIso) : q; });
-    if (!ex) remember({ ids: [id], text: `Episode at ${ampm(ep.t)}` });
+    const ex = sheet.ep, id = ex ? ex.id : newId(), on = ex ? day : tapDay();
+    const apply = (p) => (ex ? updateItem(p, on, id, ep) : addEpisode(p, on, { ...ep, id }));
+    const before = nearFaintDays(pots, on), after = nearFaintDays(apply(pots), on);
+    setPots((p) => { const q = apply(p); return exerciseFaint ? setFaintPause(q, ex ? todayIso : nowDay()) : q; });
+    if (!ex) remember({ ids: [id], text: `Episode at ${ampm(ep.t)}` }, on);
     ping("Episode saved.");
     if (before < 3 && after >= 3) announce(NEAR_FAINT);
     close();
@@ -151,41 +167,42 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
     const ex = sheet.v;
     if (ex) { setPots((p) => updateItem(p, day, ex.id, v)); ping("Reading saved."); }
     else {
-      const id = newId();
-      setPots((p) => addVitals(p, day, { ...v, id }));
-      remember({ ids: [id], text: `Reading at ${ampm(v.t)}` });
+      const id = newId(), on = tapDay();
+      setPots((p) => addVitals(p, on, { ...v, id }));
+      remember({ ids: [id], text: `Reading at ${ampm(v.t)}` }, on);
       ping("Reading saved.");
     }
     close();
   };
   const logSlot = (med, slot) => {
-    const id = newId(), t = doseTime(slot, isToday);
-    setPots((p) => logDose(p, day, { id, medId: med.id, slot, state: "taken", t }));
-    remember({ ids: [id], text: `${med.name} ${hm(slot)} taken at ${hm(t)}` });
+    const id = newId(), t = doseTime(slot, isToday), on = tapDay();
+    setPots((p) => logDose(p, on, { id, medId: med.id, slot, state: "taken", t }));
+    remember({ ids: [id], text: `${med.name} ${hm(slot)} taken at ${hm(t)}` }, on);
     ping(`${med.name} logged at ${hm(t)}`);
   };
   /* Simple view "Took my meds": exactly what the tile promised (medsNowPlan). */
-  const medsPlan = medsNowPlan(pots, todayIso, Date.now());
+  const medsPlanNow = medsNowPlan(pots, todayIso, Date.now());
   const tookMeds = () => {
-    if (!activeMeds(pots, todayIso).some((m) => m.kind !== "aid")) { open({ kind: "medEdit" }); return; }
+    const on = tapDay(), medsPlan = on === todayIso ? medsPlanNow : medsNowPlan(pots, on, Date.now());
+    if (!activeMeds(pots, on).some((m) => m.kind !== "aid")) { open({ kind: "medEdit" }); return; }
     if (!medsPlan.logged.length) {
       if (medsPlan.guarded.length) ping(`Already logged at ${hm(medsPlan.guarded[medsPlan.guarded.length - 1].t)}`);
       else open({ kind: "medsCard" });
       return;
     }
     const t = nowHHMM(), items = medsPlan.logged.map((x) => ({ ...x, id: newId() }));
-    setPots((p) => markQuick(items.reduce((q, x) => logDose(q, todayIso, { id: x.id, medId: x.medId, slot: x.slot, state: "taken", t }), p), todayIso));
+    setPots((p) => markQuick(items.reduce((q, x) => logDose(q, on, { id: x.id, medId: x.medId, slot: x.slot, state: "taken", t }), p), on));
     const names = items.map((x) => `${x.name}${x.slot ? ` ${hm(x.slot)}` : ""}`);
-    remember({ ids: items.map((x) => x.id), text: `${names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0]} at ${hm(t)}` });
+    remember({ ids: items.map((x) => x.id), text: `${names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0]} at ${hm(t)}` }, on);
     ping(`Logged ${items.length} medicine${items.length > 1 ? "s" : ""} at ${hm(t)}`);
   };
   const saveBad = ({ sym, sev }) => {
-    const id = newId(), t = nowHHMM();
+    const id = newId(), t = nowHHMM(), on = nowDay();
     // What each symptom's day severity was, and what this tap raised it to (for Undo).
-    const cur = ((pots.days[todayIso] || {}).sym) || {};
+    const cur = ((pots.days[on] || {}).sym) || {};
     const raised = Object.fromEntries(sym.filter((x) => (cur[x] || 0) < sev).map((x) => [x, [cur[x] || 0, sev]]));
-    setPots((p) => markQuick(sym.reduce((q, x) => raiseSym(q, todayIso, x, sev), addEpisode(p, todayIso, { id, t, sym, sev })), todayIso));
-    setLast({ ids: [id], sym: raised, text: `Episode at ${ampm(t)}`, day: todayIso });
+    setPots((p) => markQuick(sym.reduce((q, x) => raiseSym(q, on, x, sev), addEpisode(p, on, { id, t, sym, sev })), on));
+    setLast({ ids: [id], sym: raised, text: `Episode at ${ampm(t)}`, day: on });
     ping("Saved. Rest if you need to.");
     close();
   };
@@ -322,7 +339,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
         )}
 
         {simple ? (
-          <QuickLog pots={pots} units={units} plan={medsPlan} last={last} onUndo={undo}
+          <QuickLog pots={pots} units={units} plan={medsPlanNow} last={last} onUndo={undo}
             onDrink={(pr) => logPreset(pr, true)} onSalt={(pr) => logPreset(pr, true)} onMeds={tookMeds} onFeelBad={() => open({ kind: "bad" })} onFull={() => goSimple(false)} />
         ) : (
           <>
@@ -374,8 +391,8 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
             )}
             {/* 14. Note for your clinician */}
             <label className="lab" htmlFor="pots-note">Note for your clinician</label>
-            <textarea id="pots-note" key={`${day}:${d.note || ""}`} className="inp" rows={3} maxLength={500} aria-label="Note for your clinician" aria-describedby="pots-note-hint" defaultValue={d.note || ""}
-              onBlur={(e) => { if (e.target.value.trim() !== (d.note || "")) setPots((p) => setNote(p, day, e.target.value)); }} />
+            <textarea id="pots-note" className="inp" rows={3} maxLength={500} aria-label="Note for your clinician" aria-describedby="pots-note-hint" value={noteDraft}
+              onChange={(e) => { const v = e.target.value; setNoteDraft(v); if (v.trim() !== (d.note || "")) setPots((p) => setNote(p, day, v)); }} />
             <p className="hint" id="pots-note-hint" style={{ margin: "0 0 12px" }}>Goes in your report only if you include notes.</p>
             {/* 15. Today's log */}
             <button type="button" id="pots-log-btn" className="disclosure" aria-expanded={logOpen} aria-controls="pots-log" onClick={() => setLogOpen((v) => !v)}>

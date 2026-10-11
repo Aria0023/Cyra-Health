@@ -1011,7 +1011,9 @@ const fmtN = (x) => (Number.isInteger(x) ? String(x) : String(Math.round(x * 10)
     firstFinding (first met / single / drop result, for the midlife line), cycle
     ({ day, weekBefore } when known). Returns the numbers plus `headline` and `lines`:
     [{ kind, text, urgency: "now"|"today"|"visit"|"self"|null, urgent: UrgentCard variant|null }],
-    each the exact copy of the design, stage-aware. It never diagnoses. */
+    each the exact copy of the design, stage-aware. It never diagnoses. The pregnancy wording
+    (and pregBp) follows the test, not the current stage: a test done in pregnancy keeps it
+    after she changes stage, and a test done before keeps the full wording (see `preg` below). */
 export function standResult(test, opts = {}) {
   const { teen = false, stage = null, daySym = null, supineCount = 0, firstFinding = false, cycle = null } = opts;
   const T = THRESH, thr = teen ? T.hrTeen : T.hr, t = isObj(test) ? test : {};
@@ -1067,7 +1069,10 @@ export function standResult(test, opts = {}) {
   const crisis = [...(t.rest || []), ...up].some((r) => (fin(r.sys) && r.sys >= T.crisisSys) || (fin(r.dia) && r.dia >= T.crisisDia));
   const complete = t.status === "done" && upHr.some((r) => r.min >= T.completeMin);
   const minutesUp = t.status === "stopped" && fin(t.stoppedAt) ? t.stoppedAt : up.length ? up[up.length - 1].min : 0;
-  const preg = stage === "preg";
+  // Done in pregnancy: only the pregnancy stage starts a test lying on the left side
+  // (StandTest.jsx), and the runner takes over the page, so the stage can't change mid-test.
+  // If a left-side rest is ever offered outside pregnancy, this needs a flag of its own.
+  const preg = t.restPos === "left";
   // Pregnancy (THRESH.preg*, ACOG PB 222): any lying or upright reading of 160/110 or higher is
   // "severe", 140/90 or higher "high". Shown from the first test, with no supineTests wait.
   const pregRead = preg ? [...(t.rest || []), ...up] : [];

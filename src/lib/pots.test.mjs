@@ -17,6 +17,7 @@ import {
 } from "./pots.js";
 import { POTS_SYM, POTS_TRIG, POTS_BANNED, SAFETY_COPY, GUIDE_COPY, GUIDE_VERIFIED, POTS_MED_LIB, RUNNER_FEEL, FEEL_STOP, POTS_LOCKED_COPY, POTS_ERASE } from "./potsConstants.js";
 import { SYM, PSYM, GSYM } from "./constants.js";
+import { numOf, notNum, toMl, toNaMg } from "../components/pots/ui.js";
 
 const D = "2026-10-08", D2 = "2026-10-09";
 const DOSE_RE = /\b\d+(\.\d+)?\s?(mg|g|mcg)\b/;
@@ -376,6 +377,21 @@ test("b2: eraseLog leaves no typed text, keeps only display choices, starts a ne
   assert.deepEqual(cleanPots(e), e);
 });
 
+test("ui: typed amounts: thousands grouping is the whole number, a lone comma a decimal comma", () => {
+  const cases = { "": null, "  ": null, "250": 250, "1,000": 1000, "2,500": 2500, "3,000": 3000, "1.000": 1000, "1 000": 1000, "1\u00a0000": 1000,
+    "1,000,000": 1000000, "1,5": 1.5, "1.5": 1.5, "0.250": 0.25, "12,34": 12.34, "1,000.5": null, "1.2.3": null, "abc": null };
+  for (const [s, v] of Object.entries(cases)) assert.equal(numOf(s), v, JSON.stringify(s));
+  assert.equal(notNum(""), false); assert.equal(notNum("abc"), true); assert.equal(notNum("1,000"), false);
+  const ml = { fluid: "ml", salt: "mgNa" }, oz = { fluid: "oz", salt: "mgNa" };
+  assert.equal(toMl(numOf("2,500"), ml), 2500);
+  assert.equal(toNaMg(numOf("3,000"), false), 3000);
+  assert.equal(toNaMg(numOf("1,000"), false), 1000);
+  // A grouped number in a decimal unit is far outside the 5000 ml / 20000 mg checks (an error, not a wrong amount).
+  assert.ok(toMl(numOf("1,000"), oz) > 5000);
+  assert.ok(toNaMg(numOf("1.500"), true) > 20000);
+  assert.equal(toMl(numOf("8,5"), oz), Math.round(8.5 * 29.5735));
+});
+
 /* ================= c. standResult ================= */
 const mk = (rest, up, extra = {}) => ({
   id: "t1", date: D, t: "09:00", upd: 1, method: "stand", restPos: "back", restMin: 5, sched: "1-3-5-10", bp: false, status: "done", feel: [],
@@ -715,14 +731,34 @@ test("c2: pregnancy: 160/110 raises its own card in any position; 140/90 a same-
   assert.equal(hl.urgency, "today"); assert.equal(hl.urgent, null);
   assert.match(hl.text, /call your maternity team today/);
   assert.equal(interruptFor(t, { type: "reading", pos: "rest", reading: { min: 5, hr: 70, sys: 145, dia: 92 } }, preg), null);
-  // Not pregnant: the same readings keep today's wording.
-  const std = R(t, { supineCount: 1 });
+  // A test not done in pregnancy (lying on the back): the same readings keep today's wording.
+  const std = R({ ...t, restPos: "back" }, { supineCount: 1 });
   assert.equal(std.pregBp, null);
   assert.ok(!std.lines.some((l) => l.kind === "pregBp"));
   assert.match(textOf(std), /held steady/);
   const ok = R(mk([[4, 70, 118, 76], [5, 70, 118, 76]], [[1, 90, 120, 80], [3, 92, 118, 79]], { bp: true, restPos: "left" }), { stage: "preg" });
   assert.equal(ok.pregBp, null);
   assert.match(textOf(ok), /rather than reading too much into them/);
+});
+
+test("c2: the pregnancy wording follows the test (left-side rest), not the stage she is in now", () => {
+  const up = [[1, 112], [3, 121], [5, 122], [10, 123]];
+  const left = mk([[4, 89], [5, 89]], up, { restPos: "left" }), back = mk([[4, 89], [5, 89]], up, { restPos: "back" });
+  for (const stage of ["preg", "periods", "peri", null]) {
+    const r = R(left, { stage });
+    assert.ok(r.lines.some((l) => l.kind === "preg"), `left/${stage}`);
+    assert.match(textOf(r), /Outside pregnancy, clinicians use 30\./, `left/${stage}`);
+    assert.doesNotMatch(textOf(r), /stayed up/, `left/${stage}`);
+  }
+  for (const stage of ["preg", "periods"]) {
+    const r = R(back, { stage });
+    assert.ok(!r.lines.some((l) => l.kind === "preg" || l.kind === "pregBp"), `back/${stage}`);
+    assert.match(textOf(r), /stayed up/, `back/${stage}`);
+  }
+  // A pregnancy test's 160/110 stays a pregnancy reading after the stage changes; a back test's doesn't.
+  const bp = mk([[4, 70, 166, 112], [5, 70, 166, 112]], [[1, 90, 165, 110], [3, 92, 166, 111]], { bp: true, restPos: "left" });
+  assert.equal(R(bp, { stage: "periods", supineCount: 1 }).pregBp, "severe");
+  assert.equal(R({ ...bp, restPos: "back" }, { stage: "preg", supineCount: 1 }).pregBp, null);
 });
 
 test("c2: pregnancy: the lie-down cards say left side, not flat on her back", () => {
@@ -1268,7 +1304,9 @@ test("s4: every line of every result the runner can show, and its fixed ending, 
     mk(REST70, [], { status: "stopped", stoppedAt: 0 }),
     mk(REST70, [[1, 80], [3, 85]], { status: "interrupted" }),
   ];
-  for (const t of cases) for (const stage of ["peri", "periods", "preg"]) for (const teen of [false, true]) {
+  // The pregnancy lines follow the test's rest position (left side = done in pregnancy), so both are swept.
+  for (const t0 of cases) for (const restPos of ["back", "left"]) for (const stage of ["peri", "periods", "preg"]) for (const teen of [false, true]) {
+    const t = { ...t0, restPos };
     const r = standResult(t, { stage, teen, supineCount: 2, firstFinding: true, daySym: { p_dzy: 2 } });
     for (const l of r.lines) { assertClean(l.text, `${stage} ${l.kind}`); assert.ok(!DOSE_RE.test(l.text), l.text); }
     if (r.headline) assertClean(r.headline, "headline");

@@ -4,7 +4,8 @@
    Library/NoCloud at launch, excludes it from iCloud/device backup and gives it
    complete file protection; on Android Library is the app's internal files
    directory and app backup is switched off. One document holds the whole health
-   record. Nothing here talks to a network.
+   record (the web also keeps a second copy of its POTS log next to it, POTS_KEY below).
+   Nothing here talks to a network.
 
    The phone save is atomic: the record is written to cyra-state.json.tmp and then
    renamed over cyra-state.json, so a crash mid-write never leaves half a record.
@@ -26,6 +27,13 @@
 import { isNative, Filesystem, Directory, Encoding } from "./native.js";
 
 const DB = "cyra", STORE = "state", KEY = "v1", PROBE_KEY = "probe";
+/* Web only: a second copy of the POTS log (the record's `pots`), written in the same transaction
+   as every save of the record. A tab still running a build from before POTS (open across the
+   deploy) saves the record without `pots`; it never writes this key, so the next load takes the
+   log back from here (App hydrate). It is in the same database and store as the record, so
+   Delete everything (clear + dropDatabase), in this build or an older one, removes it too. The
+   phone app has one web view and one bundled build, so it has no second copy. */
+const POTS_KEY = "v1-pots";
 /* @capacitor/filesystem 8.1.4 rejects a read of a missing file with this code on both
    platforms (ios FilesystemError.fileNotFound = 8; android FilesystemErrors.doesNotExist
    = formatErrorCode(8)). Every other failure is "can't read it right now". */
@@ -121,7 +129,14 @@ export const storage = {
     try { const db = await idb(); const v = await tx(db, "readonly", (s) => s.get(KEY)); db.close(); loadFailed = false; if (v != null) hasRecord = true; return v ?? null; }
     catch { loadFailed = true; return null; } // reported as "unreadable" until a save works
   },
-  /** Save the whole record (phone: temp file + rename; web: one IndexedDB put). */
+  /** Web: the second copy of the POTS log (see POTS_KEY), or null. Never throws. */
+  async loadPotsCopy() {
+    if (isNative()) return null;
+    try { const db = await idb(); const v = await tx(db, "readonly", (s) => s.get(POTS_KEY)); db.close(); return v ?? null; }
+    catch { return null; }
+  },
+  /** Save the whole record (phone: temp file + rename; web: one IndexedDB transaction, with the
+      POTS log's second copy). */
   save(state) { return inOrder(() => saveNow(state)); },
   /** Delete the record. Phone: anything but "it wasn't there" is an error the caller must show. */
   clear() { return inOrder(clearNow); },
@@ -171,7 +186,9 @@ async function saveNow(state) {
         await Filesystem.rename({ from: TMP.path, to: FILE.path, directory: Directory.Library, toDirectory: Directory.Library });
       }
     } else {
-      const db = await idb(); await tx(db, "readwrite", (s) => s.put(state, KEY)); db.close();
+      const db = await idb();
+      await tx(db, "readwrite", (s) => { if (state && typeof state === "object" && state.pots !== undefined) s.put(state.pots, POTS_KEY); return s.put(state, KEY); });
+      db.close();
       if (!persistAsked) { persistAsked = true; navigator.storage?.persist?.().catch(() => { /* best effort */ }); }
     }
     saveFailed = false;
@@ -216,8 +233,9 @@ async function clearNow() {
   try {
     await tx(db, "readwrite", (s) => s.clear());
     let left;
-    try { left = await tx(db, "readonly", (s) => s.get(KEY)); }
-    catch { left = await tx(db, "readonly", (s) => s.get(KEY)); } // the read-back itself failed: check once more
+    const read = async () => (await tx(db, "readonly", (s) => s.get(KEY))) ?? (await tx(db, "readonly", (s) => s.get(POTS_KEY)));
+    try { left = await read(); }
+    catch { left = await read(); } // the read-back itself failed: check once more
     if (left !== undefined) throw new Error("the record is still there");
   } finally { db.close(); }
   hasRecord = false; saveFailed = false; loadFailed = false;

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { setSettings } from "../../lib/pots.js";
 import { GUIDE_COPY } from "../../lib/potsConstants.js";
 import Details from "../Details.jsx";
-import { isOz, numOf, numProps, toMl, toNaMg, mlIn, naIn } from "./ui.js";
+import { isOz, numOf, notNum, numProps, toMl, toNaMg, mlIn, naIn } from "./ui.js";
 
 /* Her daily goals (design 4.5): set with her clinician, never pre-filled and never a default.
    Guideline context sits behind a cited Details panel (GUIDE_COPY; the figures stay out until
@@ -27,7 +27,7 @@ export default function GoalSheet({ pots, setPots, units, conditions = [], preg 
 
   const commit = () => {
     const fluidMl = toMl(numOf(fl), units), naMg = toNaMg(numOf(na), gSalt);
-    if ((fluidMl != null && (fluidMl < 1 || fluidMl > 5000)) || (naMg != null && (naMg < 1 || naMg > 20000))) { setErr("Check the numbers: up to 5,000 ml of fluid and 20,000 mg of sodium a day."); return false; }
+    if (notNum(fl) || notNum(na) || (fluidMl != null && (fluidMl < 1 || fluidMl > 5000)) || (naMg != null && (naMg < 1 || naMg > 20000))) { setErr("Check the numbers: up to 5,000 ml of fluid and 20,000 mg of sodium a day."); return false; }
     const none = fluidMl == null && naMg == null;
     setPots((p) => setSettings(p, { goals: { fluidMl, naMg, by: none ? null : by, set: none ? null : today } }));
     return true;

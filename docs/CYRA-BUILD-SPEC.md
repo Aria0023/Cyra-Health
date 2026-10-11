@@ -457,7 +457,12 @@ turns the add-on on by itself.
 on-device record: autosaved, included in the encrypted backup, replaced by a restore (a backup without `pots`
 clears it; a restore starts a new epoch), merged across tabs (`mergePots`: the newer epoch wins wholesale; within
 an epoch a 3-way merge against the last saved copy, with tombstones never capped within an epoch), and deleted by
-Delete everything. Erasing the POTS log starts a new epoch and clears every free-text and health setting, keeping
+Delete everything. On the web every save also writes a second copy of `pots` to its own key in the same
+IndexedDB store; a record saved without a `pots` key (by a tab still running a build from before POTS) takes the
+log back from that copy at the next launch. Delete everything clears the whole store, copy included. Entries are
+filed under the device's local day at the moment she logs them: the app moves to a new day at local midnight
+and whenever it comes back to the foreground, and a half-filled check-in open at midnight stays open as an edit
+of the day it was started on. Erasing the POTS log starts a new epoch and clears every free-text and health setting, keeping
 only display choices. A `pots` whose `v` this build doesn't know is kept untouched and read-only, never
 overwritten. It is never written to `days[]` or `pregLog`, never enters `dayScore`, `insights()`, the recap or
 `eventsForDay`, and never leaves the device except in a file the user exports herself. Exports never use
@@ -468,7 +473,9 @@ POTS data is never part of weekly counts and never sent to Cyra's AI.
 **A13.3 No diagnosis, no dosing.** POTS output never states or denies a diagnosis ("you have POTS" and similar
 wording, "diagnosed with", "positive", "negative", "normal result", "abnormal" are banned, as are "late" and
 "missed"; `POTS_BANNED`, checked by unit and e2e tests over POTS output, not by a whole-bundle grep). Fluid and sodium goals are entered by the user, labelled
-"set by my clinician" or "my own", and never pre-filled. Guideline ranges appear only in a cited Details panel
+"set by my clinician" or "my own", and never pre-filled. Typed amounts read thousands grouping ("2,500",
+"1.000", "1 000") as the whole number and a lone comma as a decimal comma; text that isn't a number is an error,
+never "left empty". Free text (notes) is saved as she types, like a tap. Guideline ranges appear only in a cited Details panel
 with who-should-not caveats. The medicine library holds names and classes only. A free-text note is the user's own
 words and is never parsed. Exercise durations are blank until the user enters them; step-ups are options she
 chooses, never automatic, and never offered in pacing mode, after an exercise faint until she reports being
@@ -519,7 +526,9 @@ which is cleared on every change of stage into pregnancy.
   or near-faint answer is also logged as an episode; readings auto-save and can be corrected later (marked
   "edited"); a running test older than 30 min without activity is marked interrupted at launch, and another
   window never offers to save or discard a test that may still be running. Pregnancy rests on the left side and
-  adds the pregnancy caveat to every result.
+  adds the pregnancy caveat to every result. The caveat (and the pregnancy blood-pressure lines) belong to the
+  test, not to the current stage: a test done lying on the left side keeps them after a stage change, and a test
+  done before Pregnancy never gains them; in files they still need "Cycle or pregnancy details".
 
 **A13.5 Patterns constants (normative).** Outcome = rough day (rating 3–4) among rated days; unrated days and
 unlogged exposures are unknown, never zero. Factor card: ≥ 14 rated days in the window, ≥ 5 days each side,
