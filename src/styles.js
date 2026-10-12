@@ -65,6 +65,7 @@ export const css = `
 .card p { margin:0; font-size:13px; line-height:1.5; }
 .icard { margin-bottom:12px; }
 .advice { display:flex; gap:9px; align-items:flex-start; background:color-mix(in srgb, var(--primary) 10%, var(--card)); border:1.5px solid var(--line); border-top:none; border-radius:0 0 13px 13px; padding:10px 15px; }
+.advice-alone { border-top:1.5px solid var(--line); border-radius:13px; }
 .uchip { flex-shrink:0; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; border-radius:999px; padding:3px 9px; }
 .u-now { background:#F3DBDB; color:#A04545; } .u-visit { background:color-mix(in srgb, var(--primary) 16%, var(--card)); color:color-mix(in srgb, var(--primary) 80%, var(--ink)); } .u-self { background:#E7EFE9; color:#43604F; }
 .atext { font-size:12.5px; line-height:1.5; }
@@ -247,6 +248,8 @@ export const css = `
 @media (prefers-reduced-motion: reduce) { .cy * { transition:none !important; animation:none !important; } }
 button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline:3px solid var(--primary); outline-offset:2px; border-radius:8px; }
 .tab { min-height:44px; padding:12px 10px; }
+/* The tab bar scrolls sideways (overflow-x:auto), which clips anything drawn outside it, so a tab's ring sits just inside the tab. */
+.tab:focus-visible { outline-offset:-3px; }
 .mc, .pill, .takebtn, .sbtn, .orgbtn, .stagechip, .topbtn, .linkbtn, .ghost, .route { min-height:44px; }
 .minichip { min-height:40px; }
 .sdot.on, .c-per-mark { outline:1.5px solid rgba(0,0,0,.35); }
@@ -255,5 +258,38 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:fo
 .wearconfirm .ghostbtn { margin-top:8px; }
 .sbtn:disabled { cursor:default; border-style:dashed; }
 .emailpreview { resize:vertical; font:500 12.5px/1.5 'Karla Variable','Karla',sans-serif; white-space:pre-wrap; user-select:text; -webkit-user-select:text; }
-.toast { position:fixed; left:50%; transform:translateX(-50%); bottom:20px; background:var(--ink); color:#FFF; font-size:13px; padding:9px 16px; border-radius:999px; max-width:86%; text-align:center; z-index:9; }
+/* ---- POTS add-on (scoped to .pots and the stand-test runner; chrome only — data colours come from RAMPS) ---- */
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.pots .cta, .pots .ghostbtn { min-height:56px; }
+.pots .mc, .pots .takebtn, .pots .sbtn, .pots .linkbtn, .pots .pill, .pots .chip { min-height:44px; }
+.pots .linkbtn, .pots .sbtn { min-width:44px; }
+.pots .obq { margin:0 0 10px; }
+.minichip.big { min-height:44px; padding:10px 15px; font-size:13px; }
+.pots .wearbtns { flex-shrink:1; flex-wrap:wrap; justify-content:flex-end; min-width:0; }
+.pots .medinfo { min-width:0; overflow-wrap:anywhere; }
+.pots .inp, .pots .slider { min-height:44px; }
+.pots .linkbtn, .pots .ghostbtn, .pots .sbtn, .pots .scalehead b, .potslink { color:color-mix(in srgb, var(--primary) 80%, var(--ink)); }
+.pots .disclosure, .potslink { min-height:44px; }
+.potsgrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.potsgrid .route { min-height:72px; justify-content:center; align-items:flex-start; text-align:left; font-size:14px; padding:12px; }
+.potsgrid .route span { font-size:12px; }
+.goalbar { height:10px; background:var(--line); border-radius:5px; overflow:hidden; margin:8px 0 4px; }
+.goalfill { height:100%; background:var(--primary); border-radius:5px; }
+.pots-timer { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:54px; line-height:1.1; text-align:center; font-variant-numeric:tabular-nums; margin:6px 0 10px; color:var(--ink); }
+.cta.stopbtn { background:#A04545; color:#FFF; min-height:56px; font-size:15px; }
+.cta.stopbtn.top { margin:2px 0 12px; }
+.stopbar { position:sticky; bottom:0; z-index:5; background:var(--paper); padding:10px 0 calc(10px + env(safe-area-inset-bottom, 0px)); margin-top:12px; }
+html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + env(safe-area-inset-bottom, 0px)); }
+.potsreport .routes { flex-wrap:wrap; }
+.potsreport .route { flex:1 1 140px; min-height:56px; color:color-mix(in srgb, var(--primary) 80%, var(--ink)); }
+.potsreport .route[aria-disabled="true"] { border-style:dashed; cursor:default; }
+.potstablewrap { overflow-x:auto; margin:4px 0 10px; }
+.potstablewrap:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+.potsrtab { font-size:11.5px; }
+.potsrtab caption { text-align:left; font-weight:700; font-size:12.5px; color:var(--ink); padding:6px 0 4px; }
+.potsrtab th, .potsrtab td { padding-right:8px; vertical-align:top; white-space:pre-line; color:var(--ink); }
+.plaincard.urgent { border:2px solid #A04545; }
+.plaincard.urgent .uchip { display:inline-block; margin-bottom:6px; }
+.toast { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(20px + env(safe-area-inset-bottom, 0px)); background:var(--ink); color:#FFF; font-size:13px; padding:9px 16px; border-radius:999px; max-width:86%; text-align:center; z-index:9; pointer-events:none; }
+.cy:has(.stopbar) .toast { bottom:calc(86px + env(safe-area-inset-bottom, 0px)); }
 `;

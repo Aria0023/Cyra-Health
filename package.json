@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0 --port $PORT",
+    "test:unit": "node --test \"src/lib/*.test.mjs\"",
     "backend": "cd backend && npm install && npm start",
     "cap:sync": "npm run build && cap sync",
     "cap:ios": "npm run cap:sync && cap open ios",

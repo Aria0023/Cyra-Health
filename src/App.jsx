@@ -23,7 +23,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
      time and time zone (plus the last day a reminder went out, so there is never a
      second one) (lib/notifications.js); phone reminders are scheduled on the phone;
    - only when she starts it: the encrypted backup file (lib/backup.js), the
-     doctor-summary email draft (mailto) and the copied summary text (ReportScreen).
+     doctor-summary email draft (mailto) and the copied summary text (ReportScreen);
+   - user-started file exports (POTS report PDF/CSV, lib/files.js): a web download, or the
+     phone share sheet via a plaintext file in the app cache that is deleted after sharing and
+     swept at launch and wipe. No network. The POTS summary email draft and copied summary
+     text work like the doctor summary (components/pots/PotsReport.jsx).
    Backend requests use ./lib/api.js (fetch), except the sign-in, Oura and Terra
    connection windows. These are browser navigations to `${API_BASE}/api/oauth/:id/start`,
    `${API_BASE}/api/integrations/oura/start` and the Terra widget URL that
@@ -46,13 +50,14 @@ import { storage } from "./lib/storage.js";
 import { encryptBackup, decryptBackup } from "./lib/backup.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
 import { isNative, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
+import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
 /* What persists on the device: the health record and settings. Never UI state.
    reminders persists { enabled, endpoint, pending, rev } — this browser's push address, any
    address Cyra's server still has to forget, and a version so every open tab agrees on the
    on/off switch; its status is worked out again at every launch. */
-const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally"];
+const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots"];
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects. */
 const DEVICE_ONLY = ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff"];
@@ -60,6 +65,17 @@ const DEVICE_ONLY = ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pu
    saved except the per-device consents and this browser's reminder addresses). */
 const RECORD = PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders");
 const recordSig = (o) => JSON.stringify(RECORD.map((k) => o?.[k] ?? null));
+// The tab bar scrolls sideways. Chromium doesn't scroll a partly hidden tab into view when the
+// keyboard focuses it, so a focused tab (and its ring) could sit half off the edge. Only keyboard
+// focus counts, and only the tab bar moves (sideways): scrollIntoView would also scroll the page,
+// and a tab that kept focus after a tap gets focus again when she comes back to the app.
+const tabIntoView = (e) => {
+  const t = e.currentTarget, bar = t.parentElement;
+  if (!bar || !t.matches?.(":focus-visible")) return;
+  const tr = t.getBoundingClientRect(), br = bar.getBoundingClientRect();
+  if (tr.left < br.left) bar.scrollLeft -= br.left - tr.left;
+  else if (tr.right > br.right) bar.scrollLeft += tr.right - br.right;
+};
 const ZERO_SCALES = { fatigue: 0, pain: 0, moodq: 0, stress: 0 };
 /* Push addresses Cyra's server still has to forget (every one is retried until confirmed). */
 const cleanPending = (v) => (Array.isArray(v) ? [...new Set(v.filter((e) => typeof e === "string" && /^https:\/\//.test(e) && e.length <= 2048))].slice(0, 100) : []);
@@ -94,6 +110,17 @@ import ConnectScreen from "./screens/ConnectScreen.jsx";
 import PregTodayScreen from "./screens/PregTodayScreen.jsx";
 import PregCalendarScreen from "./screens/PregCalendarScreen.jsx";
 import MilestonesScreen from "./screens/MilestonesScreen.jsx";
+import PotsScreen from "./screens/PotsScreen.jsx";
+import PotsToday from "./components/pots/PotsToday.jsx";
+import PotsSettings from "./components/pots/PotsSettings.jsx";
+import PotsHome, { PotsOffer } from "./components/pots/PotsHome.jsx";
+import GoalSheet from "./components/pots/GoalSheet.jsx";
+import { MedSetup } from "./components/pots/MedEditor.jsx";
+import { StandRunner, StandSection } from "./components/pots/StandTest.jsx";
+import MovePlan from "./components/pots/MovePlan.jsx";
+import { SessionRunner } from "./components/pots/MoveSession.jsx";
+import PotsReport from "./components/pots/PotsReport.jsx";
+import PotsPatterns from "./components/pots/PotsPatterns.jsx";
 
 export default function CyraDemo() {
   const [orgId, setOrgId] = useState("cyra");
@@ -186,6 +213,27 @@ export default function CyraDemo() {
   const [holdWeek, setHoldWeek] = useState(null); // the week-only hold (lib/storage.js), so Delete everything can say it stays
   const [regAnswers, setRegAnswers] = useState(null); // registration answers (no name or email in Anonymous Mode)
   const [reminders, setReminders] = useState({ enabled: false, status: "off", endpoint: null, pending: [], rev: 0 }); // status: off | on | blocked (+denied) | unavailable | error | unsupported; pending: push addresses the server still has to forget
+  /* POTS add-on (lib/pots.js, spec A13): one persisted key, part of the on-device record, never
+     sent anywhere and never part of weekly counts. An older record without it keeps this
+     default, which is "off". A `pots` written by a newer build is kept untouched and shown
+     read-only (isLockedPots). Every POTS write goes through a functional updater with a
+     lib/pots.js action, each of which leaves a locked record unchanged. */
+  const [pots, setPots] = useState(POTS_EMPTY);
+  const [potsSec, setPotsSec] = useState("today"); // the POTS tab's section (UI only, not saved)
+  const [potsHomeLast, setPotsHomeLast] = useState(null); // Home "POTS today": the dose its "Took it" just logged, for its Undo row (UI only)
+  const [potsDate, setPotsDate] = useState(null); // POTS → Today's logging day while fixing up an earlier one; null = today (UI only, so every launch starts on today)
+  const potsBase = useRef(null); // the `pots` this tab last saved or took from storage: the base of the 3-way merge (mergePots)
+  /* The standing test or session running in this tab (UI only, never saved): while it is set the
+     runner takes over the page (see the render below). { kind: "test", id, phase, phaseStart,
+     standAt, done: [checkpoint keys handled], interrupt, ... } (components/pots/StandTest.jsx), or
+     { kind: "session", id, day, phase, phaseStart, plan, paused, pausedMs, ... }
+     (components/pots/MoveSession.jsx). */
+  const [potsRun, setPotsRun] = useState(null);
+  /* One-shot focus request for a POTS section ("stand" | "move" | null): set when a test or
+     session ends, or by Today's "Start a stand test", and cleared by the section once it has
+     moved focus to its heading, so a later chip tap to that section leaves focus on the chip. */
+  const [potsFocus, setPotsFocus] = useState(null);
+  const potsFocused = () => setPotsFocus(null);
   const wipingRef = useRef(false); // Delete everything / Start over in progress: nothing may be saved any more
   const saveTimer = useRef(null);  // the pending autosave, cancelled by a wipe
   const pendingSave = useRef(null); // that autosave's write, run at once when the app is hidden or closed (flushSave)
@@ -212,7 +260,12 @@ export default function CyraDemo() {
   // Until two cycles are logged, predictions start from the registration answers (last period, usual length).
   const pred = useMemo(() => predict(ins, stage === "preg" ? null : regAnswers), [ins, regAnswers, stage]);
   const predWaits = stage !== "preg" && !pred && predictionWaits(ins, regAnswers);
-  const todayIso = localDay(); // this device's calendar day, never the UTC date
+  /* This device's calendar day, never the UTC date. Kept as state so the whole app moves to the
+     new day together: at local midnight (a timer, checked at least once a minute, since timers
+     pause while a device sleeps) and whenever the app comes back (visible, focused, resumed or
+     restored), so nothing logged after midnight is filed under the day before. */
+  const [todayIso, setTodayIso] = useState(() => localDay());
+  const syncDay = () => { const now = localDay(); setTodayIso((cur) => (cur === now ? cur : now)); return now; };
   const pregWeek = 22, trimester = 2;
   const toastTimer = useRef(null);
   const ping = (m) => { clearTimeout(toastTimer.current); setToast(m); toastTimer.current = setTimeout(() => setToast(""), 2600); };
@@ -296,15 +349,26 @@ export default function CyraDemo() {
     flow: e?.flow ?? null, disch: e?.disch ?? null, odor: e?.odor ?? null, bodyOdor: e?.bodyOdor ?? null, kicks: Math.max(e?.kicks || 0, tally),
   });
   const formFor = (iso) => formFrom(entryOn(iso), stage === "preg" && iso === todayIso && kickTally?.day === iso ? kickTally.n || 0 : 0);
+  // A form's contents for comparing (unset symptoms, key order and the quick-answer bookkeeping
+  // __q, which a saved quick check-in keeps in the form, don't count; an unanswered sleep
+  // question saves as "fair").
+  const formKey = (f) => JSON.stringify([Object.entries(f.draft || {}).filter(([k, v]) => v && k !== "__q").sort(), f.sleepQ || "fair", Object.entries(f.scales || {}).sort(), f.flow ?? null, f.disch ?? null, f.odor ?? null, f.bodyOdor ?? null, f.kicks || 0]);
   const applyForm = (f) => { setDraft(f.draft); setSleepQ(f.sleepQ); setScales(f.scales); setFlow(f.flow); setDisch(f.disch); setOdor(f.odor); setBodyOdor(f.bodyOdor); setKicks(f.kicks); };
   const editSnap = useRef(null); // today's form, put aside while another day is edited
   const formStage = useRef(null);
+  const formDay = useRef(null); // the day the open form was loaded for
   const [formRev, setFormRev] = useState(0); // bumped when the record is replaced (backup restored, another tab saved)
   useEffect(() => {
     if (!hydrated || !stage) return;
     const f = formFor(todayIso);
     const sameStage = formStage.current === stage; formStage.current = stage;
+    const prevDay = formDay.current; formDay.current = todayIso;
     if (editDate && sameStage) { editSnap.current = f; return; } // an edit stays open; today's form comes back after it
+    // Midnight (or a resume next morning) with a check-in half filled in: it stays open as an
+    // edit of the day it was started on, so saving files it there, and nothing she picked is wiped.
+    if (sameStage && prevDay && prevDay < todayIso && formKey({ draft, sleepQ, scales, flow, disch, odor, bodyOdor, kicks }) !== formKey(formFor(prevDay))) {
+      editSnap.current = f; setEditPeriod(stage !== "preg" && isPeriodDay(entryOn(prevDay))); setEditDate(prevDay); return;
+    }
     editSnap.current = null; setEditDate(null); applyForm(f);
   }, [hydrated, todayIso, stage, formRev]); // eslint-disable-line
   const startEdit = (iso) => {
@@ -321,6 +385,64 @@ export default function CyraDemo() {
   };
   const curTab = stage === "preg" ? pregTab : appTab;
   useEffect(() => { if (editDate && curTab !== "today") endEdit(); }, [curTab]); // eslint-disable-line -- leaving Today ends an edit
+
+  /* ---------- POTS add-on: the switch and its one tab ----------
+     Settings → Add-ons turns it on and off; it never changes the life stage, and changing stage
+     keeps the log and the switch. When it is on, one "POTS" tab sits right after Today in this
+     stage's single tab set (a newer build's record that is switched on shows the tab read-only). */
+  const potsTab = pots?.on === true;
+  // Turned off here, in another tab or by a restore: never leave her on a tab that's gone.
+  useEffect(() => { if (!potsTab && curTab === "pots") goTab("home"); }, [potsTab, curTab]); // eslint-disable-line
+  const potsOn = () => {
+    setPots((p) => turnOn(p, { day: todayIso, simple: quickMode, units: localeUnits() }));
+    ping("POTS tools on. Find them in the POTS tab");
+  };
+  // "Hide the POTS tab (keep my POTS log)", or "Hide it and erase my POTS log" (a new epoch, so
+  // no other open tab can merge the erased entries back).
+  const potsOff = ({ erase = false } = {}) => {
+    setPots((p) => turnOff(erase ? eraseLog(p) : p)); setPotsHomeLast(null);
+    ping(erase ? "POTS log erased and the POTS tab hidden" : "POTS tab hidden. Your POTS log is kept");
+  };
+  /* Home: the "POTS today" card while it's on (totals from dayTotals; "Today's insight" is never
+     replaced), or, once, the offer card for someone who ticked "POTS or dysautonomia" at
+     registration (owner decision D2). The offer never turns POTS on by itself, and answering it
+     (either button) means it never comes back; it isn't shown to someone who has ever turned
+     POTS on. The registration answer is read here, on screen, and nowhere else. */
+  const potsOk = !isLockedPots(pots);
+  // A record replaced mid-test by one this build can't read (another tab restored it) ends the run.
+  useEffect(() => { if (potsRun && !potsOk) setPotsRun(null); }, [potsRun, potsOk]);
+  const potsTotals = useMemo(() => dayTotals(pots, todayIso), [pots, todayIso]);
+  // Home's Undo row shows only while that dose is still in the log: an erase, a restore, a
+  // removal in Today's log or in another tab (or another tab having logged that dose first)
+  // takes the row away, so it never offers to undo something that isn't there.
+  const potsHomeLive = potsHomeLast && potsHomeLast.day === todayIso && (((pots.days || {})[potsHomeLast.day] || {}).doses || []).some((x) => x && x.id === potsHomeLast.id) ? potsHomeLast : null;
+  // POTS → Report reads the day's check-in only for the "also in check-in" lines, and only
+  // while "Cycle or pregnancy details" is ticked (lib/potsReport.js). It never gets
+  // registration answers or wearable readings.
+  // A lookup built once per log change (the first entry for a date wins, as days.find did), so
+  // Patterns and the report read a long log in one pass instead of searching it day by day.
+  const potsCheckin = useMemo(() => {
+    if (stage === "preg") return (iso) => pregLog[iso];
+    const by = new Map();
+    for (const d of days) if (d && !by.has(d.date)) by.set(d.date, d);
+    return (iso) => by.get(iso);
+  }, [stage, days, pregLog]);
+  // POTS → Patterns compares watch and ring readings on screen only (never in a POTS file); HRV
+  // only when exactly one source is connected (lib/potsPatterns.js). Cycle days and cycle groups
+  // use the period starts her check-ins logged (ins.starts), in a cycle stage only.
+  const potsWearConnected = useMemo(() => Object.entries(wearSources).filter(([, v]) => v && !v.pending && !v.demo).map(([k]) => k), [wearSources]);
+  const potsCyc = useMemo(() => ({ starts: ins.starts, stageName }), [ins, stageName]);
+  const potsOffer = potsOk && !pots.on && !pots.since && !pots.offered && Array.isArray(regAnswers?.conditions) && regAnswers.conditions.includes("POTS or dysautonomia");
+  const openPots = (simple = false) => { if (simple) setPots((p) => setPotsSettings(p, { simple: true })); setPotsSec("today"); setPotsDate(null); goTab("pots"); };
+  const openStandTest = () => { setPotsSec("stand"); goTab("pots"); };
+  /* Every change of stage INTO Pregnancy asks the prenatal team's exercise answer again: a "yes"
+     given before this pregnancy, or in an earlier one, never carries over. The answer is cleared
+     by her own stage actions, never by what the record says the stage was: when she taps
+     "<stageName> · change" (written to disk together with the empty stage, so a reload at the
+     stage chooser can't bring it back) and again whenever she or registration picks Pregnancy.
+     Loading, restoring or adopting a record isn't a change of stage, so a restore stays literal
+     (D4) and another tab's fresh answer is never cleared here. */
+  const chooseStage = (s) => { if (s === "preg") setPots(resetPregClearance); setStage(s); };
   const addKick = () => {
     const n = kicks + 1;
     setKicks(n);
@@ -673,15 +795,16 @@ export default function CyraDemo() {
     // is deterministic. The resulting stage reaches Cyra's server only inside the opt-in
     // weekly counts (lib/pulse.js); the counts read itself sends no stage. Otherwise it
     // leaves the device only when she moves it herself: inside an encrypted backup she
-    // exports, and implied by the doctor-email text she chooses to send.
+    // exports, and implied by the doctor-email text she chooses to send, or in a POTS report
+    // or spreadsheet she exports, only when she leaves 'Cycle or pregnancy details' ticked.
     const route = rulesRoute(ob);
-    setStage(route.stage); setStageName(route.label); setWelcome(route.welcome);
+    chooseStage(route.stage); setStageName(route.label); setWelcome(route.welcome);
     setDraft({}); setAppTab("home"); setPregTab("home"); setObBusy(false);
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); } };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: 1, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -694,7 +817,23 @@ export default function CyraDemo() {
   // A record that exists but can't be read (phone only) keeps hydrated false, so nothing
   // is saved over it; RecordUnavailableScreen offers Try again.
   const hydrate = () => storage.load().then(
-    (saved) => { try { if (saved && saved.v === 1 && saved.phase === "app") applySaved(saved); } finally { setRecordUnavailable(false); setHydrated(true); } },
+    async (saved) => {
+      try {
+        if (saved && saved.v === 1 && saved.phase === "app") {
+          // A record with no `pots` at all was last saved by a build from before POTS (a tab left
+          // open across the deploy): this build always writes it. The web keeps a second copy of
+          // the POTS log that such a build never touches (lib/storage.js POTS_KEY); it is taken
+          // back here, and the autosave that follows writes it into the record again.
+          if (!("pots" in saved)) { const copy = await storage.loadPotsCopy(); if (copy && typeof copy === "object") saved = { ...saved, pots: copy }; }
+          applySaved(saved); potsBase.current = saved.pots === undefined ? null : cleanPots(saved.pots);
+          // A stand test left "running" with no activity for 30 minutes was interrupted (the app
+          // closed mid-test): it keeps every reading it saved and is offered as Keep it / Discard.
+          // Only here, at launch: a cross-tab adopt never marks another window's live test.
+          setPots((p) => markStaleRunning(p, Date.now()));
+        }
+      }
+      finally { setRecordUnavailable(false); setHydrated(true); }
+    },
     (e) => { setRecordLocked(!!e?.locked); setRecordUnavailable(true); },
   );
   /* At every start, before and whether or not the record loads: (phone) delete a backup copy
@@ -722,8 +861,17 @@ export default function CyraDemo() {
         if (out !== snap) adoptPulse(out);
         const rem = mergeReminders(out.reminders, latest?.reminders);
         if (rem !== out.reminders) { out = { ...out, reminders: rem }; adoptReminders(rem); }
+        // POTS: another tab's newer epoch (an erase or a restore there) wins wholesale; within
+        // one epoch both tabs' entries are kept and a removal or a cleared value stays removed
+        // (a 3-way merge against what this tab last saved or adopted, lib/pots.js mergePots).
+        // A POTS tap made here while storage.load() was pending is already in state but not in
+        // this snapshot: rebase it onto the merge (3-way, this snapshot as the base) instead of
+        // overwriting it; the autosave that tap scheduled then saves it.
+        const pm = mergePots(latest && latest.v === 1 ? latest.pots : undefined, out.pots, potsBase.current);
+        if (!samePots(pm, out.pots)) { const mine = out.pots; out = { ...out, pots: pm }; setPots((cur) => (cur === mine ? pm : mergePots(pm, cur, mine))); }
       }
       storage.save(out).then(() => {
+        potsBase.current = out.pots;
         setStorageDriver(storage.driver());
         // Other open tabs of this browser take the saved record over, so none of them
         // writes its older copy back over this one (adoptRecord).
@@ -745,7 +893,17 @@ export default function CyraDemo() {
     const cur = valuesRef.current, sig = recordSig(saved);
     if (sig === recordSig(cur)) return;
     lastSig.current = sig; skipSig.current = sig;
-    for (const k of RECORD) if (k in saved && saved[k] !== undefined) setters[k](saved[k]);
+    for (const k of RECORD) {
+      if (!(k in saved) || saved[k] === undefined) continue;
+      if (k !== "pots") { setters[k](saved[k]); continue; }
+      // POTS is merged, not replaced, so this tab's own unsaved taps survive; when the merge
+      // changes nothing the stored copy is taken as it is (no save goes back and forth). The
+      // stored copy becomes the merge base, so what this tab changed still counts as its change.
+      const m = mergePots(saved.pots, cur.pots, potsBase.current);
+      const took = cleanPots(samePots(m, saved.pots) ? saved.pots : m);
+      setPots((now) => (now === cur.pots ? took : mergePots(took, now, cur.pots))); // keeps a tap made since `cur` was read
+      potsBase.current = cleanPots(saved.pots);
+    }
     const today = (v) => JSON.stringify([v.stage, v.stage === "preg" ? v.pregLog?.[todayIso] ?? null : (v.days || []).find((d) => d.date === todayIso) ?? null, v.kickTally ?? null]);
     if (today(saved) !== today(cur)) setFormRev((n) => n + 1);
   };
@@ -811,20 +969,28 @@ export default function CyraDemo() {
   }, []); // eslint-disable-line
   useEffect(() => {
     // Hidden, closed or sent to the background: a save still waiting on its 400 ms timer is written now.
-    const onVisible = () => { if (document.visibilityState === "visible") { drainTerraNow(); retryPushForget(); retryTerraOff(); } else flushSave(); };
+    const onVisible = () => { if (document.visibilityState === "visible") { syncDay(); drainTerraNow(); retryPushForget(); retryTerraOff(); } else flushSave(); };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("pagehide", flushSave);
-    const sub = isNative() ? CapApp.addListener("appStateChange", (st) => { if (st?.isActive) { drainTerraNow(); retryTerraOff(); } else flushSave(); }) : null;
-    return () => { document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("pagehide", flushSave); sub?.then((h) => h.remove()).catch(() => {}); };
+    // Back from the background, a restored page or a focused window: the day may have changed.
+    window.addEventListener("pageshow", syncDay); window.addEventListener("focus", syncDay);
+    const sub = isNative() ? CapApp.addListener("appStateChange", (st) => { if (st?.isActive) { syncDay(); drainTerraNow(); retryTerraOff(); } else flushSave(); }) : null;
+    // Local midnight while the app stays open. Checked at least once a minute, because a timer
+    // doesn't count the time a device spends asleep and the clock or time zone can change.
+    let dayTimer = null;
+    const armDay = () => { const n = new Date(), next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 0, 1); dayTimer = setTimeout(() => { syncDay(); armDay(); }, Math.max(1000, Math.min(next - n, 60000))); };
+    armDay();
+    return () => { document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("pagehide", flushSave); window.removeEventListener("pageshow", syncDay); window.removeEventListener("focus", syncDay); clearTimeout(dayTimer); sub?.then((h) => h.remove()).catch(() => {}); };
   }, []); // eslint-disable-line
 
-  /* Phone: a backup copy an interrupted share left in the app's cache (app closed or killed
-     while the share sheet was open). Run at every launch, before and whether or not the
-     record loads (no share can be under way in a freshly started app), and by Delete
-     everything and Start over once they reach this device's clean-up. */
+  /* Phone: a backup copy, POTS report or POTS spreadsheet an interrupted share left in the
+     app's cache (app closed or killed while the share sheet was open). Run at every launch,
+     before and whether or not the record loads (no share can be under way in a freshly
+     started app), and by Delete everything and Start over once they reach this device's
+     clean-up. Only Cyra's own export names match; nothing else in the cache is touched. */
   const sweepBackupCache = async () => {
     const { files = [] } = await Filesystem.readdir({ path: "", directory: Directory.Cache });
-    for (const f of files) { const n = typeof f === "string" ? f : f?.name; if (/^cyra-backup-.*\.cyra\.json$/.test(n || "")) await Filesystem.deleteFile({ path: n, directory: Directory.Cache }).catch(() => {}); }
+    for (const f of files) { const n = typeof f === "string" ? f : f?.name; if (/^cyra-(backup-.*\.cyra\.json|(report|data)-\d{4}-\d{2}-\d{2}\.(pdf|csv))$/.test(n || "")) await Filesystem.deleteFile({ path: n, directory: Directory.Cache }).catch(() => {}); }
   };
   const exportBackup = async (passphrase) => {
     // The backup carries the record, minus what belongs to this device only: the ZIP and the
@@ -882,12 +1048,17 @@ export default function CyraDemo() {
       if (st && typeof st === "object" && !st.demo && JSON.stringify(st) !== JSON.stringify(wearSources[id])) fromBackup[id] = { ...st, pending: true, restored: true };
     }
     const wear = { ...wearSources, ...fromBackup };
-    applySaved({ ...saved, wearSources: wear }, { skip: [...DEVICE_ONLY, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
+    /* POTS is restored literally (owner decision D4): a backup without a POTS log clears it here.
+       It starts a new epoch, so another open tab takes the restored log over whole instead of
+       merging its own older entries back in. A log from a newer build stays untouched. */
+    const restoredPots = newEpoch(saved.pots ?? freshEmpty(), Date.now());
+    applySaved({ ...saved, pots: restoredPots, wearSources: wear }, { skip: [...DEVICE_ONLY, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
+    potsBase.current = restoredPots; setPotsHomeLast(null);
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
     const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff) };
-    await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), wearSources: wear, ...keep, reminders: rem, v: 1, savedAt: new Date().toISOString(), phase: "app" });
+    await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, ...keep, reminders: rem, v: 1, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     ping(!isNative() && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored");
     if (wear.oura?.restored && API_BASE && !DEMO_WEARABLES) checkRestoredOura(wear.oura);
@@ -1251,7 +1422,7 @@ export default function CyraDemo() {
     setRegAnswers(answers);
     // Reminders only when she ticked "Remind me"; unticked also cancels anything left over.
     applyReminders(!!reg.notifOptin);
-    setStage(sid);
+    chooseStage(sid);
     setStageName(slabel);
     setDraft({});
     setAppTab("home"); setPregTab("home");
@@ -1262,7 +1433,8 @@ export default function CyraDemo() {
     // each flag at most once a week, never on the day it was logged). They are also in any
     // encrypted backup she exports (the ZIP and the age band are left out of it), and her
     // first name is in the doctor-email subject when she uses Open in email or Copy email
-    // (Report).
+    // (Report). A POTS report or spreadsheet uses no registration answer; her first name goes
+    // on it only if she ticks "Put my first name on it" (lib/potsReport.js).
     setWelcome(`Welcome${name ? `, ${name}` : ""} — your ${slabel} space is ready.`);
     setPhase("app");
   };
@@ -1298,7 +1470,7 @@ export default function CyraDemo() {
     );
   }
   const keepsWeekNote = pulseSent?.week === weekKey() || holdWeek === weekKey();
-  const settingsSheet = showSettings && <SettingsSheet cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storageDriver} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} keepsWeekNote={keepsWeekNote} reminders={reminders} reminderSupport={reminderSupport()} onReminders={(on) => applyReminders(on)} research={research} setResearch={setSharing} stage={stage} />;
+  const settingsSheet = showSettings && <SettingsSheet cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storageDriver} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} keepsWeekNote={keepsWeekNote} reminders={reminders} reminderSupport={reminderSupport()} onReminders={(on) => applyReminders(on)} research={research} setResearch={setSharing} stage={stage} stageName={stageName} pots={pots} onPotsOn={potsOn} onPotsOff={potsOff} />;
   if (!stage) {
     // Choosing a stage again: the saved record is still here, so Settings (and Delete
     // everything) stays one tap away.
@@ -1308,7 +1480,7 @@ export default function CyraDemo() {
           <button className="stagechip" onClick={() => setShowSettings((v) => !v)} aria-label="Settings and your data" aria-expanded={showSettings}>⚙</button>
         </header>
         {settingsSheet}
-        <IntakeScreen org={org} acct={acct} ob={ob} setOb={setOb} obBusy={obBusy} setObBusy={setObBusy} setStage={setStage} setStageName={setStageName} setWelcome={setWelcome} setAppTab={setAppTab} setPregTab={setPregTab} finishOnboarding={finishOnboarding} />
+        <IntakeScreen org={org} acct={acct} ob={ob} setOb={setOb} obBusy={obBusy} setObBusy={setObBusy} setStage={chooseStage} setStageName={setStageName} setWelcome={setWelcome} setAppTab={setAppTab} setPregTab={setPregTab} finishOnboarding={finishOnboarding} />
       </Shell>
     );
   }
@@ -1321,9 +1493,54 @@ export default function CyraDemo() {
       showMeds={showMeds} setShowMeds={setShowMeds} meds={meds} medLog={medLog} medEffects={medEffects} setMedLog={setMedLog} newMed={newMed} setNewMed={setNewMed} setMeds={setMeds} ping={ping}
       showAppts={showAppts} setShowAppts={setShowAppts} upcoming={upcoming} past={past} daysUntil={daysUntil} setAppts={setAppts} newAppt={newAppt} setNewAppt={setNewAppt}
       showJournal={showJournal} setShowJournal={setShowJournal} journal={journal} jDraft={jDraft} setJDraft={setJDraft} setJournal={setJournal}
+      potsCard={potsTab && potsOk
+        ? <PotsHome pots={pots} totals={potsTotals} todayIso={todayIso} onQuickLog={() => openPots(true)} onStandTest={openStandTest}
+            last={potsHomeLive}
+            onUndo={() => { const l = potsHomeLive; setPotsHomeLast(null); if (!l) return; setPots((p) => removePotsItem(p, l.day, l.id)); ping(`Removed: ${l.text}`); }}
+            onTook={(med, slot) => { const day = syncDay(), t = nowHHMM(), id = newPotsId(); setPots((p) => logDose(p, day, { id, medId: med.id, slot, state: "taken", t })); setPotsHomeLast({ id, day, text: `${med.name} ${slot.replace(/^0/, "")} at ${t.replace(/^0/, "")}` }); ping(`${med.name} logged at ${t.replace(/^0/, "")}`); }} />
+        : potsOffer ? <PotsOffer onOn={() => { setPots((p) => markOffered(p, todayIso)); potsOn(); }} onNot={() => setPots((p) => markOffered(p, todayIso))} /> : null}
     />
   );
   const askView = <AskScreen org={org} stage={stage} askQ={askQ} setAskQ={setAskQ} runAsk={runAsk} askBusy={askBusy} askOut={askOut} askAI={askAI} setAskAI={setAskAI} aiAvailable={aiAvailable} />;
+  /* POTS tab: its sections, POTS settings and the first-run cards (goals, medicines). The tools
+     this build has decide what "What would help?" and POTS settings offer (POTS_SHOWS). */
+  const potsDay = potsDate && potsDate < todayIso ? potsDate : todayIso;
+  const potsConditions = Array.isArray(regAnswers?.conditions) ? regAnswers.conditions : [];
+  const POTS_SHOWS = ["test", "fluid", "sym", "meds", "move"];
+  const potsView = (
+    <PotsScreen pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"} storageDriver={storageDriver}
+      sections={potsOk ? {
+        today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => { setPotsSec("stand"); setPotsFocus("stand"); }} storageDriver={storageDriver} syncDay={syncDay} />,
+        report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={acct.anon ? "" : (acct.name || "").trim()} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} />,
+        patterns: <PotsPatterns pots={pots} stage={stage} stageName={stageName} todayIso={todayIso} starts={ins.starts} checkin={potsCheckin} wearData={wearData} connected={potsWearConnected} />,
+        stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focus={potsFocus === "stand"} onFocused={potsFocused} cyc={potsCyc}
+          onStart={() => setPotsRun({ kind: "test", id: null, phase: "safety", phaseStart: Date.now(), standAt: null, done: [], interrupt: null })} />,
+        move: <MovePlan pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} focus={potsFocus === "move"} onFocused={potsFocused}
+          onStart={() => setPotsRun({ kind: "session", id: null, day: todayIso, phase: "setup", phaseStart: Date.now(), plan: null, paused: null, pausedMs: 0 })} />,
+      } : {}}
+      settings={potsOk ? ({ headRef, onBack }) => <PotsSettings pots={pots} setPots={setPots} stage={stage} stageName={stageName} conditions={potsConditions} ping={ping} shows={POTS_SHOWS} today={todayIso} headRef={headRef} onBack={onBack} /> : null}
+      setupCards={potsOk ? [
+        { id: "goals", title: "Any goals from your clinician?", skip: { label: "No goals yet, just track", big: true },
+          body: (saveRef) => <GoalSheet setup pots={pots} setPots={setPots} units={pots.settings.units} conditions={potsConditions} preg={stage === "preg"} today={todayIso} saveRef={saveRef} /> },
+        { id: "meds", title: "Any POTS medicines or supports?", skip: { label: "Skip, add later" }, body: (saveRef) => <MedSetup setPots={setPots} saveRef={saveRef} /> },
+      ] : []} />
+  );
+  /* Running takeover (design 3.3-7): while a stand test or a guided movement session runs, the
+     runner is the page — its single <main> with one h1 — instead of the header chips, the tab bar
+     and the tab content (the wordmark stays). Stop or finishing are the only ways out, so a tab
+     switch, Settings, a restore, a wipe or a stage change can't happen mid-test or mid-session. */
+  if (potsRun && potsOk) {
+    return (
+      <Shell style={style} toast={toast}>
+        <header className="mast"><span className="mark">{org.name}<span className="sub">{org.tag}</span></span></header>
+        {potsRun.kind === "session"
+          ? <SessionRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping}
+              onEnd={() => { setPotsRun(null); setPotsSec("move"); setPotsFocus("move"); }} />
+          : <StandRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} cyc={potsCyc}
+              onEnd={() => { setPotsRun(null); setPotsSec("stand"); setPotsFocus("stand"); }} />}
+      </Shell>
+    );
+  }
   const connView = <ConnectScreen relationship={relationship} setRelationship={setRelationship} conn={conn} setConn={setConn} intimacy={intimacy} setIntimacy={setIntimacy} after={after} setAfter={setAfter} setConnLog={setConnLog} todayIso={todayIso} ping={ping} />;
 
   return (
@@ -1333,7 +1550,7 @@ export default function CyraDemo() {
         {stage && <span className="acctchip">{acct.anon ? "Anonymous" : acct.name || "You"}{research && hasServer() ? " · sharing counts ✓" : ""}</span>}
         {stage && orgId === "cyra" && <button className="stagechip" onClick={() => setShowPal((s) => !s)} aria-label="Color palette" aria-expanded={showPal}>🎨</button>}
         {stage && <button className="stagechip" onClick={() => setShowSettings((s) => !s)} aria-label="Check-in settings" aria-expanded={showSettings}>⚙</button>}
-        {stage && <button className="stagechip" onClick={() => { setStage(null); setOb({ step: 0, preg: null, age: null, per: null, vms: null }); setWelcome(""); }}>{stageName} · change</button>}
+        {stage && <button className="stagechip" onClick={() => { setPots(resetPregClearance); setStage(null); setOb({ step: 0, preg: null, age: null, per: null, vms: null }); setWelcome(""); }}>{stageName} · change</button>}
       </header>
 
       {/* ============ APP ============ */}
@@ -1346,18 +1563,19 @@ export default function CyraDemo() {
           <>
             <nav aria-label="Sections">
               <div className="tabs" role="tablist">
-                {[["home", "Home"], ["today", "Today"], ["cal", "Calendar"], ["mile", "Milestones"], ["connect", "Connect"], ["ask", "Ask"]].map(([id, l]) => (
-                  <button key={id} role="tab" aria-selected={pregTab === id} className={`tab ${pregTab === id ? "tab-on" : ""}`} onClick={() => setPregTab(id)}>{l}</button>
+                {[["home", "Home"], ["today", "Today"], ...(potsTab ? [["pots", "POTS"]] : []), ["cal", "Calendar"], ["mile", "Milestones"], ["connect", "Connect"], ["ask", "Ask"]].map(([id, l]) => (
+                  <button key={id} role="tab" aria-selected={pregTab === id} className={`tab ${pregTab === id ? "tab-on" : ""}`} onClick={() => setPregTab(id)} onFocus={tabIntoView}>{l}</button>
                 ))}
               </div>
             </nav>
 
             {pregTab === "today" && (
-              <PregTodayScreen pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
+              <PregTodayScreen onPots={potsTab ? () => openPots() : null} pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
             )}
             {pregTab === "cal" && (
               <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={dayScore} scoreColor={scoreColor} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} onEdit={startEdit} ping={ping} />
             )}
+            {pregTab === "pots" && potsTab && potsView}
             {pregTab === "mile" && <MilestonesScreen pregWeek={pregWeek} />}
             {pregTab === "ask" && askView}
             {pregTab === "connect" && connView}
@@ -1367,20 +1585,21 @@ export default function CyraDemo() {
           <>
             <nav aria-label="Sections">
               <div className="tabs" role="tablist">
-                {[["home", "Home"], ["today", "Today"], ["cal", "Calendar"], ["patterns", "Patterns"], ["connect", "Connect"], ["report", "Report"], ["shelf", "Care"], ["ask", "Ask"]].map(([id, l]) => (
-                  <button key={id} role="tab" aria-selected={appTab === id} className={`tab ${appTab === id ? "tab-on" : ""}`} onClick={() => setAppTab(id)}>{l}</button>
+                {[["home", "Home"], ["today", "Today"], ...(potsTab ? [["pots", "POTS"]] : []), ["cal", "Calendar"], ["patterns", "Patterns"], ["connect", "Connect"], ["report", "Report"], ["shelf", "Care"], ["ask", "Ask"]].map(([id, l]) => (
+                  <button key={id} role="tab" aria-selected={appTab === id} className={`tab ${appTab === id ? "tab-on" : ""}`} onClick={() => setAppTab(id)} onFocus={tabIntoView}>{l}</button>
                 ))}
               </div>
             </nav>
 
             {appTab === "today" && (
-              <TodayScreen pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} setDays={setDays} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
+              <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} setDays={setDays} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
             )}
             {appTab === "cal" && (
               <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />
             )}
-            {appTab === "patterns" && <PatternsScreen ins={ins} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} />}
-            {appTab === "report" && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} />}
+            {appTab === "patterns" && <PatternsScreen ins={ins} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} />}
+            {appTab === "report" && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} />}
+            {appTab === "pots" && potsTab && potsView}
             {appTab === "shelf" && <CareScreen shelfItems={shelfItems} />}
             {appTab === "ask" && askView}
             {appTab === "connect" && connView}

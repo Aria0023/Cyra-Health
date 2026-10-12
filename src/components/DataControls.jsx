@@ -38,6 +38,7 @@ export function RestoreForm({ onImport, onDone, compact = false }) {
           <li>Your settings are replaced too, except this device's choices about weekly counts, Cyra's AI and browser reminders.</li>
           <li>If the backup has Oura or Fitbit/Garmin/Whoop connected, that connection comes back on this device marked not confirmed, because it may have been ended since the backup was made. It counts as connected again once Cyra confirms it through its server: Oura on a Sync that works (checked straight away, and removed from this device if it no longer works), Fitbit/Garmin/Whoop when readings arrive. A Fitbit/Garmin/Whoop connection you ended after the backup can't send readings, so tap Disconnect to remove it. One this device is still waiting to see disconnected isn't restored. A connection this device has now for the same service is replaced, so remove Cyra in that account if you want it ended.</li>
           <li>A connection this device has that the backup doesn't (Oura or Fitbit/Garmin/Whoop) stays connected here and keeps fetching readings through Cyra's server as before. Tap Disconnect under Wearables on Home if you don't want it.</li>
+          <li>A backup made before you turned on POTS tools has no POTS log, so restoring it clears the POTS log on this device.</li>
         </ul>
       </Details>
     </div>
@@ -107,6 +108,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
       <Details label="What can leave this device">
         <p>Features you turn on (reminders in a browser, weekly counts, Cyra's AI, Oura, Fitbit/Garmin/Whoop) each say, before you turn them on, what they send and where.</p>
         <p>Restoring a backup brings back its wearable connections on this device.</p>
+        <p>Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase and never include readings Cyra gets from a connected watch, ring or health app.</p>
       </Details>
       <div className="mcrow">
         <button className={`mc ${mode === "export" ? "on" : ""}`} onClick={() => switchTo("export")}>Encrypted backup</button>
@@ -133,12 +135,13 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
       {mode === "import" && <RestoreForm onImport={onImport} onDone={() => setMode(null)} compact />}
       {mode === "wipe" && !blocked && (
         <div className="plaincard" style={{ marginTop: 10 }}>
-          <p className="plain"><b>Delete everything on this device?</b> Every check-in, note, appointment and setting goes for good. This also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop. Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.</p>
+          <p className="plain"><b>Delete everything on this device?</b> Every check-in, POTS log, note, appointment and setting goes for good. This also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop. Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.</p>
           <Details label="More about deleting">
             <ul>
               <li>If Cyra's server, Oura or Fitbit/Garmin/Whoop can't confirm that, Cyra tells you what did and didn't end and keeps your record on this device until you choose.</li>
               <li>Anonymous counts you already shared stay counted. Questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy.</li>
               {isNative() && <li>Apple Health or Health Connect access stays on until you turn it off in your phone's settings.</li>}
+              <li>Report files you already saved or shared aren't on this device's record. Delete them wherever you put them.</li>
               {keepsWeekNote && <li>So this device isn't counted twice, Cyra keeps only this week's date here (nothing else, nothing about your health) and deletes it the first time Cyra opens after this week ends.</li>}
             </ul>
           </Details>

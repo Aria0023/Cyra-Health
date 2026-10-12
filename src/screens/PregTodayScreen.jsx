@@ -8,7 +8,7 @@ import Advice from "../components/Advice.jsx";
    symptoms, scales, body signals, kick counter, red-flag swelling advice. Opens on what is
    already saved for the day (App.jsx loads it, and keeps today's kick count on the device
    between taps); also the edit form for a day picked from the Calendar. */
-export default function PregTodayScreen({ pregWeek, trimester, scoreMeter, draft, setDraft, symMap, scaleSection, bodySection, kicks, onKick, setPregLog, todayIso, editDate, onEndEdit, scales, odor, bodyOdor, ping, research, contribute }) {
+export default function PregTodayScreen({ onPots = null, pregWeek, trimester, scoreMeter, draft, setDraft, symMap, scaleSection, bodySection, kicks, onKick, setPregLog, todayIso, editDate, onEndEdit, scales, odor, bodyOdor, ping, research, contribute }) {
   return (
     <main>
       <div className="pregband">
@@ -56,6 +56,7 @@ export default function PregTodayScreen({ pregWeek, trimester, scoreMeter, draft
         contribute({ sym: draft, kicks }, target);
         if (editDate) onEndEdit(entry, target);
       }}>{editDate ? `Save changes to ${fmt(editDate)}` : "Save today"}</button>
+      {onPots && !editDate && <button className="linkbtn potslink" style={{ marginTop: 10 }} onClick={onPots}>Log POTS symptoms and drinks →</button>}
       {research && !editDate && (
         <>
           <p className="rfoot">Sharing weekly counts is on: which of {flagWords("preg")} today's check-in logged, plus your life stage group, go to Cyra's server on a later day, with no dates or values.</p>

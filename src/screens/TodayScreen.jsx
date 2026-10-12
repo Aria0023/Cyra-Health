@@ -12,7 +12,7 @@ import { fmt, sevDots, foldQuick } from "../lib/engine.js";
    so it adds no symptom flags — only the full check-in's named symptoms, sleep and flow do.
    The form opens on what is already saved for the day (App.jsx loads it), so saving again
    updates that entry; an edit's "Period day" switch is what that day is saved with. */
-export default function TodayScreen({ pred, stage, welcome, editDate, onEndEdit, setDraft, setSleepQ, scoreMeter, quickMode, quickCheckin, symIds, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, setEditPeriod, scales, flow, disch, odor, bodyOdor, setDays, ping, setAppTab, research, contribute }) {
+export default function TodayScreen({ onPots = null, pred, stage, welcome, editDate, onEndEdit, setDraft, setSleepQ, scoreMeter, quickMode, quickCheckin, symIds, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, setEditPeriod, scales, flow, disch, odor, bodyOdor, setDays, ping, setAppTab, research, contribute }) {
   return (
     <main>
       {pred && (
@@ -71,6 +71,7 @@ export default function TodayScreen({ pred, stage, welcome, editDate, onEndEdit,
         contribute({ sym: quickMode && !editDate ? {} : flagged, sleepQ: sleepQ || "fair", flow }, target);
         if (editDate) { onEndEdit(entry); setAppTab("cal"); } else { setDraft(Object.keys(fromQuick).length ? { ...sym, __q: fromQuick } : sym); setAppTab("patterns"); }
       }}>{editDate ? `Save changes to ${fmt(editDate)}` : "Save today's check-in"}</button>
+      {onPots && !editDate && <button className="linkbtn potslink" style={{ marginTop: 10 }} onClick={onPots}>Log POTS symptoms and drinks →</button>}
       {research && !editDate && (
         <>
           <p className="rfoot">Sharing weekly counts is on: which of {flagWords(stage)} this check-in logged, plus your life stage group, go to Cyra's server on a later day, with no dates or values.</p>

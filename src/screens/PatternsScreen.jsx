@@ -4,7 +4,7 @@ import { DayLine, CycleRings, SymptomTimeline, windowDays } from "../components/
 
 /* Cycle & Peri — Patterns: the 60-day day-score line (or, with two logged periods, cycle rings),
    insight + advice cards, trial before/after cards, and the symptom timeline. */
-export default function PatternsScreen({ ins, symIds, symMap, stage, isMeno = false, todayIso, medEffects }) {
+export default function PatternsScreen({ ins, symIds, symMap, stage, isMeno = false, todayIso, medEffects, potsOn = false }) {
   const [view, setView] = useState("days");
   const days = windowDays(ins.sorted, symIds, todayIso);
   const logged = days.filter((d) => d.e).length;
@@ -67,6 +67,8 @@ export default function PatternsScreen({ ins, symIds, symMap, stage, isMeno = fa
           <SymptomTimeline days={days} ids={symIds} labels={symMap} starts={starts} />
         </>
       )}
+      {/* POTS tools: their patterns live in the POTS tab only (never in insights() or this screen). */}
+      {potsOn && <p className="hint" style={{ marginTop: 16 }}>Your POTS patterns are in the POTS tab.</p>}
     </main>
   );
 }

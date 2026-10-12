@@ -3,10 +3,11 @@ import { hasServer } from "../lib/api.js";
 import { STAGE_GROUP, flagWords } from "../lib/pulse.js";
 import DataControls from "./DataControls.jsx";
 import Details, { WebReminderFacts } from "./Details.jsx";
+import PotsAddon from "./pots/PotsAddon.jsx";
 
-/* ⚙ Settings: check-in cadence, nudge time, quick vs full check-in, reminders, the
-   "Share anonymous weekly counts" switch, and Your data. */
-export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, keepsWeekNote, reminders, reminderSupport, onReminders, research, setResearch, stage }) {
+/* ⚙ Settings: check-in cadence, nudge time, quick vs full check-in, add-ons (POTS tools),
+   reminders, the "Share anonymous weekly counts" switch, and Your data. */
+export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, keepsWeekNote, reminders, reminderSupport, onReminders, research, setResearch, stage, stageName, pots, onPotsOn, onPotsOff }) {
   const st = reminders?.status;
   const remindersText = st === "blocked"
     ? (reminderSupport === "native" ? "Notifications for Cyra are off in your phone's Settings — turn them on there, then tap Turn on" : reminders.denied ? "Blocked in this browser — allow notifications for Cyra in site settings, then tap Turn on" : "Waiting for permission — tap Turn on and choose Allow")
@@ -44,6 +45,12 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
         <button className={`mc ${quickMode ? "on" : ""}`} onClick={() => setQuickMode(true)}>Quick · 3 taps</button>
         <button className={`mc ${!quickMode ? "on" : ""}`} onClick={() => setQuickMode(false)}>Full detail</button>
       </div>
+      {stage && (
+        <>
+          <p className="section-lab" style={{ margin: "14px 0 8px" }}>Add-ons</p>
+          <PotsAddon pots={pots} stageName={stageName} onOn={onPotsOn} onOff={onPotsOff} storageDriver={storageDriver} />
+        </>
+      )}
       <p className="section-lab" style={{ margin: "14px 0 8px" }}>Reminders</p>
       <div className="medrow" style={{ borderTop: "none", padding: "4px 0 8px" }}>
         <div className="medinfo"><b>{remindersText}</b><span>{remindersSub}</span></div>
@@ -66,6 +73,7 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
               <li>"Once a week" is counted on this device: deleting the app or clearing this browser's data resets it.</li>
               <li>No dates, values, name or account. Like any request, it carries your device's internet address.</li>
               <li>They're added to the weekly "You're not alone" counts.</li>
+              <li>Nothing you log in POTS tools is ever part of weekly counts.</li>
             </ul>
           </Details>
         </>
