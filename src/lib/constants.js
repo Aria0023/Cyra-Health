@@ -101,6 +101,25 @@ export const ORGS = {
 };
 
 
+/* Patterns charts: every symptom belongs to one family, and each family has one fixed data-viz colour
+   (categorical, separate from the UI palettes). Colours are the reference categorical slots red, blue,
+   green, amber and aqua, checked all-pairs on white: colour-blind separation >= 6.9 dE, so the charts
+   always pair colour with a label, the legend and the tap-for-detail card. */
+export const FAMILIES = [
+  { id: "heat", label: "Heat", color: "#E34948" },
+  { id: "sleep", label: "Sleep", color: "#2A78D6" },
+  { id: "mind", label: "Mind", color: "#008300" },
+  { id: "pain", label: "Pain", color: "#EDA100" },
+  { id: "body", label: "Body", color: "#1BAF7A" },
+];
+export const SYM_FAMILY = {
+  hf: "heat", ns: "heat",
+  slp: "sleep",
+  fog: "mind", mood: "mind", anx: "mind",
+  ach: "pain", hda: "pain", crm: "pain", bak: "pain", ten: "pain",
+  dry: "body", pal: "body", lib: "body", itc: "body", blo: "body", nau: "body", acn: "body", cra: "body",
+};
+
 /* Data-viz ramp: saturated and readable, independent of UI chrome colors. */
 export const RAMPS = {
   peri:    { good: [26, 168, 148], mid: [246, 189, 74], rough: [140, 74, 168] },

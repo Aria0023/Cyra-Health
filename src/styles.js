@@ -40,10 +40,26 @@ export const css = `
 .pill-on { border-color:#7E9B87; background:#E7EFE9; }
 .cta { width:100%; border:none; border-radius:13px; background:var(--primary); color:#FFF; font:700 14px 'Karla Variable','Karla'; padding:14px; cursor:pointer; }
 .cta:disabled { opacity:.6; }
-.stripes { display:flex; height:88px; border-radius:10px; overflow:hidden; margin-bottom:6px; }
-.scol { flex:1; display:flex; flex-direction:column; } .stripe { flex:1; } .sdot { height:5px; } .sdot.on { background:var(--primary); }
-.legend { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--soft); margin-bottom:16px; }
-.lbar { flex:1; height:5px; border-radius:3px; } .lper { color:var(--primary); font-weight:700; }
+/* Patterns charts (components/PatternCharts.jsx): data colours come from FAMILIES in lib/constants.js, never the UI palette. */
+.pchart { background:var(--card); border:1.5px solid var(--line); border-radius:16px; padding:12px 12px 10px; margin-bottom:12px; }
+.psvg:focus:not(:focus-visible) { outline:none; }
+.psvg { display:block; width:100%; height:auto; overflow:visible; touch-action:pan-y; cursor:crosshair; }
+.psvg text { font-family:'Karla Variable','Karla',sans-serif; }
+.ptick { font-size:10.5px; fill:var(--soft); } .pnote { font-size:10.5px; font-weight:700; fill:var(--ink); } .prow { font-size:11px; font-weight:600; fill:var(--ink); }
+.flegend { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:12px; color:var(--soft); margin:8px 0 2px; }
+.flegend span { display:inline-flex; align-items:center; gap:5px; }
+.fdot { display:inline-block; width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+.fline { display:inline-block; width:16px; height:2px; background:var(--ink); border-radius:1px; }
+.fband { display:inline-block; width:12px; height:11px; background:var(--ink); opacity:.12; border-radius:2px; }
+.fsize { display:inline-block; width:12px; height:12px; border-radius:50%; border:1.5px solid var(--soft); }
+.fring { display:inline-block; width:9px; height:9px; border-radius:50%; border:1.5px solid var(--ink); }
+.pday { background:color-mix(in srgb, var(--ink) 5%, var(--card)); border-radius:12px; padding:9px 11px; margin-top:8px; font-size:13px; min-height:58px; }
+.pday-h { font-weight:700; } .pday .hint { margin:0; }
+.pday-s { list-style:none; margin:4px 0 0; padding:0; display:flex; flex-wrap:wrap; gap:3px 12px; }
+.pday-s li { display:inline-flex; align-items:center; gap:5px; } .sevd { color:var(--soft); font-size:10px; letter-spacing:1px; }
+.pcallout { display:flex; gap:12px; align-items:baseline; border-top:1px solid var(--line); margin-top:10px; padding-top:9px; }
+.pcallout b { font-family:'Fraunces Variable','Fraunces',serif; font-size:24px; font-weight:600; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.pcallout p { margin:0; font-size:13.5px; }
 .card { background:var(--card); border:1.5px solid var(--line); box-shadow:0 1px 2px rgba(0,0,0,.04); border-radius:13px; padding:13px 15px; display:flex; gap:13px; align-items:baseline; margin-bottom:10px; }
 .num { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:23px; color:var(--primary); min-width:56px; }
 .card p { margin:0; font-size:13px; line-height:1.5; }
@@ -52,10 +68,6 @@ export const css = `
 .uchip { flex-shrink:0; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; border-radius:999px; padding:3px 9px; }
 .u-now { background:#F3DBDB; color:#A04545; } .u-visit { background:color-mix(in srgb, var(--primary) 16%, var(--card)); color:color-mix(in srgb, var(--primary) 80%, var(--ink)); } .u-self { background:#E7EFE9; color:#43604F; }
 .atext { font-size:12.5px; line-height:1.5; }
-.bars { display:grid; gap:8px; margin-top:6px; }
-.brow { display:grid; grid-template-columns:108px 1fr 24px; align-items:center; gap:9px; }
-.blab { font-size:12px; } .btrack { height:10px; background:color-mix(in srgb, var(--ink) 14%, var(--card)); border-radius:5px; overflow:hidden; }
-.bfill { height:100%; } .bval { font-size:11.5px; color:var(--soft); text-align:right; }
 .rep { background:var(--card); border:1.5px solid var(--line); box-shadow:0 1px 2px rgba(0,0,0,.04); border-radius:13px; padding:15px; margin-bottom:12px; }
 .rtitle { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:17px; margin-bottom:10px; }
 .rmeta { display:block; font-size:11.5px; font-weight:400; color:var(--soft); margin-top:2px; font-family:'Karla Variable','Karla'; }
