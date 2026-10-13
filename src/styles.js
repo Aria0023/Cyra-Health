@@ -297,6 +297,29 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + env(safe-area-i
 .potsrtab { font-size:11.5px; }
 .potsrtab caption { text-align:left; font-weight:700; font-size:12.5px; color:var(--ink); padding:6px 0 4px; }
 .potsrtab th, .potsrtab td { padding-right:8px; vertical-align:top; white-space:pre-line; color:var(--ink); }
+.rcover { background:var(--card); border:1.5px solid var(--line); box-shadow:0 1px 2px rgba(0,0,0,.04); border-radius:13px; padding:13px 15px 12px; margin-bottom:8px; }
+.rcov-top { display:flex; gap:12px; align-items:baseline; }
+.rcov-num { font-size:30px; min-width:0; } .rcov-num small { font-size:16px; font-weight:600; color:var(--soft); margin-left:1px; }
+.rcov-text { display:flex; flex-direction:column; gap:1px; font-size:13.5px; } .rcov-text span { font-size:12px; color:var(--soft); }
+.rcov-cells { display:grid; grid-template-columns:repeat(30, 1fr); gap:2px; margin-top:10px; }
+.rcov-cells i { display:block; height:8px; border-radius:2px; background:var(--line); } .rcov-cells i.on { background:var(--primary); }
+.finding { padding:9px 0; border-top:1px solid var(--line); } .finding:first-child { padding-top:0; border-top:none; } .finding:last-child { padding-bottom:0; }
+.fhead { display:flex; align-items:center; gap:7px; font-size:14px; } .fhead b { flex:1; min-width:0; }
+.fchip { flex-shrink:0; font-size:11px; font-weight:700; color:var(--ink); border-radius:999px; padding:3px 9px; white-space:nowrap; }
+.fmeter { position:relative; height:8px; border-radius:4px; background:color-mix(in srgb, var(--fc) 14%, var(--card)); margin:8px 0 6px; overflow:hidden; }
+.fmeter i { position:absolute; left:0; top:0; height:100%; border-radius:4px; }
+.fm-any { background:color-mix(in srgb, var(--fc) 45%, var(--card)); } .fm-strong { background:var(--fc); box-shadow:2px 0 0 var(--card); }
+.fsub { font-size:13px; color:var(--soft); margin:0; } .fsub .up, .fsub .down, .fsub .flat { margin-left:0; }
+.fstat { display:flex; gap:12px; align-items:baseline; } .fstat .num { font-size:24px; min-width:56px; flex-shrink:0; white-space:nowrap; } .fstat .plain { flex:1; min-width:0; margin:0; }
+.cyclesvg { display:block; width:100%; height:auto; margin:4px 0 2px; overflow:visible; } .cyclesvg text { font-family:'Karla Variable','Karla',sans-serif; }
+.meaning { border-left:3px solid var(--line); padding-left:11px; margin:0 0 12px; } .meaning .plain { margin:2px 0 0; }
+.mhead { display:block; font-size:13px; } .mnote { color:var(--soft); font-size:13px; }
+.scriptrow { display:flex; align-items:flex-start; gap:9px; margin:0 0 10px; } .scriptrow:last-child { margin-bottom:0; }
+.scriptrow .script { flex:1; min-width:0; margin:0; } .scriptrow .script:last-child { margin-bottom:0; }
+.sbadge { flex-shrink:0; width:22px; height:22px; border-radius:50%; background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary); font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; margin-top:1px; }
+.scopy { flex-shrink:0; align-self:flex-start; padding:0 2px; }
+.tbar { display:inline-block; vertical-align:middle; width:46px; height:6px; border-radius:3px; background:color-mix(in srgb, var(--fc) 14%, var(--card)); margin-right:7px; overflow:hidden; }
+.tbar i { display:block; height:100%; border-radius:3px; background:var(--fc); }
 .plaincard.urgent { border:2px solid #A04545; }
 .plaincard.urgent .uchip { display:inline-block; margin-bottom:6px; }
 .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(20px + env(safe-area-inset-bottom, 0px)); background:var(--ink); color:#FFF; font-size:13px; padding:9px 16px; border-radius:999px; max-width:86%; text-align:center; z-index:9; pointer-events:none; }
