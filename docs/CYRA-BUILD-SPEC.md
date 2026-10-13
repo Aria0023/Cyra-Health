@@ -157,8 +157,8 @@ how hard the day was, period days ringed, the cycle days that are usually hardes
 named in the callout. Both views share one selection: tapping or arrowing through days opens a
 day card naming what was logged, so colour is never the only cue · insight cards, each paired
 with an **advice card** carrying an urgency chip (Self-care / Next visit / This week). The same
-card, with up to four symptom rows and a "More in Patterns →" link, sits on Home under Today's
-insight once 3 days are logged.
+card, with a "More in Patterns →" link, sits on Home under Today's insight once 3 days are
+logged, compact: up to three symptom rows, no hint line, and the day card once a day is tapped.
 
 **Report — "What to tell your doctor"** (this is the flagship screen):
 0. *Cover* — days logged in the window as a number ("27/30 days logged", date range, stage)
@@ -381,10 +381,14 @@ code as the source of truth for exact behavior; this addendum explains intent.
 Both stage experiences open on **Home**, not on the check-in form. Home contains, in order:
 greeting (time-of-day + name) with cycle day/phase or pregnancy week · gentle 14-day streak
 ("N of 14 days", never a broken-chain penalty) · one check-in CTA · today's single highest-
-priority insight · "From your wearable" cards (when connected) · milestones strip · "Coming up"
-(predicted period or lateness, due date, next appointment with a prep nudge ≤7 days out) ·
-"You're not alone" pulse · month-vs-last-month recap (collapsed) · collapsible sections for
-Wearables, What I'm trying, Appointments, Journal.
+priority insight · the patterns card (cycle and peri stages, compact: up to three symptom rows,
+the day card once a day is tapped) · "From your wearable" cards (when connected) · milestones
+(a row of progress dots with the next milestone named; the full timeline under "All
+milestones") · "Coming up" (predicted period or lateness, due date, next appointment with a
+prep nudge ≤7 days out) · "You're not alone" pulse (one line when counts aren't available in
+the build; how the counts are made sits under "How these counts work") · a two-column grid of
+collapsible sections — Month vs last month, Wearables, What I'm trying, Appointments, Journal —
+each opening a titled panel under the grid.
 
 ## A2. Pulse ("You're not alone")
 Three stage-specific anonymous aggregate counts ("3,550 women logged cramps this week").

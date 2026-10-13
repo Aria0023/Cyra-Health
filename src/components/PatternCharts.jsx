@@ -262,9 +262,10 @@ function CycleRings({ model, sel, setSel }) {
 /* ---------------- The card ---------------- */
 
 /* days: windowDays(); starts: logged period starts ([] in menopause); maxRows: how many symptom
-   rows to draw under the line (Home shows fewer); onMore: a link to the Patterns tab (Home).
+   rows to draw under the line (Home shows fewer); onMore: a link to the Patterns tab (Home);
+   compact (Home): no hint line, and the day card appears only once a day is picked.
    Renders nothing until 3 days are logged. */
-export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso, maxRows = 6, onMore = null }) {
+export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso, maxRows = 6, onMore = null, compact = false }) {
   const [view, setView] = useState("days");
   const [selIso, setSelIso] = useState(null);
   const logged = days.filter((d) => d.e);
@@ -291,15 +292,15 @@ export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso,
           <button type="button" className={`mc ${cycleView ? "on" : ""}`} aria-pressed={cycleView} onClick={() => setView("cycle")}>By cycle</button>
         </div>
       )}
-      <p className="hint phint">{cycleView ? "One ring per cycle, day 1 at the top. Bigger dots are harder days." : "Your day score; higher is a better day. Each dot takes the colour of that day's strongest symptom."}</p>
+      {!compact && <p className="hint phint">{cycleView ? "One ring per cycle, day 1 at the top. Bigger dots are harder days." : "Your day score; higher is a better day. Each dot takes the colour of that day's strongest symptom."}</p>}
       {cycleView
         ? <CycleRings model={model} sel={ringSel} setSel={(i) => setSelIso(model.pts[i].iso)} />
         : <DayField days={days} rows={rows} stats={stats} sel={daySel} setSel={(i) => setSelIso(days[i].iso)} />}
       <FamilyLegend fams={fams} extra={cycleView
         ? <><span><i className="fsize" aria-hidden="true" />bigger = harder day</span>{hasPeriod && <span><i className="fring" aria-hidden="true" />period day</span>}</>
-        : <><span><i className="fline" aria-hidden="true" />7-day average</span>{hasPeriod && <span><i className="fband" aria-hidden="true" />period</span>}</>} />
-      <DayCard day={picked} ids={ids} labels={labels} starts={starts}
-        empty={cycleView ? "Tap a dot to see that day." : rows.length ? "Tap a day, or a dot in a row, to see everything you logged that day. Bigger dots in the rows are stronger days." : "Tap a day to see what you logged."} />
+        : <><span><i className="fline" aria-hidden="true" />7-day average</span>{hasPeriod && <span><i className="fband" aria-hidden="true" />period</span>}{compact && <span className="ptap">tap a day for details</span>}</>} />
+      {(!compact || picked) && <DayCard day={picked} ids={ids} labels={labels} starts={starts}
+        empty={cycleView ? "Tap a dot to see that day." : rows.length ? "Tap a day, or a dot in a row, to see everything you logged that day. Bigger dots in the rows are stronger days." : "Tap a day to see what you logged."} />}
       {cycleView ? (
         <div className="pcallout">
           {hs != null && <b>Days {hs}–{hs + 4}</b>}

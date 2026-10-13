@@ -4,10 +4,11 @@ import { isNative } from "../lib/native.js";
 import Advice from "../components/Advice.jsx";
 import Details from "../components/Details.jsx";
 
-/* Home (default tab): greeting + streak, check-in CTA, today's top insight,
-   wearable cards, milestones, coming up, pulse, monthly recap, and the
-   collapsible Wearables / What I'm trying / Appointments / Journal sections. With POTS tools
-   on, a "POTS today" card (potsCard, built in App.jsx) sits under the check-in button. */
+/* Home (default tab): greeting + streak, check-in CTA, today's top insight, the patterns card,
+   wearable cards, milestones, coming up, pulse, and a grid of collapsible sections (month vs
+   last month, Wearables, What I'm trying, Appointments, Journal) whose open panels sit under
+   the grid. With POTS tools on, a "POTS today" card (potsCard, built in App.jsx) sits under the
+   check-in button. */
 /* A trial without enough logged days on both sides of its start date (App.jsx medEffects):
    how many more it needs, or, when the days left can't get there, that it can't be compared. */
 const plural = (n) => `${n} logged day${n === 1 ? "" : "s"}`;
@@ -92,16 +93,28 @@ export default function HomeScreen({
         </>
       )}
 
+      {/* Milestones: a row of progress dots and the next one named; the full timeline sits under
+          "All milestones" (hidden until opened, so it isn't read twice). */}
       <p className="section-lab">Milestones · {milestones.filter((m) => m.done).length} of {milestones.length} reached</p>
-      <ol className="mstrip" aria-label="Milestones">
-        {milestones.map((m, i) => (
-          <li className={`ms ${m.done ? "done" : ""}`} key={i}>
-            <span className="msdot" aria-hidden="true">{m.done ? "✓" : ""}</span>
-            <span className="mslabel"><span className="sr-only">{m.done ? "Reached: " : "Not yet: "}</span>{m.label}</span>
-            {m.progress != null && !m.done && <span className="msbar"><i style={{ width: `${m.progress * 100}%` }} /></span>}
-          </li>
-        ))}
-      </ol>
+      <div className="plaincard mscard">
+        <ol className="msteps" aria-hidden="true">
+          {milestones.map((m, i) => <li className={`mstep ${m.done ? "done" : ""}`} key={i}><span className="msdot">{m.done ? "✓" : ""}</span></li>)}
+        </ol>
+        {(() => { const next = milestones.find((m) => !m.done); return next
+          ? <p className="msnext"><b>Next up: </b>{next.label}{next.progress != null && <span className="msbar" aria-hidden="true"><i style={{ width: `${next.progress * 100}%` }} /></span>}</p>
+          : <p className="msnext"><b>Every milestone reached.</b></p>; })()}
+        <Details label="All milestones">
+          <ol className="mstrip" aria-label="Milestones">
+            {milestones.map((m, i) => (
+              <li className={`ms ${m.done ? "done" : ""}`} key={i}>
+                <span className="msdot" aria-hidden="true">{m.done ? "✓" : ""}</span>
+                <span className="mslabel"><span className="sr-only">{m.done ? "Reached: " : "Not yet: "}</span>{m.label}</span>
+                {m.progress != null && !m.done && <span className="msbar"><i style={{ width: `${m.progress * 100}%` }} /></span>}
+              </li>
+            ))}
+          </ol>
+        </Details>
+      </div>
 
       {nextUp.length > 0 && (
         <>
@@ -118,40 +131,64 @@ export default function HomeScreen({
 
       <p className="section-lab">You're not alone · last week, from people who share counts</p>
       <div className="pulse">
-        {pulse.items.map((it) => (
+        {pulse.status === "unavailable" ? (
+          <div className="pulserow"><b>—</b><span>Community counts aren't available in this version of the app</span></div>
+        ) : pulse.items.map((it) => (
           <div className="pulserow" key={it.id}>
             <b>{it.count != null ? it.count.toLocaleString() : "—"}</b>
             <span>{it.count != null ? `contributors ${it.what}`
               : pulse.status === "loading" ? `${it.what} · loading last week's number`
               : pulse.status === "offline" ? `${it.what} · couldn't load last week's number`
-              : pulse.status === "unavailable" ? `${it.what} · not available in this version of the app`
               : `${it.what} · shows once ${pulse.k || 50} contributions are counted`}</span>
           </div>
         ))}
-        <p className="rfoot" style={{ margin: "10px 0 0" }}>Anonymous counts only: no names, dates or values. The Cyra app adds to them only for people who turn on sharing, at most once a week from each phone or browser, so one person sharing from two devices counts twice. A number shows only once {pulse.k || 50} or more contributions are in. Because no one is identified, Cyra's server can't check who sends a count, so treat these as rough numbers. Loading these numbers tells Cyra's server nothing about your health.</p>
+        {/* The two claims that matter most stay on screen; how the counts are made sits one tap away
+            (hidden, not removed: the full text is always part of the screen). */}
+        <p className="rfoot" style={{ margin: "8px 0 0" }}>Anonymous counts only: no names, dates or values.{pulse.status !== "unavailable" && " Loading these numbers tells Cyra's server nothing about your health."}</p>
+        <Details label="How these counts work">
+          <p>The Cyra app adds to them only for people who turn on sharing, at most once a week from each phone or browser, so one person sharing from two devices counts twice. A number shows only once {pulse.k || 50} or more contributions are in. Because no one is identified, Cyra's server can't check who sends a count, so treat these as rough numbers.</p>
+        </Details>
       </div>
 
-      {recap ? (
-        <>
-          <button className="disclosure" onClick={() => setShowRecap((v) => !v)}><span>Your month vs last month</span><span>{showRecap ? "−" : "+"}</span></button>
-          {showRecap && (
-            <div className="bodypanel">
-              <div className="recaprow"><span>Average day score</span><b>{recap.score[0]} → {recap.score[1]} {delta(recap.score[0], recap.score[1])}</b></div>
-              <div className="recaprow"><span>Calm days</span><b>{recap.calm[0]} → {recap.calm[1]} {delta(recap.calm[0], recap.calm[1])}</b></div>
-              <div className="recaprow"><span>Rough nights</span><b>{recap.poor[0]} → {recap.poor[1]} {delta(recap.poor[0], recap.poor[1], false)}</b></div>
-              {recap.top && <div className="recaprow"><span>{recap.top.label} days</span><b>{recap.top.prev} → {recap.top.now} {delta(recap.top.prev, recap.top.now, false)}</b></div>}
-              <p className="rfoot">Progress isn't always a straight line — a harder month is information, not failure.</p>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="card" style={{ marginTop: 14 }}><div className="num">30d</div><p>Your first monthly recap arrives once there are two months to compare. Keep going.</p></div>
+      {/* ---- The five collapsible sections: buttons in a two-column grid, the open panels under it ---- */}
+      {(() => {
+        const sections = [
+          { id: "recap", label: "Month vs last month", open: showRecap, set: setShowRecap },
+          { id: "wear", label: `Wearables${connectedCount ? ` · ${connectedCount} connected` : " · optional"}`, open: showWear, set: setShowWear },
+          { id: "meds", label: `What I'm trying${meds.length ? ` · ${meds.length}` : ""}`, open: showMeds, set: setShowMeds },
+          { id: "appts", label: `Appointments${upcoming.length ? ` · ${upcoming.length} upcoming` : ""}`, open: showAppts, set: setShowAppts },
+          { id: "journal", label: `Journal${Object.keys(journal).length ? ` · ${Object.keys(journal).length} entries` : ""}`, open: showJournal, set: setShowJournal },
+        ];
+        return (
+          <div className="dgrid">
+            {sections.map((sec) => (
+              <button type="button" key={sec.id} className={`disclosure ${sec.open ? "on" : ""}`} aria-expanded={sec.open} aria-controls={sec.open ? `home-${sec.id}` : undefined} onClick={() => sec.set((v) => !v)}>
+                <span>{sec.label}</span><span aria-hidden="true">{sec.open ? "−" : "+"}</span>
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+
+      {showRecap && (
+        <div className="bodypanel detached" id="home-recap">
+          <p className="ptitle">Your month vs last month</p>
+          {recap ? (
+            <>
+                  <div className="recaprow"><span>Average day score</span><b>{recap.score[0]} → {recap.score[1]} {delta(recap.score[0], recap.score[1])}</b></div>
+                  <div className="recaprow"><span>Calm days</span><b>{recap.calm[0]} → {recap.calm[1]} {delta(recap.calm[0], recap.calm[1])}</b></div>
+                  <div className="recaprow"><span>Rough nights</span><b>{recap.poor[0]} → {recap.poor[1]} {delta(recap.poor[0], recap.poor[1], false)}</b></div>
+                  {recap.top && <div className="recaprow"><span>{recap.top.label} days</span><b>{recap.top.prev} → {recap.top.now} {delta(recap.top.prev, recap.top.now, false)}</b></div>}
+                  <p className="rfoot">Progress isn't always a straight line — a harder month is information, not failure.</p>
+            </>
+          ) : <p className="plain" style={{ marginTop: 6 }}>Your first monthly recap arrives once there are two months to compare. Keep going.</p>}
+        </div>
       )}
 
       {/* ---- Wearables ---- */}
-      <button className="disclosure" onClick={() => setShowWear((v) => !v)}><span>Wearables{connectedCount ? ` · ${connectedCount} connected` : " · optional"}</span><span>{showWear ? "−" : "+"}</span></button>
       {showWear && (
-        <div className="bodypanel">
+        <div className="bodypanel detached" id="home-wear">
+          <p className="ptitle">Wearables</p>
           <p className="hint" style={{ margin: "10px 0" }}>Entirely optional. Cyra works fully without a device. Connect one and Cyra keeps only temperature, resting heart rate, HRV and sleep from it — whichever your device records.</p>
           {SOURCES.map(({ id, name, what, viaServer }) => {
             const st = wearSources[id];
@@ -201,9 +238,9 @@ export default function HomeScreen({
       )}
 
       {/* ---- What I'm trying ---- */}
-      <button className="disclosure" onClick={() => setShowMeds((v) => !v)}><span>What I'm trying · meds, supplements, habits{meds.length ? ` · ${meds.length}` : ""}</span><span>{showMeds ? "−" : "+"}</span></button>
       {showMeds && (
-        <div className="bodypanel">
+        <div className="bodypanel detached" id="home-meds">
+          <p className="ptitle">What I'm trying · meds, supplements, habits</p>
           <p className="hint" style={{ margin: "10px 0" }}>Change one thing — a prescription, a supplement, cutting caffeine, an earlier bedtime — and Cyra compares your days before and after. Trial and error, with a record.</p>
           {meds.map((m) => {
             const takenToday = !!(medLog[todayIso] || {})[m.id];
@@ -229,9 +266,9 @@ export default function HomeScreen({
       )}
 
       {/* ---- Appointments ---- */}
-      <button className="disclosure" onClick={() => setShowAppts((v) => !v)}><span>Appointments{upcoming.length ? ` · ${upcoming.length} upcoming` : ""}</span><span>{showAppts ? "−" : "+"}</span></button>
       {showAppts && (
-        <div className="bodypanel">
+        <div className="bodypanel detached" id="home-appts">
+          <p className="ptitle">Appointments</p>
           {upcoming.map((a) => (
             <div className="medrow" key={a.id}>
               <div className="medinfo"><b>{a.who || "Appointment"}</b><span>{fmt(a.date)} · in {daysUntil(a.date)} day{daysUntil(a.date) === 1 ? "" : "s"}</span></div>
@@ -254,9 +291,9 @@ export default function HomeScreen({
       )}
 
       {/* ---- Journal ---- */}
-      <button className="disclosure" onClick={() => setShowJournal((v) => !v)}><span>Journal{Object.keys(journal).length ? ` · ${Object.keys(journal).length} entries` : ""}</span><span>{showJournal ? "−" : "+"}</span></button>
       {showJournal && (
-        <div className="bodypanel">
+        <div className="bodypanel detached" id="home-journal">
+          <p className="ptitle">Journal</p>
           <p className="hint" style={{ margin: "10px 0 8px" }}>How are you, really? Some days a slider isn't enough.</p>
           <textarea className="inp" rows={3} style={{ resize: "none", fontFamily: "inherit" }} value={jDraft} onChange={(e) => setJDraft(e.target.value)} placeholder="Private. Just for you." />
           <button className="cta" onClick={() => {

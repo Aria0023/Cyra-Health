@@ -1488,11 +1488,11 @@ export default function CyraDemo() {
     );
   }
 
-  /* Home: the patterns card (the same card the Patterns tab opens with, fewer symptom rows), once
-     3 days are logged. */
+  /* Home: the patterns card (the same card the Patterns tab opens with, compact: fewer symptom
+     rows, no hint, day card once a day is tapped), once 3 days are logged. */
   const sixty = stage === "preg" ? null : windowDays(ins.sorted, symIds, todayIso);
   const patternsCard = sixty && sixty.filter((d) => d.e).length >= 3
-    ? <PatternsCard days={sixty} ids={symIds} labels={symMap} starts={isMeno ? [] : ins.starts} sorted={ins.sorted} todayIso={todayIso} maxRows={4} onMore={() => goTab("patterns")} />
+    ? <PatternsCard days={sixty} ids={symIds} labels={symMap} starts={isMeno ? [] : ins.starts} sorted={ins.sorted} todayIso={todayIso} maxRows={3} compact onMore={() => goTab("patterns")} />
     : null;
   /* POTS tools open as a page under the current tab (potsOpen): the tab bar stays, with the
      current tab still selected, and a Back button at the top of the page returns to it. */

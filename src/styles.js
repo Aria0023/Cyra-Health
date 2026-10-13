@@ -241,6 +241,21 @@ export const css = `
 .socialdot { width:12px; height:12px; border-radius:50%; }
 
 /* Milestones: a progress timeline (a line through small nodes), not a list of choices. */
+.mscard { padding:12px 16px 8px; margin-bottom:6px; } .mscard .morewrap { margin:2px 0 0; }
+.msteps { list-style:none; margin:2px 0 8px; padding:0; display:flex; align-items:center; }
+.mstep { position:relative; flex:1; display:flex; justify-content:center; align-items:center; }
+.mstep::before { content:""; position:absolute; left:0; right:0; top:50%; height:2px; margin-top:-1px; background:var(--line); }
+.mstep:first-child::before { left:50%; } .mstep:last-child::before { right:50%; }
+.mstep.done::before { background:var(--primary); } .mstep .msdot { position:relative; }
+.mstep.done .msdot { background:var(--primary); border-color:var(--primary); color:#FFF; }
+.msnext { font-size:13.5px; margin:0; line-height:1.5; } .msnext .msbar { display:inline-block; vertical-align:middle; margin-left:8px; }
+.dgrid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px; }
+.dgrid .disclosure { margin:0; min-height:44px; padding:10px 12px; font-size:12.5px; text-align:left; gap:8px; }
+.dgrid > .disclosure:last-child:nth-child(odd) { grid-column:1 / -1; }
+.disclosure.on { border-color:var(--primary); color:var(--primary); }
+.bodypanel.detached { border-top:1.5px solid var(--line); border-radius:13px; margin-top:8px; }
+.ptitle { font-weight:700; font-size:13.5px; margin:10px 0 0; }
+.pulse .morewrap { margin:6px 0 0; } .ptap { color:var(--soft); }
 .mstrip { list-style:none; margin:0; padding:0 0 0 2px; }
 .ms { position:relative; display:flex; align-items:center; gap:12px; padding:6px 0 6px 0; font-size:13px; color:var(--soft); }
 .ms::before { content:""; position:absolute; left:8px; top:0; bottom:0; width:2px; background:var(--line); }

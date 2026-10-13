@@ -480,3 +480,12 @@ Owner feedback: the Report read as bland. The four sections and the collapsed ta
 - **"Copy" on each question** writes that sentence to the clipboard with `navigator.clipboard.writeText`, exactly like the existing "Copy email" button, and toasts "Question copied — paste it anywhere" or "Copy blocked — select the text and copy it yourself". The clipboard is the phone's; Cyra reads nothing back from it.
 - **Privacy statements on the screen are unchanged** and still literally true: "Cyra itself sends nothing; the text goes only where you take it." (section 4) and "Logged daily by you. Observations, not diagnoses." (the table).
 - Colour is the symptom-family palette from the patterns card, separate from the UI palettes; every meter, dot, bar and strip is `aria-hidden` and sits beside the sentence or table cell that says the same thing in words.
+
+### Home compaction
+
+Owner feedback: Home was too long. Four changes, none of which adds a data flow. Traced to the source on 13 October 2026.
+
+- **Patterns card** on Home is the compact variant: no hint line, up to three symptom rows, the day card once a day is tapped. Same data, same component.
+- **Milestones** are a row of progress dots with the next milestone named; the full timeline is under "All milestones" (hidden until opened). No data change.
+- **"You're not alone"**: the two statements that matter stay on screen under the counts — "Anonymous counts only: no names, dates or values." and, whenever counts can load, "Loading these numbers tells Cyra's server nothing about your health." — and how the counts are made ("The Cyra app adds to them only for people who turn on sharing, at most once a week from each phone or browser … treat these as rough numbers.") sits under "How these counts work", hidden until opened, never removed. In a build with no API base the three "not available" rows are now one: "Community counts aren't available in this version of the app" (the native harness check CH24 was updated to expect one row). Nothing about how counts are read or sent changed.
+- **The five collapsible sections** are buttons in a two-column grid; each opens a titled panel under the grid. All wearable disclosures, the trial text and the appointment and journal flows are unchanged; the "first monthly recap" message now shows inside the Month vs last month panel instead of as a standing card.
