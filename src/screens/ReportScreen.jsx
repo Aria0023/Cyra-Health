@@ -90,7 +90,7 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
         <button className="route" onClick={() => { window.open(`mailto:?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`); ping("Handing off to your email… If nothing opens, use Copy email instead."); }}>Open in email<span>pre-filled draft</span></button>
         <button className="route" onClick={() => { const blocked = () => ping("Copy blocked — select the text in the preview above"); if (navigator.clipboard?.writeText) navigator.clipboard.writeText(emailText).then(() => ping("Email copied — paste anywhere"), blocked); else blocked(); }}>Copy email<span>paste anywhere</span></button>
       </div>
-      {potsOn && <p className="hint" style={{ marginTop: 10 }}>Your POTS report (standing tests, drinks, medicines) is on the POTS tab.</p>}
+      {potsOn && <p className="hint" style={{ marginTop: 10 }}>Your POTS report (standing tests, drinks, medicines) is in POTS tools (open it from Home).</p>}
 
       <button className="disclosure" style={{ marginTop: 14 }} onClick={() => setShowTable((v) => !v)}>
         <span>The numbers behind this</span><span>{showTable ? "−" : "+"}</span>

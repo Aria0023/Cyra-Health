@@ -8,7 +8,7 @@ import { LastRow } from "./QuickLog.jsx";
    (dayTotals); missing is never zero. One planned dose that's due can be logged from here, and
    the dose just logged can be undone from the "Last" row (the last thing logged can always be
    undone). Its "Took it" button goes once the dose is logged, so focus moves to that Undo. */
-export default function PotsHome({ pots, totals, todayIso, onTook, onQuickLog, onStandTest, last = null, onUndo }) {
+export default function PotsHome({ pots, totals, todayIso, onTook, onQuickLog, onStandTest, onOpen, last = null, onUndo }) {
   const box = useRef(null), card = useRef(null);
   const [undone, setUndone] = useState(0);
   useEffect(() => {
@@ -38,6 +38,7 @@ export default function PotsHome({ pots, totals, todayIso, onTook, onQuickLog, o
           <button type="button" className="route" onClick={onQuickLog}>Quick log<span>for foggy days</span></button>
           {pots.settings.show.test && <button type="button" className="route" onClick={onStandTest}>Stand test<span>about 15–25 minutes</span></button>}
         </div>
+        <button type="button" className="ghostbtn" style={{ marginTop: 8 }} onClick={onOpen}>Open POTS tools</button>
       </div>
     </>
   );

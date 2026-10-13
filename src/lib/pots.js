@@ -404,7 +404,7 @@ export function turnOn(p, { day, simple = false, units = localeUnits(), nowMs = 
 }
 /** First-run setup finished or skipped (design 4.1): it isn't shown again. */
 export const finishSetup = (p) => (isObj(p) && !isLockedPots(p) && p.setupDone !== true ? { ...p, setupDone: true } : p);
-/** "Hide the POTS tab (keep my POTS log)": only the switch changes. */
+/** "Hide POTS tools (keep my POTS log)": only the switch changes. */
 export const turnOff = (p) => (isObj(p) && !isLockedPots(p) && p.on ? { ...p, on: false } : p);
 /** Every change of stage INTO Pregnancy: the prenatal-team exercise answer is asked again, so
     a "yes" given before this pregnancy never carries over (design 4.10). `p` itself when there

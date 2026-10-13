@@ -145,9 +145,14 @@ future days. Tap any day → detail panel showing what was logged → "Edit this
 that date into the check-in form and saves back to it. Confidence card: ±days derived
 from cycle variability, explicitly stating it is not contraception.
 
-**Patterns:** 60-day stripe field (each stripe = one day, colored by symptom burden,
-dot marks period) · insight cards, each paired with an **advice card** carrying an
-urgency chip (Self-care / Next visit / This week) · symptom-frequency bars.
+**Patterns:** 60-day stripe field (each stripe = one day, coloured by the day's strongest
+symptom family — Heat, Sleep, Mind, Pain, Body, fixed data-viz colours separate from the UI
+palette — and stronger the heavier the day; a bar under the stripe marks period days; tapping
+or arrowing through days shows what was logged; one row per most-logged symptom under the
+field shares its columns; one plain line names the hardest 4-day stretch and, with two logged
+periods, the cycle days that are usually hardest) · insight cards, each paired with an
+**advice card** carrying an urgency chip (Self-care / Next visit / This week). The same field,
+without the symptom rows, sits on Home under Today's insight once 3 days are logged.
 
 **Report — "What to tell your doctor"** (this is the flagship screen):
 1. *What stands out* — numbers translated to plain speech ("showed up **most days** —
@@ -449,8 +454,9 @@ receive only name/email, never health data.
 
 **A13.1 Placement.** POTS tools are an optional add-on inside whichever single life stage the user has. They are
 never a stage, never offered as a stage choice, and never change `stage` or `stageName`. One switch (`pots.on`,
-Settings → Add-ons) adds one tab, "POTS", directly after Today in that stage's tab set. Changing stage keeps the
-POTS log and switch. A "POTS or dysautonomia" registration condition may show one Home offer card, once; it never
+Settings → Add-ons) adds a "POTS today" card to Home; POTS tools open from that card (or from a Today link) as a
+page under the current tab, with a Back button, and are never a tab in that stage's tab set. Changing stage keeps
+the POTS log and switch. A "POTS or dysautonomia" registration condition may show one Home offer card, once; it never
 turns the add-on on by itself.
 
 **A13.2 Data.** All POTS data lives in the persisted key `pots` (shape in lib/pots.js `POTS_EMPTY`), inside the

@@ -1,35 +1,19 @@
-import { useState } from "react";
 import Advice from "../components/Advice.jsx";
-import { DayLine, CycleRings, SymptomTimeline, windowDays } from "../components/PatternCharts.jsx";
+import { SixtyDays, windowDays } from "../components/PatternCharts.jsx";
 
-/* Cycle & Peri — Patterns: the 60-day day-score line (or, with two logged periods, cycle rings),
-   insight + advice cards, trial before/after cards, and the symptom timeline. */
+/* Cycle & Peri — Patterns: the 60-day field (the stripes, with symptom rows under them), insight
+   + advice cards and trial before/after cards. */
 export default function PatternsScreen({ ins, symIds, symMap, stage, isMeno = false, todayIso, medEffects, potsOn = false }) {
-  const [view, setView] = useState("days");
   const days = windowDays(ins.sorted, symIds, todayIso);
   const logged = days.filter((d) => d.e).length;
   const starts = isMeno ? [] : ins.starts || [];
-  const canCycle = stage !== "preg" && !isMeno && starts.length >= 2;
-  const cycleView = canCycle && view === "cycle";
   return (
     <main>
       <h1 className="disp">Your last 60 days</h1>
-      {logged < 3 ? (
-        <p className="hint">{logged === 0 ? "Nothing logged yet — your first check-in starts the pattern." : "A few more check-ins and your chart fills in."} Come back after a few days.</p>
-      ) : (
-        <>
-          {canCycle && (
-            <div className="mcrow" role="group" aria-label="Chart view" style={{ marginBottom: 10 }}>
-              <button type="button" className={`mc ${!cycleView ? "on" : ""}`} aria-pressed={!cycleView} onClick={() => setView("days")}>Day by day</button>
-              <button type="button" className={`mc ${cycleView ? "on" : ""}`} aria-pressed={cycleView} onClick={() => setView("cycle")}>By cycle</button>
-            </div>
-          )}
-          <p className="hint" style={{ marginTop: 0 }}>{cycleView ? "One ring per cycle, day 1 at the top. Bigger dots are harder days." : "Day score from your check-ins; higher is a better day."}</p>
-          {cycleView
-            ? <CycleRings sorted={ins.sorted} ids={symIds} labels={symMap} starts={starts} todayIso={todayIso} />
-            : <DayLine days={days} ids={symIds} labels={symMap} starts={starts} />}
-        </>
-      )}
+      {logged < 3
+        ? <p className="hint">{logged === 0 ? "Nothing logged yet — your first check-in starts the pattern." : "A few more check-ins and your chart fills in."} Come back after a few days.</p>
+        : <p className="hint" style={{ marginTop: 0 }}>Each stripe is a day, coloured by what showed up most and stronger the heavier the day. The rows underneath show when each symptom appeared.</p>}
+      <SixtyDays days={days} ids={symIds} labels={symMap} starts={starts} sorted={ins.sorted} todayIso={todayIso} detail />
 
       {stage === "peri" && ins.variability != null && (
         <div className="icard">
@@ -61,14 +45,8 @@ export default function PatternsScreen({ ins, symIds, symMap, stage, isMeno = fa
           <Advice urgency="visit">Bring this before/after to your next visit — it's exactly the evidence a clinician needs to decide whether to continue, adjust, or stop.</Advice>
         </div>
       ))}
-      {logged >= 3 && (
-        <>
-          <p className="section-lab">What showed up, and when</p>
-          <SymptomTimeline days={days} ids={symIds} labels={symMap} starts={starts} />
-        </>
-      )}
-      {/* POTS tools: their patterns live in the POTS tab only (never in insights() or this screen). */}
-      {potsOn && <p className="hint" style={{ marginTop: 16 }}>Your POTS patterns are in the POTS tab.</p>}
+      {/* POTS tools: their patterns live in POTS tools only (never in insights() or this screen). */}
+      {potsOn && <p className="hint" style={{ marginTop: 16 }}>Your POTS patterns are in POTS tools (open it from Home).</p>}
     </main>
   );
 }

@@ -41,11 +41,15 @@ export const css = `
 .cta { width:100%; border:none; border-radius:13px; background:var(--primary); color:#FFF; font:700 14px 'Karla Variable','Karla'; padding:14px; cursor:pointer; }
 .cta:disabled { opacity:.6; }
 /* Patterns charts (components/PatternCharts.jsx): data colours come from FAMILIES in lib/constants.js, never the UI palette. */
+.backbar { margin:4px 0 2px; } .backbar .linkbtn { font-size:14px; }
 .pchart { background:var(--card); border:1.5px solid var(--line); border-radius:16px; padding:12px 12px 10px; margin-bottom:12px; }
 .psvg:focus:not(:focus-visible) { outline:none; }
 .psvg { display:block; width:100%; height:auto; overflow:visible; touch-action:pan-y; cursor:crosshair; }
 .psvg text { font-family:'Karla Variable','Karla',sans-serif; }
 .ptick { font-size:10.5px; fill:var(--soft); } .pnote { font-size:10.5px; font-weight:700; fill:var(--ink); } .prow { font-size:11px; font-weight:600; fill:var(--ink); }
+.fshade { display:inline-block; width:22px; height:9px; border-radius:2px; background:linear-gradient(90deg, color-mix(in srgb, var(--soft) 22%, var(--card)), var(--soft)); }
+.fper { display:inline-block; width:12px; height:5px; border-radius:1px; background:var(--primary); }
+.pline { font-size:13px; margin:10px 0 0; } .pline .linkbtn { font-size:13px; }
 .flegend { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:12px; color:var(--soft); margin:8px 0 2px; }
 .flegend span { display:inline-flex; align-items:center; gap:5px; }
 .fdot { display:inline-block; width:9px; height:9px; border-radius:50%; flex-shrink:0; }
@@ -236,11 +240,17 @@ export const css = `
 .socialbtn { min-height:44px; display:flex; align-items:center; justify-content:center; gap:9px; border:1.5px solid var(--line); background:var(--card); border-radius:13px; padding:12px; font:700 14px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
 .socialbtn:disabled { opacity:.6; }
 .socialdot { width:12px; height:12px; border-radius:50%; }
-.mstrip { display:grid; gap:7px; }
-.ms { display:flex; align-items:center; gap:10px; background:var(--card); border:1.5px solid var(--line); border-radius:11px; padding:9px 12px; font-size:13px; color:var(--soft); }
-.ms.done { color:var(--ink); border-color:color-mix(in srgb, var(--primary) 35%, var(--line)); }
-.msdot { flex-shrink:0; width:20px; height:20px; border-radius:50%; border:2px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; }
+
+/* Milestones: a progress timeline (a line through small nodes), not a list of choices. */
+.mstrip { list-style:none; margin:0; padding:0 0 0 2px; }
+.ms { position:relative; display:flex; align-items:center; gap:12px; padding:6px 0 6px 0; font-size:13px; color:var(--soft); }
+.ms::before { content:""; position:absolute; left:8px; top:0; bottom:0; width:2px; background:var(--line); }
+.ms:first-child::before { top:50%; } .ms:last-child::before { bottom:50%; }
+.ms.done { color:var(--ink); }
+.msdot { position:relative; flex-shrink:0; width:18px; height:18px; border-radius:50%; border:2px solid var(--line); background:var(--card); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; box-sizing:border-box; }
 .ms.done .msdot { background:var(--primary); border-color:var(--primary); color:#FFF; }
+.ms.done + .ms::before { background:linear-gradient(var(--primary), var(--primary) 50%, var(--line) 50%); }
+.ms.done + .ms.done::before, .ms.done:first-child::before { background:var(--primary); }
 .mslabel { flex:1; }
 .msbar { width:56px; height:6px; background:color-mix(in srgb, var(--ink) 12%, var(--card)); border-radius:3px; overflow:hidden; }
 .msbar i { display:block; height:100%; background:var(--primary); }

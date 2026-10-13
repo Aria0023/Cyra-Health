@@ -41,7 +41,7 @@ const DISCLOSE = {
 const delta = (a, b, goodUp = true) => { const d = b - a; if (d === 0) return <span className="flat">unchanged</span>; const good = goodUp ? d > 0 : d < 0; return <span className={good ? "up" : "down"}>{d > 0 ? "+" : ""}{d}</span>; };
 
 export default function HomeScreen({
-  acct, stage, stageName, pregWeek, pred, loggedLast14, streakLine, goTab, entryOn, todayIso, homeInsight, wearInsights, milestones, nextUp, pulse,
+  acct, stage, stageName, pregWeek, pred, loggedLast14, streakLine, goTab, entryOn, todayIso, homeInsight, sixtyDays = null, wearInsights, milestones, nextUp, pulse,
   recap, showRecap, setShowRecap,
   showWear, setShowWear, wearSources, terraOffCount = 0, connectWear, disconnectWear, wearConfirm, setWearConfirm, wearBusy, wearData, wAvg,
   showMeds, setShowMeds, meds, medLog, medEffects, setMedLog, newMed, setNewMed, setMeds, ping,
@@ -72,6 +72,14 @@ export default function HomeScreen({
       <p className="section-lab">Today's insight</p>
       <div className="card"><div className="num">{homeInsight.num}</div><p>{homeInsight.text}</p></div>
 
+      {/* The 60-day field (components/PatternCharts.jsx), the same chart the Patterns tab opens with. */}
+      {sixtyDays && (
+        <>
+          <p className="section-lab">Your last 60 days</p>
+          {sixtyDays}
+        </>
+      )}
+
       {wearInsights.length > 0 && (
         <>
           <p className="section-lab">From your wearable</p>
@@ -84,16 +92,16 @@ export default function HomeScreen({
         </>
       )}
 
-      <p className="section-lab">Milestones</p>
-      <div className="mstrip">
+      <p className="section-lab">Milestones · {milestones.filter((m) => m.done).length} of {milestones.length} reached</p>
+      <ol className="mstrip" aria-label="Milestones">
         {milestones.map((m, i) => (
-          <div className={`ms ${m.done ? "done" : ""}`} key={i}>
-            <span className="msdot">{m.done ? "✓" : ""}</span>
-            <span className="mslabel">{m.label}</span>
+          <li className={`ms ${m.done ? "done" : ""}`} key={i}>
+            <span className="msdot" aria-hidden="true">{m.done ? "✓" : ""}</span>
+            <span className="mslabel"><span className="sr-only">{m.done ? "Reached: " : "Not yet: "}</span>{m.label}</span>
             {m.progress != null && !m.done && <span className="msbar"><i style={{ width: `${m.progress * 100}%` }} /></span>}
-          </div>
+          </li>
         ))}
-      </div>
+      </ol>
 
       {nextUp.length > 0 && (
         <>

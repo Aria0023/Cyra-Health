@@ -4,8 +4,8 @@ import { POTS_LOCKED_COPY } from "../lib/potsConstants.js";
 import UrgentCard from "../components/pots/UrgentCard.jsx";
 import { potsSaved } from "../components/pots/ui.js";
 
-/* POTS tab (spec A13; lib/pots.js). An optional add-on inside whichever single life stage
-   she has: it never shows a stage choice and never changes the stage. Everything here is
+/* POTS tools page (spec A13; lib/pots.js). An optional add-on inside whichever single life
+   stage she has, opened from Home (never a tab): it never shows a stage choice and never changes the stage. Everything here is
    kept in the on-device record (`pots`) and is never part of weekly counts.
 
    - A `pots` written by a newer build is shown read-only: one card, no writes.
@@ -58,7 +58,8 @@ function HelpNow({ preg }) {
   );
 }
 
-export default function PotsScreen({ pots, setPots, locked, potsSec, setPotsSec, sections = {}, setupCards = [], shows = [], settings = null, preg = false, storageDriver = null }) {
+export default function PotsScreen({ pots, setPots, locked, potsSec, setPotsSec, sections = {}, setupCards = [], shows = [], settings = null, preg = false, storageDriver = null, onBack = null }) {
+  const back = onBack ? <nav aria-label="POTS tools" className="backbar"><button type="button" className="linkbtn" onClick={onBack}>← Back</button></nav> : null;
   const hint = potsSaved(storageDriver) ? HINT : HINT_UNSAVED;
   const headRef = useRef(null), cardRef = useRef(null), saveRef = useRef(null), setHeadRef = useRef(null), setLinkRef = useRef(null);
   const [step, setStep] = useState(0);
@@ -73,6 +74,7 @@ export default function PotsScreen({ pots, setPots, locked, potsSec, setPotsSec,
   if (locked) {
     return (
       <main className="pots">
+        {back}
         <h1 className="disp">POTS</h1>
         <div className="plaincard"><p className="plain">{POTS_LOCKED_COPY}</p></div>
       </main>
@@ -94,6 +96,7 @@ export default function PotsScreen({ pots, setPots, locked, potsSec, setPotsSec,
     };
     return (
       <main className="pots">
+        {back}
         <h1 className="disp" tabIndex={-1} ref={headRef}>POTS</h1>
         <p className="hint">{hint}</p>
         <section className="plaincard" aria-labelledby="pots-setup-title">
@@ -117,6 +120,7 @@ export default function PotsScreen({ pots, setPots, locked, potsSec, setPotsSec,
   const closeSettings = () => { setPotsSec(cur || "today"); setFocusTo("link"); };
   return (
     <main className="pots">
+      {back}
       <h1 className="disp" tabIndex={-1} ref={headRef}>POTS</h1>
       <p className="hint">{hint}</p>
       {avail.length > 1 && !inSettings && (
