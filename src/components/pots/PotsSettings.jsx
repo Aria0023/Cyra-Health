@@ -51,7 +51,7 @@ function Multi({ id, label, value, options, onPick }) {
   );
 }
 
-/* POTS settings (design 4.12): the "POTS settings" link at the bottom of the POTS tab. This
+/* POTS settings (design 4.12): the "POTS settings" link at the bottom of the POTS tools page. This
    version has what the daily loop and the stand test use: Simple view, units, which Today cards
    show, the stand-test defaults with the sound / vibration cue and the teen threshold, goals,
    drink and salt buttons, her symptoms and triggers, medicines and supports, her plan with the

@@ -40,7 +40,7 @@ import { numOf, numProps, addDays, useAnnounce, useKbLift } from "./ui.js";
      wake lock is asked for while resting and standing; if the browser doesn't give one, a hint
      says to keep the screen on. Nothing here makes a network request.
 
-   StandSection is the Stand test section of the POTS tab: the last result, Start, single
+   StandSection is the Stand test section of the POTS tools page: the last result, Start, single
    readings, tilt-table notes, the test list (Open, Edit readings, Edit note, Delete), tests over
    time, and the information-only card for a test running in another window. */
 

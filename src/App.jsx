@@ -100,6 +100,7 @@ import RecordUnavailableScreen from "./screens/RecordUnavailableScreen.jsx";
 import RegisterScreen from "./screens/RegisterScreen.jsx";
 import IntakeScreen from "./screens/IntakeScreen.jsx";
 import HomeScreen from "./screens/HomeScreen.jsx";
+import { PatternsCard, windowDays } from "./components/PatternCharts.jsx";
 import TodayScreen from "./screens/TodayScreen.jsx";
 import CalendarScreen from "./screens/CalendarScreen.jsx";
 import PatternsScreen from "./screens/PatternsScreen.jsx";
@@ -219,7 +220,8 @@ export default function CyraDemo() {
      read-only (isLockedPots). Every POTS write goes through a functional updater with a
      lib/pots.js action, each of which leaves a locked record unchanged. */
   const [pots, setPots] = useState(POTS_EMPTY);
-  const [potsSec, setPotsSec] = useState("today"); // the POTS tab's section (UI only, not saved)
+  const [potsSec, setPotsSec] = useState("today"); // the POTS tools page's section (UI only, not saved)
+  const [potsOpen, setPotsOpen] = useState(false); // POTS tools open as a page under the current tab (UI only)
   const [potsHomeLast, setPotsHomeLast] = useState(null); // Home "POTS today": the dose its "Took it" just logged, for its Undo row (UI only)
   const [potsDate, setPotsDate] = useState(null); // POTS → Today's logging day while fixing up an earlier one; null = today (UI only, so every launch starts on today)
   const potsBase = useRef(null); // the `pots` this tab last saved or took from storage: the base of the 3-way merge (mergePots)
@@ -388,20 +390,21 @@ export default function CyraDemo() {
 
   /* ---------- POTS add-on: the switch and its one tab ----------
      Settings → Add-ons turns it on and off; it never changes the life stage, and changing stage
-     keeps the log and the switch. When it is on, one "POTS" tab sits right after Today in this
-     stage's single tab set (a newer build's record that is switched on shows the tab read-only). */
+     keeps the log and the switch. It is an add-on, not a tab: while it is on, Home shows a "POTS
+     today" card, and POTS tools open as a page under whichever tab she is on, with a Back button
+     (a newer build's record that is switched on shows that page read-only). */
   const potsTab = pots?.on === true;
-  // Turned off here, in another tab or by a restore: never leave her on a tab that's gone.
-  useEffect(() => { if (!potsTab && curTab === "pots") goTab("home"); }, [potsTab, curTab]); // eslint-disable-line
+  // Turned off here, in another tab or by a restore: never leave her on a page that's gone.
+  useEffect(() => { if (!potsTab && potsOpen) setPotsOpen(false); }, [potsTab, potsOpen]);
   const potsOn = () => {
     setPots((p) => turnOn(p, { day: todayIso, simple: quickMode, units: localeUnits() }));
-    ping("POTS tools on. Find them in the POTS tab");
+    ping("POTS tools on. Open them from the POTS today card on Home");
   };
-  // "Hide the POTS tab (keep my POTS log)", or "Hide it and erase my POTS log" (a new epoch, so
+  // "Hide POTS tools (keep my POTS log)", or "Hide it and erase my POTS log" (a new epoch, so
   // no other open tab can merge the erased entries back).
   const potsOff = ({ erase = false } = {}) => {
     setPots((p) => turnOff(erase ? eraseLog(p) : p)); setPotsHomeLast(null);
-    ping(erase ? "POTS log erased and the POTS tab hidden" : "POTS tab hidden. Your POTS log is kept");
+    ping(erase ? "POTS log erased and POTS tools hidden" : "POTS tools hidden. Your POTS log is kept");
   };
   /* Home: the "POTS today" card while it's on (totals from dayTotals; "Today's insight" is never
      replaced), or, once, the offer card for someone who ticked "POTS or dysautonomia" at
@@ -433,8 +436,8 @@ export default function CyraDemo() {
   const potsWearConnected = useMemo(() => Object.entries(wearSources).filter(([, v]) => v && !v.pending && !v.demo).map(([k]) => k), [wearSources]);
   const potsCyc = useMemo(() => ({ starts: ins.starts, stageName }), [ins, stageName]);
   const potsOffer = potsOk && !pots.on && !pots.since && !pots.offered && Array.isArray(regAnswers?.conditions) && regAnswers.conditions.includes("POTS or dysautonomia");
-  const openPots = (simple = false) => { if (simple) setPots((p) => setPotsSettings(p, { simple: true })); setPotsSec("today"); setPotsDate(null); goTab("pots"); };
-  const openStandTest = () => { setPotsSec("stand"); goTab("pots"); };
+  const openPots = (simple = false) => { if (simple) setPots((p) => setPotsSettings(p, { simple: true })); setPotsSec("today"); setPotsDate(null); setPotsOpen(true); };
+  const openStandTest = () => { setPotsSec("stand"); setPotsOpen(true); };
   /* Every change of stage INTO Pregnancy asks the prenatal team's exercise answer again: a "yes"
      given before this pregnancy, or in an earlier one, never carries over. The answer is cleared
      by her own stage actions, never by what the record says the stage was: when she taps
@@ -1485,16 +1488,27 @@ export default function CyraDemo() {
     );
   }
 
+  /* Home: the patterns card (the same card the Patterns tab opens with, fewer symptom rows), once
+     3 days are logged. */
+  const sixty = stage === "preg" ? null : windowDays(ins.sorted, symIds, todayIso);
+  const patternsCard = sixty && sixty.filter((d) => d.e).length >= 3
+    ? <PatternsCard days={sixty} ids={symIds} labels={symMap} starts={isMeno ? [] : ins.starts} sorted={ins.sorted} todayIso={todayIso} maxRows={4} onMore={() => goTab("patterns")} />
+    : null;
+  /* POTS tools open as a page under the current tab (potsOpen): the tab bar stays, with the
+     current tab still selected, and a Back button at the top of the page returns to it. */
+  const potsPage = potsOpen && potsTab;
+  const pregIs = (id) => !potsPage && pregTab === id;
+  const appIs = (id) => !potsPage && appTab === id;
   const homeView = (
     <HomeScreen
-      acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} pred={pred} loggedLast14={loggedLast14} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} wearInsights={wearInsights} milestones={milestones} nextUp={nextUp} pulse={pulse}
+      acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} pred={pred} loggedLast14={loggedLast14} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} patternsCard={patternsCard} wearInsights={wearInsights} milestones={milestones} nextUp={nextUp} pulse={pulse}
       recap={recap} showRecap={showRecap} setShowRecap={setShowRecap}
       showWear={showWear} setShowWear={setShowWear} wearSources={wearSources} terraOffCount={terraOff.length} connectWear={connectWear} disconnectWear={disconnectWear} wearConfirm={wearConfirm} setWearConfirm={setWearConfirm} wearBusy={wearBusy} wearData={wearData} wAvg={wAvg}
       showMeds={showMeds} setShowMeds={setShowMeds} meds={meds} medLog={medLog} medEffects={medEffects} setMedLog={setMedLog} newMed={newMed} setNewMed={setNewMed} setMeds={setMeds} ping={ping}
       showAppts={showAppts} setShowAppts={setShowAppts} upcoming={upcoming} past={past} daysUntil={daysUntil} setAppts={setAppts} newAppt={newAppt} setNewAppt={setNewAppt}
       showJournal={showJournal} setShowJournal={setShowJournal} journal={journal} jDraft={jDraft} setJDraft={setJDraft} setJournal={setJournal}
       potsCard={potsTab && potsOk
-        ? <PotsHome pots={pots} totals={potsTotals} todayIso={todayIso} onQuickLog={() => openPots(true)} onStandTest={openStandTest}
+        ? <PotsHome pots={pots} totals={potsTotals} todayIso={todayIso} onQuickLog={() => openPots(true)} onStandTest={openStandTest} onOpen={() => openPots()}
             last={potsHomeLive}
             onUndo={() => { const l = potsHomeLive; setPotsHomeLast(null); if (!l) return; setPots((p) => removePotsItem(p, l.day, l.id)); ping(`Removed: ${l.text}`); }}
             onTook={(med, slot) => { const day = syncDay(), t = nowHHMM(), id = newPotsId(); setPots((p) => logDose(p, day, { id, medId: med.id, slot, state: "taken", t })); setPotsHomeLast({ id, day, text: `${med.name} ${slot.replace(/^0/, "")} at ${t.replace(/^0/, "")}` }); ping(`${med.name} logged at ${t.replace(/^0/, "")}`); }} />
@@ -1508,7 +1522,7 @@ export default function CyraDemo() {
   const potsConditions = Array.isArray(regAnswers?.conditions) ? regAnswers.conditions : [];
   const POTS_SHOWS = ["test", "fluid", "sym", "meds", "move"];
   const potsView = (
-    <PotsScreen pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"} storageDriver={storageDriver}
+    <PotsScreen onBack={() => setPotsOpen(false)} pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"} storageDriver={storageDriver}
       sections={potsOk ? {
         today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => { setPotsSec("stand"); setPotsFocus("stand"); }} storageDriver={storageDriver} syncDay={syncDay} />,
         report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={acct.anon ? "" : (acct.name || "").trim()} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} />,
@@ -1563,47 +1577,47 @@ export default function CyraDemo() {
           <>
             <nav aria-label="Sections">
               <div className="tabs" role="tablist">
-                {[["home", "Home"], ["today", "Today"], ...(potsTab ? [["pots", "POTS"]] : []), ["cal", "Calendar"], ["mile", "Milestones"], ["connect", "Connect"], ["ask", "Ask"]].map(([id, l]) => (
-                  <button key={id} role="tab" aria-selected={pregTab === id} className={`tab ${pregTab === id ? "tab-on" : ""}`} onClick={() => setPregTab(id)} onFocus={tabIntoView}>{l}</button>
+                {[["home", "Home"], ["today", "Today"], ["cal", "Calendar"], ["mile", "Milestones"], ["connect", "Connect"], ["ask", "Ask"]].map(([id, l]) => (
+                  <button key={id} role="tab" aria-selected={pregTab === id} className={`tab ${pregTab === id ? "tab-on" : ""}`} onClick={() => { setPotsOpen(false); setPregTab(id); }} onFocus={tabIntoView}>{l}</button>
                 ))}
               </div>
             </nav>
+            {potsPage && potsView}
 
-            {pregTab === "today" && (
+            {pregIs("today") && (
               <PregTodayScreen onPots={potsTab ? () => openPots() : null} pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
             )}
-            {pregTab === "cal" && (
+            {pregIs("cal") && (
               <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={dayScore} scoreColor={scoreColor} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} onEdit={startEdit} ping={ping} />
             )}
-            {pregTab === "pots" && potsTab && potsView}
-            {pregTab === "mile" && <MilestonesScreen pregWeek={pregWeek} />}
-            {pregTab === "ask" && askView}
-            {pregTab === "connect" && connView}
-            {pregTab === "home" && homeView}
+            {pregIs("mile") && <MilestonesScreen pregWeek={pregWeek} />}
+            {pregIs("ask") && askView}
+            {pregIs("connect") && connView}
+            {pregIs("home") && homeView}
           </>
         ) : (
           <>
             <nav aria-label="Sections">
               <div className="tabs" role="tablist">
-                {[["home", "Home"], ["today", "Today"], ...(potsTab ? [["pots", "POTS"]] : []), ["cal", "Calendar"], ["patterns", "Patterns"], ["connect", "Connect"], ["report", "Report"], ["shelf", "Care"], ["ask", "Ask"]].map(([id, l]) => (
-                  <button key={id} role="tab" aria-selected={appTab === id} className={`tab ${appTab === id ? "tab-on" : ""}`} onClick={() => setAppTab(id)} onFocus={tabIntoView}>{l}</button>
+                {[["home", "Home"], ["today", "Today"], ["cal", "Calendar"], ["patterns", "Patterns"], ["connect", "Connect"], ["report", "Report"], ["shelf", "Care"], ["ask", "Ask"]].map(([id, l]) => (
+                  <button key={id} role="tab" aria-selected={appTab === id} className={`tab ${appTab === id ? "tab-on" : ""}`} onClick={() => { setPotsOpen(false); setAppTab(id); }} onFocus={tabIntoView}>{l}</button>
                 ))}
               </div>
             </nav>
+            {potsPage && potsView}
 
-            {appTab === "today" && (
+            {appIs("today") && (
               <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} setDays={setDays} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
             )}
-            {appTab === "cal" && (
+            {appIs("cal") && (
               <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />
             )}
-            {appTab === "patterns" && <PatternsScreen ins={ins} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} />}
-            {appTab === "report" && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} />}
-            {appTab === "pots" && potsTab && potsView}
-            {appTab === "shelf" && <CareScreen shelfItems={shelfItems} />}
-            {appTab === "ask" && askView}
-            {appTab === "connect" && connView}
-            {appTab === "home" && homeView}
+            {appIs("patterns") && <PatternsScreen ins={ins} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} />}
+            {appIs("report") && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} />}
+            {appIs("shelf") && <CareScreen shelfItems={shelfItems} />}
+            {appIs("ask") && askView}
+            {appIs("connect") && connView}
+            {appIs("home") && homeView}
           </>
         )}
       </div>

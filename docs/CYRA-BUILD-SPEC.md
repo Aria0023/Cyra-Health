@@ -145,9 +145,20 @@ future days. Tap any day → detail panel showing what was logged → "Edit this
 that date into the check-in form and saves back to it. Confidence card: ±days derived
 from cycle variability, explicitly stating it is not contraception.
 
-**Patterns:** 60-day stripe field (each stripe = one day, colored by symptom burden,
-dot marks period) · insight cards, each paired with an **advice card** carrying an
-urgency chip (Self-care / Next visit / This week) · symptom-frequency bars.
+**Patterns:** one patterns card with two views behind a "Day by day / By cycle" switch (the
+switch appears only with two logged period starts, never in menopause or pregnancy). *Day by day:*
+the day score for the last 60 days, each day a dot coloured by its strongest symptom family —
+Heat, Sleep, Mind, Pain, Body, fixed data-viz colours separate from the UI palette — the 7-day
+average as a line, period days shaded, the best and hardest 4-day stretches labelled, and under
+it, on the same columns, one row per most-logged symptom (plus rough nights) with a dot per day
+sized by severity; a callout gives the change in the weekly average since the first week and the
+hardest stretch. *By cycle:* one ring per logged cycle (last four), day 1 at the top, dot size =
+how hard the day was, period days ringed, the cycle days that are usually hardest highlighted and
+named in the callout. Both views share one selection: tapping or arrowing through days opens a
+day card naming what was logged, so colour is never the only cue · insight cards, each paired
+with an **advice card** carrying an urgency chip (Self-care / Next visit / This week). The same
+card, with up to four symptom rows and a "More in Patterns →" link, sits on Home under Today's
+insight once 3 days are logged.
 
 **Report — "What to tell your doctor"** (this is the flagship screen):
 1. *What stands out* — numbers translated to plain speech ("showed up **most days** —
@@ -449,8 +460,9 @@ receive only name/email, never health data.
 
 **A13.1 Placement.** POTS tools are an optional add-on inside whichever single life stage the user has. They are
 never a stage, never offered as a stage choice, and never change `stage` or `stageName`. One switch (`pots.on`,
-Settings → Add-ons) adds one tab, "POTS", directly after Today in that stage's tab set. Changing stage keeps the
-POTS log and switch. A "POTS or dysautonomia" registration condition may show one Home offer card, once; it never
+Settings → Add-ons) adds a "POTS today" card to Home; POTS tools open from that card (or from a Today link) as a
+page under the current tab, with a Back button, and are never a tab in that stage's tab set. Changing stage keeps
+the POTS log and switch. A "POTS or dysautonomia" registration condition may show one Home offer card, once; it never
 turns the add-on on by itself.
 
 **A13.2 Data.** All POTS data lives in the persisted key `pots` (shape in lib/pots.js `POTS_EMPTY`), inside the
