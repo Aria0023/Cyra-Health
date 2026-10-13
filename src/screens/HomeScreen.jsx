@@ -41,7 +41,7 @@ const DISCLOSE = {
 const delta = (a, b, goodUp = true) => { const d = b - a; if (d === 0) return <span className="flat">unchanged</span>; const good = goodUp ? d > 0 : d < 0; return <span className={good ? "up" : "down"}>{d > 0 ? "+" : ""}{d}</span>; };
 
 export default function HomeScreen({
-  acct, stage, stageName, pregWeek, pred, loggedLast14, streakLine, goTab, entryOn, todayIso, homeInsight, sixtyDays = null, wearInsights, milestones, nextUp, pulse,
+  acct, stage, stageName, pregWeek, pred, loggedLast14, streakLine, goTab, entryOn, todayIso, homeInsight, patternsCard = null, wearInsights, milestones, nextUp, pulse,
   recap, showRecap, setShowRecap,
   showWear, setShowWear, wearSources, terraOffCount = 0, connectWear, disconnectWear, wearConfirm, setWearConfirm, wearBusy, wearData, wAvg,
   showMeds, setShowMeds, meds, medLog, medEffects, setMedLog, newMed, setNewMed, setMeds, ping,
@@ -72,11 +72,11 @@ export default function HomeScreen({
       <p className="section-lab">Today's insight</p>
       <div className="card"><div className="num">{homeInsight.num}</div><p>{homeInsight.text}</p></div>
 
-      {/* The 60-day field (components/PatternCharts.jsx), the same chart the Patterns tab opens with. */}
-      {sixtyDays && (
+      {/* The patterns card (components/PatternCharts.jsx), the same card the Patterns tab opens with. */}
+      {patternsCard && (
         <>
-          <p className="section-lab">Your last 60 days</p>
-          {sixtyDays}
+          <p className="section-lab">Your patterns · last 60 days</p>
+          {patternsCard}
         </>
       )}
 

@@ -1,8 +1,8 @@
 import Advice from "../components/Advice.jsx";
-import { SixtyDays, windowDays } from "../components/PatternCharts.jsx";
+import { PatternsCard, windowDays } from "../components/PatternCharts.jsx";
 
-/* Cycle & Peri — Patterns: the 60-day field (the stripes, with symptom rows under them), insight
-   + advice cards and trial before/after cards. */
+/* Cycle & Peri — Patterns: the patterns card (the same card Home shows: day-score line with the
+   symptom rows, or the cycle rings), insight + advice cards and trial before/after cards. */
 export default function PatternsScreen({ ins, symIds, symMap, stage, isMeno = false, todayIso, medEffects, potsOn = false }) {
   const days = windowDays(ins.sorted, symIds, todayIso);
   const logged = days.filter((d) => d.e).length;
@@ -10,10 +10,8 @@ export default function PatternsScreen({ ins, symIds, symMap, stage, isMeno = fa
   return (
     <main>
       <h1 className="disp">Your last 60 days</h1>
-      {logged < 3
-        ? <p className="hint">{logged === 0 ? "Nothing logged yet — your first check-in starts the pattern." : "A few more check-ins and your chart fills in."} Come back after a few days.</p>
-        : <p className="hint" style={{ marginTop: 0 }}>Each stripe is a day, coloured by what showed up most and stronger the heavier the day. The rows underneath show when each symptom appeared.</p>}
-      <SixtyDays days={days} ids={symIds} labels={symMap} starts={starts} sorted={ins.sorted} todayIso={todayIso} detail />
+      {logged < 3 && <p className="hint">{logged === 0 ? "Nothing logged yet — your first check-in starts the pattern." : "A few more check-ins and your chart fills in."} Come back after a few days.</p>}
+      <PatternsCard days={days} ids={symIds} labels={symMap} starts={starts} sorted={ins.sorted} todayIso={todayIso} />
 
       {stage === "peri" && ins.variability != null && (
         <div className="icard">

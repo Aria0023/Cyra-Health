@@ -47,8 +47,7 @@ export const css = `
 .psvg { display:block; width:100%; height:auto; overflow:visible; touch-action:pan-y; cursor:crosshair; }
 .psvg text { font-family:'Karla Variable','Karla',sans-serif; }
 .ptick { font-size:10.5px; fill:var(--soft); } .pnote { font-size:10.5px; font-weight:700; fill:var(--ink); } .prow { font-size:11px; font-weight:600; fill:var(--ink); }
-.fshade { display:inline-block; width:22px; height:9px; border-radius:2px; background:linear-gradient(90deg, color-mix(in srgb, var(--soft) 22%, var(--card)), var(--soft)); }
-.fper { display:inline-block; width:12px; height:5px; border-radius:1px; background:var(--primary); }
+.pswitch { margin-bottom:8px; } .phint { font-size:12.5px; margin:0 0 6px; }
 .pline { font-size:13px; margin:10px 0 0; } .pline .linkbtn { font-size:13px; }
 .flegend { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:12px; color:var(--soft); margin:8px 0 2px; }
 .flegend span { display:inline-flex; align-items:center; gap:5px; }

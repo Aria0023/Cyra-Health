@@ -100,7 +100,7 @@ import RecordUnavailableScreen from "./screens/RecordUnavailableScreen.jsx";
 import RegisterScreen from "./screens/RegisterScreen.jsx";
 import IntakeScreen from "./screens/IntakeScreen.jsx";
 import HomeScreen from "./screens/HomeScreen.jsx";
-import { SixtyDays, windowDays } from "./components/PatternCharts.jsx";
+import { PatternsCard, windowDays } from "./components/PatternCharts.jsx";
 import TodayScreen from "./screens/TodayScreen.jsx";
 import CalendarScreen from "./screens/CalendarScreen.jsx";
 import PatternsScreen from "./screens/PatternsScreen.jsx";
@@ -1488,10 +1488,11 @@ export default function CyraDemo() {
     );
   }
 
-  /* Home: the 60-day field (the same chart the Patterns tab opens with), once 3 days are logged. */
+  /* Home: the patterns card (the same card the Patterns tab opens with, fewer symptom rows), once
+     3 days are logged. */
   const sixty = stage === "preg" ? null : windowDays(ins.sorted, symIds, todayIso);
-  const sixtyDays = sixty && sixty.filter((d) => d.e).length >= 3
-    ? <SixtyDays days={sixty} ids={symIds} labels={symMap} starts={isMeno ? [] : ins.starts} sorted={ins.sorted} todayIso={todayIso} onMore={() => goTab("patterns")} />
+  const patternsCard = sixty && sixty.filter((d) => d.e).length >= 3
+    ? <PatternsCard days={sixty} ids={symIds} labels={symMap} starts={isMeno ? [] : ins.starts} sorted={ins.sorted} todayIso={todayIso} maxRows={4} onMore={() => goTab("patterns")} />
     : null;
   /* POTS tools open as a page under the current tab (potsOpen): the tab bar stays, with the
      current tab still selected, and a Back button at the top of the page returns to it. */
@@ -1500,7 +1501,7 @@ export default function CyraDemo() {
   const appIs = (id) => !potsPage && appTab === id;
   const homeView = (
     <HomeScreen
-      acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} pred={pred} loggedLast14={loggedLast14} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} sixtyDays={sixtyDays} wearInsights={wearInsights} milestones={milestones} nextUp={nextUp} pulse={pulse}
+      acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} pred={pred} loggedLast14={loggedLast14} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} patternsCard={patternsCard} wearInsights={wearInsights} milestones={milestones} nextUp={nextUp} pulse={pulse}
       recap={recap} showRecap={showRecap} setShowRecap={setShowRecap}
       showWear={showWear} setShowWear={setShowWear} wearSources={wearSources} terraOffCount={terraOff.length} connectWear={connectWear} disconnectWear={disconnectWear} wearConfirm={wearConfirm} setWearConfirm={setWearConfirm} wearBusy={wearBusy} wearData={wearData} wAvg={wAvg}
       showMeds={showMeds} setShowMeds={setShowMeds} meds={meds} medLog={medLog} medEffects={medEffects} setMedLog={setMedLog} newMed={newMed} setNewMed={setNewMed} setMeds={setMeds} ping={ping}
