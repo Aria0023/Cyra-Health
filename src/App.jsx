@@ -1613,7 +1613,7 @@ export default function CyraDemo() {
               <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />
             )}
             {appIs("patterns") && <PatternsScreen ins={ins} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} />}
-            {appIs("report") && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} />}
+            {appIs("report") && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} />}
             {appIs("shelf") && <CareScreen shelfItems={shelfItems} />}
             {appIs("ask") && askView}
             {appIs("connect") && connView}

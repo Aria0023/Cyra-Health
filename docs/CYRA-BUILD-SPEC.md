@@ -161,15 +161,27 @@ card, with up to four symptom rows and a "More in Patterns →" link, sits on Ho
 insight once 3 days are logged.
 
 **Report — "What to tell your doctor"** (this is the flagship screen):
+0. *Cover* — days logged in the window as a number ("27/30 days logged", date range, stage)
+   with a 30-cell strip of logged days (decorative; the number carries it).
 1. *What stands out* — numbers translated to plain speech ("showed up **most days** —
    19 of your last 30 days").  Frequency wording: ≥80% "nearly every day", ≥60% "most days",
-   ≥40% "about half the days", ≥20% "a few days a week", else "now and then".
-2. *What this might mean* — interpretation in everyday language, threshold-driven,
-   always closing with "observations, not a diagnosis".
-3. *What to say out loud* — verbatim scripts she can read to her clinician, including
-   "If we try something, how will we know in a few months whether it's working?"
+   ≥40% "about half the days", ≥20% "a few days a week", else "now and then". Each finding
+   is a row: a dot in the symptom's family colour (the same Heat/Sleep/Mind/Pain/Body colours
+   as the patterns card), the frequency words as a chip, a meter of the logged days (filled
+   where the symptom showed up, darker where it was moderate or strong) and, with ten or more
+   days logged in the 30 days before the window, the change in symptom days against that
+   month. Cycle lengths are drawn as dots on one scale with the shortest-to-longest span
+   bracketed. Colour is never the only cue: every visual sits beside its sentence.
+2. *What this might mean* — interpretation in everyday language, threshold-driven, each
+   paragraph headed and colour-edged by the finding it is about, always closing with
+   "observations, not a diagnosis".
+3. *What to say out loud* — numbered verbatim scripts she can read to her clinician, each
+   with a Copy button (clipboard only), including "If we try something, how will we know in
+   a few months whether it's working?"
 4. *Send it ahead* — generate a short email (mailto + copy-to-clipboard).
-5. Collapsed "The numbers behind this" — the data table, demoted below the guidance.
+5. Collapsed "The numbers behind this" — the data table, demoted below the guidance; each
+   row carries the family dot and a small bar of days (the table is the text twin of the
+   meters above).
 
 **Care:** partner list filtered by stage, ordered by match to her logged symptoms.
 Each card: brand, "Partner" pill, offer, "Matched: <symptom> (n/30)", **evidence label**
