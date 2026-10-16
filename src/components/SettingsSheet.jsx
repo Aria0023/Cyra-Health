@@ -5,7 +5,7 @@ import DataControls from "./DataControls.jsx";
 import Details, { WebReminderFacts } from "./Details.jsx";
 import PotsAddon from "./pots/PotsAddon.jsx";
 
-/* ⚙ Settings: check-in cadence, nudge time, quick vs full check-in, add-ons (POTS tools),
+/* Settings: check-in cadence, nudge time, quick vs full check-in, add-ons (POTS tools),
    reminders, the "Share anonymous weekly counts" switch, and Your data. */
 export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, keepsWeekNote, reminders, reminderSupport, onReminders, research, setResearch, stage, stageName, pots, onPotsOn, onPotsOff }) {
   const st = reminders?.status;

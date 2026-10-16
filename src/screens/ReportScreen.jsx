@@ -1,5 +1,6 @@
 import { fmt, localDay } from "../lib/engine.js";
 import { FAMILIES, SYM_FAMILY } from "../lib/constants.js";
+import Icon from "../components/Icon.jsx";
 
 /* Cycle & Peri — Report, "What to tell your doctor": plain-language findings,
    what they might mean, verbatim scripts, send-ahead email, and the collapsed
@@ -159,11 +160,11 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
       </div>
       {potsOn && <p className="hint" style={{ marginTop: 10 }}>Your POTS report (standing tests, drinks, medicines) is in POTS tools (open it from Home).</p>}
 
-      <button className="disclosure" style={{ marginTop: 14 }} onClick={() => setShowTable((v) => !v)}>
-        <span>The numbers behind this</span><span>{showTable ? "−" : "+"}</span>
+      <button type="button" className="disclosure" style={{ marginTop: 14 }} aria-expanded={showTable} aria-controls="report-table" onClick={() => setShowTable((v) => !v)}>
+        <span>The numbers behind this</span><Icon name="chevron" className="chev" />
       </button>
       {showTable && (
-        <div className="bodypanel">
+        <div className="bodypanel" id="report-table">
           <div className="rtitle" style={{ fontSize: 15, marginTop: 10 }}>Symptom log <span className="rmeta">{stageName} · {ins.last30.length ? `${fmt(ins.last30[0].date)}–${fmt(ins.last30[ins.last30.length - 1].date)}` : "nothing logged yet"}</span></div>
           <table className="rtab"><thead><tr><th>Symptom</th><th>Days (of {n} logged)</th><th>Mod.–strong</th></tr></thead>
             <tbody>{ins.counts.map((c) => {

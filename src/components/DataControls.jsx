@@ -111,12 +111,12 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
         <p>Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase and never include readings Cyra gets from a connected watch, ring or health app.</p>
       </Details>
       <div className="mcrow">
-        <button className={`mc ${mode === "export" ? "on" : ""}`} onClick={() => switchTo("export")}>Encrypted backup</button>
-        <button className={`mc ${mode === "import" ? "on" : ""}`} onClick={() => switchTo("import")}>Restore</button>
-        <button className={`mc danger ${mode === "wipe" ? "on" : ""}`} onClick={() => switchTo("wipe")}>Delete everything</button>
+        <button className={`mc ${mode === "export" ? "on" : ""}`} aria-expanded={mode === "export"} aria-controls="data-export-panel" onClick={() => switchTo("export")}>Encrypted backup</button>
+        <button className={`mc ${mode === "import" ? "on" : ""}`} aria-expanded={mode === "import"} aria-controls="data-import-panel" onClick={() => switchTo("import")}>Restore</button>
+        <button className={`mc danger ${mode === "wipe" ? "on" : ""}`} aria-expanded={mode === "wipe"} aria-controls="data-wipe-panel" onClick={() => switchTo("wipe")}>Delete everything</button>
       </div>
       {mode === "export" && (
-        <div className="plaincard" style={{ marginTop: 10 }}>
+        <div className="plaincard" id="data-export-panel" style={{ marginTop: 10 }}>
           <p className="lab" style={{ margin: "0 0 6px" }}>Lock the backup with a passphrase</p>
           <input className="inp" type="password" placeholder="Passphrase (8+ characters)" aria-label="Backup passphrase" {...noSave} value={pass} onChange={(e) => setPass(e.target.value)} />
           <input className="inp" type="password" placeholder="Repeat passphrase" aria-label="Repeat backup passphrase" {...noSave} value={pass2} onChange={(e) => setPass2(e.target.value)} />
@@ -132,9 +132,9 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
           </Details>
         </div>
       )}
-      {mode === "import" && <RestoreForm onImport={onImport} onDone={() => setMode(null)} compact />}
+      {mode === "import" && <div id="data-import-panel"><RestoreForm onImport={onImport} onDone={() => setMode(null)} compact /></div>}
       {mode === "wipe" && !blocked && (
-        <div className="plaincard" style={{ marginTop: 10 }}>
+        <div className="plaincard" id="data-wipe-panel" style={{ marginTop: 10 }}>
           <p className="plain"><b>Delete everything on this device?</b> Every check-in, POTS log, note, appointment and setting goes for good. This also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop. Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.</p>
           <Details label="More about deleting">
             <ul>
@@ -151,7 +151,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
         </div>
       )}
       {mode === "wipe" && blocked && (
-        <div className="plaincard" style={{ marginTop: 10 }} role="alert">
+        <div className="plaincard" id="data-wipe-panel" style={{ marginTop: 10 }} role="alert">
           <p className="plain"><b>Your check-ins, notes and settings haven't been deleted.</b>{blocked.ended.length ? ` Already done: ${andList(blocked.ended.map((k) => ENDED[k]).filter(Boolean))}.` : ""} {["network", "refused", "nokey"].map((kind) => { const steps = blocked.failed.filter((f) => f.kind === kind).map((f) => f.name); return steps.length ? failLine(kind, steps) : ""; }).filter(Boolean).join(" ")} Or delete on this device anyway.</p>
           <p className="rfoot" style={{ marginTop: 0 }}>If you delete anyway, {andList(blocked.failed.map((f) => STAYS[f.name]).filter(Boolean))}.</p>
           {blocked.failed.some((f) => f.kind !== "nokey") && <button className="cta" disabled={wiping} onClick={() => runWipe({})}>{wiping ? "Trying…" : "Try again"}</button>}

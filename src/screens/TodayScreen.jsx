@@ -1,5 +1,6 @@
 import { flagWords } from "../lib/pulse.js";
 import Details from "../components/Details.jsx";
+import Icon from "../components/Icon.jsx";
 import { SYMS, PSYM, READS } from "../lib/constants.js";
 import { fmt, sevDots, foldQuick } from "../lib/engine.js";
 
@@ -80,7 +81,7 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
               <li>Until it's sent on a later day, saving this check-in again today replaces what it counts, and a fix from the Calendar on a later day can only take flags back, never add one. A fix after it's sent can't change counts already sent.</li>
               {quickMode && <li>{stage === "peri" ? "A quick check-in shares only whether you had a poor night's sleep." : "A quick check-in shares only whether you logged a heavy-flow day."}</li>}
               <li>Sent at most once a day. Like any request, it carries your device's internet address.</li>
-              <li>You can turn this off in ⚙ Settings.</li>
+              <li>You can turn this off in <Icon name="sliders" size={12} className="labico" />Settings.</li>
             </ul>
           </Details>
         </>

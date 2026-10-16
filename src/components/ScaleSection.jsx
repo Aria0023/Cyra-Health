@@ -13,8 +13,8 @@ export default function ScaleSection({ scales, setScales }) {
           <div className="scaleends"><span>{s.low}</span><span>{s.high}</span></div>
         </div>
       ))}
-      {scales.fatigue >= 8 && <Advice urgency="visit">Fatigue at this level for weeks isn't just "being tired" — thyroid problems, iron-deficiency anemia (very common with heavy periods), and vitamin D deficiency all show up this way and are all simple blood tests. Ask for them by name.</Advice>}
-      {scales.pain >= 8 && <Advice urgency="visit">Pain you'd rate 8+ is not something to normalize. Bring these numbers to your appointment — a tracked pain scale is far harder to wave away than "it hurts a lot."</Advice>}
+      {scales.fatigue >= 8 && <Advice urgency="visit" alone>Fatigue at this level for weeks isn't just "being tired" — thyroid problems, iron-deficiency anemia (very common with heavy periods), and vitamin D deficiency all show up this way and are all simple blood tests. Ask for them by name.</Advice>}
+      {scales.pain >= 8 && <Advice urgency="visit" alone>Pain you'd rate 8+ is not something to normalize. Bring these numbers to your appointment — a tracked pain scale is far harder to wave away than "it hurts a lot."</Advice>}
     </>
   );
 }

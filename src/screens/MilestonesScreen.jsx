@@ -1,4 +1,5 @@
 import Advice from "../components/Advice.jsx";
+import Icon from "../components/Icon.jsx";
 
 /* Pregnancy — Milestones: the evidence-based low-risk prenatal schedule (spec §7),
    each item status-tagged against the current week. */
@@ -48,7 +49,7 @@ export default function MilestonesScreen({ pregWeek }) {
             return (
               <div className="shelfc" key={m.label} style={done ? { background: "var(--paper)", boxShadow: "none" } : {}}>
                 <div className="shead"><span className="sbrand">Weeks {m.w}</span>
-                  <span className="ppill" style={now ? { borderColor: "#A04545", color: "#A04545" } : soon ? { borderColor: "var(--primary)", color: "var(--primary)" } : {}}>{done ? "done ✓" : now ? "in window" : soon ? "coming up" : "later"}</span></div>
+                  <span className="ppill" style={now ? { borderColor: "#A04545", color: "#A04545" } : soon ? { borderColor: "var(--primary)", color: "var(--primary)" } : {}}>{done ? <>done <Icon name="check" size={10} /></> : now ? "in window" : soon ? "coming up" : "later"}</span></div>
                 <div className="sname">{m.label}</div>
                 <p className="hint" style={{ margin: 0 }}>{m.note}</p>
               </div>

@@ -15,19 +15,19 @@ export default function PatternsScreen({ ins, symIds, symMap, stage, isMeno = fa
 
       {stage === "peri" && ins.variability != null && (
         <div className="icard">
-          <div className="card" style={{ marginBottom: 0 }}><div className="num">{ins.variability}d</div><p>Cycles ran {ins.lens.join(" · ")} days — a 7+ day spread is the clinical marker of the transition (STRAW staging).</p></div>
+          <div className="card"><div className="num">{ins.variability}d</div><p>Cycles ran {ins.lens.join(" · ")} days — a 7+ day spread is the clinical marker of the transition (STRAW staging).</p></div>
           <Advice urgency="visit">Start the treatment conversation early — and ask about a lipid panel and bone-health baseline; the transition is when both start shifting.</Advice>
         </div>
       )}
       {stage === "peri" && ins.hfMult && (
         <div className="icard">
-          <div className="card" style={{ marginBottom: 0 }}><div className="num">{ins.hfMult.toFixed(1)}×</div><p>Hot flashes were {ins.hfMult.toFixed(1)}× more likely after a rough night.</p></div>
+          <div className="card"><div className="num">{ins.hfMult.toFixed(1)}×</div><p>Hot flashes were {ins.hfMult.toFixed(1)}× more likely after a rough night.</p></div>
           <Advice urgency="visit">This frequency is treatable: ask about hormone-therapy eligibility — and if that's not for you, SSRIs or the newer NK3-antagonist class are options to discuss.</Advice>
         </div>
       )}
       {stage === "periods" && (
         <div className="icard">
-          <div className="card" style={{ marginBottom: 0 }}><div className="num">{ins.counts[0].days}/30</div><p>{ins.counts[0].label} showed up most — {ins.counts[0].days} of your last 30 days.</p></div>
+          <div className="card"><div className="num">{ins.counts[0].days}/30</div><p>{ins.counts[0].label} showed up most — {ins.counts[0].days} of your last 30 days.</p></div>
           <Advice urgency={ins.counts[0].id === "crm" && ins.counts[0].strong > 8 ? "visit" : "self"}>
             {ins.counts[0].id === "crm"
               ? ins.counts[0].strong > 8
@@ -39,7 +39,7 @@ export default function PatternsScreen({ ins, symIds, symMap, stage, isMeno = fa
       )}
       {medEffects.filter((e) => e.ready).map((e) => (
         <div className="icard" key={e.id}>
-          <div className="card" style={{ marginBottom: 0 }}><div className="num">{e.before}→{e.after}</div><p>Average day score in the two weeks before vs after starting <b>{e.name}</b>. {e.after - e.before >= 5 ? "That's a real shift." : e.after - e.before <= -5 ? "Days got harder — worth mentioning to whoever prescribed it." : "Too early to call; keep logging."}</p></div>
+          <div className="card"><div className="num">{e.before}→{e.after}</div><p>Average day score in the two weeks before vs after starting <b>{e.name}</b>. {e.after - e.before >= 5 ? "That's a real shift." : e.after - e.before <= -5 ? "Days got harder — worth mentioning to whoever prescribed it." : "Too early to call; keep logging."}</p></div>
           <Advice urgency="visit">Bring this before/after to your next visit — it's exactly the evidence a clinician needs to decide whether to continue, adjust, or stop.</Advice>
         </div>
       ))}

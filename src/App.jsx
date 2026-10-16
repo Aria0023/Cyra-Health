@@ -95,6 +95,7 @@ import BodySignals from "./components/BodySignals.jsx";
 import QuickCheckin from "./components/QuickCheckin.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
 import PaletteSheet from "./components/PaletteSheet.jsx";
+import Icon from "./components/Icon.jsx";
 import SplashScreen from "./screens/SplashScreen.jsx";
 import RecordUnavailableScreen from "./screens/RecordUnavailableScreen.jsx";
 import RegisterScreen from "./screens/RegisterScreen.jsx";
@@ -1480,7 +1481,7 @@ export default function CyraDemo() {
     return (
       <Shell style={style} toast={toast}>
         <header className="mast" style={{ justifyContent: "flex-end", marginBottom: 0 }}>
-          <button className="stagechip" onClick={() => setShowSettings((v) => !v)} aria-label="Settings and your data" aria-expanded={showSettings}>⚙</button>
+          <button className="stagechip icon" onClick={() => setShowSettings((v) => !v)} aria-label="Settings and your data" aria-expanded={showSettings}><Icon name="sliders" size={18} /></button>
         </header>
         {settingsSheet}
         <IntakeScreen org={org} acct={acct} ob={ob} setOb={setOb} obBusy={obBusy} setObBusy={setObBusy} setStage={chooseStage} setStageName={setStageName} setWelcome={setWelcome} setAppTab={setAppTab} setPregTab={setPregTab} finishOnboarding={finishOnboarding} />
@@ -1562,8 +1563,8 @@ export default function CyraDemo() {
       <header className="mast">
         <span className="mark">{org.name}<span className="sub">{org.tag}</span></span>
         {stage && <span className="acctchip">{acct.anon ? "Anonymous" : acct.name || "You"}{research && hasServer() ? " · sharing counts ✓" : ""}</span>}
-        {stage && orgId === "cyra" && <button className="stagechip" onClick={() => setShowPal((s) => !s)} aria-label="Color palette" aria-expanded={showPal}>🎨</button>}
-        {stage && <button className="stagechip" onClick={() => setShowSettings((s) => !s)} aria-label="Check-in settings" aria-expanded={showSettings}>⚙</button>}
+        {stage && orgId === "cyra" && <button className="stagechip icon" onClick={() => setShowPal((s) => !s)} aria-label="Color palette" aria-expanded={showPal}><Icon name="palette" size={18} /></button>}
+        {stage && <button className="stagechip icon" onClick={() => setShowSettings((s) => !s)} aria-label="Check-in settings" aria-expanded={showSettings}><Icon name="sliders" size={18} /></button>}
         {stage && <button className="stagechip" onClick={() => { setPots(resetPregClearance); setStage(null); setOb({ step: 0, preg: null, age: null, per: null, vms: null }); setWelcome(""); }}>{stageName} · change</button>}
       </header>
 

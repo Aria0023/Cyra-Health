@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import Icon from "./Icon.jsx";
 
 /* Layered privacy notice: a short summary sits on screen, and the exact specifics sit
    behind this plain-labelled toggle. Same pattern as the app's other sections
@@ -10,7 +11,7 @@ export default function Details({ label = "Details", children }) {
   return (
     <div className="morewrap">
       <button type="button" className="disclosure more" aria-expanded={open} aria-controls={id} onClick={() => setOpen((v) => !v)}>
-        <span>{label}</span><span aria-hidden="true">{open ? "−" : "+"}</span>
+        <span>{label}</span><Icon name="chevron" className="chev" />
       </button>
       <div id={id} className="bodypanel more" hidden={!open}>{children}</div>
     </div>

@@ -3,6 +3,7 @@ import Details from "../components/Details.jsx";
 import { GSYM, PREG_TIPS } from "../lib/constants.js";
 import { sevDots, fmt } from "../lib/engine.js";
 import Advice from "../components/Advice.jsx";
+import Icon from "../components/Icon.jsx";
 
 /* Pregnancy — Today: week + trimester + progress to 40, weekly read, pregnancy
    symptoms, scales, body signals, kick counter, red-flag swelling advice. Opens on what is
@@ -40,13 +41,13 @@ export default function PregTodayScreen({ onPots = null, pregWeek, trimester, sc
       {scaleSection}
       {bodySection}
       <div className="kickrow">
-        <button className="cta" style={{ flex: 1 }} onClick={onKick}>Kick! 👣</button>
+        <button className="cta" style={{ flex: 1 }} onClick={onKick}>Kick! <Icon name="foot" /></button>
         <div className="kickcount"><b>{kicks}</b><span>{editDate ? "kicks that day" : "kicks today"}</span></div>
       </div>
       {draft.swl >= 2 ? (
-        <Advice urgency="now">Sudden or severe swelling — especially with headaches or vision changes — is a call-your-provider-today signal, not a wait-and-see one.</Advice>
+        <Advice urgency="now" alone>Sudden or severe swelling — especially with headaches or vision changes — is a call-your-provider-today signal, not a wait-and-see one.</Advice>
       ) : (
-        <Advice urgency="self">Logging daily builds the record your provider actually uses at each visit — and the kick pattern matters more than any single count.</Advice>
+        <Advice urgency="self" alone>Logging daily builds the record your provider actually uses at each visit — and the kick pattern matters more than any single count.</Advice>
       )}
       <button className="cta" style={{ marginTop: 12 }} onClick={() => {
         const target = editDate || todayIso;
@@ -64,7 +65,7 @@ export default function PregTodayScreen({ onPots = null, pregWeek, trimester, sc
             <ul>
               <li>The check-in counts as it stands when you last save it.</li>
               <li>Sent at most once a day. Like any request, it carries your device's internet address.</li>
-              <li>You can turn this off in ⚙ Settings.</li>
+              <li>You can turn this off in <Icon name="sliders" size={12} className="labico" />Settings.</li>
             </ul>
           </Details>
         </>

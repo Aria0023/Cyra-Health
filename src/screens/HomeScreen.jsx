@@ -3,6 +3,9 @@ import { SOURCES, DEMO_WEARABLES } from "../lib/wearables.js";
 import { isNative } from "../lib/native.js";
 import Advice from "../components/Advice.jsx";
 import Details from "../components/Details.jsx";
+import Icon from "../components/Icon.jsx";
+import { reduceMotion } from "../lib/motion.js";
+import { useEffect, useRef } from "react";
 
 /* Home (default tab): greeting + streak, check-in CTA, today's top insight, the patterns card,
    wearable cards, milestones, coming up, pulse, and a grid of collapsible sections (month vs
@@ -54,6 +57,16 @@ export default function HomeScreen({
   const connectedCount = Object.values(wearSources).filter((w) => w && !w.pending).length;
   const allDemo = wearData.length > 0 && wearData.every((r) => r.demo);
   const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  // A section opened from the grid scrolls its panel into view (the panels sit under the grid, so an
+  // open one can start below the fold). Not on first render, and only for the flag that just turned on.
+  const wasOpen = useRef(null);
+  useEffect(() => {
+    const now = { recap: showRecap, wear: showWear, meds: showMeds, appts: showAppts, journal: showJournal };
+    const prev = wasOpen.current; wasOpen.current = now;
+    if (!prev) return;
+    const opened = Object.keys(now).find((k) => now[k] && !prev[k]);
+    if (opened) document.getElementById(`home-${opened}`)?.scrollIntoView?.({ block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" });
+  }, [showRecap, showWear, showMeds, showAppts, showJournal]);
 
   return (
     <main>
@@ -86,7 +99,7 @@ export default function HomeScreen({
           <p className="section-lab">From your wearable</p>
           {wearInsights.map((w, i) => (
             <div className="icard" key={i}>
-              <div className="card" style={{ marginBottom: 0 }}><div className="num">{w.num}</div><p>{w.text}</p></div>
+              <div className="card"><div className="num">{w.num}</div><p>{w.text}</p></div>
               {w.advice && <Advice urgency={w.urgency || "self"}>{w.advice}</Advice>}
             </div>
           ))}
@@ -163,7 +176,7 @@ export default function HomeScreen({
           <div className="dgrid">
             {sections.map((sec) => (
               <button type="button" key={sec.id} className={`disclosure ${sec.open ? "on" : ""}`} aria-expanded={sec.open} aria-controls={sec.open ? `home-${sec.id}` : undefined} onClick={() => sec.set((v) => !v)}>
-                <span>{sec.label}</span><span aria-hidden="true">{sec.open ? "−" : "+"}</span>
+                <span>{sec.label}</span><Icon name="chevron" className="chev" />
               </button>
             ))}
           </div>

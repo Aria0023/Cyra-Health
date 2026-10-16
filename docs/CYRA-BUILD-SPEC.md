@@ -372,6 +372,36 @@ plain pills.
 pill ("Delete everything") carries `.mc.danger`: --bad text with a 40% --bad border, and when open (`.on`) the
 --bad-bg tint with a --bad border. The primary tint never appears on a destructive control.
 
+**Icons (src/components/Icon.jsx).** `Icon({ name, size = 16, className })` renders one inline `<svg aria-hidden="true">`
+on a 24-unit grid, `stroke="currentColor"`, 2px round strokes, from a path map: chevron, check, close, lock, bell, clock,
+chart, clipboard, drop, salt, heart, book, sparkle, print, share, people, plus-circle, lightning, foot, palette, sliders,
+apple, google, facebook. No emoji anywhere in src (they render differently per OS and the palette emoji was the most
+saturated object on every screen): the header buttons are `sliders` (settings) and `palette`, the kick button `foot`,
+the palette tick and the Milestones "done" tag `check`. An icon is decorative: the text node beside it, or the button's
+aria-label, carries the meaning, and asserted texts ("✓ On", "✓ Taken", "✓ Sync", the `.ckbox` glyphs) stay as text.
+`.labico` (14px, --accent) is the glyph before a label; `.stagechip.icon` is the header icon chip (36px wide, 44px tall,
+so the pregnancy header still fits on one row).
+
+**Disclosures.** Every `.disclosure` button ends in `<Icon name="chevron" className="chev" />`, never a '+' or '−' (plus
+reads as Add on iOS); `[aria-expanded="true"] > .chev` rotates it 180° at --t-fast. Every disclosure exposes the ARIA
+disclosure pattern: `aria-expanded` plus `aria-controls` naming the panel (`Details` ids, `#bodypanel`, `#report-table`,
+`#home-*`, `#data-export-panel` / `#data-import-panel` / `#data-wipe-panel`); the data pills are `.mc` buttons that also
+carry it. Body-signal `.minichip`s carry `aria-pressed`.
+
+**One level of containment.** A bordered button never sits inside a bordered card. A `Details` inside `.mscard`,
+`.pulse` or `.pchart` renders as a row: no border, a 1px --line hairline above, no fill, --primary-text label, the chevron
+at the right, 8px vertical padding; its panel is unbordered. The bordered `Details` on Settings, Connect, the consent step
+and the wearable confirm cards stay bordered (they sit on paper or in a plain card). `.icard` owns the shadow and radius of
+an insight card: its `.card` has no shadow and square bottom corners, so the number card and its Advice read as one card
+with one continuous border. An Advice with no card above it takes `alone` (full border, 13px radius, 10px above):
+PregTodayScreen, ScaleSection, BodySignals. `.disclosure` padding is 12px 16px and `.bodypanel` 4px 16px 14px, so panel
+text aligns with card text. On Home, opening a grid section scrolls its `#home-*` panel into view (`block: nearest`,
+smooth unless `reduceMotion()`) and the open panel `.bodypanel.detached` is outlined in --primary.
+
+**Accent anchors.** `.section-lab::before` draws a 6px --accent dot before every section label (a pseudo-element, so
+`textContent` is unchanged for the asserted labels). It is off inside `.pchart`, `.pots` and `.palsheet` (data areas and
+the Settings/palette sheets, which get their own glyphs), so the accent stays a chrome anchor and never reads as data.
+
 ---
 
 ## 9. BACKEND (separate service, optional for v1)
