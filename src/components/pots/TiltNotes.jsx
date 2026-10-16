@@ -70,7 +70,7 @@ export function TiltList({ pots, setPots, ping, onRemoved }) {
             {asking === x.id && (
               <div className="plaincard urgent" style={{ margin: "4px 0 10px" }}>
                 <p className="plain" tabIndex={-1} ref={confirmRef}>{`Remove the ${dayLabel(x.date)} tilt-table result? What you typed is removed from your POTS log.`}</p>
-                <button type="button" className="cta" style={{ background: "#A04545", marginTop: 10 }} onClick={() => { setPots((p) => removeTilt(p, x.id)); setAsking(null); ping("Tilt-table result removed"); onRemoved?.(); }}>Remove</button>
+                <button type="button" className="cta stopbtn" style={{ marginTop: 10 }} onClick={() => { setPots((p) => removeTilt(p, x.id)); setAsking(null); ping("Tilt-table result removed"); onRemoved?.(); }}>Remove</button>
                 <button type="button" className="ghostbtn" onClick={() => { setAsking(null); document.getElementById(`pots-tilt-rm-${x.id}`)?.focus(); }}>Keep it</button>
               </div>
             )}

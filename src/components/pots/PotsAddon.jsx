@@ -62,7 +62,7 @@ export default function PotsAddon({ pots, stageName, onOn, onOff, storageDriver 
       {on && ask === "erase" && (
         <div id={CARD_ID} className="plaincard" style={{ marginBottom: 10 }}>
           <p className="plain" tabIndex={-1} ref={eraseRef}>{POTS_ERASE}</p>
-          <button className="cta" style={{ background: "#A04545" }} onClick={() => { go(null, "switch"); onOff({ erase: true }); }}>Delete POTS log</button>
+          <button className="cta stopbtn" onClick={() => { go(null, "switch"); onOff({ erase: true }); }}>Delete POTS log</button>
           <button className="ghostbtn" onClick={() => go("off", "off")}>Keep it</button>
         </div>
       )}

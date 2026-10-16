@@ -445,7 +445,7 @@ export function StandRunner({ run, setRun, pots, setPots, stage, todayIso, ping,
           <div className="plaincard" style={{ marginTop: 14 }}>
             <p className="plain" tabIndex={-1} ref={confirmRef}>Discard this test? Its readings are removed from your POTS log.</p>
             {(test.fainted === "yes" || test.fainted === "almost") && <CheckRow on={discard.keepFaint} onToggle={() => setDiscard((d) => ({ keepFaint: !d.keepFaint }))}>Keep the faint in my log</CheckRow>}
-            <button type="button" className="cta" style={{ background: "#A04545", marginTop: 10 }} onClick={() => { const k = discard.keepFaint; setPots((p) => deleteTest(p, run.id, { keepFaint: k })); end("Test discarded"); }}>Discard test</button>
+            <button type="button" className="cta stopbtn" style={{ marginTop: 10 }} onClick={() => { const k = discard.keepFaint; setPots((p) => deleteTest(p, run.id, { keepFaint: k })); end("Test discarded"); }}>Discard test</button>
             <button type="button" className="ghostbtn" onClick={() => setDiscard(null)}>Keep it</button>
           </div>
         )}
@@ -599,7 +599,7 @@ export function StandSection({ pots, setPots, stage, todayIso, ping, running, on
             {asking && (
               <>
                 <p className="plain" tabIndex={-1} ref={confirmRef}>Discard this test? Its readings are removed from your POTS log.</p>
-                <button type="button" className="cta" style={{ background: "#A04545" }} onClick={() => { setPots((p) => deleteTest(p, t.id)); setRowAct(null); ping("Test discarded"); setFocusBack("pots-stand-start"); }}>Discard test</button>
+                <button type="button" className="cta stopbtn" onClick={() => { setPots((p) => deleteTest(p, t.id)); setRowAct(null); ping("Test discarded"); setFocusBack("pots-stand-start"); }}>Discard test</button>
                 <button type="button" className="ghostbtn" onClick={() => { setRowAct(null); setFocusBack(`pots-int-${t.id}`); }}>Keep it</button>
               </>
             )}
@@ -645,7 +645,7 @@ export function StandSection({ pots, setPots, stage, todayIso, ping, running, on
               <div className="plaincard urgent" style={{ margin: "4px 0 10px" }}>
                 <p className="plain" tabIndex={-1} ref={confirmRef}>{`Delete the ${when} test? Its readings are removed from your POTS log.`}</p>
                 {linkedFaint(t) && <CheckRow on={act.keepFaint} onToggle={() => setRowAct({ ...act, keepFaint: !act.keepFaint })}>Keep the faint in my log</CheckRow>}
-                <button type="button" className="cta" style={{ background: "#A04545", marginTop: 10 }} onClick={() => { setPots((p) => deleteTest(p, t.id, { keepFaint: act.keepFaint })); setRowAct(null); ping("Test deleted"); setFocusBack("pots-tests-h"); }}>Delete test</button>
+                <button type="button" className="cta stopbtn" style={{ marginTop: 10 }} onClick={() => { setPots((p) => deleteTest(p, t.id, { keepFaint: act.keepFaint })); setRowAct(null); ping("Test deleted"); setFocusBack("pots-tests-h"); }}>Delete test</button>
                 <button type="button" className="ghostbtn" onClick={() => { setRowAct(null); setFocusBack(`pots-del-${t.id}`); }}>Keep it</button>
               </div>
             )}

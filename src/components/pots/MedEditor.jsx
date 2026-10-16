@@ -85,7 +85,7 @@ function MedForm({ med, setPots, today, pregOrTtc, onDone, onGoCard, headRef }) 
       {med && ask === "remove" && (
         <div className="plaincard" style={{ marginTop: 10 }}>
           <p className="plain" tabIndex={-1} ref={askRef}>Remove {med.name} completely? Doses you logged stay on their days, but the name goes from your list. To keep it for looking back, use "I've stopped this" instead.</p>
-          <button type="button" className="cta" style={{ background: "#A04545" }} onClick={() => { setPots((p) => removeMed(p, med.id)); onDone(`${med.name} removed`); }}>Remove</button>
+          <button type="button" className="cta stopbtn" onClick={() => { setPots((p) => removeMed(p, med.id)); onDone(`${med.name} removed`); }}>Remove</button>
           <button type="button" className="ghostbtn" onClick={() => setAsk(null)}>Keep it</button>
         </div>
       )}

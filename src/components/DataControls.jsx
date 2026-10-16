@@ -113,7 +113,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
       <div className="mcrow">
         <button className={`mc ${mode === "export" ? "on" : ""}`} onClick={() => switchTo("export")}>Encrypted backup</button>
         <button className={`mc ${mode === "import" ? "on" : ""}`} onClick={() => switchTo("import")}>Restore</button>
-        <button className={`mc ${mode === "wipe" ? "on" : ""}`} onClick={() => switchTo("wipe")}>Delete everything</button>
+        <button className={`mc danger ${mode === "wipe" ? "on" : ""}`} onClick={() => switchTo("wipe")}>Delete everything</button>
       </div>
       {mode === "export" && (
         <div className="plaincard" style={{ marginTop: 10 }}>
@@ -146,7 +146,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
             </ul>
           </Details>
           {err && <p className="errhint" role="alert" style={{ marginTop: 0 }}>{err}</p>}
-          <button className="cta" style={{ background: "#A04545" }} disabled={wiping} onClick={() => runWipe({})}>{wiping ? "Deleting…" : "Yes, delete it all"}</button>
+          <button className="cta stopbtn" disabled={wiping} onClick={() => runWipe({})}>{wiping ? "Deleting…" : "Yes, delete it all"}</button>
           <button className="ghostbtn" disabled={wiping} onClick={() => setMode(null)}>Keep my data</button>
         </div>
       )}
@@ -155,7 +155,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
           <p className="plain"><b>Your check-ins, notes and settings haven't been deleted.</b>{blocked.ended.length ? ` Already done: ${andList(blocked.ended.map((k) => ENDED[k]).filter(Boolean))}.` : ""} {["network", "refused", "nokey"].map((kind) => { const steps = blocked.failed.filter((f) => f.kind === kind).map((f) => f.name); return steps.length ? failLine(kind, steps) : ""; }).filter(Boolean).join(" ")} Or delete on this device anyway.</p>
           <p className="rfoot" style={{ marginTop: 0 }}>If you delete anyway, {andList(blocked.failed.map((f) => STAYS[f.name]).filter(Boolean))}.</p>
           {blocked.failed.some((f) => f.kind !== "nokey") && <button className="cta" disabled={wiping} onClick={() => runWipe({})}>{wiping ? "Trying…" : "Try again"}</button>}
-          <button className="cta" style={{ background: "#A04545" }} disabled={wiping} onClick={() => runWipe({ force: true })}>{wiping ? "Deleting…" : "Delete on this device anyway"}</button>
+          <button className="cta stopbtn" disabled={wiping} onClick={() => runWipe({ force: true })}>{wiping ? "Deleting…" : "Delete on this device anyway"}</button>
           <button className="ghostbtn" disabled={wiping} onClick={() => { setBlocked(null); setMode(null); }}>Keep my data</button>
         </div>
       )}

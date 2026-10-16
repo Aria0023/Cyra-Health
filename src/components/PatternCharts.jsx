@@ -287,7 +287,7 @@ export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso,
   return (
     <div className="pchart">
       {canCycle && (
-        <div className="mcrow pswitch" role="group" aria-label="Chart view">
+        <div className="mcrow pswitch seg" role="group" aria-label="Chart view">
           <button type="button" className={`mc ${!cycleView ? "on" : ""}`} aria-pressed={!cycleView} onClick={() => setView("days")}>Day by day</button>
           <button type="button" className={`mc ${cycleView ? "on" : ""}`} aria-pressed={cycleView} onClick={() => setView("cycle")}>By cycle</button>
         </div>

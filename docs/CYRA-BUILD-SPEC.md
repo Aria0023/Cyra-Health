@@ -335,6 +335,43 @@ only on `.toast.show` and `.tabpanel`. Nothing is scroll-linked. No requestAnima
 250ms score tween. Each entrance runs once per mount behind a ref, <= 600ms. The shared keyframes are
 `cy-fade-rise`, `cy-pop`, `cy-draw`, `cy-spin`, `cy-pulse` and `cy-grow`; new motion reuses them.
 
+**Control states (one recipe for every custom control).**
+
+```
+rest      card fill, 1.5px --line border, ink text (pills .mc/.pill/.chip/.minichip/.takebtn/.sbtn; cards .stagecard/
+          .obopt/.consentopt/.palopt/.disclosure/.route; .cta primary-filled). Buttons set touch-action:manipulation
+          and no tap highlight, so the press state below is the only feedback.
+pressed   :active, 100ms --ease-std on transform: pills scale(.96) and take the selected tint (primary 12% on card,
+          primary border); cards and the CTA scale(.985), the CTA also brightness(.94). Under reduced motion the
+          scale is instant and only the colour transition remains.
+hover     only inside @media (hover:hover): border-color moves to color-mix(primary 55%, line). Touch never hovers.
+focus     the shared 3px --primary outline (offset 2px). .c-today draws its own ring as an inset box-shadow so
+          the focus ring stacks outside it instead of replacing it.
+selected  .on / .pill-on / .minichip.on: primary border, primary 12% fill, primary text, weight 700 (never a
+          hard-coded hue). Severity: .chip.sev-1 accent 60% border + 7% fill, .sev-2 accent border + 16% fill,
+          .sev-3 primary border + 14% fill + 700, so the three steps are distinguishable at a glance.
+disabled  .cta:disabled opacity .6; .sbtn:disabled / [aria-disabled="true"] dashed --line border, --soft text,
+          weight 600, cursor default. A state that is not a button (e.g. "coming soon") is a .statechip: dashed
+          pill, 11px/700, --soft. Scale values at 0 render --soft (.scalehead b.zero), so nothing reads as logged.
+targets   44px minimum on .mc .pill .takebtn .sbtn .linkbtn .route .inp .slider .minichip .scopy .palopt .calcell
+          (not only inside .pots). .inp[type=date] keeps its native appearance so iOS shows the picker affordance.
+```
+
+**Segmented control vs pill.** Two to five mutually exclusive answers or views (a chart view, a check-in style,
+a sleep answer) are a joined control: the `.mcrow` gets `seg`, the buttons keep `.mc` / `.on` and `aria-pressed`,
+and the row renders as one pill-shaped border with the selected segment primary-filled in white text. Segment
+labels wrap to two lines at 12px/700; they never truncate (`.seg.scroll` is the variant for more than five short
+labels, which scrolls instead). Standalone `.mc` pills remain for multi-select and for independent choices.
+
+**Switch look.** On/off toggles (`.takebtn[aria-pressed]`: reminders, anonymous counts, POTS tools, stand-test
+BP) draw a 16x9 track and a 9px knob before their text; `.on` moves the knob right on a translucent track. The
+texts ("Turn on" / "✓ On") and `aria-pressed` are unchanged. Action buttons that share the class ("Took it") stay
+plain pills.
+
+**Danger.** Destructive confirms are `.cta.stopbtn` (--bad fill), never an inline colour. The one destructive
+pill ("Delete everything") carries `.mc.danger`: --bad text with a 40% --bad border, and when open (`.on`) the
+--bad-bg tint with a --bad border. The primary tint never appears on a destructive control.
+
 ---
 
 ## 9. BACKEND (separate service, optional for v1)

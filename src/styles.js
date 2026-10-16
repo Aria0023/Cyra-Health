@@ -38,11 +38,12 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .chips { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:16px; }
 .chip { border:1.5px solid var(--line); background:var(--card); box-shadow:0 1px 2px rgba(0,0,0,.04); border-radius:13px; padding:11px; text-align:left; cursor:pointer; display:flex; flex-direction:column; gap:5px; font-size:13.5px; color:var(--ink); }
 .dots { font-size:10.5px; letter-spacing:3px; color:var(--soft); }
-.chip.sev-1, .chip.sev-2 { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 14%, var(--card)); }
-.chip.sev-3 { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 12%, var(--card)); }
+.chip.sev-1 { border-color:color-mix(in srgb, var(--accent) 60%, var(--line)); background:color-mix(in srgb, var(--accent) 7%, var(--card)); }
+.chip.sev-2 { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 16%, var(--card)); }
+.chip.sev-3 { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 14%, var(--card)); font-weight:700; }
 .row { display:flex; gap:var(--gap); margin-bottom:16px; }
 .pill { flex:1; border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:9px 4px; font:500 13px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
-.pill-on { border-color:#7E9B87; background:#E7EFE9; }
+.pill-on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary); font-weight:700; }
 .cta { width:100%; border:none; border-radius:13px; background:var(--primary); color:#FFF; font:700 14px 'Karla Variable','Karla'; padding:14px; cursor:pointer; }
 .cta:disabled { opacity:.6; }
 /* Patterns charts (components/PatternCharts.jsx): data colours come from FAMILIES in lib/constants.js, never the UI palette. */
@@ -53,7 +54,7 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .psvg text { font-family:'Karla Variable','Karla',sans-serif; }
 .ptick { font-size:10.5px; fill:var(--soft); } .pnote { font-size:10.5px; font-weight:700; fill:var(--ink); } .prow { font-size:11px; font-weight:600; fill:var(--ink); }
 .pswitch { margin-bottom:8px; } .phint { font-size:12.5px; margin:0 0 6px; }
-.pline { font-size:var(--fs-md); margin:10px 0 0; } .pline .linkbtn { font-size:var(--fs-md); }
+.pline { font-size:var(--fs-md); margin:2px 0 0; } .pline .linkbtn { font-size:var(--fs-md); }
 .flegend { display:flex; flex-wrap:wrap; gap:4px 12px; font-size:12px; color:var(--soft); margin:8px 0 2px; }
 .flegend span { display:inline-flex; align-items:center; gap:5px; }
 .fdot { display:inline-block; width:9px; height:9px; border-radius:50%; flex-shrink:0; }
@@ -75,7 +76,7 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .advice { display:flex; gap:9px; align-items:flex-start; background:color-mix(in srgb, var(--primary) 10%, var(--card)); border:1.5px solid var(--line); border-top:none; border-radius:0 0 13px 13px; padding:10px 15px; }
 .advice-alone { border-top:1.5px solid var(--line); border-radius:13px; }
 .uchip { flex-shrink:0; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; border-radius:999px; padding:3px 9px; }
-.u-now { background:#F3DBDB; color:var(--bad); } .u-visit { background:color-mix(in srgb, var(--primary) 16%, var(--card)); color:var(--primary-text); } .u-self { background:#E7EFE9; color:var(--good); }
+.u-now { background:#F3DBDB; color:var(--bad); } .u-visit { background:color-mix(in srgb, var(--primary) 16%, var(--card)); color:var(--primary-text); } .u-self { background:color-mix(in srgb, var(--good) 13%, var(--card)); color:var(--good); }
 .atext { font-size:var(--fs-sm); line-height:1.5; }
 .rep { background:var(--card); border:1.5px solid var(--line); box-shadow:0 1px 2px rgba(0,0,0,.04); border-radius:13px; padding:15px; margin-bottom:12px; }
 .rtitle { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:17px; margin-bottom:10px; }
@@ -88,12 +89,12 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .route { flex:1; display:flex; flex-direction:column; gap:2px; border:1px solid var(--primary); background:var(--card); color:var(--primary); border-radius:12px; padding:11px 8px; font:700 12px 'Karla Variable','Karla'; cursor:pointer; }
 .route span { font-weight:500; font-size:11.5px; color:var(--soft); }
 .shelfc { background:var(--card); border:1.5px solid var(--line); box-shadow:0 1px 2px rgba(0,0,0,.04); border-radius:var(--r-card); padding:14px; margin-bottom:var(--gap); }
-.shead { display:flex; justify-content:space-between; margin-bottom:3px; }
+.shead { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
 .ppill { font-size:10.5px; font-weight:700; text-transform:uppercase; border:1px solid var(--line); border-radius:999px; padding:2px 8px; color:var(--soft); }
 .sname { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:15.5px; margin-bottom:3px; }
 .smatch { font-size:11.5px; color:var(--primary-text); font-weight:700; margin-bottom:5px; }
 .ev { display:inline-block; font-size:11px; font-weight:700; border-radius:999px; padding:3px 9px; margin-bottom:8px; }
-.ev-strong { background:#E7EFE9; color:var(--good); } .ev-mixed { background:#FBEEE2; color:#8A4E18; } .ev-comfort { background:#EDE7EF; color:#6E6076; }
+.ev-strong { background:color-mix(in srgb, var(--good) 13%, var(--card)); color:var(--good); } .ev-mixed { background:#FBEEE2; color:#8A4E18; } .ev-comfort { background:#EDE7EF; color:#6E6076; }
 .sfoot { display:flex; justify-content:space-between; align-items:center; font-size:13px; gap:8px; }
 .sbtn { border:1px solid var(--primary); background:none; color:var(--primary); border-radius:999px; padding:7px 14px; font:700 12px 'Karla Variable','Karla'; cursor:pointer; }
 .loglines { background:var(--card); border:1.5px solid var(--line); border-radius:13px; padding:12px; font-family:ui-monospace,monospace; font-size:11px; line-height:1.7; }
@@ -111,7 +112,7 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .c-period { background:var(--primary); border-color:var(--primary); color:#FFF; font-weight:700; }
 .c-pred { background:color-mix(in srgb, var(--primary) 18%, var(--card)); border-style:dashed; border-color:var(--primary); color:var(--primary); font-weight:700; }
 .c-fert { background:color-mix(in srgb, var(--accent) 22%, var(--card)); border-color:var(--accent); }
-.c-today { outline:2px solid var(--ink); outline-offset:1px; }
+.c-today { outline:none; box-shadow:inset 0 0 0 2px var(--ink); }
 .callegend { display:flex; flex-wrap:wrap; gap:10px; font-size:11.5px; color:var(--soft); margin-bottom:12px; }
 .callegend .dot { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
 .d-period { background:var(--primary); } .d-pred { background:color-mix(in srgb, var(--primary) 25%, var(--card)); border:1px dashed var(--primary); } .d-fert { background:color-mix(in srgb, var(--accent) 35%, var(--card)); }
@@ -140,13 +141,12 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .obq { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:20px; margin:6px 0 14px; }
 .obopts { display:grid; gap:var(--gap); margin-bottom:18px; }
 .obopt { border:1.5px solid var(--line); background:var(--card); box-shadow:0 1px 2px rgba(0,0,0,.05); border-radius:13px; padding:14px; text-align:left; font:500 14.5px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
-.obopt:active { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 8%, var(--card)); }
 .obdots { display:flex; gap:6px; margin-bottom:16px; }
 .obdots span { width:8px; height:8px; border-radius:50%; background:var(--line); }
 .obdots span.on { background:var(--primary); }
 .c-log { position:absolute; top:3px; right:4px; width:5px; height:5px; border-radius:50%; background:var(--accent); }
 .c-period .c-log { background:#FFF; }
-.linkbtn { border:none; background:none; color:var(--primary-text); font:700 12.5px 'Karla Variable','Karla'; text-decoration:underline; cursor:pointer; padding:0; }
+.linkbtn { display:inline-flex; align-items:center; border:none; background:none; color:var(--primary-text); font:700 12.5px 'Karla Variable','Karla'; text-decoration:underline; cursor:pointer; padding:0; }
 .c-wk { border-color:var(--accent); }
 .c-wklab { position:absolute; bottom:2px; font-size:9px; font-weight:700; color:var(--accent); }
 .d-logdot { background:var(--accent); border-radius:50%; }
@@ -169,13 +169,14 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .bodypanel.more ul { margin:0; padding-left:17px; } .bodypanel.more li { margin:0 0 5px; } .bodypanel.more li:last-child { margin-bottom:0; }
 .morewrap { margin:0 0 10px; }
 .wrapchips { display:flex; flex-wrap:wrap; gap:7px; }
-.minichip { border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:7px 13px; font:500 12.5px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
+.minichip { border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:9px 14px; font:500 12.5px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
 .minichip.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary); font-weight:700; }
 .scalerow { margin-bottom:12px; }
-.scalehead { display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:3px; }
+.scalehead { display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:-4px; }
 .scalehead b { font-family:'Fraunces Variable','Fraunces',serif; color:var(--primary); font-size:15px; }
-.slider { width:100%; accent-color:var(--primary); }
-.scaleends { display:flex; justify-content:space-between; font-size:11.5px; color:var(--soft); }
+.scalehead b.zero { color:var(--soft); }
+.slider { width:100%; accent-color:var(--primary); margin:0; cursor:pointer; }
+.scaleends { display:flex; justify-content:space-between; font-size:11.5px; color:var(--soft); margin-top:-6px; }
 .meter { border:2px solid var(--line); box-shadow:0 1px 3px rgba(0,0,0,.06); background:var(--card); border-radius:var(--r-card); padding:12px 14px; margin-bottom:var(--gap); transition:border-color var(--t-slow) var(--ease-std); }
 .meterhead { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:7px; }
 .meterlabel { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:16px; }
@@ -207,6 +208,26 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .mc { border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:9px 15px; font:500 13px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
 .mc.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary); font-weight:700; }
 .err .mc, .err .stagecard { border-color:#E0A99B; }
+/* ---- control states (spec §8.4): rest / pressed / hover (pointer only) / focus-visible / disabled. Pressed = a 100ms
+   scale on transform plus the selected tint, so a tap answers before the state changes. ---- */
+.cy button, .cy [role=button] { -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+.cta, .ghostbtn, .back, .stagecard, .disclosure, .route, .socialbtn, .obopt, .consentopt, .palopt { transition:transform var(--t-fast) var(--ease-std), background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast); }
+.cta:active, .ghostbtn:active, .back:active, .stagecard:active, .disclosure:active, .route:active, .socialbtn:active, .obopt:active, .consentopt:active, .palopt:active { transform:scale(.985); }
+.cta:active { filter:brightness(.94); }
+.mc, .chip, .pill, .takebtn, .sbtn, .minichip, .tab, .calcell, .scopy, .linkbtn { transition:transform var(--t-fast) var(--ease-std), background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast); }
+.mc:active, .chip:active, .pill:active, .takebtn:active, .sbtn:active, .minichip:active, .calcell:active { transform:scale(.96); background:color-mix(in srgb, var(--primary) 12%, var(--card)); border-color:var(--primary); }
+@media (hover:hover) { .mc:hover, .chip:hover, .pill:hover, .disclosure:hover, .stagecard:hover, .takebtn:hover, .sbtn:hover, .route:hover, .obopt:hover { border-color:color-mix(in srgb, var(--primary) 55%, var(--line)); } }
+/* Danger: the one destructive pill (Delete everything) is red-outlined and never takes the primary tint. */
+.mc.danger { color:var(--bad); border-color:color-mix(in srgb, var(--bad) 40%, var(--line)); }
+.mc.danger:active, .mc.danger.on { background:var(--bad-bg); border-color:var(--bad); color:var(--bad); }
+/* Joined control: 2-5 mutually exclusive answers or views share one border (buttons keep .mc/.on and aria-pressed;
+   standalone .mc pills stay for multi-select). Labels wrap to two lines rather than truncate. */
+.seg { display:flex; flex-wrap:nowrap; width:100%; background:var(--card); border:1.5px solid var(--line); border-radius:var(--r-pill); padding:3px; gap:0; box-sizing:border-box; }
+.seg .mc { flex:1 1 0; min-width:0; border:none; background:none; border-radius:var(--r-pill); padding:7px 4px; font-weight:700; font-size:12px; line-height:1.2; color:var(--soft); min-height:44px; text-align:center; white-space:normal; overflow-wrap:anywhere; }
+.seg .mc.on { background:var(--primary); color:#FFF; }
+.seg .mc:active { background:color-mix(in srgb, var(--primary) 12%, var(--card)); } .seg .mc.on:active { background:var(--primary); }
+.seg.scroll { overflow-x:auto; scrollbar-width:none; } .seg.scroll::-webkit-scrollbar { display:none; }
+.seg.scroll .mc { flex:1 0 auto; padding:8px 12px; white-space:nowrap; }
 .inpErr { border-color:var(--bad) !important; background:var(--bad-bg) !important; }
 .errhint { font-size:var(--fs-sm); color:var(--bad); line-height:1.5; margin:14px 0 0; background:var(--bad-bg); border:1.5px solid #E7C3B8; border-radius:var(--r-inner); padding:11px 13px; }
 .regcards { display:grid; gap:var(--gap); }
@@ -243,6 +264,11 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .medeff { color:var(--primary-text) !important; font-weight:700; } .medeff.muted { color:var(--soft) !important; font-weight:500; }
 .takebtn { flex-shrink:0; border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:8px 13px; font:700 12px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
 .takebtn.on { border-color:var(--primary); background:var(--primary); color:#FFF; }
+.takebtn[aria-pressed] { position:relative; padding:8px 13px 8px 34px; }
+.takebtn[aria-pressed]::before { content:''; position:absolute; left:11px; top:50%; width:16px; height:9px; transform:translateY(-50%); border-radius:999px; background:var(--line); }
+.takebtn[aria-pressed]::after { content:''; position:absolute; left:11px; top:50%; width:9px; height:9px; transform:translateY(-50%); border-radius:50%; background:#FFF; box-shadow:0 0 0 1px rgba(0,0,0,.12); transition:left var(--t-fast); }
+.takebtn.on[aria-pressed]::before { background:rgba(255,255,255,.45); }
+.takebtn.on[aria-pressed]::after { left:18px; box-shadow:none; }
 .jentry { border-top:1.5px solid var(--line); padding:10px 0; } .jentry b { font-size:12px; color:var(--soft); } .jentry p { margin:4px 0 0; font-size:var(--fs-md); line-height:1.55; white-space:pre-wrap; }
 .orline { display:flex; align-items:center; gap:10px; margin:14px 0 10px; font-size:11.5px; color:var(--soft); text-transform:uppercase; letter-spacing:.07em; }
 .orline::before, .orline::after { content:""; flex:1; height:1.5px; background:var(--line); }
@@ -296,13 +322,14 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:fo
 .tab { min-height:44px; padding:12px 10px; }
 /* The tab bar scrolls sideways (overflow-x:auto), which clips anything drawn outside it, so a tab's ring sits just inside the tab. */
 .tab:focus-visible { outline-offset:-3px; }
-.mc, .pill, .takebtn, .sbtn, .orgbtn, .stagechip, .topbtn, .linkbtn, .ghost, .route { min-height:44px; }
-.minichip { min-height:40px; }
+.mc, .pill, .takebtn, .sbtn, .orgbtn, .stagechip, .topbtn, .linkbtn, .ghost, .route, .inp, .slider, .minichip, .scopy, .palopt, .calcell { min-height:44px; }
 .sdot.on, .c-per-mark { outline:1.5px solid rgba(0,0,0,.35); }
 .wearbtns { display:flex; gap:6px; flex-shrink:0; align-items:center; }
 .wearconfirm { margin:2px 0 12px; }
 .wearconfirm .ghostbtn { margin-top:8px; }
-.sbtn:disabled { cursor:default; border-style:dashed; }
+.sbtn:disabled, .sbtn[aria-disabled="true"] { cursor:default; color:var(--soft); border-color:var(--line); border-style:dashed; font-weight:600; }
+button[aria-disabled="true"] { cursor:default; }
+.statechip { font:700 11px 'Karla Variable','Karla'; color:var(--soft); border:1.5px dashed var(--line); border-radius:var(--r-pill); padding:6px 10px; align-self:center; line-height:1.2; }
 .emailpreview { resize:vertical; font:500 12.5px/1.5 'Karla Variable','Karla',sans-serif; white-space:pre-wrap; user-select:text; -webkit-user-select:text; }
 /* ---- POTS add-on (scoped to .pots and the stand-test runner; chrome only — data colours come from RAMPS) ---- */
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }

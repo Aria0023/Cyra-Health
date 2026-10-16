@@ -8,7 +8,7 @@ export default function ScaleSection({ scales, setScales }) {
       <p className="section-lab">How it felt, 0–10</p>
       {SCALES.map((s) => (
         <div className="scalerow" key={s.id}>
-          <div className="scalehead"><span>{s.label}</span><b>{scales[s.id]}</b></div>
+          <div className="scalehead"><span>{s.label}</span><b className={scales[s.id] === 0 ? "zero" : ""}>{scales[s.id]}</b></div>
           <input className="slider" type="range" min="0" max="10" value={scales[s.id]} aria-label={`${s.label}, 0 is ${s.low}, 10 is ${s.high}`} aria-valuetext={`${scales[s.id]} out of 10`} onChange={(e) => setScales((x) => ({ ...x, [s.id]: +e.target.value }))} />
           <div className="scaleends"><span>{s.low}</span><span>{s.high}</span></div>
         </div>

@@ -41,9 +41,9 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
         ))}
       </div>
       <p className="section-lab" style={{ margin: "14px 0 8px" }}>Check-in style</p>
-      <div className="mcrow">
-        <button className={`mc ${quickMode ? "on" : ""}`} onClick={() => setQuickMode(true)}>Quick · 3 taps</button>
-        <button className={`mc ${!quickMode ? "on" : ""}`} onClick={() => setQuickMode(false)}>Full detail</button>
+      <div className="mcrow seg" role="group" aria-label="Check-in style">
+        <button className={`mc ${quickMode ? "on" : ""}`} aria-pressed={quickMode} onClick={() => setQuickMode(true)}>Quick · 3 taps</button>
+        <button className={`mc ${!quickMode ? "on" : ""}`} aria-pressed={!quickMode} onClick={() => setQuickMode(false)}>Full detail</button>
       </div>
       {stage && (
         <>
