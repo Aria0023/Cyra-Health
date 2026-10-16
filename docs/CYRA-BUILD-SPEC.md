@@ -304,6 +304,37 @@ calendar fills, and score meters use the ramp. Interpolate good↔mid↔rough by
 Cards pure white on tinted paper; borders 1.5px in a visibly darker tone; subtle
 shadow lift; near-black ink. Pale-on-pale fails — this was a real defect once.
 
+### 8.4 Tokens and motion (src/styles.js, the `.cy` rule)
+One scale for every screen; new rules reference the tokens instead of restating pixels.
+
+```
+type      --fs-xs 11px (section labels)  --fs-sm 12.5px (secondary)  --fs-md 13.5px (body)
+          --fs-lg 15.5px  --fs-num 23px (Fraunces card numbers)  --fs-title 26px (greeting, screen titles)
+          body line-height 1.5; display numbers/headings 1.15; labels, pills and legends 1.2–1.35
+          floor: nothing below 10.5px except .c-wklab (9px, a two-letter week mark inside a calendar cell)
+grid      --gap 8px (between cards and between pills)   --stack 12px (between sections)
+radii     --r-card 13px (cards, CTA)   --r-inner 11px (controls inside a card)   --r-pill 999px
+motion    --t-fast 100ms  --t-base 200ms  --t-slow 300ms
+          --ease-std cubic-bezier(.2,0,0,1)  --ease-in cubic-bezier(.05,.7,.1,1)  --ease-out cubic-bezier(.3,0,.8,.15)
+colour    --primary-text  color-mix(primary 82%, ink): the tint for small primary-coloured text on paper
+          (links, stage chip, "Matched:" lines, med effect, selected stage name). Measured >= 5.2:1 on paper in
+          all nine palettes; Fraunces numbers, filled buttons and the streak/pulse figures keep --primary.
+          --good #43604F  --bad #A04545  --bad-bg #FBEEEA: the only status hues in chrome (.up/.down/.better/
+          .worse, urgent cards, error hints, the stop button). Data-viz colours stay in FAMILIES / RAMPS.
+safe area --sa-t / --sa-b: Capacitor's --safe-area-inset-top/bottom when the shell provides them, else
+          env(safe-area-inset-*), else 0. Every sticky bar and toast offsets by these, never by env() directly.
+```
+
+**Reduced motion is reduce, not remove.** Under `prefers-reduced-motion: reduce` keyframe animations do not
+run at all and transitions are limited to background-color, border-color, color and opacity at --t-fast, so a
+tap still shows its colour change. JS-driven motion (smooth scrollIntoView, the score tween, SVG draw-ins) asks
+`reduceMotion()` from `src/lib/motion.js` first and does the instant version when it is true.
+
+**Performance budget.** Anything that animates continuously animates transform or opacity only. `will-change`
+only on `.toast.show` and `.tabpanel`. Nothing is scroll-linked. No requestAnimationFrame loops other than the
+250ms score tween. Each entrance runs once per mount behind a ref, <= 600ms. The shared keyframes are
+`cy-fade-rise`, `cy-pop`, `cy-draw`, `cy-spin`, `cy-pulse` and `cy-grow`; new motion reuses them.
+
 ---
 
 ## 9. BACKEND (separate service, optional for v1)
@@ -470,6 +501,12 @@ receive only name/email, never health data.
       matching the privacy policy's on-device claims exactly.
 - [ ] Push notifications honoring cadence + nudge-time + "never"; no SMS.
 - [ ] Capacitor or Expo wrap for iOS/Android from the same codebase.
+      Shell notes the web build relies on: `index.html` sets `viewport-fit=cover`, without which every
+      `env(safe-area-inset-*)` is 0 inside WKWebView and sticky bars sit under the home indicator; the
+      stylesheet's `--sa-t`/`--sa-b` tokens read Capacitor's `--safe-area-inset-*` variables first and fall
+      back to `env()`; the iOS config must set the Keyboard plugin to `resize: "body"` so the Ask textarea and
+      the Today form are not covered by the keyboard under a sticky bottom bar (no code dependency; a
+      `capacitor.config` setting when the shell is assembled).
 - [ ] Every UI privacy claim verified literally true of the shipped build.
 
 ## A13. POTS add-on
