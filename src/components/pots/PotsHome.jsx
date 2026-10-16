@@ -35,7 +35,7 @@ export default function PotsHome({ pots, totals, todayIso, onTook, onQuickLog, o
           </div>
         )}
         <div className="routes" style={{ marginTop: 10 }}>
-          <button type="button" className="route" onClick={onQuickLog}>Quick log<span>for foggy days</span></button>
+          <button type="button" className="route" onClick={onQuickLog}>Quick log<span>Simple view · for foggy days</span></button>
           {pots.settings.show.test && <button type="button" className="route" onClick={onStandTest}>Stand test<span>about 15–25 minutes</span></button>}
         </div>
         <button type="button" className="ghostbtn" style={{ marginTop: 8 }} onClick={onOpen}>Open POTS tools</button>

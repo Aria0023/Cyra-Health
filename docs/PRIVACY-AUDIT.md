@@ -489,3 +489,12 @@ Owner feedback: Home was too long. Four changes, none of which adds a data flow.
 - **Milestones** are a row of progress dots with the next milestone named; the full timeline is under "All milestones" (hidden until opened). No data change.
 - **"You're not alone"**: the two statements that matter stay on screen under the counts — "Anonymous counts only: no names, dates or values." and, whenever counts can load, "Loading these numbers tells Cyra's server nothing about your health." — and how the counts are made ("The Cyra app adds to them only for people who turn on sharing, at most once a week from each phone or browser … treat these as rough numbers.") sits under "How these counts work", hidden until opened, never removed. In a build with no API base the three "not available" rows are now one: "Community counts aren't available in this version of the app" (the native harness check CH24 was updated to expect one row). Nothing about how counts are read or sent changed.
 - **The five collapsible sections** are buttons in a two-column grid; each opens a titled panel under the grid. All wearable disclosures, the trial text and the appointment and journal flows are unchanged; the "first monthly recap" message now shows inside the Month vs last month panel instead of as a standing card.
+
+### UI H1: Home states
+
+Layout only; no data flow was added or changed. Traced to the source on 16 October 2026.
+
+- **"You're not alone"**: both on-screen sentences are unchanged and still literally true — "Anonymous counts only: no names, dates or values." and, whenever counts can load, "Loading these numbers tells Cyra's server nothing about your health." The section label's textContent is byte-identical ("You're not alone · last week, from people who share counts"; the tail now sits in a `.seclite` span for sentence case). When counts are unavailable in the build the card is drawn quiet (`.pulse.quiet`: white, hairline border) — the same one row "Community counts aren't available in this version of the app", the same disclosure, nothing removed.
+- **Today line, insight dot, door statuses, week bar, first-run placeholder**: all computed from the on-device record (`entryOn(todayIso)`, `ins`, `meds`, `appts`, `journal`, `pregWeek`) on render; nothing is stored and nothing leaves the device.
+- **Milestone moment**: `justReached` is React state cleared after 2 seconds, never written to the record or any storage, never set on hydration or restore (`grep -c milestonesSeen src` = 0). The toast "Milestone reached: {label}" is on-device feedback only.
+

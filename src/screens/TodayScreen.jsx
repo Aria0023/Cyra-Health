@@ -13,7 +13,7 @@ import { fmt, sevDots, foldQuick } from "../lib/engine.js";
    so it adds no symptom flags — only the full check-in's named symptoms, sleep and flow do.
    The form opens on what is already saved for the day (App.jsx loads it), so saving again
    updates that entry; an edit's "Period day" switch is what that day is saved with. */
-export default function TodayScreen({ onPots = null, pred, stage, welcome, editDate, onEndEdit, setDraft, setSleepQ, scoreMeter, quickMode, quickCheckin, symIds, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, setEditPeriod, scales, flow, disch, odor, bodyOdor, setDays, ping, setAppTab, research, contribute }) {
+export default function TodayScreen({ onPots = null, pred, stage, welcome, editDate, onEndEdit, setDraft, setSleepQ, scoreMeter, quickMode, quickCheckin, symIds, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, setEditPeriod, scales, flow, disch, odor, bodyOdor, days = [], setDays, onSaved = null, ping, setAppTab, research, contribute }) {
   return (
     <main>
       {pred && (
@@ -65,8 +65,11 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
         // Spotting alone is not a period day; an edit keeps the day's own "Period day" switch.
         const bleeding = !!flow && flow !== "spot";
         const entry = { date: target, sleepQ: sleepQ || "fair", period: editDate ? !!editPeriod : bleeding, scales: { ...scales }, flow, disch, odor, bodyOdor, sym };
+        const next = [...days.filter((x) => x.date !== target), entry].sort((a, b) => a.date.localeCompare(b.date));
         setDays((d) => [...d.filter((x) => x.date !== target), entry].sort((a, b) => a.date.localeCompare(b.date)));
         ping(editDate ? `${fmt(target)} updated` : "Saved — check Patterns");
+        // App compares milestones before and after this save (the "Milestone reached" moment); it may replace the toast above.
+        onSaved?.(next);
         // Weekly counts: a symptom still at the value a combined quick question gave it adds no flag.
         const flagged = Object.fromEntries(Object.entries(mapped).filter(([k, v]) => !(k in fromQuick && fromQuick[k] === v)));
         contribute({ sym: quickMode && !editDate ? {} : flagged, sleepQ: sleepQ || "fair", flow }, target);

@@ -40,8 +40,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
    ./components; constants and pure engine functions in ./lib.
    ================================================================ */
 
-import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, RAMPS } from "./lib/constants.js";
-import { seed, fmt, insights, predict, predictionWaits, symBurden, scoreLabel, dayScore, isPeriodDay } from "./lib/engine.js";
+import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, RAMPS, SYM_FAMILY } from "./lib/constants.js";
+import { seed, fmt, insights, predict, predictionWaits, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf } from "./lib/engine.js";
 import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
 import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource, drainTerra, mergeRows, disconnectHelp } from "./lib/wearables.js";
 import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue, pruneQueue, mergeQueues, localDay, weekKey } from "./lib/pulse.js";
@@ -286,6 +286,8 @@ export default function CyraDemo() {
   const [todayIso, setTodayIso] = useState(() => localDay());
   const syncDay = () => { const now = localDay(); setTodayIso((cur) => (cur === now ? cur : now)); return now; };
   const pregWeek = 22, trimester = 2;
+  const tri = trimesterOf(pregWeek); // "first" | "second" | "third", for the Home greeting and week bar
+  const dueDate = new Date(Date.now() + (40 - pregWeek) * 7 * 86400000).toLocaleDateString("en-US", { month: "long", day: "numeric" });
   const toastTimer = useRef(null);
   /* A toast stays long enough to be read: 2.6s for a short one, then 1s + 35ms per character (a 70-character
      sentence shows for 3.5s, 180 characters for 7.3s), capped at 8s: the web-live suite waits 10s for a toast
@@ -770,39 +772,62 @@ export default function CyraDemo() {
     return out;
   })();
 
-  /* ---- Milestones: clinical + usage ---- */
-  const milestones = (() => {
+  /* ---- Milestones: clinical + usage. A pure function of a days array (the record it is given,
+     not the state), so a save can be compared before and after; `milestones` is today's. ---- */
+  const milestonesFor = (daysArr) => {
+    const di = daysArr === days ? ins : insights(daysArr, stage === "periods" ? Object.keys(PSYM) : SYMS);
     const ms = [];
-    const total = stage === "preg" ? Object.keys(pregLog).length : ins.sorted.length;
+    const total = stage === "preg" ? Object.keys(pregLog).length : di.sorted.length;
     ms.push({ done: total >= 7, label: "First week tracked" });
     ms.push({ done: total >= 30, label: "A full month of data" });
     if (stage === "periods") {
-      ms.push({ done: ins.lens.length >= 1, label: "First full cycle logged" });
-      ms.push({ done: ins.lens.length >= 3, label: "3 cycles — predictions sharpen" });
+      ms.push({ done: di.lens.length >= 1, label: "First full cycle logged" });
+      ms.push({ done: di.lens.length >= 3, label: "3 cycles — predictions sharpen" });
       if (wearData.length) ms.push({ done: wearInsights.some((w) => w.num === "Ovulated"), label: "Ovulation confirmed by temperature" });
     }
     if (stage === "peri") {
-      const lastP = ins.starts[ins.starts.length - 1];
+      const lastP = di.starts[di.starts.length - 1];
       const monthsSince = lastP ? Math.floor((Date.now() - new Date(lastP + "T12:00:00")) / (30.44 * 86400000)) : null;
-      ms.push({ done: ins.variability != null && ins.variability >= 7, label: "Cycle variability flagged — transition marker" });
-      ms.push({ done: monthsSince != null && monthsSince >= 12, label: `12 months period-free = menopause${monthsSince != null ? ` · ${Math.min(12, monthsSince)}/12` : ""}`, progress: monthsSince != null ? Math.min(1, monthsSince / 12) : 0 });
+      ms.push({ done: di.variability != null && di.variability >= 7, label: "Cycles varying by 7+ days — a sign of the transition" });
+      ms.push({ done: monthsSince != null && monthsSince >= 12, label: `12 months without a period — menopause${monthsSince != null ? ` · ${Math.min(12, monthsSince)} of 12` : ""}`, progress: monthsSince != null ? Math.min(1, monthsSince / 12) : 0 });
     }
     if (stage === "preg") { ms.push({ done: pregWeek >= 13, label: "Second trimester" }); ms.push({ done: pregWeek >= 22, label: "Anatomy scan window" }); ms.push({ done: pregWeek >= 28, label: "Third trimester" }); }
     ms.push({ done: Object.values(wearSources).some((w) => w && !w.pending), label: "Wearable connected" });
-    ms.push({ done: meds.length > 0, label: "Started a trial — something you're trying" });
-    ms.push({ done: appts.some((a) => a.note), label: "First visit debriefed" });
+    ms.push({ done: meds.length > 0, label: "Trying something new — a med, supplement or habit" });
+    ms.push({ done: appts.some((a) => a.note), label: "First visit written up" });
     return ms;
-  })();
+  };
+  const milestones = milestonesFor(days);
+  /* The one milestone moment: right after a save that flips a milestone, Home pops that dot and the
+     toast names it, for 2 seconds. Transient state only: never stored, never set on hydration or
+     restore, so it cannot replay. */
+  const [justReached, setJustReached] = useState(null);
+  const reachedTimer = useRef(null);
+  useEffect(() => () => clearTimeout(reachedTimer.current), []);
+  const onSaved = (nextDays) => {
+    const before = milestonesFor(days), after = milestonesFor(nextDays);
+    const fresh = after.find((m) => m.done && !before.find((b) => b.label === m.label)?.done);
+    if (!fresh) return;
+    setJustReached({ label: fresh.label, at: Date.now() });
+    ping(`Milestone reached: ${fresh.label}`);
+    clearTimeout(reachedTimer.current);
+    reachedTimer.current = setTimeout(() => setJustReached(null), 2000);
+  };
 
   const homeInsight = (() => {
     if (stage === "preg") {
       const next = [[24, "glucose screening"], [27, "Tdap vaccine"], [32, "RSV vaccine (seasonal)"], [36, "Group B Strep swab"]].find(([w]) => w >= pregWeek);
       return { num: `Wk ${pregWeek}`, text: next ? `Next up on your care roadmap: ${next[1]} around week ${next[0]}.` : "You're in the home stretch — weekly visits from here." };
     }
+    // Honest first run: before 3 check-ins the card counts the gap and names what unlocks it.
+    if (days.length < 3) {
+      const n = ins.sorted.length, left = 3 - n;
+      return { num: `${n} of 3`, text: n === 0 ? "Log a few days and your first insight appears here." : `${left} more check-in${left === 1 ? "" : "s"} and your first insight appears here.` };
+    }
     if (stage === "peri" && ins.variability != null && ins.variability >= 7) return { num: `${ins.variability}d`, text: `Your cycles are varying by ${ins.variability} days — the clearest marker of the transition. Worth raising at your next visit.` };
-    if (stage === "peri" && ins.hfMult && ins.hfMult > 1.2) return { num: `${ins.hfMult.toFixed(1)}×`, text: `Hot flashes were ${ins.hfMult.toFixed(1)}× more likely after a rough night. Sleep is your biggest lever.` };
+    if (stage === "peri" && ins.hfMult && ins.hfMult > 1.2) return { num: `${ins.hfMult.toFixed(1)}×`, text: `Hot flashes were ${ins.hfMult.toFixed(1)}× more likely after a rough night. Sleep is your biggest lever.`, fam: "heat" };
     const top = ins.counts.find((x) => x.days > 0);
-    if (top) return { num: `${top.days}/30`, text: `${top.label} showed up most this month — ${top.days} of 30 days.` };
+    if (top) return { num: `${top.days} days`, text: `${top.label} showed up most this month — ${top.days} of 30 days.`, fam: SYM_FAMILY[top.id] || "body" };
     return { num: "—", text: "Log a few days and your first insight appears here." };
   })();
 
@@ -811,7 +836,7 @@ export default function CyraDemo() {
   const daysUntil = (iso) => Math.round((new Date(iso + "T12:00:00") - new Date(todayIso + "T12:00:00")) / 86400000);
   const nextUp = [];
   if (stage === "preg") nextUp.push({ k: "due", text: `Due in about ${40 - pregWeek} weeks`, sub: new Date(Date.now() + (40 - pregWeek) * 7 * 86400000).toLocaleDateString("en-US", { month: "long", day: "numeric" }) });
-  else if (pred) nextUp.push(pred.late > 0 ? { k: "late", text: `Period ${pred.late} day${pred.late > 1 ? "s" : ""} past your average`, sub: stage === "peri" ? "Irregularity is data too" : "Normal variation happens" } : { k: "period", text: `Period expected in ~${pred.daysTo} days`, sub: `Avg cycle ${pred.avgLen} days` });
+  else if (pred) nextUp.push(pred.late > 0 ? { k: "late", text: `Period ${pred.late} day${pred.late > 1 ? "s" : ""} past your average`, sub: `${stage === "peri" ? "Irregularity is data too" : "Normal variation happens"} · Calendar →`, action: () => goTab("cal") } : { k: "period", text: `Period expected in ~${pred.daysTo} days`, sub: `Avg cycle ${pred.avgLen} days · Calendar →`, action: () => goTab("cal") });
   if (upcoming[0]) nextUp.push({ k: "appt", text: `Appointment${upcoming[0].who ? ` with ${upcoming[0].who}` : ""} in ${daysUntil(upcoming[0].date)} day${daysUntil(upcoming[0].date) === 1 ? "" : "s"}`, sub: daysUntil(upcoming[0].date) <= 7 && stage !== "preg" ? "Prep your report →" : fmt(upcoming[0].date), action: daysUntil(upcoming[0].date) <= 7 && stage !== "preg" ? () => goTab("report") : null }); // pregnancy has no Report tab
 
   const style = { "--primary": t.primary, "--paper": t.paper, "--card": t.card, "--accent": t.accent, "--ink": t.ink, "--soft": t.soft, "--line": t.line };
@@ -1534,7 +1559,8 @@ export default function CyraDemo() {
   const appIs = (id) => !potsPage && appTab === id;
   const homeView = (
     <HomeScreen
-      acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} pred={pred} loggedLast14={loggedLast14} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} patternsCard={patternsCard} wearInsights={wearInsights} milestones={milestones} nextUp={nextUp} pulse={pulse}
+      acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} tri={tri} dueDate={dueDate} pred={pred} loggedLast14={loggedLast14} loggedTotal={stage === "preg" ? Object.keys(pregLog).length : ins.sorted.length} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} patternsCard={patternsCard} wearInsights={wearInsights} milestones={milestones} justReached={justReached} nextUp={nextUp} pulse={pulse}
+      todayEntry={entryOn(todayIso) || null} scoreIds={stage === "preg" ? Object.keys(GSYM) : symIds} scoreLabels={stage === "preg" ? GSYM : symMap} dayScore={dayScore}
       recap={recap} showRecap={showRecap} setShowRecap={setShowRecap}
       showWear={showWear} setShowWear={setShowWear} wearSources={wearSources} terraOffCount={terraOff.length} connectWear={connectWear} disconnectWear={disconnectWear} wearConfirm={wearConfirm} setWearConfirm={setWearConfirm} wearBusy={wearBusy} wearData={wearData} wAvg={wAvg}
       showMeds={showMeds} setShowMeds={setShowMeds} meds={meds} medLog={medLog} medEffects={medEffects} setMedLog={setMedLog} newMed={newMed} setNewMed={setNewMed} setMeds={setMeds} ping={ping}
@@ -1646,7 +1672,7 @@ export default function CyraDemo() {
             {potsPage && potsView}
 
             {appIs("today") && (
-              <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} setDays={setDays} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
+              <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} days={days} setDays={setDays} onSaved={onSaved} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
             )}
             {appIs("cal") && (
               <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />

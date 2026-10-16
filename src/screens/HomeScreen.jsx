@@ -4,6 +4,8 @@ import { isNative } from "../lib/native.js";
 import Advice from "../components/Advice.jsx";
 import Details from "../components/Details.jsx";
 import Icon from "../components/Icon.jsx";
+import { dominantFamily } from "../components/PatternCharts.jsx";
+import { FAMILIES } from "../lib/constants.js";
 import { reduceMotion } from "../lib/motion.js";
 import { useEffect, useRef } from "react";
 
@@ -42,10 +44,15 @@ const DISCLOSE = {
     ],
   },
 };
+const FAM_COLOR = Object.fromEntries(FAMILIES.map((f) => [f.id, f.color]));
+const SLEPT = { good: "well", fair: "so-so", poor: "poorly" };
+/* The seven-dot sketch that stands in for the chart before 3 check-ins: --line and --soft only, no data. */
+const SOON_PTS = [[18, 34], [66, 22], [114, 30], [162, 16], [210, 26], [258, 12], [306, 20]];
 const delta = (a, b, goodUp = true) => { const d = b - a; if (d === 0) return <span className="flat">unchanged</span>; const good = goodUp ? d > 0 : d < 0; return <span className={good ? "up" : "down"}>{d > 0 ? "+" : ""}{d}</span>; };
 
 export default function HomeScreen({
-  acct, stage, stageName, pregWeek, pred, loggedLast14, streakLine, goTab, entryOn, todayIso, homeInsight, patternsCard = null, wearInsights, milestones, nextUp, pulse,
+  acct, stage, stageName, pregWeek, tri = "second", dueDate = "", pred, loggedLast14, loggedTotal = 0, streakLine, goTab, entryOn, todayIso, homeInsight, patternsCard = null, wearInsights, milestones, justReached = null, nextUp, pulse,
+  todayEntry = null, scoreIds = [], scoreLabels = {}, dayScore = null,
   recap, showRecap, setShowRecap,
   showWear, setShowWear, wearSources, terraOffCount = 0, connectWear, disconnectWear, wearConfirm, setWearConfirm, wearBusy, wearData, wAvg,
   showMeds, setShowMeds, meds, medLog, medEffects, setMedLog, newMed, setNewMed, setMeds, ping,
@@ -57,6 +64,22 @@ export default function HomeScreen({
   const connectedCount = Object.values(wearSources).filter((w) => w && !w.pending).length;
   const allDemo = wearData.length > 0 && wearData.every((r) => r.demo);
   const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  // Today's line under the CTA once today is logged: score, sleep, the two strongest symptoms, in words.
+  const todayLine = (() => {
+    if (!todayEntry) return null;
+    const score = dayScore ? Math.round(dayScore(todayEntry, scoreIds) * 100) : null;
+    const syms = scoreIds.filter((k) => (todayEntry.sym?.[k] || 0) > 0).sort((a, b) => todayEntry.sym[b] - todayEntry.sym[a]);
+    const fam = dominantFamily(todayEntry, scoreIds);
+    const parts = ["Today", ...(score != null ? [`score ${score}`] : []), ...(todayEntry.sleepQ ? [`slept ${SLEPT[todayEntry.sleepQ] || todayEntry.sleepQ}`] : [])];
+    if (syms.length) parts.push(`${syms.slice(0, 2).map((k) => scoreLabels[k] || k).join(", ")}${syms.length > 2 ? ` +${syms.length - 2}` : ""}`);
+    return { text: parts.join(" · "), color: fam ? FAM_COLOR[fam] : "var(--line)" };
+  })();
+  // Pregnancy week bar: three trimester segments (weeks 1–12, 13–27, 28–40), the elapsed part filled.
+  const wkSegs = [[0, 12], [12, 27], [27, 40]].map(([a, b]) => Math.max(0, Math.min(1, (pregWeek - a) / (b - a))));
+  // The stepper rail shows reached dots first (contiguous from the left); the list under "All milestones" keeps the spec order.
+  const rail = [...milestones.filter((m) => m.done), ...milestones.filter((m) => !m.done)];
+  const nextMs = milestones.find((m) => !m.done && m.progress != null) || milestones.find((m) => !m.done);
+  const wd = (iso) => (iso === todayIso ? "today" : daysUntil(iso) > -7 ? new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" }) : fmt(iso));
   // A section opened from the grid scrolls its panel into view (the panels sit under the grid, so an
   // open one can start below the fold). Not on first render, and only for the flag that just turned on.
   const wasOpen = useRef(null);
@@ -73,24 +96,46 @@ export default function HomeScreen({
       <div className="homehead">
         <div>
           <h1 className="greet">{greet}{acct.name ? `, ${acct.name}` : ""}.</h1>
-          <div className="greetsub">{stage === "preg" ? `Week ${pregWeek} · second trimester` : pred ? `Day ${pred.cycleDay} · ${pred.phase} phase` : stageName}</div>
+          <div className="greetsub">{stage === "preg" ? `Week ${pregWeek} · ${tri} trimester` : pred ? `Day ${pred.cycleDay} · ${pred.phase} phase` : stageName}</div>
         </div>
-        <div className="streak"><b>{loggedLast14}</b><span>of 14 days</span></div>
+        {loggedLast14 === 0
+          ? <div className="streak"><b>Day 1</b><span>let's start</span></div>
+          : <div className={`streak ${loggedLast14 >= 7 ? "warm" : ""}`}><b>{loggedLast14}</b><span>of 14 days</span></div>}
       </div>
+      {stage === "preg" && (
+        <div className="wkbar" role="img" aria-label={`Week ${pregWeek} of 40, ${tri} trimester`}>
+          <div className="wktrack">{wkSegs.map((f, i) => <i key={i} className="wkseg"><b style={{ width: `${f * 100}%` }} />{f > 0 && f < 1 && <u style={{ left: `${f * 100}%` }} />}{f === 1 && i === 2 && <u style={{ left: "100%" }} />}</i>)}</div>
+          <div className="wkticks"><span>T1</span><span>T2</span><span>T3<em>Due {dueDate}</em></span></div>
+        </div>
+      )}
       <p className="hint" style={{ marginTop: -6 }}>{streakLine}</p>
 
-      <button className="cta" onClick={() => goTab("today")}>{entryOn(todayIso) ? "Update today's check-in" : "Check in — about 30 seconds"}</button>
+      <button className={`cta ${entryOn(todayIso) ? "done" : ""}`} onClick={() => goTab("today")}>{entryOn(todayIso) ? "Update today's check-in" : "Check in — about 30 seconds"}</button>
+      {todayLine && <button type="button" className="todayline" onClick={() => goTab("today")}><i className="fdot" aria-hidden="true" style={{ background: todayLine.color }} />{todayLine.text}</button>}
       {/* POTS add-on (App.jsx): the "POTS today" card while it's on, or the one-time offer card. Never replaces Today's insight. */}
       {potsCard}
 
       <p className="section-lab">Today's insight</p>
-      <div className="card"><div className="num">{homeInsight.num}</div><p>{homeInsight.text}</p></div>
+      <div className="card insight"><div className="num">{homeInsight.num}</div><p>{homeInsight.fam && <i className="fdot" aria-hidden="true" style={{ background: FAM_COLOR[homeInsight.fam] }} />}{homeInsight.text}</p></div>
 
-      {/* The patterns card (components/PatternCharts.jsx), the same card the Patterns tab opens with. */}
-      {patternsCard && (
+      {/* The patterns card (components/PatternCharts.jsx), the same card the Patterns tab opens with;
+          before 3 check-ins, a grey sketch that counts the gap (no chart classes, no family colours). */}
+      {patternsCard ? (
         <>
           <p className="section-lab">Your patterns · last 60 days</p>
           {patternsCard}
+        </>
+      ) : stage !== "preg" && (
+        <>
+          <p className="section-lab">Your patterns</p>
+          <div className="plaincard pchart-soon">
+            <svg viewBox="0 0 324 44" aria-hidden="true" focusable="false">
+              <path d={SOON_PTS.map(([x, y], i) => `${i ? "L" : "M"}${x},${y}`).join(" ")} fill="none" stroke="var(--line)" strokeWidth={1.5} strokeDasharray="3 4" strokeLinecap="round" />
+              {SOON_PTS.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={4} fill="var(--card)" stroke="var(--soft)" strokeWidth={1.5} strokeDasharray={i < loggedTotal ? "none" : "2 2"} />)}
+            </svg>
+            <p className="plain">Your 60-day chart appears after 3 check-ins · {Math.min(3, loggedTotal)} of 3</p>
+            <span className="msbar three" aria-hidden="true">{[0, 1, 2].map((i) => <i key={i} className={i < loggedTotal ? "on" : ""} />)}</span>
+          </div>
         </>
       )}
 
@@ -111,11 +156,11 @@ export default function HomeScreen({
       <p className="section-lab">Milestones · {milestones.filter((m) => m.done).length} of {milestones.length} reached</p>
       <div className="plaincard mscard">
         <ol className="msteps" aria-hidden="true">
-          {milestones.map((m, i) => <li className={`mstep ${m.done ? "done" : ""}`} key={i}><span className="msdot">{m.done ? "✓" : ""}</span></li>)}
+          {rail.map((m, i) => <li className={`mstep ${m.done ? "done" : ""} ${justReached && m.label === justReached.label ? "new" : ""}`} key={i}><span className="msdot">{m.done ? "✓" : ""}</span></li>)}
         </ol>
-        {(() => { const next = milestones.find((m) => !m.done); return next
-          ? <p className="msnext"><b>Next up: </b>{next.label}{next.progress != null && <span className="msbar" aria-hidden="true"><i style={{ width: `${next.progress * 100}%` }} /></span>}</p>
-          : <p className="msnext"><b>Every milestone reached.</b></p>; })()}
+        {nextMs
+          ? <p className="msnext"><b>Next up: </b>{nextMs.label}{nextMs.progress != null && <span className="msbar" aria-hidden="true"><i style={{ width: `${nextMs.progress * 100}%` }} /></span>}</p>
+          : <p className="msnext"><b>Every milestone reached.</b></p>}
         <Details label="All milestones">
           <ol className="mstrip" aria-label="Milestones">
             {milestones.map((m, i) => (
@@ -142,8 +187,8 @@ export default function HomeScreen({
         </>
       )}
 
-      <p className="section-lab">You're not alone · last week, from people who share counts</p>
-      <div className="pulse">
+      <p className="section-lab">You're not alone <span className="seclite">· last week, from people who share counts</span></p>
+      <div className={`pulse ${pulse.status === "unavailable" ? "quiet" : ""}`}>
         {pulse.status === "unavailable" ? (
           <div className="pulserow"><b>—</b><span>Community counts aren't available in this version of the app</span></div>
         ) : pulse.items.map((it) => (
@@ -165,18 +210,23 @@ export default function HomeScreen({
 
       {/* ---- The five collapsible sections: buttons in a two-column grid, the open panels under it ---- */}
       {(() => {
+        // Each door carries its status after the base label (the base label stays the first text node).
+        const scoreDelta = recap ? recap.score[1] - recap.score[0] : null;
+        const lastMed = meds[meds.length - 1];
+        const lastJ = Object.keys(journal).sort().pop();
+        const apptIn = upcoming[0] ? daysUntil(upcoming[0].date) : null;
         const sections = [
-          { id: "recap", label: "Month vs last month", open: showRecap, set: setShowRecap },
-          { id: "wear", label: `Wearables${connectedCount ? ` · ${connectedCount} connected` : " · optional"}`, open: showWear, set: setShowWear },
-          { id: "meds", label: `What I'm trying${meds.length ? ` · ${meds.length}` : ""}`, open: showMeds, set: setShowMeds },
-          { id: "appts", label: `Appointments${upcoming.length ? ` · ${upcoming.length} upcoming` : ""}`, open: showAppts, set: setShowAppts },
-          { id: "journal", label: `Journal${Object.keys(journal).length ? ` · ${Object.keys(journal).length} entries` : ""}`, open: showJournal, set: setShowJournal },
+          { id: "recap", label: "Month vs last month", status: recap ? (scoreDelta ? `${scoreDelta > 0 ? "+" : "−"}${Math.abs(scoreDelta)}` : "unchanged") : "soon", open: showRecap, set: setShowRecap },
+          { id: "wear", label: "Wearables", status: connectedCount ? `${connectedCount} connected` : "optional", open: showWear, set: setShowWear },
+          { id: "meds", label: "What I'm trying", status: lastMed ? `${lastMed.name}, day ${Math.max(1, 1 - daysUntil(lastMed.started))}` : "", open: showMeds, set: setShowMeds },
+          { id: "appts", label: "Appointments", status: upcoming[0] ? `${upcoming[0].who || "visit"} ${apptIn === 0 ? "today" : `in ${apptIn} day${apptIn === 1 ? "" : "s"}`}` : "", open: showAppts, set: setShowAppts },
+          { id: "journal", label: "Journal", status: lastJ ? `last entry ${wd(lastJ)}` : "", open: showJournal, set: setShowJournal },
         ];
         return (
           <div className="dgrid">
             {sections.map((sec) => (
               <button type="button" key={sec.id} className={`disclosure ${sec.open ? "on" : ""}`} aria-expanded={sec.open} aria-controls={sec.open ? `home-${sec.id}` : undefined} onClick={() => sec.set((v) => !v)}>
-                <span>{sec.label}</span><Icon name="chevron" className="chev" />
+                <span>{sec.label}{sec.status && <span className="dsub"> · {sec.status}</span>}</span><Icon name="chevron" className="chev" />
               </button>
             ))}
           </div>

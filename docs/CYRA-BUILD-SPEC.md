@@ -519,10 +519,44 @@ the build; how the counts are made sits under "How these counts work") · a two-
 collapsible sections — Month vs last month, Wearables, What I'm trying, Appointments, Journal —
 each opening a titled panel under the grid.
 
+**Home states (UI H1).**
+- *Greeting row.* Pregnancy reads "Week {n} · {first|second|third} trimester" (`trimesterOf(week)` in lib/engine.js:
+  <13 first, <28 second, else third) over a week bar (`.wkbar[role=img]`, aria-label "Week {n} of 40, {tri} trimester"):
+  three trimester segments (12/15/13 weeks), the elapsed part in --primary, a marker dot at the current week, ticks
+  T1 · T2 · T3 and "Due {month day}" at 10.5px --soft. The 14-day tile reads "Day 1 / let's start" while nothing is
+  logged in the last 14 days and takes `.streak.warm` (accent border) from 7 days.
+- *Check-in CTA.* Before today's entry: primary-filled "Check in — about 30 seconds". After it: `.cta.done` (card
+  background, primary border, --primary-text) "Update today's check-in", with a `.todayline` button under it that
+  opens Today: a family-coloured dot (the day's strongest symptom family, FAMILIES) and "Today · score {n} · slept
+  {well|so-so|poorly} · {two strongest symptoms}{ +n}". Both label texts are unchanged.
+- *Today's insight* is `.card.insight` (primary at 6% over the card) with a family dot before the sentence when the
+  insight is about a symptom; the number reads "{n} days", not "n/30". Before 3 check-ins the card counts the gap:
+  "0 of 3 · Log a few days and your first insight appears here." then "{k} more check-in(s) and your first insight
+  appears here.".
+- *Your patterns* on Home is the compact card: the view switch and the legend as on Patterns, the callout sentence
+  ("Your weekly average is …" / "Days a–b …") above the plot as the card's headline (`.pcallout.top`), a shorter plot
+  (viewBox height 150 instead of 206), at most three symptom rows in all (rough nights counted), the day card once a
+  day is tapped, "More in Patterns →". Before 3 check-ins (cycle and peri) a placeholder `.plaincard.pchart-soon`
+  stands in: an aria-hidden seven-dot sketch in --line/--soft only (no `.pchart`/`.psvg` classes, no family colours),
+  "Your 60-day chart appears after 3 check-ins · {k} of 3" and a three-segment `.msbar.three`.
+- *Coming up.* The predicted-period and late rows are `role=button` (click, Enter, Space) and open the Calendar; their
+  sub-line ends in " · Calendar →". The appointment row keeps its Report nudge.
+- *Doors.* Each grid button keeps its base label as the first text node and appends its status in `<span class="dsub">
+  · …</span>`: Month vs last month · {±n | unchanged | soon}; Wearables · {n connected | optional}; What I'm trying ·
+  {latest trial}, day {n}; Appointments · {who | visit} in {n} days (or today); Journal · last entry {today | weekday |
+  date}. Scripts that assert these buttons match on the base label.
+
 ## A2. Pulse ("You're not alone")
 Three stage-specific anonymous aggregate counts ("3,550 women logged cramps this week").
 **Demo uses seeded placeholder numbers and says so in the UI.** Production MUST read these
 from the backend aggregate endpoint (counts only, k-anonymity threshold, never identities).
+
+**Layout (UI H1).** The section label's textContent is exactly "You're not alone · last week, from people who share
+counts"; the part after the name is wrapped in `<span class="seclite">` (sentence case, normal tracking) so the label
+reads as a name plus a note. When counts are unavailable in the build (`pulse.status === "unavailable"`) the card
+takes `.pulse.quiet`: card background, --line border, 10px/14px padding, the dash at 16px and the sentence in --soft,
+so the strongest tint on Home is not spent on a feature that is off. Otherwise the tinted `.pulse` is unchanged. The
+`.pulse`/`.pulserow` classes, every sentence and the "How these counts work" disclosure are the same in both states.
 
 ## A3. "What I'm trying" — trial-and-error engine
 User logs an intervention: `{ id, name, kind: "rx"|"supp"|"habit", started: ISO }` plus a
@@ -583,6 +617,19 @@ Usage: first week, full month, wearable connected, started a trial, first visit 
 Clinical by stage — Cycle: first full cycle, 3 cycles, ovulation confirmed by temperature.
 Peri: variability ≥7 flagged; **"12 months period-free = menopause" with progress bar**
 (months since last period start / 12). Pregnancy: trimester transitions, anatomy-scan window.
+
+**Copy (UI H1).** Peri: "Cycles varying by 7+ days — a sign of the transition", "12 months without a period —
+menopause · {k} of 12". Usage: "Trying something new — a med, supplement or habit", "First visit written up". Done
+conditions are unchanged.
+
+**Stepper and the one milestone moment (UI H1).** The aria-hidden dot rail on Home is drawn reached-first
+(`[...done, ...undone]`, so filled dots are contiguous from the left); the "All milestones" list keeps the order above.
+"Next up" is the first unreached milestone with a progress bar, else the first unreached one. `milestonesFor(daysArr)`
+in App.jsx is a pure function of a days array; `milestones` is `milestonesFor(days)`. TodayScreen calls
+`onSaved(nextDays)` after its save; App compares reached counts before and after and, when one flips, sets a transient
+`justReached` for 2000ms (the matching `.mstep` takes `.new`: dot `cy-pop` 350ms, rail `cy-grow` 300ms; none under
+reduced motion) and toasts "Milestone reached: {label}". This state is never persisted and never set on hydration or
+restore, so the moment cannot replay (`grep milestonesSeen src` finds nothing).
 
 ## A11. Social sign-in
 Account step offers Apple, Google, Facebook. Demo simulates the OAuth round-trip. Production:

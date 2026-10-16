@@ -42,6 +42,8 @@ export function stripeColor(v, hot, calm, mid) {
   const c = v < 0.5 ? lerp(calm || [187, 203, 191], mid || [221, 138, 78], v * 2) : lerp(mid || [221, 138, 78], hot, (v - 0.5) * 2);
   return `rgb(${c})`;
 }
+/* Pregnancy trimester for a week number: weeks 0-12 first, 13-27 second, 28+ third (Home greeting and week bar). */
+export const trimesterOf = (w) => (w < 13 ? "first" : w < 28 ? "second" : "third");
 export const fmt = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 export const hex2rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 

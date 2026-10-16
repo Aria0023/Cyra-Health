@@ -335,6 +335,31 @@ html { scroll-padding-top:60px; }
 .mslabel { flex:1; }
 .msbar { width:56px; height:6px; background:color-mix(in srgb, var(--ink) 12%, var(--card)); border-radius:3px; overflow:hidden; }
 .msbar i { display:block; height:100%; background:var(--primary); }
+/* ---- Home (UI H1): done CTA, today line, doors with status, first-run sketch, quiet pulse, week bar, milestone moment ---- */
+.cta.done { background:var(--card); color:var(--primary-text); border:1.5px solid var(--primary); }
+.todayline { display:flex; gap:8px; align-items:center; width:100%; min-height:44px; border:none; background:none; text-align:left; font:500 var(--fs-md) 'Karla Variable','Karla'; color:var(--soft); padding:4px 2px; margin:-4px 0 6px; cursor:pointer; line-height:1.3; }
+.todayline .fdot { width:8px; height:8px; }
+.card.insight { background:color-mix(in srgb, var(--primary) 6%, var(--card)); }
+.card.insight .fdot { width:8px; height:8px; margin-right:6px; vertical-align:1px; }
+.streak.warm { border-color:var(--accent); } .streak.warm b { color:color-mix(in srgb, var(--accent) 70%, var(--ink)); }
+.dsub { color:var(--soft); font-weight:500; }
+.nextrow[role=button]:active { background:color-mix(in srgb, var(--primary) 6%, transparent); }
+.pchart-soon { padding:12px 16px 14px; } .pchart-soon svg { display:block; width:100%; height:auto; margin:0 0 6px; } .pchart-soon .plain { margin:0 0 8px; }
+.msbar.three { display:grid; grid-template-columns:1fr 1fr 1fr; gap:3px; width:100%; background:none; overflow:visible; }
+.msbar.three i { background:color-mix(in srgb, var(--ink) 12%, var(--card)); border-radius:3px; } .msbar.three i.on { background:var(--primary); }
+.pchart .pcallout.top { border-top:none; margin:0; padding-top:0; } .pcallout.top b { font-size:20px; }
+.pulse.quiet { background:var(--card); border-color:var(--line); padding:10px 14px; }
+.pulse.quiet .pulserow { padding:0; } .pulse.quiet .pulserow b { min-width:auto; font-size:16px; } .pulse.quiet .pulserow span { font-size:var(--fs-md); color:var(--soft); }
+.pulse.quiet .rfoot { margin-top:4px !important; } .pulse.quiet .morewrap { margin:0; } .pulse.quiet .disclosure.more { margin-top:4px; padding:4px 0; }
+.seclite { text-transform:none; letter-spacing:0; font-weight:600; }
+.wkbar { margin:2px 0 10px; }
+.wktrack { display:grid; grid-template-columns:12fr 15fr 13fr; gap:3px; height:6px; }
+.wkseg { position:relative; display:block; height:6px; border-radius:3px; background:color-mix(in srgb, var(--ink) 12%, var(--card)); }
+.wkseg b { position:absolute; left:0; top:0; bottom:0; border-radius:3px; background:var(--primary); }
+.wkseg u { position:absolute; top:50%; width:12px; height:12px; margin:-6px 0 0 -6px; border-radius:50%; background:var(--primary); border:2px solid var(--card); box-sizing:border-box; box-shadow:0 0 0 1px var(--primary); }
+.wkticks { display:grid; grid-template-columns:12fr 15fr 13fr; gap:3px; margin-top:3px; font-size:10.5px; font-weight:700; color:var(--soft); line-height:1.2; }
+.wkticks span:last-child { display:flex; justify-content:space-between; } .wkticks em { font-style:normal; font-weight:500; }
+.mstep.new .msdot { animation:cy-pop 350ms var(--ease-std); } .mstep.new::before { transform-origin:left; animation:cy-grow 300ms var(--ease-in); }
 /* ---- accessibility ---- */
 /* Reduce, don't remove: movement (keyframes, transform/size transitions) goes away, the 100ms colour and opacity
    feedback that tells a reduced-motion user a tap registered stays. */

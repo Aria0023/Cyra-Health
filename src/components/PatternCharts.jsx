@@ -118,9 +118,10 @@ function dayStats(days) {
   return { avg, win, best, worst, showStretches, diff };
 }
 
-function DayField({ days, rows, stats, sel, setSel }) {
+function DayField({ days, rows, stats, sel, setSel, compact = false }) {
   const { avg, win, best, worst, showStretches, diff } = stats;
-  const W = 360, LH = 206, L = 28, R = 10, T = 26, B = 16, n = days.length;
+  // Home's compact card draws the same line, dots and bands on a shorter plot
+  const W = 360, LH = compact ? 150 : 206, L = 28, R = 10, T = 26, B = 16, n = days.length;
   const RH = 30, rowsTop = LH + 8, rowsH = rows.length * RH, H = rowsTop + rowsH + 16;
   const x = (i) => L + (i / (n - 1)) * (W - L - R), step = (W - L - R) / (n - 1);
   // the scale starts a little below her lowest logged day (in tens), so the ups and downs are readable
@@ -263,7 +264,9 @@ function CycleRings({ model, sel, setSel }) {
 
 /* days: windowDays(); starts: logged period starts ([] in menopause); maxRows: how many symptom
    rows to draw under the line (Home shows fewer); onMore: a link to the Patterns tab (Home);
-   compact (Home): no hint line, and the day card appears only once a day is picked.
+   compact (Home): no hint line, the callout sentence above the plot as its headline, a shorter
+   plot, at most maxRows rows in all (rough nights included), and the day card only once a day
+   is picked. The view switch and the legend stay in both variants.
    Renders nothing until 3 days are logged. */
 export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso, maxRows = 6, onMore = null, compact = false }) {
   const [view, setView] = useState("days");
@@ -272,7 +275,8 @@ export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso,
   if (logged.length < 3) return null;
   const canCycle = starts.length >= 2;
   const cycleView = canCycle && view === "cycle";
-  const rows = symptomRows(days, ids, labels, maxRows);
+  const allRows = symptomRows(days, ids, labels, maxRows);
+  const rows = compact ? allRows.slice(0, maxRows) : allRows;
   const stats = dayStats(days);
   const model = cycleView ? ringModel(sorted, ids, starts, todayIso) : null;
   // one selection for both views, kept by date so switching views keeps the day when it is drawn
@@ -284,6 +288,18 @@ export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso,
   const hasPeriod = (cycleView ? model.pts : days).some((d) => d.e && isPeriodDay(d.e));
   const { diff, showStretches, worst, win } = stats;
   const hs = model?.hs;
+  // the one-sentence reading of the view: under the plot on Patterns, above it (as the headline) on Home
+  const callout = cycleView ? (
+    <div className={`pcallout ${compact ? "top" : ""}`}>
+      {hs != null && <b>Days {hs}–{hs + 4}</b>}
+      <p>{hs != null ? `Across your last ${model.cyc.length} cycles, your hardest days usually fall around cycle days ${hs}–${hs + 4}. Worth planning a lighter week around them.` : "Keep logging through your next period and Cyra can show which cycle days are usually hardest for you."}</p>
+    </div>
+  ) : (diff != null || showStretches) ? (
+    <div className={`pcallout ${compact ? "top" : ""}`}>
+      {diff != null && <b>{diff > 0 ? "+" : ""}{diff}</b>}
+      <p>{diff != null ? (Math.abs(diff) < 3 ? "Your weekly average is about where it was 8 weeks ago." : `Your weekly average is ${Math.abs(diff)} points ${diff > 0 ? "better" : "lower"} than 8 weeks ago.`) : ""}{showStretches ? ` Hardest stretch: ${fmt(days[worst].iso)}–${fmt(days[worst + win - 1].iso)}.` : ""}</p>
+    </div>
+  ) : null;
   return (
     <div className="pchart">
       {canCycle && (
@@ -293,25 +309,16 @@ export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso,
         </div>
       )}
       {!compact && <p className="hint phint">{cycleView ? "One ring per cycle, day 1 at the top. Bigger dots are harder days." : "Your day score; higher is a better day. Each dot takes the colour of that day's strongest symptom."}</p>}
+      {compact && callout}
       {cycleView
         ? <CycleRings model={model} sel={ringSel} setSel={(i) => setSelIso(model.pts[i].iso)} />
-        : <DayField days={days} rows={rows} stats={stats} sel={daySel} setSel={(i) => setSelIso(days[i].iso)} />}
+        : <DayField days={days} rows={rows} stats={stats} sel={daySel} setSel={(i) => setSelIso(days[i].iso)} compact={compact} />}
       <FamilyLegend fams={fams} extra={cycleView
         ? <><span><i className="fsize" aria-hidden="true" />bigger = harder day</span>{hasPeriod && <span><i className="fring" aria-hidden="true" />period day</span>}</>
         : <><span><i className="fline" aria-hidden="true" />7-day average</span>{hasPeriod && <span><i className="fband" aria-hidden="true" />period</span>}{compact && <span className="ptap">tap a day for details</span>}</>} />
       {(!compact || picked) && <DayCard day={picked} ids={ids} labels={labels} starts={starts}
         empty={cycleView ? "Tap a dot to see that day." : rows.length ? "Tap a day, or a dot in a row, to see everything you logged that day. Bigger dots in the rows are stronger days." : "Tap a day to see what you logged."} />}
-      {cycleView ? (
-        <div className="pcallout">
-          {hs != null && <b>Days {hs}–{hs + 4}</b>}
-          <p>{hs != null ? `Across your last ${model.cyc.length} cycles, your hardest days usually fall around cycle days ${hs}–${hs + 4}. Worth planning a lighter week around them.` : "Keep logging through your next period and Cyra can show which cycle days are usually hardest for you."}</p>
-        </div>
-      ) : (diff != null || showStretches) && (
-        <div className="pcallout">
-          {diff != null && <b>{diff > 0 ? "+" : ""}{diff}</b>}
-          <p>{diff != null ? (Math.abs(diff) < 3 ? "Your weekly average is about where it was 8 weeks ago." : `Your weekly average is ${Math.abs(diff)} points ${diff > 0 ? "better" : "lower"} than 8 weeks ago.`) : ""}{showStretches ? ` Hardest stretch: ${fmt(days[worst].iso)}–${fmt(days[worst + win - 1].iso)}.` : ""}</p>
-        </div>
-      )}
+      {!compact && callout}
       {onMore && <p className="pline"><button type="button" className="linkbtn" onClick={onMore}>More in Patterns →</button></p>}
     </div>
   );
