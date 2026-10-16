@@ -1608,7 +1608,7 @@ export default function CyraDemo() {
         : potsOffer ? <PotsOffer onOn={() => { setPots((p) => markOffered(p, todayIso)); potsOn(); }} onNot={() => setPots((p) => markOffered(p, todayIso))} /> : null}
     />
   );
-  const askView = <AskScreen org={org} stage={stage} askQ={askQ} setAskQ={setAskQ} runAsk={runAsk} askBusy={askBusy} askOut={askOut} askAI={askAI} setAskAI={setAskAI} aiAvailable={aiAvailable} />;
+  const askView = <AskScreen org={org} stage={stage} askQ={askQ} setAskQ={setAskQ} runAsk={runAsk} askBusy={askBusy} askOut={askOut} askAI={askAI} setAskAI={setAskAI} aiAvailable={aiAvailable} potsOn={potsTab && potsOk} ping={ping} />;
   /* POTS tab: its sections, POTS settings and the first-run cards (goals, medicines). The tools
      this build has decide what "What would help?" and POTS settings offer (POTS_SHOWS). */
   const potsDay = potsDate && potsDate < todayIso ? potsDate : todayIso;

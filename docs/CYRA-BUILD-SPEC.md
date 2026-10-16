@@ -381,6 +381,7 @@ options that fit your symptoms move to the top." The disclosure sentences are un
 **Ask:** free-text question → plain-language evidence answer (~8th-grade reading level)
 + named evidence base (e.g. ACOG, The Menopause Society, Cochrane) + one question to
 bring to her doctor + urgent-flag routing if the question describes red-flag symptoms.
+Starter pills, the source badge, the landing and the one-tap AI route are in §10 (UI A1).
 
 ### 5.2 Pregnancy stage — tabs: Today · Calendar · Milestones · Ask
 **Today:** week number + trimester + progress bar to 40 weeks · weekly read · pregnancy
@@ -682,6 +683,52 @@ device (`answerLocally(q).matched === true`, asserted in askLibrary.test.mjs), s
 Cyra's AI or the network; a card whose id has no entry shows "Add to visit notes →" alone rather than a question the
 library cannot answer. `runAsk(q, { ai })` in App.jsx takes the question string (or the Ask button's click event, then
 the textarea's text) and an optional one-call override of the saved AI choice, and keeps `question` on `askOut`.
+
+*UI A1 — the Ask screen (src/screens/AskScreen.jsx).* Everything above stays; these are added on top:
+- **Starter questions.** Above the textarea, `<p class="section-lab">Try asking</p>` and a horizontally scrolling
+  `.askstarters` row of `.askstarter` pills (44px, `--primary-text` on `--card`, not `.mc`) from `STARTERS[stage]`,
+  plus the POTS starter when the add-on is on (`potsOn` prop = `potsTab && potsOk`, the same gate as Patterns). A tap
+  fills the textarea and runs `runAsk(q)`; every starter is library-matched, so it never reaches the AI or the
+  network. On first run (no answer yet) the label and row sit in a tinted `.askintro` panel (7% primary fill, 25%
+  primary border); once an answer stands the row stays, untinted. An unmatched answer repeats the row inside the
+  card under `The library can answer`.
+- **The hint** reads "Plain-language answers from Cyra's written evidence library, built from the guidelines your
+  doctor reads." and, only when the build has a backend (`aiAvailable`), " If you turn on Cyra's AI below, any
+  answer it writes is labelled." The former third sentence (each answer says where it came from and suggests a
+  question) is dropped: the card now shows it.
+- **Input.** `<label for="ask-q" class="section-lab">Your question</label>`; the textarea is `#ask-q`,
+  `maxLength=500`, placeholder unchanged; past 400 characters a `.askcount` line reads "N / 500 characters";
+  Ctrl/Cmd+Enter submits. The button text stays "Ask"; while the AI path runs it reads "Asking Cyra's AI…" with a
+  14px `.askspin` ring beside the label (`cy-spin`; under prefers-reduced-motion the ring stands still and breathes
+  in opacity with `cy-pulse`, the one keyframe kept under that setting because it moves nothing) and the section
+  below carries `<p class="rfoot" role="status">Asking Cyra's AI…</p>`. No skeletons.
+- **Landing.** The answer lives in `<section class="askout" aria-live="polite" aria-atomic="true" tabindex="-1">`
+  (always in the DOM, empty until there is something to say). When `askOut` becomes a new object the screen calls
+  `scrollIntoView({ block: 'start' })` (smooth unless `reduceMotion()`) and `focus({ preventScroll: true })` on the
+  section; a module-level marker remembers the object it landed on, so switching tabs and coming back to a standing
+  answer neither scrolls nor steals focus, while Patterns' "Ask about this →" (which sets `askOut` before the screen
+  mounts) still lands. The card is `.card.askcard`, entering with `cy-fade-rise`.
+- **Provenance up top.** `.asksrc` opens the card: a `uchip` badge mapped strictly from `askOut.source` — `library`,
+  `server-library` and `server-library-attempted` → "Written library" (`u-visit`), `ai` → "Cyra's AI" (`.u-ai`, an
+  18% accent tint with 75% accent-on-ink text, ≥4.5:1 on every palette), `error` → no badge — followed by the
+  question asked (`.asksrc-q`). The badge never says more than the footer sentence, which stays verbatim and is the
+  authority. The answer keeps the library's paragraphing (`split(/\n\s*\n/)`; no sentence scanner). The evidence base
+  is `.askev`: a 3px primary-tinted left rule, "Evidence base: " in bold, then one citation per line — each is an
+  `inline-block` span with the "; " kept inside it, so `innerText` is still the exact sentence
+  "Evidence base: A; B; C." that the suites read. `<footer class="askfoot">` (hairline top) holds the source sentence
+  and "Plain-language education, not medical advice or diagnosis." unchanged.
+- **Worth asking.** `.askvisit` wraps the `Next visit` advice and `Copy question` (`.linkbtn.askcopy`), which copies
+  `ask_your_doctor` through `copyText(text, "Question copied", ping)` (lib/clipboard.js; the blocked sentence is its
+  default).
+- **Urgent.** A red-flag answer uses `<Advice urgency="today">` (chip "Today") and the card gains `.askurgent`
+  (`--bad` border, 3px `--bad-bg` ring).
+- **Unmatched recovery.** The existing sentence ("Cyra's AI can try questions the library can't answer. To use it,
+  tick … above and ask again.") stays; when `aiAvailable && !askAI` it is followed by
+  `<button class="ghostbtn">Ask Cyra's AI about this</button>` and, directly under it, the AI disclosure paragraph
+  (the same `AI_DISCLOSURE` text as the checkbox's). The button calls `setAskAI(true)` and
+  `runAsk(askOut.question, { ai: true })`: the one-call override is required because `runAsk` would otherwise read
+  the saved choice captured before this render and return the unmatched card again. The visible persisted checkbox
+  flips to on, so the next unmatched question goes to the AI without the button. No Ask history is kept.
 
 ---
 

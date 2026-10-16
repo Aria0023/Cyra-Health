@@ -482,6 +482,37 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:fo
 button[aria-disabled="true"] { cursor:default; }
 .statechip { font:700 11px 'Karla Variable','Karla'; color:var(--soft); border:1.5px dashed var(--line); border-radius:var(--r-pill); padding:6px 10px; align-self:center; line-height:1.2; }
 .emailpreview { resize:vertical; font:500 12.5px/1.5 'Karla Variable','Karla',sans-serif; white-space:pre-wrap; user-select:text; -webkit-user-select:text; }
+/* ---- Ask (UI A1): starters that always answer, the answer landed on with its source up top, a copyable visit question ---- */
+.askstart { margin-bottom:4px; } .askstart .section-lab { margin-top:6px; }
+.askintro { background:color-mix(in srgb, var(--primary) 7%, var(--card)); border:1.5px solid color-mix(in srgb, var(--primary) 25%, var(--line)); border-radius:var(--r-card); padding:10px 14px 4px; margin-bottom:6px; }
+.askintro .section-lab { margin-top:0; }
+.askstarters { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin:-5px -16px 12px; padding:5px 16px 6px; }
+.askstarters::-webkit-scrollbar { display:none; }
+.askintro .askstarters { margin:-5px -14px 4px; padding:5px 14px 6px; }
+.askstarter { flex-shrink:0; border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:11px 14px; font:500 13px 'Karla Variable','Karla'; color:var(--primary-text); min-height:44px; cursor:pointer; transition:transform var(--t-fast) var(--ease-std), background-color var(--t-fast), border-color var(--t-fast); }
+.askstarter:active { transform:scale(.97); border-color:var(--primary); background:color-mix(in srgb, var(--primary) 10%, var(--card)); }
+@media (hover:hover) { .askstarter:hover { border-color:var(--primary); } }
+label.section-lab { display:block; margin:12px 0 6px; }
+.askcount { margin:-4px 0 8px; text-align:right; }
+.askspin { display:inline-block; width:14px; height:14px; border:2px solid rgba(255,255,255,.4); border-top-color:#FFF; border-radius:50%; margin-right:8px; vertical-align:-2px; animation:cy-spin 800ms linear infinite; }
+/* The one keyframe kept under reduced motion: the busy ring stops turning and breathes in opacity instead (no movement), so the wait still reads as live. */
+@media (prefers-reduced-motion: reduce) { .askspin { border-color:#FFF; animation:cy-pulse 1.4s ease-in-out infinite !important; } }
+.askout:not(:empty) { margin-top:14px; } .askout:focus-visible { outline-offset:3px; border-radius:var(--r-card); }
+.askcard { display:block; margin:0 0 var(--gap); animation:cy-fade-rise var(--t-base) var(--ease-in); }
+.askcard.askurgent { border-color:var(--bad); box-shadow:0 0 0 3px var(--bad-bg); }
+.asksrc { display:flex; gap:9px; align-items:baseline; margin-bottom:10px; }
+.asksrc .uchip { white-space:nowrap; }
+.asksrc-q { font-size:var(--fs-sm); color:var(--soft); line-height:1.4; min-width:0; overflow-wrap:anywhere; }
+.u-ai { background:color-mix(in srgb, var(--accent) 18%, var(--card)); color:color-mix(in srgb, var(--accent) 75%, var(--ink)); }
+.askcard .asktext { line-height:1.6; } .askcard .asktext + .asktext { margin-top:8px; }
+.askcard .askev { margin:10px 0 0; padding-left:12px; border-left:3px solid color-mix(in srgb, var(--primary) 35%, var(--card)); font-size:var(--fs-sm); line-height:1.55; color:var(--ink); }
+.askev-lab { font-weight:700; color:var(--soft); }
+/* One citation per line, with the sentence kept whole for anything that reads the text (inline-block, not block, and pre-wrap so the "; " survives). */
+.askev-i { display:inline-block; width:100%; white-space:pre-wrap; }
+.askvisit { margin-top:10px; } .askvisit .linkbtn.askcopy { display:inline-flex; margin:-2px 0 -6px; font-size:var(--fs-sm); }
+.askagain .section-lab { margin-top:12px; } .askagain .askstarters { margin-bottom:4px; }
+.askcard .ghostbtn { margin-top:10px; } .askcard .ghostbtn + .rfoot { margin-top:6px; }
+.askfoot { border-top:1px solid var(--line); margin-top:10px; padding-top:1px; } .askfoot .rfoot { margin-top:8px; }
 /* ---- POTS add-on (scoped to .pots and the stand-test runner; chrome only — data colours come from RAMPS) ---- */
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 .pots .cta, .pots .ghostbtn { min-height:56px; }
