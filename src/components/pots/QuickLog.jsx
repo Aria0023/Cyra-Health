@@ -2,32 +2,33 @@ import { useState } from "react";
 import UrgentCard, { urgentText } from "./UrgentCard.jsx";
 import { PSY_ADVICE, symOrder } from "./PotsSymptoms.jsx";
 import Advice from "../Advice.jsx";
+import { usualFluid, usualSalt } from "../../lib/pots.js";
 import { hm, symLabel, amountText, naText } from "./ui.js";
 
 /* Simple view (design 4.3, capability 8): four large tiles for a foggy day. Each tile says
    exactly what one tap does; the last thing logged can always be undone from a visible row.
    "Took my meds" names exactly what it will log (lib/pots.js medsNowPlan, with the 30-minute
-   repeat guard), so a double tap never records two doses. */
+   repeat guard), so a double tap never records two doses. With no drink or salt button yet the
+   tile stays focusable (aria-disabled, dashed) and a tap opens the amount sheet (onOther), where
+   "save as a button" makes the next tap a one-tap log; the Full/Simple view switch lives above
+   the grid (PotsToday). */
 /** A tile's sub-line: "Glass · 250 ml", "Salt tablet · 500 mg sodium". */
 const tileSub = (pr, units) => [pr.label, pr.ml != null ? amountText(pr.ml, units) : null, pr.naMg != null ? naText(pr.naMg, units) : null].filter(Boolean).join(" · ");
 
-export default function QuickLog({ pots, units, plan, last, onDrink, onSalt, onMeds, onFeelBad, onUndo, onFull }) {
-  const s = pots.settings, presets = s.presets;
-  const fluid = presets.find((x) => x.id === s.defaultFluid && x.ml != null) || presets.find((x) => x.ml != null) || null;
-  const salt = presets.find((x) => x.id === s.defaultSalt && x.ml == null) || presets.find((x) => x.ml == null) || null;
+export default function QuickLog({ pots, units, plan, last, onDrink, onSalt, onMeds, onFeelBad, onUndo, onOther }) {
+  const fluid = usualFluid(pots), salt = usualSalt(pots);
   const medsSub = plan.logged.length
     ? `Logs: ${plan.logged.map((x) => `${x.name}${x.slot ? ` ${hm(x.slot)}` : ""}`).join(", ")}`
     : plan.guarded.length ? `Already logged at ${hm(plan.guarded[plan.guarded.length - 1].t)}` : "Nothing due now";
   return (
     <>
       <div className="potsgrid" role="group" aria-label="Quick log">
-        <button type="button" className="route" disabled={!fluid} onClick={() => onDrink(fluid)}>I drank something<span>{fluid ? tileSub(fluid, units) : "Add a drink button in POTS settings"}</span></button>
-        <button type="button" className="route" disabled={!salt} onClick={() => onSalt(salt)}>I had salt<span>{salt ? tileSub(salt, units) : "Add a salt button in POTS settings"}</span></button>
+        <button type="button" className="route" aria-disabled={!fluid} onClick={() => (fluid ? onDrink(fluid) : onOther("fluid"))}>I drank something<span>{fluid ? tileSub(fluid, units) : "Tap to add your first drink"}</span></button>
+        <button type="button" className="route" aria-disabled={!salt} onClick={() => (salt ? onSalt(salt) : onOther("salt"))}>I had salt<span>{salt ? tileSub(salt, units) : "Tap to add your first salt"}</span></button>
         <button type="button" className="route" onClick={onMeds}>Took my meds<span>{medsSub}</span></button>
         <button type="button" className="route" onClick={onFeelBad}>I feel bad now<span>Pick what's happening</span></button>
       </div>
       <LastRow last={last} onUndo={onUndo} big />
-      <button type="button" id="pots-full-btn" className="linkbtn" style={{ marginTop: 10 }} onClick={onFull}>Full view</button>
     </>
   );
 }

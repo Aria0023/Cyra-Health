@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { setSettings, finishSetup } from "../lib/pots.js";
 import { POTS_LOCKED_COPY } from "../lib/potsConstants.js";
 import UrgentCard from "../components/pots/UrgentCard.jsx";
+import Icon from "../components/Icon.jsx";
 import { potsSaved } from "../components/pots/ui.js";
 
 /* POTS tools page (spec A13; lib/pots.js). An optional add-on inside whichever single life
@@ -26,9 +27,15 @@ import { potsSaved } from "../components/pots/ui.js";
 const SECTIONS = [["today", "Today"], ["stand", "Stand test"], ["move", "Move"], ["patterns", "Patterns"], ["report", "Report"]];
 const SHOW_CHOICES = [["test", "Stand test"], ["fluid", "Fluids & salt"], ["sym", "Symptoms"], ["meds", "Meds & supports"], ["move", "Movement"]];
 const HINT_TAIL = "Never part of weekly counts. Cyra can't diagnose POTS; only a clinician can, and good notes make that visit faster.";
-const HINT = `Kept on this device and ready for your clinician. ${HINT_TAIL}`;
+const HINT_SHORT = "Kept on this device and ready for your clinician.";
+const HINT = `${HINT_SHORT} ${HINT_TAIL}`;
 // While the record isn't being saved (ui.js potsSaved), the hint says so instead.
 const HINT_UNSAVED = `Not being saved on this device right now (see Settings → Your data). ${HINT_TAIL}`;
+/* After setup the hint shows its first sentence; the rest is still read by assistive tech (the
+   whole HINT is the paragraph's text) and the two claims it makes are shown again, verbatim,
+   under the Today section (PotsToday TODAY_FOOT_2). The first-run cards keep the full hint on
+   screen, and HINT_UNSAVED is always on screen in full. */
+const ShortHint = () => <p className="hint tophint">{HINT_SHORT}<span className="sr-only">{` ${HINT_TAIL}`}</span></p>;
 
 /* Card 1: what Today shows. Choices stay on this card until Next saves them; Skip keeps what
    was there. */
@@ -45,12 +52,13 @@ function WhatHelps({ choices, show, setShow }) {
   );
 }
 
-/* "When to get help now" (design 4.2 item 18, 8.3): on every section. */
+/* "When to get help now" (design 4.2 item 18, 8.3): on every section, as a full-width row with the
+   urgency dot (--bad is only ever "now" urgency and destructive actions) and a chevron. */
 function HelpNow({ preg }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" className="linkbtn" aria-expanded={open} aria-controls="pots-help-now" onClick={() => setOpen((v) => !v)} style={{ display: "block", marginTop: 14 }}>When to get help now</button>
+      <button type="button" className="linkbtn helpnow" aria-expanded={open} aria-controls="pots-help-now" onClick={() => setOpen((v) => !v)}>When to get help now<Icon name="chevron" className="chev" /></button>
       <div id="pots-help-now" hidden={!open} style={{ marginTop: 8 }}>
         {open && ["faint", "chest", "breath"].map((v) => <UrgentCard key={v} variant={v} preg={preg} />)}
       </div>
@@ -71,11 +79,11 @@ export default function PotsScreen({ pots, setPots, locked, potsSec, setPotsSec,
     setFocusTo(null);
   }, [focusTo]);
 
+  const head = (ref) => <div className="potshead">{back}<h1 className="disp" tabIndex={ref ? -1 : undefined} ref={ref}>POTS</h1></div>;
   if (locked) {
     return (
       <main className="pots">
-        {back}
-        <h1 className="disp">POTS</h1>
+        {head(null)}
         <div className="plaincard"><p className="plain">{POTS_LOCKED_COPY}</p></div>
       </main>
     );
@@ -96,11 +104,15 @@ export default function PotsScreen({ pots, setPots, locked, potsSec, setPotsSec,
     };
     return (
       <main className="pots">
-        {back}
-        <h1 className="disp" tabIndex={-1} ref={headRef}>POTS</h1>
+        {head(headRef)}
         <p className="hint">{hint}</p>
         <section className="plaincard" aria-labelledby="pots-setup-title">
-          {cards.length > 1 && <p className="stepno" style={{ marginBottom: 4 }}>Step {i + 1} of {cards.length}</p>}
+          {cards.length > 1 && (
+            <div className="stepline">
+              <p className="stepno">Step {i + 1} of {cards.length}</p>
+              <div className="prog" aria-hidden="true">{cards.map((c, k) => <span key={c.id} className={k <= i ? "on" : ""} />)}</div>
+            </div>
+          )}
           <h2 id="pots-setup-title" className="obq" style={{ marginTop: 0 }} tabIndex={-1} ref={cardRef}>{card.title}</h2>
           {card.body ? card.body(saveRef) : card.children}
           <button type="button" className="cta" onClick={() => go(true)}>{last ? "Start using POTS tools" : "Next"}</button>
@@ -120,11 +132,10 @@ export default function PotsScreen({ pots, setPots, locked, potsSec, setPotsSec,
   const closeSettings = () => { setPotsSec(cur || "today"); setFocusTo("link"); };
   return (
     <main className="pots">
-      {back}
-      <h1 className="disp" tabIndex={-1} ref={headRef}>POTS</h1>
-      <p className="hint">{hint}</p>
+      {head(headRef)}
+      {potsSaved(storageDriver) ? <ShortHint /> : <p className="hint">{hint}</p>}
       {avail.length > 1 && !inSettings && (
-        <div className="mcrow" role="group" aria-label="POTS sections" style={{ marginBottom: 14 }}>
+        <div className="mcrow seg scroll secnav" role="group" aria-label="POTS sections">
           {avail.map(([id, l]) => (
             <button key={id} type="button" aria-pressed={cur === id} className={`mc ${cur === id ? "on" : ""}`} onClick={() => setPotsSec(id)}>{l}</button>
           ))}

@@ -50,7 +50,8 @@ import { storage } from "./lib/storage.js";
 import { encryptBackup, decryptBackup } from "./lib/backup.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
 import { isNative, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
-import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
+import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
+import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pots/ui.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
 /* What persists on the device: the health record and settings. Never UI state.
@@ -248,7 +249,7 @@ export default function CyraDemo() {
   const [pots, setPots] = useState(POTS_EMPTY);
   const [potsSec, setPotsSec] = useState("today"); // the POTS tools page's section (UI only, not saved)
   const [potsOpen, setPotsOpen] = useState(false); // POTS tools open as a page under the current tab (UI only)
-  const [potsHomeLast, setPotsHomeLast] = useState(null); // Home "POTS today": the dose its "Took it" just logged, for its Undo row (UI only)
+  const [potsHomeLast, setPotsHomeLast] = useState(null); // Home "POTS today": the dose ("Took it") or drink ("+ Add") it just logged, for its Undo row (UI only)
   const [potsDate, setPotsDate] = useState(null); // POTS → Today's logging day while fixing up an earlier one; null = today (UI only, so every launch starts on today)
   const potsBase = useRef(null); // the `pots` this tab last saved or took from storage: the base of the 3-way merge (mergePots)
   /* The standing test or session running in this tab (UI only, never saved): while it is set the
@@ -484,7 +485,8 @@ export default function CyraDemo() {
     ping(erase ? "POTS log erased and POTS tools hidden" : "POTS tools hidden. Your POTS log is kept");
   };
   /* Home: the "POTS today" card while it's on (totals from dayTotals; "Today's insight" is never
-     replaced), or, once, the offer card for someone who ticked "POTS or dysautonomia" at
+     replaced; her usual drink logs in one tap through the same addIntake and intakeToast as the
+     page, and a drink button that still has to ask its sodium opens the page instead), or, once, the offer card for someone who ticked "POTS or dysautonomia" at
      registration (owner decision D2). The offer never turns POTS on by itself, and answering it
      (either button) means it never comes back; it isn't shown to someone who has ever turned
      POTS on. The registration answer is read here, on screen, and nowhere else. */
@@ -495,7 +497,7 @@ export default function CyraDemo() {
   // Home's Undo row shows only while that dose is still in the log: an erase, a restore, a
   // removal in Today's log or in another tab (or another tab having logged that dose first)
   // takes the row away, so it never offers to undo something that isn't there.
-  const potsHomeLive = potsHomeLast && potsHomeLast.day === todayIso && (((pots.days || {})[potsHomeLast.day] || {}).doses || []).some((x) => x && x.id === potsHomeLast.id) ? potsHomeLast : null;
+  const potsHomeLive = potsHomeLast && potsHomeLast.day === todayIso && ((((pots.days || {})[potsHomeLast.day] || {})[potsHomeLast.kind === "intake" ? "intake" : "doses"]) || []).some((x) => x && x.id === potsHomeLast.id) ? potsHomeLast : null;
   // POTS → Report reads the day's check-in only for the "also in check-in" lines, and only
   // while "Cycle or pregnancy details" is ticked (lib/potsReport.js). It never gets
   // registration answers or wearable readings.
@@ -1618,7 +1620,15 @@ export default function CyraDemo() {
         ? <PotsHome pots={pots} totals={potsTotals} todayIso={todayIso} onQuickLog={() => openPots(true)} onStandTest={openStandTest} onOpen={() => openPots()}
             last={potsHomeLive}
             onUndo={() => { const l = potsHomeLive; setPotsHomeLast(null); if (!l) return; setPots((p) => removePotsItem(p, l.day, l.id)); ping(`Removed: ${l.text}`); }}
-            onTook={(med, slot) => { const day = syncDay(), t = nowHHMM(), id = newPotsId(); setPots((p) => logDose(p, day, { id, medId: med.id, slot, state: "taken", t })); setPotsHomeLast({ id, day, text: `${med.name} ${slot.replace(/^0/, "")} at ${t.replace(/^0/, "")}` }); ping(`${med.name} logged at ${t.replace(/^0/, "")}`); }} />
+            onTook={(med, slot) => { const day = syncDay(), t = nowHHMM(), id = newPotsId(); setPots((p) => logDose(p, day, { id, medId: med.id, slot, state: "taken", t })); setPotsHomeLast({ id, day, kind: "dose", text: `${med.name} ${slot.replace(/^0/, "")} at ${t.replace(/^0/, "")}` }); ping(`${med.name} logged at ${t.replace(/^0/, "")}`); }}
+            onDrink={(pr) => {
+              if (asksSodium(pr)) { openPots(); return; }
+              const day = syncDay(), t = nowHHMM(), id = newPotsId(), units = pots.settings.units;
+              const item = { id, t, kind: pr.kind, label: pr.label, ml: pr.ml, naMg: pr.naMg, presetId: pr.id };
+              setPots((p) => addIntake(p, day, item));
+              setPotsHomeLast({ id, day, kind: "intake", text: `${potsIntakeText(item, units)} at ${potsAmpm(t)}` });
+              ping(intakeToast(item, day === todayIso ? potsTotals : dayTotals(pots, day), pots.settings.goals, units));
+            }} />
         : potsOffer ? <PotsOffer onOn={() => { setPots((p) => markOffered(p, todayIso)); potsOn(); }} onNot={() => setPots((p) => markOffered(p, todayIso))} /> : null}
     />
   );
@@ -1631,7 +1641,7 @@ export default function CyraDemo() {
   const potsView = (
     <PotsScreen onBack={() => setPotsOpen(false)} pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"} storageDriver={storageDriver}
       sections={potsOk ? {
-        today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => { setPotsSec("stand"); setPotsFocus("stand"); }} storageDriver={storageDriver} syncDay={syncDay} />,
+        today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => { setPotsSec("stand"); setPotsFocus("stand"); }} onReport={() => setPotsSec("report")} storageDriver={storageDriver} syncDay={syncDay} />,
         report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={acct.anon ? "" : (acct.name || "").trim()} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} />,
         patterns: <PotsPatterns pots={pots} stage={stage} stageName={stageName} todayIso={todayIso} starts={ins.starts} checkin={potsCheckin} wearData={wearData} connected={potsWearConnected} />,
         stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focus={potsFocus === "stand"} onFocused={potsFocused} cyc={potsCyc}

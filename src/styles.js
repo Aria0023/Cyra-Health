@@ -685,4 +685,33 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .palopt b, .palcheck { color:var(--primary); }
 .palmini { margin-left:auto; width:34px; height:22px; flex-shrink:0; border-radius:6px; background:var(--paper-mini); border:1.5px solid var(--line); position:relative; }
 .palmini::after { content:''; position:absolute; left:5px; right:5px; bottom:4px; height:5px; border-radius:3px; background:var(--primary); }
+/* ---- UI PT1: POTS. The Home card's two compact meters (fluids = palette primary, sodium = the accent: chrome, not
+   data colours), the one-tap usual drink row, the page's head row and joined section control, the Full/Simple switch,
+   the step dots on first-run cards and the "When to get help now" row. ---- */
+.goalfill.salt { background:var(--accent); }
+.pots .labico { width:16px; height:16px; color:var(--primary); } .pots .labico.salt { color:var(--accent); }
+.section-lab.potslab::before { display:none; } .section-lab.potslab .labico { width:14px; height:14px; vertical-align:-3px; color:var(--accent); }
+.pots-home .meters { display:grid; grid-template-columns:1fr; gap:10px 14px; margin:0 0 6px; } .pots-home .meters.two { grid-template-columns:1fr 1fr; }
+.goalmeter { min-width:0; } .goalmeter .goalbar { margin:6px 0 0; height:8px; }
+.goalhead { display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 6px; line-height:1.2; }
+.goallab { display:inline-flex; align-items:center; gap:5px; width:100%; font-size:var(--fs-xs); font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--soft); }
+.goallab .labico { width:16px; height:16px; margin:0; color:var(--primary); } .goalmeter.salt .goallab .labico { color:var(--accent); }
+.goalmeter .num { font-size:20px; min-width:0; } .goalmeter.salt .num { color:var(--accent-text); }
+.goalof { font-size:var(--fs-sm); color:var(--soft); }
+.pots-home .medrow { padding:6px 0; } .pots-home .medinfo b { font-size:14px; } .pots-home .medrow + .routes { margin-top:6px !important; }
+.pots-home .route { font-size:13px; min-height:56px; padding:10px 8px; } .pots-home .route span { font-size:11.5px; }
+.pots-home .ghostbtn.potsopen { width:auto; border:none; padding:10px 4px 6px; margin:4px 0 -6px; font-size:12.5px; text-decoration:underline; min-height:44px; text-align:left; color:var(--primary-text); }
+.potshead { display:flex; align-items:center; gap:10px; margin:4px 0 6px; } .potshead .backbar { margin:0; } .potshead .disp { margin:0; font-size:22px; }
+.pots .hint.tophint { margin-bottom:12px; }
+.pots .secnav { margin-bottom:14px; } .pots .secnav .mc { padding:8px 10px; min-height:44px; }
+.pots .daterow { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:6px 10px; margin-bottom:8px; } .daterow .plain { margin:0; }
+.pots .viewsw { width:auto; margin-left:auto; } .pots .viewsw .mc { flex:0 0 auto; padding:7px 12px; white-space:nowrap; }
+.potsgrid .route[aria-disabled="true"] { border-style:dashed; color:var(--soft); }
+.pots .hint.foot2 { font-size:12px; color:var(--soft); margin:4px 0 0; line-height:1.5; }
+.pots .reportline { margin-top:8px; font-size:var(--fs-sm); color:var(--soft); } .pots .reportline .linkbtn { font-size:var(--fs-sm); }
+.stepline { display:flex; align-items:center; gap:8px; margin-bottom:4px; } .stepline .stepno { margin:0; }
+.stepline .prog { margin:0; gap:4px; } .stepline .prog span { flex:none; width:6px; height:6px; border-radius:50%; }
+.pots .linkbtn.helpnow { display:flex; align-items:center; gap:8px; width:100%; text-decoration:none; border:1.5px solid var(--line); border-radius:var(--r-card); padding:10px 13px; margin-top:14px; min-height:44px; color:var(--ink); background:var(--card); font-size:var(--fs-md); text-align:left; }
+.pots .linkbtn.helpnow::before { content:''; flex-shrink:0; width:8px; height:8px; border-radius:50%; background:var(--bad); }
+.pots .linkbtn.helpnow .chev { margin-left:auto; color:var(--soft); }
 `;

@@ -1,27 +1,48 @@
 import { useEffect, useRef, useState } from "react";
 import { dayTotals, fmtFluid, fmtSodium, setIv, mlToOz, naMgToSaltG } from "../../lib/pots.js";
 import { amountText, naText, isOz, isGSalt, numOf, numProps } from "./ui.js";
+import Icon from "../Icon.jsx";
 
 /* Fluids and Sodium cards (design 4.5). Totals are oral only and missing is never zero
    ("Nothing logged yet"); IV fluids are kept apart and never added to the oral total or goal.
    The goal meter is palette chrome (a progress control, never red), not data viz. Nothing
    here suggests an amount: goals are hers, and sodium comes from labels she copies. */
 
-/** Progress against her own goal, in her display unit. Stored values are ml / mg sodium. */
-function GoalMeter({ label, whenWord, total, goal, by, conv, unitWord, goalText }) {
+/** Progress against her own goal, in her display unit. Stored values are ml / mg sodium. `tone`
+    picks the fill: "fluid" (palette primary) or "salt" (the accent). `compact` is the Home card's
+    form: a glyph, the label, the day's total as a Fraunces number ("—" until something is logged:
+    missing is never zero) and "of 2.5 L", with the same bar under it and the same progressbar
+    semantics; the full form keeps the bar plus the "of 2.5 L · your goal" line. */
+export function GoalMeter({ label, whenWord, total, goal, by, conv, unitWord, goalText, tone = "fluid", compact = false, totalText = null }) {
   const t = total == null ? 0 : conv(total), gl = conv(goal);
   const reached = total != null && total >= goal;
+  const salt = tone === "salt";
+  const bar = (
+    <div className="goalbar" role="progressbar" aria-valuemin={0} aria-valuemax={gl} aria-valuenow={Math.min(t, gl)} aria-label={`${label} ${whenWord}, ${t} of your ${gl} ${unitWord}`}>
+      <div className={`goalfill ${salt ? "salt" : ""}`} style={{ width: `${Math.min(100, ((total || 0) / goal) * 100)}%` }} />
+    </div>
+  );
+  if (compact) {
+    return (
+      <div className={`goalmeter ${salt ? "salt" : ""}`}>
+        <div className="goalhead">
+          <span className="goallab"><Icon name={salt ? "salt" : "drop"} className={`labico ${salt ? "salt" : ""}`} />{label}</span>
+          <span className="num" aria-hidden="true">{total == null ? "—" : totalText}</span>
+          <span className="goalof" aria-hidden="true">{reached ? "Goal reached" : `of ${goalText}`}</span>
+        </div>
+        {bar}
+      </div>
+    );
+  }
   return (
     <>
-      <div className="goalbar" role="progressbar" aria-valuemin={0} aria-valuemax={gl} aria-valuenow={Math.min(t, gl)} aria-label={`${label} ${whenWord}, ${t} of your ${gl} ${unitWord}`}>
-        <div className="goalfill" style={{ width: `${Math.min(100, ((total || 0) / goal) * 100)}%` }} />
-      </div>
+      {bar}
       <p className="hint" style={{ margin: "0 0 8px" }}>{reached ? "Goal reached" : `of ${goalText} · ${by === "clinician" ? "your clinician's goal" : "your goal"}`}</p>
     </>
   );
 }
-const ozConv = (ml) => Math.round(mlToOz(ml));
-const gConv = (mg) => Math.round(naMgToSaltG(mg) * 10) / 10;
+export const ozConv = (ml) => Math.round(mlToOz(ml));
+export const gConv = (mg) => Math.round(naMgToSaltG(mg) * 10) / 10;
 
 /** The IV fluids row: given by a clinic, shown on its own, never part of the oral total. Both
     fields save as she types (the record autosave, flushed when the app is hidden or closed), from
@@ -66,7 +87,7 @@ export default function FluidSalt({ pots, day, whenWord = "today", units, setPot
   return (
     <>
       <section className="plaincard" aria-labelledby="pots-fluid-h" style={{ marginBottom: 12 }}>
-        <h2 className="lab" id="pots-fluid-h" style={{ marginTop: 0 }} tabIndex={-1}>Fluids</h2>
+        <h2 className="lab" id="pots-fluid-h" style={{ marginTop: 0 }} tabIndex={-1}><Icon name="drop" className="labico" />Fluids</h2>
         <p className="plain" style={{ fontSize: 20, fontWeight: 700, margin: "0 0 4px" }}>
           {tot.fluidMl != null ? `${fmtFluid(tot.fluidMl, units)} so far` : "Nothing logged yet"}
           {tot.iv && <span style={{ fontSize: 13, fontWeight: 500, color: "var(--soft)" }}>{` · plus ${tot.ivMl != null ? fmtFluid(tot.ivMl, units) : "some"} IV`}</span>}
@@ -86,13 +107,13 @@ export default function FluidSalt({ pots, day, whenWord = "today", units, setPot
       </section>
 
       <section className="plaincard" aria-labelledby="pots-salt-h" style={{ marginBottom: 12 }}>
-        <h2 className="lab" id="pots-salt-h" style={{ marginTop: 0 }} tabIndex={-1}>Sodium</h2>
+        <h2 className="lab" id="pots-salt-h" style={{ marginTop: 0 }} tabIndex={-1}><Icon name="salt" className="labico salt" />Sodium</h2>
         <p className="plain" style={{ fontSize: 20, fontWeight: 700, margin: "0 0 4px" }}>
           {tot.naMg == null ? "Nothing logged yet" : isGSalt(units) ? `${fmtSodium(tot.naMg, units)} so far (about ${fmtSodium(tot.naMg, null)} sodium)` : `Sodium ${fmtSodium(tot.naMg, units)} so far`}
         </p>
         {fromDrinks > 0 && <p className="hint" style={{ margin: "0 0 6px" }}>{`Includes ${naText(fromDrinks, units)} (from drinks)`}</p>}
         {g.naMg != null
-          ? <GoalMeter label="Sodium" whenWord={whenWord} total={tot.naMg} goal={g.naMg} by={g.by} conv={isGSalt(units) ? gConv : (x) => x} unitWord={isGSalt(units) ? "grams of salt" : "milligrams of sodium"} goalText={fmtSodium(g.naMg, units)} />
+          ? <GoalMeter label="Sodium" tone="salt" whenWord={whenWord} total={tot.naMg} goal={g.naMg} by={g.by} conv={isGSalt(units) ? gConv : (x) => x} unitWord={isGSalt(units) ? "grams of salt" : "milligrams of sodium"} goalText={fmtSodium(g.naMg, units)} />
           : <button type="button" className="linkbtn" style={{ margin: "2px 0 8px" }} onClick={onGoal}>Set a goal</button>}
         <div className="mcrow">
           {salts.map((pr) => (

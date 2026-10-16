@@ -942,6 +942,31 @@ export function fmtSodium(mg, units) {
   return `${(mg >= 10 ? Math.round(mg / 10) * 10 : Math.round(mg)).toLocaleString("en-US")} mg`;
 }
 
+/* ---------- drink and salt buttons: the one a single tap uses, and what its toast says ---------- */
+const settingsOf = (p) => (isObj(p) && !isLockedPots(p) && isObj(p.settings) ? p.settings : null);
+/** Her usual drink button: the default fluid button, else the first drink button; null with none (or a locked record). */
+export const usualFluid = (p) => { const s = settingsOf(p), ps = (s && s.presets) || []; return (s && ps.find((x) => x.id === s.defaultFluid && x.ml != null)) || ps.find((x) => x.ml != null) || null; };
+/** Her usual salt button: the default salt button, else the first salt button; null with none (or a locked record). */
+export const usualSalt = (p) => { const s = settingsOf(p), ps = (s && s.presets) || []; return (s && ps.find((x) => x.id === s.defaultSalt && x.ml == null)) || ps.find((x) => x.ml == null) || null; };
+/** A drink button asks its sodium once when it is an electrolyte or broth; every salt button does
+    (until she answers or skips, which sets naMg or naSkip on the button). */
+const NA_ASK = ["electrolyte", "broth"];
+export const asksSodium = (pr) => !!pr && pr.naMg == null && pr.naSkip !== true && (pr.ml == null || NA_ASK.includes(pr.kind));
+/** The toast after a logged intake, the same sentence wherever it was tapped (POTS Today, Simple
+    view, the Home card): "Added 250 ml. 0.5 L today", "Sodium added. 480 mg today", "Salt tablet
+    logged". `totals` is dayTotals() for that day before the tap; `whenWord` is "today" or
+    "on Tue, Oct 6". The goals are taken so every caller hands over the same day context, but the
+    sentence never mentions the goal (no "of your goal", nothing to fall short of). */
+export function intakeToast(item, totals, goals, units, whenWord = "today") {
+  const t = totals || {};
+  const amount = (ml) => (units && units.fluid === "oz" ? `${Math.round(mlToOz(ml))} oz` : `${ml} ml`);
+  if (item.ml != null) return `Added ${amount(item.ml)}. ${fmtFluid((t.fluidMl || 0) + item.ml, units)} ${whenWord}`;
+  if (item.naMg != null) return `Sodium added. ${fmtSodium((t.naMg || 0) + item.naMg, units)} ${whenWord}`;
+  return `${item.label} logged`;
+}
+/** Days with anything logged in POTS tools (a day that only carries the Simple-view mark doesn't count). */
+export const daysLogged = (p) => (isObj(p) && !isLockedPots(p) && isObj(p.days) ? Object.values(p.days).filter((d) => isObj(d) && Object.keys(d).some((k) => k !== "quick")).length : 0);
+
 /* ---------- standing test: live safety interrupts ---------- */
 /** The last two lying readings (by minute) that have `keys`, or null. */
 function restBaseline(rest, keys) {

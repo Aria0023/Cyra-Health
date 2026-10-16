@@ -1135,6 +1135,39 @@ from a connected watch, ring or health app aren't included. The PDF writer is in
 report fetches nothing. The report's "sustained" wording names the minutes that reached the threshold and never
 claims fewer did. Every export screen states that the file isn't locked.
 
+**A13.8 UI PT1 (the Home card and the page).** *Home card:* the "POTS today" section label carries an aria-hidden
+heart glyph in a sibling span (`textContent` unchanged, accent dot off via `.potslab`); the card is
+`.plaincard.pots-home`. With a fluid or sodium goal set it shows compact `GoalMeter`s (`components/pots/FluidSalt.jsx`,
+exported, `compact` + `tone`): a 16px drop or salt glyph, the label, the day's total as a Fraunces `.num` ("—" until
+something is logged: missing is never zero) and "of 2.5 L" / "Goal reached", over the same `role=progressbar` bar;
+fluids fill in the palette primary, sodium in the accent (`.goalfill.salt`), both chrome, never RAMPS. The totals
+sentence ("Fluids 0.5 L of your 2.5 L · Sodium 480 mg", or "Nothing logged yet. That's fine.") stays the card's first
+`p.plain`, visually hidden (`.sr-only`) while the meters show. *One-tap usual drink:* when a drink button exists
+(`usualFluid`: the default fluid button, else the first drink button) a `.medrow` shows its amount, "Your usual drink"
+and a `.takebtn` "+ Add" (`aria-label="Add 250 ml"`); App logs it through the same `addIntake` as the page, remembers
+it for the card's Undo row (`potsHomeLast.kind = "intake"`) and shows the same toast sentence, built once in
+`lib/pots.js` `intakeToast(item, totals, goals, units, whenWord)` ("Added 250 ml. 0.5 L today" / "Sodium added.
+480 mg today" / "{label} logged"; the goals never change the sentence). A drink button that still has to ask its
+sodium (`asksSodium`: electrolyte or broth without a figure) opens the page instead. Nothing logged from Home is marked
+quick. After Undo, focus returns to the button that logged it ("+ Add" or "Took it"). "Open POTS tools" keeps its
+text and `.ghostbtn` and is an underlined link (`.potsopen`); the two `.route` tiles are 56px. *Page head:* one
+`.potshead` row holds the "← Back" bar and the 22px `h1.disp`. The section switcher is the joined
+`.mcrow.seg.scroll.secnav` (role=group "POTS sections", `.mc.on` + `aria-pressed`, same texts), scrolling
+horizontally rather than abbreviating. After setup and while the record is being saved, the top hint shows one sentence,
+"Kept on this device and ready for your clinician."; the rest of the hint is in an `.sr-only` span of the same
+paragraph (so assistive tech and the S2/S5 harnesses still get the full HINT text), and its two claims appear
+verbatim under the Today section as `.hint.foot2` "Never part of weekly counts. Cyra can't diagnose POTS; only a
+clinician can." (`TODAY_FOOT_2`), after the unchanged `TODAY_FOOT`. HINT_UNSAVED stays on top, whole, whenever
+`potsSaved()` is false; the first-run cards keep the whole HINT and show `Step n of 3` beside three `.prog` dots in
+`.stepline`. "When to get help now" is a full-width `.linkbtn.helpnow` row with an 8px --bad dot and a chevron
+(`aria-expanded` unchanged). *Today:* a `.daterow` holds "Today · {date}" and the joined `.viewsw` toggle
+(`#pots-full-btn` "Full view" | `#pots-simple-btn` "Simple view", `aria-pressed`, group "View"); "Fix up an earlier
+day" stays under it in Full view. With three or more days logged (`daysLogged`, a day that only carries the
+Simple-view mark doesn't count) the footer adds "N days logged · Make a report for your clinician", which opens the
+Report section. *Simple view:* a tile with no drink or salt button yet is `aria-disabled="true"` (dashed, focusable,
+never `disabled`), reads "Tap to add your first drink" / "Tap to add your first salt", and opens the amount sheet,
+whose "save as a button" makes the next tap a one-tap log. Threshold and over-goal states keep their number cues.
+
 **A13.7 Reminders.** The add-on adds no notification. A8 still applies: one check-in reminder at most. A
 care-plan checklist is shown in the app only, with no "late", "missed" or streak language. Any future
 medicine/fluid reminder is owner decision D1 and needs A8 reworded first.

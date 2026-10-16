@@ -14,6 +14,7 @@ import {
   OZ_ML, NA_PER_G_SALT, ID_RE, TAG_RE, localeUnits, turnOn, turnOff, finishSetup, resetPregClearance, samePots,
   removePreset, updateItem, raiseSym, markQuick, setFaintPause, markOffered, nearFaintDays, removePlanItem, doseTime,
   restChecks, standChecks, bpAsked, savedUpTo, testTrend, median, removeTilt, RESULT_FOOT,
+  intakeToast, asksSodium, usualFluid, usualSalt, daysLogged,
 } from "./pots.js";
 import { POTS_SYM, POTS_TRIG, POTS_BANNED, SAFETY_COPY, GUIDE_COPY, GUIDE_VERIFIED, POTS_MED_LIB, RUNNER_FEEL, FEEL_STOP, POTS_LOCKED_COPY, POTS_ERASE } from "./potsConstants.js";
 import { SYM, PSYM, GSYM } from "./constants.js";
@@ -1120,6 +1121,67 @@ test("s2: samePots ignores key order and undefined keys, and sees real changes",
 });
 
 /* ================= s3: the daily loop's helpers ================= */
+test("pt1: intakeToast says exactly what the Today toast said, in her units, for a drink, a salt and a label-only item", () => {
+  const ml = { fluid: "ml", salt: "mgNa" }, oz = { fluid: "oz", salt: "gSalt" };
+  const t0 = dayTotals(on(), D); // nothing logged: missing is never zero, so the toast adds to 0
+  assert.equal(intakeToast({ ml: 250, label: "Glass" }, t0, {}, ml), "Added 250 ml. 0.25 L today");
+  assert.equal(intakeToast({ ml: 250, label: "Glass" }, { fluidMl: 250 }, {}, ml), "Added 250 ml. 0.5 L today");
+  assert.equal(intakeToast({ ml: 500, label: "Bottle" }, { fluidMl: 0 }, {}, ml, "on Tue, Oct 6"), "Added 500 ml. 0.5 L on Tue, Oct 6");
+  assert.equal(intakeToast({ naMg: 480, label: "Salt tablet" }, { naMg: 0 }, {}, ml), "Sodium added. 480 mg today");
+  assert.equal(intakeToast({ naMg: 300, label: "Salt tablet" }, { naMg: 480 }, {}, ml), "Sodium added. 780 mg today");
+  assert.equal(intakeToast({ ml: 237, label: "Cup" }, { fluidMl: 237 }, {}, oz), "Added 8 oz. 16 oz today");
+  assert.equal(intakeToast({ naMg: 393, label: "Pinch" }, {}, {}, oz), "Sodium added. 1 g salt today");
+  assert.equal(intakeToast({ label: "Salty snack" }, t0, {}, ml), "Salty snack logged");
+  // the goals never change the sentence (nothing to fall short of)
+  assert.equal(intakeToast({ ml: 250, label: "Glass" }, { fluidMl: 2400 }, { fluidMl: 2500, naMg: 3000 }, ml), "Added 250 ml. 2.65 L today");
+  assertClean(intakeToast({ ml: 250, label: "Glass" }, t0, {}, ml), "intakeToast");
+});
+
+test("pt1: asksSodium, usualFluid and usualSalt pick the same button the Simple-view tiles do", () => {
+  assert.equal(asksSodium({ kind: "electrolyte", ml: 500, naMg: null }), true, "an electrolyte drink asks once");
+  assert.equal(asksSodium({ kind: "broth", ml: 250 }), true);
+  assert.equal(asksSodium({ kind: "water", ml: 250 }), false, "plain water never asks");
+  assert.equal(asksSodium({ kind: "electrolyte", ml: 500, naMg: 480 }), false, "answered");
+  assert.equal(asksSodium({ kind: "electrolyte", ml: 500, naSkip: true }), false, "skipped");
+  assert.equal(asksSodium({ kind: "salt", ml: null }), true, "every salt button asks until it has a figure");
+  assert.equal(asksSodium(null), false);
+  let p = on();
+  assert.equal(usualFluid(p).id, "glass", "the shipped default drink button");
+  assert.equal(usualSalt(p).id, "tab", "the shipped default salt button");
+  const none = { ...p, settings: { ...p.settings, presets: [] } };
+  assert.equal(usualFluid(none), null, "no buttons: nothing to tap");
+  assert.equal(usualSalt(none), null);
+  p = { ...p, settings: { ...p.settings, presets: [] } };
+  p = upsertPreset(p, { id: "bottle", label: "Bottle", kind: "water", ml: 500 });
+  p = upsertPreset(p, { id: "glass", label: "Glass", kind: "water", ml: 250 });
+  p = upsertPreset(p, { id: "tab", label: "Salt tablet", kind: "salt", ml: null, naMg: 500 });
+  assert.equal(usualFluid(p).id, "glass", "the default drink button, wherever it sits");
+  assert.equal(usualSalt(p).id, "tab");
+  p = setSettings(p, { defaultFluid: "nosuch" });
+  assert.equal(usualFluid(p).id, "bottle", "a default that points nowhere falls back to the first drink button");
+  p = setSettings(p, { defaultFluid: "bottle" });
+  assert.equal(usualFluid(p).id, "bottle", "the default drink button");
+  p = setSettings(p, { defaultFluid: "tab" });
+  assert.equal(usualFluid(p).id, "bottle", "a salt id as the fluid default falls back to the first drink button");
+  assert.equal(usualFluid({ v: 2 }), null, "a locked record offers nothing");
+  assert.equal(usualFluid(null), null);
+});
+
+test("pt1: daysLogged counts days with anything logged, never a day that only carries the Simple-view mark", () => {
+  let p = on();
+  assert.equal(daysLogged(p), 0);
+  p = addIntake(p, D, { id: "i1", t: "09:00", kind: "water", label: "Glass", ml: 250 });
+  assert.equal(daysLogged(p), 1);
+  p = setRating(p, D2, 2);
+  assert.equal(daysLogged(p), 2);
+  p = markQuick(p, "2026-10-10");
+  assert.equal(daysLogged(p), 2, "a quick mark alone is not a logged day");
+  p = removeItem(p, D, "i1");
+  assert.equal(daysLogged(p), 1, "an undone drink leaves no logged day behind");
+  assert.equal(daysLogged({ v: 2, days: { [D]: { rating: 1 } } }), 0, "a locked record counts nothing");
+  assert.equal(daysLogged(null), 0);
+});
+
 test("s3: updateItem edits a logged intake, dose, episode or reading in place, with upd; invalid edits change nothing", () => {
   let p = addIntake(on(), D, { id: "i1", t: "09:40", kind: "water", label: "Glass", ml: 250 });
   p = logDose(p, D, { id: "d1", medId: "m1", slot: "08:00", state: "taken", t: "08:05" });

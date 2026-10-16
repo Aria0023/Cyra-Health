@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { POTS_RELATED } from "../../lib/potsConstants.js";
 import {
   addIntake, removeItem, updateItem, setRating, setUp, setSleep, setNote, setSym, addEpisode, addVitals, logDose, upsertPreset,
-  setSettings, setFaintPause, raiseSym, markQuick, nearFaintDays, medsNowPlan, activeMeds, dayTotals, fmtFluid, fmtSodium, newId, nowHHMM, doseTime, localDay,
+  setSettings, setFaintPause, raiseSym, markQuick, nearFaintDays, medsNowPlan, activeMeds, dayTotals, fmtSodium, newId, nowHHMM, doseTime, localDay,
+  intakeToast, asksSodium, daysLogged,
 } from "../../lib/pots.js";
 import Advice from "../Advice.jsx";
 import FluidSalt from "./FluidSalt.jsx";
@@ -19,7 +20,7 @@ import { resultFor, riseText } from "./StandResult.jsx";
 import { nextDayPending, setNextDay, skipNextDay, planLine, modeWord, NEXT_OPTS, MOVE_COPY } from "../../lib/potsMove.js";
 import { SessionEdit } from "./MoveSession.jsx";
 import { fmtN } from "./HrChart.jsx";
-import { hm, ampm, dayLabel, addDays, SEV_WORD, intakeText, amountText, symLabel, medName, useAnnounce, potsUnsaved } from "./ui.js";
+import { hm, ampm, dayLabel, addDays, SEV_WORD, intakeText, symLabel, medName, useAnnounce, potsUnsaved } from "./ui.js";
 
 /* POTS → Today (design 4.2, Full view) and Simple view (4.3). Every tap commits at once
    through a lib/pots.js action in a functional update (saved on this device by the record
@@ -34,15 +35,15 @@ export const TODAY_FOOT_UNSAVED = {
   memory: "Not being saved: Cyra couldn't open this browser's storage, so what you log here is lost when you close Cyra. Cyra's server never gets your POTS log, and it isn't part of weekly counts.",
   stale: "Cyra couldn't confirm your latest taps were saved on this device; they may be lost when you close Cyra. Cyra's server never gets your POTS log, and it isn't part of weekly counts.",
 };
+/** Under the footer, after setup (PotsScreen's top hint is then one sentence): the two sentences
+    that used to sit in that hint, verbatim. */
+export const TODAY_FOOT_2 = "Never part of weekly counts. Cyra can't diagnose POTS; only a clinician can.";
 export const NEAR_FAINT = "Nearly fainting most days is worth raising soon. Bring your log.";
 const RATINGS = [[1, "Good"], [2, "Okay"], [3, "Rough"], [4, "Bad"]];
 const SLEEP = [["good", "Slept well"], ["fair", "So-so"], ["poor", "Rough night"]];
-// A drink button asks its sodium once when it is an electrolyte or broth; every salt button does.
-const NA_ASK = ["electrolyte", "broth"];
-const asksSodium = (pr) => pr.naMg == null && pr.naSkip !== true && (pr.ml == null || NA_ASK.includes(pr.kind));
 const POS_WORD = { lying: "Lying", sitting: "Sitting", standing: "Standing" };
 
-export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay, ping, stage, stageName, checkin, symMap, conditions, onStandTest, storageDriver = null, syncDay = null }) {
+export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay, ping, stage, stageName, checkin, symMap, conditions, onStandTest, onReport = null, storageDriver = null, syncDay = null }) {
   const s = pots.settings, units = s.units, simple = s.simple === true, preg = stage === "preg";
   const pregOrTtc = preg || stageName === "Trying to Conceive";
   const day = simple ? todayIso : dayIn;
@@ -102,19 +103,15 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
     setLast(null);
     setFocusBack("top"); // the Undo row goes with it
   };
-  const toastFor = (item, on = day) => {
-    const tt = on === day ? tot : dayTotals(pots, on);
-    if (item.ml != null) ping(`Added ${amountText(item.ml, units)}. ${fmtFluid((tt.fluidMl || 0) + item.ml, units)} ${whenWord}`);
-    else if (item.naMg != null) ping(`Sodium added. ${fmtSodium((tt.naMg || 0) + item.naMg, units)} ${whenWord}`);
-    else ping(`${item.label} logged`);
-  };
+  // The toast sentence is built in lib/pots.js (intakeToast), so Home's one-tap drink says the same.
+  const sayLogged = (item, on = day) => ping(intakeToast(item, on === day ? tot : dayTotals(pots, on), s.goals, units, whenWord));
   const logPreset = (pr, quick = false) => {
     if (!pr) return;
     const id = newId(), t = nowHHMM(), on = tapDay();
     const item = { id, t, kind: pr.kind, label: pr.label, ml: pr.ml, naMg: pr.naMg, presetId: pr.id };
     setPots((p) => { const q = addIntake(p, on, item); return quick ? markQuick(q, on) : q; });
     remember({ ids: [id], text: `${intakeText(item, units)} at ${ampm(t)}` }, on);
-    toastFor(item, on);
+    sayLogged(item, on);
     if (asksSodium(pr)) open({ kind: "naAsk", preset: pr, itemId: id, day: on, text: `${intakeText(item, units)} at ${ampm(t)}` });
   };
   const saveAmount = (entry, { asButton, buttonLabel }) => {
@@ -130,7 +127,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
         return q;
       });
       if (asButton && s.presets.length >= 16) ping("You have 16 buttons already, so this one wasn't added. Remove one in POTS settings first.");
-      else toastFor(item, on);
+      else sayLogged(item, on);
       remember({ ids: [id], text: `${intakeText(item, units)} at ${ampm(item.t)}` }, on);
     }
     close();
@@ -247,6 +244,8 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
     return `Last test: ${when} · ${what}`;
   })();
 
+  const nDays = daysLogged(pots);
+
   const sheetView = sheet && (() => {
     const common = { headRef };
     switch (sheet.kind) {
@@ -302,14 +301,19 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
       <h2 className="sr-only" tabIndex={-1} ref={topRef}>{isToday ? "Today" : `Fixing up ${dayLabel(day)}`}</h2>
       {sheetView}
       <div hidden={!!sheet}>
-        {/* 1. Logging date */}
-        {isToday ? (
-          <p className="plain" style={{ marginBottom: 4 }}><b>Today · {dayLabel(day)}</b></p>
-        ) : (
+        {/* 1. Logging date, with the view switch (one mode, two names: Full view | Simple view) */}
+        {!isToday && (
           <div className="card" style={{ display: "block", marginBottom: 10 }}>
             <p><b>Fixing up {dayLabel(day)}</b> <button type="button" className="linkbtn" onClick={() => { setDay(null); setFixOpen(false); setFixHint(false); setFocusBack("pots-fix-btn"); }}>Back to today</button></p>
           </div>
         )}
+        <div className="daterow">
+          {isToday && <p className="plain"><b>Today · {dayLabel(day)}</b></p>}
+          <div className="mcrow seg viewsw" role="group" aria-label="View">
+            <button type="button" id="pots-full-btn" className={`mc ${!simple ? "on" : ""}`} aria-pressed={!simple} onClick={() => { if (simple) goSimple(false); }}>Full view</button>
+            <button type="button" id="pots-simple-btn" className={`mc ${simple ? "on" : ""}`} aria-pressed={simple} onClick={() => { if (!simple) goSimple(true); }}>Simple view</button>
+          </div>
+        </div>
         {!simple && (
           <div style={{ marginBottom: 8 }}>
             <button type="button" id="pots-fix-btn" className="linkbtn" aria-expanded={fixOpen} aria-controls="pots-fix" onClick={() => setFixOpen((v) => !v)}>Fix up an earlier day</button>
@@ -320,9 +324,6 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
             </div>
           </div>
         )}
-        {/* 2. Simple view switch */}
-        {!simple && <button type="button" id="pots-simple-btn" className="linkbtn" aria-pressed={false} style={{ marginBottom: 10 }} onClick={() => goSimple(true)}>Simple view</button>}
-
         {/* 3. How's today? */}
         <p className="lab" id="pots-rate-l">How's today?</p>
         <div className="mcrow" role="group" aria-labelledby="pots-rate-l" style={{ marginBottom: 8 }}>
@@ -341,7 +342,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
 
         {simple ? (
           <QuickLog pots={pots} units={units} plan={medsPlanNow} last={last} onUndo={undo}
-            onDrink={(pr) => logPreset(pr, true)} onSalt={(pr) => logPreset(pr, true)} onMeds={tookMeds} onFeelBad={() => open({ kind: "bad" })} onFull={() => goSimple(false)} />
+            onDrink={(pr) => logPreset(pr, true)} onSalt={(pr) => logPreset(pr, true)} onMeds={tookMeds} onFeelBad={() => open({ kind: "bad" })} onOther={(mode) => open({ kind: "amount", mode })} />
         ) : (
           <>
             {/* 4. Upright today */}
@@ -415,8 +416,11 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
             <LastRow last={last} onUndo={undo} />
           </>
         )}
-        {/* 17. Footer */}
+        {/* 17. Footer: the saving sentence, the two sentences from the (now one-line) page hint, and once
+            three days are logged, the way to the report. */}
         <p className="rfoot">{potsUnsaved(storageDriver) ? TODAY_FOOT_UNSAVED[potsUnsaved(storageDriver)] : TODAY_FOOT}</p>
+        <p className="hint foot2">{TODAY_FOOT_2}</p>
+        {nDays >= 3 && onReport && <p className="pline reportline">{`${nDays} days logged · `}<button type="button" className="linkbtn" onClick={onReport}>Make a report for your clinician</button></p>}
       </div>
     </div>
   );
