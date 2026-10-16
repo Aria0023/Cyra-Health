@@ -362,6 +362,22 @@ Each card: brand, "Partner" pill, offer, "Matched: <symptom> (n/30)", **evidence
 (Strong evidence / Mixed evidence / Comfort, not a treatment / Clinical care), price,
 CTA. Commission disclosure appears **above** the list, not buried.
 
+*UI CC1 (Care).* Under the disclosure an `aria-hidden` legend of the four evidence chips
+(Strong evidence · Mixed evidence · Comfort · Clinical care) reads the labels once.
+"Clinical care" is a kind of option, not a grade of evidence, so it takes `.ev-clinical`
+(a 16% primary tint) rather than the "strong" green; Midi Health reads "Menopause-trained
+clinician" / "Insurance accepted by many plans". The "Matched:" line carries a 4px
+`.smeter` filled to days/30 in the matched symptom's FAMILIES colour (`famColor`;
+`--primary` for rough nights, which has no family) — the page's only data-viz colour,
+never used on the card border. The first matched card wears `.ppill.fit` "Fits your
+log". Each footer has two actions: **"Add to what I'm trying"** (`.sbtn.sadd`, the one
+live action: adds `{ name: "<brand> <offer>", kind: midi → habit, else supp, started:
+today }` to `meds` and toasts "Added — Cyra will compare your days before and after";
+§A3) and the disabled, dashed, `--soft` "Partner link coming soon" (unchanged; no partner
+link is live). Empty states: no items for the stage → "Nothing to show for your stage
+yet. Check back after the next update."; items but no match → "Log a few days and the
+options that fit your symptoms move to the top." The disclosure sentences are unchanged.
+
 **Ask:** free-text question → plain-language evidence answer (~8th-grade reading level)
 + named evidence base (e.g. ACOG, The Menopause Society, Cochrane) + one question to
 bring to her doctor + urgent-flag routing if the question describes red-flag symptoms.
@@ -771,6 +787,9 @@ daily "taken" toggle (`medLog[iso][id]`). Engine compares average day score for 
 before `started` vs 14 days after; requires ≥5 logged days on each side, otherwise shows
 "N more logged days to compare". Surfaces on Home inline and on Patterns as a card with a
 "bring this before/after to your visit" advice. **Never recommends doses or changes.**
+Entry points: the form in Home → "What I'm trying", and (UI CC1) "Add to what I'm trying"
+on every Care card, which files the brand and offer as a supplement (Midi Health: a habit)
+started today and toasts the same sentence as the form; she can then mark it taken on Home.
 
 ## A4. Appointments
 `{ id, date, who, note }`. Upcoming list with countdown; ≤7 days → "Prep report" button
@@ -792,8 +811,24 @@ situation: partnered / more than one partner / single-solo / prefer not to say �
 partner gender; intimacy questions hidden for solo users.** Advice logic reflects the
 literature: low fairness + low desire → household-inequity finding; pain → vaginal estrogen /
 moisturizers are strongly evidenced, raise at visit; high tension → couples' stress synchrony.
-Framing: relationship context predicts desire more than hormone levels (SWAN); Cyra lines
-this up against cycle phase to test whether low-desire days are hormonal "or something else."
+Framing: relationship context predicts desire more than hormone levels (SWAN). The build
+does **not** yet cross-reference Connect entries with cycle phase, so the card says only
+"Over weeks this builds a picture next to your symptoms." (pregnancy: "…next to your week of
+pregnancy and how you felt."); a cycle-phase claim returns only when the engine does it.
+
+*UI CC1 (Connect).* The screen reads `connLog` back: a `useEffect` keyed on `todayIso`
+hydrates the sliders, intimacy and afterwards from `connLog[todayIso]` on mount and at the
+day change only, never while she is editing (a local `dirty` flag is set by every onChange
+and cleared on Save). The score card is idle (`.card-idle`, `.num` "—" in `--soft`, "Move the
+sliders and Cyra scores how connected today felt.") until a control moves or today is logged;
+then it shows the score, a band word — Close ≥ 75 / Steady ≥ 50 / Strained ≥ 30 / Distant —
+as "Steady connection today.", a 4px `--primary` `.cmeter` and a 7-day `.connstrip` of
+`.conndot`s (filled when logged, opacity by score, hollow when not, today outlined; palette
+colours only, `role="img"` with "Last 7 days: n of 7 logged"). When today is logged, "Logged
+today at NN — saving again replaces it." sits above Save. A chosen situation collapses to
+"Situation: <label> · Change" (`.sitline`; Change restores the chooser). Band words are
+editorial, not clinical. Hint: "Optional, private, and judgment-free. It tracks how connected
+you feel, not just sex, and never assumes who your partner is or that there is only one."
 
 ## A8. Check-in cadence (anti-nag)
 Registration step 8 and ⚙ settings: daily / weekdays / 3× week / weekly / "when I feel like

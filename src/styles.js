@@ -112,9 +112,22 @@ html { scroll-padding-top:60px; }
 .ppill { display:inline-flex; align-items:center; gap:3px; font-size:10.5px; font-weight:700; text-transform:uppercase; border:1px solid var(--line); border-radius:999px; padding:2px 8px; color:var(--soft); }
 .sname { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:15.5px; margin-bottom:3px; }
 .smatch { font-size:11.5px; color:var(--primary-text); font-weight:700; margin-bottom:5px; }
-.ev { display:inline-block; font-size:11px; font-weight:700; border-radius:999px; padding:3px 9px; margin-bottom:8px; }
+.ev { display:inline-block; font-size:11px; font-weight:700; border-radius:999px; padding:3px 10px; margin-bottom:8px; }
 .ev-strong { background:color-mix(in srgb, var(--good) 13%, var(--card)); color:var(--good); } .ev-mixed { background:#FBEEE2; color:#8A4E18; } .ev-comfort { background:#EDE7EF; color:#6E6076; }
-.sfoot { display:flex; justify-content:space-between; align-items:center; font-size:13px; gap:8px; }
+/* Clinical care is a kind of option, not a grade of evidence, so it takes the palette primary rather than the "strong" green. */
+.ev-clinical { background:color-mix(in srgb, var(--primary) 16%, var(--card)); color:color-mix(in srgb, var(--primary) 80%, var(--ink)); }
+/* Care (UI CC1): the four-chip legend under the disclosure reads the labels once; the match meter is the one
+   FAMILIES-coloured mark on the page (the matched symptom's family, --primary when it has none); the first matched
+   card wears "Fits your log"; the footer wraps so a long price and two actions never collide. */
+.evlegend { display:flex; flex-wrap:wrap; gap:6px; margin:-6px 0 14px; } .evlegend .ev { margin:0; }
+.smeter { display:block; height:4px; border-radius:999px; background:color-mix(in srgb, var(--ink) 8%, var(--card)); margin-top:4px; overflow:hidden; }
+.smeter i { display:block; height:100%; border-radius:999px; background:var(--primary); }
+.ppill.fit { border-color:var(--primary); color:var(--primary-text); background:color-mix(in srgb, var(--primary) 10%, var(--card)); }
+.sfoot { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; font-size:13px; gap:8px 6px; }
+.sfoot b { flex:1; min-width:0; overflow-wrap:anywhere; } .sfoot .sbtn { flex-shrink:0; }
+.sfoot .acts { display:contents; } .sfoot .acts .sbtn[aria-disabled="true"] { margin-left:auto; }
+.sfoot .sadd { min-height:36px; font-size:12px; text-decoration:none; }
+.shelf-empty { margin-top:-4px; }
 .sbtn { border:1px solid var(--primary); background:none; color:var(--primary); border-radius:999px; padding:7px 14px; font:700 12px 'Karla Variable','Karla'; cursor:pointer; }
 .loglines { background:var(--card); border:1.5px solid var(--line); border-radius:13px; padding:12px; font-family:ui-monospace,monospace; font-size:11px; line-height:1.7; }
 .logline.money { color:var(--good); font-weight:700; } .logline.bad { color:var(--bad); font-weight:700; }
@@ -238,6 +251,20 @@ html { scroll-padding-top:60px; }
 .slider::-webkit-slider-thumb { -webkit-appearance:none; width:24px; height:24px; margin-top:-9px; border-radius:50%; background:var(--primary); border:2px solid var(--card); box-shadow:0 1px 2px rgba(0,0,0,.2); }
 .slider::-moz-range-thumb { width:24px; height:24px; border-radius:50%; background:var(--primary); border:2px solid var(--card); box-shadow:0 1px 2px rgba(0,0,0,.2); }
 .scaleends { display:flex; justify-content:space-between; font-size:11.5px; color:var(--soft); margin-top:-6px; }
+/* Connect (UI CC1): the score card is idle (em dash, --soft) until a slider moves or today is logged; the band word
+   and a 4px --primary meter follow the number; the 7-day strip is palette-only (filled = logged, opacity = score,
+   hollow = unlogged). The family colours never appear here: this is a relationship score, not a symptom. */
+.card-idle .num { color:var(--soft); }
+.cbody { flex:1; min-width:0; }
+.cmeter { display:block; height:4px; border-radius:999px; background:color-mix(in srgb, var(--ink) 8%, var(--card)); margin:8px 0 6px; overflow:hidden; }
+.cmeter i { display:block; height:100%; border-radius:999px; background:var(--primary); transform-origin:left; transform:scaleX(var(--v, 0)); transition:transform var(--t-slow) var(--ease-std); }
+.connstrip { display:inline-flex; gap:5px; align-items:center; vertical-align:middle; margin-left:6px; }
+.conndot { width:9px; height:9px; border-radius:50%; border:1.5px solid var(--primary); background:var(--primary); box-sizing:border-box; }
+.conndot.off { background:transparent; border-color:color-mix(in srgb, var(--primary) 45%, var(--line)); }
+.conndot.today { outline:1.5px solid var(--primary); outline-offset:1.5px; }
+.cweek { font-size:var(--fs-sm); color:var(--soft); margin-top:2px; display:flex; align-items:center; flex-wrap:wrap; }
+.hint.saved-line { margin:10px 0 8px; color:var(--primary-text); font-weight:600; font-size:var(--fs-sm); }
+.hint.sitline { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:0 0 4px; font-size:var(--fs-sm); } .sitline .linkbtn { min-height:44px; font-size:var(--fs-sm); }
 .meter { border:2px solid var(--line); box-shadow:0 1px 3px rgba(0,0,0,.06); background:var(--card); border-radius:var(--r-card); padding:12px 14px; margin-bottom:var(--gap); transition:border-color var(--t-slow) var(--ease-std); }
 .meterhead { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:7px; }
 .meterlabel { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:16px; }

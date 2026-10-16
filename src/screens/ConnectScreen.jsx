@@ -1,11 +1,38 @@
+import { useEffect, useState } from "react";
 import { CONNECT, INTIMACY, AFTER, RELATIONSHIP } from "../lib/constants.js";
+import { localDay } from "../lib/engine.js";
 import Advice from "../components/Advice.jsx";
 
 /* Connect (intimacy & relationship): closeness / desire / tension / mental-load
    sliders, intimacy today, afterwards, situation. Never asks a partner's gender;
-   intimacy questions are hidden for solo users. */
-export default function ConnectScreen({ relationship, setRelationship, conn, setConn, intimacy, setIntimacy, after, setAfter, setConnLog, todayIso, ping }) {
-  const connScore = Math.round(((conn.closeness + conn.desire + conn.load + (10 - conn.friction)) / 40) * 100);
+   intimacy questions are hidden for solo users.
+   UI CC1: the screen reads connLog back. On mount and when the day changes it hydrates
+   the sliders from today's saved entry (never while she is editing); the score card
+   is idle until a slider moves or today is logged; a saved day shows "Logged today at
+   NN"; a chosen situation collapses to one line with Change. The 7-day strip and the
+   score are computed here from the on-device record each render, never stored. */
+const score = (c) => Math.round(((c.closeness + c.desire + c.load + (10 - c.friction)) / 40) * 100);
+const band = (n) => (n >= 75 ? "Close" : n >= 50 ? "Steady" : n >= 30 ? "Strained" : "Distant");
+const dayBack = (iso, i) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() - i); return localDay(d); };
+
+export default function ConnectScreen({ relationship, setRelationship, conn, setConn, intimacy, setIntimacy, after, setAfter, connLog, setConnLog, todayIso, stage, ping }) {
+  const saved = connLog?.[todayIso] || null;
+  const savedScore = saved && ["closeness", "desire", "friction", "load"].every((k) => Number.isFinite(saved[k])) ? score(saved) : null;
+  const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    const e = connLog?.[todayIso];
+    if (e && ["closeness", "desire", "friction", "load"].every((k) => Number.isFinite(e[k]))) {
+      setConn({ closeness: e.closeness, desire: e.desire, friction: e.friction, load: e.load });
+      setIntimacy(e.intimacy ?? null);
+      setAfter(e.after ?? null);
+    }
+    setDirty(false);
+  }, [todayIso]); // eslint-disable-line
+  const touched = !!saved || dirty;
+  const connScore = score(conn);
+  const week = Array.from({ length: 7 }, (_, i) => { const iso = dayBack(todayIso, 6 - i); const e = connLog?.[iso]; return { iso, n: e && Number.isFinite(e.closeness) ? score(e) : null }; });
+  const loggedWeek = week.filter((d) => d.n != null).length;
+  const sitLabel = (RELATIONSHIP.find(([v]) => v === relationship) || [])[1];
   const connAdvice = () => {
     if (after === "pain") return <Advice urgency="visit">Pain or dryness with intimacy is one of the most common — and most treatable — things people never mention. Vaginal estrogen, moisturizers, and lubricants have strong evidence. This is worth saying out loud at your next visit.</Advice>;
     if (conn.load <= 3 && conn.desire <= 4) return <Advice urgency="self">Research found that when the mental load falls mostly on one partner, their desire tends to drop — it's one of the strongest predictors, stronger than hormone levels. Worth a conversation about who carries what.</Advice>;
@@ -16,20 +43,22 @@ export default function ConnectScreen({ relationship, setRelationship, conn, set
   return (
     <main>
       <h1 className="disp">Connection</h1>
-      <p className="hint">Optional, private, and judgment-free. This tracks how connected you feel — not just sex — because the research is clear that closeness, fairness, and tension predict desire more than hormones do. Nothing here assumes who your partner is, or that there's only one.</p>
-      {!relationship && (
+      <p className="hint">Optional, private, and judgment-free. It tracks how connected you feel, not just sex, and never assumes who your partner is or that there is only one.</p>
+      {!relationship ? (
         <>
           <p className="section-lab">Your situation (optional)</p>
           <div className="mcrow" style={{ marginBottom: 14 }}>
             {RELATIONSHIP.map(([v, l]) => <button key={v} aria-pressed={relationship === v} className={`mc ${relationship === v ? "on" : ""}`} onClick={() => setRelationship(v)}>{l}</button>)}
           </div>
         </>
+      ) : (
+        <p className="hint sitline">Situation: {sitLabel} · <button type="button" className="linkbtn" onClick={() => setRelationship(null)}>Change</button></p>
       )}
       <p className="section-lab">How it felt today, 0–10</p>
       {Object.entries(CONNECT).map(([k, s]) => (
         <div className="scalerow" key={k}>
           <div className="scalehead"><span>{s.label}</span><b>{conn[k]}</b></div>
-          <input className="slider" type="range" min="0" max="10" value={conn[k]} aria-label={`${s.label}, 0 is ${s.low}, 10 is ${s.high}`} aria-valuetext={`${conn[k]} out of 10`} onChange={(e) => setConn((x) => ({ ...x, [k]: +e.target.value }))} />
+          <input className="slider" type="range" min="0" max="10" value={conn[k]} aria-label={`${s.label}, 0 is ${s.low}, 10 is ${s.high}`} aria-valuetext={`${conn[k]} out of 10`} onChange={(e) => { setDirty(true); setConn((x) => ({ ...x, [k]: +e.target.value })); }} />
           <div className="scaleends"><span>{s.low}</span><span>{s.high}</span></div>
         </div>
       ))}
@@ -37,21 +66,37 @@ export default function ConnectScreen({ relationship, setRelationship, conn, set
         <>
           <p className="section-lab">Intimacy today</p>
           <div className="mcrow" style={{ marginBottom: 10 }}>
-            {INTIMACY.map(([v, l]) => <button key={v} aria-pressed={intimacy === v} className={`mc ${intimacy === v ? "on" : ""}`} onClick={() => setIntimacy(intimacy === v ? null : v)}>{l}</button>)}
+            {INTIMACY.map(([v, l]) => <button key={v} aria-pressed={intimacy === v} className={`mc ${intimacy === v ? "on" : ""}`} onClick={() => { setDirty(true); setIntimacy(intimacy === v ? null : v); }}>{l}</button>)}
           </div>
           {intimacy && intimacy !== "none" && (
             <>
               <p className="section-lab">Afterwards</p>
               <div className="mcrow" style={{ marginBottom: 10 }}>
-                {AFTER.map(([v, l]) => <button key={v} aria-pressed={after === v} className={`mc ${after === v ? "on" : ""}`} onClick={() => setAfter(after === v ? null : v)}>{l}</button>)}
+                {AFTER.map(([v, l]) => <button key={v} aria-pressed={after === v} className={`mc ${after === v ? "on" : ""}`} onClick={() => { setDirty(true); setAfter(after === v ? null : v); }}>{l}</button>)}
               </div>
             </>
           )}
         </>
       )}
-      <div className="card"><div className="num">{connScore}</div><p>Connection today. Over weeks, Cyra lines this up against your cycle phase and symptoms — so you can see whether low-desire days are really hormonal, or something else entirely.</p></div>
+      <div className={`card ${touched ? "" : "card-idle"}`}>
+        <div className="num">{touched ? connScore : "—"}</div>
+        <div className="cbody">
+          {touched ? (
+            <>
+              <p><b>{band(connScore)} connection today.</b> Over weeks this builds a picture next to {stage === "preg" ? "your week of pregnancy and how you felt" : "your symptoms"}.</p>
+              <span className="cmeter" aria-hidden="true"><i style={{ "--v": connScore / 100 }} /></span>
+              <div className="cweek">Last 7 days · {loggedWeek} logged
+                <span className="connstrip" role="img" aria-label={`Last 7 days: ${loggedWeek} of 7 logged`}>
+                  {week.map((d) => <i key={d.iso} className={`conndot${d.n == null ? " off" : ""}${d.iso === todayIso ? " today" : ""}`} style={d.n == null ? undefined : { opacity: 0.3 + 0.7 * d.n / 100 }} />)}
+                </span>
+              </div>
+            </>
+          ) : <p>Move the sliders and Cyra scores how connected today felt. Over weeks this builds a picture next to {stage === "preg" ? "your week of pregnancy and how you felt" : "your symptoms"}.</p>}
+        </div>
+      </div>
       {connAdvice()}
-      <button className="cta" style={{ marginTop: 12 }} onClick={() => { setConnLog((l) => ({ ...l, [todayIso]: { ...conn, intimacy, after } })); ping("Saved — private to your device"); }}>Save</button>
+      {savedScore != null && <p className="hint saved-line">Logged today at {savedScore} — saving again replaces it.</p>}
+      <button className="cta" style={{ marginTop: savedScore != null ? 0 : 12 }} onClick={() => { setConnLog((l) => ({ ...l, [todayIso]: { ...conn, intimacy, after } })); setDirty(false); ping("Saved — private to your device"); }}>Save</button>
       <p className="rfoot">Separated from sexual activity on purpose: affection and sex move your body differently, and both matter. Pain with intimacy is always worth raising with a clinician — it's common and treatable.</p>
     </main>
   );
