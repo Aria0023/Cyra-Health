@@ -516,6 +516,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:fo
 .tab { min-height:44px; padding:12px 8px; }
 /* The tab bar scrolls sideways (overflow-x:auto), which clips anything drawn outside it, so a tab's ring sits just inside the tab. */
 .tab:focus-visible { outline-offset:-3px; }
+.seg.scroll .mc:focus-visible { outline-offset:-3px; } .seg.scroll .mc.on:focus-visible { outline-color:var(--card); }
 .mc, .pill, .takebtn, .sbtn, .orgbtn, .stagechip, .topbtn, .linkbtn, .ghost, .route, .inp, .slider, .minichip, .scopy, .palopt, .calcell { min-height:44px; }
 .sdot.on, .c-per-mark { outline:1.5px solid rgba(0,0,0,.35); }
 .wearbtns { display:flex; gap:6px; flex-shrink:0; align-items:center; }
