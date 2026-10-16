@@ -138,6 +138,10 @@ import { SessionRunner } from "./components/pots/MoveSession.jsx";
 import PotsReport from "./components/pots/PotsReport.jsx";
 import PotsPatterns from "./components/pots/PotsPatterns.jsx";
 
+/* Stage card -> life-stage experience (spec §4.3). finishReg routes with it; RegisterScreen colours each card's
+   swatch and the chrome preview (regPal) from PALETTES[REG_STAGE[label]][0]. Exactly one experience per user. */
+export const REG_STAGE = { "My Cycle": "periods", "Trying to conceive": "periods", "Pregnant": "preg", "Perimenopause": "peri", "Menopause & beyond": "peri" };
+
 export default function CyraDemo() {
   const [orgId, setOrgId] = useState("cyra");
   const [palIdx, setPalIdx] = useState({ peri: 0, preg: 0, periods: 0 });
@@ -264,7 +268,10 @@ export default function CyraDemo() {
 
   const org = ORGS[orgId];
   const stagePal = stage && orgId === "cyra" ? PALETTES[stage][palIdx[stage]] : null;
-  const t = { ...org.theme, ...(stagePal || {}) };
+  // Registration: from the moment she picks a stage card, the chrome wears that stage's first palette
+  // (the same one finishReg lands on), so the choice shows before the app does. UI palette only.
+  const regPal = phase === "register" && reg.stage ? PALETTES[REG_STAGE[reg.stage]][0] : null;
+  const t = { ...org.theme, ...(stagePal || regPal || {}) };
   const symMap = stage === "periods" ? PSYM : SYM;
   const symIds = Object.keys(symMap);
   const ins = useMemo(() => insights(days, stage === "periods" ? Object.keys(PSYM) : SYMS), [days, stage]);
@@ -447,6 +454,12 @@ export default function CyraDemo() {
     if (palFirst.current) { palFirst.current = false; return; }
     setRepaint(true); const t = setTimeout(() => setRepaint(false), 400); return () => clearTimeout(t);
   }, [palIdx]);
+  const regPalFirst = useRef(true);
+  useEffect(() => { // the stage card tap recolours the registration chrome the same way (UI O1)
+    if (regPalFirst.current) { regPalFirst.current = false; return; }
+    if (phase !== "register") return;
+    setRepaint(true); const t = setTimeout(() => setRepaint(false), 400); return () => clearTimeout(t);
+  }, [reg.stage]);
 
   /* ---------- POTS add-on: the switch and its one tab ----------
      Settings → Add-ons turns it on and off; it never changes the life stage, and changing stage
@@ -1498,14 +1511,8 @@ export default function CyraDemo() {
   }, []);
 
   const finishReg = async () => {
-    const map = {
-      "My Cycle": ["periods", "My Cycle"],
-      "Trying to conceive": ["periods", "Trying to Conceive"],
-      "Pregnant": ["preg", "Pregnancy"],
-      "Perimenopause": ["peri", "Perimenopause"],
-      "Menopause & beyond": ["peri", "Menopause"],
-    };
-    const [sid, slabel] = map[reg.stage] || ["peri", "Perimenopause"];
+    const labels = { "My Cycle": "My Cycle", "Trying to conceive": "Trying to Conceive", "Pregnant": "Pregnancy", "Perimenopause": "Perimenopause", "Menopause & beyond": "Menopause" };
+    const sid = REG_STAGE[reg.stage] || "peri", slabel = labels[reg.stage] || "Perimenopause";
     // Anonymous Mode keeps no name and no email anywhere, not even on this device.
     const anon = !!reg.anon;
     const name = anon ? "" : reg.name.trim();
@@ -1559,8 +1566,8 @@ export default function CyraDemo() {
 
   if (phase === "register") {
     return (
-      <Shell style={style} toast={toast}>
-        <RegisterScreen reg={reg} setReg={setReg} regStep={regStep} setRegStep={setRegStep} regTouched={regTouched} setRegTouched={setRegTouched} cadence={cadence} setCadence={setCadence} socialBusy={socialBusy} startSocial={startSocial} finishReg={finishReg} />
+      <Shell style={style} toast={toast} repaint={repaint}>
+        <RegisterScreen reg={reg} setReg={setReg} regStep={regStep} setRegStep={setRegStep} regTouched={regTouched} setRegTouched={setRegTouched} cadence={cadence} setCadence={setCadence} socialBusy={socialBusy} startSocial={startSocial} finishReg={finishReg} onBackToSplash={() => setPhase("splash")} />
       </Shell>
     );
   }

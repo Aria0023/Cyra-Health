@@ -101,6 +101,13 @@ phase: "splash" -> "register" -> "app"
 ### 4.1 Splash
 Wordmark, tagline "One companion for every phase", value proposition, "Get started" button.
 
+**UI O1.** Above the wordmark an aria-hidden ring motif (`.splashmotif`: three overlapping circles in --primary 14%,
+--accent 18% and --primary 8%, so it takes the stage palette after a restore). The value proposition is three icon rows
+(`ul.splashwhy`: clock "Track in 30 seconds a day.", chart "See your real patterns.", clipboard "Walk into appointments
+with evidence."). The two privacy sentences stay word for word in their own paragraph (`p.splashpriv`, lock icon) directly
+above "Get started" (docs/PRIVACY-AUDIT.md "UI O1"). The build stamp text is unchanged; `.rfoot b` is demoted to 11px /
+weight 500. "Restore from an encrypted backup" is unchanged.
+
 ### 4.2 Registration — 8 steps, with validation
 | # | Step | Fields | Required |
 |---|------|--------|----------|
@@ -116,6 +123,31 @@ Wordmark, tagline "One companion for every phase", value proposition, "Get start
 **Validation behavior:** red state appears **only after** the user taps Continue with
 fields missing — never on arrival. Show label in red with "· needed" suffix, red-tint
 the inputs, and a summary line below. Optional fields never turn red.
+
+**UI O1 (onboarding).**
+- Step 1 order: the short path first — name and email inputs (email placeholder "Email (optional)", its aria-label the
+  full sentence "Email (optional, kept only on this device and in backups you save)", and the clause repeated as a visible
+  helper line under the field), then "Continue in Anonymous Mode instead" (`.ghostbtn.quiet`, aria-pressed), then the
+  providers in one 3-up row with Apple leftmost and inline SVG marks (`Icon apple|google|facebook`, no `.socialdot`), the
+  provider footnote, and both detail panels ("What Cyra's server sees", "Exactly what's shared") together at the end.
+  "Continue" sits inside the first 844px at 390 wide. Back on step 1 returns to the splash.
+- Palette preview: `REG_STAGE` (exported from App.jsx: card label → periods | preg | peri) is the one routing map; finishReg
+  uses it. Each `.stagecard` carries a `.swatch-dot` in `PALETTES[REG_STAGE[label]][0].primary`; the selected card hides its
+  dot and shows a check in --primary. From the tap on, `regPal` (phase "register" only) merges that palette into the Shell
+  theme, so steps 3–8 wear the stage's first palette (crossfaded by the G4 `.cy.repaint` list), the same one finishReg lands
+  on. UI palette only; nothing is persisted until finishReg.
+- Chip rows: every `.lab` has an id and its `.mcrow` is `role="group" aria-labelledby` it; multi-select chips expose
+  aria-pressed; "None" and "None / unsure" are exclusive (choosing one clears the rest, choosing anything else clears it).
+- Consent step: cadence cards in a two-column grid (`.regcards.cadgrid`, the fifth spanning both columns); each data fact
+  carries a decorative icon (`.rlist.icons`, text byte-identical). The CTA logic is unchanged ("Complete required fields"
+  until the box is ticked, then "Enter Cyra").
+- Progress and steps: `.prog` is `role="progressbar"` ("Set-up progress", 1–8, valuenow = step); the step line reads
+  "Step n of 8 · Device | About you | Stage | Cycle | History | Health | Goals | Consent". The step body (`.regstep`, keyed by
+  step) slides in with `cy-slide-in` forward / `cy-slide-back` on Back (--t-base, --ease-in; none under reduced motion), the
+  page scrolls to the top (smooth unless `reduceMotion()`) and focus moves to the `h1.disp` (tabIndex -1, no outline,
+  preventScroll). A failed Continue scrolls the first marked field into view and the summary line is `role="alert"`.
+- Intake (stage change): "Question n of 4" above the question, aria-hidden dots, `role="status" aria-live="polite"` on the
+  "Personalizing your space…" card, and a Back link from the second question on.
 
 ### 4.3 Stage routing (answer → experience)
 ```

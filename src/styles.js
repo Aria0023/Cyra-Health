@@ -382,6 +382,37 @@ html { scroll-padding-top:60px; }
 .socialbtn { min-height:44px; display:flex; align-items:center; justify-content:center; gap:9px; border:1.5px solid var(--line); background:var(--card); border-radius:13px; padding:12px; font:700 14px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
 .socialbtn:disabled { opacity:.6; }
 .socialdot { width:12px; height:12px; border-radius:50%; }
+/* ---- UI O1: onboarding. Splash motif + promise rows; step 1 providers 3-up (Apple leftmost, inline marks); the stage
+   cards carry their palette swatch and the chosen one a check; the consent cadence is a two-column grid; each step slides
+   in (cy-slide-in / cy-slide-back, defined here) and hands focus to its heading. Under the reduce rule steps appear at once. ---- */
+.splashmotif { display:block; margin:0 0 10px -2px; }
+.splashwhy { list-style:none; margin:0 0 14px; padding:0; display:grid; gap:8px; }
+.splashwhy li { display:flex; align-items:center; gap:10px; font-size:var(--fs-lg); font-weight:600; color:var(--ink); line-height:1.35; }
+.splashwhy svg { flex-shrink:0; color:var(--accent); }
+.splashpriv { display:flex; align-items:flex-start; gap:8px; font-size:var(--fs-md); line-height:1.55; color:var(--soft); margin:0 0 16px; }
+.splashpriv svg { flex-shrink:0; margin-top:3px; color:var(--primary-text); }
+.rfoot b { font-weight:500; font-size:11px; letter-spacing:.04em; }
+.social { grid-template-columns:repeat(3, 1fr); }
+.socialbtn { padding:10px 6px; font-size:13px; gap:6px; min-height:44px; }
+.socialbtn svg { flex-shrink:0; }
+.ghostbtn.quiet { border-color:var(--line); color:var(--ink); font-weight:600; }
+.inp { min-height:44px; } .inp::placeholder { color:var(--soft); }
+.rfoot.inphelp { margin:-3px 0 10px 2px; }
+.stagecard { position:relative; }
+.swatch-dot { position:absolute; right:15px; top:16px; width:10px; height:10px; border-radius:50%; }
+.stagecard.on .swatch-dot { display:none; }
+.stagecheck { position:absolute; right:13px; top:13px; color:var(--primary); }
+.cadgrid { grid-template-columns:1fr 1fr; gap:var(--gap); }
+.cadgrid .stagecard { padding:10px 12px; min-height:56px; } .cadgrid .stagecard b { font-size:14px; } .cadgrid .stagecard span { font-size:11.5px; }
+.cadgrid > .stagecard:last-child:nth-child(odd) { grid-column:1 / -1; }
+.rlist.icons { list-style:none; padding-left:0; line-height:1.5; } .rlist.icons li { display:flex; align-items:flex-start; gap:8px; } .rlist.icons li + li { margin-top:2px; }
+.rlist.icons .labico { width:16px; height:16px; margin:2px 0 0; }
+.regstep.fwd { animation:cy-slide-in var(--t-base) var(--ease-in); } .regstep.back { animation:cy-slide-back var(--t-base) var(--ease-in); }
+@keyframes cy-slide-in { from { opacity:0; transform:translateX(24px) } }
+@keyframes cy-slide-back { from { opacity:0; transform:translateX(-24px) } }
+.disp:focus { outline:none; }
+.prog span { transition:background var(--t-slow); }
+.obback { display:block; margin:-6px 0 12px; }
 
 /* Milestones: a progress timeline (a line through small nodes), not a list of choices. */
 .mscard { padding:12px 16px 8px; margin-bottom:var(--gap); } .mscard .morewrap { margin:2px 0 0; }

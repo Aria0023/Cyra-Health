@@ -70,7 +70,7 @@ Each of these was settled with a default so that the build is truthful today. If
    - Recommendation: keep it. No studies exist, and the old copy promised per-study consent that wasn't built.
 7. **Email on step 1.** Optional or removed?
    - Applied: optional, labeled as kept on the device.
-   - The build now: "Email (optional, kept only on this device and in backups you save)". Anonymous Mode hides it. No code sends it anywhere.
+   - The build now: the field's accessible name is "Email (optional, kept only on this device and in backups you save)"; since UI O1 the placeholder reads "Email (optional)" and the clause "Kept only on this device and in backups you save." is a visible helper line under the field. Anonymous Mode hides both. No code sends it anywhere.
    - Recommendation differs: remove the field unless a feature will use it soon, since nothing reads it.
 8. **ZIP.** Optional or removed?
    - Applied: optional, described truthfully.
@@ -571,3 +571,15 @@ Traced to `src/screens/AskScreen.jsx` and `runAsk` in `src/App.jsx` on 16 Octobe
 - **Source badge** — "Written library" or "Cyra's AI" is derived only from `askOut.source` and can never claim less than the footer sentence: every server route that returned library text (`server-library`, `server-library-attempted`) still shows the footer sentence saying the question was sent, with the "Written library" badge describing where the words came from.
 - **"Copy question"** — hands the visit question to the device clipboard through `copyText` (`navigator.clipboard.writeText`); Cyra never reads the clipboard back. An OS hand-off like R1's, registered here.
 - **Memory only** — the question shown at the top of the card is `askOut.question`, React state that is not in `PERSISTED`, not in backups and cleared on reload. No Ask history key was added.
+
+## UI O1 (Onboarding) — two sentences moved, none reworded, nothing new leaves the device
+
+Traced to `src/screens/SplashScreen.jsx`, `src/screens/RegisterScreen.jsx`, `src/screens/IntakeScreen.jsx` and `REG_STAGE` / `regPal` in `src/App.jsx` on 16 October 2026.
+
+- **Splash promise** — "Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that tells you exactly what it sends." moved, unchanged, out of the five-sentence hint into its own paragraph (`p.splashpriv`, with a decorative lock) directly above "Get started". The other three sentences became the three icon rows above it, also unchanged. Still literally true: every server path for health data (weekly counts, Cyra's AI, Oura, Fitbit/Garmin/Whoop) is an opt-in that states what it sends before it is turned on (decision 1 above).
+- **Email clause** — the placeholder "Email (optional, kept only on this device and in backups you save)" was being cut off inside the field at phone width. The placeholder now reads "Email (optional)"; the clause is on screen in full as the helper line "Kept only on this device and in backups you save." directly under the field, and the input's `aria-label` keeps the whole original sentence, so screen readers and the test suites hear and find the same name. Still true: `finishReg` keeps the email in `acct` on this device only; it is in an encrypted backup she saves and nowhere else; Anonymous Mode drops it (decision 7 above).
+- **Step 1 reordered, nothing removed** — the inputs come first, then Anonymous Mode, then the providers, the provider footnote ("Apple, Google or Facebook will know you're setting up Cyra. None of your health data goes to them, and Cyra's server erases what they send within 5 minutes.") and both detail panels ("What Cyra's server sees", "Exactly what's shared"), every sentence word for word. Apple stays first.
+- **Stage palette preview** — picking a stage card recolours the registration chrome from `PALETTES` on this device. `reg.stage` was already held in memory until finishReg; nothing new is stored, sent or persisted by the preview.
+- **Consent step** — the six data facts gained a decorative icon each; their text is byte-identical. The cadence grid, the consent rows, their descriptions and the Terms line are unchanged, and nothing is pre-ticked.
+- **Intake** — "Question n of 4", a Back link and a live region were added; the hint and its weekly-counts parenthesis are unchanged.
+
