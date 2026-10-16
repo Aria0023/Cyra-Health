@@ -486,6 +486,18 @@ html { scroll-padding-top:60px; }
 .wkticks { display:grid; grid-template-columns:12fr 15fr 13fr; gap:3px; margin-top:3px; font-size:10.5px; font-weight:700; color:var(--soft); line-height:1.2; }
 .wkticks span:last-child { display:flex; justify-content:space-between; } .wkticks em { font-style:normal; font-weight:500; }
 .mstep.new .msdot { animation:cy-pop 350ms var(--ease-std); } .mstep.new::before { transform-origin:left; animation:cy-grow 300ms var(--ease-in); }
+/* ---- Milestones (UI M1): you are here ---- */
+.roadhead { display:flex; justify-content:space-between; align-items:center; gap:10px; margin:0 0 8px; } .roadhead .disp { margin:0; } .roadhead .linkbtn { min-height:44px; flex-shrink:0; font-size:var(--fs-sm); text-align:right; }
+.pregbar.road { height:6px; border-radius:3px; background:color-mix(in srgb, var(--ink) 10%, var(--card)); overflow:hidden; margin:0 0 12px; }
+.ppill.now { background:var(--primary); border-color:var(--primary); color:#FFF; }
+.ppill.soon { border-color:var(--primary); color:var(--primary-text); background:color-mix(in srgb, var(--primary) 10%, var(--card)); }
+.ppill.done { background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:color-mix(in srgb, var(--primary) 80%, var(--ink)); border-color:transparent; }
+.ppill.later { opacity:.85; }
+.shelfc.done { display:grid; grid-template-columns:auto 1fr auto; align-items:center; column-gap:10px; padding:8px 14px; }
+.shelfc.done .shead { display:contents; } .shelfc.done .sbrand { order:1; white-space:nowrap; } .shelfc.done .sname { order:2; font-size:var(--fs-md); font-family:inherit; font-weight:600; margin:0; } .shelfc.done .ppill { order:3; } .shelfc.done .hint { display:none; }
+.shelfc.now { border-color:var(--primary); box-shadow:0 0 0 3px color-mix(in srgb, var(--primary) 14%, transparent); }
+.shelfc .linkbtn.plan { min-height:44px; margin:0 0 -10px; font-size:var(--fs-sm); }
+.rsec.tri { display:flex; justify-content:space-between; align-items:baseline; gap:8px; border-bottom:2px solid var(--line); padding-bottom:4px; margin:14px 0 8px; } .rsec.tri.now { border-color:var(--primary); color:var(--primary-text); } .rsec.tri .tricount { letter-spacing:0; text-transform:none; font-weight:600; }
 /* ---- accessibility ---- */
 /* Reduce, don't remove: movement (keyframes, transform/size transitions) goes away, the 100ms colour and opacity
    feedback that tells a reduced-motion user a tap registered stays. */

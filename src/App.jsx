@@ -40,7 +40,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
    ./components; constants and pure engine functions in ./lib.
    ================================================================ */
 
-import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, RAMPS, SYM_FAMILY } from "./lib/constants.js";
+import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, RAMPS, SYM_FAMILY, PRENATAL } from "./lib/constants.js";
 import { seed, fmt, insights, predict, predictionWaits, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick } from "./lib/engine.js";
 import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
 import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource, drainTerra, mergeRows, disconnectHelp } from "./lib/wearables.js";
@@ -167,7 +167,7 @@ export default function CyraDemo() {
   const [newMed, setNewMed] = useState({ name: "", kind: "supp", started: localDay() });
   const [showMeds, setShowMeds] = useState(false);
   const [appts, setAppts] = useState([]);
-  const [newAppt, setNewAppt] = useState({ date: "", who: "" });
+  const [newAppt, setNewAppt] = useState({ date: "", who: "", note: "" });
   const [showAppts, setShowAppts] = useState(false);
   const [journal, setJournal] = useState({});
   const [jDraft, setJDraft] = useState("");
@@ -306,6 +306,9 @@ export default function CyraDemo() {
      sentence shows for 3.5s, 180 characters for 7.3s), capped at 8s: the web-live suite waits 10s for a toast
      to clear and the native suite reads the toast about 4s after a 70-character one appears. */
   const ping = (m) => { clearTimeout(toastTimer.current); setToast(m); const ms = Math.min(8000, Math.max(2600, 1000 + m.length * 35)); toastTimer.current = setTimeout(() => setToast(""), ms); };
+  // Milestones → Appointments bridge (UI M1, spec A4/A10): a now/soon roadmap item prefills the add-appointment note
+  // and opens Home with the Appointments panel out; the person picks the date. `when` is the item's eyebrow text.
+  const onPlan = (label, when) => { setNewAppt((a) => ({ ...a, note: `${label} (${when.charAt(0).toLowerCase()}${when.slice(1)})` })); setShowAppts(true); setPregTab("home"); ping("Added to Appointments — pick the date"); };
 
   /* The doctor email: everything in it comes from one window — the last 30 calendar days —
      and the denominator is the number of days she actually logged in it. */
@@ -868,8 +871,8 @@ export default function CyraDemo() {
 
   const homeInsight = (() => {
     if (stage === "preg") {
-      const next = [[24, "glucose screening"], [27, "Tdap vaccine"], [32, "RSV vaccine (seasonal)"], [36, "Group B Strep swab"]].find(([w]) => w >= pregWeek);
-      return { num: `Wk ${pregWeek}`, text: next ? `Next up on your care roadmap: ${next[1]} around week ${next[0]}.` : "You're in the home stretch — weekly visits from here." };
+      const next = PRENATAL.flatMap((g) => g.items).find((m) => m.from >= pregWeek && m.from <= 42); // from the same schedule Milestones draws (UI M1)
+      return { num: `Wk ${pregWeek}`, text: next ? `Next up on your care roadmap: ${next.label} around week ${next.from}.` : "You're in the home stretch — weekly visits from here." };
     }
     // Honest first run: before 3 check-ins the card counts the gap and names what unlocks it.
     if (days.length < 3) {
@@ -1712,7 +1715,7 @@ export default function CyraDemo() {
             {pregIs("cal") && (
               <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={dayScore} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} onEdit={startEdit} ping={ping} />
             )}
-            {pregIs("mile") && <MilestonesScreen pregWeek={pregWeek} />}
+            {pregIs("mile") && <MilestonesScreen pregWeek={pregWeek} onPlan={onPlan} />}
             {pregIs("ask") && askView}
             {pregIs("connect") && connView}
             {pregIs("home") && homeView}

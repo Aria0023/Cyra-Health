@@ -1,4 +1,4 @@
-import { SYM, PSYM, QUICK_MAP } from "./constants.js";
+import { SYM, PSYM, QUICK_MAP, PRENATAL } from "./constants.js";
 
 /* Deterministic demo data, cycle detection, prediction and scoring. Pure
    functions only — no React, no state, no side effects. */
@@ -44,6 +44,18 @@ export function stripeColor(v, hot, calm, mid) {
 }
 /* Pregnancy trimester for a week number: weeks 0-12 first, 13-27 second, 28+ third (Home greeting and week bar). */
 export const trimesterOf = (w) => (w < 13 ? "first" : w < 28 ? "second" : "third");
+/* Milestones "Next visit" sentence (UI M1), derived from PRENATAL so it is never stale: the first item whose window
+   holds this week, the next item that opens later (inside the 42 pregnancy weeks — the postpartum items have no
+   opening week), or what is left past 42. Pure; MilestonesScreen renders it under the hint. */
+export function roadmapAdvice(pregWeek) {
+  if (pregWeek > 42) return "You're past 42 weeks — the postpartum visits are what's left.";
+  const flat = PRENATAL.flatMap((g) => g.items);
+  const open = flat.filter((m) => pregWeek >= m.from && pregWeek <= m.to);
+  const next = flat.find((m) => m.from > pregWeek && m.from <= 42);
+  if (open.length) return `You're at week ${pregWeek}: ${open[0].label} is in its window now${next ? `, and ${next.label} opens at week ${next.from}` : ""} — ask about it at your next visit.`;
+  if (next) return `You're at week ${pregWeek}: nothing is due this week; ${next.label} opens at week ${next.from}.`;
+  return "You're past 42 weeks — the postpartum visits are what's left.";
+}
 export const fmt = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 /* A past day relative to today, for status lines ("last backup today"): today / yesterday / "N days ago" within a
    week, else fmt(iso). A day in the future or an unreadable value falls back to fmt(iso) rather than guessing. */

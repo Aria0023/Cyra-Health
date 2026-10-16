@@ -430,6 +430,11 @@ legend. Under the legends a `.card` with Fraunces "w{week}" reads "{40 − week}
 logged days."
 **Milestones:** the full evidence-based prenatal schedule (§7), each item status-tagged
 against her current week: done ✓ / in window / coming up / later.
+*UI M1:* the tab keeps its name, place and role. The screen opens on "you are here": a "Jump to this week" link
+beside the h1, a 6px `.pregbar.road` (`role="img"`, "Week {n} of 40") under it, the shortened hint, then the derived
+"Next visit" Advice (§7 "Derived advice"), then Visit rhythm and the four trimester groups. The first in-window (else
+next-to-open) card is `.shelfc.now` (primary edge) and is centred on open only when it starts below 80% of the
+viewport; focus is not moved (it stays on the tab). Now/soon cards offer "Add to appointments" (§A4).
 
 ---
 
@@ -516,6 +521,28 @@ Every visit: blood pressure, urine, fundal height, fetal heart rate.
 | ≤12 wks postpartum | Comprehensive postpartum visit |
 
 Always display: this is the standard low-risk schedule; the provider's plan governs.
+
+**Source of truth (UI M1).** The table lives once, as `PRENATAL` in `src/lib/constants.js` (`{ tri, items:[{ w, from, to,
+label, note, when? }] }`), read by MilestonesScreen, `engine.roadmapAdvice()` and the pregnancy Home insight ("Next up on
+your care roadmap: {label} around week {from}", the first item with `from >= week` and `from <= 42`).
+
+**Derived advice rule.** `roadmapAdvice(week)` (pure, `src/lib/engine.js`, tested in `milestones.test.mjs`): with
+`open` = items whose window holds the week and `next` = the first item whose `from` is later (and ≤ 42, so the
+postpartum items never "open at week 43"): open → "You're at week {w}: {open[0].label} is in its window now[, and
+{next.label} opens at week {next.from}] — ask about it at your next visit."; no open but a next → "You're at week {w}:
+nothing is due this week; {next.label} opens at week {next.from}."; week > 42 → "You're past 42 weeks — the postpartum
+visits are what's left." No week number is hard-coded; the sentence differs at 22, 30 and 41.
+
+**Status pill semantics.** `.ppill.now` "in window" is primary-filled with white text (the only filled pill);
+`.ppill.soon` "coming up" (window opens within 4 weeks) is primary-outlined on a 10% primary tint; `.ppill.done`
+"done ✓" (week past `to`) is a borderless 12% primary tint with the check glyph; `.ppill.later` is the plain pill at
+85% opacity. --bad (#A04545) is not used on this screen outside the Advice chip. Done items fold to one-line
+`.shelfc.done` rows (eyebrow · label · pill, note hidden); every other item keeps its full card.
+
+**Eyebrow strings (SH-15).** `prenatalWhen(item)`: "Weeks {w}" ("Weeks 24–28", "Weeks 10+", "Weeks 28"), except
+"Any week" for the folate/vaccines item and "Within 3 weeks of birth" / "By 12 weeks after birth" for the two
+postpartum items — never "Weeks any". Trimester headers are `.rsec.tri` with a right-aligned "{n} of {m} done" and a
+2px rule, primary (`.now`) on the current trimester (`trimesterOf(week)`, "After birth" past 42).
 
 ---
 
@@ -874,6 +901,14 @@ started today and toasts the same sentence as the form; she can then mark it tak
 `{ id, date, who, note }`. Upcoming list with countdown; ≤7 days → "Prep report" button
 routes to Report. Past appointments without a note prompt "What did they say?" (onBlur save).
 
+**Roadmap → Appointments note prefill (UI M1).** The add form's state is `{ date, who, note }`. "Add to appointments"
+on an in-window or coming-up Milestones card calls `onPlan(label, when)` in App.jsx, which sets `note` to
+"{label} ({when, lower-cased})" (e.g. "Glucose screening (weeks 24–28)"), opens the Appointments panel, switches to
+Home and toasts **"Added to Appointments — pick the date"**. The form shows the pending note as a `.hint.apptnote`
+line ("For: …") above the date input while present; Add stores it as the appointment's `note` (so a past visit with a
+prefilled note never asks "What did they say?" again) and clears the form to `{ date:"", who:"", note:"" }`. The
+existing Add toasts are unchanged. Nothing is added until the person picks a date and taps Add.
+
 ## A5. Journal
 Free text per day, `journal[iso]`, private, last 5 shown. Prompt: "How are you, really?"
 
@@ -977,6 +1012,11 @@ in App.jsx is a pure function of a days array; `milestones` is `milestonesFor(da
 `justReached` for 2000ms (the matching `.mstep` takes `.new`: dot `cy-pop` 350ms, rail `cy-grow` 300ms; none under
 reduced motion) and toasts "Milestone reached: {label}". This state is never persisted and never set on hydration or
 restore, so the moment cannot replay (`grep milestonesSeen src` finds nothing).
+
+**Home ↔ roadmap bridge (UI M1).** Pregnancy Home's "Today's insight" names the next roadmap item from the same
+`PRENATAL` table the Milestones tab draws; a Milestones card's "Add to appointments" lands back on Home with the
+Appointments panel open and scrolled into view (HomeScreen scrolls `#home-appts` on first render only when a
+prefilled note is pending). Neither direction stores anything until the appointment is added.
 
 ## A11. Social sign-in
 Account step offers Apple, Google, Facebook. Demo simulates the OAuth round-trip. Production:

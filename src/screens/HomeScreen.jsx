@@ -85,7 +85,10 @@ export default function HomeScreen({
   useEffect(() => {
     const now = { recap: showRecap, wear: showWear, meds: showMeds, appts: showAppts, journal: showJournal };
     const prev = wasOpen.current; wasOpen.current = now;
-    if (!prev) return;
+    if (!prev) { // first render: only a roadmap item just sent here (UI M1 prefilled note) scrolls the open Appointments panel into view
+      if (showAppts && newAppt.note) document.getElementById("home-appts")?.scrollIntoView?.({ block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" });
+      return;
+    }
     const opened = Object.keys(now).find((k) => now[k] && !prev[k]);
     if (opened) document.getElementById(`home-${opened}`)?.scrollIntoView?.({ block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" });
   }, [showRecap, showWear, showMeds, showAppts, showJournal]);
@@ -339,9 +342,10 @@ export default function HomeScreen({
           ))}
           {past.filter((a) => a.note).slice(0, 3).map((a) => <div className="medrow" key={a.id}><div className="medinfo"><b>{a.who || "Appointment"} · {fmt(a.date)}</b><span>{a.note}</span></div></div>)}
           <p className="lab" style={{ margin: "10px 0 6px" }}>Add an appointment</p>
+          {newAppt.note && <p className="hint apptnote" style={{ margin: "0 0 6px" }}>For: {newAppt.note}</p>}
           <input className="inp" type="date" aria-label="Appointment date" value={newAppt.date} onChange={(e) => setNewAppt((x) => ({ ...x, date: e.target.value }))} />
           <input className="inp" placeholder="With whom (optional)" aria-label="With whom (optional)" value={newAppt.who} onChange={(e) => setNewAppt((x) => ({ ...x, who: e.target.value }))} />
-          <button className="cta" onClick={() => { if (!newAppt.date) return ping("Pick a date"); setAppts((x) => [...x, { id: Date.now(), ...newAppt, note: "" }]); setNewAppt({ date: "", who: "" }); ping(stage === "preg" ? "Added — it shows on Home under Coming up" : "Added — it shows on Home, with a prompt to prep your report in the week before"); }}>Add</button>
+          <button className="cta" onClick={() => { if (!newAppt.date) return ping("Pick a date"); setAppts((x) => [...x, { id: Date.now(), ...newAppt, note: newAppt.note || "" }]); setNewAppt({ date: "", who: "", note: "" }); ping(stage === "preg" ? "Added — it shows on Home under Coming up" : "Added — it shows on Home, with a prompt to prep your report in the week before"); }}>Add</button>
         </div>
       )}
 
