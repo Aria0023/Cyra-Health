@@ -517,6 +517,54 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .toast.show { opacity:1; pointer-events:auto; transform:translate(-50%, 0); transition-duration:var(--t-base); transition-timing-function:var(--ease-in); will-change:transform; }
 .toast.long { text-align:left; border-radius:14px; padding:11px 14px; max-width:92%; }
 .cy:has(.stopbar) .toast { bottom:calc(86px + var(--sa-b)); }
+/* ---- UI R1: Report — appointment line, ramp-tinted cover, threshold meters, softened rails, route hierarchy,
+   picked questions, print. Family / ramp colours stay on the data marks only; the chrome is the stage palette. ---- */
+.rappt { display:flex; flex-wrap:wrap; align-items:center; gap:0 6px; font-size:var(--fs-md); color:var(--soft); margin:-8px 0 10px; min-height:44px; }
+.rappt b { color:var(--ink); } .rappt .linkbtn { font-size:var(--fs-md); }
+.rcov-meta { margin-top:1px; }
+.rcov-cells i.on { box-shadow:inset 0 0 0 1px rgba(0,0,0,.14); }
+.rcov-cells i.today { background:transparent; box-shadow:inset 0 0 0 1.5px var(--primary); }
+.rcov-today { font-size:var(--fs-sm); color:var(--soft); margin:8px 0 -4px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.rcov-today .linkbtn { font-size:var(--fs-sm); }
+.report .rsec { display:flex; align-items:baseline; gap:8px; }
+.rnum { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:17px; letter-spacing:0; text-transform:none; color:var(--primary); line-height:1; }
+.fhead b { font-size:15px; }
+.fmeter { height:10px; border-radius:5px; }
+.fmeter .fm-any, .fmeter .fm-strong { width:100%; transform-origin:left; transform:scaleX(var(--v, 0)); transition:transform 450ms var(--ease-in); }
+.fm-any { background:color-mix(in srgb, var(--fc) 34%, var(--card)); }
+.ftick { position:absolute; top:-2px; bottom:-2px; width:1px; height:auto; border-radius:0; background:var(--ink); opacity:.55; }
+.fleg { margin:4px 0 6px; font-size:var(--fs-xs); gap:2px 10px; }
+.fcount { color:var(--ink); font-weight:700; font-size:var(--fs-md); }
+.fdelta { display:inline-flex; align-items:center; gap:4px; }
+.fdelta.flat { color:var(--soft); font-weight:500; } .fdelta.worse, .fdelta.better { font-weight:600; }
+.rtri { flex-shrink:0; }
+.mfamrow { display:inline-flex; align-items:center; gap:6px; margin-bottom:2px; }
+.mfam { font-size:var(--fs-xs); font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--soft); line-height:1.2; }
+.report .scriptrow .script { border-left:none; padding-left:0; font-family:'Fraunces Variable','Fraunces',serif; font-weight:440; font-size:15px; line-height:1.5; }
+.sbody { flex:1; min-width:0; display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+.sadd { font-size:var(--fs-sm); min-height:36px; } .sadd.on { text-decoration:none; color:var(--good); }
+.sadd:disabled { color:var(--soft); text-decoration:none; cursor:default; opacity:.7; }
+.scopy.ok { color:var(--good); text-decoration:none; }
+.routes { flex-wrap:wrap; }
+.route { flex:1 1 150px; font-size:13px; padding:12px 10px; }
+.route.primary { background:var(--primary); border-color:var(--primary); color:#FFF; }
+.route.primary span { color:rgba(255,255,255,.92); font-size:11px; }
+.rlong { margin:8px 0 0; }
+.report .rsec + .emailpreview { margin-top:0; }
+.emailpreview { resize:none; field-sizing:content; background:color-mix(in srgb, var(--primary) 5%, var(--card)); border-radius:var(--r-card); padding:13px 15px; overflow:hidden; }
+@media print {
+  .mast, nav[aria-label="Sections"], .tabswrap, .routes, .rappt .linkbtn, .rcov-today .linkbtn, .sadd, .scopy, .toast, .disclosure, .savebar, .report .cta, .rlong { display:none !important; }
+  .bodypanel { display:block !important; border-radius:0; }
+  .rappt { min-height:0; margin:0 0 6px; } .rappt:not(:has(b)), .rcov-today { display:none !important; }
+  .cy { padding:0; max-width:none; background:#FFF; color:#000; }
+  .plaincard > * { display:block; }
+  .card, .plaincard, .finding, .meaning, .scriptrow, .rcover { break-inside:avoid; box-shadow:none; border-color:#999; }
+  .rsec, .section-lab { break-after:avoid; }
+  body { orphans:3; widows:3; }
+  .fmeter { border:1px solid #999; }
+  .fmeter .fm-any, .fmeter .fm-strong { transition:none; }
+  .emailpreview { border:1px solid #999; }
+}
 /* Palette crossfade: for --t-slow after a palette change (.cy.repaint, App.jsx) the chrome recolours together.
    FAMILIES / RAMPS inline colours (chart dots, severity marks) are not in this list by design: data never animates. */
 .cy.repaint .card, .cy.repaint .plaincard, .cy.repaint .cta, .cy.repaint .tab-on, .cy.repaint .mc.on, .cy.repaint .stagecard.on, .cy.repaint .pulse, .cy.repaint .meter, .cy.repaint .disclosure, .cy.repaint .pchart, .cy.repaint .streak, .cy.repaint .readcard { transition-property:background-color, border-color, color; transition-duration:var(--t-slow); }

@@ -313,6 +313,50 @@ the POTS page (Home's handler).
    row carries the family dot and a small bar of days (the table is the text twin of the
    meters above).
 
+*UI R1 — ready for the appointment it is for.* Everything above stays; these are added on top:
+- **Appointment context.** Under the h1 a `.rappt` line names the next upcoming appointment
+  ("Dr Lee · in 6 days · Change", "today" / "tomorrow" when that close; "Your appointment" when
+  no name was given) or offers "Add your appointment date". Both go to Home with the
+  Appointments panel open (`goTab('home'); setShowAppts(true)`). Nothing is stored here.
+- **Cover.** The text ends "logged by you · prepared {today}". Each logged cell of the 30-day
+  strip is tinted by that day's score on the stage RAMP (data-viz colour, same as the calendar
+  fill) with a 1px inset edge so the lightest step still reads against the card; today, when
+  unlogged, is an outlined cell and the cover adds "Today isn't logged yet. Log today" (→ Today).
+- **Thin-data states.** Under 3 logged days: cover, "You haven't logged much yet. A week or two
+  of check-ins is enough to start seeing something real.", a "Log today" CTA, then "Send it
+  ahead" with the preview and routes — "Open in email" and "Copy email" render in every state.
+  3–6 days: "A week or two of check-ins makes this a lot stronger." under the cover. When no
+  meaning crosses a threshold, section 2 says "Nothing in your log crosses the thresholds
+  doctors usually ask about — that's useful to say too." above the disclaimer.
+- **Findings, numbers first.** Each sentence opens with bold "21 of 29 days"; the meter is
+  10px with ticks at 60% and 80% (the "most days" / "nearly every day" thresholds), the filled
+  part a 34% family tint and the moderate-or-strong part the full colour; one `.flegend` line
+  under the first meter replaces the paragraph legend; the meters grow once per mount (450ms
+  scaleX, instant under reduced motion). The month-over-month change is a 10px triangle plus
+  words: "5 more days than the month before (16 → 21)" in `.worse`, "fewer" in `.better`,
+  "same as the month before" in `.flat` — never colour alone.
+- **Meanings** carry a family dot and word (HEAT, SLEEP, PAIN; CYCLES for the variability one)
+  above the heading and a rail softened to a 55% mix of the family colour with the card.
+  Section numerals are Fraunces in --primary (`.rnum`); scripts are set in Fraunces 15px with
+  no left rule.
+- **Questions that ride along.** Each script has "Add to email" (aria-pressed; "Added ✓" when
+  picked; at most three, further buttons disabled). `buildEmail(questions)` lists them under
+  "Questions I'd like to cover:" before the sign-off. When the encoded mailto body passes 1,900
+  characters the page says "Long for an email link — use Copy email or Share…" (the link is
+  still offered). "Copy" on a script reads "Copied" for 1.5s and still toasts; the helper is
+  `copyText(text, okMsg, ping)` in `src/lib/clipboard.js`.
+- **Routes.** "Open in email" is the filled primary route; "Copy email" outlined; "Print or save
+  PDF" calls `window.print()` (sub-label "pinch the preview to save" on iOS, "from your browser"
+  elsewhere); "Share…" (`navigator.share({ title, text })`) renders only when
+  `navigator.canShare({ text })` is true. Routes wrap (two per row). The preview is labelled
+  "Preview", sized to the whole email (`field-sizing:content`, no inner scroll) and keeps
+  `aria-label="Email preview"`.
+- **Print.** `@media print` hides the header, section bar, routes, Copy / Add / Change links and
+  the toast, switches the cards to block flow with `break-inside:avoid`, and the page opens
+  "The numbers behind this" on `beforeprint` (and on the print media query) so the table prints.
+  Print and share hand the same text to the OS that email and the clipboard do; Cyra itself
+  still sends nothing (docs/PRIVACY-AUDIT.md, "UI R1").
+
 **Care:** partner list filtered by stage, ordered by match to her logged symptoms.
 Each card: brand, "Partner" pill, offer, "Matched: <symptom> (n/30)", **evidence label**
 (Strong evidence / Mixed evidence / Comfort, not a treatment / Clinical care), price,

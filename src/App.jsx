@@ -297,7 +297,8 @@ export default function CyraDemo() {
 
   /* The doctor email: everything in it comes from one window — the last 30 calendar days —
      and the denominator is the number of days she actually logged in it. */
-  const buildEmail = () => {
+  // questions: scripts she picked on the Report ("Add to email"), listed before the sign-off.
+  const buildEmail = (questions = []) => {
     const subject = `Symptom summary ahead of my appointment${acct.name ? ` — ${acct.name}` : ""}`;
     const n = ins.last30.length;
     const lines = [
@@ -306,6 +307,7 @@ export default function CyraDemo() {
       ...ins.counts.filter((c) => c.days > 0).slice(0, 4).map((c) => `• ${c.label}: ${c.days} of ${n} logged days (${c.strong} moderate-to-strong)`),
       ...(ins.lens30.length >= 1 ? [``, `• Cycle length${ins.lens30.length > 1 ? "s" : ""} in these 30 days: ${ins.lens30.join(", ")} days${ins.variability30 != null ? ` (${ins.variability30}-day spread)` : ""}`] : []),
       ...(stage === "peri" && ins.hfMult30 ? [`• Hot flashes were ${ins.hfMult30.toFixed(1)}x more likely after poorly-rated nights`] : []),
+      ...(questions.length ? [``, `Questions I'd like to cover:`, ...questions.map((q, i) => `${i + 1}. ${q}`)] : []),
       ``,
       `Happy to share the full day-by-day log at the visit. Thank you!`,
     ];
@@ -1710,7 +1712,7 @@ export default function CyraDemo() {
               <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />
             )}
             {appIs("patterns") && <PatternsScreen ins={ins} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} />}
-            {appIs("report") && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} />}
+            {appIs("report") && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} />}
             {appIs("shelf") && <CareScreen shelfItems={shelfItems} />}
             {appIs("ask") && askView}
             {appIs("connect") && connView}
