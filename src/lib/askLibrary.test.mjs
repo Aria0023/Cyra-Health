@@ -5,12 +5,14 @@
    POTS entries sit at the top in the design's order and step aside for heavy bleeding, every POTS
    answer carries the when-to-get-help sentence, the design's probe questions land where they
    should on both sides, the POTS patterns never catch the bare words that belong to other topics,
-   and the POTS answers carry no diagnosis, banned wording or amounts. */
+   the POTS answers carry no diagnosis, banned wording or amounts, and every Ask starter question
+   (lib/askStarters.js) is answered on the device. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { RED_FLAGS, LIBRARY, answerLocally } from "./askLibrary.js";
 import { RED_FLAGS as B_RED_FLAGS, LIBRARY as B_LIBRARY } from "../../backend/src/modules/ai/tasks.js";
 import { POTS_BANNED } from "./potsConstants.js";
+import { STARTERS, INSIGHT_STARTERS } from "./askStarters.js";
 
 const SIDES = [["client", RED_FLAGS, LIBRARY], ["backend", B_RED_FLAGS, B_LIBRARY]];
 const POTS_N = 4;
@@ -187,4 +189,16 @@ test("POTS answers: no diagnosis, no banned wording, no amounts", () => {
     }
   }
   assert.ok(LIBRARY[3].answer.includes("Cyra can't diagnose POTS; only a clinician can."));
+});
+
+test("every Ask starter and insight question is answered by the library on the device", () => {
+  const all = [...Object.values(STARTERS).flat(), ...Object.values(INSIGHT_STARTERS)];
+  assert.ok(all.length >= 15, "the starter lists are populated");
+  for (const q of all) {
+    const r = answerLocally(q);
+    assert.equal(r.matched, true, `library answers: ${q}`);
+    assert.equal(r.urgent, false, `not a red flag: ${q}`);
+  }
+  // The POTS extra reaches the standing/dizziness entry, not the generic fatigue one.
+  assert.equal(route(RED_FLAGS, LIBRARY, STARTERS.pots[0]), 3);
 });

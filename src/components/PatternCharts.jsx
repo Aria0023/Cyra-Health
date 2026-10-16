@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { dayScore, isPeriodDay, fmt, localDay, sevDots } from "../lib/engine.js";
 import { FAMILIES, SYM_FAMILY } from "../lib/constants.js";
+import Details from "./Details.jsx";
 
 /* "Your patterns" card (Home and the Patterns tab; cycle and perimenopause/menopause stages).
    One card, two views behind a switch:
@@ -12,11 +13,17 @@ import { FAMILIES, SYM_FAMILY } from "../lib/constants.js";
      the top, clockwise; dot size = how hard the day was, dot colour = strongest symptom family;
      the cycle days that are usually hardest are highlighted and named.
    Both views share one selection: tap or arrow through days and the day card names what was
-   logged, so colour is never the only way to read it. Everything is computed from the on-device
-   record; nothing here is stored or sent. */
+   logged, so colour is never the only way to read it. On Patterns the takeaway (the callout)
+   and the legend sit above the plot, the last logged day is open when the card mounts, the
+   day card has previous / next buttons, a visually-hidden live region speaks the day only on
+   release or a step (the visible card follows the finger), a "The numbers behind this chart"
+   disclosure lists the same data as text, and the line and dots draw in once per mount.
+   Everything is computed from the on-device record; nothing here is stored or sent. */
 
 const FAM = Object.fromEntries(FAMILIES.map((f) => [f.id, f]));
 const NONE = "var(--line)";
+// a hairline in the ink (not the card colour) so every dot has an edge on the card and on the period band
+const DOT_EDGE = "color-mix(in srgb, var(--ink) 35%, transparent)";
 const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return localDay(d); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T12:00:00") - new Date(a + "T12:00:00")) / 86400000);
 const wkday = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
@@ -53,35 +60,80 @@ const stepKey = (ev, count, cur, go) => {
   go(Math.max(0, Math.min(count - 1, from + (ev.key === "ArrowRight" ? 1 : -1))));
 };
 
-export function DayCard({ day, ids, labels, starts, empty }) {
-  if (!day) return <div className="pday" aria-live="polite"><span className="hint">{empty}</span></div>;
+/* The symptoms logged on a day, strongest first. */
+const daySyms = (e, ids) => (e ? ids.filter((k) => (e.sym?.[k] || 0) > 0).sort((a, b) => e.sym[b] - e.sym[a]) : []);
+
+/* The day card's reading as one sentence, for the live region (spoken on release or a step, never on every move). */
+export function describeDay(day, ids, labels, starts) {
+  if (!day) return "";
   const cd = starts?.length ? cycleDayOf(starts, day.iso) : null;
   const e = day.e;
-  const syms = e ? ids.filter((k) => (e.sym?.[k] || 0) > 0).sort((a, b) => e.sym[b] - e.sym[a]) : [];
+  const head = `${wkday(day.iso)}, ${fmt(day.iso)}${cd ? `, cycle day ${cd}` : ""}${e && isPeriodDay(e) ? ", period" : ""}.`;
+  if (!e) return `${head} Nothing logged that day.`;
+  const syms = daySyms(e, ids).slice(0, 6).map((k) => `${labels[k] || k} ${e.sym[k]} of 3`);
+  return `${head} Day score ${Math.round(day.score * 100)}${e.sleepQ ? `, slept ${e.sleepQ}` : ""}. ${syms.length ? syms.join(", ") + "." : "No symptoms logged."}`;
+}
+
+/* The day card. No aria-live of its own (the card follows pointer moves; PatternsCard's sr-only region
+   speaks on release or a step). onStep(dir): the ‹ › buttons on Patterns; absent on Home. */
+export function DayCard({ day, ids, labels, starts, empty, onStep = null, atStart = false, atEnd = false }) {
+  if (!day) return <div className="pday"><span className="hint">{empty}</span></div>;
+  const cd = starts?.length ? cycleDayOf(starts, day.iso) : null;
+  const e = day.e;
+  const syms = daySyms(e, ids);
+  const step = (dir, off) => (ev) => { if (off) { ev.preventDefault(); return; } onStep(dir); };
   return (
-    <div className="pday" aria-live="polite">
-      <div className="pday-h">{wkday(day.iso)}, {fmt(day.iso)}{cd ? ` · cycle day ${cd}` : ""}{e && isPeriodDay(e) ? " · period" : ""}</div>
-      {!e ? <div>Nothing logged that day.</div> : (
-        <>
-          <div>Day score <b>{Math.round(day.score * 100)}</b>{e.sleepQ ? `. Slept ${e.sleepQ}` : ""}.</div>
-          {syms.length ? (
-            <ul className="pday-s">
-              {syms.slice(0, 6).map((k) => (
-                <li key={k}><i className="fdot" style={{ background: FAM[SYM_FAMILY[k] || "body"].color }} aria-hidden="true" />{labels[k] || k} <span className="sevd" aria-label={`${e.sym[k]} of 3`}>{sevDots(e.sym[k])}</span></li>
-              ))}
-            </ul>
-          ) : <div>No symptoms logged.</div>}
-        </>
-      )}
+    <div className={`pday ${onStep ? "pday-nav" : ""}`}>
+      <div className="pday-h">
+        <span>{wkday(day.iso)}, {fmt(day.iso)}{cd ? ` · cycle day ${cd}` : ""}{e && isPeriodDay(e) ? " · period" : ""}</span>
+        {onStep && (
+          <span className="psteps">
+            <button type="button" className="linkbtn pstep" aria-label="Previous day" aria-disabled={atStart || undefined} onClick={step(-1, atStart)}>‹</button>
+            <button type="button" className="linkbtn pstep" aria-label="Next day" aria-disabled={atEnd || undefined} onClick={step(1, atEnd)}>›</button>
+          </span>
+        )}
+      </div>
+      <div key={day.iso} className="pday-in">
+        {!e ? <div>Nothing logged that day.</div> : (
+          <>
+            <div>Day score <b>{Math.round(day.score * 100)}</b>{e.sleepQ ? `. Slept ${e.sleepQ}` : ""}.</div>
+            {syms.length ? (
+              <ul className="pday-s">
+                {syms.slice(0, 6).map((k) => (
+                  <li key={k}><i className="fdot" style={{ background: FAM[SYM_FAMILY[k] || "body"].color }} aria-hidden="true" />{labels[k] || k} <span className="sevd" aria-label={`${e.sym[k]} of 3`}>{sevDots(e.sym[k])}</span></li>
+                ))}
+              </ul>
+            ) : <div>No symptoms logged.</div>}
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
-function FamilyLegend({ fams, extra }) {
+function FamilyLegend({ fams, extra, className = "flegend" }) {
   return (
-    <div className="flegend">
+    <div className={className}>
       {FAMILIES.filter((f) => fams.has(f.id)).map((f) => <span key={f.id}><i className="fdot" style={{ background: f.color }} aria-hidden="true" />{f.label}</span>)}
       {extra}
+    </div>
+  );
+}
+
+/* Before 3 check-ins (Home and Patterns): an aria-hidden seven-dot sketch in --line/--soft only (no
+   .pchart/.psvg classes, no family colours), the count of the gap and a three-segment bar. `children`
+   is the optional action under it (Patterns: "Log today's check-in →"). */
+const SOON_PTS = [[18, 34], [66, 22], [114, 30], [162, 16], [210, 26], [258, 12], [306, 20]];
+export function ChartSoon({ logged, children = null }) {
+  return (
+    <div className="plaincard pchart-soon">
+      <svg viewBox="0 0 324 44" aria-hidden="true" focusable="false">
+        <path d={SOON_PTS.map(([x, y], i) => `${i ? "L" : "M"}${x},${y}`).join(" ")} fill="none" stroke="var(--line)" strokeWidth={1.5} strokeDasharray="3 4" strokeLinecap="round" />
+        {SOON_PTS.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={4} fill="var(--card)" stroke="var(--soft)" strokeWidth={1.5} strokeDasharray={i < logged ? "none" : "2 2"} />)}
+      </svg>
+      <p className="plain">Your 60-day chart appears after 3 check-ins · {Math.min(3, logged)} of 3</p>
+      <span className="msbar three" aria-hidden="true">{[0, 1, 2].map((i) => <i key={i} className={i < logged ? "on" : ""} />)}</span>
+      {children}
     </div>
   );
 }
@@ -89,7 +141,7 @@ function FamilyLegend({ fams, extra }) {
 /* ---------------- Day by day: the day-score line with the symptom rows under it ---------------- */
 
 /* Rough nights, then the `max` most-logged symptoms, each with a per-day value for its dots. */
-function symptomRows(days, ids, labels, max) {
+export function symptomRows(days, ids, labels, max) {
   const count = (k) => days.filter((d) => (d.e?.sym?.[k] || 0) > 0).length;
   const nights = days.filter((d) => d.e?.sleepQ === "poor").length;
   return [
@@ -99,8 +151,9 @@ function symptomRows(days, ids, labels, max) {
   ];
 }
 
-/* 7-day average, best and hardest 4-day stretches, and the first-week to last-week change. */
-function dayStats(days) {
+/* 7-day average, best and hardest 4-day stretches, and the first-week to last-week change
+   (`diff`, in points; `first` / `last` are the two week means in points). */
+export function dayStats(days) {
   const n = days.length;
   const avg = days.map((_, i) => { const w = days.slice(Math.max(0, i - 6), i + 1).filter((d) => d.score != null); return w.length >= 3 ? mean(w) : null; });
   const win = 4; let best = null, worst = null, bv = -1, wv = 2;
@@ -115,10 +168,11 @@ function dayStats(days) {
   const weekMean = (from, to) => { const w = days.slice(from, to).filter((d) => d.score != null); return w.length >= 3 ? mean(w) : null; };
   const first = weekMean(0, 7), last = weekMean(n - 7, n);
   const diff = first != null && last != null ? Math.round((last - first) * 100) : null;
-  return { avg, win, best, worst, showStretches, diff };
+  const span = (i) => (i == null ? null : `${fmt(days[i].iso)}–${fmt(days[i + win - 1].iso)}`);
+  return { avg, win, best, worst, showStretches, diff, first: first != null ? Math.round(first * 100) : null, last: last != null ? Math.round(last * 100) : null, bestSpan: span(best), worstSpan: span(worst) };
 }
 
-function DayField({ days, rows, stats, sel, setSel, compact = false, popIso = null }) {
+function DayField({ days, rows, stats, sel, setSel, compact = false, popIso = null, onCommit = null, animate = false }) {
   const { avg, win, best, worst, showStretches, diff } = stats;
   // Home's compact card draws the same line, dots and bands on a shorter plot
   const W = 360, LH = compact ? 150 : 206, L = 28, R = 10, T = 26, B = 16, n = days.length;
@@ -133,16 +187,19 @@ function DayField({ days, rows, stats, sel, setSel, compact = false, popIso = nu
   avg.forEach((v, i) => { if (v == null) { pen = false; return; } path += `${pen ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`; pen = true; });
   const logged = days.filter((d) => d.score != null);
   const pick = (ev) => { const r = ev.currentTarget.getBoundingClientRect(); const px = ((ev.clientX - r.left) / r.width) * W; return Math.max(0, Math.min(n - 1, Math.round((px - L) / step))); };
+  const commit = (i) => { setSel(i); onCommit?.(i); };
   const label = (i, above) => {
     const cx = x(i + (win - 1) / 2), anchor = cx > W - 70 ? "end" : cx < L + 60 ? "start" : "middle";
     return { x: Math.min(W - R, Math.max(L, cx)), anchor, y: above ? 12 : LH - 4 };
   };
   const bl = best != null ? label(best, true) : null, wl = worst != null ? label(worst, false) : null;
   const selBottom = rows.length ? rowsTop + rowsH : LH - B;
+  // Patterns: an ink hairline on every dot (edge contrast on the card and the band); Home keeps H1's card-colour halo
+  const edge = compact ? { stroke: "var(--card)", strokeWidth: 1.2 } : { stroke: DOT_EDGE, strokeWidth: 0.8 };
   const summary = `Day score for the last 60 days, ${logged.length} days logged.${diff != null ? ` Weekly average ${diff >= 0 ? "up" : "down"} ${Math.abs(diff)} points since the first week.` : ""}${showStretches ? ` Best stretch from ${fmt(days[best].iso)}, hardest from ${fmt(days[worst].iso)}.` : ""}${rows.length ? ` Underneath: ${rows.map((r) => `${r.label} on ${r.c} days`).join(", ")}.` : ""} Use the left and right arrow keys to step through days.`;
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={summary} tabIndex={0} className="psvg"
-      onPointerMove={(ev) => setSel(pick(ev))} onPointerDown={(ev) => setSel(pick(ev))} onKeyDown={(ev) => stepKey(ev, n, sel, setSel)}>
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-roledescription="interactive chart" aria-label={summary} tabIndex={0} className="psvg"
+      onPointerMove={(ev) => setSel(pick(ev))} onPointerDown={(ev) => setSel(pick(ev))} onPointerUp={(ev) => commit(pick(ev))} onKeyDown={(ev) => stepKey(ev, n, sel, commit)}>
       <g style={{ color: "var(--ink)" }}>
         {days.map((d, i) => d.e && isPeriodDay(d.e) && (
           <g key={`p${i}`} fill="currentColor" fillOpacity={0.07}>
@@ -159,13 +216,16 @@ function DayField({ days, rows, stats, sel, setSel, compact = false, popIso = nu
             <text x={lb.x} y={lb.y} textAnchor={lb.anchor} className="pnote">{t} · {fmt(days[i].iso)}</text>
           </g>
         ))}
-        {path && <path d={path} fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" opacity={0.85} />}
-        {days.map((d, i) => d.score != null && (
-          // the day just saved (App justSaved, set by the save handler only) pops once on this mount
-          d.iso === popIso
-            ? <g key={`d${i}`} className="dot-new"><circle cx={x(i)} cy={y(d.score)} r={3.4} fill={d.fam ? FAM[d.fam].color : NONE} stroke="var(--card)" strokeWidth={1.2} /></g>
-            : <circle key={`d${i}`} cx={x(i)} cy={y(d.score)} r={3.4} fill={d.fam ? FAM[d.fam].color : NONE} stroke="var(--card)" strokeWidth={1.2} />
-        ))}
+        {/* the 7-day average draws in once per mount (pathLength 1 + cy-draw); complete at first paint under reduced motion */}
+        {path && <path d={path} pathLength={animate ? 1 : undefined} className={animate ? "pline-draw" : undefined} fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" opacity={0.85} />}
+        <g className={animate ? "pdots-in" : undefined}>
+          {days.map((d, i) => d.score != null && (
+            // the day just saved (App justSaved, set by the save handler only) pops once on this mount
+            d.iso === popIso
+              ? <g key={`d${i}`} className="dot-new"><circle cx={x(i)} cy={y(d.score)} r={3.4} fill={d.fam ? FAM[d.fam].color : NONE} {...edge} /></g>
+              : <circle key={`d${i}`} cx={x(i)} cy={y(d.score)} r={3.4} fill={d.fam ? FAM[d.fam].color : NONE} {...edge} />
+          ))}
+        </g>
         {rows.length > 0 && <line x1={L} x2={W - R} y1={LH + 1} y2={LH + 1} stroke="var(--line)" strokeWidth={1} />}
         {rows.map((r, ri) => {
           const ry = rowsTop + ri * RH, yy = ry + 21;
@@ -179,9 +239,10 @@ function DayField({ days, rows, stats, sel, setSel, compact = false, popIso = nu
           );
         })}
         {sel != null && sel >= 0 && (
+          // the selection ring and rule slide between days (transform transition; none under reduced motion)
           <g pointerEvents="none">
-            <line x1={x(sel)} x2={x(sel)} y1={T} y2={selBottom} stroke="currentColor" strokeOpacity={0.35} />
-            {days[sel].score != null && <circle cx={x(sel)} cy={y(days[sel].score)} r={6} fill="none" stroke="currentColor" strokeWidth={2} />}
+            <g className="pselg" style={{ transform: `translate(${x(sel).toFixed(1)}px, 0px)` }}><line x1={0} x2={0} y1={T} y2={selBottom} stroke="currentColor" strokeOpacity={0.35} /></g>
+            {days[sel].score != null && <g className="pselg" style={{ transform: `translate(${x(sel).toFixed(1)}px, ${y(days[sel].score).toFixed(1)}px)` }}><circle cx={0} cy={0} r={6} fill="none" stroke="currentColor" strokeWidth={2} /></g>}
           </g>
         )}
         <text x={L} y={H - 4} className="ptick">{fmt(days[0].iso)}</text>
@@ -229,7 +290,7 @@ function ringModel(sorted, ids, starts, todayIso) {
   return { cyc, pts, hs, S, cx, cy, r0, gap, outer, wedge, MAXD, ang };
 }
 
-function CycleRings({ model, sel, setSel }) {
+function CycleRings({ model, sel, setSel, compact = false, onCommit = null, animate = false }) {
   const { cyc, pts, hs, S, cx, cy, r0, gap, outer, wedge, MAXD, ang } = model;
   const pick = (ev) => {
     const r = ev.currentTarget.getBoundingClientRect(), px = ((ev.clientX - r.left) / r.width) * S, py = ((ev.clientY - r.top) / r.height) * S;
@@ -237,25 +298,30 @@ function CycleRings({ model, sel, setSel }) {
     pts.forEach((p, i) => { const dd = (p.px - px) ** 2 + (p.py - py) ** 2; if (dd < bd) { bd = dd; bi = i; } });
     return bi;
   };
+  const commit = (i) => { if (i == null) return; setSel(i); onCommit?.(i); };
+  const edge = compact ? { stroke: "var(--card)", strokeWidth: 1.2 } : { stroke: DOT_EDGE, strokeWidth: 0.8 };
   const summary = `${cyc.length} cycles drawn as rings, day 1 at the top.${hs != null ? ` Your hardest days usually fall around cycle days ${hs} to ${hs + 4}.` : ""} Use the left and right arrow keys to step through days.`;
   return (
-    <svg viewBox={`0 0 ${S} ${S}`} role="img" aria-label={summary} tabIndex={0} className="psvg"
-      onPointerMove={(ev) => { const i = pick(ev); if (i != null) setSel(i); }} onPointerDown={(ev) => { const i = pick(ev); if (i != null) setSel(i); }} onKeyDown={(ev) => stepKey(ev, pts.length, sel, setSel)}>
+    <svg viewBox={`0 0 ${S} ${S}`} role="img" aria-roledescription="interactive chart" aria-label={summary} tabIndex={0} className="psvg"
+      onPointerMove={(ev) => { const i = pick(ev); if (i != null) setSel(i); }} onPointerDown={(ev) => { const i = pick(ev); if (i != null) setSel(i); }} onPointerUp={(ev) => commit(pick(ev))} onKeyDown={(ev) => stepKey(ev, pts.length, sel, commit)}>
       <g style={{ color: "var(--ink)" }}>
         {wedge && <path d={wedge} fill="currentColor" fillOpacity={0.07} />}
-        {cyc.map((c, ci) => <circle key={c.start} cx={cx} cy={cy} r={r0 + gap * ci} fill="none" stroke="var(--line)" strokeWidth={1} />)}
+        {/* rings draw in one after another (60 ms apart), then the dots fade in */}
+        {cyc.map((c, ci) => <circle key={c.start} cx={cx} cy={cy} r={r0 + gap * ci} fill="none" stroke="var(--line)" strokeWidth={1} pathLength={animate ? 1 : undefined} className={animate ? "pline-draw" : undefined} style={animate ? { animationDelay: `${ci * 60}ms` } : undefined} />)}
         {[1, 7, 14, 21, 28, 35].filter((d) => d <= MAXD).map((d) => { const a = ang(d), rr = outer + 24; return <text key={d} x={cx + Math.cos(a) * rr} y={cy + Math.sin(a) * rr + 3.5} textAnchor="middle" className="ptick">{d === 1 ? "Day 1" : d}</text>; })}
-        {pts.map((p, i) => {
-          if (p.score == null) return <circle key={i} cx={p.px} cy={p.py} r={1.3} fill="currentColor" fillOpacity={0.25} />;
-          const rad = 2 + (1 - p.score) * 6.5;
-          return (
-            <g key={i}>
-              {isPeriodDay(p.e) && <circle cx={p.px} cy={p.py} r={Math.max(rad, 3.5) + 2} fill="none" stroke="currentColor" strokeWidth={1.2} />}
-              <circle cx={p.px} cy={p.py} r={rad} fill={p.fam ? FAM[p.fam].color : NONE} stroke="var(--card)" strokeWidth={1.2} />
-            </g>
-          );
-        })}
-        {sel != null && pts[sel] && <circle cx={pts[sel].px} cy={pts[sel].py} r={8} fill="none" stroke="currentColor" strokeWidth={2} pointerEvents="none" />}
+        <g className={animate ? "pdots-in" : undefined}>
+          {pts.map((p, i) => {
+            if (p.score == null) return <circle key={i} cx={p.px} cy={p.py} r={1.3} fill="currentColor" fillOpacity={0.25} />;
+            const rad = 2 + (1 - p.score) * 6.5;
+            return (
+              <g key={i}>
+                {isPeriodDay(p.e) && <circle cx={p.px} cy={p.py} r={Math.max(rad, 3.5) + 2} fill="none" stroke="currentColor" strokeWidth={1.2} />}
+                <circle cx={p.px} cy={p.py} r={rad} fill={p.fam ? FAM[p.fam].color : NONE} {...edge} />
+              </g>
+            );
+          })}
+        </g>
+        {sel != null && pts[sel] && <g className="pselg" pointerEvents="none" style={{ transform: `translate(${pts[sel].px.toFixed(1)}px, ${pts[sel].py.toFixed(1)}px)` }}><circle cx={0} cy={0} r={8} fill="none" stroke="currentColor" strokeWidth={2} /></g>}
         <text x={cx} y={cy - 2} textAnchor="middle" className="pnote">{cyc.length} cycles</text>
         <text x={cx} y={cy + 12} textAnchor="middle" className="ptick">inner = oldest</text>
       </g>
@@ -265,16 +331,28 @@ function CycleRings({ model, sel, setSel }) {
 
 /* ---------------- The card ---------------- */
 
+/* A 10px direction triangle before the callout number (decorative; the word after the number carries it). */
+const Tri = ({ up }) => <svg className="ptri" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true" focusable="false"><path d={up ? "M5 1.2L9.6 8.8H.4z" : "M5 8.8L.4 1.2h9.2z"} fill="currentColor" /></svg>;
+
 /* days: windowDays(); starts: logged period starts ([] in menopause); maxRows: how many symptom
    rows to draw under the line (Home shows fewer); onMore: a link to the Patterns tab (Home);
    compact (Home): no hint line, the callout sentence above the plot as its headline, a shorter
    plot, at most maxRows rows in all (rough nights included), and the day card only once a day
    is picked. The view switch and the legend stay in both variants. popIso: the day just saved
-   (App.jsx justSaved, 1.2 s after a save of today); its dot pops once (.dot-new).
-   Renders nothing until 3 days are logged. */
-export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso, maxRows = 6, onMore = null, compact = false, popIso = null }) {
+   (App.jsx justSaved, 1.2 s after a save of today); its dot pops once (.dot-new). allowCycle
+   (Patterns): false in menopause, so the "By cycle · after your 2nd period" placeholder never
+   shows there. Renders nothing until 3 days are logged. */
+export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso, maxRows = 6, onMore = null, compact = false, popIso = null, allowCycle = true }) {
   const [view, setView] = useState("days");
-  const [selIso, setSelIso] = useState(null);
+  // Patterns opens on the last logged day; Home waits for a tap
+  const [selIso, setSelIso] = useState(() => (compact ? null : [...days].reverse().find((d) => d.e)?.iso ?? null));
+  const [announce, setAnnounce] = useState("");
+  // draw-in once per mount (the keyed tabpanel remounts the card on each open), not when the page is hidden;
+  // the classes stay through the first second so a tap mid-animation never cuts it, then drop (no visible change)
+  const [visibleAtMount] = useState(() => typeof document === "undefined" || document.visibilityState === "visible");
+  const drawn = useRef(false);
+  useEffect(() => { const t = setTimeout(() => { drawn.current = true; }, 1200); return () => clearTimeout(t); }, []);
+  const animate = visibleAtMount && !drawn.current;
   const logged = days.filter((d) => d.e);
   if (logged.length < 3) return null;
   const canCycle = starts.length >= 2;
@@ -292,37 +370,65 @@ export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso,
   const hasPeriod = (cycleView ? model.pts : days).some((d) => d.e && isPeriodDay(d.e));
   const { diff, showStretches, worst, win } = stats;
   const hs = model?.hs;
-  // the one-sentence reading of the view: under the plot on Patterns, above it (as the headline) on Home
+  // the current index, count and item list of the view that is drawn
+  const list = cycleView ? model.pts : days;
+  const cur = cycleView ? ringSel : daySel;
+  const speak = (i) => setAnnounce(describeDay(list[i], ids, labels, starts));
+  const goTo = (i) => { setSelIso(list[i].iso); };
+  const stepTo = (dir) => { const from = cur == null || cur < 0 ? list.length - 1 : cur; const i = Math.max(0, Math.min(list.length - 1, from + dir)); goTo(i); speak(i); };
+  // the one-sentence reading of the view: the card's headline above the plot (Home and Patterns)
+  const top = compact ? "pcallout top" : "pcallout pcallout-top";
   const callout = cycleView ? (
-    <div className={`pcallout ${compact ? "top" : ""}`}>
+    <div className={top}>
       {hs != null && <b>Days {hs}–{hs + 4}</b>}
       <p>{hs != null ? `Across your last ${model.cyc.length} cycles, your hardest days usually fall around cycle days ${hs}–${hs + 4}. Worth planning a lighter week around them.` : "Keep logging through your next period and Cyra can show which cycle days are usually hardest for you."}</p>
     </div>
   ) : (diff != null || showStretches) ? (
-    <div className={`pcallout ${compact ? "top" : ""}`}>
-      {diff != null && <b>{diff > 0 ? "+" : ""}{diff}</b>}
+    <div className={top}>
+      {diff != null && (compact || Math.abs(diff) < 3
+        ? <b>{diff > 0 ? "+" : ""}{diff}</b>
+        : <b><Tri up={diff > 0} />{diff > 0 ? "+" : ""}{diff} <small className="pword">{diff > 0 ? "better" : "harder"}</small></b>)}
       <p>{diff != null ? (Math.abs(diff) < 3 ? "Your weekly average is about where it was 8 weeks ago." : `Your weekly average is ${Math.abs(diff)} points ${diff > 0 ? "better" : "lower"} than 8 weeks ago.`) : ""}{showStretches ? ` Hardest stretch: ${fmt(days[worst].iso)}–${fmt(days[worst + win - 1].iso)}.` : ""}</p>
     </div>
   ) : null;
+  const legendExtra = cycleView
+    ? <><span><i className="fsize" aria-hidden="true" />{compact ? "bigger = harder day" : "Bigger = harder day"}</span>{hasPeriod && <span><i className="fring" aria-hidden="true" />{compact ? "period day" : "Period day"}</span>}</>
+    : <><span><i className="fline" aria-hidden="true" />7-day average</span>{hasPeriod && <span><i className="fband" aria-hidden="true" />{compact ? "period" : "Period"}</span>}{compact && <span className="ptap">tap a day for details</span>}</>;
+  // the text alternative (Patterns only): every count the chart draws, as a list
+  const counts = symptomRows(days, ids, labels, ids.length);
   return (
     <div className="pchart">
-      {canCycle && (
+      {canCycle ? (
         <div className="mcrow pswitch seg" role="group" aria-label="Chart view">
           <button type="button" className={`mc ${!cycleView ? "on" : ""}`} aria-pressed={!cycleView} onClick={() => setView("days")}>Day by day</button>
           <button type="button" className={`mc ${cycleView ? "on" : ""}`} aria-pressed={cycleView} onClick={() => setView("cycle")}>By cycle</button>
         </div>
+      ) : !compact && allowCycle && (
+        <div className="mcrow pswitch seg" role="group" aria-label="Chart view">
+          <button type="button" className="mc on" aria-pressed="true">Day by day</button>
+          <span className="mc mc-soon" aria-disabled="true">By cycle · after your 2nd period</span>
+        </div>
       )}
+      {callout}
       {!compact && <p className="hint phint">{cycleView ? "One ring per cycle, day 1 at the top. Bigger dots are harder days." : "Your day score; higher is a better day. Each dot takes the colour of that day's strongest symptom."}</p>}
-      {compact && callout}
+      {!compact && <FamilyLegend className="flegend flegend-top" fams={fams} extra={legendExtra} />}
       {cycleView
-        ? <CycleRings model={model} sel={ringSel} setSel={(i) => setSelIso(model.pts[i].iso)} />
-        : <DayField days={days} rows={rows} stats={stats} sel={daySel} setSel={(i) => setSelIso(days[i].iso)} compact={compact} popIso={popIso} />}
-      <FamilyLegend fams={fams} extra={cycleView
-        ? <><span><i className="fsize" aria-hidden="true" />bigger = harder day</span>{hasPeriod && <span><i className="fring" aria-hidden="true" />period day</span>}</>
-        : <><span><i className="fline" aria-hidden="true" />7-day average</span>{hasPeriod && <span><i className="fband" aria-hidden="true" />period</span>}{compact && <span className="ptap">tap a day for details</span>}</>} />
-      {(!compact || picked) && <DayCard day={picked} ids={ids} labels={labels} starts={starts}
+        ? <CycleRings model={model} sel={ringSel} setSel={(i) => setSelIso(model.pts[i].iso)} compact={compact} onCommit={speak} animate={animate} />
+        : <DayField days={days} rows={rows} stats={stats} sel={daySel} setSel={(i) => setSelIso(days[i].iso)} compact={compact} popIso={popIso} onCommit={speak} animate={animate} />}
+      {compact && <FamilyLegend fams={fams} extra={legendExtra} />}
+      {(!compact || picked) && <DayCard day={picked} ids={ids} labels={labels} starts={starts} onStep={compact ? null : stepTo} atStart={cur === 0} atEnd={cur === list.length - 1}
         empty={cycleView ? "Tap a dot to see that day." : rows.length ? "Tap a day, or a dot in a row, to see everything you logged that day. Bigger dots in the rows are stronger days." : "Tap a day to see what you logged."} />}
-      {!compact && callout}
+      <p className="sr-only" aria-live="polite" aria-atomic="true">{announce}</p>
+      {!compact && (
+        <Details label="The numbers behind this chart">
+          <ul className="pnums">
+            <li>{logged.length} of the last 60 days logged.</li>
+            {diff != null && <li>Weekly average {diff === 0 ? "unchanged" : `${diff > 0 ? "up" : "down"} ${Math.abs(diff)} points`} since the first week ({stats.first} then, {stats.last} now).</li>}
+            {showStretches && <li>Best stretch {stats.bestSpan}. Hardest stretch {stats.worstSpan}.</li>}
+            {counts.map((r) => <li key={r.k}>{r.label}: {r.c} of 60 days.</li>)}
+          </ul>
+        </Details>
+      )}
       {onMore && <p className="pline"><button type="button" className="linkbtn" onClick={onMore}>More in Patterns →</button></p>}
     </div>
   );

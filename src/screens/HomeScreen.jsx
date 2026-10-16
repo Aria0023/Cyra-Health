@@ -4,7 +4,7 @@ import { isNative } from "../lib/native.js";
 import Advice from "../components/Advice.jsx";
 import Details from "../components/Details.jsx";
 import Icon from "../components/Icon.jsx";
-import { dominantFamily } from "../components/PatternCharts.jsx";
+import { dominantFamily, ChartSoon } from "../components/PatternCharts.jsx";
 import { FAMILIES } from "../lib/constants.js";
 import { reduceMotion } from "../lib/motion.js";
 import { useEffect, useRef } from "react";
@@ -47,7 +47,6 @@ const DISCLOSE = {
 const FAM_COLOR = Object.fromEntries(FAMILIES.map((f) => [f.id, f.color]));
 const SLEPT = { good: "well", fair: "so-so", poor: "poorly" };
 /* The seven-dot sketch that stands in for the chart before 3 check-ins: --line and --soft only, no data. */
-const SOON_PTS = [[18, 34], [66, 22], [114, 30], [162, 16], [210, 26], [258, 12], [306, 20]];
 const delta = (a, b, goodUp = true) => { const d = b - a; if (d === 0) return <span className="flat">unchanged</span>; const good = goodUp ? d > 0 : d < 0; return <span className={good ? "up" : "down"}>{d > 0 ? "+" : ""}{d}</span>; };
 
 export default function HomeScreen({
@@ -128,14 +127,7 @@ export default function HomeScreen({
       ) : stage !== "preg" && (
         <>
           <p className="section-lab">Your patterns</p>
-          <div className="plaincard pchart-soon">
-            <svg viewBox="0 0 324 44" aria-hidden="true" focusable="false">
-              <path d={SOON_PTS.map(([x, y], i) => `${i ? "L" : "M"}${x},${y}`).join(" ")} fill="none" stroke="var(--line)" strokeWidth={1.5} strokeDasharray="3 4" strokeLinecap="round" />
-              {SOON_PTS.map(([x, y], i) => <circle key={i} cx={x} cy={y} r={4} fill="var(--card)" stroke="var(--soft)" strokeWidth={1.5} strokeDasharray={i < loggedTotal ? "none" : "2 2"} />)}
-            </svg>
-            <p className="plain">Your 60-day chart appears after 3 check-ins · {Math.min(3, loggedTotal)} of 3</p>
-            <span className="msbar three" aria-hidden="true">{[0, 1, 2].map((i) => <i key={i} className={i < loggedTotal ? "on" : ""} />)}</span>
-          </div>
+          <ChartSoon logged={loggedTotal} />
         </>
       )}
 

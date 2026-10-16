@@ -255,6 +255,41 @@ with an **advice card** carrying an urgency chip (Self-care / Next visit / This 
 card, with a "More in Patterns →" link, sits on Home under Today's insight once 3 days are
 logged, compact: up to three symptom rows, no hint line, and the day card once a day is tapped.
 
+**Patterns tab rules (P1; everything here is gated on the full card, `!compact`, so Home's compact card is as A1
+describes it).** *Takeaway first:* the callout is the card's headline, `.pcallout.pcallout-top`, between the view
+switch and the plot (hairline under it): a 10px aria-hidden triangle (up = better, down = harder), the number in
+--primary at --fs-num and the word "better" / "harder" after it (no triangle or word within ±2 points, where the sentence
+says the average is about where it was); the cycle view's "Days a–b" headline sits in the same place. The family
+legend (`.flegend.flegend-top`, capitalised extras "7-day average", "Period", "Bigger = harder day", "Period day")
+sits above the plot, under the one-line hint. *A day already open:* the card mounts with the last logged day selected;
+the `.pday` header carries 44px "Previous day" / "Next day" `.linkbtn.pstep` buttons (aria-disabled at the ends) wired to
+the same index the arrow keys use, the card's inner content is keyed on the date (120ms `cy-fade-rise`), and the
+selection ring and rule slide between days (`.pselg`, a --t-fast transform transition). *Quiet live region:* `.pday` has
+no `aria-live`; a visually hidden `p.sr-only[aria-live=polite][aria-atomic=true]` next to it is set only on pointer
+release, an arrow-key step or the ‹ › buttons, with `describeDay()` (date, cycle day, period, score, sleep, symptoms
+"n of 3"); the visible card still follows pointer moves. Both SVGs carry `aria-roledescription="interactive chart"`.
+*Edge:* every score dot takes a 0.8px ink hairline (`color-mix(in srgb, var(--ink) 35%, transparent)`) instead of the
+card-colour halo, so a dot has an edge on the card and on the period band; circles stay circles. *Text alternative:*
+a collapsed `Details` "The numbers behind this chart" (`.disclosure.more` with the G3 chevron, inside the card) lists
+as a plain `ul.pnums` the days logged, the weekly-average change with both week means, the best and hardest stretch
+dates and every symptom's day count in the window (all of them, not only the drawn rows), from `dayStats()` /
+`symptomRows()`; Home never renders it. *Drawn once:* on mount the 7-day line (`pathLength="1"`, `.pline-draw`:
+`cy-draw` 600ms --ease-in) draws in and the dots (`g.pdots-in`: `cy-fade-rise` 300ms, 450ms delay) fade in after it;
+rings draw in 60ms apart. The classes are applied only on the first render of a mount while the document is visible
+(`visibilityState === "visible"`) and are dropped after 1.2s, so a tap mid-animation never cuts it, picking a day or
+switching views never replays it, and the next open of the tab (G4's keyed tabpanel remounts the card) plays it again.
+Under `prefers-reduced-motion` the line's dash offset is 0 and the dots opacity 1 from the first paint. *Before the
+chart:* under 3 logged days the tab shows the A1 `.plaincard.pchart-soon` placeholder ("Your 60-day chart appears after
+3 check-ins · {k} of 3") with "Log today's check-in →" (opens Today); the My Cycle counts card waits for a symptom on 3
+days (never "0 of your last 30 days"); with one logged period start (not in menopause) the switch shows the live
+"Day by day" next to a dimmed, dashed `span.mc.mc-soon[aria-disabled]` "By cycle · after your 2nd period". *Every
+insight leads somewhere:* each insight card ends in an action row `p.pline.aline` ("Add to visit notes →" opens
+Report; "Ask about this →", only when `INSIGHT_STARTERS` has a question for the card's symptom id, opens Ask with the
+question in the textarea and its library answer shown) under an `Advice mid` with squared bottom corners. When the
+weekly average fell by 10 or more points (`dayStats().diff <= -10`) a trend-drop card leads the list (§6.1). With the
+POTS add-on on, the pointer reads "Your POTS patterns live in POTS tools." with a "Go to POTS tools →" link that opens
+the POTS page (Home's handler).
+
 **Report — "What to tell your doctor"** (this is the flagship screen):
 0. *Cover* — days logged in the window as a number ("27/30 days logged", date range, stage)
    with a 30-cell strip of logged days (decorative; the number carries it).
@@ -317,6 +352,13 @@ sleepCorrelation = P(symptom>=2 | previous day sleepQ="poor")
 triggerMultiplier = same ratio for tagged vs untagged days; require >=5 each side;
    surface only if multiplier >= 1.3
 ```
+**Trend-drop insight (Patterns, P1).** From `dayStats(windowDays(…, 60))`: `first` = mean day score of the logged
+days in the first 7 of the 60 (3 or more needed), `last` = the same for the final 7, `diff = round((last − first) × 100)`.
+When `diff <= -10` Patterns opens its insight list with a `.icard`: `.num` = diff, "Your days have been getting harder
+over the last eight weeks — the hardest stretch was {hardest 4-day span}." (the clause only when the stretches are
+shown, i.e. best − hardest means differ by 0.08 or more), `Advice urgency="visit"`: "Worth a conversation soon; the
+Report tab turns this into a one-page summary you can hand over.", and the action row "Add to visit notes →" (Report).
+It is computed from the on-device record and never stored.
 
 ### 6.2 Cycle detection
 ```
@@ -402,6 +444,15 @@ periods: good rgb(46,154,198)  mid rgb(250,186,82)  rough rgb(226,88,74)
 ```
 **Rule:** calm palettes make poor data colors. Chrome uses the palette; charts,
 calendar fills, and score meters use the ramp. Interpolate good↔mid↔rough by score.
+
+**Family colours and the Heat / Mind pair (residual).** The symptom-family marks (FAMILIES: Heat #E34948, Sleep
+#2A78D6, Mind #008300, Pain #EDA100, Body #1BAF7A) keep a red/green pair on the chart dots, which deuteranopes and
+protanopes cannot tell apart by hue alone. The marks are deliberately left as the owner approved them (circles, these
+colours); the distinction is carried by text channels that are always present with the chart: the legend keeps the
+family word next to every swatch (above the plot on Patterns), the symptom rows under the plot are named per row, the
+day card lists each symptom by name with "n of 3", and the "The numbers behind this chart" disclosure gives every
+count as words. Every dot also carries a 0.8px ink hairline on Patterns for edge contrast against the card and the
+period band. No colour anywhere in the app is the only carrier of a meaning.
 
 ### 8.3 Contrast requirements
 Cards pure white on tinted paper; borders 1.5px in a visibly darker tone; subtle
@@ -558,6 +609,19 @@ Send only aggregated data keyed to an opaque ID — never names, never raw entry
 System prompts must forbid diagnosis and dosing, and require an urgent flag for
 red-flag symptoms. **In production, proxy these through the backend** — never ship an
 API key in client code.
+
+**Starter and insight questions (src/lib/askStarters.js).** `STARTERS` holds a short list per stage (peri: "Does
+hormone therapy raise cancer risk?", "What helps hot flashes without hormones?", "Why can't I sleep?", "Am I in
+perimenopause?", "Why am I so tired?"; periods: "Why are my cramps worse some months?", "Is a heavy period normal?",
+"When is my fertile window?", "Why can't I sleep?", "Why am I so tired?"; preg: "Is it safe to exercise?", "Is this
+discharge normal?", "Why am I so tired?", "Why can't I sleep?"; pots, offered only with the add-on on: "Why do I feel
+dizzy when I stand?"). `INSIGHT_STARTERS` maps a Patterns insight's symptom id to the question its "Ask about this →"
+asks (hf → "What helps hot flashes without hormones?", slp → "Why can't I sleep?", var → "Am I in perimenopause?",
+crm → "Why are my cramps worse some months?"). Every string in both maps is answered by the written library on the
+device (`answerLocally(q).matched === true`, asserted in askLibrary.test.mjs), so a tapped starter never reaches
+Cyra's AI or the network; a card whose id has no entry shows "Add to visit notes →" alone rather than a question the
+library cannot answer. `runAsk(q, { ai })` in App.jsx takes the question string (or the Ask button's click event, then
+the textarea's text) and an optional one-call override of the saved AI choice, and keeps `question` on `askOut`.
 
 ---
 

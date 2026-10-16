@@ -530,3 +530,8 @@ Presentation and screen state only; no new key in the record, nothing new sent. 
 - **Cell names and `scoreInk`** are computed on render from the entry; nothing is stored.
 - Harness: the pregnancy day card's "Edit" button is now "Edit this day" (the cycle screen already used it); `scratchpad/walk.mjs:99`, `scratchpad/uiux/t1/walk-t1.mjs:98` and `scratchpad/final-review/axe-edit.mjs:59` click the new name. `scratchpad/uiux/allshots.mjs` prefers a `.calcell` over any `[class*=cal] button` so the "calendar-day" shot still taps a day (the new `.calnav` buttons matched first). No asserted suite string changed; `native-e2e.mjs` passes unchanged ("NATIVE E2E: all passed").
 
+## UI P1 (Patterns) — no privacy sentence moved or reworded
+
+- "Ask about this →" on a Patterns insight card and the starter lists in src/lib/askStarters.js hand a fixed question to the same `runAsk` the Ask button uses. Every one of those questions is answered by the written library on the device (asserted in src/lib/askLibrary.test.mjs), so the path never sends anything: the AI fallback only runs for a question the library cannot match, and only when "Also ask Cyra's AI" is on. The Ask screen's source line and the registration and Settings statements about Ask are unchanged and remain literally true.
+- The trend-drop insight, the day pre-selection, the live-region text and "The numbers behind this chart" are computed from the on-device record on each render and are never stored or sent.
+

@@ -320,22 +320,25 @@ export default function CyraDemo() {
      log — though whatever she typed goes as typed, and like any request it carries the
      device's IP address and user agent. */
   const aiAvailable = !!API_BASE;
-  const runAsk = async () => {
-    const question = askQ.trim().slice(0, 500);
+  // q: a question string (a Patterns "Ask about this →" or a starter) or the Ask button's click event
+  // (then the textarea's text); ai overrides the saved "Also ask Cyra's AI" choice for this one call.
+  const runAsk = async (q, { ai } = {}) => {
+    const question = (typeof q === "string" ? q : askQ).trim().slice(0, 500);
+    const useAI = ai ?? askAI;
     if (!question) return ping("Type a question first");
     const local = answerLocally(question);
-    if (local.matched || !askAI || !aiAvailable) {
-      setAskOut({ source: "library", ...local, offerAI: !local.matched && !askAI && aiAvailable });
+    if (local.matched || !useAI || !aiAvailable) {
+      setAskOut({ source: "library", question, ...local, offerAI: !local.matched && !useAI && aiAvailable });
       return;
     }
     setAskBusy(true); setAskOut(null);
     try {
       const out = await apiPost("/api/ai/ask", { question });
       // degraded: the server did ask Cyra's AI, but no AI answer came back (refusal, timeout, error)
-      setAskOut({ source: out.provider === "rules" ? (out.degraded ? "server-library-attempted" : "server-library") : "ai", answer: out.answer, source_note: out.source_note || null, ask_your_doctor: out.ask_your_doctor || null, urgent: !!out.urgent });
+      setAskOut({ source: out.provider === "rules" ? (out.degraded ? "server-library-attempted" : "server-library") : "ai", question, answer: out.answer, source_note: out.source_note || null, ask_your_doctor: out.ask_your_doctor || null, urgent: !!out.urgent });
     } catch (e) {
       const answer = e?.status === 429 ? "Too many questions in a minute — try again shortly." : e?.status === 400 ? "Please type a slightly longer question." : "No answer came back from Cyra's AI. Check your connection and try again, or write the question down and bring it to your next visit.";
-      setAskOut({ source: "error", answer, source_note: null, ask_your_doctor: null, urgent: false });
+      setAskOut({ source: "error", question, answer, source_note: null, ask_your_doctor: null, urgent: false });
     }
     setAskBusy(false);
   };
@@ -1706,7 +1709,7 @@ export default function CyraDemo() {
             {appIs("cal") && (
               <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />
             )}
-            {appIs("patterns") && <PatternsScreen ins={ins} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} />}
+            {appIs("patterns") && <PatternsScreen ins={ins} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} />}
             {appIs("report") && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} />}
             {appIs("shelf") && <CareScreen shelfItems={shelfItems} />}
             {appIs("ask") && askView}

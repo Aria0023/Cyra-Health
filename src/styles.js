@@ -397,6 +397,25 @@ html { scroll-padding-top:60px; }
 .msbar.three { display:grid; grid-template-columns:1fr 1fr 1fr; gap:3px; width:100%; background:none; overflow:visible; }
 .msbar.three i { background:color-mix(in srgb, var(--ink) 12%, var(--card)); border-radius:3px; } .msbar.three i.on { background:var(--primary); }
 .pchart .pcallout.top { border-top:none; margin:0; padding-top:0; } .pcallout.top b { font-size:20px; }
+/* Patterns (P1): the takeaway and legend above the plot, a day card with ‹ › steps, a once-only draw-in, the numbers as text,
+   an action row under every insight. Home's compact card (.pcallout.top above) is untouched by these. */
+.pchart .pcallout.pcallout-top { border-top:none; border-bottom:1px solid var(--line); margin:0 0 10px; padding:0 0 9px; }
+.pcallout-top b { color:var(--primary); font-size:var(--fs-num); display:inline-flex; align-items:baseline; gap:4px; }
+.ptri { flex-shrink:0; align-self:center; } .pword { font-family:'Karla Variable','Karla',sans-serif; font-size:var(--fs-sm); font-weight:700; color:var(--primary-text); }
+.flegend-top { margin:0 0 6px; }
+.seg .mc.mc-soon { display:flex; align-items:center; justify-content:center; color:var(--soft); font-weight:600; cursor:default; border:1.5px dashed var(--line); margin:-1.5px; }
+.pday-h { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+.pday-nav { padding-top:4px; } .psteps { display:inline-flex; gap:2px; margin:-6px -8px -6px 0; flex-shrink:0; }
+.pstep { min-width:44px; min-height:44px; justify-content:center; text-decoration:none; font-size:22px; line-height:1; border-radius:var(--r-inner); padding-bottom:3px; }
+.pstep[aria-disabled="true"] { color:var(--soft); opacity:.45; cursor:default; }
+.pday-in { animation:cy-fade-rise 120ms var(--ease-in); }
+.pselg { transition:transform var(--t-fast) var(--ease-std); }
+.pline-draw { stroke-dasharray:1; stroke-dashoffset:1; animation:cy-draw 600ms var(--ease-in) forwards; }
+.pdots-in { animation:cy-fade-rise 300ms var(--ease-in) 450ms both; }
+.pnums { margin:0; padding-left:18px; } .pchart .morewrap { margin:0; } .pchart .pline + .morewrap { margin-top:4px; }
+.aline { margin:0; padding:0 15px 10px; background:color-mix(in srgb, var(--primary) 10%, var(--card)); border:1.5px solid var(--line); border-top:none; border-radius:0 0 var(--r-card) var(--r-card); }
+.aline .linkbtn { font-size:var(--fs-sm); } .advice-mid { border-radius:0; }
+.pchart-soon .pline { margin:8px 0 0; }
 .pulse.quiet { background:var(--card); border-color:var(--line); padding:10px 14px; }
 .pulse.quiet .pulserow { padding:0; } .pulse.quiet .pulserow b { min-width:auto; font-size:16px; } .pulse.quiet .pulserow span { font-size:var(--fs-md); color:var(--soft); }
 .pulse.quiet .rfoot { margin-top:4px !important; } .pulse.quiet .morewrap { margin:0; } .pulse.quiet .disclosure.more { margin-top:4px; padding:4px 0; }
@@ -413,6 +432,7 @@ html { scroll-padding-top:60px; }
 /* Reduce, don't remove: movement (keyframes, transform/size transitions) goes away, the 100ms colour and opacity
    feedback that tells a reduced-motion user a tap registered stays. */
 @media (prefers-reduced-motion: reduce) { .cy *, .cy *::before, .cy *::after { animation:none !important; transition-property:background-color,border-color,color,opacity !important; transition-duration:var(--t-fast) !important; } }
+@media (prefers-reduced-motion: reduce) { .pline-draw { stroke-dashoffset:0; } .pdots-in { opacity:1; } }
 /* ---- shared motion (performance budget): anything continuous animates transform/opacity only; will-change only on
    .toast.show and .tabpanel; nothing scroll-linked; no rAF loops except the 250ms score tween. Each runs once per
    mount behind a ref, <= 600ms, and reduceMotion() (lib/motion.js) guards every scrollIntoView, tween and draw-in. ---- */
