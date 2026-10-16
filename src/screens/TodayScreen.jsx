@@ -13,9 +13,17 @@ import { fmt, sevDots, foldQuick } from "../lib/engine.js";
    so it adds no symptom flags — only the full check-in's named symptoms, sleep and flow do.
    The form opens on what is already saved for the day (App.jsx loads it), so saving again
    updates that entry; an edit's "Period day" switch is what that day is saved with.
+   "more detail" opens the full form for this visit only (App.jsx `expanded`, UI state; the Quick /
+   Full detail preference in Settings is untouched): the chips, scales and "Back to quick check-in"
+   replace the quick card. Sharing follows the form on screen: while the quick card is shown no
+   symptom flag is added; the expanded form names its symptoms exactly as the full check-in does.
+   Body signals is always reachable, so flow can be logged from quick mode (heavy-flow shares as before).
    Family colour (FAMILIES) appears only on the severity dots of a chip that has a value — the one
    data-bearing part of the form; chip borders and backgrounds stay on the UI palette. */
-export default function TodayScreen({ onPots = null, pred, stage, welcome, editDate, onEndEdit, setDraft, setSleepQ, scoreMeter, quickMode, quickCheckin, symIds, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, setEditPeriod, scales, flow, disch, odor, bodyOdor, days = [], setDays, onSaved = null, ping, setAppTab, research, contribute }) {
+export default function TodayScreen({ onPots = null, pred, stage, welcome, editDate, onEndEdit, setDraft, setSleepQ, scoreMeter, quickMode, expanded = false, setExpanded = () => {}, quickCheckin, savedToday = false, yesterdayIso = null, yesterdayLogged = true, onEditDay = null, symIds, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, setEditPeriod, scales, flow, disch, odor, bodyOdor, days = [], setDays, onSaved = null, ping, setAppTab, research, contribute }) {
+  // The quick card is on screen: quick mode, not an edit, not expanded for this visit. Everything that
+  // depends on "which form is this" (hint, chips, the peri sleep pills, what contribute() sends) keys on it.
+  const quickCard = quickMode && !editDate && !expanded;
   return (
     <main>
       {pred && (
@@ -27,17 +35,29 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
           </div>
         </div>
       )}
+      {pred && (
+        <div className="readcard compact">
+          <div className="rsec" style={{ margin: "0 0 4px" }}>Today's read · {pred.phase} phase</div>
+          <div className="sname">{READS[pred.phase][0]}</div>
+          <p className="hint" style={{ margin: "4px 0 0" }}>{READS[pred.phase][1]}</p>
+        </div>
+      )}
       {editDate && (
-        <div className="card" style={{ display: "block", marginBottom: 12 }}>
+        <div className="card editbar" style={{ display: "block", marginBottom: 12 }}>
           <p><b>Editing {fmt(editDate)}</b> — changes save to that day. <button className="linkbtn" onClick={() => onEndEdit()}>Back to today</button></p>
         </div>
       )}
-      <h1 className="disp">{editDate ? `Fixing up ${fmt(editDate)}` : stage === "periods" ? "Hey — how's today?" : "How was today, honestly?"}</h1>
+      <h1 className="disp" style={pred ? { marginTop: 16 } : undefined}>{editDate ? `Fixing up ${fmt(editDate)}` : stage === "periods" ? "Hey — how's today?" : "How was today, honestly?"}</h1>
       {welcome && !editDate && days.length === 0 && <p className="hint welcome-line">{welcome}</p>}
-      <p className="hint">{quickMode && !editDate ? "Three quick questions — about ten seconds." : "Tap what showed up (up to 3× for strong). Takes 30 seconds, promise."}</p>
+      {/* A missed day is one tap away (the same "Fixing up <date>" flow the Calendar opens). */}
+      {!yesterdayLogged && !editDate && days.length > 0 && onEditDay && <button type="button" className="linkbtn yday" onClick={() => onEditDay(yesterdayIso)}>Yesterday not logged · add it</button>}
+      <p className="hint">{quickCard ? "Three quick questions — about ten seconds." : "Tap what showed up (up to 3× for strong). Takes 30 seconds, promise."}</p>
       {scoreMeter}
-      {quickMode && !editDate && quickCheckin}
-      {(!quickMode || editDate) && <div className="chips">
+      {/* Status in the form: today is already in the record, and this form is that entry. */}
+      {savedToday && !editDate && <p className="savedline"><Icon name="check" size={14} /> Logged today — any change here updates it.</p>}
+      {quickCard && quickCheckin}
+      {quickMode && expanded && !editDate && <button type="button" className="linkbtn backquick" onClick={() => setExpanded(false)}>Back to quick check-in</button>}
+      {!quickCard && <div className="chips">
         {symIds.map((id) => {
           const sev = draft[id] || 0;
           return (
@@ -49,7 +69,7 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
       </div>}
       {/* Sleep: the peri quick card already asks "How did you sleep?" (q2, its answers are these pill texts), so the
           pill row is not drawn while that card is on screen; everywhere else it stays, under a "Last night" label. */}
-      {!(stage === "peri" && quickMode && !editDate) && (
+      {!(stage === "peri" && quickCard) && (
         <>
           <p className="section-lab">Last night</p>
           <div className="row">
@@ -64,9 +84,9 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
           <button aria-pressed={editPeriod} className={`pill ${editPeriod ? "pill-on" : ""}`} onClick={() => setEditPeriod((v) => !v)}>Period day</button>
         </div>
       )}
-      {(!quickMode || editDate) && scaleSection}
-      {(!quickMode || editDate) && bodySection}
-      <button className="cta" onClick={() => {
+      {!quickCard && scaleSection}
+      {bodySection}
+      <div className="stopbar savebar"><button className="cta" onClick={() => {
         const target = editDate || todayIso;
         // Quick answers (also ones carried over by "more detail" or left from quick mode) are
         // saved as the hero symptoms they ask about.
@@ -81,12 +101,13 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
         setDays((d) => [...d.filter((x) => x.date !== target), entry].sort((a, b) => a.date.localeCompare(b.date)));
         ping(editDate ? `${fmt(target)} updated` : "Saved — check Patterns");
         // App compares milestones before and after this save (the "Milestone reached" moment); it may replace the toast above.
-        onSaved?.(next);
-        // Weekly counts: a symptom still at the value a combined quick question gave it adds no flag.
+        onSaved?.(next, editDate ? null : target);
+        // Weekly counts: a symptom still at the value a combined quick question gave it adds no flag,
+        // and while the quick card is the form on screen no symptom flag is added at all.
         const flagged = Object.fromEntries(Object.entries(mapped).filter(([k, v]) => !(k in fromQuick && fromQuick[k] === v)));
-        contribute({ sym: quickMode && !editDate ? {} : flagged, sleepQ: sleepQ || "fair", flow }, target);
+        contribute({ sym: quickCard ? {} : flagged, sleepQ: sleepQ || "fair", flow }, target);
         if (editDate) { onEndEdit(entry); setAppTab("cal"); } else { setDraft(Object.keys(fromQuick).length ? { ...sym, __q: fromQuick } : sym); setAppTab("patterns"); }
-      }}>{editDate ? `Save changes to ${fmt(editDate)}` : "Save today's check-in"}</button>
+      }}>{editDate ? `Save changes to ${fmt(editDate)}` : "Save today's check-in"}</button></div>
       {onPots && !editDate && <button className="linkbtn potslink" style={{ marginTop: 10 }} onClick={onPots}>Log POTS symptoms and drinks →</button>}
       {research && !editDate && (
         <>
@@ -94,19 +115,12 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
           <Details label="Exactly what's sent">
             <ul>
               <li>Until it's sent on a later day, saving this check-in again today replaces what it counts, and a fix from the Calendar on a later day can only take flags back, never add one. A fix after it's sent can't change counts already sent.</li>
-              {quickMode && <li>{stage === "peri" ? "A quick check-in shares only whether you had a poor night's sleep." : "A quick check-in shares only whether you logged a heavy-flow day."}</li>}
+              {quickCard && <li>{stage === "peri" ? "A quick check-in shares only whether you had a poor night's sleep." : "A quick check-in shares only whether you logged a heavy-flow day."}</li>}
               <li>Sent at most once a day. Like any request, it carries your device's internet address.</li>
               <li>You can turn this off in <Icon name="sliders" size={12} className="labico" />Settings.</li>
             </ul>
           </Details>
         </>
-      )}
-      {pred && (
-        <div className="readcard">
-          <div className="rsec" style={{ margin: "0 0 4px" }}>Today's read · {pred.phase} phase</div>
-          <div className="sname">{READS[pred.phase][0]}</div>
-          <p className="hint" style={{ margin: "4px 0 0" }}>{READS[pred.phase][1]}</p>
-        </div>
       )}
     </main>
   );

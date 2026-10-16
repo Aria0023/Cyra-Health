@@ -153,6 +153,7 @@ export default function CyraDemo() {
   const [quietHours, setQuietHours] = useState("evening");
   const [showSettings, setShowSettings] = useState(false);
   const [quickMode, setQuickMode] = useState(true);
+  const [expanded, setExpanded] = useState(false); // Today: "more detail" opened the full form for this visit (UI state only, never saved; quickMode is the preference)
   const [meds, setMeds] = useState([]);
   const [medLog, setMedLog] = useState({});
   const [newMed, setNewMed] = useState({ name: "", kind: "supp", started: localDay() });
@@ -367,6 +368,10 @@ export default function CyraDemo() {
   const goTab = (t2) => (stage === "preg" ? setPregTab(t2) : setAppTab(t2));
   const entryOn = (iso) => (stage === "preg" ? pregLog[iso] : days.find((d) => d.date === iso));
   const scoreOn = (iso) => { const e = entryOn(iso); return e ? dayScore(e, stage === "preg" ? Object.keys(GSYM) : symIds) : null; };
+  // Today's status lines: whether today is already in the record and whether yesterday is missing (computed on render, never stored).
+  const savedToday = stage === "preg" ? !!pregLog[todayIso] : days.some((d) => d.date === todayIso);
+  const yesterdayIso = (() => { const d = new Date(todayIso + "T12:00:00"); d.setDate(d.getDate() - 1); return localDay(d); })();
+  const yesterdayLogged = !!entryOn(yesterdayIso);
 
   /* ---------- the check-in form (Today) ----------
      The form always opens on what is saved for the day it edits, so saving again updates
@@ -391,6 +396,7 @@ export default function CyraDemo() {
   useEffect(() => {
     if (!hydrated || !stage) return;
     const f = formFor(todayIso);
+    setExpanded(false); // a new day (or stage, or a restored record) opens Today in the chosen mode again
     const sameStage = formStage.current === stage; formStage.current = stage;
     const prevDay = formDay.current; formDay.current = todayIso;
     if (editDate && sameStage) { editSnap.current = f; return; } // an edit stays open; today's form comes back after it
@@ -401,6 +407,7 @@ export default function CyraDemo() {
     }
     editSnap.current = null; setEditDate(null); applyForm(f);
   }, [hydrated, todayIso, stage, formRev]); // eslint-disable-line
+  useEffect(() => { setExpanded(false); }, [quickMode]); // choosing a mode in Settings ends a per-visit expansion
   const startEdit = (iso) => {
     if (!editDate) editSnap.current = { draft, sleepQ, scales, flow, disch, odor, bodyOdor, kicks };
     applyForm(formFor(iso));
@@ -810,7 +817,13 @@ export default function CyraDemo() {
   const [justReached, setJustReached] = useState(null);
   const reachedTimer = useRef(null);
   useEffect(() => () => clearTimeout(reachedTimer.current), []);
-  const onSaved = (nextDays) => {
+  /* The day just saved: for 1.2 s after a save of today, the patterns card pops that day's dot once (UI state only,
+     set by the save handler alone, never on hydration or restore, never stored). */
+  const [justSaved, setJustSaved] = useState(null);
+  const savedTimer = useRef(null);
+  useEffect(() => () => clearTimeout(savedTimer.current), []);
+  const onSaved = (nextDays, savedIso = null) => {
+    if (savedIso) { setJustSaved(savedIso); clearTimeout(savedTimer.current); savedTimer.current = setTimeout(() => setJustSaved(null), 1200); }
     // The welcome line (Today, under the h1) is for the first visit only: the first save clears it.
     if (welcome) setWelcome("");
     const before = milestonesFor(days), after = milestonesFor(nextDays);
@@ -1512,7 +1525,8 @@ export default function CyraDemo() {
   const scoreMeter = <ScoreMeter liveScore={liveScore} scoreLabel={scoreLabel} scoreColor={scoreColor} touched={touched} />;
   const scaleSection = <ScaleSection scales={scales} setScales={setScales} />;
   const bodySection = <BodySignals stage={stage} showBody={showBody} setShowBody={setShowBody} flow={flow} setFlow={pickFlow} disch={disch} setDisch={setDisch} odor={odor} setOdor={setOdor} bodyOdor={bodyOdor} setBodyOdor={setBodyOdor} />;
-  const quickCheckin = <QuickCheckin stage={stage} draft={draft} setDraft={setDraft} setQuickMode={setQuickMode} />;
+  // "more detail" opens the full form for this visit only: the answers so far move onto their symptom chips; the Settings preference is untouched.
+  const quickCheckin = <QuickCheckin stage={stage} draft={draft} setDraft={setDraft} onMore={() => { setDraft((d) => foldQuick(d, stage)); setExpanded(true); }} />;
 
   if (!hydrated) {
     // Start over runs the same clean-up as Delete everything, minus the wearable disconnects:
@@ -1558,7 +1572,7 @@ export default function CyraDemo() {
      rows, no hint, day card once a day is tapped), once 3 days are logged. */
   const sixty = stage === "preg" ? null : windowDays(ins.sorted, symIds, todayIso);
   const patternsCard = sixty && sixty.filter((d) => d.e).length >= 3
-    ? <PatternsCard days={sixty} ids={symIds} labels={symMap} starts={isMeno ? [] : ins.starts} sorted={ins.sorted} todayIso={todayIso} maxRows={3} compact onMore={() => goTab("patterns")} />
+    ? <PatternsCard days={sixty} ids={symIds} labels={symMap} starts={isMeno ? [] : ins.starts} sorted={ins.sorted} todayIso={todayIso} maxRows={3} compact popIso={justSaved} onMore={() => goTab("patterns")} />
     : null;
   /* POTS tools open as a page under the current tab (potsOpen): the tab bar stays, with the
      current tab still selected, and a Back button at the top of the page returns to it. */
@@ -1656,7 +1670,7 @@ export default function CyraDemo() {
             {potsPage && potsView}
 
             {pregIs("today") && (
-              <PregTodayScreen onPots={potsTab ? () => openPots() : null} pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
+              <PregTodayScreen onPots={potsTab ? () => openPots() : null} pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} anyLogged={Object.keys(pregLog).length > 0} onEditDay={startEdit} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
             )}
             {pregIs("cal") && (
               <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={dayScore} scoreColor={scoreColor} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} onEdit={startEdit} ping={ping} />
@@ -1680,12 +1694,12 @@ export default function CyraDemo() {
             {potsPage && potsView}
 
             {appIs("today") && (
-              <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} days={days} setDays={setDays} onSaved={onSaved} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
+              <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} expanded={expanded} setExpanded={setExpanded} quickCheckin={quickCheckin} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} onEditDay={startEdit} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} days={days} setDays={setDays} onSaved={onSaved} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
             )}
             {appIs("cal") && (
               <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />
             )}
-            {appIs("patterns") && <PatternsScreen ins={ins} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} />}
+            {appIs("patterns") && <PatternsScreen ins={ins} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} />}
             {appIs("report") && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} />}
             {appIs("shelf") && <CareScreen shelfItems={shelfItems} />}
             {appIs("ask") && askView}

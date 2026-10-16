@@ -171,6 +171,36 @@ the kick counter is a `.plaincard.kickcard` under a "Kick counter" label with a 
 `aria-live="polite"` count; "Save today" is the one primary-filled CTA. Range inputs are restyled: 44 px tall,
 `appearance:none`, a 6 px track and a 24 px primary thumb (accent-color kept as the fallback).
 
+**Today feedback and reach (UI T2).** *Saved line:* when today is already in the record (`savedToday` in App.jsx:
+`days.some(d => d.date === todayIso)`, pregnancy `!!pregLog[todayIso]`) and no other day is being edited, a
+`p.savedline` sits directly under the meter — a check icon and "Logged today — any change here updates it." The CTA
+texts ("Save today's check-in", "Save today", "Save changes to <date>") and the toast sentences are unchanged.
+*Yesterday shortcut:* under the h1, when yesterday has no entry, something has been logged and no edit is open
+(`!yesterdayLogged && !editDate && days.length > 0`; pregnancy keys on the log having any entry), a
+`button.linkbtn.yday` "Yesterday not logged · add it" opens the existing "Fixing up <date>" flow for yesterday
+(`startEdit(yesterdayIso)`); it is absent once yesterday is logged. *Per-visit "more detail":* the quick card's link
+no longer flips the Settings preference. App.jsx keeps `expanded` (UI state, never saved): "more detail" folds the
+answers so far onto their chips (`foldQuick`) and sets it; TodayScreen then shows the chips, scales and a
+`button.linkbtn.backquick` "Back to quick check-in" in place of the quick card, with the "Last night" pills (the quick
+card that asked about sleep is gone, so "Rough night" is one button). Settings still shows "Quick · 3 taps" selected.
+`expanded` is cleared by "Back to quick check-in", by choosing a mode in Settings, and whenever the form reloads for
+a new day, a stage change or a restored record; it is kept across a save and tab changes within the session (so a
+return to Today after saving shows the form she saved from). Everything that depends on which form is on screen —
+the hint, the chips, the peri sleep pills, the Details sentence and what `contribute()` sends — keys on one value,
+`quickCard = quickMode && !editDate && !expanded`. *Body signals in quick mode:* `bodySection` is always rendered
+(collapsed), so flow, discharge and odor can be logged without leaving the quick path. *Sticky save:* the save `.cta`
+sits in `div.stopbar.savebar` (position:sticky; bottom:0; z-index 3; translucent paper with blur, hairline top,
+`calc(10px + var(--sa-b))` bottom padding) on both Today screens, so mid-form the primary action stays at the bottom
+of the viewport and the toast is lifted above it (`.cy:has(.stopbar) .toast`); the edit banner is `.card.editbar`
+(sticky under the section bar at top:60px, accent-tinted, "Back to today" kept); `.scalerow` margin is 8 px.
+*Meter motion:* `.meterfill` is a `scaleX(var(--v))` transform (ScoreMeter sets `--v` = live score; the transition
+property is transform and background, never width) and the big number counts from its previous value to the new one
+over 250 ms in one requestAnimationFrame tween, skipped under reduced motion; `aria-valuenow` and the label hold the
+final value at once. *The record moves:* a save of today sets `justSaved` (App.jsx, cleared after 1.2 s, set only by
+the save handler, never on hydration or restore); the patterns card (`popIso`) wraps that day's dot in
+`g.dot-new`, which pops once (`cy-pop` 600 ms; none under reduced motion) and not on a later open. *Today's read:*
+`.readcard.compact` sits directly under the phase card, hint clamped to two lines, matching Pregnancy Today.
+
 **Calendar:** month grid. Logged days filled with their day-score color. Period days
 marked. Predicted period (dashed) and estimated fertile window (accent) for unlogged
 future days. Tap any day → detail panel showing what was logged → "Edit this day" loads

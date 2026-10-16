@@ -9,7 +9,7 @@ import Icon from "../components/Icon.jsx";
    symptoms, scales, body signals, kick counter, red-flag swelling advice. Opens on what is
    already saved for the day (App.jsx loads it, and keeps today's kick count on the device
    between taps); also the edit form for a day picked from the Calendar. */
-export default function PregTodayScreen({ onPots = null, pregWeek, trimester, scoreMeter, draft, setDraft, symMap, scaleSection, bodySection, kicks, onKick, setPregLog, todayIso, editDate, onEndEdit, scales, odor, bodyOdor, ping, research, contribute }) {
+export default function PregTodayScreen({ onPots = null, pregWeek, trimester, scoreMeter, draft, setDraft, symMap, scaleSection, bodySection, kicks, onKick, setPregLog, todayIso, editDate, onEndEdit, savedToday = false, yesterdayIso = null, yesterdayLogged = true, anyLogged = false, onEditDay = null, scales, odor, bodyOdor, ping, research, contribute }) {
   return (
     <main>
       <div className="pregband">
@@ -25,13 +25,15 @@ export default function PregTodayScreen({ onPots = null, pregWeek, trimester, sc
       </div>
 
       {editDate && (
-        <div className="card" style={{ display: "block", margin: "16px 0 12px" }}>
+        <div className="card editbar" style={{ display: "block", margin: "16px 0 12px" }}>
           <p><b>Editing {fmt(editDate)}</b> — changes save to that day. <button className="linkbtn" onClick={() => onEndEdit()}>Back to today</button></p>
         </div>
       )}
       <h1 className="disp" style={{ marginTop: 16 }}>{editDate ? `Fixing up ${fmt(editDate)}` : "How's today going?"}</h1>
+      {!yesterdayLogged && !editDate && anyLogged && onEditDay && <button type="button" className="linkbtn yday" onClick={() => onEditDay(yesterdayIso)}>Yesterday not logged · add it</button>}
       <p className="hint">Tap a symptom once for mild, up to 3× for strong.</p>
       {scoreMeter}
+      {savedToday && !editDate && <p className="savedline"><Icon name="check" size={14} /> Logged today — any change here updates it.</p>}
       <div className="chips">
         {Object.entries(GSYM).map(([id, label]) => {
           const sev = draft[id] || 0;
@@ -57,14 +59,14 @@ export default function PregTodayScreen({ onPots = null, pregWeek, trimester, sc
       ) : (
         <Advice urgency="self" alone>Logging daily builds the record your provider actually uses at each visit — and the kick pattern matters more than any single count.</Advice>
       )}
-      <button className="cta" style={{ marginTop: 12 }} onClick={() => {
+      <div className="stopbar savebar"><button className="cta" onClick={() => {
         const target = editDate || todayIso;
         const entry = { sym: { ...draft }, kicks, scales: { ...scales }, odor, bodyOdor };
         setPregLog((l) => ({ ...l, [target]: entry }));
         ping(editDate ? `${fmt(target)} updated` : "Saved to your pregnancy journal — see Calendar");
         contribute({ sym: draft, kicks }, target);
         if (editDate) onEndEdit(entry, target);
-      }}>{editDate ? `Save changes to ${fmt(editDate)}` : "Save today"}</button>
+      }}>{editDate ? `Save changes to ${fmt(editDate)}` : "Save today"}</button></div>
       {onPots && !editDate && <button className="linkbtn potslink" style={{ marginTop: 10 }} onClick={onPots}>Log POTS symptoms and drinks →</button>}
       {research && !editDate && (
         <>

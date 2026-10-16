@@ -125,6 +125,9 @@ html { scroll-padding-top:60px; }
 .phaseinfo { display:flex; flex-direction:column; gap:2px; font-size:13px; }
 .phaseinfo span { color:var(--soft); font-size:12.5px; line-height:1.45; }
 .readcard { background:color-mix(in srgb, var(--primary) 10%, var(--card)); border:1.5px solid color-mix(in srgb, var(--primary) 25%, var(--line)); border-radius:13px; padding:14px; margin-top:14px; }
+/* Today's read sits directly under the phase card (as the pregnancy read does): tighter, hint clamped to two lines. */
+.readcard.compact { padding:10px 14px; margin-top:0; }
+.readcard.compact .hint { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .calgrid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin-bottom:10px; }
 .calhead { text-align:center; font-size:10.5px; font-weight:700; color:var(--soft); padding:2px 0; }
 .calcell { position:relative; aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:600; border-radius:10px; background:var(--card); border:1.5px solid var(--line); color:var(--ink); cursor:pointer; }
@@ -207,7 +210,7 @@ html { scroll-padding-top:60px; }
 .wrapchips { display:flex; flex-wrap:wrap; gap:7px; }
 .minichip { border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:9px 14px; font:500 12.5px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
 .minichip.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary); font-weight:700; }
-.scalerow { margin-bottom:12px; }
+.scalerow { margin-bottom:8px; }
 .scalehead { display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:-4px; }
 .scalehead b { font-family:'Fraunces Variable','Fraunces',serif; color:var(--primary); font-size:15px; }
 .scalehead b.zero { color:var(--soft); }
@@ -223,7 +226,8 @@ html { scroll-padding-top:60px; }
 .meterval { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:20px; display:inline-flex; align-items:center; gap:7px; }
 .meterdot { width:12px; height:12px; border-radius:50%; display:inline-block; transition:background var(--t-slow) var(--ease-std); }
 .metertrack { height:11px; background:color-mix(in srgb, var(--ink) 14%, var(--card)); border-radius:5px; overflow:hidden; }
-.meterfill { height:100%; border-radius:5px; transition:width var(--t-slow) var(--ease-std), background var(--t-slow) var(--ease-std); }
+/* The fill is a transform (--v = 0..1, ScoreMeter.jsx), so a change animates on the compositor; no width transition. */
+.meterfill { height:100%; width:100%; border-radius:5px; transform-origin:left; transform:scaleX(var(--v, 0)); transition:transform var(--t-slow) var(--ease-std), background var(--t-slow) var(--ease-std); }
 .meterends { display:flex; justify-content:space-between; font-size:10.5px; color:var(--soft); margin-top:3px; }
 /* Honest empty meter: before anything is logged the label is soft, the dot and border are --line and the track is faded. */
 .meter-empty .meterlabel { color:var(--soft); } .meter-empty .metertrack { opacity:.5; } .meter-empty .meterval { color:var(--soft); }
@@ -273,6 +277,18 @@ html { scroll-padding-top:60px; }
 /* Quick check-in: each question is a labelled group (.qlab) over one joined .seg of four answers. */
 .qlab { font-weight:600; font-size:var(--fs-md); color:var(--ink); margin:0 0 6px; }
 .welcome-line { color:var(--primary-text); margin-bottom:6px; }
+/* ---- Today status and reach (UI T2): the saved line under the meter, the yesterday shortcut under the h1, the per-visit
+   "Back to quick check-in", the sticky save bar (reuses .stopbar: sticky bottom, and .cy:has(.stopbar) lifts the toast) and the
+   sticky edit strip under the section bar. Sticky needs no overflow-clipping ancestor; main and .cy have none. ---- */
+.savedline { display:flex; gap:6px; align-items:center; font-size:var(--fs-sm); color:var(--primary-text); margin:-6px 0 10px; }
+.savedline svg { flex-shrink:0; }
+.linkbtn.yday { display:flex; margin:-8px 0 2px; font-size:var(--fs-md); }
+.linkbtn.backquick { display:flex; margin:-4px 0 6px; }
+.stopbar.savebar { z-index:3; margin:12px -16px 0; padding:10px 16px calc(10px + var(--sa-b)); background:color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-top:1px solid var(--line); }
+.savebar .cta { margin:0; }
+.editbar { position:sticky; top:60px; z-index:2; background:color-mix(in srgb, var(--accent) 16%, var(--card)); border-color:var(--accent); }
+/* The day just saved pops once on the patterns card (set by the save handler only; cleared after 1.2 s). */
+.dot-new { transform-box:fill-box; transform-origin:center; animation:cy-pop 600ms var(--ease-std); }
 .inpErr { border-color:var(--bad) !important; background:var(--bad-bg) !important; }
 .errhint { font-size:var(--fs-sm); color:var(--bad); line-height:1.5; margin:14px 0 0; background:var(--bad-bg); border:1.5px solid #E7C3B8; border-radius:var(--r-inner); padding:11px 13px; }
 .regcards { display:grid; gap:var(--gap); }

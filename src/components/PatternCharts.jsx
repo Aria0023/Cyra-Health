@@ -118,7 +118,7 @@ function dayStats(days) {
   return { avg, win, best, worst, showStretches, diff };
 }
 
-function DayField({ days, rows, stats, sel, setSel, compact = false }) {
+function DayField({ days, rows, stats, sel, setSel, compact = false, popIso = null }) {
   const { avg, win, best, worst, showStretches, diff } = stats;
   // Home's compact card draws the same line, dots and bands on a shorter plot
   const W = 360, LH = compact ? 150 : 206, L = 28, R = 10, T = 26, B = 16, n = days.length;
@@ -161,7 +161,10 @@ function DayField({ days, rows, stats, sel, setSel, compact = false }) {
         ))}
         {path && <path d={path} fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" opacity={0.85} />}
         {days.map((d, i) => d.score != null && (
-          <circle key={`d${i}`} cx={x(i)} cy={y(d.score)} r={3.4} fill={d.fam ? FAM[d.fam].color : NONE} stroke="var(--card)" strokeWidth={1.2} />
+          // the day just saved (App justSaved, set by the save handler only) pops once on this mount
+          d.iso === popIso
+            ? <g key={`d${i}`} className="dot-new"><circle cx={x(i)} cy={y(d.score)} r={3.4} fill={d.fam ? FAM[d.fam].color : NONE} stroke="var(--card)" strokeWidth={1.2} /></g>
+            : <circle key={`d${i}`} cx={x(i)} cy={y(d.score)} r={3.4} fill={d.fam ? FAM[d.fam].color : NONE} stroke="var(--card)" strokeWidth={1.2} />
         ))}
         {rows.length > 0 && <line x1={L} x2={W - R} y1={LH + 1} y2={LH + 1} stroke="var(--line)" strokeWidth={1} />}
         {rows.map((r, ri) => {
@@ -266,9 +269,10 @@ function CycleRings({ model, sel, setSel }) {
    rows to draw under the line (Home shows fewer); onMore: a link to the Patterns tab (Home);
    compact (Home): no hint line, the callout sentence above the plot as its headline, a shorter
    plot, at most maxRows rows in all (rough nights included), and the day card only once a day
-   is picked. The view switch and the legend stay in both variants.
+   is picked. The view switch and the legend stay in both variants. popIso: the day just saved
+   (App.jsx justSaved, 1.2 s after a save of today); its dot pops once (.dot-new).
    Renders nothing until 3 days are logged. */
-export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso, maxRows = 6, onMore = null, compact = false }) {
+export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso, maxRows = 6, onMore = null, compact = false, popIso = null }) {
   const [view, setView] = useState("days");
   const [selIso, setSelIso] = useState(null);
   const logged = days.filter((d) => d.e);
@@ -312,7 +316,7 @@ export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso,
       {compact && callout}
       {cycleView
         ? <CycleRings model={model} sel={ringSel} setSel={(i) => setSelIso(model.pts[i].iso)} />
-        : <DayField days={days} rows={rows} stats={stats} sel={daySel} setSel={(i) => setSelIso(days[i].iso)} compact={compact} />}
+        : <DayField days={days} rows={rows} stats={stats} sel={daySel} setSel={(i) => setSelIso(days[i].iso)} compact={compact} popIso={popIso} />}
       <FamilyLegend fams={fams} extra={cycleView
         ? <><span><i className="fsize" aria-hidden="true" />bigger = harder day</span>{hasPeriod && <span><i className="fring" aria-hidden="true" />period day</span>}</>
         : <><span><i className="fline" aria-hidden="true" />7-day average</span>{hasPeriod && <span><i className="fband" aria-hidden="true" />period</span>}{compact && <span className="ptap">tap a day for details</span>}</>} />
