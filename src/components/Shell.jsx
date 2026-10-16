@@ -1,13 +1,17 @@
 import { css } from "../styles.js";
 
-/* Outer frame shared by every phase: palette variables, the one stylesheet,
-   and the status toast (aria-live) so messages show on every screen. */
-export default function Shell({ style, toast = "", children }) {
+/* Outer frame shared by every phase: palette variables, the one stylesheet, and the status toast
+   (aria-live) so messages show on every screen. The toast element is always in the DOM (its text
+   node is emptied when nothing is showing; it is never display:none) so an aria-live region exists
+   before the first message and the suites can watch one node. `long` (over 60 characters) switches
+   the pill to a left-aligned, rounded block. `repaint` is true for --t-slow after a palette change so
+   the chrome crossfades together. */
+export default function Shell({ style, toast = "", repaint = false, children }) {
   return (
-    <div className="cy" style={style}>
+    <div className={`cy${repaint ? " repaint" : ""}`} style={style}>
       <style>{css}</style>
       {children}
-      <div className="toast" role="status" aria-live="polite" style={toast ? {} : { display: "none" }}>{toast}</div>
+      <div className={`toast${toast ? " show" : ""}${toast.length > 60 ? " long" : ""}`} role="status" aria-live="polite">{toast}</div>
     </div>
   );
 }

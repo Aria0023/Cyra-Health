@@ -132,6 +132,18 @@ A header chip shows the current stage with a "change" affordance that re-runs in
 
 ## 5. SCREENS BY STAGE
 
+**Section bar (both stage families).** `nav[aria-label="Sections"]` is the sticky wrap (`.tabswrap`: top 0 under the
+safe-area inset, paper at 86% with a saturate/blur backdrop so content scrolls under it legibly) around the one scrolling
+strip `.tabs[role=tablist]`. Tab names, order, `role=tab`, `aria-selected` and the `tab` / `tab-on` classes are fixed
+(harness surface). Overflow is advertised: the strip reports which edges it is against (`data-start` / `data-end` on the
+wrap) and a 36px paper fade sits over the hidden side; scroll-snap is `proximity`, so a drag is never trapped. Keyboard
+follows the APG tabs pattern: only the selected tab is in the Tab order (`tabindex` 0 / -1), ArrowLeft / ArrowRight /
+Home / End move focus among the tabs, activation stays on click, Enter or Space; each tab has `id="tab-<id>"` and
+`aria-controls="panel-<id>"`. The screen renders inside `.tabpanel[role=tabpanel]#panel-<id>` (keyed by tab, so it
+remounts on a change and fades in once over --t-base with `cy-fade-rise`; no label of its own because each screen's
+`<main>` is the landmark). On a tab change the selected tab is scrolled fully into the strip (smooth unless
+`reduceMotion()`); `html { scroll-padding-top:60px }` keeps anchored scrolls below the bar.
+
 ### 5.1 Cycle & Peri stages — tabs: Today · Calendar · Patterns · Report · Care · Ask
 
 **Today:** cycle-status card (day N, phase, days to next period or days late) ·
@@ -335,6 +347,12 @@ only on `.toast.show` and `.tabpanel`. Nothing is scroll-linked. No requestAnima
 250ms score tween. Each entrance runs once per mount behind a ref, <= 600ms. The shared keyframes are
 `cy-fade-rise`, `cy-pop`, `cy-draw`, `cy-spin`, `cy-pulse` and `cy-grow`; new motion reuses them.
 
+**Palette crossfade.** For 400ms after a palette change App.jsx sets `.cy.repaint`, under which the chrome (`.card`,
+`.plaincard`, `.cta`, `.tab-on`, `.mc.on`, `.stagecard.on`, `.pulse`, `.meter`, `.disclosure`, `.pchart`, `.streak`,
+`.readcard`) transitions background-color, border-color and color over --t-slow, so cards, CTA and tabs recolour
+together. It is scoped to that window so the 100ms press feedback above is untouched the rest of the time, and
+FAMILIES / RAMPS inline colours (chart dots, severity marks) are deliberately not in the list: data never animates.
+
 **Control states (one recipe for every custom control).**
 
 ```
@@ -458,6 +476,13 @@ API key in client code.
 
 ## 12. ACCEPTANCE CRITERIA
 
+**Toast.** `.toast[role=status][aria-live=polite]` is always in the DOM (its text node is empty between messages; never
+`display:none`), fades and rises in over --t-base and out over 150ms, and carries a 7px --accent dot. Its lifetime
+scales with length: 2.6s for a short sentence, then 1s + 35ms per character, capped at 8s (a 70-character sentence
+shows for 3.5s, 180 characters for 7.3s). Over 60 characters it renders `.long`: left-aligned, 14px radius, up to 92%
+wide. The suites rely on the cap: the web-live suite waits 10s for a toast to clear and the native suite reads the
+toast about 4s after a 70-character one.
+
 - [ ] A user completing registration sees exactly one stage experience, never a stage menu.
 - [ ] Skipping a required field and tapping Continue turns it red; optional fields never do.
 - [ ] Logging a rough day visibly shifts the score meter color and the calendar fill.
@@ -476,6 +501,12 @@ The reference implementation `App.jsx` contains all of the following. Treat the
 code as the source of truth for exact behavior; this addendum explains intent.
 
 ## A1. Home screen (default tab after registration)
+**Header row (`.mast`, one row at 390px in all three stages and with POTS on, <= 54px).** Wordmark (`.mark` 22px Fraunces
+with the `.sub` tag) · name chip `.acctchip` (ellipsised past 110px, full text in `title`) · two 44px round icon chips
+(`.stagechip.icon`: palette, then Check-in settings; primary-tinted while `aria-expanded="true"`) · the "{stage} · change"
+link as `.stagechip.quiet` (no fill or border, underlined, may wrap to two lines inside its 44px box). Gap 4px; only when
+even the wrapped link does not fit does it drop to a second row.
+
 Both stage experiences open on **Home**, not on the check-in form. Home contains, in order:
 greeting (time-of-day + name) with cycle day/phase or pregnancy week · gentle 14-day streak
 ("N of 14 days", never a broken-chain penalty) · one check-in CTA · today's single highest-

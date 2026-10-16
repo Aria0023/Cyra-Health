@@ -76,6 +76,19 @@ const tabIntoView = (e) => {
   if (tr.left < br.left) bar.scrollLeft -= br.left - tr.left;
   else if (tr.right > br.right) bar.scrollLeft += tr.right - br.right;
 };
+/* APG tabs keyboard: only the selected tab is in the Tab order (roving tabindex); Left/Right/Home/End
+   move focus among the tabs without selecting (activation stays on click, Enter or Space). */
+const tabKeys = (e) => {
+  const keys = { ArrowRight: 1, ArrowLeft: -1, Home: 0, End: 0 };
+  if (!(e.key in keys)) return;
+  const tabs = [...(e.currentTarget.parentElement?.querySelectorAll('[role="tab"]') || [])];
+  if (!tabs.length) return;
+  const i = tabs.indexOf(e.currentTarget);
+  const next = e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : (i + keys[e.key] + tabs.length) % tabs.length;
+  e.preventDefault(); tabs[next].focus();
+};
+/* The tab strip advertises its overflow: data-start / data-end on the sticky wrap drive the two edge fades. */
+const tabEdges = (bar) => ({ start: bar.scrollLeft > 4, end: bar.scrollLeft + bar.clientWidth >= bar.scrollWidth - 4 });
 const ZERO_SCALES = { fatigue: 0, pain: 0, moodq: 0, stress: 0 };
 /* Push addresses Cyra's server still has to forget (every one is retried until confirmed). */
 const cleanPending = (v) => (Array.isArray(v) ? [...new Set(v.filter((e) => typeof e === "string" && /^https:\/\//.test(e) && e.length <= 2048))].slice(0, 100) : []);
@@ -96,6 +109,7 @@ import QuickCheckin from "./components/QuickCheckin.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
 import PaletteSheet from "./components/PaletteSheet.jsx";
 import Icon from "./components/Icon.jsx";
+import { reduceMotion } from "./lib/motion.js";
 import SplashScreen from "./screens/SplashScreen.jsx";
 import RecordUnavailableScreen from "./screens/RecordUnavailableScreen.jsx";
 import RegisterScreen from "./screens/RegisterScreen.jsx";
@@ -208,6 +222,8 @@ export default function CyraDemo() {
   const [editDate, setEditDate] = useState(null);
   const [editPeriod, setEditPeriod] = useState(false);
   const [toast, setToast] = useState("");
+  const [tabEdge, setTabEdge] = useState({ start: false, end: false }); // which edges of the tab strip are scrolled against
+  const [repaint, setRepaint] = useState(false); // true for --t-slow after a palette change: chrome colours crossfade together
   const [hydrated, setHydrated] = useState(false);
   const [recordUnavailable, setRecordUnavailable] = useState(false); // phone: the record exists but can't be read right now
   const [recordLocked, setRecordLocked] = useState(false); // iOS: unreadable because the phone is locked (file protection)
@@ -271,7 +287,10 @@ export default function CyraDemo() {
   const syncDay = () => { const now = localDay(); setTodayIso((cur) => (cur === now ? cur : now)); return now; };
   const pregWeek = 22, trimester = 2;
   const toastTimer = useRef(null);
-  const ping = (m) => { clearTimeout(toastTimer.current); setToast(m); toastTimer.current = setTimeout(() => setToast(""), 2600); };
+  /* A toast stays long enough to be read: 2.6s for a short one, then 1s + 35ms per character (a 70-character
+     sentence shows for 3.5s, 180 characters for 7.3s), capped at 8s: the web-live suite waits 10s for a toast
+     to clear and the native suite reads the toast about 4s after a 70-character one appears. */
+  const ping = (m) => { clearTimeout(toastTimer.current); setToast(m); const ms = Math.min(8000, Math.max(2600, 1000 + m.length * 35)); toastTimer.current = setTimeout(() => setToast(""), ms); };
 
   /* The doctor email: everything in it comes from one window — the last 30 calendar days —
      and the denominator is the number of days she actually logged in it. */
@@ -388,6 +407,19 @@ export default function CyraDemo() {
   };
   const curTab = stage === "preg" ? pregTab : appTab;
   useEffect(() => { if (editDate && curTab !== "today") endEdit(); }, [curTab]); // eslint-disable-line -- leaving Today ends an edit
+  // The selected tab is always fully inside the strip (a Home card can select Report, which starts off-screen).
+  useEffect(() => { document.querySelector(".tab-on")?.scrollIntoView?.({ inline: "nearest", block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" }); }, [appTab, pregTab]);
+  const measureTabs = (bar) => { if (!bar) return; const e = tabEdges(bar); setTabEdge((c) => (c.start === e.start && c.end === e.end ? c : e)); };
+  useEffect(() => { // once on mount (and whenever the strip appears) plus on resize; scrolling the strip reports itself
+    const bar = document.querySelector(".tabs"); measureTabs(bar);
+    const onResize = () => measureTabs(document.querySelector(".tabs"));
+    window.addEventListener("resize", onResize); return () => window.removeEventListener("resize", onResize);
+  }, [stage]);
+  const palFirst = useRef(true);
+  useEffect(() => { // a palette change crossfades the chrome (cards, CTA, tabs) over --t-slow; chart colours are inline and do not transition
+    if (palFirst.current) { palFirst.current = false; return; }
+    setRepaint(true); const t = setTimeout(() => setRepaint(false), 400); return () => clearTimeout(t);
+  }, [palIdx]);
 
   /* ---------- POTS add-on: the switch and its one tab ----------
      Settings → Add-ons turns it on and off; it never changes the life stage, and changing stage
@@ -1559,13 +1591,13 @@ export default function CyraDemo() {
   const connView = <ConnectScreen relationship={relationship} setRelationship={setRelationship} conn={conn} setConn={setConn} intimacy={intimacy} setIntimacy={setIntimacy} after={after} setAfter={setAfter} setConnLog={setConnLog} todayIso={todayIso} ping={ping} />;
 
   return (
-    <Shell style={style} toast={toast}>
+    <Shell style={style} toast={toast} repaint={repaint}>
       <header className="mast">
         <span className="mark">{org.name}<span className="sub">{org.tag}</span></span>
-        {stage && <span className="acctchip">{acct.anon ? "Anonymous" : acct.name || "You"}{research && hasServer() ? " · sharing counts ✓" : ""}</span>}
+        {stage && <span className="acctchip" title={`${acct.anon ? "Anonymous" : acct.name || "You"}${research && hasServer() ? " · sharing counts ✓" : ""}`}>{acct.anon ? "Anonymous" : acct.name || "You"}{research && hasServer() ? " · sharing counts ✓" : ""}</span>}
         {stage && orgId === "cyra" && <button className="stagechip icon" onClick={() => setShowPal((s) => !s)} aria-label="Color palette" aria-expanded={showPal}><Icon name="palette" size={18} /></button>}
         {stage && <button className="stagechip icon" onClick={() => setShowSettings((s) => !s)} aria-label="Check-in settings" aria-expanded={showSettings}><Icon name="sliders" size={18} /></button>}
-        {stage && <button className="stagechip" onClick={() => { setPots(resetPregClearance); setStage(null); setOb({ step: 0, preg: null, age: null, per: null, vms: null }); setWelcome(""); }}>{stageName} · change</button>}
+        {stage && <button className="stagechip quiet" onClick={() => { setPots(resetPregClearance); setStage(null); setOb({ step: 0, preg: null, age: null, per: null, vms: null }); setWelcome(""); }}>{stageName} · change</button>}
       </header>
 
       {/* ============ APP ============ */}
@@ -1576,13 +1608,17 @@ export default function CyraDemo() {
         {/* ---------- PREGNANCY: its own component ---------- */}
         {stage === "preg" ? (
           <>
-            <nav aria-label="Sections">
-              <div className="tabs" role="tablist">
+            <nav aria-label="Sections" className="tabswrap" data-start={tabEdge.start ? "1" : "0"} data-end={tabEdge.end ? "1" : "0"}>
+              <div className="tabs" role="tablist" onScroll={(e) => measureTabs(e.currentTarget)}>
                 {[["home", "Home"], ["today", "Today"], ["cal", "Calendar"], ["mile", "Milestones"], ["connect", "Connect"], ["ask", "Ask"]].map(([id, l]) => (
-                  <button key={id} role="tab" aria-selected={pregTab === id} className={`tab ${pregTab === id ? "tab-on" : ""}`} onClick={() => { setPotsOpen(false); setPregTab(id); }} onFocus={tabIntoView}>{l}</button>
+                  <button key={id} role="tab" id={`tab-${id}`} aria-controls={`panel-${id}`} aria-selected={pregTab === id} tabIndex={pregTab === id ? 0 : -1} className={`tab ${pregTab === id ? "tab-on" : ""}`} onClick={() => { setPotsOpen(false); setPregTab(id); }} onFocus={tabIntoView} onKeyDown={tabKeys}>{l}</button>
                 ))}
               </div>
             </nav>
+            {/* The screen is the tabpanel each tab's aria-controls points at; keyed so a tab change remounts it (and its
+                fade-in runs once). It carries no aria-labelledby: each screen's <main> is the landmark, and axe's region rule
+                counts a labelled non-landmark wrapper as content outside one. */}
+            <div className="tabpanel" role="tabpanel" id={`panel-${pregTab}`} key={pregTab}>
             {potsPage && potsView}
 
             {pregIs("today") && (
@@ -1595,16 +1631,18 @@ export default function CyraDemo() {
             {pregIs("ask") && askView}
             {pregIs("connect") && connView}
             {pregIs("home") && homeView}
+            </div>
           </>
         ) : (
           <>
-            <nav aria-label="Sections">
-              <div className="tabs" role="tablist">
+            <nav aria-label="Sections" className="tabswrap" data-start={tabEdge.start ? "1" : "0"} data-end={tabEdge.end ? "1" : "0"}>
+              <div className="tabs" role="tablist" onScroll={(e) => measureTabs(e.currentTarget)}>
                 {[["home", "Home"], ["today", "Today"], ["cal", "Calendar"], ["patterns", "Patterns"], ["connect", "Connect"], ["report", "Report"], ["shelf", "Care"], ["ask", "Ask"]].map(([id, l]) => (
-                  <button key={id} role="tab" aria-selected={appTab === id} className={`tab ${appTab === id ? "tab-on" : ""}`} onClick={() => { setPotsOpen(false); setAppTab(id); }} onFocus={tabIntoView}>{l}</button>
+                  <button key={id} role="tab" id={`tab-${id}`} aria-controls={`panel-${id}`} aria-selected={appTab === id} tabIndex={appTab === id ? 0 : -1} className={`tab ${appTab === id ? "tab-on" : ""}`} onClick={() => { setPotsOpen(false); setAppTab(id); }} onFocus={tabIntoView} onKeyDown={tabKeys}>{l}</button>
                 ))}
               </div>
             </nav>
+            <div className="tabpanel" role="tabpanel" id={`panel-${appTab}`} key={appTab}>
             {potsPage && potsView}
 
             {appIs("today") && (
@@ -1619,6 +1657,7 @@ export default function CyraDemo() {
             {appIs("ask") && askView}
             {appIs("connect") && connView}
             {appIs("home") && homeView}
+            </div>
           </>
         )}
       </div>

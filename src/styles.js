@@ -11,11 +11,13 @@ export const css = `
 /* html is above .cy, so the one html-level rule (scroll padding under the POTS stop bar) gets the same inset tokens. */
 html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); }
 .cy * { box-sizing:border-box; }
-.mast { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:6px; margin-bottom:10px; }
-/* Narrow phones: the header chips first narrow (their text wraps inside), and only when even that doesn't fit does the last one move to a second row, so the page never scrolls sideways. */
+.mast { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:4px; margin-bottom:10px; }
+/* One row on a 390px phone (spec A1): wordmark, name chip (ellipsised past 110px), two 44px icon chips, the quiet stage link.
+   The chips can still narrow (their text wraps inside) and only when even that doesn't fit does the last one move to a second row, so the page never scrolls sideways. */
 .mast > .mark { margin-right:auto; }
 .mast > .stagechip, .mast > .acctchip { flex:1 1 min-content; max-width:max-content; margin-right:0; }
-.mark { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:24px; }
+.mast > .stagechip.icon { flex:0 0 44px; max-width:44px; }
+.mark { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:22px; }
 .sub { font-size:10.5px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--primary-text); margin-left:7px; vertical-align:3px; }
 .orgsel { display:flex; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:3px; }
 .orgbtn { border:none; background:none; border-radius:999px; padding:5px 12px; font:700 11.5px 'Karla Variable','Karla'; color:var(--soft); cursor:pointer; }
@@ -28,11 +30,23 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .stagesel b { font-size:13px; color:var(--ink); } .stagesel span { font-size:10.5px; color:var(--soft); }
 .stagesel.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 8%, var(--card)); }
 .stagesel.on b { color:var(--primary-text); }
-.tabs { display:flex; gap:1px; border-bottom:2px solid var(--line); margin-bottom:16px; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+/* ---- section bar (spec §5): the nav is the sticky, translucent wrap (.tabswrap); the strip inside scrolls sideways with
+   proximity snapping and tells the wrap which edges it is against (data-start / data-end), which fade the overflow cue out.
+   Sticky needs no overflow-clipping ancestor: .cy has none. html scroll-padding keeps anchored scrolls below the bar. ---- */
+.tabswrap { position:sticky; top:0; z-index:4; margin:0 -16px 16px; padding:var(--sa-t) 16px 0; background:color-mix(in srgb, var(--paper) 86%, transparent); backdrop-filter:saturate(160%) blur(12px); -webkit-backdrop-filter:saturate(160%) blur(12px); }
+.tabswrap::before, .tabswrap::after { content:''; position:absolute; top:0; bottom:2px; width:36px; pointer-events:none; transition:opacity var(--t-fast); }
+.tabswrap::after { right:16px; background:linear-gradient(90deg, transparent, var(--paper)); }
+.tabswrap::before { left:16px; background:linear-gradient(270deg, transparent, var(--paper)); opacity:0; }
+.tabswrap[data-end="1"]::after { opacity:0; }
+.tabswrap[data-start="1"]::before { opacity:1; }
+html { scroll-padding-top:60px; }
+.tabs { display:flex; gap:4px; border-bottom:2px solid var(--line); margin-bottom:0; padding-right:28px; overflow-x:auto; scroll-snap-type:x proximity; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
 .tabs::-webkit-scrollbar { display:none; }
-.tab { flex-shrink:0; }
-.tab { background:none; border:none; border-bottom:3px solid transparent; padding:7px 8px 9px; font:700 13px 'Karla Variable','Karla'; color:var(--soft); cursor:pointer; }
-.tab-on { color:var(--ink); border-bottom-color:var(--primary); }
+.tab { flex-shrink:0; scroll-snap-align:start; }
+.tab { background:none; border:none; border-bottom:3px solid transparent; padding:7px 8px 9px; font:700 13px 'Karla Variable','Karla'; color:var(--soft); cursor:pointer; transition:color var(--t-fast), border-color var(--t-fast); }
+.tab-on { color:var(--primary-text); border-bottom-color:var(--primary); }
+/* The screen under the bar is the tabpanel; it fades in on a tab change (keyed remount, so once per switch). */
+.tabpanel { animation:cy-fade-rise var(--t-base) var(--ease-in); }
 .disp { font-family:'Fraunces Variable','Fraunces',serif; font-weight:440; font-size:var(--fs-title); line-height:1.14; margin:0 0 8px; }
 .hint { font-size:var(--fs-md); line-height:1.55; color:var(--soft); margin:0 0 16px; }
 .chips { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:16px; }
@@ -136,9 +150,13 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .consentopt { display:flex; gap:11px; width:100%; text-align:left; border:1.5px solid var(--line); background:var(--card); border-radius:13px; padding:13px; font:400 var(--fs-sm) 'Karla Variable','Karla'; color:var(--ink); line-height:1.5; cursor:pointer; }
 .consentopt.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 7%, var(--card)); }
 .ckbox { flex-shrink:0; width:22px; height:22px; border:2px solid var(--primary); border-radius:7px; display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--primary); }
-.acctchip { font-size:11px; font-weight:700; color:var(--ink); border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:6px 11px; margin-right:6px; }
-.stagechip { border:1.5px solid var(--line); background:var(--card); color:var(--primary-text); border-radius:999px; padding:6px 12px; font:700 11.5px 'Karla Variable','Karla'; cursor:pointer; }
-.stagechip.icon { display:inline-flex; align-items:center; justify-content:center; padding:6px 8px; }
+.acctchip { font-size:11px; font-weight:700; color:var(--ink); border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:6px 10px; margin-right:0; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.stagechip { border:1.5px solid var(--line); background:var(--card); color:var(--primary-text); border-radius:999px; padding:6px 10px; font:700 11px 'Karla Variable','Karla'; cursor:pointer; }
+.stagechip.icon { width:44px; height:44px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
+.stagechip[aria-expanded="true"] { background:color-mix(in srgb, var(--primary) 12%, var(--card)); border-color:var(--primary); }
+/* The "{stage} · change" link reads as a link, not a fourth chip. */
+/* It may wrap to two lines inside its 44px box ("Perimenopause · change" at 390px), which keeps the header to one row. */
+.stagechip.quiet { background:transparent; border-color:transparent; text-decoration:underline; text-underline-offset:3px; padding:6px 3px; line-height:1.2; }
 .cta > svg, .ghostbtn > svg { vertical-align:-3px; margin-left:2px; }
 /* Icons (components/Icon.jsx): inline SVG on currentColor. .chev is the disclosure chevron, pointing down closed and up open;
    .labico is the small accent glyph before a label. Section labels outside data areas and the Settings/palette sheets carry a 6px accent dot. */
@@ -331,7 +349,7 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 @keyframes cy-pulse { 50% { opacity:.45 } }
 @keyframes cy-grow { from { transform:scaleX(0) } }
 button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline:3px solid var(--primary); outline-offset:2px; border-radius:8px; }
-.tab { min-height:44px; padding:12px 10px; }
+.tab { min-height:44px; padding:12px 8px; }
 /* The tab bar scrolls sideways (overflow-x:auto), which clips anything drawn outside it, so a tab's ring sits just inside the tab. */
 .tab:focus-visible { outline-offset:-3px; }
 .mc, .pill, .takebtn, .sbtn, .orgbtn, .stagechip, .topbtn, .linkbtn, .ghost, .route, .inp, .slider, .minichip, .scopy, .palopt, .calcell { min-height:44px; }
@@ -398,6 +416,14 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .tbar i { display:block; height:100%; border-radius:3px; background:var(--fc); }
 .plaincard.urgent { border:2px solid var(--bad); }
 .plaincard.urgent .uchip { display:inline-block; margin-bottom:6px; }
-.toast { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(20px + var(--sa-b)); background:var(--ink); color:#FFF; font-size:13px; padding:9px 16px; border-radius:999px; max-width:86%; text-align:center; z-index:9; pointer-events:none; }
+/* Toast (spec §12): always in the DOM, faded and slid in over --t-base, out over 150ms; its lifetime scales with length
+   (App.jsx ping, 2.6s to 8s). .long (over 60 characters) is a left-aligned rounded block instead of a centred pill. */
+.toast { position:fixed; left:50%; transform:translate(-50%, 8px); bottom:calc(20px + var(--sa-b)); background:var(--ink); color:#FFF; font-size:13px; line-height:1.4; padding:9px 16px; border-radius:999px; max-width:86%; text-align:center; z-index:9; opacity:0; pointer-events:none; box-shadow:0 4px 14px rgba(0,0,0,.18); transition:opacity 150ms var(--ease-out), transform 150ms var(--ease-out); }
+.toast::before { content:''; display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--accent); margin-right:8px; vertical-align:1px; }
+.toast.show { opacity:1; pointer-events:auto; transform:translate(-50%, 0); transition-duration:var(--t-base); transition-timing-function:var(--ease-in); will-change:transform; }
+.toast.long { text-align:left; border-radius:14px; padding:11px 14px; max-width:92%; }
 .cy:has(.stopbar) .toast { bottom:calc(86px + var(--sa-b)); }
+/* Palette crossfade: for --t-slow after a palette change (.cy.repaint, App.jsx) the chrome recolours together.
+   FAMILIES / RAMPS inline colours (chart dots, severity marks) are not in this list by design: data never animates. */
+.cy.repaint .card, .cy.repaint .plaincard, .cy.repaint .cta, .cy.repaint .tab-on, .cy.repaint .mc.on, .cy.repaint .stagecard.on, .cy.repaint .pulse, .cy.repaint .meter, .cy.repaint .disclosure, .cy.repaint .pchart, .cy.repaint .streak, .cy.repaint .readcard { transition-property:background-color, border-color, color; transition-duration:var(--t-slow); }
 `;
