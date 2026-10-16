@@ -7,7 +7,7 @@ export const css = `
 /* ---- tokens (spec §8.4): one type scale, one grid, one set of radii and motion timings. --primary-text is the
    body-text tint of the palette primary (AA on paper at 12.5px in every palette); --good/--bad are the two status
    hues; --sa-* are the device safe-area insets (Capacitor's --safe-area-inset-* first, then env(), then 0). ---- */
-.cy { --fs-xs:11px; --fs-sm:12.5px; --fs-md:13.5px; --fs-lg:15.5px; --fs-num:23px; --fs-title:26px; --r-card:13px; --r-inner:11px; --r-pill:999px; --gap:8px; --stack:12px; --t-fast:100ms; --t-base:200ms; --t-slow:300ms; --ease-std:cubic-bezier(.2,0,0,1); --ease-in:cubic-bezier(.05,.7,.1,1); --ease-out:cubic-bezier(.3,0,.8,.15); --primary-text:color-mix(in srgb, var(--primary) 82%, var(--ink)); --good:#43604F; --bad:#A04545; --bad-bg:#FBEEEA; --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); background:var(--paper); color:var(--ink); font-family:'Karla Variable','Karla',sans-serif; line-height:1.5; min-height:100dvh; max-width:430px; margin:0 auto; padding:18px 16px 48px; box-sizing:border-box; transition:background var(--t-slow); }
+.cy { --fs-xs:11px; --fs-sm:12.5px; --fs-md:13.5px; --fs-lg:15.5px; --fs-num:23px; --fs-title:26px; --r-card:13px; --r-inner:11px; --r-pill:999px; --gap:8px; --stack:12px; --t-fast:100ms; --t-base:200ms; --t-slow:300ms; --ease-std:cubic-bezier(.2,0,0,1); --ease-in:cubic-bezier(.05,.7,.1,1); --ease-out:cubic-bezier(.3,0,.8,.15); --primary-text:color-mix(in srgb, var(--primary) 82%, var(--ink)); --accent-text:color-mix(in srgb, var(--accent) 82%, var(--ink)); --good:#43604F; --bad:#A04545; --bad-bg:#FBEEEA; --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); background:var(--paper); color:var(--ink); font-family:'Karla Variable','Karla',sans-serif; line-height:1.5; min-height:100dvh; max-width:430px; margin:0 auto; padding:18px 16px 48px; box-sizing:border-box; transition:background var(--t-slow); }
 /* html is above .cy, so the one html-level rule (scroll padding under the POTS stop bar) gets the same inset tokens. */
 html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); }
 .cy * { box-sizing:border-box; }
@@ -83,7 +83,7 @@ html { scroll-padding-top:60px; }
 .pday { background:color-mix(in srgb, var(--ink) 5%, var(--card)); border-radius:12px; padding:9px 11px; margin-top:8px; font-size:13px; min-height:58px; }
 .pday-h { font-weight:700; } .pday .hint { margin:0; }
 .pday-s { list-style:none; margin:4px 0 0; padding:0; display:flex; flex-wrap:wrap; gap:3px 12px; }
-.pday-s li { display:inline-flex; align-items:center; gap:5px; } .sevd { color:var(--soft); font-size:10.5px; letter-spacing:1px; }
+.pday-s li { display:inline-flex; align-items:center; gap:5px; } .sevd { color:var(--fc, var(--soft)); font-size:10.5px; letter-spacing:1px; }
 .pcallout { display:flex; gap:12px; align-items:baseline; border-top:1px solid var(--line); margin-top:10px; padding-top:9px; }
 .pcallout b { font-family:'Fraunces Variable','Fraunces',serif; font-size:24px; font-weight:600; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .pcallout p { margin:0; font-size:var(--fs-md); }
@@ -129,15 +129,32 @@ html { scroll-padding-top:60px; }
 .readcard.compact { padding:10px 14px; margin-top:0; }
 .readcard.compact .hint { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .calgrid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin-bottom:10px; }
-.calhead { text-align:center; font-size:10.5px; font-weight:700; color:var(--soft); padding:2px 0; }
+.calhead { text-align:center; font-size:11px; letter-spacing:.04em; font-weight:700; color:var(--soft); padding:2px 0; }
 .calcell { position:relative; aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:600; border-radius:10px; background:var(--card); border:1.5px solid var(--line); color:var(--ink); cursor:pointer; }
-.c-period { background:var(--primary); border-color:var(--primary); color:#FFF; font-weight:700; }
-.c-pred { background:color-mix(in srgb, var(--primary) 18%, var(--card)); border-style:dashed; border-color:var(--primary); color:var(--primary); font-weight:700; }
-.c-fert { background:color-mix(in srgb, var(--accent) 22%, var(--card)); border-color:var(--accent); }
+/* Calendar (spec §5.1): fill = day score (inline, from the ramp), border = cycle state, so the legend swatches below are a
+   literal copy of the cell styling. Month navigation sits around the h1; the selected day's card follows the grid. */
+.calnav { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
+.calnav .disp { margin:0; flex:1; text-align:center; }
+.calnav .sbtn { min-width:44px; padding:0 12px; font-size:22px; line-height:1; font-weight:500; }
+.linkbtn.backmonth { display:flex; margin:-2px auto 6px; font-size:var(--fs-sm); }
+.c-period { border:2px solid var(--primary); }
+.c-pred { border:2px dashed var(--primary); }
+.c-fert { border:2px solid var(--accent); }
 .c-today { outline:none; box-shadow:inset 0 0 0 2px var(--ink); }
-.callegend { display:flex; flex-wrap:wrap; gap:10px; font-size:11.5px; color:var(--soft); margin-bottom:12px; }
-.callegend .dot { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
-.d-period { background:var(--primary); } .d-pred { background:color-mix(in srgb, var(--primary) 25%, var(--card)); border:1px dashed var(--primary); } .d-fert { background:color-mix(in srgb, var(--accent) 35%, var(--card)); }
+.c-today.c-empty { background:color-mix(in srgb, var(--primary) 10%, var(--card)); }
+.c-sel { box-shadow:0 0 0 2.5px var(--card), 0 0 0 5px var(--primary); z-index:1; }
+.c-today.c-sel { box-shadow:inset 0 0 0 2px var(--ink), 0 0 0 2.5px var(--card), 0 0 0 5px var(--primary); }
+.c-future { color:var(--soft); font-weight:500; border-color:color-mix(in srgb, var(--line) 55%, transparent); background:color-mix(in srgb, var(--card) 60%, transparent); }
+.c-future.c-pred, .c-future.c-fert { color:inherit; font-weight:700; } .c-future.c-pred { border-color:var(--primary); } .c-future.c-fert { border-color:var(--accent); }
+.hint.calhint { margin:-4px 0 12px; }
+.daycard { display:block; margin-bottom:12px; animation:cy-fade-rise 180ms var(--ease-in); }
+.dayhead { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; }
+.daycard .pday-s { margin-top:6px; } .daycard .pday-s li { font-size:var(--fs-sm); }
+.daycard .dayline { margin:5px 0 0; font-size:var(--fs-sm); }
+.callegend { display:flex; flex-wrap:wrap; gap:10px; font-size:11.5px; color:var(--soft); margin-bottom:6px; }
+.callegend .dot { display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
+.d-period { background:var(--primary); } .d-pred { background:var(--card); border:1.5px dashed var(--primary); } .d-fert { background:var(--card); border:2px solid var(--accent); }
+.d-wk { background:var(--card); border:2px solid var(--accent); border-radius:3px; }
 .pregband { display:flex; gap:14px; align-items:center; background:var(--card); border:1.5px solid var(--line); box-shadow:0 1px 2px rgba(0,0,0,.04); border-radius:13px; padding:14px 15px; margin-bottom:8px; }
 .pregweek { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:22px; color:var(--primary); white-space:nowrap; }
 .pregmeta { display:flex; flex-direction:column; gap:2px; font-size:13px; }
@@ -181,11 +198,12 @@ html { scroll-padding-top:60px; }
 .obdots { display:flex; gap:6px; margin-bottom:16px; }
 .obdots span { width:8px; height:8px; border-radius:50%; background:var(--line); }
 .obdots span.on { background:var(--primary); }
-.c-log { position:absolute; top:3px; right:4px; width:5px; height:5px; border-radius:50%; background:var(--accent); }
+.c-log { position:absolute; top:3px; right:4px; width:5px; height:5px; border-radius:50%; background:var(--accent); box-shadow:0 0 0 1.5px rgba(255,255,255,.7); }
 .c-period .c-log { background:#FFF; }
 .linkbtn { display:inline-flex; align-items:center; border:none; background:none; color:var(--primary-text); font:700 12.5px 'Karla Variable','Karla'; text-decoration:underline; cursor:pointer; padding:0; }
-.c-wk { border-color:var(--accent); }
-.c-wklab { position:absolute; bottom:2px; font-size:9px; font-weight:700; color:var(--accent); }
+.c-wk { border:2px solid var(--accent); background:color-mix(in srgb, var(--accent) 10%, var(--card)); padding-bottom:8px; }
+/* The week tag reads in a darkened accent on the tinted week cell (>= 5.1:1 in the three pregnancy palettes) and in the cell's own ink on a score fill. */
+.c-wklab { position:absolute; bottom:3px; font-size:9px; font-weight:700; letter-spacing:.02em; line-height:1; color:var(--accent-text); } .c-wklab.onfill { color:inherit; }
 .d-logdot { background:var(--accent); border-radius:50%; }
 /* One section-label style everywhere (Home sections, Report sections, shelf brand line, form labels). */
 .section-lab, .rsec, .sbrand, .lab { font-size:var(--fs-xs); font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--soft); margin:14px 0 7px; }
@@ -235,7 +253,7 @@ html { scroll-padding-top:60px; }
 .gradbar { flex:1; height:7px; border-radius:4px; }
 .c-per-mark { position:absolute; bottom:3px; width:5px; height:5px; border-radius:50%; background:var(--primary); box-shadow:0 0 0 1.5px rgba(255,255,255,.7); }
 .d-permark { background:var(--primary); border-radius:50%; }
-.scorepill { float:right; font-size:10.5px; font-weight:700; color:#FFF; border-radius:999px; padding:3px 9px; }
+.scorepill { float:none; font-size:11px; font-weight:700; color:#FFF; border-radius:999px; padding:3px 9px; white-space:nowrap; }
 .palsheet { background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:14px; margin-bottom:14px; box-shadow:0 2px 8px rgba(0,0,0,.07); }
 .palopt { display:flex; align-items:center; gap:11px; width:100%; text-align:left; border:1.5px solid var(--line); background:var(--card); border-radius:12px; padding:10px 12px; margin-bottom:8px; cursor:pointer; }
 .palopt.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 8%, var(--card)); }

@@ -207,6 +207,39 @@ future days. Tap any day → detail panel showing what was logged → "Edit this
 that date into the check-in form and saves back to it. Confidence card: ±days derived
 from cycle variability, explicitly stating it is not contraception.
 
+**Calendar rules (UI C1; `src/screens/CalendarScreen.jsx`, `PregCalendarScreen.jsx`).**
+*Month navigation:* the `h1.disp` sits between two 44px `.sbtn` buttons (`aria-label` "Previous month" /
+"Next month") in `.calnav` and shows the viewed month (`aria-live="polite"`); away from the current month a
+"Back to this month" `.linkbtn` appears under it. The offset is screen state (`mo`), so re-entering the tab
+(the `.tabpanel` remounts) always opens on the current month. Any month can be viewed; the grid is
+`role="group"` named by the month and the headers are two letters (Su Mo Tu We Th Fr Sa), `aria-hidden`.
+*Fill = score, border = cycle state:* a logged day's fill is `scoreColor(score)` and its digit `scoreInk(score)`
+(§8.3); the border says what kind of day it is — `.c-period` 2px solid --primary (plus the `.c-per-mark` dot),
+`.c-pred` 2px dashed --primary, `.c-fert` 2px solid --accent — and these apply whether or not the day is
+scored (the old `sc == null &&` guard hid fertile and predicted states on any logged day). The legend swatches
+are the same rules on an 11px square (`.d-pred` dashed, `.d-fert` accent border, `.d-permark` dot), so the
+legend is a literal copy of the cells. Future unlogged days are `.c-future`: --soft digits at 500 on a faded
+card, unless they carry a prediction or fertile border (then ink at 700 and the state's border colour). Today
+is `.c-today` (inset ink ring); before anything is logged it also takes `.c-empty` (10% primary tint) and the
+hint reads "Tap today to log your first day. Periods, predictions and the fertile window appear here as you go."
+*Selected cell:* `.c-sel` draws a card-gap + 5px --primary ring (absorbed by the 5px grid gap; `.c-today.c-sel`
+keeps the inset ring inside it) and the cell is `aria-pressed="true"`; exactly one cell is pressed at a time.
+*Accessible name:* every cell is named "{Weekday}, {Month} {day}" followed by ", today", ", period",
+", predicted period", ", estimated fertile window" and ", {scoreLabel}" as they apply (pregnancy: ", week N
+starts", ", logged"); today also carries `aria-current="date"`.
+*Day card:* `.card.daycard[role=region][aria-label="Selected day"]` renders directly after `.calgrid`
+(before the legends) with a 180ms `cy-fade-rise`; `.dayhead` holds "{Wkd}, {Mon} {d}" and the `.scorepill`
+(score fill + `scoreInk`); symptoms are a `.pday-s` list whose severity dots take the symptom's family colour
+through `--fc` (`famColor()`); the footer is "Edit this day" for a logged day, "Log this day" for an unlogged
+day up to today (both open the Today edit flow via `onEdit(iso)` — "Fixing up {date}"), or the sentence
+"That day hasn't happened yet." for a future day, and always "Close".
+*Confidence card:* the number keeps `.num` with "confidence" as `.rmeta` under it; the sentence names one
+basis only — told: "Based on the {n}-day cycle you gave at sign-up{ (one logged so far: {len}d)}. After two
+logged cycles this becomes your own number."; logged: "Based on your last {k} cycles ({a · b}d)." ("your last
+cycle" when k = 1); no prior and nothing logged: "Based on a typical 28-day cycle until two of yours are
+logged." — each followed by "Estimates — not contraception." verbatim. "Tap any day to see or edit what you
+logged." is a one-line `.hint.calhint` under the legends.
+
 **Patterns:** one patterns card with two views behind a "Day by day / By cycle" switch (the
 switch appears only with two logged period starts, never in menopause or pregnancy). *Day by day:*
 the day score for the last 60 days, each day a dot coloured by its strongest symptom family —
@@ -259,6 +292,14 @@ bring to her doctor + urgent-flag routing if the question describes red-flag sym
 symptoms · **kick counter** · red-flag advice (e.g. severe swelling → contact provider today).
 **Calendar:** week-start markers (w22, w23…), logged-day dots, due-date countdown. No
 fertile-window or period prediction — meaningless here.
+*UI C1:* the same month navigation, cell naming, selected ring, future styling and day card as §5.1 (the
+day-card button is "Edit this day" / "Log this day"; the existing toast "Editing {date} — save to update
+that day" is unchanged). Week-start cells are `.c-wk` (2px --accent border, 10% accent tint, `W{n}` tag in
+`.c-wklab` at 9px in `--accent-text`, or the cell's own ink on a score fill); logged days are score-filled
+with the `.c-log` dot; the legend uses `.d-wk` and `.d-logdot` and is followed by the rough → great gradient
+legend. Under the legends a `.card` with Fraunces "w{week}" reads "{40 − week} weeks to your due date,
+{due}. Trimester {1|2|3}. Tap any day to see or add what you logged." The hint is "Week markers and your
+logged days."
 **Milestones:** the full evidence-based prenatal schedule (§7), each item status-tagged
 against her current week: done ✓ / in window / coming up / later.
 
@@ -366,6 +407,13 @@ calendar fills, and score meters use the ramp. Interpolate good↔mid↔rough by
 Cards pure white on tinted paper; borders 1.5px in a visibly darker tone; subtle
 shadow lift; near-black ink. Pale-on-pale fails — this was a real defect once.
 
+**Score ink (UI C1).** Text drawn on a score fill (calendar digits, the day card's `.scorepill`) uses
+`scoreInk(s)` in App.jsx, next to `scoreColor`: `#000000` when the fill's relative luminance is above 0.179,
+`#FFFFFF` below it. 0.179 is where black and white both measure 4.5:1 against the fill, so the digit never
+drops under 4.58:1 anywhere on the three ramps (the old `sc > 0.3` pick with white measured 2.34:1 at worst).
+No `> 0.3` ink pick remains in `src/`. Small accent-coloured text on a tinted cell (`.c-wklab`) uses
+`--accent-text` = color-mix(accent 82%, ink), >= 5.1:1 on the 10% accent tint in the three pregnancy palettes.
+
 ### 8.4 Tokens and motion (src/styles.js, the `.cy` rule)
 One scale for every screen; new rules reference the tokens instead of restating pixels.
 
@@ -379,6 +427,7 @@ radii     --r-card 13px (cards, CTA)   --r-inner 11px (controls inside a card)  
 motion    --t-fast 100ms  --t-base 200ms  --t-slow 300ms
           --ease-std cubic-bezier(.2,0,0,1)  --ease-in cubic-bezier(.05,.7,.1,1)  --ease-out cubic-bezier(.3,0,.8,.15)
 colour    --primary-text  color-mix(primary 82%, ink): the tint for small primary-coloured text on paper
+          --accent-text   color-mix(accent 82%, ink): the same for small accent-coloured text (calendar week tags)
           (links, stage chip, "Matched:" lines, med effect, selected stage name). Measured >= 5.2:1 on paper in
           all nine palettes; Fraunces numbers, filled buttons and the streak/pulse figures keep --primary.
           --good #43604F  --bad #A04545  --bad-bg #FBEEEA: the only status hues in chrome (.up/.down/.better/

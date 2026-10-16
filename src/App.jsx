@@ -363,6 +363,13 @@ export default function CyraDemo() {
     const c = s > 0.5 ? lerp(mid, good, (s - 0.5) * 2) : lerp(rough, mid, s * 2);
     return `rgb(${c})`;
   };
+  /* Ink for text drawn on a score fill (calendar digits, the day card's score pill): black above a relative
+     luminance of 0.179, white below it — the crossover where both inks measure 4.5:1 against the fill. */
+  const scoreInk = (s) => {
+    const [r, g, b] = scoreColor(s).match(/\d+/g).map(Number);
+    const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) > 0.179 ? "#000000" : "#FFFFFF";
+  };
 
   /* ======================= HOME ======================= */
   const goTab = (t2) => (stage === "preg" ? setPregTab(t2) : setAppTab(t2));
@@ -1673,7 +1680,7 @@ export default function CyraDemo() {
               <PregTodayScreen onPots={potsTab ? () => openPots() : null} pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} anyLogged={Object.keys(pregLog).length > 0} onEditDay={startEdit} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
             )}
             {pregIs("cal") && (
-              <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={dayScore} scoreColor={scoreColor} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} onEdit={startEdit} ping={ping} />
+              <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={dayScore} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} onEdit={startEdit} ping={ping} />
             )}
             {pregIs("mile") && <MilestonesScreen pregWeek={pregWeek} />}
             {pregIs("ask") && askView}
@@ -1697,7 +1704,7 @@ export default function CyraDemo() {
               <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} expanded={expanded} setExpanded={setExpanded} quickCheckin={quickCheckin} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} onEditDay={startEdit} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} days={days} setDays={setDays} onSaved={onSaved} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
             )}
             {appIs("cal") && (
-              <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />
+              <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />
             )}
             {appIs("patterns") && <PatternsScreen ins={ins} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} />}
             {appIs("report") && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} />}

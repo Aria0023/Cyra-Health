@@ -518,3 +518,15 @@ Presentation and UI state only; no new key in the record, nothing new sent. Trac
 - **Saved line, yesterday shortcut, `justSaved`.** `savedToday`, `yesterdayIso` and `yesterdayLogged` are computed from the on-device record on render and never stored. The shortcut opens the existing edit flow (`startEdit`), which contributes with the day's own date as before (an earlier day can only take flags back). `justSaved` is React state set only by the save handler, cleared after 1.2 s, never written to the record or any storage, never set on hydration or restore (`grep -c justSaved src` lists App.jsx state and the `popIso` prop only); the dot pop is on-device feedback.
 - **Meter motion.** `--v` and the counted number are derived from the live score in the component; nothing is stored.
 - Harness: no asserted string changed. `native-e2e.mjs` ("more detail" → Hot flashes chip → save → flag queued; the chips still present after returning to Today) passes unchanged: "NATIVE E2E: all passed".
+
+
+### UI C1: Calendar — month navigation, log any past day, fill = score / border = cycle state
+
+Presentation and screen state only; no new key in the record, nothing new sent. Traced to the source on 16 October 2026.
+
+- **"Estimates — not contraception."** stays on screen verbatim in the confidence card whenever a prediction is shown (every branch of the sentence ends with it; `grep -c "Estimates — not contraception." src/screens/CalendarScreen.jsx` = 3). The sentence around it was reworded so it names one basis only: "Based on the {n}-day cycle you gave at sign-up{ (one logged so far: {len}d)}. After two logged cycles this becomes your own number." when `pred.basis === "told"`, "Based on your last {k} cycles ({lens}d)." when the average comes from logged cycles, and "Based on a typical 28-day cycle until two of yours are logged." with no sign-up answer and nothing logged. Each is literally true of `predict()` (lib/engine.js: `avgLen` is the sign-up length until `lens.length >= 2`, then the logged mean, else 28). The old sentence listed the logged lengths and the sign-up cycle together.
+- **Month navigation** is React state in the screen (`mo`), never stored; it reads the same on-device `days` / `pregLog` record for any month.
+- **"Log this day"** on an unlogged past day opens the existing edit flow (`startEdit(iso)`), which saves to that date and contributes with that day's own date exactly as "Edit this day" always has; nothing new is shared.
+- **Cell names and `scoreInk`** are computed on render from the entry; nothing is stored.
+- Harness: the pregnancy day card's "Edit" button is now "Edit this day" (the cycle screen already used it); `scratchpad/walk.mjs:99`, `scratchpad/uiux/t1/walk-t1.mjs:98` and `scratchpad/final-review/axe-edit.mjs:59` click the new name. `scratchpad/uiux/allshots.mjs` prefers a `.calcell` over any `[class*=cal] button` so the "calendar-day" shot still taps a day (the new `.calnav` buttons matched first). No asserted suite string changed; `native-e2e.mjs` passes unchanged ("NATIVE E2E: all passed").
+
