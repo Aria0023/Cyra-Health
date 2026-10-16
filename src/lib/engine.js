@@ -45,6 +45,13 @@ export function stripeColor(v, hot, calm, mid) {
 /* Pregnancy trimester for a week number: weeks 0-12 first, 13-27 second, 28+ third (Home greeting and week bar). */
 export const trimesterOf = (w) => (w < 13 ? "first" : w < 28 ? "second" : "third");
 export const fmt = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+/* A past day relative to today, for status lines ("last backup today"): today / yesterday / "N days ago" within a
+   week, else fmt(iso). A day in the future or an unreadable value falls back to fmt(iso) rather than guessing. */
+export const relDay = (iso, todayIso) => {
+  const n = Math.round((new Date(todayIso + "T12:00:00") - new Date(iso + "T12:00:00")) / 86400000);
+  if (!Number.isFinite(n) || n < 0) return fmt(iso);
+  return n === 0 ? "today" : n === 1 ? "yesterday" : n < 7 ? `${n} days ago` : fmt(iso);
+};
 export const hex2rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 
 /* ISO date n days before `today`, the same way the app keys its days (App.jsx isoDaysAgo). */

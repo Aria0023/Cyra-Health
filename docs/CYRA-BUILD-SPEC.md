@@ -930,6 +930,18 @@ peri quick card is on screen the Today sleep `.pill` row is not rendered (its qu
 `sleepQ` and the shared poor-sleep flag still come only from the pill row, so a peri quick-mode day records `"fair"`
 unless she opens "more detail" — the q2 → `sleepQ` derivation is deferred (PRIVACY-AUDIT, UI T1).
 
+**Settings rhythm, nudge and reminders (UI S1).** In Settings the five cadences render as a two-column `.regcards.cadgrid`
+of `.stagecard` buttons (the fifth spans both columns; labels, descriptions and `aria-pressed` unchanged). The nudge
+time is a joined `.mcrow.seg` of the four `.mc` buttons, and it depends on the other two controls: while rhythm is
+"When I feel like it", or while reminders are off but could be turned on (`!remindersOn && reminderSupport !== "none"`),
+its wrapper takes `.nudgewrap.muted` (dashed rail, tinted rather than filled selection, never an opacity dim, which would
+drop the filled pill under 4.5:1) and a one-line hint says why: "You chose no reminders, so there's nothing to time." /
+"Reminders are off — this time is used once you turn them on." / "Reminders aren't available here, so this time isn't
+used." The buttons stay enabled. The Reminders row shows a `.statechip` "Unavailable" instead of the Turn on switch only
+when reminders truly cannot work in the build: `status === "unsupported"` (this browser can't show them) or a web build
+with no server (`reminderSupport === "web" && !hasServer()`). A configured server that is merely unreachable keeps the
+switch and its existing "Off" / "Turn on" texts (`remindersText` is not retitled).
+
 ## A9. Wearables & derived insights
 Sources: Apple Watch via HealthKit/Health Connect (preferred, on-device), Oura API v2, Terra
 aggregator (Fitbit/Garmin/Whoop). Normalized per day: `{ temp (°C deviation), rhr, hrv, sleep }`.
@@ -988,6 +1000,27 @@ receive only name/email, never health data.
       the Today form are not covered by the keyboard under a sticky bottom bar (no code dependency; a
       `capacitor.config` setting when the shell is assembled).
 - [ ] Every UI privacy claim verified literally true of the shipped build.
+
+**Settings sheet (UI S1).** `SettingsSheet` is `section.palsheet#settings-sheet[aria-label="Check-in settings"]` with a
+sticky `.sheethead` (an `h2.sheettitle` "Settings" that takes focus on open, and a 44px `.sheetclose` button labelled
+"Close settings"; the bottom "Done" stays), three `.setgroup` blocks (Check-ins / Add-ons & sharing / Your data), and
+each option row a `[role=group][aria-labelledby]` named by its `p.section-lab` (ids `set-rhythm`, `set-nudge`,
+`set-style`, `set-addons`, `set-reminders`, `set-counts`, `set-data`), every label opening with an `svg.labico` glyph.
+The header buttons carry `aria-controls="settings-sheet"` / `"palette-sheet"` next to their `aria-expanded`; opening one
+sheet closes the other (`setShowPal(false); setShowSettings(s => !s)` and the mirror), and Done / Close hand focus back
+to the button that opened the sheet (`triggerRef`). The palette sheet (`#palette-sheet`) is a `[role=group]` named by
+`p#pal-lab`; each `.palopt` carries `aria-pressed` and its own `--primary` / `--accent` / `--line` / `--paper-mini`,
+so its name, border, check and `.palmini` page swatch preview that palette before it is chosen.
+
+**Data status strip (UI S1).** Above the Encrypted backup / Restore / Delete everything pills, `p.datastat` reads
+"{N} days logged · last backup {today | yesterday | N days ago | Mon D | never}" ("never — worth doing once" from seven
+logged days). `relDay(iso, todayIso)` lives in `lib/engine.js` next to `fmt`. The date comes from the new persisted key
+`lastBackupAt` (ISO day, set by `exportBackup` on success only: after the share sheet returns on the phone, after the
+download is triggered on the web), which is DEVICE_ONLY: it is not in the record other tabs adopt, it is deleted from
+the snapshot before encryption so it is never in a backup file, a restore keeps this device's own value, and Delete
+everything removes it with the rest. The backup and restore inputs have visible `label.flab` wrappers; their
+placeholders and aria-labels are unchanged. The POTS add-on's off-state description is one sentence; "Works alongside
+{stage}. It doesn't change your life stage." moved verbatim into its "Exactly what's kept" panel (PRIVACY-AUDIT, UI S1).
 
 ## A13. POTS add-on
 

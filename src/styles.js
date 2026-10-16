@@ -657,4 +657,32 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 /* Palette crossfade: for --t-slow after a palette change (.cy.repaint, App.jsx) the chrome recolours together.
    FAMILIES / RAMPS inline colours (chart dots, severity marks) are not in this list by design: data never animates. */
 .cy.repaint .card, .cy.repaint .plaincard, .cy.repaint .cta, .cy.repaint .tab-on, .cy.repaint .mc.on, .cy.repaint .stagecard.on, .cy.repaint .pulse, .cy.repaint .meter, .cy.repaint .disclosure, .cy.repaint .pchart, .cy.repaint .streak, .cy.repaint .readcard { transition-property:background-color, border-color, color; transition-duration:var(--t-slow); }
+/* ---- UI S1: Settings and palette sheets. A sticky title bar with a Close button (Done stays at the bottom), three
+   groups separated by a rule, labels with a glyph, a nudge row that says when its time isn't used (tinted, never
+   dimmed by opacity: the filled pill would fall under 4.5:1), a data status strip, visible field labels, and palette
+   options that preview themselves: each row carries its own --primary / --accent / --line, so its name, border, check
+   and mini page swatch are drawn in that palette while the rest of the sheet stays in the current one. ---- */
+.sheethead { position:sticky; top:0; z-index:2; display:flex; justify-content:space-between; align-items:center; gap:10px; background:var(--card); margin:-14px -14px 10px; padding:12px 14px; border-bottom:1.5px solid var(--line); border-radius:14px 14px 0 0; }
+.sheettitle { font:600 20px 'Fraunces Variable','Fraunces',serif; margin:0; color:var(--ink); line-height:1.15; }
+.sheetclose { display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; padding:0; border:1.5px solid var(--line); border-radius:var(--r-pill); background:var(--card); color:var(--primary-text); cursor:pointer; }
+.setgroup { padding:10px 0 2px; border-top:1.5px solid var(--line); }
+.sheethead + .setgroup { border-top:none; padding-top:0; }
+.palsheet .medinfo span { font-size:13px; line-height:1.45; }
+.palsheet .rfoot { font-size:12.5px; margin-top:8px; }
+.palsheet .linkbtn { display:flex; width:100%; justify-content:center; min-height:44px; }
+.palsheet .ghostbtn { margin-top:10px; }
+.palsheet .section-lab .labico { color:var(--accent); }
+.nudgewrap.muted .seg { border-style:dashed; }
+.nudgewrap.muted .mc { color:var(--soft); }
+.nudgewrap.muted .mc.on { background:color-mix(in srgb, var(--primary) 14%, var(--card)); color:var(--primary-text); }
+.nudgehint { margin:8px 0 0; font-size:var(--fs-sm); }
+.datastat { display:flex; gap:6px; align-items:center; flex-wrap:wrap; font-size:13px; line-height:1.4; margin:0 0 10px; padding:9px 12px; border-radius:var(--r-inner); background:color-mix(in srgb, var(--accent) 10%, var(--card)); border-left:3px solid var(--accent); color:var(--ink); }
+.flab { display:block; margin:0 0 9px; font-size:var(--fs-sm); font-weight:700; color:var(--soft); line-height:1.3; }
+.flab > span { display:block; margin-bottom:4px; }
+.flab .inp { margin-bottom:0; }
+.palopt { border-color:var(--line); }
+.palopt.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 8%, var(--card)); }
+.palopt b, .palcheck { color:var(--primary); }
+.palmini { margin-left:auto; width:34px; height:22px; flex-shrink:0; border-radius:6px; background:var(--paper-mini); border:1.5px solid var(--line); position:relative; }
+.palmini::after { content:''; position:absolute; left:5px; right:5px; bottom:4px; height:5px; border-radius:3px; background:var(--primary); }
 `;

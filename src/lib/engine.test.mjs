@@ -1,7 +1,7 @@
 /* Unit tests for lib/engine.js helpers used by Home. Run with `npm run test:unit`. */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { trimesterOf, foldQuick, insights, predict } from "./engine.js";
+import { trimesterOf, foldQuick, insights, predict, relDay, fmt } from "./engine.js";
 import { QUICK_Q, QUICK_MAP, SYM, PSYM } from "./constants.js";
 
 test("trimesterOf: week 9 is the first trimester, 22 the second, 34 the third", () => {
@@ -46,4 +46,12 @@ test("Calendar (UI C1): back-filling a period day from the Calendar re-runs pred
   const c = insights([...backFilled, day(90, true)], ["crm"]);
   assert.deepEqual(c.lens, [30, 28]);
   assert.equal(predict(c).avgLen, 29);
+});
+
+test("relDay (UI S1): today / yesterday / N days ago inside a week, the short date beyond it or for a future day", () => {
+  assert.equal(relDay("2026-10-16", "2026-10-16"), "today");
+  assert.equal(relDay("2026-10-15", "2026-10-16"), "yesterday");
+  assert.equal(relDay("2026-10-12", "2026-10-16"), "4 days ago");
+  assert.equal(relDay("2026-10-09", "2026-10-16"), fmt("2026-10-09"));
+  assert.equal(relDay("2026-10-20", "2026-10-16"), fmt("2026-10-20"));
 });
