@@ -1,6 +1,6 @@
 import { flagWords } from "../lib/pulse.js";
 import Details from "../components/Details.jsx";
-import { GSYM, PREG_TIPS } from "../lib/constants.js";
+import { GSYM, PREG_TIPS, famColor } from "../lib/constants.js";
 import { sevDots, fmt } from "../lib/engine.js";
 import Advice from "../components/Advice.jsx";
 import Icon from "../components/Icon.jsx";
@@ -30,19 +30,27 @@ export default function PregTodayScreen({ onPots = null, pregWeek, trimester, sc
         </div>
       )}
       <h1 className="disp" style={{ marginTop: 16 }}>{editDate ? `Fixing up ${fmt(editDate)}` : "How's today going?"}</h1>
+      <p className="hint">Tap a symptom once for mild, up to 3× for strong.</p>
       {scoreMeter}
       <div className="chips">
-        {Object.entries(GSYM).map(([id, label]) => (
-          <button key={id} aria-pressed={(draft[id] || 0) > 0} aria-label={`${(symMap[id] || label)}, severity ${draft[id] || 0} of 3`} className={`chip sev-${draft[id] || 0}`} onClick={() => setDraft((d) => ({ ...d, [id]: ((d[id] || 0) + 1) % 4 }))}>
-            <span>{label}</span><span className="dots" aria-hidden="true">{sevDots(draft[id] || 0)}</span>
-          </button>
-        ))}
+        {Object.entries(GSYM).map(([id, label]) => {
+          const sev = draft[id] || 0;
+          return (
+            <button key={id} aria-pressed={sev > 0} aria-label={`${(symMap[id] || label)}, severity ${sev} of 3`} className={`chip sev-${sev}`} style={{ "--fc": famColor(id) }} onClick={() => setDraft((d) => ({ ...d, [id]: ((d[id] || 0) + 1) % 4 }))}>
+              <span>{label}</span><span key={sev} className="dots" aria-hidden="true" data-tick={sev || undefined}>{sevDots(sev)}</span>
+            </button>
+          );
+        })}
       </div>
       {scaleSection}
       {bodySection}
-      <div className="kickrow">
-        <button className="cta" style={{ flex: 1 }} onClick={onKick}>Kick! <Icon name="foot" /></button>
-        <div className="kickcount"><b>{kicks}</b><span>{editDate ? "kicks that day" : "kicks today"}</span></div>
+      {/* The kick counter is a tool, not the day's primary action: tinted and outlined inside its own card, so "Save today" is the one filled CTA. */}
+      <div className="plaincard kickcard">
+        <p className="section-lab">Kick counter</p>
+        <div className="kickrow">
+          <button className="cta cta-kick" style={{ flex: 1 }} onClick={onKick}>Kick! <Icon name="foot" /></button>
+          <div className="kickcount" aria-live="polite"><b>{kicks}</b><span>{editDate ? "kicks that day" : "kicks today"}</span></div>
+        </div>
       </div>
       {draft.swl >= 2 ? (
         <Advice urgency="now" alone>Sudden or severe swelling — especially with headaches or vision changes — is a call-your-provider-today signal, not a wait-and-see one.</Advice>

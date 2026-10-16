@@ -41,7 +41,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
    ================================================================ */
 
 import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, RAMPS, SYM_FAMILY } from "./lib/constants.js";
-import { seed, fmt, insights, predict, predictionWaits, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf } from "./lib/engine.js";
+import { seed, fmt, insights, predict, predictionWaits, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick } from "./lib/engine.js";
 import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
 import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource, drainTerra, mergeRows, disconnectHelp } from "./lib/wearables.js";
 import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue, pruneQueue, mergeQueues, localDay, weekKey } from "./lib/pulse.js";
@@ -341,13 +341,19 @@ export default function CyraDemo() {
 
   /* ---------- day score: 0 (rough) .. 1 (great) ---------- */
   const draftIds = stage === "preg" ? Object.keys(GSYM) : symIds;
+  // Quick answers (q1-q3) count as the hero symptoms they are saved as, so the live meter agrees with the day's saved score.
+  const liveDraft = stage === "preg" ? draft : foldQuick(draft, stage);
   const liveBurden = Math.min(1,
-    symBurden(draft, draftIds) * 0.5 +
+    symBurden(liveDraft, draftIds) * 0.5 +
     (scales.fatigue / 10) * 0.2 +
     (scales.pain / 10) * 0.2 +
     ((10 - scales.moodq) / 10) * 0.1
   );
   const liveScore = 1 - liveBurden; // 1 = great day
+  /* Honest meter: nothing reads as scored until something is logged. Computed from the same form state the
+     score and the save use (symptom chips, quick answers, sleep, scales, body signals, kicks). */
+  const touched = draftIds.some((id) => (draft[id] || 0) > 0) || ["q1", "q2", "q3"].some((k) => draft[k] != null) || !!sleepQ
+    || Object.values(scales).some((v) => v > 0) || !!flow || !!disch || !!odor || !!bodyOdor || kicks > 0;
   /* Data-viz ramp: saturated and readable, independent of UI chrome colors. */
   const ramp = () => RAMPS[stage] || RAMPS.peri;
   const scoreColor = (s) => {
@@ -805,6 +811,8 @@ export default function CyraDemo() {
   const reachedTimer = useRef(null);
   useEffect(() => () => clearTimeout(reachedTimer.current), []);
   const onSaved = (nextDays) => {
+    // The welcome line (Today, under the h1) is for the first visit only: the first save clears it.
+    if (welcome) setWelcome("");
     const before = milestonesFor(days), after = milestonesFor(nextDays);
     const fresh = after.find((m) => m.done && !before.find((b) => b.label === m.label)?.done);
     if (!fresh) return;
@@ -1501,7 +1509,7 @@ export default function CyraDemo() {
   };
 
   /* ---------- shared check-in pieces (one instance, rendered by whichever Today is active) ---------- */
-  const scoreMeter = <ScoreMeter liveScore={liveScore} scoreLabel={scoreLabel} scoreColor={scoreColor} />;
+  const scoreMeter = <ScoreMeter liveScore={liveScore} scoreLabel={scoreLabel} scoreColor={scoreColor} touched={touched} />;
   const scaleSection = <ScaleSection scales={scales} setScales={setScales} />;
   const bodySection = <BodySignals stage={stage} showBody={showBody} setShowBody={setShowBody} flow={flow} setFlow={pickFlow} disch={disch} setDisch={setDisch} odor={odor} setOdor={setOdor} bodyOdor={bodyOdor} setBodyOdor={setBodyOdor} />;
   const quickCheckin = <QuickCheckin stage={stage} draft={draft} setDraft={setDraft} setQuickMode={setQuickMode} />;

@@ -151,6 +151,26 @@ live day-score meter (see 6.3) · symptom chips (tap cycles 0→1→2→3→0, s
 0–10 sliders for the four scales · sleep quality (3 buttons) · collapsible **Body Signals**
 panel (flow, discharge, vaginal odor, body odor) · save button · phase-appropriate daily read.
 
+**Today states (UI T1).** The hint under the h1 names the mode: "Three quick questions — about ten seconds." in
+quick mode, "Tap what showed up (up to 3× for strong). Takes 30 seconds, promise." in full and edit mode; Pregnancy
+Today reads "Tap a symptom once for mild, up to 3× for strong." The welcome sentence written at registration shows
+once, as `p.hint.welcome-line` directly under the h1 while `days.length === 0` (no card); the first save clears it
+(App `onSaved`). *Empty meter:* until something on the form is set (`touched` in App.jsx: any symptom chip > 0, any
+quick answer, sleep, any scale > 0, flow / discharge / odor / body odor, kicks > 0 — the same state the score and the
+save read) the meter is `.meter.meter-empty`: "Nothing logged yet" · "—", an empty track, border and dot `--line`,
+`role=progressbar` with `aria-valuenow=0` and `aria-label="Day score: nothing logged yet"`, left foot "Tap below — your
+score updates live". The first tap switches it to the scored label and ramp colour in the same frame. The live score
+folds quick answers onto their hero symptoms (`foldQuick`) so the meter agrees with the score the day is saved with.
+*Sleep:* the three pills sit under a "Last night" section label; on Perimenopause / Menopause in quick mode (not an
+edit) the row is not rendered at all, because the quick card's second question is "How did you sleep?" with the same
+three words plus "Barely slept" — see A8. The save handler is unchanged: `sleepQ || "fair"` from the pill when it was
+shown. *Family colour:* each chip carries `--fc` (FAMILIES colour of `SYM_FAMILY[id]`, `famColor()` in constants.js);
+only the severity dots of a chip with a value take it (`.chip:not(.sev-0) .dots`), popping 120 ms (`cy-pop`, keyed
+remount on each change; none under reduced motion). Chip borders and backgrounds stay on the UI palette. *Pregnancy:*
+the kick counter is a `.plaincard.kickcard` under a "Kick counter" label with a tinted, outlined `.cta.cta-kick` and an
+`aria-live="polite"` count; "Save today" is the one primary-filled CTA. Range inputs are restyled: 44 px tall,
+`appearance:none`, a 6 px track and a 24 px primary thumb (accent-color kept as the fallback).
+
 **Calendar:** month grid. Logged days filled with their day-score color. Period days
 marked. Predicted period (dashed) and estimated fertile window (accent) for unlogged
 future days. Tap any day → detail panel showing what was logged → "Edit this day" loads
@@ -594,6 +614,20 @@ it" (no reminders). Nudge time: morning / midday / evening / never. **Policy: on
 max, never a second nudge, never guilt for missed days — patterns tolerate gaps.** Quick mode
 replaces the symptom grid with three stage-specific questions (~10 s) that map onto hero
 symptoms so patterns still compute; Full mode shows everything.
+
+**Quick questions (UI T1).** `QUICK_Q[stage]` in `lib/constants.js` is three `{ q, a }` entries; `a` is four answers
+whose index 0–3 is the value saved (so `QUICK_MAP` and `foldQuick` are untouched and "Rough night" on "How did you
+sleep?" lands on `slp` as the 2 that "Yes" used to). The answers read as answers to their question:
+- Cycle / TTC: "Any cramps or bloating?" and "Any headaches?" — No / fine · A little · Yes · A lot; "Mood today?" —
+  Steady · A bit off · Low · Really low.
+- Peri / Meno: "Any hot flashes or night sweats?" — No / fine · A little · Yes · A lot; "How did you sleep?" — Slept
+  well · So-so · Rough night · Barely slept; "How's your focus?" — Sharp · A bit foggy · Foggy · Can't think.
+- Pregnancy: the three questions keep the default answers; the card is never rendered (no quick mode in pregnancy).
+Each question renders as `div[role=group][aria-labelledby]` → `p.qlab` + one joined `.mcrow.seg.answers` of four `.mc`
+buttons with `aria-pressed` (labels wrap, never truncate, at 320 px). `QuickCheckin.jsx` is the only reader. While the
+peri quick card is on screen the Today sleep `.pill` row is not rendered (its question is already asked); the saved
+`sleepQ` and the shared poor-sleep flag still come only from the pill row, so a peri quick-mode day records `"fair"`
+unless she opens "more detail" — the q2 → `sleepQ` derivation is deferred (PRIVACY-AUDIT, UI T1).
 
 ## A9. Wearables & derived insights
 Sources: Apple Watch via HealthKit/Health Connect (preferred, on-device), Oura API v2, Terra

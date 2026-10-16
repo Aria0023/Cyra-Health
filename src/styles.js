@@ -52,6 +52,10 @@ html { scroll-padding-top:60px; }
 .chips { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:16px; }
 .chip { border:1.5px solid var(--line); background:var(--card); box-shadow:0 1px 2px rgba(0,0,0,.04); border-radius:13px; padding:11px; text-align:left; cursor:pointer; display:flex; flex-direction:column; gap:5px; font-size:13.5px; color:var(--ink); }
 .dots { font-size:10.5px; letter-spacing:3px; color:var(--soft); }
+/* Family colour on the data-bearing part only: a chip's dots take its symptom family's colour (--fc, FAMILIES) once it
+   has a value, and pop 120ms on each change (keyed remount; none under reduced motion). Borders and backgrounds stay on the palette. */
+.chip:not(.sev-0) .dots { color:var(--fc, var(--primary)); display:inline-block; }
+.chip .dots[data-tick] { animation:cy-pop 120ms var(--ease-std); }
 .chip.sev-1 { border-color:color-mix(in srgb, var(--accent) 60%, var(--line)); background:color-mix(in srgb, var(--accent) 7%, var(--card)); }
 .chip.sev-2 { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 16%, var(--card)); }
 .chip.sev-3 { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 14%, var(--card)); font-weight:700; }
@@ -138,6 +142,8 @@ html { scroll-padding-top:60px; }
 .pregbar { height:8px; background:color-mix(in srgb, var(--ink) 8%, var(--paper)); border-radius:4px; overflow:hidden; margin-bottom:14px; }
 .pregfill { height:100%; background:linear-gradient(90deg,var(--accent),var(--primary)); }
 .kickrow { display:flex; gap:10px; align-items:stretch; margin-bottom:12px; }
+.kickcard .kickrow { margin-bottom:0; } .kickcard .section-lab { margin-top:0; }
+.cta.cta-kick { background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary); border:1.5px solid var(--primary); }
 .kickcount { display:flex; flex-direction:column; align-items:center; justify-content:center; background:var(--card); border:1px solid var(--line); border-radius:13px; padding:6px 16px; }
 .kickcount b { font-family:'Fraunces Variable','Fraunces',serif; font-size:20px; color:var(--primary); } .kickcount span { font-size:10.5px; color:var(--soft); }
 .inp { width:100%; border:1.5px solid var(--line); background:var(--card); border-radius:11px; padding:11px 13px; font:500 13.5px 'Karla Variable','Karla'; color:var(--ink); margin-bottom:9px; }
@@ -205,7 +211,11 @@ html { scroll-padding-top:60px; }
 .scalehead { display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:-4px; }
 .scalehead b { font-family:'Fraunces Variable','Fraunces',serif; color:var(--primary); font-size:15px; }
 .scalehead b.zero { color:var(--soft); }
-.slider { width:100%; accent-color:var(--primary); margin:0; cursor:pointer; }
+.slider { width:100%; accent-color:var(--primary); margin:0; cursor:pointer; -webkit-appearance:none; appearance:none; height:44px; background:transparent; }
+.slider::-webkit-slider-runnable-track { height:6px; border-radius:3px; background:color-mix(in srgb, var(--ink) 14%, var(--card)); }
+.slider::-moz-range-track { height:6px; border-radius:3px; background:color-mix(in srgb, var(--ink) 14%, var(--card)); }
+.slider::-webkit-slider-thumb { -webkit-appearance:none; width:24px; height:24px; margin-top:-9px; border-radius:50%; background:var(--primary); border:2px solid var(--card); box-shadow:0 1px 2px rgba(0,0,0,.2); }
+.slider::-moz-range-thumb { width:24px; height:24px; border-radius:50%; background:var(--primary); border:2px solid var(--card); box-shadow:0 1px 2px rgba(0,0,0,.2); }
 .scaleends { display:flex; justify-content:space-between; font-size:11.5px; color:var(--soft); margin-top:-6px; }
 .meter { border:2px solid var(--line); box-shadow:0 1px 3px rgba(0,0,0,.06); background:var(--card); border-radius:var(--r-card); padding:12px 14px; margin-bottom:var(--gap); transition:border-color var(--t-slow) var(--ease-std); }
 .meterhead { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:7px; }
@@ -215,6 +225,8 @@ html { scroll-padding-top:60px; }
 .metertrack { height:11px; background:color-mix(in srgb, var(--ink) 14%, var(--card)); border-radius:5px; overflow:hidden; }
 .meterfill { height:100%; border-radius:5px; transition:width var(--t-slow) var(--ease-std), background var(--t-slow) var(--ease-std); }
 .meterends { display:flex; justify-content:space-between; font-size:10.5px; color:var(--soft); margin-top:3px; }
+/* Honest empty meter: before anything is logged the label is soft, the dot and border are --line and the track is faded. */
+.meter-empty .meterlabel { color:var(--soft); } .meter-empty .metertrack { opacity:.5; } .meter-empty .meterval { color:var(--soft); }
 .gradlegend { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--soft); margin-bottom:12px; }
 .gradbar { flex:1; height:7px; border-radius:4px; }
 .c-per-mark { position:absolute; bottom:3px; width:5px; height:5px; border-radius:50%; background:var(--primary); box-shadow:0 0 0 1.5px rgba(255,255,255,.7); }
@@ -258,6 +270,9 @@ html { scroll-padding-top:60px; }
 .seg .mc:active { background:color-mix(in srgb, var(--primary) 12%, var(--card)); } .seg .mc.on:active { background:var(--primary); }
 .seg.scroll { overflow-x:auto; scrollbar-width:none; } .seg.scroll::-webkit-scrollbar { display:none; }
 .seg.scroll .mc { flex:1 0 auto; padding:8px 12px; white-space:nowrap; }
+/* Quick check-in: each question is a labelled group (.qlab) over one joined .seg of four answers. */
+.qlab { font-weight:600; font-size:var(--fs-md); color:var(--ink); margin:0 0 6px; }
+.welcome-line { color:var(--primary-text); margin-bottom:6px; }
 .inpErr { border-color:var(--bad) !important; background:var(--bad-bg) !important; }
 .errhint { font-size:var(--fs-sm); color:var(--bad); line-height:1.5; margin:14px 0 0; background:var(--bad-bg); border:1.5px solid #E7C3B8; border-radius:var(--r-inner); padding:11px 13px; }
 .regcards { display:grid; gap:var(--gap); }

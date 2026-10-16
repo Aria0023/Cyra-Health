@@ -1,7 +1,7 @@
 import { flagWords } from "../lib/pulse.js";
 import Details from "../components/Details.jsx";
 import Icon from "../components/Icon.jsx";
-import { SYMS, PSYM, READS } from "../lib/constants.js";
+import { SYMS, PSYM, READS, famColor } from "../lib/constants.js";
 import { fmt, sevDots, foldQuick } from "../lib/engine.js";
 
 /* Cycle & Peri — Today: cycle-status card, live score meter, quick or full
@@ -12,7 +12,9 @@ import { fmt, sevDots, foldQuick } from "../lib/engine.js";
    take back that day's flags while they are still waiting (it never adds one). A quick check-in asks combined questions ("cramps or bloating"),
    so it adds no symptom flags — only the full check-in's named symptoms, sleep and flow do.
    The form opens on what is already saved for the day (App.jsx loads it), so saving again
-   updates that entry; an edit's "Period day" switch is what that day is saved with. */
+   updates that entry; an edit's "Period day" switch is what that day is saved with.
+   Family colour (FAMILIES) appears only on the severity dots of a chip that has a value — the one
+   data-bearing part of the form; chip borders and backgrounds stay on the UI palette. */
 export default function TodayScreen({ onPots = null, pred, stage, welcome, editDate, onEndEdit, setDraft, setSleepQ, scoreMeter, quickMode, quickCheckin, symIds, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, setEditPeriod, scales, flow, disch, odor, bodyOdor, days = [], setDays, onSaved = null, ping, setAppTab, research, contribute }) {
   return (
     <main>
@@ -25,28 +27,38 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
           </div>
         </div>
       )}
-      {welcome && <div className="readcard" style={{ marginTop: 0, marginBottom: 14 }}><p className="hint" style={{ margin: 0 }}>{welcome}</p></div>}
       {editDate && (
         <div className="card" style={{ display: "block", marginBottom: 12 }}>
           <p><b>Editing {fmt(editDate)}</b> — changes save to that day. <button className="linkbtn" onClick={() => onEndEdit()}>Back to today</button></p>
         </div>
       )}
       <h1 className="disp">{editDate ? `Fixing up ${fmt(editDate)}` : stage === "periods" ? "Hey — how's today?" : "How was today, honestly?"}</h1>
-      <p className="hint">Tap what showed up (up to 3× for strong). Takes 30 seconds, promise.</p>
+      {welcome && !editDate && days.length === 0 && <p className="hint welcome-line">{welcome}</p>}
+      <p className="hint">{quickMode && !editDate ? "Three quick questions — about ten seconds." : "Tap what showed up (up to 3× for strong). Takes 30 seconds, promise."}</p>
       {scoreMeter}
       {quickMode && !editDate && quickCheckin}
       {(!quickMode || editDate) && <div className="chips">
-        {symIds.map((id) => (
-          <button key={id} aria-pressed={(draft[id] || 0) > 0} aria-label={`${symMap[id]}, severity ${draft[id] || 0} of 3`} className={`chip sev-${draft[id] || 0}`} onClick={() => setDraft((d) => ({ ...d, [id]: ((d[id] || 0) + 1) % 4 }))}>
-            <span>{symMap[id]}</span><span className="dots" aria-hidden="true">{sevDots(draft[id] || 0)}</span>
-          </button>
-        ))}
+        {symIds.map((id) => {
+          const sev = draft[id] || 0;
+          return (
+            <button key={id} aria-pressed={sev > 0} aria-label={`${symMap[id]}, severity ${sev} of 3`} className={`chip sev-${sev}`} style={{ "--fc": famColor(id) }} onClick={() => setDraft((d) => ({ ...d, [id]: ((d[id] || 0) + 1) % 4 }))}>
+              <span>{symMap[id]}</span><span key={sev} className="dots" aria-hidden="true" data-tick={sev || undefined}>{sevDots(sev)}</span>
+            </button>
+          );
+        })}
       </div>}
-      <div className="row">
-        {[["good", "Slept well"], ["fair", "So-so"], ["poor", "Rough night"]].map(([id, l]) => (
-          <button key={id} aria-pressed={sleepQ === id} className={`pill ${sleepQ === id ? "pill-on" : ""}`} onClick={() => setSleepQ(id)}>{l}</button>
-        ))}
-      </div>
+      {/* Sleep: the peri quick card already asks "How did you sleep?" (q2, its answers are these pill texts), so the
+          pill row is not drawn while that card is on screen; everywhere else it stays, under a "Last night" label. */}
+      {!(stage === "peri" && quickMode && !editDate) && (
+        <>
+          <p className="section-lab">Last night</p>
+          <div className="row">
+            {[["good", "Slept well"], ["fair", "So-so"], ["poor", "Rough night"]].map(([id, l]) => (
+              <button key={id} aria-pressed={sleepQ === id} className={`pill ${sleepQ === id ? "pill-on" : ""}`} onClick={() => setSleepQ(id)}>{l}</button>
+            ))}
+          </div>
+        </>
+      )}
       {editDate && (
         <div className="row">
           <button aria-pressed={editPeriod} className={`pill ${editPeriod ? "pill-on" : ""}`} onClick={() => setEditPeriod((v) => !v)}>Period day</button>

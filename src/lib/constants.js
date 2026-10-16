@@ -30,10 +30,27 @@ export const CADENCE = [
   { id: "weekly", label: "Weekly", desc: "One reflective check-in" },
   { id: "me", label: "When I feel like it", desc: "No reminders at all" },
 ];
+/* Quick check-in (spec A8): three questions per stage, each with four answers that read as answers to
+   that question. Answers are saved as 0-3 in order (the index is the value QUICK_MAP folds onto the
+   hero symptom), so "Rough night" on "How did you sleep?" is the same 2 "Yes" used to be. QuickCheckin.jsx
+   is the only reader. The pregnancy card is never rendered (Pregnancy Today has no quick mode). */
+const QUICK_D = ["No / fine", "A little", "Yes", "A lot"];
 export const QUICK_Q = {
-  periods: ["Any cramps or bloating?", "Any headaches?", "Mood today?"],
-  peri: ["Any hot flashes or night sweats?", "How did you sleep?", "How's your focus?"],
-  preg: ["Any nausea or heartburn?", "Swelling anywhere?", "Energy today?"],
+  periods: [
+    { q: "Any cramps or bloating?", a: QUICK_D },
+    { q: "Any headaches?", a: QUICK_D },
+    { q: "Mood today?", a: ["Steady", "A bit off", "Low", "Really low"] },
+  ],
+  peri: [
+    { q: "Any hot flashes or night sweats?", a: QUICK_D },
+    { q: "How did you sleep?", a: ["Slept well", "So-so", "Rough night", "Barely slept"] },
+    { q: "How's your focus?", a: ["Sharp", "A bit foggy", "Foggy", "Can't think"] },
+  ],
+  preg: [
+    { q: "Any nausea or heartburn?", a: QUICK_D },
+    { q: "Swelling anywhere?", a: QUICK_D },
+    { q: "Energy today?", a: QUICK_D },
+  ],
 };
 /* The hero symptom each quick question is saved as (spec A8: quick answers map onto hero
    symptoms so patterns still compute). Every target is a tracked SYM / PSYM key. */
@@ -119,6 +136,10 @@ export const SYM_FAMILY = {
   ach: "pain", hda: "pain", crm: "pain", bak: "pain", ten: "pain",
   dry: "body", pal: "body", lib: "body", itc: "body", blo: "body", nau: "body", acn: "body", cra: "body",
 };
+/* The family colour for a symptom id (undefined when the id has no family, so CSS falls back to --primary).
+   Used only on data-bearing marks: chart dots, the Home today-line dot, the severity dots on a check-in chip. */
+const FAM_COLOR = Object.fromEntries(FAMILIES.map((f) => [f.id, f.color]));
+export const famColor = (id) => FAM_COLOR[SYM_FAMILY[id]];
 
 /* Data-viz ramp: saturated and readable, independent of UI chrome colors. */
 export const RAMPS = {
