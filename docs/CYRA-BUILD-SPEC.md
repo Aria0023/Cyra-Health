@@ -35,6 +35,11 @@ seriously by a clinician. Every feature serves that.
 - **Fonts:** Fraunces (headings, serif) + Karla (body, sans) via Google Fonts.
 - **Mobile-first:** max-width 430px, centered.
 - **AI calls:** must have a deterministic fallback so the app never breaks offline.
+- **PWA shell (web):** `public/manifest.webmanifest`, five committed PNG icons (`scripts/make-icons.py`) and a
+  precaching service worker (`public/sw.js`, filled in at build time by the `cyraServiceWorker` plugin in
+  `vite.config.js`) make the web build installable and let it open without a connection once it holds a record.
+  The worker keeps only Cyra's own files, never health data or server answers; the phone app never registers it
+  (A14.1).
 
 ---
 
@@ -1040,6 +1045,8 @@ receive only name/email, never health data.
       the Today form are not covered by the keyboard under a sticky bottom bar (no code dependency; a
       `capacitor.config` setting when the shell is assembled).
 - [ ] Every UI privacy claim verified literally true of the shipped build.
+- [x] Installable web app that opens offline (A14.1); Render serves /, /index.html, /sw.js and /manifest.webmanifest
+      with Cache-Control: no-cache.
 
 **Settings sheet (UI S1).** `SettingsSheet` is `section.palsheet#settings-sheet[aria-label="Check-in settings"]` with a
 sticky `.sheethead` (an `h2.sheettitle` "Settings" that takes focus on open, and a 44px `.sheetclose` button labelled
@@ -1051,6 +1058,9 @@ sheet closes the other (`setShowPal(false); setShowSettings(s => !s)` and the mi
 to the button that opened the sheet (`triggerRef`). The palette sheet (`#palette-sheet`) is a `[role=group]` named by
 `p#pal-lab`; each `.palopt` carries `aria-pressed` and its own `--primary` / `--accent` / `--line` / `--paper-mini`,
 so its name, border, check and `.palmini` page swatch preview that palette before it is chosen.
+On the web, when this browser can install Cyra and the record is in IndexedDB, a fourth `.setgroup` "Install"
+(`p.section-lab#set-install`, focusable with `tabIndex=-1` so Home's iOS tip can open the sheet on it) sits between
+Add-ons & sharing and Your data (A14.1). It never shows in the phone app, in standalone mode or without IndexedDB.
 
 **Data status strip (UI S1).** Above the Encrypted backup / Restore / Delete everything pills, `p.datastat` reads
 "{N} days logged · last backup {today | yesterday | N days ago | Mon D | never}" ("never — worth doing once" from seven
@@ -1211,3 +1221,107 @@ whose "save as a button" makes the next tap a one-tap log. Threshold and over-go
 **A13.7 Reminders.** The add-on adds no notification. A8 still applies: one check-in reminder at most. A
 care-plan checklist is shown in the app only, with no "late", "missed" or streak language. Any future
 medicine/fluid reminder is owner decision D1 and needs A8 reworded first.
+
+## A14. Local-first core
+
+Later slices extend this section as A14.2, A14.3, ….
+
+### A14.1 Installable, opens offline (L1)
+
+**What it is.** The web build is an installable web app that opens without a connection once this device holds a
+record. No new dependency, no new network destination: the only extra requests are same-origin GETs for Cyra's own
+static files (made by the service worker) and the browser's update checks for `/sw.js`. The phone app never
+registers the worker and never shows install UI (`isNative()`).
+
+**Manifest and icons.** `public/manifest.webmanifest`: `id` and `start_url` and `scope` `./`, `name` "Cyra Health",
+`short_name` "Cyra", `description` "Track periods, pregnancy and the transition in 30 seconds a day. Your health log
+lives on your device.", `display` standalone, `background_color` and `theme_color` `#EDE4DC` (ORGS.cyra.theme.paper,
+the splash paper), `lang` en, `dir` ltr, `categories` health and lifestyle, and four icons: `icons/icon-192.png` and
+`icons/icon-512.png` (purpose any) and `icons/icon-maskable-192.png` and `icons/icon-maskable-512.png` (purpose
+maskable). No `related_applications`, no screenshots, no tracking parameters. `public/icons/apple-touch-icon.png` is
+180x180. All five are opaque RGB PNGs on full-bleed paper, drawn by `scripts/make-icons.py` (Python 3 + Pillow, run by
+hand from the repo root, never by the build) from the splash's three circles (primary .92, accent .85, primary .55),
+motif width 0.78 of the canvas for "any", 0.62 for maskable (the whole motif inside the 80% safe circle) and 0.74 for
+the Apple icon. `index.html` links the manifest, the 192 icon and the Apple icon, sets `mobile-web-app-capable`,
+`apple-mobile-web-app-capable`, `apple-mobile-web-app-title` "Cyra" and `apple-mobile-web-app-status-bar-style`
+default, and uses `#EDE4DC` for `theme-color` and the pre-render background, so launch screen, first paint and splash
+are one colour. At runtime `setThemeColor(t.paper)` keeps `theme-color` on the paper on screen.
+
+**The worker (`public/sw.js`).** A classic script at `/sw.js`, scope `/`. Its push and notificationclick handlers are
+byte-for-byte the ones before L1. One marked line, `const BUILD = {…}; // @cyra-build`, holds the dev placeholder
+(`version` "dev", `files` []) in the repo; in `vite dev` the worker stays reminders-only. A message `CYRA_BUILD` is
+answered on the transferred port with `{ version, entry }`; `CYRA_SKIP_WAITING` calls `skipWaiting()`. With a filled
+BUILD:
+- install precaches exactly `BUILD.files` into `cyra-shell-<version>` with `cache: "reload"` (atomic: one failed file
+  fails the install, and an older worker keeps serving);
+- activate deletes every other `cyra-shell-*` cache and leaves other cache names alone; no `clients.claim()`, so a page
+  that loaded without the worker stays uncontrolled until it is reloaded;
+- fetch never calls `respondWith` for a non-GET request, a cross-origin request (Cyra's server, Oura, Terra, any other
+  site) or anything under `/api/`. App navigations (`/index.html` or a path with no file extension) are network-first
+  with a 4 s timer (`NAV_TIMEOUT_MS`); the network answer is never cached, and on an error or timeout the precached
+  `/index.html` answers (`Response.error()` if even that is missing). Other navigations (such as `/fonts/OFL-Karla.txt`)
+  pass through. A path in `BUILD.files` is cache-first, with the network as the fallback (not stored). Everything else
+  passes through. There is no runtime caching: the worker never calls `cache.put`, never opens IndexedDB and never
+  imports scripts.
+
+**The BUILD line.** `cyraServiceWorker()` in `vite.config.js` (build only) runs in `writeBundle`, after Vite copied
+`public/` into the out dir. `precacheList` (`src/lib/swBuild.js`, pure, imported only by the config and the tests)
+takes every bundle file except `*.map` and `sw.js`, plus `manifest.webmanifest` and `icons/*.png` from `public/`
+(never `sw.js` or `fonts/*.txt`), sorted, de-duplicated and prefixed with `base`. The version is the first 16 hex
+characters of a SHA-256 over the sorted bundle entries and public files (name and bytes), so identical rebuilds give an
+identical version; `entry` is `base` + the entry chunk's file name. `injectBuild` rewrites the marker line with a
+replacer function (a `$` in a file name is written literally) and throws "[cyra] public/sw.js has no BUILD line to
+fill (… // @cyra-build)" when the line is missing. A build without the manifest or icons warns.
+
+**Registration rule.** `registerWorker()` (`src/lib/pwa.js`) registers `/sw.js` only on the web (`!isNative()`), only in
+a production build (`import.meta.env.PROD`), only in a secure context, and App.jsx calls it only while this device
+holds a record (`hydrated && phase === "app"`, never on the splash or during registration). It is memoized and tried
+again after a failure. `lib/notifications.js` registers the same URL for reminders, so there is one registration; it
+now waits up to 20 s for an active worker (`whenActive`) before subscribing and returns `{ active: false, error: true,
+worker: true }` when none becomes active (Settings: "Couldn't set up reminders just now — tap Turn on to try again").
+
+**Updates.** When a new worker has installed while this page is controlled by an older one, the page asks it
+`CYRA_BUILD` and compares its `entry` with the script this page runs (`import.meta.url` of the entry chunk):
+- the same entry (this tab already loaded the new files over the network) → adopted silently with
+  `CYRA_SKIP_WAITING`;
+- otherwise `p.updrow` becomes the last child of `header.mast` (app and intake screens only, never the splash,
+  registration, record-unavailable or a running POTS test): "A new version of Cyra is ready" · a 44px `.linkbtn`
+  "Reload" (`aria-describedby="upd-text"`). It is not a live region and not a toast. Reload waits for pending saves
+  (`settleSaves`: the 400 ms autosave is flushed and awaited), sends `CYRA_SKIP_WAITING`, waits for `controllerchange`
+  or the worker's `activated` (4 s at most) and reloads.
+The browser checks `/sw.js` on navigation; `checkForUpdate()` also asks at most once an hour (`UPDATE_CHECK_GAP_MS`)
+when Cyra comes back on screen (the visibilitychange "visible" branch).
+
+**Install.** `installModeFor` precedence: the phone app → "none"; already standalone (`display-mode: standalone` or
+`fullscreen`, or `navigator.standalone`) → "standalone"; an iPhone, iPod or iPad (including iPadOS in desktop mode,
+MacIntel with touch) → "ios"; Chromium's captured `beforeinstallprompt` (default prevented, which also keeps Chrome's
+mini-infobar away) → "prompt"; else "none". Install UI shows only in "prompt" and "ios", and only while
+`storageDriver === "indexeddb"`:
+- Settings → Install (`InstallSettings`, `components/Pwa.jsx`): "Install Cyra on this device" with, in prompt mode,
+  "Opens in its own window from your home screen or app list, even without a connection, with the same record you have
+  here." and a 44px `.takebtn` "Install"; in iOS mode "Tap Share, then Add to Home Screen." and the `.rfoot` "Cyra on
+  your Home Screen starts with its own record, separate from this one in your browser. To bring your check-ins along,
+  make an encrypted backup below, then restore it there from Cyra's first screen." (no button).
+- Home tip (`InstallTip`, `.installtip`, `role=group` labelled by its sentence), after the check-in button, its today
+  line and the POTS card and before "Today's insight", from `INSTALL_HINT_AFTER = 3` logged days, never again once
+  `installHint` is set: prompt mode "Install Cyra to open it like an app, even without a connection." with "Install";
+  iOS mode "Add Cyra to your Home Screen to open it like an app." with "Show me" (opens Settings with focus on
+  `#set-install`, scrolled into view); both with a 44px icon button "Hide this tip" (`.tipclose`). Hiding it toasts
+  "Tip hidden. Install stays in Settings." and returns focus to the check-in button. There is deliberately no button
+  named "Not now". The tip adds at most 64px to Home at 390px and is not a section label or card.
+- Accepting the browser's dialog toasts "Cyra is installed. Open it from your home screen or app list." A dialog
+  dismissed from the tip hides the tip for good; one dismissed from Settings changes nothing stored.
+
+**The device-only key `installHint`.** `null | "dismissed" | "installed"`, in PERSISTED and DEVICE_ONLY: not adopted by
+other tabs, deleted from the snapshot before a backup is encrypted, kept as this device's own value on restore, and
+merged one way (`mergeInstallHint`: installed > dismissed > null) by every save, so a stale tab can't bring the tip
+back. "installed" is set by `appinstalled`, an accepted dialog, or opening Cyra standalone. It is erased with the record
+by Delete everything and is in no network payload.
+
+**Delete everything.** `cleanUpHere` unregisters every worker and then deletes every `cyra-shell-*` cache before the
+record is cleared; the splash never registers again, so a wiped browser has no worker and no offline copy. Known
+limitation: Delete everything while offline (a web build with no server steps) removes the offline copy before the
+reload, so the reload shows the browser's offline page until the device is online again.
+
+**Hosting.** `render.yaml` sends `Cache-Control: no-cache` for `/`, `/index.html`, `/sw.js` and
+`/manifest.webmanifest`; hashed `/assets/*` keep the host default.

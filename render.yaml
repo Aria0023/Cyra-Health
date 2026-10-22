@@ -20,6 +20,20 @@ services:
         sync: false
       - key: VITE_PRIVACY_URL
         sync: false
+    # The offline worker (public/sw.js, spec A14.1) revalidates these; hashed /assets/* keep the host default.
+    headers:
+      - path: /
+        name: Cache-Control
+        value: no-cache
+      - path: /index.html
+        name: Cache-Control
+        value: no-cache
+      - path: /sw.js
+        name: Cache-Control
+        value: no-cache
+      - path: /manifest.webmanifest
+        name: Cache-Control
+        value: no-cache
     routes:
       - type: rewrite
         source: /*

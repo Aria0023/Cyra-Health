@@ -14,7 +14,10 @@ import Icon from "./Icon.jsx";
    disconnect empties its server mailbox). If any of that can't be confirmed, the record
    on this device is not deleted: connections the server did end are removed here too,
    and this card names what ended, what failed and why, and offers Try again, or Delete
-   on this device anyway with exactly what stays connected and where to remove it. */
+   on this device anyway with exactly what stays connected and where to remove it.
+   offlineCopy (web, once the offline worker is active and its cache exists; spec A14.1): one
+   line under the storage line says this browser also keeps Cyra's own app files, which hold
+   none of her record, and the delete details say that copy goes too (cleanUpHere in App.jsx). */
 const noSave = { autoComplete: "off", "data-1p-ignore": "true", "data-lpignore": "true" };
 
 export function RestoreForm({ onImport, onDone, compact = false }) {
@@ -68,7 +71,7 @@ const STAYS = {
 };
 const andList = (a) => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`);
 
-export default function DataControls({ driver, onExport, onImport, onWipe, ping, keepsWeekNote = false, daysLogged = 0, lastBackupAt = null, todayIso }) {
+export default function DataControls({ driver, onExport, onImport, onWipe, ping, keepsWeekNote = false, daysLogged = 0, lastBackupAt = null, todayIso, offlineCopy = false }) {
   const [mode, setMode] = useState(null); // null | "export" | "import" | "wipe"
   const [pass, setPass] = useState("");
   const [pass2, setPass2] = useState("");
@@ -108,6 +111,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
       <p className="section-lab" id="set-data" style={{ margin: "0 0 6px" }}><Icon name="lock" className="labico" />Your data</p>
       <p className="datastat"><b>{daysLogged === 1 ? "1 day logged" : `${daysLogged} days logged`}</b><span aria-hidden="true">·</span><span>last backup {lastBackupAt && todayIso ? relDay(lastBackupAt, todayIso) : (daysLogged >= 7 ? "never — worth doing once" : "never")}</span></p>
       <p className="hint" style={{ margin: "0 0 8px" }}>{where ? `Your check-ins, notes and history are stored ${where}.` : "Checking where your check-ins, notes and history are stored…"} Cyra's servers don't keep a copy.</p>
+      {offlineCopy && <p className="rfoot" style={{ margin: "0 0 8px" }}>This browser also keeps a copy of Cyra's own app files, so Cyra opens without a connection. That copy holds none of your check-ins, notes or settings.</p>}
       <Details label="What can leave this device">
         <p>Features you turn on (reminders in a browser, weekly counts, Cyra's AI, Oura, Fitbit/Garmin/Whoop) each say, before you turn them on, what they send and where.</p>
         <p>Restoring a backup brings back its wearable connections on this device.</p>
@@ -145,6 +149,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
               <li>Anonymous counts you already shared stay counted. Questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy.</li>
               {isNative() && <li>Apple Health or Health Connect access stays on until you turn it off in your phone's settings.</li>}
               <li>Report files you already saved or shared aren't on this device's record. Delete them wherever you put them.</li>
+              {offlineCopy && <li>Cyra's offline copy of its own app files is removed from this browser too.</li>}
               {keepsWeekNote && <li>So this device isn't counted twice, Cyra keeps only this week's date here (nothing else, nothing about your health) and deletes it the first time Cyra opens after this week ends.</li>}
             </ul>
           </Details>

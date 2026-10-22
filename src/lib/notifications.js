@@ -20,6 +20,7 @@
    makes any subscribe still waiting in line give up before it registers anything. */
 import { API_BASE, apiFetch, apiPost } from "./api.js";
 import { isNative, LocalNotifications } from "./native.js";
+import { whenActive } from "./pwa.js";
 
 export const NUDGE_TIME = { morning: [9, 0], midday: [12, 30], evening: [19, 0] };
 const DAYS = { daily: [1, 2, 3, 4, 5, 6, 7], weekdays: [2, 3, 4, 5, 6], "3x": [2, 4, 6], weekly: [2], me: [] }; // Capacitor weekday: 1 = Sunday
@@ -97,7 +98,8 @@ async function cancelAll({ timeoutMs = 15000, known = [], server = true } = {}) 
 
 /** Apply the user's cadence + nudge.
     Returns { active, endpoint?, pending } | { active:false, blocked:true, denied } | { unavailable:true } (server has no push: 503,
-    or this build has no server) | { error:true } (any other server answer) | { unsupported:true }.
+    or this build has no server) | { error:true } (any other server answer; worker:true when this browser's service worker
+    never became active, so nothing was asked of the server) | { unsupported:true }.
     pending: push addresses the server couldn't be told to forget yet (web only).
     Throws only when the server can't be reached at all, or on the phone when scheduling fails.
     prompt:false never shows a permission prompt (used at launch): without permission it reports blocked. */
@@ -130,6 +132,9 @@ async function syncNow({ cadence, nudge }, { prompt = true, timeoutMs, known = [
   const perm = prompt ? await Notification.requestPermission() : Notification.permission;
   if (perm !== "granted") return { active: false, blocked: true, denied: perm === "denied" };
   const reg = await navigator.serviceWorker.register("/sw.js");
+  // The worker now keeps Cyra's files for offline use before it starts; until it is active the
+  // browser can't subscribe — Settings says "Couldn't set up reminders just now".
+  if (!(await whenActive(reg))) return { active: false, error: true, worker: true };
   const existing = await reg.pushManager.getSubscription();
   const tz = tzNow();
   if (existing && lastSynced && lastSynced.endpoint === existing.endpoint && lastSynced.cadence === cadence && lastSynced.nudge === nudge && lastSynced.tz === tz) return { active: true, endpoint: existing.endpoint, pending: await forgetOnServer(known.filter((e) => e !== existing.endpoint), { timeoutMs }) };

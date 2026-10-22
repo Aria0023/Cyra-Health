@@ -157,7 +157,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
           )}
           <Details label="What Cyra's server sees">
             <ul>
-              <li>An encrypted backup keeps everything except your ZIP and age band.</li>
+              <li>An encrypted backup keeps your name, email and other sign-up answers, except your ZIP and age band.</li>
               <li>Anonymous Mode skips your name and email entirely.</li>
               <li>Cyra's servers keep no account and no profile of you in either mode: no age, health history or check-ins.</li>
               <li>A few optional choices send a little to Cyra's server, and each one says exactly what before you turn it on.</li>

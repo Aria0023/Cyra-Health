@@ -71,6 +71,10 @@ the device. What can leave it, when a backend is configured (`VITE_API_BASE`):
   choose Delete on this device anyway or clear this site's data). Every open tab follows the
   same switch. The browser's push service delivers the reminders (for example Google's for
   Chrome, Mozilla's for Firefox, Apple's for Safari or Microsoft's for Edge).
+- **Offline copy (web):** the browser keeps Cyra's own app files (no health data, no server
+  answers) so Cyra opens without a connection; Delete everything removes it. The service
+  worker that keeps them asks only the site that serves Cyra for those files and for updates
+  to itself, and is registered only while a record exists, never in the phone app.
 
 Never sent by Cyra: Apple Health and Health Connect readings (read on the phone; they leave
 it only inside an encrypted backup the person exports herself). The **encrypted backup** is a
@@ -96,6 +100,13 @@ sent.
 ## Deploy
 Static site on Render: build `npm install && npm run build`, publish `dist`.
 `render.yaml` configures it automatically via Blueprint.
+
+The build also writes the installable-app pieces: `manifest.webmanifest` and `icons/` are
+copied from `public/`, and `sw.js` gets this build's file list and version (vite.config.js,
+`cyraServiceWorker`; spec A14.1). The icons are committed PNGs; regenerate them with
+`python3 scripts/make-icons.py` (Python 3 + Pillow, run from the repo root). `render.yaml`
+sets `Cache-Control: no-cache` for `/`, `/index.html`, `/sw.js` and `/manifest.webmanifest` so
+browsers revalidate them; hashed `/assets/*` keep the host default.
 
 ## Phone apps (iOS / Android)
     VITE_API_BASE=https://cyra-backend.onrender.com npm run cap:ios       # Xcode

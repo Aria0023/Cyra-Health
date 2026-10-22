@@ -80,6 +80,10 @@ consent step says the documents are still being finalized instead of linking the
 Run `npm run cap:sync` again after any change to `src/`, `capacitor.config.json` or the
 Capacitor packages.
 
+The phone app never registers the service worker and never shows install UI (spec A14.1:
+`isNative()` gates both); `sw.js`, `manifest.webmanifest` and `icons/` ship in the web assets
+unused.
+
 ## 3. iPhone (Xcode)
 
 1. Run `npm run cap:ios`. Xcode opens `ios/App/App.xcodeproj`. Wait for the Swift

@@ -7,13 +7,16 @@ import Icon from "../components/Icon.jsx";
 import { dominantFamily, ChartSoon } from "../components/PatternCharts.jsx";
 import { FAMILIES } from "../lib/constants.js";
 import { reduceMotion } from "../lib/motion.js";
+import { InstallTip } from "../components/Pwa.jsx";
 import { useEffect, useRef } from "react";
 
 /* Home (default tab): greeting + streak, check-in CTA, today's top insight, the patterns card,
    wearable cards, milestones, coming up, pulse, and a grid of collapsible sections (month vs
    last month, Wearables, What I'm trying, Appointments, Journal) whose open panels sit under
    the grid. With POTS tools on, a "POTS today" card (potsCard, built in App.jsx) sits under the
-   check-in button. */
+   check-in button. On the web, once 3 days are logged and while this browser can install Cyra,
+   one dismissible install tip (installTip, components/Pwa.jsx; spec A14.1) sits after that card
+   and before "Today's insight"; it is not a section label or card, so Home's labels don't move. */
 /* A trial without enough logged days on both sides of its start date (App.jsx medEffects):
    how many more it needs, or, when the days left can't get there, that it can't be compared. */
 const plural = (n) => `${n} logged day${n === 1 ? "" : "s"}`;
@@ -58,6 +61,7 @@ export default function HomeScreen({
   showAppts, setShowAppts, upcoming, past, daysUntil, setAppts, newAppt, setNewAppt,
   showJournal, setShowJournal, journal, jDraft, setJDraft, setJournal,
   potsCard = null,
+  installTip = null,
 }) {
   const hour = new Date().getHours();
   const connectedCount = Object.values(wearSources).filter((w) => w && !w.pending).length;
@@ -79,6 +83,7 @@ export default function HomeScreen({
   const rail = [...milestones.filter((m) => m.done), ...milestones.filter((m) => !m.done)];
   const nextMs = milestones.find((m) => !m.done && m.progress != null) || milestones.find((m) => !m.done);
   const wd = (iso) => (iso === todayIso ? "today" : daysUntil(iso) > -7 ? new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" }) : fmt(iso));
+  const ctaRef = useRef(null); // the check-in button: where focus goes when the install tip closes
   // A section opened from the grid scrolls its panel into view (the panels sit under the grid, so an
   // open one can start below the fold). Not on first render, and only for the flag that just turned on.
   const wasOpen = useRef(null);
@@ -112,10 +117,12 @@ export default function HomeScreen({
       )}
       <p className="hint" style={{ marginTop: -6 }}>{streakLine}</p>
 
-      <button className={`cta ${entryOn(todayIso) ? "done" : ""}`} onClick={() => goTab("today")}>{entryOn(todayIso) ? "Update today's check-in" : "Check in — about 30 seconds"}</button>
+      <button ref={ctaRef} className={`cta ${entryOn(todayIso) ? "done" : ""}`} onClick={() => goTab("today")}>{entryOn(todayIso) ? "Update today's check-in" : "Check in — about 30 seconds"}</button>
       {todayLine && <button type="button" className="todayline" onClick={() => goTab("today")}><i className="fdot" aria-hidden="true" style={{ background: todayLine.color }} />{todayLine.text}</button>}
       {/* POTS add-on (App.jsx): the "POTS today" card while it's on, or the one-time offer card. Never replaces Today's insight. */}
       {potsCard}
+      {/* The install tip (web only, spec A14.1): hiding it hands focus back to the check-in button. */}
+      {installTip && <InstallTip tip={installTip} returnFocusRef={ctaRef} />}
 
       <p className="section-lab">Today's insight</p>
       <div className="card insight"><div className="num">{homeInsight.num}</div><p>{homeInsight.fam && <i className="fdot" aria-hidden="true" style={{ background: FAM_COLOR[homeInsight.fam] }} />}{homeInsight.text}</p></div>

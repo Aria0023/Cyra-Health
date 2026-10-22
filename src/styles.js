@@ -305,8 +305,8 @@ html { scroll-padding-top:60px; }
 .cta, .ghostbtn, .back, .stagecard, .disclosure, .route, .socialbtn, .obopt, .consentopt, .palopt { transition:transform var(--t-fast) var(--ease-std), background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast); }
 .cta:active, .ghostbtn:active, .back:active, .stagecard:active, .disclosure:active, .route:active, .socialbtn:active, .obopt:active, .consentopt:active, .palopt:active { transform:scale(.985); }
 .cta:active { filter:brightness(.94); }
-.mc, .chip, .pill, .takebtn, .sbtn, .minichip, .tab, .calcell, .scopy, .linkbtn { transition:transform var(--t-fast) var(--ease-std), background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast); }
-.mc:active, .chip:active, .pill:active, .takebtn:active, .sbtn:active, .minichip:active, .calcell:active { transform:scale(.96); background:color-mix(in srgb, var(--primary) 12%, var(--card)); border-color:var(--primary); }
+.mc, .chip, .pill, .takebtn, .tipclose, .sbtn, .minichip, .tab, .calcell, .scopy, .linkbtn { transition:transform var(--t-fast) var(--ease-std), background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast); }
+.mc:active, .chip:active, .pill:active, .takebtn:active, .tipclose:active, .sbtn:active, .minichip:active, .calcell:active { transform:scale(.96); background:color-mix(in srgb, var(--primary) 12%, var(--card)); border-color:var(--primary); }
 @media (hover:hover) { .mc:hover, .chip:hover, .pill:hover, .disclosure:hover, .stagecard:hover, .takebtn:hover, .sbtn:hover, .route:hover, .obopt:hover { border-color:color-mix(in srgb, var(--primary) 55%, var(--line)); } }
 /* Danger: the one destructive pill (Delete everything) is red-outlined and never takes the primary tint. */
 .mc.danger { color:var(--bad); border-color:color-mix(in srgb, var(--bad) 40%, var(--line)); }
@@ -727,4 +727,13 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .pots .linkbtn.helpnow { display:flex; align-items:center; gap:8px; width:100%; text-decoration:none; border:1.5px solid var(--line); border-radius:var(--r-card); padding:10px 13px; margin-top:14px; min-height:44px; color:var(--ink); background:var(--card); font-size:var(--fs-md); text-align:left; }
 .pots .linkbtn.helpnow::before { content:''; flex-shrink:0; width:8px; height:8px; border-radius:50%; background:var(--bad); }
 .pots .linkbtn.helpnow .chev { margin-left:auto; color:var(--soft); }
+/* ---- L1 (spec A14.1): the waiting-update row in the header and Home's install tip ---- */
+.mast > .updrow { flex:1 1 100%; display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:6px 0 0; padding:0 4px 0 12px; border:1px solid var(--line); border-radius:var(--r-pill); background:var(--card); font-size:var(--fs-sm); color:var(--soft); }
+.updrow .linkbtn { min-height:44px; padding:0 8px; font-size:var(--fs-sm); }
+/* gap 6px, 10px left padding and a slightly narrower Install keep the sentence to two lines at 390px, so the tip adds ≤ 64px to Home. */
+.installtip { display:flex; align-items:center; gap:6px; margin:10px 0 0; padding:4px 4px 4px 10px; border:1.5px solid var(--line); border-radius:var(--r-card); background:var(--card); }
+.installtip p { flex:1; min-width:0; margin:0; font-size:var(--fs-md); line-height:1.35; color:var(--ink); }
+.installtip .tipico { flex:0 0 auto; color:var(--accent-text); }
+.installtip .takebtn { flex-shrink:0; padding:8px 11px; }
+.tipclose { flex:0 0 44px; width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; padding:0; border:none; background:none; color:var(--soft); border-radius:var(--r-pill); cursor:pointer; }
 `;

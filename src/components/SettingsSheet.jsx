@@ -6,18 +6,31 @@ import DataControls from "./DataControls.jsx";
 import Details, { WebReminderFacts } from "./Details.jsx";
 import Icon from "./Icon.jsx";
 import PotsAddon from "./pots/PotsAddon.jsx";
+import { InstallSettings } from "./Pwa.jsx";
+import { reduceMotion } from "../lib/motion.js";
 
 /* Settings: check-in cadence, nudge time, quick vs full check-in, add-ons (POTS tools),
    reminders, the "Share anonymous weekly counts" switch, and Your data.
    UI S1: a sticky header with a Close button (the bottom Done stays), three groups (Check-ins /
    Add-ons & sharing / Your data), each option row a labelled group with an icon in its label.
-   Opening moves focus to the title; Close and Done hand it back to the gear (triggerRef). */
+   Opening moves focus to the title; Close and Done hand it back to the gear (triggerRef).
+   L1 (spec A14.1): an Install group on the web when this browser can install Cyra (install,
+   from App.jsx; never in the phone app, in standalone mode or without IndexedDB), directly
+   before Your data. Home's iOS tip opens the sheet with focusTo "install": focus goes to that
+   group's label instead of the title. offlineCopy tells Your data that this browser keeps
+   Cyra's offline copy of its own files. */
 /* A group label: an id its option row points at (aria-labelledby) and a small accent glyph (G3 .labico). */
 const Lab = ({ id, icon, children, style }) => <p className="section-lab" id={id} style={style}><Icon name={icon} className="labico" />{children}</p>;
 
-export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, keepsWeekNote, reminders, reminderSupport, onReminders, research, setResearch, stage, stageName, pots, onPotsOn, onPotsOff, daysLogged = 0, lastBackupAt = null, todayIso, triggerRef }) {
+export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, keepsWeekNote, reminders, reminderSupport, onReminders, research, setResearch, stage, stageName, pots, onPotsOn, onPotsOff, daysLogged = 0, lastBackupAt = null, todayIso, triggerRef, install = null, focusTo = null, offlineCopy = false }) {
   const headRef = useRef(null);
-  useEffect(() => { headRef.current?.focus(); }, []);
+  const installLabRef = useRef(null);
+  useEffect(() => {
+    if (focusTo === "install" && installLabRef.current) {
+      installLabRef.current.focus();
+      installLabRef.current.scrollIntoView?.({ block: "center", behavior: reduceMotion() ? "auto" : "smooth" });
+    } else headRef.current?.focus();
+  }, []); // eslint-disable-line
   const close = () => { setShowSettings(false); triggerRef?.current?.focus(); };
   const st = reminders?.status;
   const remindersText = st === "blocked"
@@ -114,8 +127,9 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
           <p className="hint" style={{ margin: "0 0 8px" }}>Weekly counts aren't available in this version of Cyra, so nothing is shared.</p>
         )}
       </div>
+      {install && <InstallSettings install={install} labRef={installLabRef} />}
       <div className="setgroup">
-        <DataControls driver={storageDriver} onExport={onExport} onImport={onImport} onWipe={onWipe} ping={ping} keepsWeekNote={keepsWeekNote} daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} />
+        <DataControls driver={storageDriver} onExport={onExport} onImport={onImport} onWipe={onWipe} ping={ping} keepsWeekNote={keepsWeekNote} daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} offlineCopy={offlineCopy} />
       </div>
       <button className="ghostbtn" onClick={close}>Done</button>
     </section>

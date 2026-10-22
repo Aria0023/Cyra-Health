@@ -28,6 +28,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
      phone share sheet via a plaintext file in the app cache that is deleted after sharing and
      swept at launch and wipe. No network. The POTS summary email draft and copied summary
      text work like the doctor summary (components/pots/PotsReport.jsx).
+   The web build's service worker (public/sw.js) shows reminders and keeps Cyra's own app files
+   for offline use; it fetches only those files from the site that serves Cyra and never stores
+   health data or any server answer (spec A14.1, lib/pwa.js).
    Backend requests use ./lib/api.js (fetch), except the sign-in, Oura and Terra
    connection windows. These are browser navigations to `${API_BASE}/api/oauth/:id/start`,
    `${API_BASE}/api/integrations/oura/start` and the Terra widget URL that
@@ -52,18 +55,21 @@ import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, known
 import { isNative, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pots/ui.js";
+import { registerWorker, whenActive, hasShellCache, checkForUpdate, applyUpdate, clearShellCaches, setThemeColor, displayStandalone, currentInstallMode, listenForInstall, promptInstall, cleanInstallHint, mergeInstallHint, showInstallHint, offersInstall } from "./lib/pwa.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
 /* What persists on the device: the health record and settings. Never UI state.
    reminders persists { enabled, endpoint, pending, rev } — this browser's push address, any
    address Cyra's server still has to forget, and a version so every open tab agrees on the
    on/off switch; its status is worked out again at every launch. */
-const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt"];
+const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint"];
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
-   health), shown in Settings → Your data and left out of the backup file itself. */
-const DEVICE_ONLY = ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt"];
+   health), shown in Settings → Your data and left out of the backup file itself; installHint
+   is whether this browser's Home install tip should stay away (null | "dismissed" |
+   "installed", lib/pwa.js), also left out of the backup file. */
+const DEVICE_ONLY = ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint"];
 /* The health record and settings another open tab of this browser can hand over (everything
    saved except the per-device consents and this browser's reminder addresses). */
 const RECORD = PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders");
@@ -112,6 +118,7 @@ import QuickCheckin from "./components/QuickCheckin.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
 import PaletteSheet from "./components/PaletteSheet.jsx";
 import Icon from "./components/Icon.jsx";
+import { UpdateRow } from "./components/Pwa.jsx";
 import { reduceMotion } from "./lib/motion.js";
 import SplashScreen from "./screens/SplashScreen.jsx";
 import RecordUnavailableScreen from "./screens/RecordUnavailableScreen.jsx";
@@ -205,6 +212,13 @@ export default function CyraDemo() {
   const [pulseRev, setPulseRev] = useState(0); // version of the sharing state above, so a stale tab can't roll it back
   const [askAI, setAskAI] = useState(false); // "Also ask Cyra's AI when the library has no answer" — off until she turns it on
   const [lastBackupAt, setLastBackupAt] = useState(null); // local day this device last made an encrypted backup (device-only, never in the file)
+  /* Installable web app (spec A14.1, lib/pwa.js). installHint is persisted (device-only, never in
+     a backup, only ever gets stronger: null → "dismissed" → "installed"); the rest is UI only. */
+  const [installMode, setInstallMode] = useState("none"); // "none" | "prompt" | "ios" | "standalone"
+  const [installHint, setInstallHint] = useState(null);
+  const [updateReady, setUpdateReady] = useState(false); // an updated worker is waiting: the header shows "A new version of Cyra is ready · Reload"
+  const [offlineReady, setOfflineReady] = useState(false); // the worker is active and its cyra-shell-* cache exists: Your data says so
+  const [settingsFocus, setSettingsFocus] = useState(null); // null | "install": Settings opens on its Install group (Home's iOS tip)
   const [stage, setStage] = useState(null);
   const [stageName, setStageName] = useState("");
   const [ob, setOb] = useState({ step: 0, preg: null, age: null, per: null, vms: null });
@@ -268,8 +282,12 @@ export default function CyraDemo() {
   const pendingSave = useRef(null); // that autosave's write, run at once when the app is hidden or closed (flushSave)
   const lastSig = useRef(null);     // the record this tab last saved or took over from another tab
   const skipSig = useRef(null);     // a record just taken over from another tab, not to be written back
+  const lastSave = useRef(null);    // the latest save's promise (settleSaves waits for it before an update reload)
+  const updating = useRef(false);   // Reload for an update is under way
   const cancelSave = () => { clearTimeout(saveTimer.current); pendingSave.current = null; };
-  const flushSave = () => { const run = pendingSave.current; if (!run) return; clearTimeout(saveTimer.current); pendingSave.current = null; run(); };
+  // Resolves when that write is done (Promise.resolve() when nothing is pending); the pagehide and visibility callers ignore it.
+  const flushSave = () => { const run = pendingSave.current; if (!run) return Promise.resolve(); clearTimeout(saveTimer.current); pendingSave.current = null; return run(); };
+  const settleSaves = async () => { await flushSave(); try { await lastSave.current; } catch { /* reported by the save itself */ } };
 
   const org = ORGS[orgId];
   const stagePal = stage && orgId === "cyra" ? PALETTES[stage][palIdx[stage]] : null;
@@ -919,8 +937,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: 1, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -977,6 +995,9 @@ export default function CyraDemo() {
         if (out !== snap) adoptPulse(out);
         const rem = mergeReminders(out.reminders, latest?.reminders);
         if (rem !== out.reminders) { out = { ...out, reminders: rem }; adoptReminders(rem); }
+        // The install tip: a stronger stored hint (another tab hid it, or Cyra was installed) wins, so a stale tab can't bring it back.
+        const ih = mergeInstallHint(out.installHint, latest?.installHint);
+        if (ih !== out.installHint) { out = { ...out, installHint: ih }; setInstallHint(ih); }
         // POTS: another tab's newer epoch (an erase or a restore there) wins wholesale; within
         // one epoch both tabs' entries are kept and a removal or a cleared value stays removed
         // (a 3-way merge against what this tab last saved or adopted, lib/pots.js mergePots).
@@ -986,7 +1007,7 @@ export default function CyraDemo() {
         const pm = mergePots(latest && latest.v === 1 ? latest.pots : undefined, out.pots, potsBase.current);
         if (!samePots(pm, out.pots)) { const mine = out.pots; out = { ...out, pots: pm }; setPots((cur) => (cur === mine ? pm : mergePots(pm, cur, mine))); }
       }
-      storage.save(out).then(() => {
+      const p = storage.save(out).then(() => {
         potsBase.current = out.pots;
         setStorageDriver(storage.driver());
         // Other open tabs of this browser take the saved record over, so none of them
@@ -994,6 +1015,8 @@ export default function CyraDemo() {
         const sig = isNative() ? null : recordSig(out);
         if (sig && sig !== lastSig.current) { lastSig.current = sig; try { channel.current?.postMessage({ type: "record" }); } catch { /* single tab */ } }
       }, () => { setStorageDriver(storage.driver()); ping("Couldn't save to this device — storage may be full or blocked"); });
+      lastSave.current = p;
+      return p;
     };
     pendingSave.current = run;
     saveTimer.current = setTimeout(() => { pendingSave.current = null; run(); }, 400);
@@ -1085,7 +1108,7 @@ export default function CyraDemo() {
   }, []); // eslint-disable-line
   useEffect(() => {
     // Hidden, closed or sent to the background: a save still waiting on its 400 ms timer is written now.
-    const onVisible = () => { if (document.visibilityState === "visible") { syncDay(); drainTerraNow(); retryPushForget(); retryTerraOff(); } else flushSave(); };
+    const onVisible = () => { if (document.visibilityState === "visible") { syncDay(); drainTerraNow(); retryPushForget(); retryTerraOff(); checkForUpdate(); } else flushSave(); };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("pagehide", flushSave);
     // Back from the background, a restored page or a focused window: the day may have changed.
@@ -1098,6 +1121,33 @@ export default function CyraDemo() {
     armDay();
     return () => { document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("pagehide", flushSave); window.removeEventListener("pageshow", syncDay); window.removeEventListener("focus", syncDay); clearTimeout(dayTimer); sub?.then((h) => h.remove()).catch(() => {}); };
   }, []); // eslint-disable-line
+
+  /* ---------- installable web app (spec A14.1, lib/pwa.js) ----------
+     Web only. What this browser can offer (Chromium's captured install prompt, the iPhone/iPad
+     Share steps, nothing when Cyra already runs standalone) is worked out at mount and again
+     when the browser offers or completes an install. */
+  useEffect(() => {
+    if (isNative()) return;
+    setInstallMode(currentInstallMode());
+    return listenForInstall({
+      onPrompt: () => setInstallMode(currentInstallMode()),
+      onInstalled: () => { setInstallMode(currentInstallMode()); setInstallHint((h) => mergeInstallHint(h, "installed")); },
+    });
+  }, []);
+  /* The offline worker is registered only while this device holds a record (never on the splash
+     or during registration, so a device wiped by Delete everything stays unregistered), and only
+     in a production web build (registerWorker checks). Opened standalone means installed. */
+  useEffect(() => {
+    if (!hydrated || phase !== "app" || wipingRef.current) return;
+    registerWorker({ onUpdateReady: () => setUpdateReady(true) })
+      .then((reg) => whenActive(reg))
+      .then(async (ok) => { if (ok && await hasShellCache()) setOfflineReady(true); })
+      .catch(() => { /* no offline copy this time; tried again at the next launch */ });
+    if (!isNative() && displayStandalone()) setInstallHint((h) => mergeInstallHint(h, "installed"));
+  }, [hydrated, phase]);
+  // The installed app's status bar follows the paper colour on screen.
+  useEffect(() => { setThemeColor(t.paper); }, [t.paper]);
+  useEffect(() => { if (!showSettings) setSettingsFocus(null); }, [showSettings]);
 
   /* Phone: a backup copy, POTS report or POTS spreadsheet an interrupted share left in the
      app's cache (app closed or killed while the share sheet was open). Run at every launch,
@@ -1116,6 +1166,7 @@ export default function CyraDemo() {
     if (snap.regAnswers && typeof snap.regAnswers === "object") { const ra = { ...snap.regAnswers }; delete ra.zip; delete ra.age; snap.regAnswers = ra; }
     snap.reminders = { enabled: !!snap.reminders?.enabled };
     delete snap.lastBackupAt; // this device's own note of when it last backed up: never in the file
+    delete snap.installHint; // this browser's install-tip note: installing is per device, never in the file
     const env = await encryptBackup(snap, passphrase);
     const name = `cyra-backup-${todayIso}.cyra.json`;
     if (isNative()) {
@@ -1176,7 +1227,7 @@ export default function CyraDemo() {
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
-    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt };
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint };
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, ...keep, reminders: rem, v: 1, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     ping(!isNative() && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored");
@@ -1207,7 +1258,8 @@ export default function CyraDemo() {
      forgotten on the server they are turned off here too — and Settings offers Try again or
      "Delete on this device anyway", which says what stays connected and where to remove it.
      Then this device, best effort and in order: (a) reminders: phone — every pending
-     notification; web — the browser's push subscription; (b) web: every service worker;
+     notification; web — the browser's push subscription; (b) web: every service worker, then
+     the offline copy of Cyra's own files (every cyra-shell-* cache; lib/pwa.js);
      (e) phone: any backup file left in the cache; then the record is deleted and checked
      gone; (f) other open tabs are told to stop saving (and to carry on if the delete stops),
      and to reload once the record is gone. If deleting the record itself fails, what
@@ -1238,6 +1290,7 @@ export default function CyraDemo() {
     const step = async (fn) => { try { await fn(); } catch { /* best effort: the next step still runs */ } };
     await step(() => syncReminders({ cadence: "me", nudge: "never" }, { server: false }));
     if (!isNative() && "serviceWorker" in navigator) await step(async () => { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); });
+    if (!isNative()) await step(clearShellCaches); // the offline copy of Cyra's own files (spec A14.1); the splash never registers again
     if (isNative()) await step(sweepBackupCache);
   };
   const wipe = async (sources = {}, { force = false, pushKnown = [], holdWeek: startOver = false } = {}) => {
@@ -1427,7 +1480,8 @@ export default function CyraDemo() {
       }
       else if (r.unsupported) keep({ enabled: true, status: "unsupported" });
       else if (r.unavailable) { keep({ enabled: true, status: "unavailable" }); if (prompt) ping("Reminders aren't set up on this server yet"); }
-      else if (r.error) { keep({ enabled: true, status: "error" }); if (prompt) ping("Cyra's server couldn't set up reminders — try again later"); }
+      // worker: this browser's service worker never became active (lib/notifications.js), so the server wasn't asked.
+      else if (r.error) { keep({ enabled: true, status: "error" }); if (prompt) ping(r.worker ? "Couldn't set up reminders in this browser — try turning them on again" : "Cyra's server couldn't set up reminders — try again later"); }
       else if (r.superseded) { /* a newer "off" came in meanwhile */ }
       else keep({ enabled: true, status: "off" });
     } catch (e) {
@@ -1583,8 +1637,26 @@ export default function CyraDemo() {
       </Shell>
     );
   }
+  /* Install and update (spec A14.1). The Home tip and Settings → Install show only where this
+     browser can install Cyra and the record really is in IndexedDB (the installed app then opens
+     the same record); the tip waits for 3 logged days and never comes back once hidden or installed. */
+  const daysLogged = stage === "preg" ? Object.keys(pregLog).length : days.length;
+  const recordInIdb = storageDriver === "indexeddb";
+  const installNow = async (from) => {
+    const out = await promptInstall();
+    setInstallMode(currentInstallMode());
+    if (out === "accepted") { setInstallHint((h) => mergeInstallHint(h, "installed")); ping("Cyra is installed. Open it from your home screen or app list."); }
+    else if (out === "dismissed" && from === "tip") setInstallHint((h) => mergeInstallHint(h, "dismissed"));
+  };
+  const hideInstallTip = () => { setInstallHint((h) => mergeInstallHint(h, "dismissed")); ping("Tip hidden. Install stays in Settings."); };
+  const showInstallSteps = () => { setShowPal(false); setSettingsFocus("install"); setShowSettings(true); };
+  // Reload for an update: pending saves are written first, then the waiting worker takes over.
+  const reloadForUpdate = async () => { if (updating.current) return; updating.current = true; await settleSaves(); await applyUpdate(); };
+  // The last child of header.mast (inside the banner landmark), on the app and intake screens only.
+  const updateRow = updateReady ? <UpdateRow onReload={reloadForUpdate} /> : null;
   const keepsWeekNote = pulseSent?.week === weekKey() || holdWeek === weekKey();
-  const settingsSheet = showSettings && <SettingsSheet daysLogged={stage === "preg" ? Object.keys(pregLog).length : days.length} lastBackupAt={lastBackupAt} todayIso={todayIso} triggerRef={settingsBtnRef} cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storageDriver} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} keepsWeekNote={keepsWeekNote} reminders={reminders} reminderSupport={reminderSupport()} onReminders={(on) => applyReminders(on)} research={research} setResearch={setSharing} stage={stage} stageName={stageName} pots={pots} onPotsOn={potsOn} onPotsOff={potsOff} />;
+  const settingsSheet = showSettings && <SettingsSheet daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} triggerRef={settingsBtnRef} cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storageDriver} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} keepsWeekNote={keepsWeekNote} reminders={reminders} reminderSupport={reminderSupport()} onReminders={(on) => applyReminders(on)} research={research} setResearch={setSharing} stage={stage} stageName={stageName} pots={pots} onPotsOn={potsOn} onPotsOff={potsOff}
+    install={offersInstall({ mode: installMode, stored: recordInIdb }) ? { mode: installMode, onInstall: () => installNow("settings") } : null} focusTo={settingsFocus} offlineCopy={offlineReady} />;
   if (!stage) {
     // Choosing a stage again: the saved record is still here, so Settings (and Delete
     // everything) stays one tap away.
@@ -1592,6 +1664,7 @@ export default function CyraDemo() {
       <Shell style={style} toast={toast}>
         <header className="mast" style={{ justifyContent: "flex-end", marginBottom: 0 }}>
           <button ref={settingsBtnRef} className="stagechip icon" onClick={() => setShowSettings((v) => !v)} aria-label="Settings and your data" aria-expanded={showSettings} aria-controls="settings-sheet"><Icon name="sliders" size={18} /></button>
+          {updateRow}
         </header>
         {settingsSheet}
         <IntakeScreen org={org} acct={acct} ob={ob} setOb={setOb} obBusy={obBusy} setObBusy={setObBusy} setStage={chooseStage} setStageName={setStageName} setWelcome={setWelcome} setAppTab={setAppTab} setPregTab={setPregTab} finishOnboarding={finishOnboarding} />
@@ -1619,6 +1692,7 @@ export default function CyraDemo() {
       showMeds={showMeds} setShowMeds={setShowMeds} meds={meds} medLog={medLog} medEffects={medEffects} setMedLog={setMedLog} newMed={newMed} setNewMed={setNewMed} setMeds={setMeds} ping={ping}
       showAppts={showAppts} setShowAppts={setShowAppts} upcoming={upcoming} past={past} daysUntil={daysUntil} setAppts={setAppts} newAppt={newAppt} setNewAppt={setNewAppt}
       showJournal={showJournal} setShowJournal={setShowJournal} journal={journal} jDraft={jDraft} setJDraft={setJDraft} setJournal={setJournal}
+      installTip={showInstallHint({ mode: installMode, daysLogged, installHint, stored: recordInIdb }) ? { mode: installMode, onInstall: () => installNow("tip"), onShow: showInstallSteps, onHide: hideInstallTip } : null}
       potsCard={potsTab && potsOk
         ? <PotsHome pots={pots} totals={potsTotals} todayIso={todayIso} onQuickLog={() => openPots(true)} onStandTest={openStandTest} onOpen={() => openPots()}
             last={potsHomeLive}
@@ -1686,6 +1760,7 @@ export default function CyraDemo() {
         {stage && orgId === "cyra" && <button ref={palBtnRef} className="stagechip icon" onClick={() => { setShowSettings(false); setShowPal((s) => !s); }} aria-label="Color palette" aria-expanded={showPal} aria-controls="palette-sheet"><Icon name="palette" size={18} /></button>}
         {stage && <button ref={settingsBtnRef} className="stagechip icon" onClick={() => { setShowPal(false); setShowSettings((s) => !s); }} aria-label="Check-in settings" aria-expanded={showSettings} aria-controls="settings-sheet"><Icon name="sliders" size={18} /></button>}
         {stage && <button className="stagechip quiet" onClick={() => { setPots(resetPregClearance); setStage(null); setOb({ step: 0, preg: null, age: null, per: null, vms: null }); setWelcome(""); }}>{stageName} · change</button>}
+        {updateRow}
       </header>
 
       {/* ============ APP ============ */}
