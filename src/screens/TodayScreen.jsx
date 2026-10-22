@@ -3,6 +3,7 @@ import Details from "../components/Details.jsx";
 import Icon from "../components/Icon.jsx";
 import { SYMS, PSYM, READS, famColor } from "../lib/constants.js";
 import { fmt, sevDots, foldQuick } from "../lib/engine.js";
+import { upsertDay } from "../lib/record.js";
 
 /* Cycle & Peri — Today: cycle-status card, live score meter, quick or full
    check-in, sleep quality, body signals, save, phase-appropriate daily read.
@@ -97,8 +98,8 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
         // Spotting alone is not a period day; an edit keeps the day's own "Period day" switch.
         const bleeding = !!flow && flow !== "spot";
         const entry = { date: target, sleepQ: sleepQ || "fair", period: editDate ? !!editPeriod : bleeding, scales: { ...scales }, flow, disch, odor, bodyOdor, sym };
-        const next = [...days.filter((x) => x.date !== target), entry].sort((a, b) => a.date.localeCompare(b.date));
-        setDays((d) => [...d.filter((x) => x.date !== target), entry].sort((a, b) => a.date.localeCompare(b.date)));
+        const next = upsertDay(days, entry);
+        setDays((d) => upsertDay(d, entry));
         ping(editDate ? `${fmt(target)} updated` : "Saved — check Patterns");
         // App compares milestones before and after this save (the "Milestone reached" moment); it may replace the toast above.
         onSaved?.(next, editDate ? null : target);

@@ -1,7 +1,8 @@
 import { SYM, PSYM, QUICK_MAP, PRENATAL } from "./constants.js";
 
 /* Deterministic demo data, cycle detection, prediction and scoring. Pure
-   functions only — no React, no state, no side effects. */
+   functions only — no React, no state, no side effects.
+   engine.js is the lowest layer of the pure modules: lib/record.js and lib/pots.js may import it; it never imports them. */
 
 /** This device's local calendar day, YYYY-MM-DD: the key for every day record (check-ins,
     pregnancy log, journal, intimacy and medication logs) and for "today". Never the UTC date,
@@ -71,7 +72,9 @@ const isoBefore = (today, n) => { const d = typeof today === "string" ? new Date
 /* A period day for cycle maths: spotting alone (flow "spot") never starts or extends a period,
    including days an earlier version saved as period days. */
 export const isPeriodDay = (d) => !!d && !!d.period && d.flow !== "spot";
-const cycleStarts = (sorted) => {
+/* A cycle length counts (lens, averages, variability) only within these bounds, in days (spec §6.2). */
+export const CYCLE_MIN = 15, CYCLE_MAX = 120;
+export const cycleStarts = (sorted) => {
   const pset = new Set(sorted.filter(isPeriodDay).map((d) => d.date));
   const starts = [];
   pset.forEach((iso) => {
@@ -81,9 +84,9 @@ const cycleStarts = (sorted) => {
   });
   return starts.sort();
 };
-const cycleLens = (starts) => {
+export const cycleLens = (starts) => {
   const lens = [];
-  for (let i = 1; i < starts.length; i++) { const g = Math.round((new Date(starts[i]) - new Date(starts[i - 1])) / 86400000); if (g >= 15 && g <= 120) lens.push(g); }
+  for (let i = 1; i < starts.length; i++) { const g = Math.round((new Date(starts[i]) - new Date(starts[i - 1])) / 86400000); if (g >= CYCLE_MIN && g <= CYCLE_MAX) lens.push(g); }
   return lens;
 };
 const hfRatio = (pairs) => {

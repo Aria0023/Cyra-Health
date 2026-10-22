@@ -117,6 +117,8 @@ link, server settings, and what has and hasn't been verified): `docs/NATIVE.md`.
 
 ## Docs
 - `docs/CYRA-BUILD-SPEC.md` — complete product + technical spec (normative)
+- `docs/ARCHITECTURE.md` — local-first architecture: where the record is stored, its keys and version, derived data, flags and plan hooks
+- `docs/MONETIZATION.md` — the free core, paid extension points (none active) and the privacy rules any paid feature must follow
 - `docs/NATIVE.md` — building and running the iPhone and Android apps
 - `docs/Cyra-Legal-Documents.docx` — privacy policy, terms, research consent (drafts)
 - `CLAUDE.md` — working instructions for Claude Code

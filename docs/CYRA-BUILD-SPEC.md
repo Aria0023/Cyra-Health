@@ -31,7 +31,7 @@ seriously by a clinician. Every feature serves that.
 - No routing library — state-driven view switching.
 - No CSS framework — one `<style>` block with CSS custom properties.
 - **State:** `useState` / `useMemo` only. No Redux, no context needed.
-- **Persistence:** device-local storage. Never send health data to a server.
+- **Persistence:** device-local storage only (src/lib/storage.js: IndexedDB on the web, one file in the app sandbox on the phone); the record's shape, version and keys are defined in src/lib/record.js. Never send health data to a server.
 - **Fonts:** Fraunces (headings, serif) + Karla (body, sans) via Google Fonts.
 - **Mobile-first:** max-width 430px, centered.
 - **AI calls:** must have a deterministic fallback so the app never breaks offline.
@@ -59,6 +59,7 @@ seriously by a clinician. Every feature serves that.
   bodyOdor: "same"|"stronger"|"changed" | null
 }
 ```
+Every field except `date` and `sym` may be absent in older records (the demo seed writes only date, sleepQ, period and sym); `sym` keys are ids from any symptom library with values 0–3; there is at most one entry per date (`upsertDay`). The `DayEntry` typedef in src/lib/record.js is the working definition; later features add their fields here.
 
 ### 3.2 Symptom libraries (exact — id: label)
 ```js
@@ -94,6 +95,9 @@ SCALES = [ {id:"fatigue", low:"Energized", high:"Wiped out"},
 **Never collect:** SSN, government ID, insurance/policy numbers, payment cards,
 full street address (ZIP only), or medical records. This boundary is deliberate —
 collecting identifiers alongside health data changes the legal posture of the product.
+
+### 3.4 The saved record
+`{ v: RECORD_VERSION, savedAt, phase: "app", ...PERSISTED keys }`, RECORD_VERSION = 1, every load and restore through `migrate()`; key classes and backup rules in docs/ARCHITECTURE.md §4.
 
 ---
 
@@ -472,6 +476,7 @@ prediction   = lastStart + round(mean(lengths))
 ovulation    ≈ nextStart - 14 ; fertile window = [ovu-3, ovu+1]
 confidence   = ±max(2, round(variability/2)) days
 ```
+`cyclesFrom(days)` (src/lib/record.js) lists one cycle per start; `counted` = 15 ≤ length ≤ 120 (`CYCLE_MIN`, `CYCLE_MAX` in engine.js); the running cycle has no length.
 **Clinical rule:** variability ≥ 7 days in the peri stage is the flagged marker of the
 menopause transition and must trigger the corresponding advice.
 
@@ -1455,3 +1460,28 @@ reload, so the reload shows the browser's offline page until the device is onlin
 
 **Hosting.** `render.yaml` sends `Cache-Control: no-cache` for `/`, `/index.html`, `/sw.js` and
 `/manifest.webmanifest`; hashed `/assets/*` keep the host default.
+
+### A14.3 Data model module and plan hooks (L3)
+
+(A14.2 is not used: L2's light and dark mode is specified in §8.1–8.4.)
+
+**A14.3.1 The record.** `src/lib/record.js` is the single description of what Cyra saves:
+- The record is one object holding exactly the PERSISTED keys (plus `v`, `savedAt` and `phase`);
+  RECORD_VERSION = 1.
+- DEVICE_ONLY keys are never applied by a restore and never taken over from another tab.
+- NOT_IN_BACKUP keys (`lastBackupAt`, `installHint` and the DEVICE_PREFS key `appearance`) are deleted
+  before encryption. `backupCopy()` also drops `regAnswers.zip` and `.age` and keeps only
+  `reminders.enabled`.
+- Every load (`lib/storage.js`) and every decrypted backup (`importBackup`) passes through
+  `migrate()`, which today returns the record untouched.
+- A change to an existing key's meaning or shape bumps RECORD_VERSION and adds one pure, unit-tested
+  step to MIGRATIONS; a new optional key does not.
+- `validateRecord()` is advisory: nothing calls it at runtime.
+- Accessors: `entryFor`, `upsertDay`, `cyclesFrom`, `phaseOf` / `PHASES`, `daysLogged`.
+
+**A14.3.2 Plan.** `src/lib/plan.js` holds FREE_PLAN = `{ tier: "free", pdfExportsPerMonth: null,
+aiPatternReports: false, extraCustomisation: false, cloudBackup: false }`, and PLAN = FREE_PLAN.
+- `can(feature)` is the only gate for a paid feature.
+- `exportsLeft(tally)` returns null (unlimited) on this plan, and `noteExport` records nothing.
+- No screen shows a plan, a limit, a price or an upgrade prompt.
+- Rules are in docs/MONETIZATION.md.

@@ -1,0 +1,348 @@
+/* Unit tests for lib/record.js (L3: the saved record's version, keys, backup copy, advisory
+   validation and accessors). Run with `npm run test:unit`. */
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  RECORD_VERSION, MIGRATIONS, migrate, PERSISTED, DEVICE_ONLY, DEVICE_PREFS, RECORD, NOT_IN_BACKUP, backupCopy,
+  RULES, validateRecord, entryFor, upsertDay, cyclesFrom, PHASES, phaseOf, daysLogged,
+} from "./record.js";
+import { seed, insights, localDay, cycleStarts, cycleLens } from "./engine.js";
+import { PSYM, SYMS } from "./constants.js";
+import { freshEmpty } from "./pots.js";
+
+const SRC = join(dirname(fileURLToPath(import.meta.url)), "..");
+const read = (p) => readFileSync(join(SRC, p), "utf8");
+const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`\\])\/\/[^\n]*/g, "$1");
+const clone = (x) => JSON.parse(JSON.stringify(x));
+const iso = (n) => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - n); return localDay(d); };
+// A small deterministic shuffle (no Math.random, so a failure can be replayed).
+const rng = (seedN) => { let s = seedN >>> 0; return () => ((s = (s * 1664525 + 1013904223) % 4294967296), s / 4294967296); };
+const shuffle = (arr, r) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+/* An app-shaped version-1 record: the defaults App.jsx starts from (as snapshot() stores them, in
+   PERSISTED order), with seed() days and a fresh POTS log. */
+const DEFAULTS = () => ({
+  palIdx: { peri: 0, preg: 0, periods: 0 }, relationship: null, connLog: {}, cadence: "daily", quietHours: "evening", quickMode: true,
+  meds: [], medLog: {}, appts: [], journal: {}, wearSources: {}, wearData: [], acct: { name: "", email: "", anon: false }, research: false,
+  stage: "peri", stageName: "Perimenopause", welcome: "", days: seed(), pregLog: {}, pulseQueue: null, pulseSent: null, pulseLastSend: null,
+  pulseRev: 0, askAI: false, regAnswers: null, reminders: { enabled: false, endpoint: null, pending: [], rev: 0 }, terraOff: [], kickTally: null,
+  pots: freshEmpty(), lastBackupAt: null, installHint: null, appearance: "system",
+});
+const appRecord = (over = {}) => {
+  const d = { ...DEFAULTS(), ...over };
+  return { v: 1, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, d[k]])) };
+};
+
+/* ---------- version and migration ---------- */
+
+test("RECORD_VERSION is 1 and MIGRATIONS has a step for every version below it", () => {
+  assert.equal(RECORD_VERSION, 1);
+  assert.deepEqual(Object.keys(MIGRATIONS).map(Number), Array.from({ length: RECORD_VERSION - 1 }, (_, i) => i + 1));
+  assert.ok(Object.isFrozen(MIGRATIONS));
+});
+
+test("migrate: a v1 record comes back as the same object, unchanged", () => {
+  const rec = appRecord();
+  assert.deepEqual(Object.keys(rec), ["v", "savedAt", "phase", ...PERSISTED]);
+  for (const k of PERSISTED) assert.notEqual(rec[k], undefined, `default for ${k}`);
+  const before = clone(rec);
+  assert.equal(migrate(rec), rec);
+  assert.deepEqual(rec, before);
+});
+
+test("migrate: non-records and newer records come back untouched, nothing throws", () => {
+  for (const x of [null, undefined, "x", 42, [], {}, { v: "1" }, { v: NaN }, { v: 2, phase: "app" }, { v: 1.5 }, { v: -1 }]) {
+    let out;
+    assert.doesNotThrow(() => { out = migrate(x); });
+    assert.ok(Object.is(out, x), `migrate(${JSON.stringify(x)})`);
+  }
+  // A record whose getters throw, or nonsense options, still come back as given.
+  const nasty = { get v() { throw new Error("boom"); } };
+  assert.equal(migrate(nasty), nasty);
+  const old = { v: 0, phase: "app" };
+  assert.equal(migrate(old, { steps: null }), old);
+  assert.equal(migrate(old, { steps: "x" }), old);
+});
+
+test("migrate: injected steps run in order and never mutate", () => {
+  const steps = {
+    1: (r) => ({ ...r, v: 2, days: r.days.map((d) => ({ ...d, m: 1 })) }),
+    2: (r) => ({ ...r, v: 3, extra: true }),
+  };
+  const rec = appRecord();
+  const before = clone(rec);
+  const out = migrate(rec, { version: 3, steps });
+  assert.notEqual(out, rec);
+  assert.equal(out.v, 3);
+  assert.equal(out.extra, true);
+  assert.ok(out.days.length > 0 && out.days.every((d) => d.m === 1));
+  assert.deepEqual(rec, before);
+  // Starting from version 2 runs only the second step.
+  const two = { ...appRecord(), v: 2 };
+  const out2 = migrate(two, { version: 3, steps });
+  assert.equal(out2.v, 3); assert.equal(out2.extra, true); assert.ok(out2.days.every((d) => d.m === undefined));
+});
+
+test("migrate: a missing, throwing or non-advancing step returns the input (all or nothing)", () => {
+  const rec = appRecord();
+  const before = clone(rec);
+  // Only step 1 of the two needed: the half-way result is thrown away.
+  assert.equal(migrate(rec, { version: 3, steps: { 1: (r) => ({ ...r, v: 2 }) } }), rec);
+  // A step that throws.
+  assert.equal(migrate(rec, { version: 2, steps: { 1: () => { throw new Error("bad step"); } } }), rec);
+  // A step that doesn't bump v (would loop forever if migrate trusted it), one that skips a version, one that returns nothing.
+  assert.equal(migrate(rec, { version: 2, steps: { 1: (r) => ({ ...r }) } }), rec);
+  assert.equal(migrate(rec, { version: 3, steps: { 1: (r) => ({ ...r, v: 3 }), 2: (r) => ({ ...r, v: 3 }) } }), rec);
+  assert.equal(migrate(rec, { version: 2, steps: { 1: () => undefined } }), rec);
+  assert.equal(migrate(rec, { version: 2, steps: { 1: "not a function" } }), rec);
+  assert.deepEqual(rec, before);
+});
+
+/* ---------- keys ---------- */
+
+test("key lists are the ones App.jsx used before L3 (pinned)", () => {
+  // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS).
+  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance"]);
+  assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint"]);
+  assert.deepEqual([...DEVICE_PREFS], ["appearance"]);
+  assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "appearance"]);
+  assert.deepEqual([...RECORD], PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders"));
+  for (const k of NOT_IN_BACKUP) { assert.ok(PERSISTED.includes(k), `${k} persisted`); assert.ok(DEVICE_ONLY.includes(k) || DEVICE_PREFS.includes(k), `${k} device-only or a device pref`); }
+  for (const k of DEVICE_ONLY) assert.ok(PERSISTED.includes(k), `${k} persisted`);
+  for (const k of DEVICE_PREFS) assert.ok(RECORD.includes(k), `${k} in RECORD`);
+  assert.deepEqual(DEVICE_ONLY.filter((k) => DEVICE_PREFS.includes(k)), []);
+  for (const [name, list] of Object.entries({ PERSISTED, DEVICE_ONLY, DEVICE_PREFS, RECORD, NOT_IN_BACKUP })) {
+    assert.ok(Object.isFrozen(list), `${name} frozen`);
+    assert.equal(new Set(list).size, list.length, `${name} has no duplicates`);
+  }
+});
+
+test("every persisted key has a rule, a setter and a value", () => {
+  assert.deepEqual(Object.keys(RULES).sort(), [...PERSISTED].sort());
+  assert.ok(Object.isFrozen(RULES));
+  // Without a setter, App.jsx applySaved would throw on that key; without a value, snapshot() would save undefined.
+  const lines = read("App.jsx").split("\n");
+  const settersLine = lines.find((l) => l.trim().startsWith("const setters = {"));
+  const valuesLine = lines.find((l) => l.trim().startsWith("const values = {"));
+  assert.ok(settersLine && valuesLine, "App.jsx has the setters and values lines");
+  const valueKeys = valuesLine.slice(valuesLine.indexOf("{") + 1, valuesLine.lastIndexOf("}")).split(",").map((s) => s.trim());
+  for (const k of PERSISTED) {
+    assert.match(settersLine, new RegExp(`[{,]\\s*${k}:`), `setter for ${k}`);
+    assert.ok(valueKeys.includes(k), `value for ${k}`);
+  }
+});
+
+test("backupCopy matches the transform exportBackup used before L3", () => {
+  // The inline code exportBackup ran on a fresh snapshot() before L3 (it changed that object in place).
+  const legacy = (snap) => {
+    if (snap.regAnswers && typeof snap.regAnswers === "object") { const ra = { ...snap.regAnswers }; delete ra.zip; delete ra.age; snap.regAnswers = ra; }
+    snap.reminders = { enabled: !!snap.reminders?.enabled };
+    delete snap.lastBackupAt;
+    delete snap.installHint;
+    for (const k of ["appearance"]) delete snap[k];
+    return snap;
+  };
+  const s = appRecord({
+    regAnswers: { zip: "02139", age: "35-44", stage: "My Cycle" },
+    reminders: { enabled: true, endpoint: "https://push.example/x", pending: ["https://p"], rev: 5 },
+    lastBackupAt: "2026-10-01", installHint: "dismissed", appearance: "dark", research: true, askAI: true, pulseRev: 7,
+  });
+  const before = clone(s);
+  const out = backupCopy(s);
+  assert.equal(JSON.stringify(out), JSON.stringify(legacy(clone(s))));
+  assert.notEqual(out, s);
+  assert.equal("lastBackupAt" in out, false);
+  assert.equal("installHint" in out, false);
+  assert.equal("appearance" in out, false);
+  assert.deepEqual(out.regAnswers, { stage: "My Cycle" });
+  assert.deepEqual(out.reminders, { enabled: true });
+  // The other DEVICE_ONLY keys are still in the file (a restore never applies them).
+  assert.equal(out.research, true); assert.equal(out.askAI, true); assert.equal(out.pulseRev, 7);
+  assert.deepEqual(s, before);
+  // regAnswers null stays null; a missing reminders becomes { enabled: false }.
+  const n = appRecord({ regAnswers: null });
+  delete n.reminders;
+  const outN = backupCopy(n);
+  assert.equal(outN.regAnswers, null);
+  assert.deepEqual(outN.reminders, { enabled: false });
+  assert.equal(JSON.stringify(outN), JSON.stringify(legacy(clone(n))));
+});
+
+/* ---------- advisory validation ---------- */
+
+test("validateRecord: an app-shaped record has no problems", () => {
+  assert.deepEqual(validateRecord(appRecord()), []);
+  const full = appRecord({
+    stage: "preg", stageName: "Pregnancy", relationship: "partnered", cadence: "weekdays", quietHours: "never", quickMode: false,
+    pregLog: { [iso(1)]: { sym: { nau: 2, hb: 0 }, kicks: 9, scales: { fatigue: 4, pain: 0, moodq: 6, stress: 3 }, odor: null, bodyOdor: "same" }, [iso(0)]: { sym: {}, kicks: 0, scales: { fatigue: 0, pain: 0, moodq: 0, stress: 0 }, odor: "mild", bodyOdor: null } },
+    journal: { [iso(2)]: "Tired today.\n\nBetter after a walk." },
+    appts: [{ id: 1760000000000, date: iso(-3), who: "Dr. Lee", note: "" }],
+    meds: [{ id: 1760000000001, name: "Magnesium", kind: "supp", started: iso(20) }],
+    medLog: { [iso(0)]: { 1760000000001: true }, [iso(1)]: { 1760000000001: false } },
+    connLog: { [iso(0)]: { closeness: 5, desire: 5, friction: 2, load: 5, intimacy: "affection", after: null } },
+    wearData: [{ date: iso(1), temp: 0.2, rhr: 61, hrv: null, sleep: 74, sourceId: "oura" }],
+    wearSources: { oura: { connectedAt: 1, pending: true, restored: true } },
+    pulseQueue: { day: iso(0), stage: "preg", events: ["nau"] }, pulseSent: { week: "2026-W43", keys: ["preg|nau"] }, pulseLastSend: iso(1), pulseRev: 1760000000000,
+    research: true, askAI: true, regAnswers: { stage: "Pregnant", conditions: [], zip: "90210", age: "35–44" },
+    reminders: { enabled: true, endpoint: "https://push.example/x", pending: [], rev: 3 }, terraOff: [{ key: "k".repeat(43) }],
+    kickTally: { day: iso(0), n: 4 }, lastBackupAt: iso(3), installHint: "installed", appearance: "dark",
+    acct: { name: "Ada", email: "ada@example.com", anon: false }, welcome: "Your pregnancy space is ready.",
+    days: [{ date: iso(1), sleepQ: "poor", period: true, scales: { fatigue: 3, pain: 2, moodq: 7, stress: 1 }, flow: "heavy", disch: "creamy", odor: "none", bodyOdor: "same", sym: { crm: 3, hda: 0 } }],
+  });
+  assert.deepEqual(validateRecord(full), []);
+});
+
+test("validateRecord: problems are reported by path", () => {
+  const days = [
+    { date: iso(5), sleepQ: "fair", period: false, sym: { crm: 0 } },
+    { date: "10/22/2026", sleepQ: "fair", period: false, sym: { crm: 1 } },
+    { date: iso(3), sleepQ: "great", period: true, flow: "gush", scales: { fatigue: 0, pain: 11, moodq: 5, stress: 0 }, sym: { crm: 7, hda: 2 } },
+    { date: iso(5), sleepQ: "good", period: false, sym: {} },
+  ];
+  const problems = validateRecord(appRecord({ days, stage: "x", palIdx: { peri: 9, preg: 0, periods: 0 }, kickTally: { day: "x", n: -1 } }));
+  const prefixes = ["days[1].date", "days: two entries for", "days[2].sym.crm", "days[2].scales.pain", "days[2].sleepQ", "days[2].flow", "stage", "palIdx.peri", "kickTally"];
+  for (const pre of prefixes) assert.equal(problems.filter((p) => p.startsWith(pre)).length, 1, `${pre} in ${JSON.stringify(problems)}`);
+  assert.equal(problems.length, prefixes.length, JSON.stringify(problems));
+  assert.ok(problems.includes("days[2].sym.crm: expected a severity 0–3, got 7"));
+  assert.ok(problems.includes(`days: two entries for ${iso(5)}`));
+  assert.ok(problems.includes('stage: expected periods, preg, peri or null, got "x"'));
+  for (const p of problems) assert.match(p, /^[\w.[\]]+: |^days: /, p);
+});
+
+test("validateRecord never throws and is lenient where it must be", () => {
+  for (const x of [null, [], "x", { days: "nope" }, { pregLog: [] }, undefined, 42]) {
+    let out;
+    assert.doesNotThrow(() => { out = validateRecord(x); });
+    assert.ok(Array.isArray(out), `array for ${JSON.stringify(x)}`);
+  }
+  assert.deepEqual(validateRecord(null), ["record: not an object"]);
+  assert.ok(validateRecord({ v: 1, phase: "app", days: "nope" }).some((p) => p.startsWith("days:")));
+  // A newer build's unknown key, an older record's missing key and a newer POTS log add no problem.
+  const rec = appRecord({ pots: { v: 2, schema: "next" } });
+  rec.someFutureKey = { anything: true };
+  delete rec.journal; delete rec.appearance; delete rec.installHint;
+  assert.deepEqual(validateRecord(rec), []);
+  // Records saved before later fields existed: a day with only date, sleepQ, period and sym is fine.
+  assert.deepEqual(validateRecord(appRecord({ days: [{ date: iso(0), sleepQ: "fair", period: false, sym: { eng: 1 } }] })), []);
+  // A getter that throws inside a key is reported, not thrown.
+  const odd = appRecord(); Object.defineProperty(odd, "acct", { enumerable: true, get() { throw new Error("boom"); } });
+  assert.doesNotThrow(() => validateRecord(odd));
+});
+
+/* ---------- accessors ---------- */
+
+test("entryFor and upsertDay", () => {
+  const a = { date: iso(2), sym: { crm: 1 } }, a2 = { date: iso(2), sym: { crm: 3 } }, b = { date: iso(1), sym: {} };
+  assert.equal(entryFor([b, a, a2], iso(2)), a, "the first of two same-date entries");
+  assert.equal(entryFor([a, b], iso(9)), null);
+  assert.equal(entryFor([null, b], iso(1)), b);
+  assert.equal(entryFor(null, iso(1)), null);
+  assert.equal(entryFor({ date: iso(1) }, iso(1)), null);
+  // Replace the same date, sort ascending, leave the input alone.
+  const days = [a, b];
+  const before = clone(days);
+  const e = { date: iso(2), sym: { crm: 2 } }, c = { date: iso(4), sym: {} };
+  assert.deepEqual(upsertDay(days, e), [e, b]);
+  assert.deepEqual(upsertDay(days, c), [c, a, b]);
+  assert.deepEqual(days, before);
+  assert.notEqual(upsertDay(days, e), days);
+  // Against TodayScreen's former inline expression, for 20 shuffles of 10 entries plus a new or a replacement entry.
+  const inline = (list, entry) => [...list.filter((x) => x.date !== entry.date), entry].sort((x, y) => x.date.localeCompare(y.date));
+  const ten = Array.from({ length: 10 }, (_, i) => ({ date: iso(i * 2), sleepQ: "fair", period: false, sym: { crm: i % 4 } }));
+  const r = rng(7);
+  for (let t = 0; t < 20; t++) {
+    const list = shuffle(ten, r);
+    const entry = t % 2 ? { date: iso(4), sleepQ: "good", period: true, sym: { crm: 3 } } : { date: iso(3), sleepQ: "poor", period: false, sym: {} };
+    const snap = clone(list);
+    assert.deepEqual(upsertDay(list, entry), inline(list, entry));
+    assert.deepEqual(list, snap);
+  }
+});
+
+test("cyclesFrom: one cycle per start", () => {
+  const day = (n, period, flow = period ? "med" : null) => ({ date: iso(n), period, flow, sleepQ: "fair", sym: {} });
+  const days = [day(60, true), day(59, true), day(32, true), day(31, true), day(0, false)];
+  const want = [
+    { start: iso(60), next: iso(32), length: 28, counted: true, periodDays: 2 },
+    { start: iso(32), next: null, length: null, counted: false, periodDays: 2 },
+  ];
+  assert.deepEqual(cyclesFrom(days), want);
+  // Spotting starts nothing and is not a period day.
+  assert.deepEqual(cyclesFrom([...days, day(45, true, "spot")]), want);
+  // Starts 10 days apart: a real cycle, but too short to count; 130 days apart: too long to count.
+  const short = cyclesFrom([day(40, true), day(30, true)]);
+  assert.equal(short[0].length, 10); assert.equal(short[0].counted, false);
+  const long = cyclesFrom([day(140, true), day(10, true)]);
+  assert.equal(long[0].length, 130); assert.equal(long[0].counted, false);
+  // Input order doesn't matter; junk items are skipped.
+  const r = rng(3);
+  for (let t = 0; t < 5; t++) assert.deepEqual(cyclesFrom(shuffle(days, r)), want);
+  assert.deepEqual(cyclesFrom([null, "x", { period: true }, ...days]), want);
+  assert.deepEqual(cyclesFrom(null), []);
+  assert.deepEqual(cyclesFrom([]), []);
+});
+
+test("cyclesFrom agrees with insights()", () => {
+  const day = (n, period) => ({ date: iso(n), period, flow: period ? "med" : null, sleepQ: "fair", sym: {} });
+  const backFilled = [day(32, true), day(31, true), day(0, false), day(60, true), day(59, true)];
+  for (const [days, ids] of [[seed(), Object.keys(PSYM)], [seed(), SYMS], [backFilled, ["crm"]], [[...backFilled, day(90, true)], ["crm"]]]) {
+    const ins = insights(days, ids);
+    const cycles = cyclesFrom(days);
+    assert.deepEqual(cycles.map((c) => c.start), ins.starts);
+    const counted = cycles.filter((c) => c.counted).map((c) => c.length);
+    assert.deepEqual(counted, cycleLens(cycleStarts(days)));
+    assert.deepEqual(counted.slice(-6), ins.lens);
+  }
+  assert.ok(cyclesFrom(seed()).length >= 2, "the demo seed has cycles");
+});
+
+test("phaseOf and PHASES", () => {
+  for (const [id, p] of Object.entries(PHASES)) assert.equal(phaseOf(p.stage, p.stageName), id, id);
+  assert.deepEqual(Object.keys(PHASES), ["cycle", "ttc", "preg", "peri", "meno"]);
+  assert.equal(phaseOf("periods", ""), "cycle");
+  assert.equal(phaseOf("periods", "My Cycle"), "cycle");
+  assert.equal(phaseOf("peri", "Perimenopause"), "peri");
+  assert.equal(phaseOf("peri", "Menopause"), "meno");
+  assert.equal(phaseOf("preg", "Pregnancy"), "preg");
+  assert.equal(phaseOf(null, "x"), null);
+  // Only the label finishReg and rulesRoute store counts: the registration card's own wording is not it.
+  assert.equal(phaseOf("peri", "Menopause & beyond"), "peri");
+  assert.ok(Object.isFrozen(PHASES));
+  for (const p of Object.values(PHASES)) assert.ok(Object.isFrozen(p));
+});
+
+test("daysLogged", () => {
+  assert.equal(daysLogged({ stage: "preg", days: [{}, {}], pregLog: { [iso(0)]: {}, [iso(1)]: {}, [iso(2)]: {} } }), 3);
+  assert.equal(daysLogged({ stage: "peri", days: [{}, {}], pregLog: { [iso(0)]: {} } }), 2);
+  assert.equal(daysLogged({ stage: "periods" }), 0);
+  assert.equal(daysLogged({ stage: "preg" }), 0);
+  assert.equal(daysLogged({ stage: "peri", days: "nope" }), 0);
+});
+
+/* ---------- layering and no I/O ---------- */
+
+// record.js may import only these pure leaf modules. A later slice may add one (L6 './daylog.js',
+// L7 './fertility.js'); none of them may import record.js back.
+const RECORD_IMPORTS = ["./engine.js", "./constants.js"];
+const importsOf = (code) => [...code.matchAll(/^\s*import\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]);
+
+test("layering and no I/O", () => {
+  const rec = stripComments(read("lib/record.js"));
+  assert.deepEqual(importsOf(rec).sort(), [...RECORD_IMPORTS].sort());
+  assert.ok(!/\bimport\s*\(|\brequire\s*\(/.test(rec), "no dynamic import or require");
+  for (const w of ["fetch", "XMLHttpRequest", "sendBeacon", "indexedDB", "localStorage", "sessionStorage", "import.meta"]) assert.ok(!rec.includes(w), `record.js mentions ${w}`);
+  for (const f of ["structuredClone", ".at(", "findLast", "Object.hasOwn("]) assert.ok(!rec.includes(f), `record.js uses ${f} (iOS 15.0 target)`);
+  for (const m of RECORD_IMPORTS) assert.ok(!stripComments(read(join("lib", m))).includes("record.js"), `${m} imports record.js`);
+  assert.ok(!stripComments(read("lib/engine.js")).includes("record.js"), "engine.js never imports record.js");
+  assert.ok(!importsOf(stripComments(read("lib/pots.js"))).includes("./record.js"), "pots.js never imports record.js");
+  const storage = stripComments(read("lib/storage.js"));
+  assert.match(storage, /import \{ migrate \} from "\.\/record\.js";/);
+  assert.equal(storage.split("migrate(").length - 1, 2, "storage.js calls migrate( on both load paths");
+  const app = read("App.jsx");
+  assert.ok(app.includes("migrate(await decryptBackup"), "importBackup runs the decrypted backup through migrate");
+  assert.ok(app.includes("backupCopy(snapshot())"), "exportBackup uses backupCopy");
+  assert.equal(read("screens/TodayScreen.jsx").split("upsertDay(").length - 1, 2, "TodayScreen saves through upsertDay");
+});

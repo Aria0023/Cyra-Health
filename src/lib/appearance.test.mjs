@@ -216,9 +216,12 @@ test("source scan (L2): the POTS PDF keeps the light ramp; appearance.js never t
   const ap = readFileSync(join(SRC, "lib/appearance.js"), "utf8");
   for (const w of ["localStorage", "sessionStorage", "document.cookie", "fetch("]) assert.ok(!ap.includes(w), `appearance.js mentions ${w}`);
   const app = readFileSync(join(SRC, "App.jsx"), "utf8");
-  assert.match(app, /const DEVICE_PREFS = \[[^\]]*"appearance"[^\]]*\]/);
+  // L3 moved the key lists to lib/record.js: DEVICE_PREFS holds appearance, and NOT_IN_BACKUP (which backupCopy deletes) holds DEVICE_PREFS.
+  const rec = readFileSync(join(SRC, "lib/record.js"), "utf8");
+  assert.match(rec, /export const DEVICE_PREFS = Object\.freeze\(\[[^\]]*"appearance"[^\]]*\]\)/);
+  assert.match(rec, /export const NOT_IN_BACKUP = Object\.freeze\(\[[^\]]*\.\.\.DEVICE_PREFS[^\]]*\]\)/);
   const exp = app.slice(app.indexOf("const exportBackup = async"), app.indexOf("const importBackup = async"));
-  assert.ok(/for \(const k of DEVICE_PREFS\) delete snap\[k\]/.test(exp) || exp.includes("delete snap.appearance"), "exportBackup drops DEVICE_PREFS");
+  assert.ok(exp.includes("backupCopy(snapshot())"), "exportBackup drops DEVICE_PREFS (through backupCopy)");
   const imp = app.slice(app.indexOf("const importBackup = async"), app.indexOf("const checkRestoredOura"));
   assert.match(imp, /skip: \[\.\.\.DEVICE_ONLY, \.\.\.DEVICE_PREFS, "reminders"\]/);
   assert.match(imp, /const keep = \{[^}]*\bappearance\b[^}]*\}/);

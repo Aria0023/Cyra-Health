@@ -42,6 +42,7 @@ import { flushSync } from "react-dom";
    This file owns ALL state and derived data (useState / useMemo only).
    Screens live in ./screens, one file per screen; shared pieces in
    ./components; constants and pure engine functions in ./lib.
+   The saved record's shape, version and key lists live in ./lib/record.js; entitlements in ./lib/plan.js.
    ================================================================ */
 
 import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, SYM_FAMILY, PRENATAL, vizVars, rampOf } from "./lib/constants.js";
@@ -52,6 +53,7 @@ import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource
 import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue, pruneQueue, mergeQueues, localDay, weekKey } from "./lib/pulse.js";
 import { answerLocally } from "./lib/askLibrary.js";
 import { storage } from "./lib/storage.js";
+import { PERSISTED, DEVICE_ONLY, DEVICE_PREFS, RECORD, RECORD_VERSION, migrate, backupCopy, entryFor, phaseOf } from "./lib/record.js";
 import { encryptBackup, decryptBackup } from "./lib/backup.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
 import { isNative, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
@@ -60,26 +62,6 @@ import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pot
 import { registerWorker, whenActive, hasShellCache, checkForUpdate, applyUpdate, clearShellCaches, displayStandalone, currentInstallMode, listenForInstall, promptInstall, cleanInstallHint, mergeInstallHint, showInstallHint, offersInstall } from "./lib/pwa.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
-/* What persists on the device: the health record and settings. Never UI state.
-   reminders persists { enabled, endpoint, pending, rev } — this browser's push address, any
-   address Cyra's server still has to forget, and a version so every open tab agrees on the
-   on/off switch; its status is worked out again at every launch. */
-const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance"];
-/* Per-device choices a restored backup never overrides: sharing counts and asking the AI
-   are consents given on this device; terraOff is this device's unfinished disconnects;
-   lastBackupAt is the local day this device last made a backup (a date, nothing about her
-   health), shown in Settings → Your data and left out of the backup file itself; installHint
-   is whether this browser's Home install tip should stay away (null | "dismissed" |
-   "installed", lib/pwa.js), also left out of the backup file. */
-const DEVICE_ONLY = ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint"];
-/* A display preference of this device (L2): appearance ("system" | "light" | "dark", lib/appearance.js).
-   It is saved with the record and followed by every open tab of this browser (so it stays in RECORD,
-   they are all the same device), but it is never in a backup file and never taken from one:
-   exportBackup deletes it before encryption and importBackup keeps this device's value. */
-const DEVICE_PREFS = ["appearance"];
-/* The health record and settings another open tab of this browser can hand over (everything
-   saved except the per-device consents and this browser's reminder addresses). */
-const RECORD = PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders");
 const recordSig = (o) => JSON.stringify(RECORD.map((k) => o?.[k] ?? null));
 // The tab bar scrolls sideways. Chromium doesn't scroll a partly hidden tab into view when the
 // keyboard focuses it, so a focused tab (and its ring) could sit half off the edge. Only keyboard
@@ -416,7 +398,7 @@ export default function CyraDemo() {
 
   /* ======================= HOME ======================= */
   const goTab = (t2) => (stage === "preg" ? setPregTab(t2) : setAppTab(t2));
-  const entryOn = (iso) => (stage === "preg" ? pregLog[iso] : days.find((d) => d.date === iso));
+  const entryOn = (iso) => (stage === "preg" ? pregLog[iso] : entryFor(days, iso));
   const scoreOn = (iso) => { const e = entryOn(iso); return e ? dayScore(e, stage === "preg" ? Object.keys(GSYM) : symIds) : null; };
   // Today's status lines: whether today is already in the record and whether yesterday is missing (computed on render, never stored).
   const savedToday = stage === "preg" ? !!pregLog[todayIso] : days.some((d) => d.date === todayIso);
@@ -637,7 +619,7 @@ export default function CyraDemo() {
     cancelSave();
     const write = async () => {
       const latest = await storage.load().catch(() => null);
-      const base = latest && latest.v === 1 ? latest : snapshot();
+      const base = latest && latest.v === RECORD_VERSION ? latest : snapshot();
       const rev = Math.max(p.pulseRev, (base.pulseRev || 0) + 1);
       await storage.save({ ...base, research: false, pulseQueue: null, pulseRev: rev, savedAt: new Date().toISOString() });
       return rev;
@@ -656,7 +638,7 @@ export default function CyraDemo() {
   /* A stored sharing state newer than this tab's (another tab turned sharing off, or sent
      a tally) wins over what this tab is about to save. */
   const mergePulse = (snap, stored) => {
-    if (!stored || stored.v !== 1 || !((stored.pulseRev || 0) > (snap.pulseRev || 0))) return snap;
+    if (!stored || stored.v !== RECORD_VERSION || !((stored.pulseRev || 0) > (snap.pulseRev || 0))) return snap;
     const on = !!stored.research, sent = stored.pulseSent ?? null;
     const queue = on ? mergeQueues(pruneQueue(snap.pulseQueue, sent), pruneQueue(stored.pulseQueue, sent)) : null;
     return { ...snap, research: on, pulseQueue: queue, pulseSent: sent, pulseLastSend: stored.pulseLastSend ?? null, pulseRev: stored.pulseRev };
@@ -706,7 +688,7 @@ export default function CyraDemo() {
   /* ---- Wearables: Apple Watch / Oura / Terra. DEMO seeding (build flag only) is shaped by
      stage and every seeded row is marked demo; production ingests real HealthKit/Health
      Connect readings on the phone and Oura/Terra through the integrations hub. ---- */
-  const isMeno = stage === "peri" && stageName === "Menopause";
+  const isMeno = phaseOf(stage, stageName) === "meno";
   const seedWear = (sourceId) => {
     const out = [];
     const cycleLen = pred ? pred.avgLen : 28;
@@ -975,7 +957,7 @@ export default function CyraDemo() {
   const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
-  const snapshot = () => ({ v: 1, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
+  const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
   // A saved record always opens the app — also one saved while she was choosing a stage
   // again (stage null: the intake shows, with Settings and Delete everything one tap away).
   const applySaved = (saved, { skip = [] } = {}) => {
@@ -987,7 +969,7 @@ export default function CyraDemo() {
   const hydrate = () => storage.load().then(
     async (saved) => {
       try {
-        if (saved && saved.v === 1 && saved.phase === "app") {
+        if (saved && saved.v === RECORD_VERSION && saved.phase === "app") {
           // A record with no `pots` at all was last saved by a build from before POTS (a tab left
           // open across the deploy): this build always writes it. The web keeps a second copy of
           // the POTS log that such a build never touches (lib/storage.js POTS_KEY); it is taken
@@ -1038,7 +1020,7 @@ export default function CyraDemo() {
         // A POTS tap made here while storage.load() was pending is already in state but not in
         // this snapshot: rebase it onto the merge (3-way, this snapshot as the base) instead of
         // overwriting it; the autosave that tap scheduled then saves it.
-        const pm = mergePots(latest && latest.v === 1 ? latest.pots : undefined, out.pots, potsBase.current);
+        const pm = mergePots(latest && latest.v === RECORD_VERSION ? latest.pots : undefined, out.pots, potsBase.current);
         if (!samePots(pm, out.pots)) { const mine = out.pots; out = { ...out, pots: pm }; setPots((cur) => (cur === mine ? pm : mergePots(pm, cur, mine))); }
       }
       const p = storage.save(out).then(() => {
@@ -1062,7 +1044,7 @@ export default function CyraDemo() {
   const adoptRecord = async () => {
     if (!hydrated || phase !== "app" || wipingRef.current || isNative()) return;
     const saved = await storage.load().catch(() => null);
-    if (!saved || saved.v !== 1 || saved.phase !== "app" || wipingRef.current) return;
+    if (!saved || saved.v !== RECORD_VERSION || saved.phase !== "app" || wipingRef.current) return;
     const cur = valuesRef.current, sig = recordSig(saved);
     if (sig === recordSig(cur)) return;
     lastSig.current = sig; skipSig.current = sig;
@@ -1098,7 +1080,7 @@ export default function CyraDemo() {
       if (wipingRef.current || !researchRef.current) return;
       const cur = await storage.load().catch(() => null);
       const today = localDay();
-      if (!cur || cur.v !== 1 || !cur.research || !queueDue(cur.pulseQueue) || cur.pulseLastSend === today) return;
+      if (!cur || cur.v !== RECORD_VERSION || !cur.research || !queueDue(cur.pulseQueue) || cur.pulseLastSend === today) return;
       const hold0 = await storage.getHold();
       // Resolves false (and the tally is not sent) when sharing is off or a delete has started.
       const commit = async ({ queue, sent }) => {
@@ -1196,12 +1178,7 @@ export default function CyraDemo() {
     // The backup carries the record, minus what belongs to this device only: the ZIP and the
     // age band (neither is used after registration; their screen says they "stay on this
     // device"), this browser's push addresses and this device's display preferences.
-    const snap = snapshot();
-    if (snap.regAnswers && typeof snap.regAnswers === "object") { const ra = { ...snap.regAnswers }; delete ra.zip; delete ra.age; snap.regAnswers = ra; }
-    snap.reminders = { enabled: !!snap.reminders?.enabled };
-    delete snap.lastBackupAt; // this device's own note of when it last backed up: never in the file
-    delete snap.installHint; // this browser's install-tip note: installing is per device, never in the file
-    for (const k of DEVICE_PREFS) delete snap[k]; // this device's display preferences (appearance): never in the file
+    const snap = backupCopy(snapshot());
     const env = await encryptBackup(snap, passphrase);
     const name = `cyra-backup-${todayIso}.cyra.json`;
     if (isNative()) {
@@ -1239,8 +1216,8 @@ export default function CyraDemo() {
   // doesn't is kept (the restore form says so).
   const importBackup = async (file, passphrase) => {
     let env; try { env = JSON.parse(await file.text()); } catch { throw new Error("That file isn't a Cyra backup"); }
-    const saved = await decryptBackup(env, passphrase);
-    if (!saved || saved.v !== 1 || !saved.stage) throw new Error("That backup is empty or from a different version");
+    const saved = migrate(await decryptBackup(env, passphrase));
+    if (!saved || saved.v !== RECORD_VERSION || !saved.stage) throw new Error("That backup is empty or from a different version");
     /* Oura / Terra connections in the backup may have been ended since it was made. One whose
        Terra disconnect this device is already asking for is left out; the others come back
        unconfirmed (pending + restored): they don't count as connected until a Sync gets
@@ -1263,7 +1240,7 @@ export default function CyraDemo() {
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
     const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance };
-    await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, ...keep, reminders: rem, v: 1, savedAt: new Date().toISOString(), phase: "app" });
+    await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     ping(!isNative() && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored");
     if (wear.oura?.restored && API_BASE && !DEMO_WEARABLES) checkRestoredOura(wear.oura);
@@ -1444,7 +1421,7 @@ export default function CyraDemo() {
     cancelSave();
     try {
       const latest = isNative() ? null : await storage.load().catch(() => null);
-      const base = latest && latest.v === 1 ? latest : snapshot();
+      const base = latest && latest.v === RECORD_VERSION ? latest : snapshot();
       await storage.save({ ...base, reminders: { enabled: !!rem.enabled, endpoint: rem.endpoint || null, pending: stillPending(rem.pending, base.reminders?.pending), rev: Math.max(rem.rev || 0, base.reminders?.rev || 0) }, savedAt: new Date().toISOString() });
     } catch { /* the autosave tries again */ }
   };

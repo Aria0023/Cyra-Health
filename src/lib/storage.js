@@ -5,7 +5,9 @@
    complete file protection; on Android Library is the app's internal files
    directory and app backup is switched off. One document holds the whole health
    record (the web also keeps a second copy of its POTS log next to it, POTS_KEY below).
-   Nothing here talks to a network.
+   Nothing here talks to a network. Every record load passes through migrate() (lib/record.js),
+   which brings an older record up to RECORD_VERSION without changing what it holds; for today's
+   version-1 records it returns the record exactly as stored.
 
    The phone save is atomic: the record is written to cyra-state.json.tmp and then
    renamed over cyra-state.json, so a crash mid-write never leaves half a record.
@@ -25,6 +27,7 @@
    its own IndexedDB database "cyra-hold"; phone: NoCloud/cyra-hold.json. It is deleted
    at the first start after that week ends (and by Delete everything, if stale). */
 import { isNative, Filesystem, Directory, Encoding } from "./native.js";
+import { migrate } from "./record.js";
 
 const DB = "cyra", STORE = "state", KEY = "v1", PROBE_KEY = "probe";
 /* Web only: a second copy of the POTS log (the record's `pots`), written in the same transaction
@@ -124,9 +127,9 @@ export const storage = {
       let parsed;
       try { parsed = JSON.parse(data); } catch { throw new StorageUnavailableError("parse"); }
       if (parsed != null) hasRecord = true;
-      return parsed;
+      return migrate(parsed);
     }
-    try { const db = await idb(); const v = await tx(db, "readonly", (s) => s.get(KEY)); db.close(); loadFailed = false; if (v != null) hasRecord = true; return v ?? null; }
+    try { const db = await idb(); const v = await tx(db, "readonly", (s) => s.get(KEY)); db.close(); loadFailed = false; if (v != null) hasRecord = true; return v == null ? null : migrate(v); }
     catch { loadFailed = true; return null; } // reported as "unreadable" until a save works
   },
   /** Web: the second copy of the POTS log (see POTS_KEY), or null. Never throws. */
