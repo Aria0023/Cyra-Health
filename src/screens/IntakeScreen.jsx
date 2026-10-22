@@ -16,9 +16,10 @@ export default function IntakeScreen({ org, acct, ob, setOb, obBusy, setObBusy, 
         <br />your space.</h1>
       <p className="hint">Four quick taps. Your answers shape the whole app — one experience, built for where you are. Your answers stay on this device. (If you share weekly counts, your life stage is part of what's shared.)</p>
       {obBusy ? (
-        <div className="card" style={{ display: "block" }}><p>Personalizing your space…</p></div>
+        <div className="card" style={{ display: "block" }} role="status" aria-live="polite"><p>Personalizing your space…</p></div>
       ) : (
         <>
+          <div className="stepno">Question {ob.step + 1} of {OBQ.length}</div>
           <div className="obq">{q.q}</div>
           <div className="obopts">
             {q.opts.map(([v, label]) => (
@@ -30,7 +31,8 @@ export default function IntakeScreen({ org, acct, ob, setOb, obBusy, setObBusy, 
               }}>{label}</button>
             ))}
           </div>
-          <div className="obdots">{OBQ.map((_, i) => <span key={i} className={i === ob.step ? "on" : ""} />)}</div>
+          <div className="obdots" aria-hidden="true">{OBQ.map((_, i) => <span key={i} className={i === ob.step ? "on" : ""} />)}</div>
+          {ob.step > 0 && <button className="linkbtn obback" onClick={() => setOb({ ...ob, step: ob.step - 1 })}>Back</button>}
         </>
       )}
       <p className="rfoot">You can retake this anytime — life changes, the app changes with you.</p>

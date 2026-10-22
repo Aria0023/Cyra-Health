@@ -40,8 +40,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
    ./components; constants and pure engine functions in ./lib.
    ================================================================ */
 
-import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, RAMPS } from "./lib/constants.js";
-import { seed, fmt, insights, predict, predictionWaits, symBurden, scoreLabel, dayScore, isPeriodDay } from "./lib/engine.js";
+import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, RAMPS, SYM_FAMILY, PRENATAL } from "./lib/constants.js";
+import { seed, fmt, insights, predict, predictionWaits, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick } from "./lib/engine.js";
 import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
 import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource, drainTerra, mergeRows, disconnectHelp } from "./lib/wearables.js";
 import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue, pruneQueue, mergeQueues, localDay, weekKey } from "./lib/pulse.js";
@@ -50,17 +50,20 @@ import { storage } from "./lib/storage.js";
 import { encryptBackup, decryptBackup } from "./lib/backup.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
 import { isNative, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
-import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
+import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
+import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pots/ui.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
 /* What persists on the device: the health record and settings. Never UI state.
    reminders persists { enabled, endpoint, pending, rev } — this browser's push address, any
    address Cyra's server still has to forget, and a version so every open tab agrees on the
    on/off switch; its status is worked out again at every launch. */
-const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots"];
+const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt"];
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
-   are consents given on this device; terraOff is this device's unfinished disconnects. */
-const DEVICE_ONLY = ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff"];
+   are consents given on this device; terraOff is this device's unfinished disconnects;
+   lastBackupAt is the local day this device last made a backup (a date, nothing about her
+   health), shown in Settings → Your data and left out of the backup file itself. */
+const DEVICE_ONLY = ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt"];
 /* The health record and settings another open tab of this browser can hand over (everything
    saved except the per-device consents and this browser's reminder addresses). */
 const RECORD = PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders");
@@ -76,6 +79,19 @@ const tabIntoView = (e) => {
   if (tr.left < br.left) bar.scrollLeft -= br.left - tr.left;
   else if (tr.right > br.right) bar.scrollLeft += tr.right - br.right;
 };
+/* APG tabs keyboard: only the selected tab is in the Tab order (roving tabindex); Left/Right/Home/End
+   move focus among the tabs without selecting (activation stays on click, Enter or Space). */
+const tabKeys = (e) => {
+  const keys = { ArrowRight: 1, ArrowLeft: -1, Home: 0, End: 0 };
+  if (!(e.key in keys)) return;
+  const tabs = [...(e.currentTarget.parentElement?.querySelectorAll('[role="tab"]') || [])];
+  if (!tabs.length) return;
+  const i = tabs.indexOf(e.currentTarget);
+  const next = e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : (i + keys[e.key] + tabs.length) % tabs.length;
+  e.preventDefault(); tabs[next].focus();
+};
+/* The tab strip advertises its overflow: data-start / data-end on the sticky wrap drive the two edge fades. */
+const tabEdges = (bar) => ({ start: bar.scrollLeft > 4, end: bar.scrollLeft + bar.clientWidth >= bar.scrollWidth - 4 });
 const ZERO_SCALES = { fatigue: 0, pain: 0, moodq: 0, stress: 0 };
 /* Push addresses Cyra's server still has to forget (every one is retried until confirmed). */
 const cleanPending = (v) => (Array.isArray(v) ? [...new Set(v.filter((e) => typeof e === "string" && /^https:\/\//.test(e) && e.length <= 2048))].slice(0, 100) : []);
@@ -95,6 +111,8 @@ import BodySignals from "./components/BodySignals.jsx";
 import QuickCheckin from "./components/QuickCheckin.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
 import PaletteSheet from "./components/PaletteSheet.jsx";
+import Icon from "./components/Icon.jsx";
+import { reduceMotion } from "./lib/motion.js";
 import SplashScreen from "./screens/SplashScreen.jsx";
 import RecordUnavailableScreen from "./screens/RecordUnavailableScreen.jsx";
 import RegisterScreen from "./screens/RegisterScreen.jsx";
@@ -123,6 +141,10 @@ import { SessionRunner } from "./components/pots/MoveSession.jsx";
 import PotsReport from "./components/pots/PotsReport.jsx";
 import PotsPatterns from "./components/pots/PotsPatterns.jsx";
 
+/* Stage card -> life-stage experience (spec §4.3). finishReg routes with it; RegisterScreen colours each card's
+   swatch and the chrome preview (regPal) from PALETTES[REG_STAGE[label]][0]. Exactly one experience per user. */
+export const REG_STAGE = { "My Cycle": "periods", "Trying to conceive": "periods", "Pregnant": "preg", "Perimenopause": "peri", "Menopause & beyond": "peri" };
+
 export default function CyraDemo() {
   const [orgId, setOrgId] = useState("cyra");
   const [palIdx, setPalIdx] = useState({ peri: 0, preg: 0, periods: 0 });
@@ -137,13 +159,15 @@ export default function CyraDemo() {
   const [cadence, setCadence] = useState("daily");
   const [quietHours, setQuietHours] = useState("evening");
   const [showSettings, setShowSettings] = useState(false);
+  const settingsBtnRef = useRef(null), palBtnRef = useRef(null); // the header buttons a closed sheet hands focus back to (UI S1)
   const [quickMode, setQuickMode] = useState(true);
+  const [expanded, setExpanded] = useState(false); // Today: "more detail" opened the full form for this visit (UI state only, never saved; quickMode is the preference)
   const [meds, setMeds] = useState([]);
   const [medLog, setMedLog] = useState({});
   const [newMed, setNewMed] = useState({ name: "", kind: "supp", started: localDay() });
   const [showMeds, setShowMeds] = useState(false);
   const [appts, setAppts] = useState([]);
-  const [newAppt, setNewAppt] = useState({ date: "", who: "" });
+  const [newAppt, setNewAppt] = useState({ date: "", who: "", note: "" });
   const [showAppts, setShowAppts] = useState(false);
   const [journal, setJournal] = useState({});
   const [jDraft, setJDraft] = useState("");
@@ -180,6 +204,7 @@ export default function CyraDemo() {
   const [pulseLastSend, setPulseLastSend] = useState(null); // local day this browser / app install last sent a tally: at most one a day
   const [pulseRev, setPulseRev] = useState(0); // version of the sharing state above, so a stale tab can't roll it back
   const [askAI, setAskAI] = useState(false); // "Also ask Cyra's AI when the library has no answer" — off until she turns it on
+  const [lastBackupAt, setLastBackupAt] = useState(null); // local day this device last made an encrypted backup (device-only, never in the file)
   const [stage, setStage] = useState(null);
   const [stageName, setStageName] = useState("");
   const [ob, setOb] = useState({ step: 0, preg: null, age: null, per: null, vms: null });
@@ -207,6 +232,8 @@ export default function CyraDemo() {
   const [editDate, setEditDate] = useState(null);
   const [editPeriod, setEditPeriod] = useState(false);
   const [toast, setToast] = useState("");
+  const [tabEdge, setTabEdge] = useState({ start: false, end: false }); // which edges of the tab strip are scrolled against
+  const [repaint, setRepaint] = useState(false); // true for --t-slow after a palette change: chrome colours crossfade together
   const [hydrated, setHydrated] = useState(false);
   const [recordUnavailable, setRecordUnavailable] = useState(false); // phone: the record exists but can't be read right now
   const [recordLocked, setRecordLocked] = useState(false); // iOS: unreadable because the phone is locked (file protection)
@@ -222,7 +249,7 @@ export default function CyraDemo() {
   const [pots, setPots] = useState(POTS_EMPTY);
   const [potsSec, setPotsSec] = useState("today"); // the POTS tools page's section (UI only, not saved)
   const [potsOpen, setPotsOpen] = useState(false); // POTS tools open as a page under the current tab (UI only)
-  const [potsHomeLast, setPotsHomeLast] = useState(null); // Home "POTS today": the dose its "Took it" just logged, for its Undo row (UI only)
+  const [potsHomeLast, setPotsHomeLast] = useState(null); // Home "POTS today": the dose ("Took it") or drink ("+ Add") it just logged, for its Undo row (UI only)
   const [potsDate, setPotsDate] = useState(null); // POTS → Today's logging day while fixing up an earlier one; null = today (UI only, so every launch starts on today)
   const potsBase = useRef(null); // the `pots` this tab last saved or took from storage: the base of the 3-way merge (mergePots)
   /* The standing test or session running in this tab (UI only, never saved): while it is set the
@@ -246,7 +273,10 @@ export default function CyraDemo() {
 
   const org = ORGS[orgId];
   const stagePal = stage && orgId === "cyra" ? PALETTES[stage][palIdx[stage]] : null;
-  const t = { ...org.theme, ...(stagePal || {}) };
+  // Registration: from the moment she picks a stage card, the chrome wears that stage's first palette
+  // (the same one finishReg lands on), so the choice shows before the app does. UI palette only.
+  const regPal = phase === "register" && reg.stage ? PALETTES[REG_STAGE[reg.stage]][0] : null;
+  const t = { ...org.theme, ...(stagePal || regPal || {}) };
   const symMap = stage === "periods" ? PSYM : SYM;
   const symIds = Object.keys(symMap);
   const ins = useMemo(() => insights(days, stage === "periods" ? Object.keys(PSYM) : SYMS), [days, stage]);
@@ -269,12 +299,21 @@ export default function CyraDemo() {
   const [todayIso, setTodayIso] = useState(() => localDay());
   const syncDay = () => { const now = localDay(); setTodayIso((cur) => (cur === now ? cur : now)); return now; };
   const pregWeek = 22, trimester = 2;
+  const tri = trimesterOf(pregWeek); // "first" | "second" | "third", for the Home greeting and week bar
+  const dueDate = new Date(Date.now() + (40 - pregWeek) * 7 * 86400000).toLocaleDateString("en-US", { month: "long", day: "numeric" });
   const toastTimer = useRef(null);
-  const ping = (m) => { clearTimeout(toastTimer.current); setToast(m); toastTimer.current = setTimeout(() => setToast(""), 2600); };
+  /* A toast stays long enough to be read: 2.6s for a short one, then 1s + 35ms per character (a 70-character
+     sentence shows for 3.5s, 180 characters for 7.3s), capped at 8s: the web-live suite waits 10s for a toast
+     to clear and the native suite reads the toast about 4s after a 70-character one appears. */
+  const ping = (m) => { clearTimeout(toastTimer.current); setToast(m); const ms = Math.min(8000, Math.max(2600, 1000 + m.length * 35)); toastTimer.current = setTimeout(() => setToast(""), ms); };
+  // Milestones → Appointments bridge (UI M1, spec A4/A10): a now/soon roadmap item prefills the add-appointment note
+  // and opens Home with the Appointments panel out; the person picks the date. `when` is the item's eyebrow text.
+  const onPlan = (label, when) => { setNewAppt((a) => ({ ...a, note: `${label} (${when.charAt(0).toLowerCase()}${when.slice(1)})` })); setShowAppts(true); setPregTab("home"); ping("Added to Appointments — pick the date"); };
 
   /* The doctor email: everything in it comes from one window — the last 30 calendar days —
      and the denominator is the number of days she actually logged in it. */
-  const buildEmail = () => {
+  // questions: scripts she picked on the Report ("Add to email"), listed before the sign-off.
+  const buildEmail = (questions = []) => {
     const subject = `Symptom summary ahead of my appointment${acct.name ? ` — ${acct.name}` : ""}`;
     const n = ins.last30.length;
     const lines = [
@@ -283,6 +322,7 @@ export default function CyraDemo() {
       ...ins.counts.filter((c) => c.days > 0).slice(0, 4).map((c) => `• ${c.label}: ${c.days} of ${n} logged days (${c.strong} moderate-to-strong)`),
       ...(ins.lens30.length >= 1 ? [``, `• Cycle length${ins.lens30.length > 1 ? "s" : ""} in these 30 days: ${ins.lens30.join(", ")} days${ins.variability30 != null ? ` (${ins.variability30}-day spread)` : ""}`] : []),
       ...(stage === "peri" && ins.hfMult30 ? [`• Hot flashes were ${ins.hfMult30.toFixed(1)}x more likely after poorly-rated nights`] : []),
+      ...(questions.length ? [``, `Questions I'd like to cover:`, ...questions.map((q, i) => `${i + 1}. ${q}`)] : []),
       ``,
       `Happy to share the full day-by-day log at the visit. Thank you!`,
     ];
@@ -297,35 +337,44 @@ export default function CyraDemo() {
      log — though whatever she typed goes as typed, and like any request it carries the
      device's IP address and user agent. */
   const aiAvailable = !!API_BASE;
-  const runAsk = async () => {
-    const question = askQ.trim().slice(0, 500);
+  // q: a question string (a Patterns "Ask about this →" or a starter) or the Ask button's click event
+  // (then the textarea's text); ai overrides the saved "Also ask Cyra's AI" choice for this one call.
+  const runAsk = async (q, { ai } = {}) => {
+    const question = (typeof q === "string" ? q : askQ).trim().slice(0, 500);
+    const useAI = ai ?? askAI;
     if (!question) return ping("Type a question first");
     const local = answerLocally(question);
-    if (local.matched || !askAI || !aiAvailable) {
-      setAskOut({ source: "library", ...local, offerAI: !local.matched && !askAI && aiAvailable });
+    if (local.matched || !useAI || !aiAvailable) {
+      setAskOut({ source: "library", question, ...local, offerAI: !local.matched && !useAI && aiAvailable });
       return;
     }
     setAskBusy(true); setAskOut(null);
     try {
       const out = await apiPost("/api/ai/ask", { question });
       // degraded: the server did ask Cyra's AI, but no AI answer came back (refusal, timeout, error)
-      setAskOut({ source: out.provider === "rules" ? (out.degraded ? "server-library-attempted" : "server-library") : "ai", answer: out.answer, source_note: out.source_note || null, ask_your_doctor: out.ask_your_doctor || null, urgent: !!out.urgent });
+      setAskOut({ source: out.provider === "rules" ? (out.degraded ? "server-library-attempted" : "server-library") : "ai", question, answer: out.answer, source_note: out.source_note || null, ask_your_doctor: out.ask_your_doctor || null, urgent: !!out.urgent });
     } catch (e) {
       const answer = e?.status === 429 ? "Too many questions in a minute — try again shortly." : e?.status === 400 ? "Please type a slightly longer question." : "No answer came back from Cyra's AI. Check your connection and try again, or write the question down and bring it to your next visit.";
-      setAskOut({ source: "error", answer, source_note: null, ask_your_doctor: null, urgent: false });
+      setAskOut({ source: "error", question, answer, source_note: null, ask_your_doctor: null, urgent: false });
     }
     setAskBusy(false);
   };
 
   /* ---------- day score: 0 (rough) .. 1 (great) ---------- */
   const draftIds = stage === "preg" ? Object.keys(GSYM) : symIds;
+  // Quick answers (q1-q3) count as the hero symptoms they are saved as, so the live meter agrees with the day's saved score.
+  const liveDraft = stage === "preg" ? draft : foldQuick(draft, stage);
   const liveBurden = Math.min(1,
-    symBurden(draft, draftIds) * 0.5 +
+    symBurden(liveDraft, draftIds) * 0.5 +
     (scales.fatigue / 10) * 0.2 +
     (scales.pain / 10) * 0.2 +
     ((10 - scales.moodq) / 10) * 0.1
   );
   const liveScore = 1 - liveBurden; // 1 = great day
+  /* Honest meter: nothing reads as scored until something is logged. Computed from the same form state the
+     score and the save use (symptom chips, quick answers, sleep, scales, body signals, kicks). */
+  const touched = draftIds.some((id) => (draft[id] || 0) > 0) || ["q1", "q2", "q3"].some((k) => draft[k] != null) || !!sleepQ
+    || Object.values(scales).some((v) => v > 0) || !!flow || !!disch || !!odor || !!bodyOdor || kicks > 0;
   /* Data-viz ramp: saturated and readable, independent of UI chrome colors. */
   const ramp = () => RAMPS[stage] || RAMPS.peri;
   const scoreColor = (s) => {
@@ -334,11 +383,22 @@ export default function CyraDemo() {
     const c = s > 0.5 ? lerp(mid, good, (s - 0.5) * 2) : lerp(rough, mid, s * 2);
     return `rgb(${c})`;
   };
+  /* Ink for text drawn on a score fill (calendar digits, the day card's score pill): black above a relative
+     luminance of 0.179, white below it — the crossover where both inks measure 4.5:1 against the fill. */
+  const scoreInk = (s) => {
+    const [r, g, b] = scoreColor(s).match(/\d+/g).map(Number);
+    const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) > 0.179 ? "#000000" : "#FFFFFF";
+  };
 
   /* ======================= HOME ======================= */
   const goTab = (t2) => (stage === "preg" ? setPregTab(t2) : setAppTab(t2));
   const entryOn = (iso) => (stage === "preg" ? pregLog[iso] : days.find((d) => d.date === iso));
   const scoreOn = (iso) => { const e = entryOn(iso); return e ? dayScore(e, stage === "preg" ? Object.keys(GSYM) : symIds) : null; };
+  // Today's status lines: whether today is already in the record and whether yesterday is missing (computed on render, never stored).
+  const savedToday = stage === "preg" ? !!pregLog[todayIso] : days.some((d) => d.date === todayIso);
+  const yesterdayIso = (() => { const d = new Date(todayIso + "T12:00:00"); d.setDate(d.getDate() - 1); return localDay(d); })();
+  const yesterdayLogged = !!entryOn(yesterdayIso);
 
   /* ---------- the check-in form (Today) ----------
      The form always opens on what is saved for the day it edits, so saving again updates
@@ -363,6 +423,7 @@ export default function CyraDemo() {
   useEffect(() => {
     if (!hydrated || !stage) return;
     const f = formFor(todayIso);
+    setExpanded(false); // a new day (or stage, or a restored record) opens Today in the chosen mode again
     const sameStage = formStage.current === stage; formStage.current = stage;
     const prevDay = formDay.current; formDay.current = todayIso;
     if (editDate && sameStage) { editSnap.current = f; return; } // an edit stays open; today's form comes back after it
@@ -373,6 +434,7 @@ export default function CyraDemo() {
     }
     editSnap.current = null; setEditDate(null); applyForm(f);
   }, [hydrated, todayIso, stage, formRev]); // eslint-disable-line
+  useEffect(() => { setExpanded(false); }, [quickMode]); // choosing a mode in Settings ends a per-visit expansion
   const startEdit = (iso) => {
     if (!editDate) editSnap.current = { draft, sleepQ, scales, flow, disch, odor, bodyOdor, kicks };
     applyForm(formFor(iso));
@@ -387,6 +449,25 @@ export default function CyraDemo() {
   };
   const curTab = stage === "preg" ? pregTab : appTab;
   useEffect(() => { if (editDate && curTab !== "today") endEdit(); }, [curTab]); // eslint-disable-line -- leaving Today ends an edit
+  // The selected tab is always fully inside the strip (a Home card can select Report, which starts off-screen).
+  useEffect(() => { document.querySelector(".tab-on")?.scrollIntoView?.({ inline: "nearest", block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" }); }, [appTab, pregTab]);
+  const measureTabs = (bar) => { if (!bar) return; const e = tabEdges(bar); setTabEdge((c) => (c.start === e.start && c.end === e.end ? c : e)); };
+  useEffect(() => { // once on mount (and whenever the strip appears) plus on resize; scrolling the strip reports itself
+    const bar = document.querySelector(".tabs"); measureTabs(bar);
+    const onResize = () => measureTabs(document.querySelector(".tabs"));
+    window.addEventListener("resize", onResize); return () => window.removeEventListener("resize", onResize);
+  }, [stage]);
+  const palFirst = useRef(true);
+  useEffect(() => { // a palette change crossfades the chrome (cards, CTA, tabs) over --t-slow; chart colours are inline and do not transition
+    if (palFirst.current) { palFirst.current = false; return; }
+    setRepaint(true); const t = setTimeout(() => setRepaint(false), 400); return () => clearTimeout(t);
+  }, [palIdx]);
+  const regPalFirst = useRef(true);
+  useEffect(() => { // the stage card tap recolours the registration chrome the same way (UI O1)
+    if (regPalFirst.current) { regPalFirst.current = false; return; }
+    if (phase !== "register") return;
+    setRepaint(true); const t = setTimeout(() => setRepaint(false), 400); return () => clearTimeout(t);
+  }, [reg.stage]);
 
   /* ---------- POTS add-on: the switch and its one tab ----------
      Settings → Add-ons turns it on and off; it never changes the life stage, and changing stage
@@ -407,7 +488,8 @@ export default function CyraDemo() {
     ping(erase ? "POTS log erased and POTS tools hidden" : "POTS tools hidden. Your POTS log is kept");
   };
   /* Home: the "POTS today" card while it's on (totals from dayTotals; "Today's insight" is never
-     replaced), or, once, the offer card for someone who ticked "POTS or dysautonomia" at
+     replaced; her usual drink logs in one tap through the same addIntake and intakeToast as the
+     page, and a drink button that still has to ask its sodium opens the page instead), or, once, the offer card for someone who ticked "POTS or dysautonomia" at
      registration (owner decision D2). The offer never turns POTS on by itself, and answering it
      (either button) means it never comes back; it isn't shown to someone who has ever turned
      POTS on. The registration answer is read here, on screen, and nowhere else. */
@@ -418,7 +500,7 @@ export default function CyraDemo() {
   // Home's Undo row shows only while that dose is still in the log: an erase, a restore, a
   // removal in Today's log or in another tab (or another tab having logged that dose first)
   // takes the row away, so it never offers to undo something that isn't there.
-  const potsHomeLive = potsHomeLast && potsHomeLast.day === todayIso && (((pots.days || {})[potsHomeLast.day] || {}).doses || []).some((x) => x && x.id === potsHomeLast.id) ? potsHomeLast : null;
+  const potsHomeLive = potsHomeLast && potsHomeLast.day === todayIso && ((((pots.days || {})[potsHomeLast.day] || {})[potsHomeLast.kind === "intake" ? "intake" : "doses"]) || []).some((x) => x && x.id === potsHomeLast.id) ? potsHomeLast : null;
   // POTS → Report reads the day's check-in only for the "also in check-in" lines, and only
   // while "Cycle or pregnancy details" is ticked (lib/potsReport.js). It never gets
   // registration answers or wearable readings.
@@ -737,39 +819,70 @@ export default function CyraDemo() {
     return out;
   })();
 
-  /* ---- Milestones: clinical + usage ---- */
-  const milestones = (() => {
+  /* ---- Milestones: clinical + usage. A pure function of a days array (the record it is given,
+     not the state), so a save can be compared before and after; `milestones` is today's. ---- */
+  const milestonesFor = (daysArr) => {
+    const di = daysArr === days ? ins : insights(daysArr, stage === "periods" ? Object.keys(PSYM) : SYMS);
     const ms = [];
-    const total = stage === "preg" ? Object.keys(pregLog).length : ins.sorted.length;
+    const total = stage === "preg" ? Object.keys(pregLog).length : di.sorted.length;
     ms.push({ done: total >= 7, label: "First week tracked" });
     ms.push({ done: total >= 30, label: "A full month of data" });
     if (stage === "periods") {
-      ms.push({ done: ins.lens.length >= 1, label: "First full cycle logged" });
-      ms.push({ done: ins.lens.length >= 3, label: "3 cycles — predictions sharpen" });
+      ms.push({ done: di.lens.length >= 1, label: "First full cycle logged" });
+      ms.push({ done: di.lens.length >= 3, label: "3 cycles — predictions sharpen" });
       if (wearData.length) ms.push({ done: wearInsights.some((w) => w.num === "Ovulated"), label: "Ovulation confirmed by temperature" });
     }
     if (stage === "peri") {
-      const lastP = ins.starts[ins.starts.length - 1];
+      const lastP = di.starts[di.starts.length - 1];
       const monthsSince = lastP ? Math.floor((Date.now() - new Date(lastP + "T12:00:00")) / (30.44 * 86400000)) : null;
-      ms.push({ done: ins.variability != null && ins.variability >= 7, label: "Cycle variability flagged — transition marker" });
-      ms.push({ done: monthsSince != null && monthsSince >= 12, label: `12 months period-free = menopause${monthsSince != null ? ` · ${Math.min(12, monthsSince)}/12` : ""}`, progress: monthsSince != null ? Math.min(1, monthsSince / 12) : 0 });
+      ms.push({ done: di.variability != null && di.variability >= 7, label: "Cycles varying by 7+ days — a sign of the transition" });
+      ms.push({ done: monthsSince != null && monthsSince >= 12, label: `12 months without a period — menopause${monthsSince != null ? ` · ${Math.min(12, monthsSince)} of 12` : ""}`, progress: monthsSince != null ? Math.min(1, monthsSince / 12) : 0 });
     }
     if (stage === "preg") { ms.push({ done: pregWeek >= 13, label: "Second trimester" }); ms.push({ done: pregWeek >= 22, label: "Anatomy scan window" }); ms.push({ done: pregWeek >= 28, label: "Third trimester" }); }
     ms.push({ done: Object.values(wearSources).some((w) => w && !w.pending), label: "Wearable connected" });
-    ms.push({ done: meds.length > 0, label: "Started a trial — something you're trying" });
-    ms.push({ done: appts.some((a) => a.note), label: "First visit debriefed" });
+    ms.push({ done: meds.length > 0, label: "Trying something new — a med, supplement or habit" });
+    ms.push({ done: appts.some((a) => a.note), label: "First visit written up" });
     return ms;
-  })();
+  };
+  const milestones = milestonesFor(days);
+  /* The one milestone moment: right after a save that flips a milestone, Home pops that dot and the
+     toast names it, for 2 seconds. Transient state only: never stored, never set on hydration or
+     restore, so it cannot replay. */
+  const [justReached, setJustReached] = useState(null);
+  const reachedTimer = useRef(null);
+  useEffect(() => () => clearTimeout(reachedTimer.current), []);
+  /* The day just saved: for 1.2 s after a save of today, the patterns card pops that day's dot once (UI state only,
+     set by the save handler alone, never on hydration or restore, never stored). */
+  const [justSaved, setJustSaved] = useState(null);
+  const savedTimer = useRef(null);
+  useEffect(() => () => clearTimeout(savedTimer.current), []);
+  const onSaved = (nextDays, savedIso = null) => {
+    if (savedIso) { setJustSaved(savedIso); clearTimeout(savedTimer.current); savedTimer.current = setTimeout(() => setJustSaved(null), 1200); }
+    // The welcome line (Today, under the h1) is for the first visit only: the first save clears it.
+    if (welcome) setWelcome("");
+    const before = milestonesFor(days), after = milestonesFor(nextDays);
+    const fresh = after.find((m) => m.done && !before.find((b) => b.label === m.label)?.done);
+    if (!fresh) return;
+    setJustReached({ label: fresh.label, at: Date.now() });
+    ping(`Milestone reached: ${fresh.label}`);
+    clearTimeout(reachedTimer.current);
+    reachedTimer.current = setTimeout(() => setJustReached(null), 2000);
+  };
 
   const homeInsight = (() => {
     if (stage === "preg") {
-      const next = [[24, "glucose screening"], [27, "Tdap vaccine"], [32, "RSV vaccine (seasonal)"], [36, "Group B Strep swab"]].find(([w]) => w >= pregWeek);
-      return { num: `Wk ${pregWeek}`, text: next ? `Next up on your care roadmap: ${next[1]} around week ${next[0]}.` : "You're in the home stretch — weekly visits from here." };
+      const next = PRENATAL.flatMap((g) => g.items).find((m) => m.from >= pregWeek && m.from <= 42); // from the same schedule Milestones draws (UI M1)
+      return { num: `Wk ${pregWeek}`, text: next ? `Next up on your care roadmap: ${next.label} around week ${next.from}.` : "You're in the home stretch — weekly visits from here." };
+    }
+    // Honest first run: before 3 check-ins the card counts the gap and names what unlocks it.
+    if (days.length < 3) {
+      const n = ins.sorted.length, left = 3 - n;
+      return { num: `${n} of 3`, text: n === 0 ? "Log a few days and your first insight appears here." : `${left} more check-in${left === 1 ? "" : "s"} and your first insight appears here.` };
     }
     if (stage === "peri" && ins.variability != null && ins.variability >= 7) return { num: `${ins.variability}d`, text: `Your cycles are varying by ${ins.variability} days — the clearest marker of the transition. Worth raising at your next visit.` };
-    if (stage === "peri" && ins.hfMult && ins.hfMult > 1.2) return { num: `${ins.hfMult.toFixed(1)}×`, text: `Hot flashes were ${ins.hfMult.toFixed(1)}× more likely after a rough night. Sleep is your biggest lever.` };
+    if (stage === "peri" && ins.hfMult && ins.hfMult > 1.2) return { num: `${ins.hfMult.toFixed(1)}×`, text: `Hot flashes were ${ins.hfMult.toFixed(1)}× more likely after a rough night. Sleep is your biggest lever.`, fam: "heat" };
     const top = ins.counts.find((x) => x.days > 0);
-    if (top) return { num: `${top.days}/30`, text: `${top.label} showed up most this month — ${top.days} of 30 days.` };
+    if (top) return { num: `${top.days} days`, text: `${top.label} showed up most this month — ${top.days} of 30 days.`, fam: SYM_FAMILY[top.id] || "body" };
     return { num: "—", text: "Log a few days and your first insight appears here." };
   })();
 
@@ -778,7 +891,7 @@ export default function CyraDemo() {
   const daysUntil = (iso) => Math.round((new Date(iso + "T12:00:00") - new Date(todayIso + "T12:00:00")) / 86400000);
   const nextUp = [];
   if (stage === "preg") nextUp.push({ k: "due", text: `Due in about ${40 - pregWeek} weeks`, sub: new Date(Date.now() + (40 - pregWeek) * 7 * 86400000).toLocaleDateString("en-US", { month: "long", day: "numeric" }) });
-  else if (pred) nextUp.push(pred.late > 0 ? { k: "late", text: `Period ${pred.late} day${pred.late > 1 ? "s" : ""} past your average`, sub: stage === "peri" ? "Irregularity is data too" : "Normal variation happens" } : { k: "period", text: `Period expected in ~${pred.daysTo} days`, sub: `Avg cycle ${pred.avgLen} days` });
+  else if (pred) nextUp.push(pred.late > 0 ? { k: "late", text: `Period ${pred.late} day${pred.late > 1 ? "s" : ""} past your average`, sub: `${stage === "peri" ? "Irregularity is data too" : "Normal variation happens"} · Calendar →`, action: () => goTab("cal") } : { k: "period", text: `Period expected in ~${pred.daysTo} days`, sub: `Avg cycle ${pred.avgLen} days · Calendar →`, action: () => goTab("cal") });
   if (upcoming[0]) nextUp.push({ k: "appt", text: `Appointment${upcoming[0].who ? ` with ${upcoming[0].who}` : ""} in ${daysUntil(upcoming[0].date)} day${daysUntil(upcoming[0].date) === 1 ? "" : "s"}`, sub: daysUntil(upcoming[0].date) <= 7 && stage !== "preg" ? "Prep your report →" : fmt(upcoming[0].date), action: daysUntil(upcoming[0].date) <= 7 && stage !== "preg" ? () => goTab("report") : null }); // pregnancy has no Report tab
 
   const style = { "--primary": t.primary, "--paper": t.paper, "--card": t.card, "--accent": t.accent, "--ink": t.ink, "--soft": t.soft, "--line": t.line };
@@ -806,8 +919,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: 1, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1002,6 +1115,7 @@ export default function CyraDemo() {
     const snap = snapshot();
     if (snap.regAnswers && typeof snap.regAnswers === "object") { const ra = { ...snap.regAnswers }; delete ra.zip; delete ra.age; snap.regAnswers = ra; }
     snap.reminders = { enabled: !!snap.reminders?.enabled };
+    delete snap.lastBackupAt; // this device's own note of when it last backed up: never in the file
     const env = await encryptBackup(snap, passphrase);
     const name = `cyra-backup-${todayIso}.cyra.json`;
     if (isNative()) {
@@ -1023,11 +1137,13 @@ export default function CyraDemo() {
         throw new Error("Sharing didn't finish — the backup may not have reached where you sent it. Anything that did is still encrypted.");
       }
       finally { await Filesystem.deleteFile({ path: name, directory: Directory.Cache }).catch(() => { /* already gone */ }); }
+      setLastBackupAt(todayIso);
       return true;
     }
     const blob = new Blob([JSON.stringify(env)], { type: "application/json" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    setLastBackupAt(todayIso);
     return true;
   };
   // Restoring brings back the record and settings, but never the per-device consents
@@ -1060,7 +1176,7 @@ export default function CyraDemo() {
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
-    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff) };
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt };
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, ...keep, reminders: rem, v: 1, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     ping(!isNative() && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored");
@@ -1407,14 +1523,8 @@ export default function CyraDemo() {
   }, []);
 
   const finishReg = async () => {
-    const map = {
-      "My Cycle": ["periods", "My Cycle"],
-      "Trying to conceive": ["periods", "Trying to Conceive"],
-      "Pregnant": ["preg", "Pregnancy"],
-      "Perimenopause": ["peri", "Perimenopause"],
-      "Menopause & beyond": ["peri", "Menopause"],
-    };
-    const [sid, slabel] = map[reg.stage] || ["peri", "Perimenopause"];
+    const labels = { "My Cycle": "My Cycle", "Trying to conceive": "Trying to Conceive", "Pregnant": "Pregnancy", "Perimenopause": "Perimenopause", "Menopause & beyond": "Menopause" };
+    const sid = REG_STAGE[reg.stage] || "peri", slabel = labels[reg.stage] || "Perimenopause";
     // Anonymous Mode keeps no name and no email anywhere, not even on this device.
     const anon = !!reg.anon;
     const name = anon ? "" : reg.name.trim();
@@ -1443,10 +1553,11 @@ export default function CyraDemo() {
   };
 
   /* ---------- shared check-in pieces (one instance, rendered by whichever Today is active) ---------- */
-  const scoreMeter = <ScoreMeter liveScore={liveScore} scoreLabel={scoreLabel} scoreColor={scoreColor} />;
+  const scoreMeter = <ScoreMeter liveScore={liveScore} scoreLabel={scoreLabel} scoreColor={scoreColor} touched={touched} />;
   const scaleSection = <ScaleSection scales={scales} setScales={setScales} />;
   const bodySection = <BodySignals stage={stage} showBody={showBody} setShowBody={setShowBody} flow={flow} setFlow={pickFlow} disch={disch} setDisch={setDisch} odor={odor} setOdor={setOdor} bodyOdor={bodyOdor} setBodyOdor={setBodyOdor} />;
-  const quickCheckin = <QuickCheckin stage={stage} draft={draft} setDraft={setDraft} setQuickMode={setQuickMode} />;
+  // "more detail" opens the full form for this visit only: the answers so far move onto their symptom chips; the Settings preference is untouched.
+  const quickCheckin = <QuickCheckin stage={stage} draft={draft} setDraft={setDraft} onMore={() => { setDraft((d) => foldQuick(d, stage)); setExpanded(true); }} />;
 
   if (!hydrated) {
     // Start over runs the same clean-up as Delete everything, minus the wearable disconnects:
@@ -1467,20 +1578,20 @@ export default function CyraDemo() {
 
   if (phase === "register") {
     return (
-      <Shell style={style} toast={toast}>
-        <RegisterScreen reg={reg} setReg={setReg} regStep={regStep} setRegStep={setRegStep} regTouched={regTouched} setRegTouched={setRegTouched} cadence={cadence} setCadence={setCadence} socialBusy={socialBusy} startSocial={startSocial} finishReg={finishReg} />
+      <Shell style={style} toast={toast} repaint={repaint}>
+        <RegisterScreen reg={reg} setReg={setReg} regStep={regStep} setRegStep={setRegStep} regTouched={regTouched} setRegTouched={setRegTouched} cadence={cadence} setCadence={setCadence} socialBusy={socialBusy} startSocial={startSocial} finishReg={finishReg} onBackToSplash={() => setPhase("splash")} />
       </Shell>
     );
   }
   const keepsWeekNote = pulseSent?.week === weekKey() || holdWeek === weekKey();
-  const settingsSheet = showSettings && <SettingsSheet cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storageDriver} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} keepsWeekNote={keepsWeekNote} reminders={reminders} reminderSupport={reminderSupport()} onReminders={(on) => applyReminders(on)} research={research} setResearch={setSharing} stage={stage} stageName={stageName} pots={pots} onPotsOn={potsOn} onPotsOff={potsOff} />;
+  const settingsSheet = showSettings && <SettingsSheet daysLogged={stage === "preg" ? Object.keys(pregLog).length : days.length} lastBackupAt={lastBackupAt} todayIso={todayIso} triggerRef={settingsBtnRef} cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storageDriver} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} keepsWeekNote={keepsWeekNote} reminders={reminders} reminderSupport={reminderSupport()} onReminders={(on) => applyReminders(on)} research={research} setResearch={setSharing} stage={stage} stageName={stageName} pots={pots} onPotsOn={potsOn} onPotsOff={potsOff} />;
   if (!stage) {
     // Choosing a stage again: the saved record is still here, so Settings (and Delete
     // everything) stays one tap away.
     return (
       <Shell style={style} toast={toast}>
         <header className="mast" style={{ justifyContent: "flex-end", marginBottom: 0 }}>
-          <button className="stagechip" onClick={() => setShowSettings((v) => !v)} aria-label="Settings and your data" aria-expanded={showSettings}>⚙</button>
+          <button ref={settingsBtnRef} className="stagechip icon" onClick={() => setShowSettings((v) => !v)} aria-label="Settings and your data" aria-expanded={showSettings} aria-controls="settings-sheet"><Icon name="sliders" size={18} /></button>
         </header>
         {settingsSheet}
         <IntakeScreen org={org} acct={acct} ob={ob} setOb={setOb} obBusy={obBusy} setObBusy={setObBusy} setStage={chooseStage} setStageName={setStageName} setWelcome={setWelcome} setAppTab={setAppTab} setPregTab={setPregTab} finishOnboarding={finishOnboarding} />
@@ -1488,11 +1599,11 @@ export default function CyraDemo() {
     );
   }
 
-  /* Home: the patterns card (the same card the Patterns tab opens with, fewer symptom rows), once
-     3 days are logged. */
+  /* Home: the patterns card (the same card the Patterns tab opens with, compact: fewer symptom
+     rows, no hint, day card once a day is tapped), once 3 days are logged. */
   const sixty = stage === "preg" ? null : windowDays(ins.sorted, symIds, todayIso);
   const patternsCard = sixty && sixty.filter((d) => d.e).length >= 3
-    ? <PatternsCard days={sixty} ids={symIds} labels={symMap} starts={isMeno ? [] : ins.starts} sorted={ins.sorted} todayIso={todayIso} maxRows={4} onMore={() => goTab("patterns")} />
+    ? <PatternsCard days={sixty} ids={symIds} labels={symMap} starts={isMeno ? [] : ins.starts} sorted={ins.sorted} todayIso={todayIso} maxRows={3} compact popIso={justSaved} onMore={() => goTab("patterns")} />
     : null;
   /* POTS tools open as a page under the current tab (potsOpen): the tab bar stays, with the
      current tab still selected, and a Back button at the top of the page returns to it. */
@@ -1501,7 +1612,8 @@ export default function CyraDemo() {
   const appIs = (id) => !potsPage && appTab === id;
   const homeView = (
     <HomeScreen
-      acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} pred={pred} loggedLast14={loggedLast14} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} patternsCard={patternsCard} wearInsights={wearInsights} milestones={milestones} nextUp={nextUp} pulse={pulse}
+      acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} tri={tri} dueDate={dueDate} pred={pred} loggedLast14={loggedLast14} loggedTotal={stage === "preg" ? Object.keys(pregLog).length : ins.sorted.length} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} patternsCard={patternsCard} wearInsights={wearInsights} milestones={milestones} justReached={justReached} nextUp={nextUp} pulse={pulse}
+      todayEntry={entryOn(todayIso) || null} scoreIds={stage === "preg" ? Object.keys(GSYM) : symIds} scoreLabels={stage === "preg" ? GSYM : symMap} dayScore={dayScore}
       recap={recap} showRecap={showRecap} setShowRecap={setShowRecap}
       showWear={showWear} setShowWear={setShowWear} wearSources={wearSources} terraOffCount={terraOff.length} connectWear={connectWear} disconnectWear={disconnectWear} wearConfirm={wearConfirm} setWearConfirm={setWearConfirm} wearBusy={wearBusy} wearData={wearData} wAvg={wAvg}
       showMeds={showMeds} setShowMeds={setShowMeds} meds={meds} medLog={medLog} medEffects={medEffects} setMedLog={setMedLog} newMed={newMed} setNewMed={setNewMed} setMeds={setMeds} ping={ping}
@@ -1511,11 +1623,19 @@ export default function CyraDemo() {
         ? <PotsHome pots={pots} totals={potsTotals} todayIso={todayIso} onQuickLog={() => openPots(true)} onStandTest={openStandTest} onOpen={() => openPots()}
             last={potsHomeLive}
             onUndo={() => { const l = potsHomeLive; setPotsHomeLast(null); if (!l) return; setPots((p) => removePotsItem(p, l.day, l.id)); ping(`Removed: ${l.text}`); }}
-            onTook={(med, slot) => { const day = syncDay(), t = nowHHMM(), id = newPotsId(); setPots((p) => logDose(p, day, { id, medId: med.id, slot, state: "taken", t })); setPotsHomeLast({ id, day, text: `${med.name} ${slot.replace(/^0/, "")} at ${t.replace(/^0/, "")}` }); ping(`${med.name} logged at ${t.replace(/^0/, "")}`); }} />
+            onTook={(med, slot) => { const day = syncDay(), t = nowHHMM(), id = newPotsId(); setPots((p) => logDose(p, day, { id, medId: med.id, slot, state: "taken", t })); setPotsHomeLast({ id, day, kind: "dose", text: `${med.name} ${slot.replace(/^0/, "")} at ${t.replace(/^0/, "")}` }); ping(`${med.name} logged at ${t.replace(/^0/, "")}`); }}
+            onDrink={(pr) => {
+              if (asksSodium(pr)) { openPots(); return; }
+              const day = syncDay(), t = nowHHMM(), id = newPotsId(), units = pots.settings.units;
+              const item = { id, t, kind: pr.kind, label: pr.label, ml: pr.ml, naMg: pr.naMg, presetId: pr.id };
+              setPots((p) => addIntake(p, day, item));
+              setPotsHomeLast({ id, day, kind: "intake", text: `${potsIntakeText(item, units)} at ${potsAmpm(t)}` });
+              ping(intakeToast(item, day === todayIso ? potsTotals : dayTotals(pots, day), pots.settings.goals, units));
+            }} />
         : potsOffer ? <PotsOffer onOn={() => { setPots((p) => markOffered(p, todayIso)); potsOn(); }} onNot={() => setPots((p) => markOffered(p, todayIso))} /> : null}
     />
   );
-  const askView = <AskScreen org={org} stage={stage} askQ={askQ} setAskQ={setAskQ} runAsk={runAsk} askBusy={askBusy} askOut={askOut} askAI={askAI} setAskAI={setAskAI} aiAvailable={aiAvailable} />;
+  const askView = <AskScreen org={org} stage={stage} askQ={askQ} setAskQ={setAskQ} runAsk={runAsk} askBusy={askBusy} askOut={askOut} askAI={askAI} setAskAI={setAskAI} aiAvailable={aiAvailable} potsOn={potsTab && potsOk} ping={ping} />;
   /* POTS tab: its sections, POTS settings and the first-run cards (goals, medicines). The tools
      this build has decide what "What would help?" and POTS settings offer (POTS_SHOWS). */
   const potsDay = potsDate && potsDate < todayIso ? potsDate : todayIso;
@@ -1524,7 +1644,7 @@ export default function CyraDemo() {
   const potsView = (
     <PotsScreen onBack={() => setPotsOpen(false)} pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"} storageDriver={storageDriver}
       sections={potsOk ? {
-        today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => { setPotsSec("stand"); setPotsFocus("stand"); }} storageDriver={storageDriver} syncDay={syncDay} />,
+        today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => { setPotsSec("stand"); setPotsFocus("stand"); }} onReport={() => setPotsSec("report")} storageDriver={storageDriver} syncDay={syncDay} />,
         report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={acct.anon ? "" : (acct.name || "").trim()} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} />,
         patterns: <PotsPatterns pots={pots} stage={stage} stageName={stageName} todayIso={todayIso} starts={ins.starts} checkin={potsCheckin} wearData={wearData} connected={potsWearConnected} />,
         stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focus={potsFocus === "stand"} onFocused={potsFocused} cyc={potsCyc}
@@ -1555,69 +1675,77 @@ export default function CyraDemo() {
       </Shell>
     );
   }
-  const connView = <ConnectScreen relationship={relationship} setRelationship={setRelationship} conn={conn} setConn={setConn} intimacy={intimacy} setIntimacy={setIntimacy} after={after} setAfter={setAfter} setConnLog={setConnLog} todayIso={todayIso} ping={ping} />;
+  const connView = <ConnectScreen relationship={relationship} setRelationship={setRelationship} conn={conn} setConn={setConn} intimacy={intimacy} setIntimacy={setIntimacy} after={after} setAfter={setAfter} connLog={connLog} setConnLog={setConnLog} todayIso={todayIso} stage={stage} ping={ping} />;
 
   return (
-    <Shell style={style} toast={toast}>
+    <Shell style={style} toast={toast} repaint={repaint}>
       <header className="mast">
         <span className="mark">{org.name}<span className="sub">{org.tag}</span></span>
-        {stage && <span className="acctchip">{acct.anon ? "Anonymous" : acct.name || "You"}{research && hasServer() ? " · sharing counts ✓" : ""}</span>}
-        {stage && orgId === "cyra" && <button className="stagechip" onClick={() => setShowPal((s) => !s)} aria-label="Color palette" aria-expanded={showPal}>🎨</button>}
-        {stage && <button className="stagechip" onClick={() => setShowSettings((s) => !s)} aria-label="Check-in settings" aria-expanded={showSettings}>⚙</button>}
-        {stage && <button className="stagechip" onClick={() => { setPots(resetPregClearance); setStage(null); setOb({ step: 0, preg: null, age: null, per: null, vms: null }); setWelcome(""); }}>{stageName} · change</button>}
+        {stage && <span className="acctchip" title={`${acct.anon ? "Anonymous" : acct.name || "You"}${research && hasServer() ? " · sharing counts ✓" : ""}`}>{acct.anon ? "Anonymous" : acct.name || "You"}{research && hasServer() ? " · sharing counts ✓" : ""}</span>}
+        {/* One sheet at a time: opening either closes the other (UI S1). */}
+        {stage && orgId === "cyra" && <button ref={palBtnRef} className="stagechip icon" onClick={() => { setShowSettings(false); setShowPal((s) => !s); }} aria-label="Color palette" aria-expanded={showPal} aria-controls="palette-sheet"><Icon name="palette" size={18} /></button>}
+        {stage && <button ref={settingsBtnRef} className="stagechip icon" onClick={() => { setShowPal(false); setShowSettings((s) => !s); }} aria-label="Check-in settings" aria-expanded={showSettings} aria-controls="settings-sheet"><Icon name="sliders" size={18} /></button>}
+        {stage && <button className="stagechip quiet" onClick={() => { setPots(resetPregClearance); setStage(null); setOb({ step: 0, preg: null, age: null, per: null, vms: null }); setWelcome(""); }}>{stageName} · change</button>}
       </header>
 
       {/* ============ APP ============ */}
       {settingsSheet}
-      {showPal && stage && orgId === "cyra" && <PaletteSheet stage={stage} stageName={stageName} palIdx={palIdx} setPalIdx={setPalIdx} setShowPal={setShowPal} />}
+      {showPal && stage && orgId === "cyra" && <PaletteSheet stage={stage} stageName={stageName} palIdx={palIdx} setPalIdx={setPalIdx} setShowPal={setShowPal} triggerRef={palBtnRef} />}
       <div>
 
         {/* ---------- PREGNANCY: its own component ---------- */}
         {stage === "preg" ? (
           <>
-            <nav aria-label="Sections">
-              <div className="tabs" role="tablist">
+            <nav aria-label="Sections" className="tabswrap" data-start={tabEdge.start ? "1" : "0"} data-end={tabEdge.end ? "1" : "0"}>
+              <div className="tabs" role="tablist" onScroll={(e) => measureTabs(e.currentTarget)}>
                 {[["home", "Home"], ["today", "Today"], ["cal", "Calendar"], ["mile", "Milestones"], ["connect", "Connect"], ["ask", "Ask"]].map(([id, l]) => (
-                  <button key={id} role="tab" aria-selected={pregTab === id} className={`tab ${pregTab === id ? "tab-on" : ""}`} onClick={() => { setPotsOpen(false); setPregTab(id); }} onFocus={tabIntoView}>{l}</button>
+                  <button key={id} role="tab" id={`tab-${id}`} aria-controls={`panel-${id}`} aria-selected={pregTab === id} tabIndex={pregTab === id ? 0 : -1} className={`tab ${pregTab === id ? "tab-on" : ""}`} onClick={() => { setPotsOpen(false); setPregTab(id); }} onFocus={tabIntoView} onKeyDown={tabKeys}>{l}</button>
                 ))}
               </div>
             </nav>
+            {/* The screen is the tabpanel each tab's aria-controls points at; keyed so a tab change remounts it (and its
+                fade-in runs once). It carries no aria-labelledby: each screen's <main> is the landmark, and axe's region rule
+                counts a labelled non-landmark wrapper as content outside one. */}
+            <div className="tabpanel" role="tabpanel" id={`panel-${pregTab}`} key={pregTab}>
             {potsPage && potsView}
 
             {pregIs("today") && (
-              <PregTodayScreen onPots={potsTab ? () => openPots() : null} pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
+              <PregTodayScreen onPots={potsTab ? () => openPots() : null} pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} anyLogged={Object.keys(pregLog).length > 0} onEditDay={startEdit} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
             )}
             {pregIs("cal") && (
-              <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={dayScore} scoreColor={scoreColor} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} onEdit={startEdit} ping={ping} />
+              <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={dayScore} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} onEdit={startEdit} ping={ping} />
             )}
-            {pregIs("mile") && <MilestonesScreen pregWeek={pregWeek} />}
+            {pregIs("mile") && <MilestonesScreen pregWeek={pregWeek} onPlan={onPlan} />}
             {pregIs("ask") && askView}
             {pregIs("connect") && connView}
             {pregIs("home") && homeView}
+            </div>
           </>
         ) : (
           <>
-            <nav aria-label="Sections">
-              <div className="tabs" role="tablist">
+            <nav aria-label="Sections" className="tabswrap" data-start={tabEdge.start ? "1" : "0"} data-end={tabEdge.end ? "1" : "0"}>
+              <div className="tabs" role="tablist" onScroll={(e) => measureTabs(e.currentTarget)}>
                 {[["home", "Home"], ["today", "Today"], ["cal", "Calendar"], ["patterns", "Patterns"], ["connect", "Connect"], ["report", "Report"], ["shelf", "Care"], ["ask", "Ask"]].map(([id, l]) => (
-                  <button key={id} role="tab" aria-selected={appTab === id} className={`tab ${appTab === id ? "tab-on" : ""}`} onClick={() => { setPotsOpen(false); setAppTab(id); }} onFocus={tabIntoView}>{l}</button>
+                  <button key={id} role="tab" id={`tab-${id}`} aria-controls={`panel-${id}`} aria-selected={appTab === id} tabIndex={appTab === id ? 0 : -1} className={`tab ${appTab === id ? "tab-on" : ""}`} onClick={() => { setPotsOpen(false); setAppTab(id); }} onFocus={tabIntoView} onKeyDown={tabKeys}>{l}</button>
                 ))}
               </div>
             </nav>
+            <div className="tabpanel" role="tabpanel" id={`panel-${appTab}`} key={appTab}>
             {potsPage && potsView}
 
             {appIs("today") && (
-              <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} quickCheckin={quickCheckin} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} setDays={setDays} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
+              <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} expanded={expanded} setExpanded={setExpanded} quickCheckin={quickCheckin} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} onEditDay={startEdit} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} days={days} setDays={setDays} onSaved={onSaved} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
             )}
             {appIs("cal") && (
-              <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />
+              <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />
             )}
-            {appIs("patterns") && <PatternsScreen ins={ins} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} />}
-            {appIs("report") && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} />}
-            {appIs("shelf") && <CareScreen shelfItems={shelfItems} />}
+            {appIs("patterns") && <PatternsScreen ins={ins} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} />}
+            {appIs("report") && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} />}
+            {appIs("shelf") && <CareScreen shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Cyra will compare your days before and after"); }} />}
             {appIs("ask") && askView}
             {appIs("connect") && connView}
             {appIs("home") && homeView}
+            </div>
           </>
         )}
       </div>

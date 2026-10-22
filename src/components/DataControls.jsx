@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { passphraseLength } from "../lib/backup.js";
 import { isNative } from "../lib/native.js";
+import { relDay } from "../lib/engine.js";
 import Details from "./Details.jsx";
+import Icon from "./Icon.jsx";
 
 /* Your data: where it lives, encrypted backup out/in, delete everything.
    Encryption, decryption and deletion run on this device. The passphrase lives only
@@ -28,8 +30,8 @@ export function RestoreForm({ onImport, onDone, compact = false }) {
   return (
     <div className="plaincard" style={{ marginTop: compact ? 10 : 0 }}>
       <p className="lab" style={{ margin: "0 0 6px" }}>Restore from an encrypted backup</p>
-      <input className="inp" type="file" accept=".json,.cyra,application/json" aria-label="Backup file" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-      <input className="inp" type="password" placeholder="Backup passphrase" aria-label="Backup passphrase" {...noSave} value={pass} onChange={(e) => setPass(e.target.value)} />
+      <label className="flab"><span>Backup file</span><input className="inp" type="file" accept=".json,.cyra,application/json" aria-label="Backup file" onChange={(e) => setFile(e.target.files?.[0] || null)} /></label>
+      <label className="flab"><span>Passphrase</span><input className="inp" type="password" placeholder="Backup passphrase" aria-label="Backup passphrase" {...noSave} value={pass} onChange={(e) => setPass(e.target.value)} /></label>
       {err && <p className="errhint" style={{ marginTop: 0 }}>{err}</p>}
       <button className="cta" disabled={busy} onClick={go}>{busy ? "Unlocking…" : "Restore"}</button>
       <p className="rfoot">Unlocked on this device with your passphrase. It replaces your record here. Oura and Fitbit/Garmin/Whoop connections in the backup come back unconfirmed until Cyra checks them through its server; ones only on this device stay connected.</p>
@@ -66,7 +68,7 @@ const STAYS = {
 };
 const andList = (a) => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`);
 
-export default function DataControls({ driver, onExport, onImport, onWipe, ping, keepsWeekNote = false }) {
+export default function DataControls({ driver, onExport, onImport, onWipe, ping, keepsWeekNote = false, daysLogged = 0, lastBackupAt = null, todayIso }) {
   const [mode, setMode] = useState(null); // null | "export" | "import" | "wipe"
   const [pass, setPass] = useState("");
   const [pass2, setPass2] = useState("");
@@ -103,23 +105,24 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
   };
   return (
     <>
-      <p className="section-lab" style={{ margin: "14px 0 8px" }}>Your data</p>
+      <p className="section-lab" id="set-data" style={{ margin: "0 0 6px" }}><Icon name="lock" className="labico" />Your data</p>
+      <p className="datastat"><b>{daysLogged === 1 ? "1 day logged" : `${daysLogged} days logged`}</b><span aria-hidden="true">·</span><span>last backup {lastBackupAt && todayIso ? relDay(lastBackupAt, todayIso) : (daysLogged >= 7 ? "never — worth doing once" : "never")}</span></p>
       <p className="hint" style={{ margin: "0 0 8px" }}>{where ? `Your check-ins, notes and history are stored ${where}.` : "Checking where your check-ins, notes and history are stored…"} Cyra's servers don't keep a copy.</p>
       <Details label="What can leave this device">
         <p>Features you turn on (reminders in a browser, weekly counts, Cyra's AI, Oura, Fitbit/Garmin/Whoop) each say, before you turn them on, what they send and where.</p>
         <p>Restoring a backup brings back its wearable connections on this device.</p>
         <p>Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase and never include readings Cyra gets from a connected watch, ring or health app.</p>
       </Details>
-      <div className="mcrow">
-        <button className={`mc ${mode === "export" ? "on" : ""}`} onClick={() => switchTo("export")}>Encrypted backup</button>
-        <button className={`mc ${mode === "import" ? "on" : ""}`} onClick={() => switchTo("import")}>Restore</button>
-        <button className={`mc ${mode === "wipe" ? "on" : ""}`} onClick={() => switchTo("wipe")}>Delete everything</button>
+      <div className="mcrow" role="group" aria-labelledby="set-data">
+        <button className={`mc ${mode === "export" ? "on" : ""}`} aria-expanded={mode === "export"} aria-controls="data-export-panel" onClick={() => switchTo("export")}>Encrypted backup</button>
+        <button className={`mc ${mode === "import" ? "on" : ""}`} aria-expanded={mode === "import"} aria-controls="data-import-panel" onClick={() => switchTo("import")}>Restore</button>
+        <button className={`mc danger ${mode === "wipe" ? "on" : ""}`} aria-expanded={mode === "wipe"} aria-controls="data-wipe-panel" onClick={() => switchTo("wipe")}>Delete everything</button>
       </div>
       {mode === "export" && (
-        <div className="plaincard" style={{ marginTop: 10 }}>
+        <div className="plaincard" id="data-export-panel" style={{ marginTop: 10 }}>
           <p className="lab" style={{ margin: "0 0 6px" }}>Lock the backup with a passphrase</p>
-          <input className="inp" type="password" placeholder="Passphrase (8+ characters)" aria-label="Backup passphrase" {...noSave} value={pass} onChange={(e) => setPass(e.target.value)} />
-          <input className="inp" type="password" placeholder="Repeat passphrase" aria-label="Repeat backup passphrase" {...noSave} value={pass2} onChange={(e) => setPass2(e.target.value)} />
+          <label className="flab"><span>Passphrase</span><input className="inp" type="password" placeholder="Passphrase (8+ characters)" aria-label="Backup passphrase" {...noSave} value={pass} onChange={(e) => setPass(e.target.value)} /></label>
+          <label className="flab"><span>Repeat it</span><input className="inp" type="password" placeholder="Repeat passphrase" aria-label="Repeat backup passphrase" {...noSave} value={pass2} onChange={(e) => setPass2(e.target.value)} /></label>
           {err && <p className="errhint" style={{ marginTop: 0 }}>{err}</p>}
           <button className="cta" disabled={busy} onClick={doExport}>{busy ? "Encrypting…" : phone ? "Save encrypted backup…" : "Download encrypted backup"}</button>
           <p className="rfoot">Encrypted on this device with your passphrase before it becomes a file. Cyra's servers never receive the file or the passphrase. Without it the backup can't be opened, and a lost passphrase can't be recovered.</p>
@@ -132,9 +135,9 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
           </Details>
         </div>
       )}
-      {mode === "import" && <RestoreForm onImport={onImport} onDone={() => setMode(null)} compact />}
+      {mode === "import" && <div id="data-import-panel"><RestoreForm onImport={onImport} onDone={() => setMode(null)} compact /></div>}
       {mode === "wipe" && !blocked && (
-        <div className="plaincard" style={{ marginTop: 10 }}>
+        <div className="plaincard" id="data-wipe-panel" style={{ marginTop: 10 }}>
           <p className="plain"><b>Delete everything on this device?</b> Every check-in, POTS log, note, appointment and setting goes for good. This also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop. Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.</p>
           <Details label="More about deleting">
             <ul>
@@ -146,16 +149,16 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
             </ul>
           </Details>
           {err && <p className="errhint" role="alert" style={{ marginTop: 0 }}>{err}</p>}
-          <button className="cta" style={{ background: "#A04545" }} disabled={wiping} onClick={() => runWipe({})}>{wiping ? "Deleting…" : "Yes, delete it all"}</button>
+          <button className="cta stopbtn" disabled={wiping} onClick={() => runWipe({})}>{wiping ? "Deleting…" : "Yes, delete it all"}</button>
           <button className="ghostbtn" disabled={wiping} onClick={() => setMode(null)}>Keep my data</button>
         </div>
       )}
       {mode === "wipe" && blocked && (
-        <div className="plaincard" style={{ marginTop: 10 }} role="alert">
+        <div className="plaincard" id="data-wipe-panel" style={{ marginTop: 10 }} role="alert">
           <p className="plain"><b>Your check-ins, notes and settings haven't been deleted.</b>{blocked.ended.length ? ` Already done: ${andList(blocked.ended.map((k) => ENDED[k]).filter(Boolean))}.` : ""} {["network", "refused", "nokey"].map((kind) => { const steps = blocked.failed.filter((f) => f.kind === kind).map((f) => f.name); return steps.length ? failLine(kind, steps) : ""; }).filter(Boolean).join(" ")} Or delete on this device anyway.</p>
           <p className="rfoot" style={{ marginTop: 0 }}>If you delete anyway, {andList(blocked.failed.map((f) => STAYS[f.name]).filter(Boolean))}.</p>
           {blocked.failed.some((f) => f.kind !== "nokey") && <button className="cta" disabled={wiping} onClick={() => runWipe({})}>{wiping ? "Trying…" : "Try again"}</button>}
-          <button className="cta" style={{ background: "#A04545" }} disabled={wiping} onClick={() => runWipe({ force: true })}>{wiping ? "Deleting…" : "Delete on this device anyway"}</button>
+          <button className="cta stopbtn" disabled={wiping} onClick={() => runWipe({ force: true })}>{wiping ? "Deleting…" : "Delete on this device anyway"}</button>
           <button className="ghostbtn" disabled={wiping} onClick={() => { setBlocked(null); setMode(null); }}>Keep my data</button>
         </div>
       )}

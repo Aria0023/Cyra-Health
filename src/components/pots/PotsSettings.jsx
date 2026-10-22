@@ -340,7 +340,7 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
       {ask && (
         <div className="plaincard urgent" style={{ marginBottom: 10 }}>
           <p className="plain" tabIndex={-1} ref={askRef}>{POTS_ERASE}</p>
-          <button type="button" className="cta" style={{ background: "#A04545" }} onClick={() => { setPots((p) => eraseLog(p)); setAsk(false); ping("POTS log erased"); onBack(); }}>Delete POTS log</button>
+          <button type="button" className="cta stopbtn" onClick={() => { setPots((p) => eraseLog(p)); setAsk(false); ping("POTS log erased"); onBack(); }}>Delete POTS log</button>
           <button type="button" className="ghostbtn" onClick={() => { setAsk(false); setFocusTo(["pots-set-delbtn", "pots-set-del"]); }}>Keep it</button>
         </div>
       )}

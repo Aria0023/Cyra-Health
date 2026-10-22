@@ -265,7 +265,7 @@ export function SessionRunner({ run, setRun, pots, setPots, stage, todayIso, pin
           <div className="plaincard" style={{ marginTop: 14 }}>
             <p className="plain" tabIndex={-1} ref={confirmRef}>Discard this session? It's removed from your POTS log.</p>
             {(ses.faint === "yes" || ses.faint === "almost") && <CheckRow on={discard.keepFaint} onToggle={() => setDiscard((d) => ({ keepFaint: !d.keepFaint }))}>Keep the faint in my log</CheckRow>}
-            <button type="button" className="cta" style={{ background: "#A04545", marginTop: 10 }} onClick={() => { const k = discard.keepFaint; setPots((p) => deleteSession(p, day, run.id, { keepFaint: k })); end("Session discarded"); }}>Discard session</button>
+            <button type="button" className="cta stopbtn" style={{ marginTop: 10 }} onClick={() => { const k = discard.keepFaint; setPots((p) => deleteSession(p, day, run.id, { keepFaint: k })); end("Session discarded"); }}>Discard session</button>
             <button type="button" className="ghostbtn" onClick={() => setDiscard(null)}>Keep it</button>
           </div>
         )}

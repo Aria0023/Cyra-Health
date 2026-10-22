@@ -46,7 +46,7 @@ export default function PotsAddon({ pots, stageName, onOn, onOff, storageDriver 
   return (
     <>
       <div className="medrow" style={{ borderTop: "none", padding: "4px 0 8px" }}>
-        <div className="medinfo"><b id="pots-addon-title">POTS tools</b><span>{on ? "On. Open it from the POTS today card on Home." : `For a racing heart, dizziness or feeling faint when you're upright, with or without a diagnosis. Adds POTS tools to Home: a guided standing test, drinks and salt, symptoms, medicines, an exercise plan and a report for your clinician. Works alongside ${stageName || "your life stage"}. It doesn't change your life stage.`}</span></div>
+        <div className="medinfo"><b id="pots-addon-title">POTS tools</b><span>{on ? "On. Open it from the POTS today card on Home." : "For a racing heart, dizziness or feeling faint when you're upright, with or without a diagnosis: a standing test, drinks and salt, symptoms, medicines, an exercise plan and a clinician report, on Home."}</span></div>
         <button ref={switchRef} className={`takebtn ${on ? "on" : ""}`} aria-pressed={on} aria-describedby="pots-addon-title"
           aria-expanded={on ? open : undefined} aria-controls={open ? CARD_ID : undefined}
           onClick={() => { if (on) setAsk(ask ? null : "off"); else { setAsk(null); onOn(); } }}>{on ? "✓ On" : "Turn on"}</button>
@@ -62,12 +62,13 @@ export default function PotsAddon({ pots, stageName, onOn, onOff, storageDriver 
       {on && ask === "erase" && (
         <div id={CARD_ID} className="plaincard" style={{ marginBottom: 10 }}>
           <p className="plain" tabIndex={-1} ref={eraseRef}>{POTS_ERASE}</p>
-          <button className="cta" style={{ background: "#A04545" }} onClick={() => { go(null, "switch"); onOff({ erase: true }); }}>Delete POTS log</button>
+          <button className="cta stopbtn" onClick={() => { go(null, "switch"); onOff({ erase: true }); }}>Delete POTS log</button>
           <button className="ghostbtn" onClick={() => go("off", "off")}>Keep it</button>
         </div>
       )}
       <Details label="Exactly what's kept">
         <ul>
+          <li>Works alongside {stageName || "your life stage"}. It doesn't change your life stage.</li>
           <li>{KEPT[potsUnsaved(storageDriver) || "saved"]}</li>
           <li>None of it is part of weekly counts, and none of it is sent to Cyra's server or Cyra's AI.</li>
           <li>A report or spreadsheet you make is an ordinary file, not locked with a passphrase. It goes only where you save or send it.</li>

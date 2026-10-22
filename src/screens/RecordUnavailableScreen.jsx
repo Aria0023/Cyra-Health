@@ -37,7 +37,7 @@ export default function RecordUnavailableScreen({ platform, locked, onRetry, onS
             </ul>
           </Details>
           {err && <p className="errhint" role="alert" style={{ marginTop: 0 }}>{err}</p>}
-          <button className="cta" style={{ background: "#A04545" }} disabled={busy || deleting} onClick={startOver}>{deleting ? "Deleting…" : "Delete it and start over"}</button>
+          <button className="cta stopbtn" disabled={busy || deleting} onClick={startOver}>{deleting ? "Deleting…" : "Delete it and start over"}</button>
           <button className="ghostbtn" onClick={() => setConfirm(false)}>Keep my record</button>
         </div>
       )}

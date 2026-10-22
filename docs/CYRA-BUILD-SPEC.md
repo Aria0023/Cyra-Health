@@ -101,6 +101,13 @@ phase: "splash" -> "register" -> "app"
 ### 4.1 Splash
 Wordmark, tagline "One companion for every phase", value proposition, "Get started" button.
 
+**UI O1.** Above the wordmark an aria-hidden ring motif (`.splashmotif`: three overlapping circles in --primary 14%,
+--accent 18% and --primary 8%, so it takes the stage palette after a restore). The value proposition is three icon rows
+(`ul.splashwhy`: clock "Track in 30 seconds a day.", chart "See your real patterns.", clipboard "Walk into appointments
+with evidence."). The two privacy sentences stay word for word in their own paragraph (`p.splashpriv`, lock icon) directly
+above "Get started" (docs/PRIVACY-AUDIT.md "UI O1"). The build stamp text is unchanged; `.rfoot b` is demoted to 11px /
+weight 500. "Restore from an encrypted backup" is unchanged.
+
 ### 4.2 Registration — 8 steps, with validation
 | # | Step | Fields | Required |
 |---|------|--------|----------|
@@ -117,6 +124,31 @@ Wordmark, tagline "One companion for every phase", value proposition, "Get start
 fields missing — never on arrival. Show label in red with "· needed" suffix, red-tint
 the inputs, and a summary line below. Optional fields never turn red.
 
+**UI O1 (onboarding).**
+- Step 1 order: the short path first — name and email inputs (email placeholder "Email (optional)", its aria-label the
+  full sentence "Email (optional, kept only on this device and in backups you save)", and the clause repeated as a visible
+  helper line under the field), then "Continue in Anonymous Mode instead" (`.ghostbtn.quiet`, aria-pressed), then the
+  providers in one 3-up row with Apple leftmost and inline SVG marks (`Icon apple|google|facebook`, no `.socialdot`), the
+  provider footnote, and both detail panels ("What Cyra's server sees", "Exactly what's shared") together at the end.
+  "Continue" sits inside the first 844px at 390 wide. Back on step 1 returns to the splash.
+- Palette preview: `REG_STAGE` (exported from App.jsx: card label → periods | preg | peri) is the one routing map; finishReg
+  uses it. Each `.stagecard` carries a `.swatch-dot` in `PALETTES[REG_STAGE[label]][0].primary`; the selected card hides its
+  dot and shows a check in --primary. From the tap on, `regPal` (phase "register" only) merges that palette into the Shell
+  theme, so steps 3–8 wear the stage's first palette (crossfaded by the G4 `.cy.repaint` list), the same one finishReg lands
+  on. UI palette only; nothing is persisted until finishReg.
+- Chip rows: every `.lab` has an id and its `.mcrow` is `role="group" aria-labelledby` it; multi-select chips expose
+  aria-pressed; "None" and "None / unsure" are exclusive (choosing one clears the rest, choosing anything else clears it).
+- Consent step: cadence cards in a two-column grid (`.regcards.cadgrid`, the fifth spanning both columns); each data fact
+  carries a decorative icon (`.rlist.icons`, text byte-identical). The CTA logic is unchanged ("Complete required fields"
+  until the box is ticked, then "Enter Cyra").
+- Progress and steps: `.prog` is `role="progressbar"` ("Set-up progress", 1–8, valuenow = step); the step line reads
+  "Step n of 8 · Device | About you | Stage | Cycle | History | Health | Goals | Consent". The step body (`.regstep`, keyed by
+  step) slides in with `cy-slide-in` forward / `cy-slide-back` on Back (--t-base, --ease-in; none under reduced motion), the
+  page scrolls to the top (smooth unless `reduceMotion()`) and focus moves to the `h1.disp` (tabIndex -1, no outline,
+  preventScroll). A failed Continue scrolls the first marked field into view and the summary line is `role="alert"`.
+- Intake (stage change): "Question n of 4" above the question, aria-hidden dots, `role="status" aria-live="polite"` on the
+  "Personalizing your space…" card, and a Back link from the second question on.
+
 ### 4.3 Stage routing (answer → experience)
 ```
 "My Cycle"            -> periods
@@ -132,6 +164,18 @@ A header chip shows the current stage with a "change" affordance that re-runs in
 
 ## 5. SCREENS BY STAGE
 
+**Section bar (both stage families).** `nav[aria-label="Sections"]` is the sticky wrap (`.tabswrap`: top 0 under the
+safe-area inset, paper at 86% with a saturate/blur backdrop so content scrolls under it legibly) around the one scrolling
+strip `.tabs[role=tablist]`. Tab names, order, `role=tab`, `aria-selected` and the `tab` / `tab-on` classes are fixed
+(harness surface). Overflow is advertised: the strip reports which edges it is against (`data-start` / `data-end` on the
+wrap) and a 36px paper fade sits over the hidden side; scroll-snap is `proximity`, so a drag is never trapped. Keyboard
+follows the APG tabs pattern: only the selected tab is in the Tab order (`tabindex` 0 / -1), ArrowLeft / ArrowRight /
+Home / End move focus among the tabs, activation stays on click, Enter or Space; each tab has `id="tab-<id>"` and
+`aria-controls="panel-<id>"`. The screen renders inside `.tabpanel[role=tabpanel]#panel-<id>` (keyed by tab, so it
+remounts on a change and fades in once over --t-base with `cy-fade-rise`; no label of its own because each screen's
+`<main>` is the landmark). On a tab change the selected tab is scrolled fully into the strip (smooth unless
+`reduceMotion()`); `html { scroll-padding-top:60px }` keeps anchored scrolls below the bar.
+
 ### 5.1 Cycle & Peri stages — tabs: Today · Calendar · Patterns · Report · Care · Ask
 
 **Today:** cycle-status card (day N, phase, days to next period or days late) ·
@@ -139,11 +183,94 @@ live day-score meter (see 6.3) · symptom chips (tap cycles 0→1→2→3→0, s
 0–10 sliders for the four scales · sleep quality (3 buttons) · collapsible **Body Signals**
 panel (flow, discharge, vaginal odor, body odor) · save button · phase-appropriate daily read.
 
+**Today states (UI T1).** The hint under the h1 names the mode: "Three quick questions — about ten seconds." in
+quick mode, "Tap what showed up (up to 3× for strong). Takes 30 seconds, promise." in full and edit mode; Pregnancy
+Today reads "Tap a symptom once for mild, up to 3× for strong." The welcome sentence written at registration shows
+once, as `p.hint.welcome-line` directly under the h1 while `days.length === 0` (no card); the first save clears it
+(App `onSaved`). *Empty meter:* until something on the form is set (`touched` in App.jsx: any symptom chip > 0, any
+quick answer, sleep, any scale > 0, flow / discharge / odor / body odor, kicks > 0 — the same state the score and the
+save read) the meter is `.meter.meter-empty`: "Nothing logged yet" · "—", an empty track, border and dot `--line`,
+`role=progressbar` with `aria-valuenow=0` and `aria-label="Day score: nothing logged yet"`, left foot "Tap below — your
+score updates live". The first tap switches it to the scored label and ramp colour in the same frame. The live score
+folds quick answers onto their hero symptoms (`foldQuick`) so the meter agrees with the score the day is saved with.
+*Sleep:* the three pills sit under a "Last night" section label; on Perimenopause / Menopause in quick mode (not an
+edit) the row is not rendered at all, because the quick card's second question is "How did you sleep?" with the same
+three words plus "Barely slept" — see A8. The save handler is unchanged: `sleepQ || "fair"` from the pill when it was
+shown. *Family colour:* each chip carries `--fc` (FAMILIES colour of `SYM_FAMILY[id]`, `famColor()` in constants.js);
+only the severity dots of a chip with a value take it (`.chip:not(.sev-0) .dots`), popping 120 ms (`cy-pop`, keyed
+remount on each change; none under reduced motion). Chip borders and backgrounds stay on the UI palette. *Pregnancy:*
+the kick counter is a `.plaincard.kickcard` under a "Kick counter" label with a tinted, outlined `.cta.cta-kick` and an
+`aria-live="polite"` count; "Save today" is the one primary-filled CTA. Range inputs are restyled: 44 px tall,
+`appearance:none`, a 6 px track and a 24 px primary thumb (accent-color kept as the fallback).
+
+**Today feedback and reach (UI T2).** *Saved line:* when today is already in the record (`savedToday` in App.jsx:
+`days.some(d => d.date === todayIso)`, pregnancy `!!pregLog[todayIso]`) and no other day is being edited, a
+`p.savedline` sits directly under the meter — a check icon and "Logged today — any change here updates it." The CTA
+texts ("Save today's check-in", "Save today", "Save changes to <date>") and the toast sentences are unchanged.
+*Yesterday shortcut:* under the h1, when yesterday has no entry, something has been logged and no edit is open
+(`!yesterdayLogged && !editDate && days.length > 0`; pregnancy keys on the log having any entry), a
+`button.linkbtn.yday` "Yesterday not logged · add it" opens the existing "Fixing up <date>" flow for yesterday
+(`startEdit(yesterdayIso)`); it is absent once yesterday is logged. *Per-visit "more detail":* the quick card's link
+no longer flips the Settings preference. App.jsx keeps `expanded` (UI state, never saved): "more detail" folds the
+answers so far onto their chips (`foldQuick`) and sets it; TodayScreen then shows the chips, scales and a
+`button.linkbtn.backquick` "Back to quick check-in" in place of the quick card, with the "Last night" pills (the quick
+card that asked about sleep is gone, so "Rough night" is one button). Settings still shows "Quick · 3 taps" selected.
+`expanded` is cleared by "Back to quick check-in", by choosing a mode in Settings, and whenever the form reloads for
+a new day, a stage change or a restored record; it is kept across a save and tab changes within the session (so a
+return to Today after saving shows the form she saved from). Everything that depends on which form is on screen —
+the hint, the chips, the peri sleep pills, the Details sentence and what `contribute()` sends — keys on one value,
+`quickCard = quickMode && !editDate && !expanded`. *Body signals in quick mode:* `bodySection` is always rendered
+(collapsed), so flow, discharge and odor can be logged without leaving the quick path. *Sticky save:* the save `.cta`
+sits in `div.stopbar.savebar` (position:sticky; bottom:0; z-index 3; translucent paper with blur, hairline top,
+`calc(10px + var(--sa-b))` bottom padding) on both Today screens, so mid-form the primary action stays at the bottom
+of the viewport and the toast is lifted above it (`.cy:has(.stopbar) .toast`); the edit banner is `.card.editbar`
+(sticky under the section bar at top:60px, accent-tinted, "Back to today" kept); `.scalerow` margin is 8 px.
+*Meter motion:* `.meterfill` is a `scaleX(var(--v))` transform (ScoreMeter sets `--v` = live score; the transition
+property is transform and background, never width) and the big number counts from its previous value to the new one
+over 250 ms in one requestAnimationFrame tween, skipped under reduced motion; `aria-valuenow` and the label hold the
+final value at once. *The record moves:* a save of today sets `justSaved` (App.jsx, cleared after 1.2 s, set only by
+the save handler, never on hydration or restore); the patterns card (`popIso`) wraps that day's dot in
+`g.dot-new`, which pops once (`cy-pop` 600 ms; none under reduced motion) and not on a later open. *Today's read:*
+`.readcard.compact` sits directly under the phase card, hint clamped to two lines, matching Pregnancy Today.
+
 **Calendar:** month grid. Logged days filled with their day-score color. Period days
 marked. Predicted period (dashed) and estimated fertile window (accent) for unlogged
 future days. Tap any day → detail panel showing what was logged → "Edit this day" loads
 that date into the check-in form and saves back to it. Confidence card: ±days derived
 from cycle variability, explicitly stating it is not contraception.
+
+**Calendar rules (UI C1; `src/screens/CalendarScreen.jsx`, `PregCalendarScreen.jsx`).**
+*Month navigation:* the `h1.disp` sits between two 44px `.sbtn` buttons (`aria-label` "Previous month" /
+"Next month") in `.calnav` and shows the viewed month (`aria-live="polite"`); away from the current month a
+"Back to this month" `.linkbtn` appears under it. The offset is screen state (`mo`), so re-entering the tab
+(the `.tabpanel` remounts) always opens on the current month. Any month can be viewed; the grid is
+`role="group"` named by the month and the headers are two letters (Su Mo Tu We Th Fr Sa), `aria-hidden`.
+*Fill = score, border = cycle state:* a logged day's fill is `scoreColor(score)` and its digit `scoreInk(score)`
+(§8.3); the border says what kind of day it is — `.c-period` 2px solid --primary (plus the `.c-per-mark` dot),
+`.c-pred` 2px dashed --primary, `.c-fert` 2px solid --accent — and these apply whether or not the day is
+scored (the old `sc == null &&` guard hid fertile and predicted states on any logged day). The legend swatches
+are the same rules on an 11px square (`.d-pred` dashed, `.d-fert` accent border, `.d-permark` dot), so the
+legend is a literal copy of the cells. Future unlogged days are `.c-future`: --soft digits at 500 on a faded
+card, unless they carry a prediction or fertile border (then ink at 700 and the state's border colour). Today
+is `.c-today` (inset ink ring); before anything is logged it also takes `.c-empty` (10% primary tint) and the
+hint reads "Tap today to log your first day. Periods, predictions and the fertile window appear here as you go."
+*Selected cell:* `.c-sel` draws a card-gap + 5px --primary ring (absorbed by the 5px grid gap; `.c-today.c-sel`
+keeps the inset ring inside it) and the cell is `aria-pressed="true"`; exactly one cell is pressed at a time.
+*Accessible name:* every cell is named "{Weekday}, {Month} {day}" followed by ", today", ", period",
+", predicted period", ", estimated fertile window" and ", {scoreLabel}" as they apply (pregnancy: ", week N
+starts", ", logged"); today also carries `aria-current="date"`.
+*Day card:* `.card.daycard[role=region][aria-label="Selected day"]` renders directly after `.calgrid`
+(before the legends) with a 180ms `cy-fade-rise`; `.dayhead` holds "{Wkd}, {Mon} {d}" and the `.scorepill`
+(score fill + `scoreInk`); symptoms are a `.pday-s` list whose severity dots take the symptom's family colour
+through `--fc` (`famColor()`); the footer is "Edit this day" for a logged day, "Log this day" for an unlogged
+day up to today (both open the Today edit flow via `onEdit(iso)` — "Fixing up {date}"), or the sentence
+"That day hasn't happened yet." for a future day, and always "Close".
+*Confidence card:* the number keeps `.num` with "confidence" as `.rmeta` under it; the sentence names one
+basis only — told: "Based on the {n}-day cycle you gave at sign-up{ (one logged so far: {len}d)}. After two
+logged cycles this becomes your own number."; logged: "Based on your last {k} cycles ({a · b}d)." ("your last
+cycle" when k = 1); no prior and nothing logged: "Based on a typical 28-day cycle until two of yours are
+logged." — each followed by "Estimates — not contraception." verbatim. "Tap any day to see or edit what you
+logged." is a one-line `.hint.calhint` under the legends.
 
 **Patterns:** one patterns card with two views behind a "Day by day / By cycle" switch (the
 switch appears only with two logged period starts, never in menopause or pregnancy). *Day by day:*
@@ -157,8 +284,43 @@ how hard the day was, period days ringed, the cycle days that are usually hardes
 named in the callout. Both views share one selection: tapping or arrowing through days opens a
 day card naming what was logged, so colour is never the only cue · insight cards, each paired
 with an **advice card** carrying an urgency chip (Self-care / Next visit / This week). The same
-card, with up to four symptom rows and a "More in Patterns →" link, sits on Home under Today's
-insight once 3 days are logged.
+card, with a "More in Patterns →" link, sits on Home under Today's insight once 3 days are
+logged, compact: up to three symptom rows, no hint line, and the day card once a day is tapped.
+
+**Patterns tab rules (P1; everything here is gated on the full card, `!compact`, so Home's compact card is as A1
+describes it).** *Takeaway first:* the callout is the card's headline, `.pcallout.pcallout-top`, between the view
+switch and the plot (hairline under it): a 10px aria-hidden triangle (up = better, down = harder), the number in
+--primary at --fs-num and the word "better" / "harder" after it (no triangle or word within ±2 points, where the sentence
+says the average is about where it was); the cycle view's "Days a–b" headline sits in the same place. The family
+legend (`.flegend.flegend-top`, capitalised extras "7-day average", "Period", "Bigger = harder day", "Period day")
+sits above the plot, under the one-line hint. *A day already open:* the card mounts with the last logged day selected;
+the `.pday` header carries 44px "Previous day" / "Next day" `.linkbtn.pstep` buttons (aria-disabled at the ends) wired to
+the same index the arrow keys use, the card's inner content is keyed on the date (120ms `cy-fade-rise`), and the
+selection ring and rule slide between days (`.pselg`, a --t-fast transform transition). *Quiet live region:* `.pday` has
+no `aria-live`; a visually hidden `p.sr-only[aria-live=polite][aria-atomic=true]` next to it is set only on pointer
+release, an arrow-key step or the ‹ › buttons, with `describeDay()` (date, cycle day, period, score, sleep, symptoms
+"n of 3"); the visible card still follows pointer moves. Both SVGs carry `aria-roledescription="interactive chart"`.
+*Edge:* every score dot takes a 0.8px ink hairline (`color-mix(in srgb, var(--ink) 35%, transparent)`) instead of the
+card-colour halo, so a dot has an edge on the card and on the period band; circles stay circles. *Text alternative:*
+a collapsed `Details` "The numbers behind this chart" (`.disclosure.more` with the G3 chevron, inside the card) lists
+as a plain `ul.pnums` the days logged, the weekly-average change with both week means, the best and hardest stretch
+dates and every symptom's day count in the window (all of them, not only the drawn rows), from `dayStats()` /
+`symptomRows()`; Home never renders it. *Drawn once:* on mount the 7-day line (`pathLength="1"`, `.pline-draw`:
+`cy-draw` 600ms --ease-in) draws in and the dots (`g.pdots-in`: `cy-fade-rise` 300ms, 450ms delay) fade in after it;
+rings draw in 60ms apart. The classes are applied only on the first render of a mount while the document is visible
+(`visibilityState === "visible"`) and are dropped after 1.2s, so a tap mid-animation never cuts it, picking a day or
+switching views never replays it, and the next open of the tab (G4's keyed tabpanel remounts the card) plays it again.
+Under `prefers-reduced-motion` the line's dash offset is 0 and the dots opacity 1 from the first paint. *Before the
+chart:* under 3 logged days the tab shows the A1 `.plaincard.pchart-soon` placeholder ("Your 60-day chart appears after
+3 check-ins · {k} of 3") with "Log today's check-in →" (opens Today); the My Cycle counts card waits for a symptom on 3
+days (never "0 of your last 30 days"); with one logged period start (not in menopause) the switch shows the live
+"Day by day" next to a dimmed, dashed `span.mc.mc-soon[aria-disabled]` "By cycle · after your 2nd period". *Every
+insight leads somewhere:* each insight card ends in an action row `p.pline.aline` ("Add to visit notes →" opens
+Report; "Ask about this →", only when `INSIGHT_STARTERS` has a question for the card's symptom id, opens Ask with the
+question in the textarea and its library answer shown) under an `Advice mid` with squared bottom corners. When the
+weekly average fell by 10 or more points (`dayStats().diff <= -10`) a trend-drop card leads the list (§6.1). With the
+POTS add-on on, the pointer reads "Your POTS patterns live in POTS tools." with a "Go to POTS tools →" link that opens
+the POTS page (Home's handler).
 
 **Report — "What to tell your doctor"** (this is the flagship screen):
 0. *Cover* — days logged in the window as a number ("27/30 days logged", date range, stage)
@@ -183,22 +345,96 @@ insight once 3 days are logged.
    row carries the family dot and a small bar of days (the table is the text twin of the
    meters above).
 
+*UI R1 — ready for the appointment it is for.* Everything above stays; these are added on top:
+- **Appointment context.** Under the h1 a `.rappt` line names the next upcoming appointment
+  ("Dr Lee · in 6 days · Change", "today" / "tomorrow" when that close; "Your appointment" when
+  no name was given) or offers "Add your appointment date". Both go to Home with the
+  Appointments panel open (`goTab('home'); setShowAppts(true)`). Nothing is stored here.
+- **Cover.** The text ends "logged by you · prepared {today}". Each logged cell of the 30-day
+  strip is tinted by that day's score on the stage RAMP (data-viz colour, same as the calendar
+  fill) with a 1px inset edge so the lightest step still reads against the card; today, when
+  unlogged, is an outlined cell and the cover adds "Today isn't logged yet. Log today" (→ Today).
+- **Thin-data states.** Under 3 logged days: cover, "You haven't logged much yet. A week or two
+  of check-ins is enough to start seeing something real.", a "Log today" CTA, then "Send it
+  ahead" with the preview and routes — "Open in email" and "Copy email" render in every state.
+  3–6 days: "A week or two of check-ins makes this a lot stronger." under the cover. When no
+  meaning crosses a threshold, section 2 says "Nothing in your log crosses the thresholds
+  doctors usually ask about — that's useful to say too." above the disclaimer.
+- **Findings, numbers first.** Each sentence opens with bold "21 of 29 days"; the meter is
+  10px with ticks at 60% and 80% (the "most days" / "nearly every day" thresholds), the filled
+  part a 34% family tint and the moderate-or-strong part the full colour; one `.flegend` line
+  under the first meter replaces the paragraph legend; the meters grow once per mount (450ms
+  scaleX, instant under reduced motion). The month-over-month change is a 10px triangle plus
+  words: "5 more days than the month before (16 → 21)" in `.worse`, "fewer" in `.better`,
+  "same as the month before" in `.flat` — never colour alone.
+- **Meanings** carry a family dot and word (HEAT, SLEEP, PAIN; CYCLES for the variability one)
+  above the heading and a rail softened to a 55% mix of the family colour with the card.
+  Section numerals are Fraunces in --primary (`.rnum`); scripts are set in Fraunces 15px with
+  no left rule.
+- **Questions that ride along.** Each script has "Add to email" (aria-pressed; "Added ✓" when
+  picked; at most three, further buttons disabled). `buildEmail(questions)` lists them under
+  "Questions I'd like to cover:" before the sign-off. When the encoded mailto body passes 1,900
+  characters the page says "Long for an email link — use Copy email or Share…" (the link is
+  still offered). "Copy" on a script reads "Copied" for 1.5s and still toasts; the helper is
+  `copyText(text, okMsg, ping)` in `src/lib/clipboard.js`.
+- **Routes.** "Open in email" is the filled primary route; "Copy email" outlined; "Print or save
+  PDF" calls `window.print()` (sub-label "pinch the preview to save" on iOS, "from your browser"
+  elsewhere); "Share…" (`navigator.share({ title, text })`) renders only when
+  `navigator.canShare({ text })` is true. Routes wrap (two per row). The preview is labelled
+  "Preview", sized to the whole email (`field-sizing:content`, no inner scroll) and keeps
+  `aria-label="Email preview"`.
+- **Print.** `@media print` hides the header, section bar, routes, Copy / Add / Change links and
+  the toast, switches the cards to block flow with `break-inside:avoid`, and the page opens
+  "The numbers behind this" on `beforeprint` (and on the print media query) so the table prints.
+  Print and share hand the same text to the OS that email and the clipboard do; Cyra itself
+  still sends nothing (docs/PRIVACY-AUDIT.md, "UI R1").
+
 **Care:** partner list filtered by stage, ordered by match to her logged symptoms.
 Each card: brand, "Partner" pill, offer, "Matched: <symptom> (n/30)", **evidence label**
 (Strong evidence / Mixed evidence / Comfort, not a treatment / Clinical care), price,
 CTA. Commission disclosure appears **above** the list, not buried.
 
+*UI CC1 (Care).* Under the disclosure an `aria-hidden` legend of the four evidence chips
+(Strong evidence · Mixed evidence · Comfort · Clinical care) reads the labels once.
+"Clinical care" is a kind of option, not a grade of evidence, so it takes `.ev-clinical`
+(a 16% primary tint) rather than the "strong" green; Midi Health reads "Menopause-trained
+clinician" / "Insurance accepted by many plans". The "Matched:" line carries a 4px
+`.smeter` filled to days/30 in the matched symptom's FAMILIES colour (`famColor`;
+`--primary` for rough nights, which has no family) — the page's only data-viz colour,
+never used on the card border. The first matched card wears `.ppill.fit` "Fits your
+log". Each footer has two actions: **"Add to what I'm trying"** (`.sbtn.sadd`, the one
+live action: adds `{ name: "<brand> <offer>", kind: midi → habit, else supp, started:
+today }` to `meds` and toasts "Added — Cyra will compare your days before and after";
+§A3) and the disabled, dashed, `--soft` "Partner link coming soon" (unchanged; no partner
+link is live). Empty states: no items for the stage → "Nothing to show for your stage
+yet. Check back after the next update."; items but no match → "Log a few days and the
+options that fit your symptoms move to the top." The disclosure sentences are unchanged.
+
 **Ask:** free-text question → plain-language evidence answer (~8th-grade reading level)
 + named evidence base (e.g. ACOG, The Menopause Society, Cochrane) + one question to
 bring to her doctor + urgent-flag routing if the question describes red-flag symptoms.
+Starter pills, the source badge, the landing and the one-tap AI route are in §10 (UI A1).
 
 ### 5.2 Pregnancy stage — tabs: Today · Calendar · Milestones · Ask
 **Today:** week number + trimester + progress bar to 40 weeks · weekly read · pregnancy
 symptoms · **kick counter** · red-flag advice (e.g. severe swelling → contact provider today).
 **Calendar:** week-start markers (w22, w23…), logged-day dots, due-date countdown. No
 fertile-window or period prediction — meaningless here.
+*UI C1:* the same month navigation, cell naming, selected ring, future styling and day card as §5.1 (the
+day-card button is "Edit this day" / "Log this day"; the existing toast "Editing {date} — save to update
+that day" is unchanged). Week-start cells are `.c-wk` (2px --accent border, 10% accent tint, `W{n}` tag in
+`.c-wklab` at 9px in `--accent-text`, or the cell's own ink on a score fill); logged days are score-filled
+with the `.c-log` dot; the legend uses `.d-wk` and `.d-logdot` and is followed by the rough → great gradient
+legend. Under the legends a `.card` with Fraunces "w{week}" reads "{40 − week} weeks to your due date,
+{due}. Trimester {1|2|3}. Tap any day to see or add what you logged." The hint is "Week markers and your
+logged days."
 **Milestones:** the full evidence-based prenatal schedule (§7), each item status-tagged
 against her current week: done ✓ / in window / coming up / later.
+*UI M1:* the tab keeps its name, place and role. The screen opens on "you are here": a "Jump to this week" link
+beside the h1, a 6px `.pregbar.road` (`role="img"`, "Week {n} of 40") under it, the shortened hint, then the derived
+"Next visit" Advice (§7 "Derived advice"), then Visit rhythm and the four trimester groups. The first in-window (else
+next-to-open) card is `.shelfc.now` (primary edge) and is centred on open only when it starts below 80% of the
+viewport; focus is not moved (it stays on the tab). Now/soon cards offer "Add to appointments" (§A4).
 
 ---
 
@@ -214,6 +450,13 @@ sleepCorrelation = P(symptom>=2 | previous day sleepQ="poor")
 triggerMultiplier = same ratio for tagged vs untagged days; require >=5 each side;
    surface only if multiplier >= 1.3
 ```
+**Trend-drop insight (Patterns, P1).** From `dayStats(windowDays(…, 60))`: `first` = mean day score of the logged
+days in the first 7 of the 60 (3 or more needed), `last` = the same for the final 7, `diff = round((last − first) × 100)`.
+When `diff <= -10` Patterns opens its insight list with a `.icard`: `.num` = diff, "Your days have been getting harder
+over the last eight weeks — the hardest stretch was {hardest 4-day span}." (the clause only when the stretches are
+shown, i.e. best − hardest means differ by 0.08 or more), `Advice urgency="visit"`: "Worth a conversation soon; the
+Report tab turns this into a one-page summary you can hand over.", and the action row "Add to visit notes →" (Report).
+It is computed from the on-device record and never stored.
 
 ### 6.2 Cycle detection
 ```
@@ -279,6 +522,28 @@ Every visit: blood pressure, urine, fundal height, fetal heart rate.
 
 Always display: this is the standard low-risk schedule; the provider's plan governs.
 
+**Source of truth (UI M1).** The table lives once, as `PRENATAL` in `src/lib/constants.js` (`{ tri, items:[{ w, from, to,
+label, note, when? }] }`), read by MilestonesScreen, `engine.roadmapAdvice()` and the pregnancy Home insight ("Next up on
+your care roadmap: {label} around week {from}", the first item with `from >= week` and `from <= 42`).
+
+**Derived advice rule.** `roadmapAdvice(week)` (pure, `src/lib/engine.js`, tested in `milestones.test.mjs`): with
+`open` = items whose window holds the week and `next` = the first item whose `from` is later (and ≤ 42, so the
+postpartum items never "open at week 43"): open → "You're at week {w}: {open[0].label} is in its window now[, and
+{next.label} opens at week {next.from}] — ask about it at your next visit."; no open but a next → "You're at week {w}:
+nothing is due this week; {next.label} opens at week {next.from}."; week > 42 → "You're past 42 weeks — the postpartum
+visits are what's left." No week number is hard-coded; the sentence differs at 22, 30 and 41.
+
+**Status pill semantics.** `.ppill.now` "in window" is primary-filled with white text (the only filled pill);
+`.ppill.soon` "coming up" (window opens within 4 weeks) is primary-outlined on a 10% primary tint; `.ppill.done`
+"done ✓" (week past `to`) is a borderless 12% primary tint with the check glyph; `.ppill.later` is the plain pill at
+85% opacity. --bad (#A04545) is not used on this screen outside the Advice chip. Done items fold to one-line
+`.shelfc.done` rows (eyebrow · label · pill, note hidden); every other item keeps its full card.
+
+**Eyebrow strings (SH-15).** `prenatalWhen(item)`: "Weeks {w}" ("Weeks 24–28", "Weeks 10+", "Weeks 28"), except
+"Any week" for the folate/vaccines item and "Within 3 weeks of birth" / "By 12 weeks after birth" for the two
+postpartum items — never "Weeks any". Trimester headers are `.rsec.tri` with a right-aligned "{n} of {m} done" and a
+2px rule, primary (`.now`) on the current trimester (`trimesterOf(week)`, "After birth" past 42).
+
 ---
 
 ## 8. VISUAL DESIGN
@@ -300,9 +565,130 @@ periods: good rgb(46,154,198)  mid rgb(250,186,82)  rough rgb(226,88,74)
 **Rule:** calm palettes make poor data colors. Chrome uses the palette; charts,
 calendar fills, and score meters use the ramp. Interpolate good↔mid↔rough by score.
 
+**Family colours and the Heat / Mind pair (residual).** The symptom-family marks (FAMILIES: Heat #E34948, Sleep
+#2A78D6, Mind #008300, Pain #EDA100, Body #1BAF7A) keep a red/green pair on the chart dots, which deuteranopes and
+protanopes cannot tell apart by hue alone. The marks are deliberately left as the owner approved them (circles, these
+colours); the distinction is carried by text channels that are always present with the chart: the legend keeps the
+family word next to every swatch (above the plot on Patterns), the symptom rows under the plot are named per row, the
+day card lists each symptom by name with "n of 3", and the "The numbers behind this chart" disclosure gives every
+count as words. Every dot also carries a 0.8px ink hairline on Patterns for edge contrast against the card and the
+period band. No colour anywhere in the app is the only carrier of a meaning.
+
 ### 8.3 Contrast requirements
 Cards pure white on tinted paper; borders 1.5px in a visibly darker tone; subtle
 shadow lift; near-black ink. Pale-on-pale fails — this was a real defect once.
+
+**Score ink (UI C1).** Text drawn on a score fill (calendar digits, the day card's `.scorepill`) uses
+`scoreInk(s)` in App.jsx, next to `scoreColor`: `#000000` when the fill's relative luminance is above 0.179,
+`#FFFFFF` below it. 0.179 is where black and white both measure 4.5:1 against the fill, so the digit never
+drops under 4.58:1 anywhere on the three ramps (the old `sc > 0.3` pick with white measured 2.34:1 at worst).
+No `> 0.3` ink pick remains in `src/`. Small accent-coloured text on a tinted cell (`.c-wklab`) uses
+`--accent-text` = color-mix(accent 82%, ink), >= 5.1:1 on the 10% accent tint in the three pregnancy palettes.
+
+### 8.4 Tokens and motion (src/styles.js, the `.cy` rule)
+One scale for every screen; new rules reference the tokens instead of restating pixels.
+
+```
+type      --fs-xs 11px (section labels)  --fs-sm 12.5px (secondary)  --fs-md 13.5px (body)
+          --fs-lg 15.5px  --fs-num 23px (Fraunces card numbers)  --fs-title 26px (greeting, screen titles)
+          body line-height 1.5; display numbers/headings 1.15; labels, pills and legends 1.2–1.35
+          floor: nothing below 10.5px except .c-wklab (9px, a two-letter week mark inside a calendar cell)
+grid      --gap 8px (between cards and between pills)   --stack 12px (between sections)
+radii     --r-card 13px (cards, CTA)   --r-inner 11px (controls inside a card)   --r-pill 999px
+motion    --t-fast 100ms  --t-base 200ms  --t-slow 300ms
+          --ease-std cubic-bezier(.2,0,0,1)  --ease-in cubic-bezier(.05,.7,.1,1)  --ease-out cubic-bezier(.3,0,.8,.15)
+colour    --primary-text  color-mix(primary 82%, ink): the tint for small primary-coloured text on paper
+          --accent-text   color-mix(accent 82%, ink): the same for small accent-coloured text (calendar week tags)
+          (links, stage chip, "Matched:" lines, med effect, selected stage name). Measured >= 5.2:1 on paper in
+          all nine palettes; Fraunces numbers, filled buttons and the streak/pulse figures keep --primary.
+          --good #43604F  --bad #A04545  --bad-bg #FBEEEA: the only status hues in chrome (.up/.down/.better/
+          .worse, urgent cards, error hints, the stop button). Data-viz colours stay in FAMILIES / RAMPS.
+safe area --sa-t / --sa-b: Capacitor's --safe-area-inset-top/bottom when the shell provides them, else
+          env(safe-area-inset-*), else 0. Every sticky bar and toast offsets by these, never by env() directly.
+```
+
+**Reduced motion is reduce, not remove.** Under `prefers-reduced-motion: reduce` keyframe animations do not
+run at all and transitions are limited to background-color, border-color, color and opacity at --t-fast, so a
+tap still shows its colour change. JS-driven motion (smooth scrollIntoView, the score tween, SVG draw-ins) asks
+`reduceMotion()` from `src/lib/motion.js` first and does the instant version when it is true.
+
+**Performance budget.** Anything that animates continuously animates transform or opacity only. `will-change`
+only on `.toast.show` and `.tabpanel`. Nothing is scroll-linked. No requestAnimationFrame loops other than the
+250ms score tween. Each entrance runs once per mount behind a ref, <= 600ms. The shared keyframes are
+`cy-fade-rise`, `cy-pop`, `cy-draw`, `cy-spin`, `cy-pulse` and `cy-grow`; new motion reuses them.
+
+**Palette crossfade.** For 400ms after a palette change App.jsx sets `.cy.repaint`, under which the chrome (`.card`,
+`.plaincard`, `.cta`, `.tab-on`, `.mc.on`, `.stagecard.on`, `.pulse`, `.meter`, `.disclosure`, `.pchart`, `.streak`,
+`.readcard`) transitions background-color, border-color and color over --t-slow, so cards, CTA and tabs recolour
+together. It is scoped to that window so the 100ms press feedback above is untouched the rest of the time, and
+FAMILIES / RAMPS inline colours (chart dots, severity marks) are deliberately not in the list: data never animates.
+
+**Control states (one recipe for every custom control).**
+
+```
+rest      card fill, 1.5px --line border, ink text (pills .mc/.pill/.chip/.minichip/.takebtn/.sbtn; cards .stagecard/
+          .obopt/.consentopt/.palopt/.disclosure/.route; .cta primary-filled). Buttons set touch-action:manipulation
+          and no tap highlight, so the press state below is the only feedback.
+pressed   :active, 100ms --ease-std on transform: pills scale(.96) and take the selected tint (primary 12% on card,
+          primary border); cards and the CTA scale(.985), the CTA also brightness(.94). Under reduced motion the
+          scale is instant and only the colour transition remains.
+hover     only inside @media (hover:hover): border-color moves to color-mix(primary 55%, line). Touch never hovers.
+focus     the shared 3px --primary outline (offset 2px). .c-today draws its own ring as an inset box-shadow so
+          the focus ring stacks outside it instead of replacing it.
+selected  .on / .pill-on / .minichip.on: primary border, primary 12% fill, primary text, weight 700 (never a
+          hard-coded hue). Severity: .chip.sev-1 accent 60% border + 7% fill, .sev-2 accent border + 16% fill,
+          .sev-3 primary border + 14% fill + 700, so the three steps are distinguishable at a glance.
+disabled  .cta:disabled opacity .6; .sbtn:disabled / [aria-disabled="true"] dashed --line border, --soft text,
+          weight 600, cursor default. A state that is not a button (e.g. "coming soon") is a .statechip: dashed
+          pill, 11px/700, --soft. Scale values at 0 render --soft (.scalehead b.zero), so nothing reads as logged.
+targets   44px minimum on .mc .pill .takebtn .sbtn .linkbtn .route .inp .slider .minichip .scopy .palopt .calcell
+          (not only inside .pots). .inp[type=date] keeps its native appearance so iOS shows the picker affordance.
+```
+
+**Segmented control vs pill.** Two to five mutually exclusive answers or views (a chart view, a check-in style,
+a sleep answer) are a joined control: the `.mcrow` gets `seg`, the buttons keep `.mc` / `.on` and `aria-pressed`,
+and the row renders as one pill-shaped border with the selected segment primary-filled in white text. Segment
+labels wrap to two lines at 12px/700; they never truncate (`.seg.scroll` is the variant for more than five short
+labels, which scrolls instead). Standalone `.mc` pills remain for multi-select and for independent choices.
+
+**Switch look.** On/off toggles (`.takebtn[aria-pressed]`: reminders, anonymous counts, POTS tools, stand-test
+BP) draw a 16x9 track and a 9px knob before their text; `.on` moves the knob right on a translucent track. The
+texts ("Turn on" / "✓ On") and `aria-pressed` are unchanged. Action buttons that share the class ("Took it") stay
+plain pills.
+
+**Danger.** Destructive confirms are `.cta.stopbtn` (--bad fill), never an inline colour. The one destructive
+pill ("Delete everything") carries `.mc.danger`: --bad text with a 40% --bad border, and when open (`.on`) the
+--bad-bg tint with a --bad border. The primary tint never appears on a destructive control.
+
+**Icons (src/components/Icon.jsx).** `Icon({ name, size = 16, className })` renders one inline `<svg aria-hidden="true">`
+on a 24-unit grid, `stroke="currentColor"`, 2px round strokes, from a path map: chevron, check, close, lock, bell, clock,
+chart, clipboard, drop, salt, heart, book, sparkle, print, share, people, plus-circle, lightning, foot, palette, sliders,
+apple, google, facebook. No emoji anywhere in src (they render differently per OS and the palette emoji was the most
+saturated object on every screen): the header buttons are `sliders` (settings) and `palette`, the kick button `foot`,
+the palette tick and the Milestones "done" tag `check`. An icon is decorative: the text node beside it, or the button's
+aria-label, carries the meaning, and asserted texts ("✓ On", "✓ Taken", "✓ Sync", the `.ckbox` glyphs) stay as text.
+`.labico` (14px, --accent) is the glyph before a label; `.stagechip.icon` is the header icon chip (36px wide, 44px tall,
+so the pregnancy header still fits on one row).
+
+**Disclosures.** Every `.disclosure` button ends in `<Icon name="chevron" className="chev" />`, never a '+' or '−' (plus
+reads as Add on iOS); `[aria-expanded="true"] > .chev` rotates it 180° at --t-fast. Every disclosure exposes the ARIA
+disclosure pattern: `aria-expanded` plus `aria-controls` naming the panel (`Details` ids, `#bodypanel`, `#report-table`,
+`#home-*`, `#data-export-panel` / `#data-import-panel` / `#data-wipe-panel`); the data pills are `.mc` buttons that also
+carry it. Body-signal `.minichip`s carry `aria-pressed`.
+
+**One level of containment.** A bordered button never sits inside a bordered card. A `Details` inside `.mscard`,
+`.pulse` or `.pchart` renders as a row: no border, a 1px --line hairline above, no fill, --primary-text label, the chevron
+at the right, 8px vertical padding; its panel is unbordered. The bordered `Details` on Settings, Connect, the consent step
+and the wearable confirm cards stay bordered (they sit on paper or in a plain card). `.icard` owns the shadow and radius of
+an insight card: its `.card` has no shadow and square bottom corners, so the number card and its Advice read as one card
+with one continuous border. An Advice with no card above it takes `alone` (full border, 13px radius, 10px above):
+PregTodayScreen, ScaleSection, BodySignals. `.disclosure` padding is 12px 16px and `.bodypanel` 4px 16px 14px, so panel
+text aligns with card text. On Home, opening a grid section scrolls its `#home-*` panel into view (`block: nearest`,
+smooth unless `reduceMotion()`) and the open panel `.bodypanel.detached` is outlined in --primary.
+
+**Accent anchors.** `.section-lab::before` draws a 6px --accent dot before every section label (a pseudo-element, so
+`textContent` is unchanged for the asserted labels). It is off inside `.pchart`, `.pots` and `.palsheet` (data areas and
+the Settings/palette sheets, which get their own glyphs), so the accent stays a chrome anchor and never reads as data.
 
 ---
 
@@ -344,6 +730,65 @@ System prompts must forbid diagnosis and dosing, and require an urgent flag for
 red-flag symptoms. **In production, proxy these through the backend** — never ship an
 API key in client code.
 
+**Starter and insight questions (src/lib/askStarters.js).** `STARTERS` holds a short list per stage (peri: "Does
+hormone therapy raise cancer risk?", "What helps hot flashes without hormones?", "Why can't I sleep?", "Am I in
+perimenopause?", "Why am I so tired?"; periods: "Why are my cramps worse some months?", "Is a heavy period normal?",
+"When is my fertile window?", "Why can't I sleep?", "Why am I so tired?"; preg: "Is it safe to exercise?", "Is this
+discharge normal?", "Why am I so tired?", "Why can't I sleep?"; pots, offered only with the add-on on: "Why do I feel
+dizzy when I stand?"). `INSIGHT_STARTERS` maps a Patterns insight's symptom id to the question its "Ask about this →"
+asks (hf → "What helps hot flashes without hormones?", slp → "Why can't I sleep?", var → "Am I in perimenopause?",
+crm → "Why are my cramps worse some months?"). Every string in both maps is answered by the written library on the
+device (`answerLocally(q).matched === true`, asserted in askLibrary.test.mjs), so a tapped starter never reaches
+Cyra's AI or the network; a card whose id has no entry shows "Add to visit notes →" alone rather than a question the
+library cannot answer. `runAsk(q, { ai })` in App.jsx takes the question string (or the Ask button's click event, then
+the textarea's text) and an optional one-call override of the saved AI choice, and keeps `question` on `askOut`.
+
+*UI A1 — the Ask screen (src/screens/AskScreen.jsx).* Everything above stays; these are added on top:
+- **Starter questions.** Above the textarea, `<p class="section-lab">Try asking</p>` and a horizontally scrolling
+  `.askstarters` row of `.askstarter` pills (44px, `--primary-text` on `--card`, not `.mc`) from `STARTERS[stage]`,
+  plus the POTS starter when the add-on is on (`potsOn` prop = `potsTab && potsOk`, the same gate as Patterns). A tap
+  fills the textarea and runs `runAsk(q)`; every starter is library-matched, so it never reaches the AI or the
+  network. On first run (no answer yet) the label and row sit in a tinted `.askintro` panel (7% primary fill, 25%
+  primary border); once an answer stands the row stays, untinted. An unmatched answer repeats the row inside the
+  card under `The library can answer`.
+- **The hint** reads "Plain-language answers from Cyra's written evidence library, built from the guidelines your
+  doctor reads." and, only when the build has a backend (`aiAvailable`), " If you turn on Cyra's AI below, any
+  answer it writes is labelled." The former third sentence (each answer says where it came from and suggests a
+  question) is dropped: the card now shows it.
+- **Input.** `<label for="ask-q" class="section-lab">Your question</label>`; the textarea is `#ask-q`,
+  `maxLength=500`, placeholder unchanged; past 400 characters a `.askcount` line reads "N / 500 characters";
+  Ctrl/Cmd+Enter submits. The button text stays "Ask"; while the AI path runs it reads "Asking Cyra's AI…" with a
+  14px `.askspin` ring beside the label (`cy-spin`; under prefers-reduced-motion the ring stands still and breathes
+  in opacity with `cy-pulse`, the one keyframe kept under that setting because it moves nothing) and the section
+  below carries `<p class="rfoot" role="status">Asking Cyra's AI…</p>`. No skeletons.
+- **Landing.** The answer lives in `<section class="askout" aria-live="polite" aria-atomic="true" tabindex="-1">`
+  (always in the DOM, empty until there is something to say). When `askOut` becomes a new object the screen calls
+  `scrollIntoView({ block: 'start' })` (smooth unless `reduceMotion()`) and `focus({ preventScroll: true })` on the
+  section; a module-level marker remembers the object it landed on, so switching tabs and coming back to a standing
+  answer neither scrolls nor steals focus, while Patterns' "Ask about this →" (which sets `askOut` before the screen
+  mounts) still lands. The card is `.card.askcard`, entering with `cy-fade-rise`.
+- **Provenance up top.** `.asksrc` opens the card: a `uchip` badge mapped strictly from `askOut.source` — `library`,
+  `server-library` and `server-library-attempted` → "Written library" (`u-visit`), `ai` → "Cyra's AI" (`.u-ai`, an
+  18% accent tint with 75% accent-on-ink text, ≥4.5:1 on every palette), `error` → no badge — followed by the
+  question asked (`.asksrc-q`). The badge never says more than the footer sentence, which stays verbatim and is the
+  authority. The answer keeps the library's paragraphing (`split(/\n\s*\n/)`; no sentence scanner). The evidence base
+  is `.askev`: a 3px primary-tinted left rule, "Evidence base: " in bold, then one citation per line — each is an
+  `inline-block` span with the "; " kept inside it, so `innerText` is still the exact sentence
+  "Evidence base: A; B; C." that the suites read. `<footer class="askfoot">` (hairline top) holds the source sentence
+  and "Plain-language education, not medical advice or diagnosis." unchanged.
+- **Worth asking.** `.askvisit` wraps the `Next visit` advice and `Copy question` (`.linkbtn.askcopy`), which copies
+  `ask_your_doctor` through `copyText(text, "Question copied", ping)` (lib/clipboard.js; the blocked sentence is its
+  default).
+- **Urgent.** A red-flag answer uses `<Advice urgency="today">` (chip "Today") and the card gains `.askurgent`
+  (`--bad` border, 3px `--bad-bg` ring).
+- **Unmatched recovery.** The existing sentence ("Cyra's AI can try questions the library can't answer. To use it,
+  tick … above and ask again.") stays; when `aiAvailable && !askAI` it is followed by
+  `<button class="ghostbtn">Ask Cyra's AI about this</button>` and, directly under it, the AI disclosure paragraph
+  (the same `AI_DISCLOSURE` text as the checkbox's). The button calls `setAskAI(true)` and
+  `runAsk(askOut.question, { ai: true })`: the one-call override is required because `runAsk` would otherwise read
+  the saved choice captured before this render and return the unmatched card again. The visible persisted checkbox
+  flips to on, so the next unmatched question goes to the AI without the button. No Ask history is kept.
+
 ---
 
 ## 11. COPY & TONE
@@ -359,6 +804,13 @@ API key in client code.
 ---
 
 ## 12. ACCEPTANCE CRITERIA
+
+**Toast.** `.toast[role=status][aria-live=polite]` is always in the DOM (its text node is empty between messages; never
+`display:none`), fades and rises in over --t-base and out over 150ms, and carries a 7px --accent dot. Its lifetime
+scales with length: 2.6s for a short sentence, then 1s + 35ms per character, capped at 8s (a 70-character sentence
+shows for 3.5s, 180 characters for 7.3s). Over 60 characters it renders `.long`: left-aligned, 14px radius, up to 92%
+wide. The suites rely on the cap: the web-live suite waits 10s for a toast to clear and the native suite reads the
+toast about 4s after a 70-character one.
 
 - [ ] A user completing registration sees exactly one stage experience, never a stage menu.
 - [ ] Skipping a required field and tapping Continue turns it red; optional fields never do.
@@ -378,18 +830,62 @@ The reference implementation `App.jsx` contains all of the following. Treat the
 code as the source of truth for exact behavior; this addendum explains intent.
 
 ## A1. Home screen (default tab after registration)
+**Header row (`.mast`, one row at 390px in all three stages and with POTS on, <= 54px).** Wordmark (`.mark` 22px Fraunces
+with the `.sub` tag) · name chip `.acctchip` (ellipsised past 110px, full text in `title`) · two 44px round icon chips
+(`.stagechip.icon`: palette, then Check-in settings; primary-tinted while `aria-expanded="true"`) · the "{stage} · change"
+link as `.stagechip.quiet` (no fill or border, underlined, may wrap to two lines inside its 44px box). Gap 4px; only when
+even the wrapped link does not fit does it drop to a second row.
+
 Both stage experiences open on **Home**, not on the check-in form. Home contains, in order:
 greeting (time-of-day + name) with cycle day/phase or pregnancy week · gentle 14-day streak
 ("N of 14 days", never a broken-chain penalty) · one check-in CTA · today's single highest-
-priority insight · "From your wearable" cards (when connected) · milestones strip · "Coming up"
-(predicted period or lateness, due date, next appointment with a prep nudge ≤7 days out) ·
-"You're not alone" pulse · month-vs-last-month recap (collapsed) · collapsible sections for
-Wearables, What I'm trying, Appointments, Journal.
+priority insight · the patterns card (cycle and peri stages, compact: up to three symptom rows,
+the day card once a day is tapped) · "From your wearable" cards (when connected) · milestones
+(a row of progress dots with the next milestone named; the full timeline under "All
+milestones") · "Coming up" (predicted period or lateness, due date, next appointment with a
+prep nudge ≤7 days out) · "You're not alone" pulse (one line when counts aren't available in
+the build; how the counts are made sits under "How these counts work") · a two-column grid of
+collapsible sections — Month vs last month, Wearables, What I'm trying, Appointments, Journal —
+each opening a titled panel under the grid.
+
+**Home states (UI H1).**
+- *Greeting row.* Pregnancy reads "Week {n} · {first|second|third} trimester" (`trimesterOf(week)` in lib/engine.js:
+  <13 first, <28 second, else third) over a week bar (`.wkbar[role=img]`, aria-label "Week {n} of 40, {tri} trimester"):
+  three trimester segments (12/15/13 weeks), the elapsed part in --primary, a marker dot at the current week, ticks
+  T1 · T2 · T3 and "Due {month day}" at 10.5px --soft. The 14-day tile reads "Day 1 / let's start" while nothing is
+  logged in the last 14 days and takes `.streak.warm` (accent border) from 7 days.
+- *Check-in CTA.* Before today's entry: primary-filled "Check in — about 30 seconds". After it: `.cta.done` (card
+  background, primary border, --primary-text) "Update today's check-in", with a `.todayline` button under it that
+  opens Today: a family-coloured dot (the day's strongest symptom family, FAMILIES) and "Today · score {n} · slept
+  {well|so-so|poorly} · {two strongest symptoms}{ +n}". Both label texts are unchanged.
+- *Today's insight* is `.card.insight` (primary at 6% over the card) with a family dot before the sentence when the
+  insight is about a symptom; the number reads "{n} days", not "n/30". Before 3 check-ins the card counts the gap:
+  "0 of 3 · Log a few days and your first insight appears here." then "{k} more check-in(s) and your first insight
+  appears here.".
+- *Your patterns* on Home is the compact card: the view switch and the legend as on Patterns, the callout sentence
+  ("Your weekly average is …" / "Days a–b …") above the plot as the card's headline (`.pcallout.top`), a shorter plot
+  (viewBox height 150 instead of 206), at most three symptom rows in all (rough nights counted), the day card once a
+  day is tapped, "More in Patterns →". Before 3 check-ins (cycle and peri) a placeholder `.plaincard.pchart-soon`
+  stands in: an aria-hidden seven-dot sketch in --line/--soft only (no `.pchart`/`.psvg` classes, no family colours),
+  "Your 60-day chart appears after 3 check-ins · {k} of 3" and a three-segment `.msbar.three`.
+- *Coming up.* The predicted-period and late rows are `role=button` (click, Enter, Space) and open the Calendar; their
+  sub-line ends in " · Calendar →". The appointment row keeps its Report nudge.
+- *Doors.* Each grid button keeps its base label as the first text node and appends its status in `<span class="dsub">
+  · …</span>`: Month vs last month · {±n | unchanged | soon}; Wearables · {n connected | optional}; What I'm trying ·
+  {latest trial}, day {n}; Appointments · {who | visit} in {n} days (or today); Journal · last entry {today | weekday |
+  date}. Scripts that assert these buttons match on the base label.
 
 ## A2. Pulse ("You're not alone")
 Three stage-specific anonymous aggregate counts ("3,550 women logged cramps this week").
 **Demo uses seeded placeholder numbers and says so in the UI.** Production MUST read these
 from the backend aggregate endpoint (counts only, k-anonymity threshold, never identities).
+
+**Layout (UI H1).** The section label's textContent is exactly "You're not alone · last week, from people who share
+counts"; the part after the name is wrapped in `<span class="seclite">` (sentence case, normal tracking) so the label
+reads as a name plus a note. When counts are unavailable in the build (`pulse.status === "unavailable"`) the card
+takes `.pulse.quiet`: card background, --line border, 10px/14px padding, the dash at 16px and the sentence in --soft,
+so the strongest tint on Home is not spent on a feature that is off. Otherwise the tinted `.pulse` is unchanged. The
+`.pulse`/`.pulserow` classes, every sentence and the "How these counts work" disclosure are the same in both states.
 
 ## A3. "What I'm trying" — trial-and-error engine
 User logs an intervention: `{ id, name, kind: "rx"|"supp"|"habit", started: ISO }` plus a
@@ -397,10 +893,21 @@ daily "taken" toggle (`medLog[iso][id]`). Engine compares average day score for 
 before `started` vs 14 days after; requires ≥5 logged days on each side, otherwise shows
 "N more logged days to compare". Surfaces on Home inline and on Patterns as a card with a
 "bring this before/after to your visit" advice. **Never recommends doses or changes.**
+Entry points: the form in Home → "What I'm trying", and (UI CC1) "Add to what I'm trying"
+on every Care card, which files the brand and offer as a supplement (Midi Health: a habit)
+started today and toasts the same sentence as the form; she can then mark it taken on Home.
 
 ## A4. Appointments
 `{ id, date, who, note }`. Upcoming list with countdown; ≤7 days → "Prep report" button
 routes to Report. Past appointments without a note prompt "What did they say?" (onBlur save).
+
+**Roadmap → Appointments note prefill (UI M1).** The add form's state is `{ date, who, note }`. "Add to appointments"
+on an in-window or coming-up Milestones card calls `onPlan(label, when)` in App.jsx, which sets `note` to
+"{label} ({when, lower-cased})" (e.g. "Glucose screening (weeks 24–28)"), opens the Appointments panel, switches to
+Home and toasts **"Added to Appointments — pick the date"**. The form shows the pending note as a `.hint.apptnote`
+line ("For: …") above the date input while present; Add stores it as the appointment's `note` (so a past visit with a
+prefilled note never asks "What did they say?" again) and clears the form to `{ date:"", who:"", note:"" }`. The
+existing Add toasts are unchanged. Nothing is added until the person picks a date and taps Add.
 
 ## A5. Journal
 Free text per day, `journal[iso]`, private, last 5 shown. Prompt: "How are you, really?"
@@ -418,8 +925,24 @@ situation: partnered / more than one partner / single-solo / prefer not to say �
 partner gender; intimacy questions hidden for solo users.** Advice logic reflects the
 literature: low fairness + low desire → household-inequity finding; pain → vaginal estrogen /
 moisturizers are strongly evidenced, raise at visit; high tension → couples' stress synchrony.
-Framing: relationship context predicts desire more than hormone levels (SWAN); Cyra lines
-this up against cycle phase to test whether low-desire days are hormonal "or something else."
+Framing: relationship context predicts desire more than hormone levels (SWAN). The build
+does **not** yet cross-reference Connect entries with cycle phase, so the card says only
+"Over weeks this builds a picture next to your symptoms." (pregnancy: "…next to your week of
+pregnancy and how you felt."); a cycle-phase claim returns only when the engine does it.
+
+*UI CC1 (Connect).* The screen reads `connLog` back: a `useEffect` keyed on `todayIso`
+hydrates the sliders, intimacy and afterwards from `connLog[todayIso]` on mount and at the
+day change only, never while she is editing (a local `dirty` flag is set by every onChange
+and cleared on Save). The score card is idle (`.card-idle`, `.num` "—" in `--soft`, "Move the
+sliders and Cyra scores how connected today felt.") until a control moves or today is logged;
+then it shows the score, a band word — Close ≥ 75 / Steady ≥ 50 / Strained ≥ 30 / Distant —
+as "Steady connection today.", a 4px `--primary` `.cmeter` and a 7-day `.connstrip` of
+`.conndot`s (filled when logged, opacity by score, hollow when not, today outlined; palette
+colours only, `role="img"` with "Last 7 days: n of 7 logged"). When today is logged, "Logged
+today at NN — saving again replaces it." sits above Save. A chosen situation collapses to
+"Situation: <label> · Change" (`.sitline`; Change restores the chooser). Band words are
+editorial, not clinical. Hint: "Optional, private, and judgment-free. It tracks how connected
+you feel, not just sex, and never assumes who your partner is or that there is only one."
 
 ## A8. Check-in cadence (anti-nag)
 Registration step 8 and ⚙ settings: daily / weekdays / 3× week / weekly / "when I feel like
@@ -427,6 +950,32 @@ it" (no reminders). Nudge time: morning / midday / evening / never. **Policy: on
 max, never a second nudge, never guilt for missed days — patterns tolerate gaps.** Quick mode
 replaces the symptom grid with three stage-specific questions (~10 s) that map onto hero
 symptoms so patterns still compute; Full mode shows everything.
+
+**Quick questions (UI T1).** `QUICK_Q[stage]` in `lib/constants.js` is three `{ q, a }` entries; `a` is four answers
+whose index 0–3 is the value saved (so `QUICK_MAP` and `foldQuick` are untouched and "Rough night" on "How did you
+sleep?" lands on `slp` as the 2 that "Yes" used to). The answers read as answers to their question:
+- Cycle / TTC: "Any cramps or bloating?" and "Any headaches?" — No / fine · A little · Yes · A lot; "Mood today?" —
+  Steady · A bit off · Low · Really low.
+- Peri / Meno: "Any hot flashes or night sweats?" — No / fine · A little · Yes · A lot; "How did you sleep?" — Slept
+  well · So-so · Rough night · Barely slept; "How's your focus?" — Sharp · A bit foggy · Foggy · Can't think.
+- Pregnancy: the three questions keep the default answers; the card is never rendered (no quick mode in pregnancy).
+Each question renders as `div[role=group][aria-labelledby]` → `p.qlab` + one joined `.mcrow.seg.answers` of four `.mc`
+buttons with `aria-pressed` (labels wrap, never truncate, at 320 px). `QuickCheckin.jsx` is the only reader. While the
+peri quick card is on screen the Today sleep `.pill` row is not rendered (its question is already asked); the saved
+`sleepQ` and the shared poor-sleep flag still come only from the pill row, so a peri quick-mode day records `"fair"`
+unless she opens "more detail" — the q2 → `sleepQ` derivation is deferred (PRIVACY-AUDIT, UI T1).
+
+**Settings rhythm, nudge and reminders (UI S1).** In Settings the five cadences render as a two-column `.regcards.cadgrid`
+of `.stagecard` buttons (the fifth spans both columns; labels, descriptions and `aria-pressed` unchanged). The nudge
+time is a joined `.mcrow.seg` of the four `.mc` buttons, and it depends on the other two controls: while rhythm is
+"When I feel like it", or while reminders are off but could be turned on (`!remindersOn && reminderSupport !== "none"`),
+its wrapper takes `.nudgewrap.muted` (dashed rail, tinted rather than filled selection, never an opacity dim, which would
+drop the filled pill under 4.5:1) and a one-line hint says why: "You chose no reminders, so there's nothing to time." /
+"Reminders are off — this time is used once you turn them on." / "Reminders aren't available here, so this time isn't
+used." The buttons stay enabled. The Reminders row shows a `.statechip` "Unavailable" instead of the Turn on switch only
+when reminders truly cannot work in the build: `status === "unsupported"` (this browser can't show them) or a web build
+with no server (`reminderSupport === "web" && !hasServer()`). A configured server that is merely unreachable keeps the
+switch and its existing "Off" / "Turn on" texts (`remindersText` is not retitled).
 
 ## A9. Wearables & derived insights
 Sources: Apple Watch via HealthKit/Health Connect (preferred, on-device), Oura API v2, Terra
@@ -451,6 +1000,24 @@ Clinical by stage — Cycle: first full cycle, 3 cycles, ovulation confirmed by 
 Peri: variability ≥7 flagged; **"12 months period-free = menopause" with progress bar**
 (months since last period start / 12). Pregnancy: trimester transitions, anatomy-scan window.
 
+**Copy (UI H1).** Peri: "Cycles varying by 7+ days — a sign of the transition", "12 months without a period —
+menopause · {k} of 12". Usage: "Trying something new — a med, supplement or habit", "First visit written up". Done
+conditions are unchanged.
+
+**Stepper and the one milestone moment (UI H1).** The aria-hidden dot rail on Home is drawn reached-first
+(`[...done, ...undone]`, so filled dots are contiguous from the left); the "All milestones" list keeps the order above.
+"Next up" is the first unreached milestone with a progress bar, else the first unreached one. `milestonesFor(daysArr)`
+in App.jsx is a pure function of a days array; `milestones` is `milestonesFor(days)`. TodayScreen calls
+`onSaved(nextDays)` after its save; App compares reached counts before and after and, when one flips, sets a transient
+`justReached` for 2000ms (the matching `.mstep` takes `.new`: dot `cy-pop` 350ms, rail `cy-grow` 300ms; none under
+reduced motion) and toasts "Milestone reached: {label}". This state is never persisted and never set on hydration or
+restore, so the moment cannot replay (`grep milestonesSeen src` finds nothing).
+
+**Home ↔ roadmap bridge (UI M1).** Pregnancy Home's "Today's insight" names the next roadmap item from the same
+`PRENATAL` table the Milestones tab draws; a Milestones card's "Add to appointments" lands back on Home with the
+Appointments panel open and scrolled into view (HomeScreen scrolls `#home-appts` on first render only when a
+prefilled note is pending). Neither direction stores anything until the appointment is added.
+
 ## A11. Social sign-in
 Account step offers Apple, Google, Facebook. Demo simulates the OAuth round-trip. Production:
 real OAuth client IDs, backend callback, verified email+name only. **Apple Sign-In is required
@@ -466,7 +1033,34 @@ receive only name/email, never health data.
       matching the privacy policy's on-device claims exactly.
 - [ ] Push notifications honoring cadence + nudge-time + "never"; no SMS.
 - [ ] Capacitor or Expo wrap for iOS/Android from the same codebase.
+      Shell notes the web build relies on: `index.html` sets `viewport-fit=cover`, without which every
+      `env(safe-area-inset-*)` is 0 inside WKWebView and sticky bars sit under the home indicator; the
+      stylesheet's `--sa-t`/`--sa-b` tokens read Capacitor's `--safe-area-inset-*` variables first and fall
+      back to `env()`; the iOS config must set the Keyboard plugin to `resize: "body"` so the Ask textarea and
+      the Today form are not covered by the keyboard under a sticky bottom bar (no code dependency; a
+      `capacitor.config` setting when the shell is assembled).
 - [ ] Every UI privacy claim verified literally true of the shipped build.
+
+**Settings sheet (UI S1).** `SettingsSheet` is `section.palsheet#settings-sheet[aria-label="Check-in settings"]` with a
+sticky `.sheethead` (an `h2.sheettitle` "Settings" that takes focus on open, and a 44px `.sheetclose` button labelled
+"Close settings"; the bottom "Done" stays), three `.setgroup` blocks (Check-ins / Add-ons & sharing / Your data), and
+each option row a `[role=group][aria-labelledby]` named by its `p.section-lab` (ids `set-rhythm`, `set-nudge`,
+`set-style`, `set-addons`, `set-reminders`, `set-counts`, `set-data`), every label opening with an `svg.labico` glyph.
+The header buttons carry `aria-controls="settings-sheet"` / `"palette-sheet"` next to their `aria-expanded`; opening one
+sheet closes the other (`setShowPal(false); setShowSettings(s => !s)` and the mirror), and Done / Close hand focus back
+to the button that opened the sheet (`triggerRef`). The palette sheet (`#palette-sheet`) is a `[role=group]` named by
+`p#pal-lab`; each `.palopt` carries `aria-pressed` and its own `--primary` / `--accent` / `--line` / `--paper-mini`,
+so its name, border, check and `.palmini` page swatch preview that palette before it is chosen.
+
+**Data status strip (UI S1).** Above the Encrypted backup / Restore / Delete everything pills, `p.datastat` reads
+"{N} days logged · last backup {today | yesterday | N days ago | Mon D | never}" ("never — worth doing once" from seven
+logged days). `relDay(iso, todayIso)` lives in `lib/engine.js` next to `fmt`. The date comes from the new persisted key
+`lastBackupAt` (ISO day, set by `exportBackup` on success only: after the share sheet returns on the phone, after the
+download is triggered on the web), which is DEVICE_ONLY: it is not in the record other tabs adopt, it is deleted from
+the snapshot before encryption so it is never in a backup file, a restore keeps this device's own value, and Delete
+everything removes it with the rest. The backup and restore inputs have visible `label.flab` wrappers; their
+placeholders and aria-labels are unchanged. The POTS add-on's off-state description is one sentence; "Works alongside
+{stage}. It doesn't change your life stage." moved verbatim into its "Exactly what's kept" panel (PRIVACY-AUDIT, UI S1).
 
 ## A13. POTS add-on
 
@@ -580,6 +1174,39 @@ period" tags included) and check-in overlap are included only while "Cycle or pr
 from a connected watch, ring or health app aren't included. The PDF writer is in the main bundle, so making a
 report fetches nothing. The report's "sustained" wording names the minutes that reached the threshold and never
 claims fewer did. Every export screen states that the file isn't locked.
+
+**A13.8 UI PT1 (the Home card and the page).** *Home card:* the "POTS today" section label carries an aria-hidden
+heart glyph in a sibling span (`textContent` unchanged, accent dot off via `.potslab`); the card is
+`.plaincard.pots-home`. With a fluid or sodium goal set it shows compact `GoalMeter`s (`components/pots/FluidSalt.jsx`,
+exported, `compact` + `tone`): a 16px drop or salt glyph, the label, the day's total as a Fraunces `.num` ("—" until
+something is logged: missing is never zero) and "of 2.5 L" / "Goal reached", over the same `role=progressbar` bar;
+fluids fill in the palette primary, sodium in the accent (`.goalfill.salt`), both chrome, never RAMPS. The totals
+sentence ("Fluids 0.5 L of your 2.5 L · Sodium 480 mg", or "Nothing logged yet. That's fine.") stays the card's first
+`p.plain`, visually hidden (`.sr-only`) while the meters show. *One-tap usual drink:* when a drink button exists
+(`usualFluid`: the default fluid button, else the first drink button) a `.medrow` shows its amount, "Your usual drink"
+and a `.takebtn` "+ Add" (`aria-label="Add 250 ml"`); App logs it through the same `addIntake` as the page, remembers
+it for the card's Undo row (`potsHomeLast.kind = "intake"`) and shows the same toast sentence, built once in
+`lib/pots.js` `intakeToast(item, totals, goals, units, whenWord)` ("Added 250 ml. 0.5 L today" / "Sodium added.
+480 mg today" / "{label} logged"; the goals never change the sentence). A drink button that still has to ask its
+sodium (`asksSodium`: electrolyte or broth without a figure) opens the page instead. Nothing logged from Home is marked
+quick. After Undo, focus returns to the button that logged it ("+ Add" or "Took it"). "Open POTS tools" keeps its
+text and `.ghostbtn` and is an underlined link (`.potsopen`); the two `.route` tiles are 56px. *Page head:* one
+`.potshead` row holds the "← Back" bar and the 22px `h1.disp`. The section switcher is the joined
+`.mcrow.seg.scroll.secnav` (role=group "POTS sections", `.mc.on` + `aria-pressed`, same texts), scrolling
+horizontally rather than abbreviating. After setup and while the record is being saved, the top hint shows one sentence,
+"Kept on this device and ready for your clinician."; the rest of the hint is in an `.sr-only` span of the same
+paragraph (so assistive tech and the S2/S5 harnesses still get the full HINT text), and its two claims appear
+verbatim under the Today section as `.hint.foot2` "Never part of weekly counts. Cyra can't diagnose POTS; only a
+clinician can." (`TODAY_FOOT_2`), after the unchanged `TODAY_FOOT`. HINT_UNSAVED stays on top, whole, whenever
+`potsSaved()` is false; the first-run cards keep the whole HINT and show `Step n of 3` beside three `.prog` dots in
+`.stepline`. "When to get help now" is a full-width `.linkbtn.helpnow` row with an 8px --bad dot and a chevron
+(`aria-expanded` unchanged). *Today:* a `.daterow` holds "Today · {date}" and the joined `.viewsw` toggle
+(`#pots-full-btn` "Full view" | `#pots-simple-btn` "Simple view", `aria-pressed`, group "View"); "Fix up an earlier
+day" stays under it in Full view. With three or more days logged (`daysLogged`, a day that only carries the
+Simple-view mark doesn't count) the footer adds "N days logged · Make a report for your clinician", which opens the
+Report section. *Simple view:* a tile with no drink or salt button yet is `aria-disabled="true"` (dashed, focusable,
+never `disabled`), reads "Tap to add your first drink" / "Tap to add your first salt", and opens the amount sheet,
+whose "save as a button" makes the next tap a one-tap log. Threshold and over-goal states keep their number cues.
 
 **A13.7 Reminders.** The add-on adds no notification. A8 still applies: one check-in reminder at most. A
 care-plan checklist is shown in the app only, with no "late", "missed" or streak language. Any future

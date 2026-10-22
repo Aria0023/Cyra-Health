@@ -30,10 +30,27 @@ export const CADENCE = [
   { id: "weekly", label: "Weekly", desc: "One reflective check-in" },
   { id: "me", label: "When I feel like it", desc: "No reminders at all" },
 ];
+/* Quick check-in (spec A8): three questions per stage, each with four answers that read as answers to
+   that question. Answers are saved as 0-3 in order (the index is the value QUICK_MAP folds onto the
+   hero symptom), so "Rough night" on "How did you sleep?" is the same 2 "Yes" used to be. QuickCheckin.jsx
+   is the only reader. The pregnancy card is never rendered (Pregnancy Today has no quick mode). */
+const QUICK_D = ["No / fine", "A little", "Yes", "A lot"];
 export const QUICK_Q = {
-  periods: ["Any cramps or bloating?", "Any headaches?", "Mood today?"],
-  peri: ["Any hot flashes or night sweats?", "How did you sleep?", "How's your focus?"],
-  preg: ["Any nausea or heartburn?", "Swelling anywhere?", "Energy today?"],
+  periods: [
+    { q: "Any cramps or bloating?", a: QUICK_D },
+    { q: "Any headaches?", a: QUICK_D },
+    { q: "Mood today?", a: ["Steady", "A bit off", "Low", "Really low"] },
+  ],
+  peri: [
+    { q: "Any hot flashes or night sweats?", a: QUICK_D },
+    { q: "How did you sleep?", a: ["Slept well", "So-so", "Rough night", "Barely slept"] },
+    { q: "How's your focus?", a: ["Sharp", "A bit foggy", "Foggy", "Can't think"] },
+  ],
+  preg: [
+    { q: "Any nausea or heartburn?", a: QUICK_D },
+    { q: "Swelling anywhere?", a: QUICK_D },
+    { q: "Energy today?", a: QUICK_D },
+  ],
 };
 /* The hero symptom each quick question is saved as (spec A8: quick answers map onto hero
    symptoms so patterns still compute). Every target is a tracked SYM / PSYM key. */
@@ -53,6 +70,39 @@ export const DISCHARGE = [["none", "None"], ["creamy", "Creamy"], ["eggwhite", "
 export const ODOR = [["none", "Nothing unusual"], ["mild", "Mild change"], ["strong", "Strong"], ["fishy", "Fishy"], ["yeasty", "Yeasty / sour"]];
 export const BODYODOR = [["same", "Same as usual"], ["stronger", "Stronger"], ["changed", "Different"]];
 
+/* Pregnancy — the evidence-based low-risk prenatal schedule (spec §7), read by MilestonesScreen (every item,
+   status-tagged against the current week), engine.roadmapAdvice() (the derived "Next visit" sentence) and the
+   pregnancy Home insight. `from`/`to` are the item's window in weeks; `when` overrides the "Weeks {w}" eyebrow
+   where a week range would read wrong (UI M1). */
+export const PRENATAL = [
+  { tri: "First trimester", items: [
+    { w: "8–10", from: 8, to: 10, label: "Initial visit + full labs", note: "Blood type & Rh, antibody screen, blood count, immunity (rubella, varicella), hepatitis B & C, HIV, syphilis, urine culture, gonorrhea/chlamydia." },
+    { w: "8–12", from: 8, to: 12, label: "Dating ultrasound", note: "Confirms due date — the anchor for everything after." },
+    { w: "10+", from: 10, to: 13, label: "Genetic screening (NIPT)", note: "Cell-free DNA from week 10, or combined nuchal scan at 11–13. Optional, your call." },
+    { w: "any", when: "Any week", from: 0, to: 13, label: "Folate + vaccines", note: "Prenatal vitamin with folate; flu and COVID vaccines recommended in any trimester." },
+  ]},
+  { tri: "Second trimester", items: [
+    { w: "15–20", from: 15, to: 20, label: "Serum screen (if no NIPT)", note: "The quad screen window, for those who skipped cell-free DNA." },
+    { w: "18–22", from: 18, to: 22, label: "Anatomy scan", note: "The big ultrasound — organs, growth, placenta position." },
+    { w: "24–28", from: 24, to: 28, label: "Glucose screening", note: "One-hour 50g screen for gestational diabetes; repeat blood count for anemia rides along." },
+    { w: "27–36", from: 27, to: 36, label: "Tdap vaccine", note: "Every pregnancy — it's how baby gets whooping-cough protection before their own shots." },
+    { w: "28", from: 28, to: 28, label: "RhoGAM (if Rh-negative)", note: "Only applies if your blood type is Rh-negative — your week-8 labs answered that." },
+  ]},
+  { tri: "Third trimester", items: [
+    { w: "28+", from: 28, to: 40, label: "Daily kick awareness", note: "From 28 weeks, the movement pattern matters — a real change in the pattern is a call-today, not a wait." },
+    { w: "32–36", from: 32, to: 36, label: "RSV vaccine (seasonal)", note: "Given Sept–Jan in the US to protect baby's first RSV season." },
+    { w: "36–37", from: 36, to: 37, label: "GBS swab", note: "Quick routine test; a positive just means antibiotics in labor." },
+    { w: "36", from: 36, to: 40, label: "Position check + weekly visits", note: "Baby's position confirmed; cadence steps up to weekly." },
+    { w: "41", from: 41, to: 42, label: "Post-dates monitoring", note: "Extra monitoring from 41 weeks; induction offered by 41–42 — evidence favors not going far past." },
+  ]},
+  { tri: "After birth", items: [
+    { w: "<3wk", when: "Within 3 weeks of birth", from: 43, to: 99, label: "Early postpartum contact", note: "Within 3 weeks of delivery — mood, feeding, recovery, blood pressure." },
+    { w: "≤12wk", when: "By 12 weeks after birth", from: 43, to: 99, label: "Comprehensive postpartum visit", note: "The full check by 12 weeks. Postpartum care is care, not a formality." },
+  ]},
+];
+/* The eyebrow over a roadmap item: its `when` override, else "Weeks {w}". */
+export const prenatalWhen = (m) => m.when || `Weeks ${m.w}`;
+
 export const STAGES = [
   { id: "periods", label: "My Cycle", who: "periods & PMS" },
   { id: "preg", label: "Pregnancy", who: "week by week" },
@@ -64,7 +114,7 @@ export const STAGES = [
    `partner`: true only once a signed partner agreement exists — it drives the
    "Partner" pill. None exists yet, so every item is false and no commission is claimed. */
 export const SHELF = [
-  { id: "midi", brand: "Midi Health", name: "Menopause-trained clinician (insurance accepted)", price: "Covered by many plans", ev: "Clinical care", tone: "strong", m: ["hf", "ns", "fog", "slp"], stages: ["peri"], partner: false },
+  { id: "midi", brand: "Midi Health", name: "Menopause-trained clinician", price: "Insurance accepted by many plans", ev: "Clinical care", tone: "clinical", m: ["hf", "ns", "fog", "slp"], stages: ["peri"], partner: false },
   { id: "restfully", brand: "Restfully", name: "6-week CBT-I sleep program", price: "$49", ev: "Strong evidence", tone: "strong", m: ["slp", "rough"], stages: ["peri", "periods"], partner: false },
   { id: "emberline", brand: "Emberline", name: "Wearable heat wrap for cramps", price: "$42", ev: "Comfort with evidence", tone: "strong", m: ["crm"], stages: ["periods"], partner: false },
   { id: "mineral", brand: "Mineral & Co.", name: "Magnesium glycinate, 90 nights", price: "$24", ev: "Mixed evidence", tone: "mixed", m: ["slp", "mood", "crm"], stages: ["peri", "periods"], partner: false },
@@ -119,6 +169,10 @@ export const SYM_FAMILY = {
   ach: "pain", hda: "pain", crm: "pain", bak: "pain", ten: "pain",
   dry: "body", pal: "body", lib: "body", itc: "body", blo: "body", nau: "body", acn: "body", cra: "body",
 };
+/* The family colour for a symptom id (undefined when the id has no family, so CSS falls back to --primary).
+   Used only on data-bearing marks: chart dots, the Home today-line dot, the severity dots on a check-in chip. */
+const FAM_COLOR = Object.fromEntries(FAMILIES.map((f) => [f.id, f.color]));
+export const famColor = (id) => FAM_COLOR[SYM_FAMILY[id]];
 
 /* Data-viz ramp: saturated and readable, independent of UI chrome colors. */
 export const RAMPS = {
