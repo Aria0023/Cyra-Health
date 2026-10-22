@@ -318,8 +318,11 @@ vary more in perimenopause, so the range is wider."; (d) "Estimates — not cont
 *No-prediction card:* `.num` "—" and, by `whyNoPrediction().kind`: none — "No predictions yet. Log a period day (light
 flow or more on the Today screen) and the calendar starts estimating your next one."; unsure — "At sign-up you said
 your cycles are irregular or you're not sure how long they run, so Cyra won't guess yet. Log a couple of periods
-(light flow or more on the Today screen) and the calendar starts estimating your next one."; excluded — "Every cycle
-you've logged is left out of predictions, so Cyra won't guess. Turn one back on under “Your cycles” below, or keep
+(light flow or more on the Today screen) and the calendar starts estimating your next one."; excluded with no cycle in
+use (`kept` 0) — "Every cycle you've logged is left out of predictions, so Cyra won't guess. Turn one back on under
+“Your cycles” below, or keep logging."; excluded with one still in use (`kept` 1: an Irregular / Not sure sign-up waits
+for two) — "At sign-up you said your cycles are irregular or you're not sure how long they run, so Cyra waits until
+two cycles are in use. Only one of yours is in use now — turn another back on under “Your cycles” below, or keep
 logging."; long — "It's been {n} days since the last period Cyra knows about, longer than it predicts across. If you
 had one since, tap that day to log it." then " Long gaps are common in perimenopause." (peri) or " If you haven't and
 that's unexpected, it's worth mentioning to a clinician."; meno — "After menopause Cyra doesn't predict periods. Any
@@ -554,13 +557,14 @@ half         = clamp(max(centre − shortest, longest − centre), min, max)   w
 range        = lastStart + [max(15, centre − half), min(120, centre + half)]    (fromIso … toIso, inclusive)
 state        = upcoming (before the range) · window (inside it) · later (past it: "later than your usual range")
 no prediction (whyNoPrediction kind): pregnancy (none) · menopause (meno) · Irregular / Not sure at sign-up with
-               < 2 kept (unsure; excluded when ≥ 2 are counted) · every counted cycle left out and no sign-up length
-               (excluded) · more than 120 days since the last start (long) · nothing logged and no usable sign-up
-               answer (none). One internal plan() decides, so predict() and whyNoPrediction() always agree.
+               < 2 kept (unsure; excluded with kept = the number still in use when ≥ 2 are counted) · every counted
+               cycle left out and no sign-up length (excluded, kept 0) · more than 120 days since the last start
+               (long) · nothing logged and no usable sign-up answer (none). One internal plan() decides, so
+               predict() and whyNoPrediction() always agree.
 ovulation    ≈ lastStart + centre − 14
 fertile      = [ovu − 3 − e, ovu + 1 + e],  e = min(3, max(0, half − 2))   (5 days at ±2, 11 days from ±5)
 confidence   = ±half
-unusual      = outside median ± max(7, 2.5 × MAD) of the last 12 counted cycles (≥ 3 cycles), strictly outside;
+unusual      = outside median ± max(7, 2.5 × MAD) of the counted ones among her last 12 cycles (≥ 3), strictly outside;
                a SUGGESTION only (the "Unusual" chip): Cyra never leaves a cycle out by itself
 variability  = max(lengths) − min(lengths) over every counted cycle (insights(); unchanged, never reads cycleFlags)
 ```

@@ -223,8 +223,13 @@ test("waits: unsure, excluded and none", () => {
   assert.deepEqual(W(one, irr), { kind: "unsure" });
   const two = build([29, 31]);
   assert.ok(P(two, irr), "two kept: a prediction");
-  assert.deepEqual(W(two, irr, { flags: ex(two.starts[0]) }), { kind: "excluded" });
-  assert.deepEqual(W(two, null, { flags: ex(two.starts[0], two.starts[1]) }), { kind: "excluded" }, "every counted cycle left out, no told length");
+  assert.deepEqual(W(two, irr, { flags: ex(two.starts[0]) }), { kind: "excluded", kept: 1 }, "irregular, 1 of 2 left out: one still in use");
+  assert.deepEqual(W(two, irr, { flags: ex(two.starts[0], two.starts[1]) }), { kind: "excluded", kept: 0 }, "irregular, every cycle left out");
+  const three = build([29, 33, 31]);
+  assert.deepEqual(W(three, unsure, { flags: ex(three.starts[0], three.starts[2]) }), { kind: "excluded", kept: 1 }, "not sure, 2 of 3 left out");
+  assert.ok(P(three, unsure, { flags: ex(three.starts[0]) }), "not sure, two still in use: a prediction");
+  assert.deepEqual(W(build([29]), irr, { flags: ex(build([29]).starts[0]) }), { kind: "excluded", kept: 0 }, "irregular, the only cycle left out");
+  assert.deepEqual(W(two, null, { flags: ex(two.starts[0], two.starts[1]) }), { kind: "excluded", kept: 0 }, "every counted cycle left out, no told length");
   assert.ok(P(two, TOLD, { flags: ex(two.starts[0], two.starts[1]) }), "a told length still predicts");
   assert.equal(P(two, TOLD, { flags: ex(two.starts[0], two.starts[1]) }).left, 2);
   const nothing = { starts: [], cycles: [] };

@@ -242,8 +242,10 @@ function plan(ins, prior, { flags = {}, stage = null, isMeno = false, today = lo
   const counted = ((ins && ins.cycles) || cycleSpans(starts)).filter((s) => s.counted);
   const keptAll = counted.filter((s) => !isExcluded(s.start, flags));
   const kept = keptAll.slice(-6);
-  if (counted.length && !keptAll.length && !told) return { why: { kind: "excluded" } };
-  if (unsure && kept.length < 2) return { why: { kind: counted.length >= 2 ? "excluded" : "unsure" } };
+  // `kept` on an "excluded" reason = how many counted cycles are still in use (0: she left every one out; 1: an
+  // Irregular / Not sure sign-up still waits for a second), so the Calendar card never says "every cycle" wrongly.
+  if (counted.length && !keptAll.length && !told) return { why: { kind: "excluded", kept: 0 } };
+  if (unsure && kept.length < 2) return { why: counted.length >= 2 ? { kind: "excluded", kept: keptAll.length } : { kind: "unsure" } };
   // (5) Centre and half-width.
   const R = stage === "peri" ? RANGE.peri : RANGE.cycle;
   const lens = kept.map((s) => s.len);
@@ -293,7 +295,8 @@ export function predict(ins, prior = null, opts = {}) {
   return plan(ins, prior, opts).pred || null;
 }
 /** null when predict() gives a prediction (and in pregnancy); otherwise { kind: 'meno' | 'unsure' | 'excluded' |
-    'long' | 'none', days? }. Built from the same plan() as predict(). */
+    'long' | 'none', days?, kept? } (days with 'long'; kept with 'excluded': the counted cycles still in use, 0 when
+    she left every one out). Built from the same plan() as predict(). */
 export function whyNoPrediction(ins, prior = null, opts = {}) {
   return plan(ins, prior, opts).why || null;
 }
