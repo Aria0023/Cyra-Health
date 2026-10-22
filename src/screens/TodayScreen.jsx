@@ -2,10 +2,11 @@ import { flagWords } from "../lib/pulse.js";
 import Details from "../components/Details.jsx";
 import Icon from "../components/Icon.jsx";
 import { SYMS, PSYM, READS, famColor } from "../lib/constants.js";
-import { fmt, sevDots, foldQuick } from "../lib/engine.js";
+import { fmt, sevDots, foldQuick, periodHead } from "../lib/engine.js";
 import { upsertDay } from "../lib/record.js";
 
-/* Cycle & Peri — Today: cycle-status card, live score meter, quick or full
+/* Cycle & Peri — Today: cycle-status card (day, phase and the same likely-start wording as Home: lib/engine.js periodHead;
+   no card when there is no prediction, e.g. in menopause), live score meter, quick or full
    check-in, sleep quality, body signals, save, phase-appropriate daily read.
    Also the edit form for a day picked from the Calendar. Saving today's check-in only
    queues weekly-count flags on this device when sharing is on (App.jsx contribute); saving
@@ -32,7 +33,7 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
           <div className="phaseday">Day {pred.cycleDay}</div>
           <div className="phaseinfo">
             <b>{pred.phase[0].toUpperCase() + pred.phase.slice(1)} phase</b>
-            <span>{pred.late > 0 ? `Period ${pred.late} days past the ${pred.avgLen}-day average${stage === "peri" ? " — with your spread, irregularity is data too." : "."}` : `Period expected in ~${pred.daysTo} days (avg ${pred.avgLen}d).`}</span>
+            <span>{pred.state === "later" ? `Later than your usual range, which ended ${fmt(pred.toIso)}${stage === "peri" ? " — with your spread, irregularity is data too." : "."}` : `${periodHead(pred)}.`}</span>
           </div>
         </div>
       )}

@@ -9,7 +9,7 @@
    Object.hasOwn (Object.prototype.hasOwnProperty.call instead). docs/ARCHITECTURE.md §4 describes
    every key; a new key is added here (PERSISTED, its class, a RULES entry and a typedef), in
    record.test.mjs's pinned lists and in App.jsx's setters and values. */
-import { localDay, isPeriodDay, cycleStarts, CYCLE_MIN, CYCLE_MAX } from "./engine.js";
+import { localDay, isPeriodDay, cycleStarts, cycleSpans, cleanCycleFlags } from "./engine.js";
 import { PALETTES, CADENCE, FLOW, DISCHARGE, ODOR, BODYODOR, RELATIONSHIP, INTIMACY, AFTER } from "./constants.js";
 
 /* ======================= shapes (documentation only) =======================
@@ -57,6 +57,7 @@ import { PALETTES, CADENCE, FLOW, DISCHARGE, ODOR, BODYODOR, RELATIONSHIP, INTIM
  * @property {string|null} lastBackupAt [device-only] [not-in-backup] the local day this device last made a backup.
  * @property {null|"dismissed"|"installed"} installHint [device-only] [not-in-backup] whether this browser's install tip stays away (lib/pwa.js).
  * @property {"system"|"light"|"dark"} appearance [device-pref] [not-in-backup] this device's light / dark choice (lib/appearance.js).
+ * @property {CycleFlags} cycleFlags [record] cycles she left out of predictions (L5); missing means {}.
  */
 
 /**
@@ -94,6 +95,14 @@ import { PALETTES, CADENCE, FLOW, DISCHARGE, ODOR, BODYODOR, RELATIONSHIP, INTIM
  * @property {number|null} length days from start to next; null for the running cycle.
  * @property {boolean} counted CYCLE_MIN ≤ length ≤ CYCLE_MAX (what the averages and spreads use).
  * @property {number} periodDays logged period days from start up to (not including) next.
+ */
+
+/**
+ * Her own per-cycle choices (L5, spec §3.5), keyed by the cycle's start date (YYYY-MM-DD). Only her "Don't use" tap
+ * writes one (engine toggleExclude); a key within 2 days of a start applies to that cycle. Predictions read it;
+ * the clinical markers never do. Sanitised on load, adopt and restore by engine cleanCycleFlags (at most 400
+ * entries). In backups, restored literally (a backup without it clears it).
+ * @typedef {Object<string, {exclude: boolean}>} CycleFlags
  */
 
 /**
@@ -160,8 +169,9 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
 /* What persists on the device: the health record and settings. Never UI state.
    reminders persists { enabled, endpoint, pending, rev } — this browser's push address, any
    address Cyra's server still has to forget, and a version so every open tab agrees on the
-   on/off switch; its status is worked out again at every launch. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance"]);
+   on/off switch; its status is worked out again at every launch.
+   cycleFlags (L5) is her own per-cycle choice ("Don't use for predictions"): part of the record, so it travels in backups. */
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -377,6 +387,8 @@ export const RULES = Object.freeze({
   lastBackupAt: isoOrNullRule,
   installHint: enumRule(INSTALL_HINTS, { nullable: true }),
   appearance: enumRule(APPEARANCES),
+  // Her "Don't use for predictions" choices: a problem whenever cleanCycleFlags would change anything.
+  cycleFlags: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanCycleFlags(v)) ? [] : [`${p}: expected { YYYY-MM-DD: { exclude: true|false, … } } (at most 400, no empty entries), got ${show(v)}`]),
 });
 
 /** Problems with a record, each "<path>: <what is wrong>" (e.g. "days[2].sym.crm: expected a
@@ -415,20 +427,16 @@ export function upsertDay(days, entry) {
 }
 
 /** One cycle per logged period start (engine cycleStarts: a period day with no period day in the
-    5 days before it; spotting never starts one), whatever order the days are in. See Cycle. */
+    5 days before it; spotting never starts one), whatever order the days are in. See Cycle. The finished
+    cycles are engine cycleSpans() (one cycle-detection implementation), plus the running one. */
 export function cyclesFrom(days) {
   const list = (Array.isArray(days) ? days : []).filter((d) => isObj(d) && typeof d.date === "string");
   const starts = cycleStarts(list);
   const periodDates = [...new Set(list.filter(isPeriodDay).map((d) => d.date))];
-  return starts.map((start, i) => {
-    const next = starts[i + 1] || null;
-    const length = next ? Math.round((new Date(next) - new Date(start)) / 86400000) : null;
-    return {
-      start, next, length,
-      counted: length != null && length >= CYCLE_MIN && length <= CYCLE_MAX,
-      periodDays: periodDates.filter((d) => d >= start && (next == null || d < next)).length,
-    };
-  });
+  const spans = cycleSpans(starts);
+  const cycles = spans.map((s) => ({ start: s.start, next: s.next, length: s.len, counted: s.counted }));
+  if (starts.length) cycles.push({ start: starts[starts.length - 1], next: null, length: null, counted: false });
+  return cycles.map((c) => ({ ...c, periodDays: periodDates.filter((d) => d >= c.start && (c.next == null || d < c.next)).length }));
 }
 
 /* The five phases a person can be in, as the stage and stage label finishReg and rulesRoute write.

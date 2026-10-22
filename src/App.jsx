@@ -57,7 +57,7 @@ import { flushSync } from "react-dom";
    ================================================================ */
 
 import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, SYM_FAMILY, PRENATAL, vizVars, rampOf } from "./lib/constants.js";
-import { seed, fmt, insights, predict, predictionWaits, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick, scoreRgb, scoreColorOf, inkOn } from "./lib/engine.js";
+import { seed, fmt, insights, predict, whyNoPrediction, cycleSummary, cleanCycleFlags, toggleExclude, periodHead, basisLine, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick, scoreRgb, scoreColorOf, inkOn } from "./lib/engine.js";
 import { DEFAULT_APPEARANCE, SYSTEM_DARK_QUERY, cleanAppearance, resolveScheme, paletteFor, paletteVars, applyDocumentScheme } from "./lib/appearance.js";
 import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
 import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource, drainTerra, mergeRows, disconnectHelp } from "./lib/wearables.js";
@@ -265,6 +265,8 @@ export default function CyraDemo() {
   const [storageDriver, setStorageDriver] = useState(null); // where the record really is, for Settings → Your data (null until probed)
   const [holdWeek, setHoldWeek] = useState(null); // the week-only hold (lib/storage.js), so Delete everything can say it stays
   const [regAnswers, setRegAnswers] = useState(null); // registration answers (no name or email in Anonymous Mode)
+  // Cycles she left out of predictions, { [startIso]: { exclude: true } }; part of the record and of backups (L5).
+  const [cycleFlags, setCycleFlags] = useState({});
   const [reminders, setReminders] = useState({ enabled: false, status: "off", endpoint: null, pending: [], rev: 0 }); // status: off | on | blocked (+denied) | unavailable | error | unsupported; pending: push addresses the server still has to forget
   /* POTS add-on (lib/pots.js, spec A13): one persisted key, part of the on-device record, never
      sent anywhere and never part of weekly counts. An older record without it keeps this
@@ -319,15 +321,27 @@ export default function CyraDemo() {
       .map((s, i) => ({ ...s, top: best(s), order: i }))
       .sort((a, b) => (b.top?.days || 0) - (a.top?.days || 0) || a.order - b.order);
   }, [ins, stage, org.partnerIds]);
-  // Until two cycles are logged, predictions start from the registration answers (last period, usual length).
-  const pred = useMemo(() => predict(ins, stage === "preg" ? null : regAnswers), [ins, regAnswers, stage]);
-  const predWaits = stage !== "preg" && !pred && predictionWaits(ins, regAnswers);
   /* This device's calendar day, never the UTC date. Kept as state so the whole app moves to the
      new day together: at local midnight (a timer, checked at least once a minute, since timers
      pause while a device sleeps) and whenever the app comes back (visible, focused, resumed or
      restored), so nothing logged after midnight is filed under the day before. */
   const [todayIso, setTodayIso] = useState(() => localDay());
   const syncDay = () => { const now = localDay(); setTodayIso((cur) => (cur === now ? cur : now)); return now; };
+  const isMeno = phaseOf(stage, stageName) === "meno";
+  /* Predictions (L5, spec §6.2): the median of her last up-to-6 kept cycles (the ones she didn't mark "Don't use"),
+     a likely-start range, and an honest reason when there is none. Until two cycles are kept they start from the
+     registration answers (last period, usual length). No period prediction in pregnancy or menopause. */
+  const prior = stage === "preg" ? null : regAnswers;
+  const predOpts = { flags: cycleFlags, stage, isMeno, today: todayIso };
+  const pred = useMemo(() => predict(ins, prior, predOpts), [ins, regAnswers, stage, isMeno, cycleFlags, todayIso]); // eslint-disable-line
+  const predWhy = useMemo(() => (pred ? null : whyNoPrediction(ins, prior, predOpts)), [pred, ins, regAnswers, stage, isMeno, cycleFlags, todayIso]); // eslint-disable-line
+  // "Your cycles" on the Calendar and the labelled clinical lists (Patterns, Report).
+  const cyc = useMemo(() => cycleSummary(ins, cycleFlags, todayIso, pred?.usedStarts || []), [ins, cycleFlags, todayIso, pred]);
+  // Her tap on "Don't use" (Calendar → Your cycles). Cyra only suggests; nothing else changes cycleFlags.
+  const setCycleUse = (start, exclude) => {
+    setCycleFlags((f) => toggleExclude(f, start, exclude));
+    ping(exclude ? `Cycle from ${fmt(start)} left out of predictions. Your Report still counts it.` : `Cycle from ${fmt(start)} is used for predictions again.`);
+  };
   const pregWeek = 22, trimester = 2;
   const tri = trimesterOf(pregWeek); // "first" | "second" | "third", for the Home greeting and week bar
   const dueDate = new Date(Date.now() + (40 - pregWeek) * 7 * 86400000).toLocaleDateString("en-US", { month: "long", day: "numeric" });
@@ -706,7 +720,6 @@ export default function CyraDemo() {
   /* ---- Wearables: Apple Watch / Oura / Terra. DEMO seeding (build flag only) is shaped by
      stage and every seeded row is marked demo; production ingests real HealthKit/Health
      Connect readings on the phone and Oura/Terra through the integrations hub. ---- */
-  const isMeno = phaseOf(stage, stageName) === "meno";
   const seedWear = (sourceId) => {
     const out = [];
     const cycleLen = pred ? pred.avgLen : 28;
@@ -849,7 +862,7 @@ export default function CyraDemo() {
         if (has(sorted[i - 1].temp) && has(sorted[i].temp) && has(sorted[i + 1].temp) && has(sorted[i + 2].temp) && sorted[i - 1].temp < 0.12 && sorted[i].temp >= 0.2 && sorted[i + 1].temp >= 0.2 && sorted[i + 2].temp >= 0.2) { ovu = sorted[i - 1].date; riseAt = sorted[i].date; break; }
       }
       if (ovu) out.push({ num: "Ovulated", text: `A sustained temperature rise began ${fmt(riseAt)} and held — consistent with ovulation around ${fmt(ovu)}. This confirms it after the fact, the way basal-temperature charting does. It can't predict next month, and it isn't contraception.`, advice: stageName === "Trying to Conceive" ? "If you're trying to conceive, the fertile days were the ~5 before and the day of that rise — Cyra will use this to sharpen next month's estimate." : null, urgency: "self" });
-      else if (pred && pred.cycleDay < pred.avgLen - 14) out.push({ num: `Day ${pred.cycleDay}`, text: `No temperature shift yet this cycle — which fits: based on your ${pred.avgLen}-day average, ovulation would be expected around day ${pred.avgLen - 14}. Cyra will flag the rise when it holds for three days.`, urgency: "self", advice: stageName === "Trying to Conceive" ? `Your estimated fertile window opens around day ${Math.max(1, pred.avgLen - 19)} — the temperature rise confirms it only afterwards, so pair it with other signs if timing matters.` : null });
+      else if (pred && pred.cycleDay < pred.avgLen - 14) out.push({ num: `Day ${pred.cycleDay}`, text: `No temperature shift yet this cycle — which fits: based on your usual ${pred.avgLen}-day cycle, ovulation would be expected around day ${pred.avgLen - 14}. Cyra will flag the rise when it holds for three days.`, urgency: "self", advice: stageName === "Trying to Conceive" ? `Your estimated fertile window opens around day ${pred.fertileDay} — the temperature rise confirms it only afterwards, so pair it with other signs if timing matters.` : null });
       const lut = sorted.filter((s) => has(s.temp) && s.temp >= 0.2), fol = sorted.filter((s) => has(s.temp) && s.temp < 0.12);
       if (lut.length >= 4 && fol.length >= 4) {
         const av = (a, k) => { const v = a.map((y) => y[k]).filter(has); return v.length >= 4 ? Math.round(v.reduce((x, y) => x + y, 0) / v.length) : null; };
@@ -920,6 +933,9 @@ export default function CyraDemo() {
     reachedTimer.current = setTimeout(() => setJustReached(null), 2000);
   };
 
+  /* The peri variability marker counts every cycle (D5); when she left some out of predictions it says so (L5). One named
+     expression so a later insight can carry the same sentence. */
+  const countsEveryCycle = cyc.excludedCount > 0 ? ` This counts every cycle, including ${cyc.excludedCount === 1 ? "the one" : `the ${cyc.excludedCount}`} you left out of predictions.` : "";
   const homeInsight = (() => {
     if (stage === "preg") {
       const next = PRENATAL.flatMap((g) => g.items).find((m) => m.from >= pregWeek && m.from <= 42); // from the same schedule Milestones draws (UI M1)
@@ -930,7 +946,7 @@ export default function CyraDemo() {
       const n = ins.sorted.length, left = 3 - n;
       return { num: `${n} of 3`, text: n === 0 ? "Log a few days and your first insight appears here." : `${left} more check-in${left === 1 ? "" : "s"} and your first insight appears here.` };
     }
-    if (stage === "peri" && ins.variability != null && ins.variability >= 7) return { num: `${ins.variability}d`, text: `Your cycles are varying by ${ins.variability} days — the clearest marker of the transition. Worth raising at your next visit.` };
+    if (stage === "peri" && ins.variability != null && ins.variability >= 7) return { num: `${ins.variability}d`, text: `Your cycles are varying by ${ins.variability} days — the clearest marker of the transition. Worth raising at your next visit.${countsEveryCycle}` };
     if (stage === "peri" && ins.hfMult && ins.hfMult > 1.2) return { num: `${ins.hfMult.toFixed(1)}×`, text: `Hot flashes were ${ins.hfMult.toFixed(1)}× more likely after a rough night. Sleep is your biggest lever.`, fam: "heat" };
     const top = ins.counts.find((x) => x.days > 0);
     if (top) return { num: `${top.days} days`, text: `${top.label} showed up most this month — ${top.days} of 30 days.`, fam: SYM_FAMILY[top.id] || "body" };
@@ -942,7 +958,9 @@ export default function CyraDemo() {
   const daysUntil = (iso) => Math.round((new Date(iso + "T12:00:00") - new Date(todayIso + "T12:00:00")) / 86400000);
   const nextUp = [];
   if (stage === "preg") nextUp.push({ k: "due", text: `Due in about ${40 - pregWeek} weeks`, sub: new Date(Date.now() + (40 - pregWeek) * 7 * 86400000).toLocaleDateString("en-US", { month: "long", day: "numeric" }) });
-  else if (pred) nextUp.push(pred.late > 0 ? { k: "late", text: `Period ${pred.late} day${pred.late > 1 ? "s" : ""} past your average`, sub: `${stage === "peri" ? "Irregularity is data too" : "Normal variation happens"} · Calendar →`, action: () => goTab("cal") } : { k: "period", text: `Period expected in ~${pred.daysTo} days`, sub: `Avg cycle ${pred.avgLen} days · Calendar →`, action: () => goTab("cal") });
+  // The likely-start range (L5): "Period likely Oct 26 – Nov 1" over what it rests on; later than the range; or a gap too long to predict across.
+  else if (pred) nextUp.push(pred.state === "later" ? { k: "late", text: periodHead(pred), sub: `Your range ended ${fmt(pred.toIso)} · ${stage === "peri" ? "Irregularity is data too" : "Normal variation happens"} · Calendar →`, action: () => goTab("cal") } : { k: "period", text: periodHead(pred), sub: `${basisLine(pred)} · Calendar →`, action: () => goTab("cal") });
+  else if (predWhy?.kind === "long") nextUp.push({ k: "late", text: `No period on record for ${predWhy.days} days`, sub: `${stage === "peri" ? "Long gaps are common in perimenopause" : "Over 120 days, so Cyra won't guess"} · Calendar →`, action: () => goTab("cal") });
   if (upcoming[0]) nextUp.push({ k: "appt", text: `Appointment${upcoming[0].who ? ` with ${upcoming[0].who}` : ""} in ${daysUntil(upcoming[0].date)} day${daysUntil(upcoming[0].date) === 1 ? "" : "s"}`, sub: daysUntil(upcoming[0].date) <= 7 && stage !== "preg" ? "Prep your report →" : fmt(upcoming[0].date), action: daysUntil(upcoming[0].date) <= 7 && stage !== "preg" ? () => goTab("report") : null }); // pregnancy has no Report tab
 
   // The palette (UI) and data-viz custom properties, inline on .cy; data-scheme picks the dark token rule (Shell).
@@ -972,8 +990,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1230,13 +1248,16 @@ export default function CyraDemo() {
        It starts a new epoch, so another open tab takes the restored log over whole instead of
        merging its own older entries back in. A log from a newer build stays untouched. */
     const restoredPots = newEpoch(saved.pots ?? freshEmpty(), Date.now());
-    applySaved({ ...saved, pots: restoredPots, wearSources: wear }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
+    /* Cycles she left out of predictions are restored literally too (L5): a backup without cycleFlags clears them here, so
+       "It replaces your record here." stays true. */
+    const restoredFlags = cleanCycleFlags(saved.cycleFlags);
+    applySaved({ ...saved, pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
     potsBase.current = restoredPots; setPotsHomeLast(null);
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
     const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance };
-    await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
+    await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     ping(!isNative() && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored");
     if (FEATURES.wearables && wear.oura?.restored && API_BASE && !DEMO_WEARABLES) checkRestoredOura(wear.oura);
@@ -1832,10 +1853,10 @@ export default function CyraDemo() {
               <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} expanded={expanded} setExpanded={setExpanded} quickCheckin={quickCheckin} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} onEditDay={startEdit} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} days={days} setDays={setDays} onSaved={onSaved} ping={ping} setAppTab={setAppTab} research={FEATURES.counts && research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
             )}
             {appIs("cal") && (
-              <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />
+              <CalendarScreen pred={pred} predWhy={predWhy} cyc={cyc} onCycleUse={setCycleUse} stage={stage} isMeno={isMeno} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} />
             )}
-            {appIs("patterns") && <PatternsScreen ins={ins} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} />}
-            {appIs("report") && <ReportScreen ins={ins} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} />}
+            {appIs("patterns") && <PatternsScreen ins={ins} lens6={cyc.lens6} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} />}
+            {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} />}
             {appIs("shelf") && <CareScreen shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Cyra will compare your days before and after"); }} />}
             {appIs("ask") && askView}
             {appIs("connect") && connView}

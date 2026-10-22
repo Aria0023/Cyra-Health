@@ -176,6 +176,22 @@ html { scroll-padding-top:60px; }
 .callegend .dot { display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
 .d-period { background:var(--primary); } .d-pred { background:var(--card); border:1.5px dashed var(--primary); } .d-fert { background:var(--card); border:2px solid var(--accent); }
 .d-wk { background:var(--card); border:2px solid var(--accent); border-radius:3px; }
+/* Your cycles (Calendar, L5): start · length · decorative bar · Don't use switch; the text carries the length. */
+.bodypanel.more .cyclist { list-style:none; margin:8px 0 0; padding:0; }
+.bodypanel.more .cycrow { display:flex; align-items:center; flex-wrap:wrap; gap:4px var(--gap); margin:0; padding:6px 0; border-top:1px solid var(--line); }
+.bodypanel.more .cycrow:first-child { border-top:none; }
+.cycstart { min-width:46px; font-weight:700; font-variant-numeric:tabular-nums; }
+.cyclen { min-width:56px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.cycrow.now .cyclen { min-width:0; color:var(--soft); }
+.cycbar { flex:1 1 40px; min-width:40px; height:6px; border-radius:3px; background:color-mix(in srgb, var(--primary) 10%, var(--card)); overflow:hidden; }
+.cycbar i { display:block; height:100%; border-radius:3px; background:var(--primary); }
+.cycrow.now .cycbar i { background:color-mix(in srgb, var(--primary) 45%, var(--card)); }
+.cycrow.out .cycstart, .cycrow.out .cyclen { color:var(--soft); }
+.cycrow.out .cycbar i { background:color-mix(in srgb, var(--soft) 45%, var(--card)); }
+.cycuse { flex-shrink:0; }
+.bodypanel.more .cycwhy { flex-basis:100%; margin:0 0 2px; font-size:var(--fs-sm); color:var(--soft); line-height:1.45; }
+.statechip.flag { display:inline-block; margin-right:6px; padding:3px 9px; border-style:solid; border-color:color-mix(in srgb, var(--accent) 70%, var(--line)); color:var(--accent-text); }
+.bodypanel.more .cycmore { margin:6px 0 0; color:var(--soft); }
 .pregband { display:flex; gap:14px; align-items:center; background:var(--card); border:1.5px solid var(--line); box-shadow:var(--sh-card); border-radius:13px; padding:14px 15px; margin-bottom:8px; }
 .pregweek { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:22px; color:var(--primary); white-space:nowrap; }
 .pregmeta { display:flex; flex-direction:column; gap:2px; font-size:13px; }
@@ -287,6 +303,9 @@ html { scroll-padding-top:60px; }
 .gradlegend { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--soft); margin-bottom:12px; }
 .gradbar { flex:1; height:7px; border-radius:4px; }
 .c-per-mark { position:absolute; bottom:3px; width:5px; height:5px; border-radius:50%; background:var(--primary); box-shadow:0 0 0 1.5px var(--halo); }
+/* Flow on the period mark (L5): light or unset keeps the 5px dot; medium is a 9 × 5 pill, heavy and flooding 13 × 5. The day's
+   name carries the flow in words (", heavy flow"), so the width is never the only cue. */
+.c-per-mark.f-med { width:9px; border-radius:var(--r-pill); } .c-per-mark.f-heavy { width:13px; border-radius:var(--r-pill); }
 .d-permark { background:var(--primary); border-radius:50%; }
 .scorepill { float:none; font-size:11px; font-weight:700; color:var(--on-primary); border-radius:999px; padding:3px 9px; white-space:nowrap; }
 .palsheet { background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:14px; margin-bottom:14px; box-shadow:var(--sh-sheet); }

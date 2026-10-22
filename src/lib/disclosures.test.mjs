@@ -43,6 +43,8 @@ const PRE = {
     "Your settings are replaced too, except this device's choices about weekly counts, Cyra's AI, browser reminders and appearance (light or dark).",
     "If the backup has Oura or Fitbit/Garmin/Whoop connected, that connection comes back on this device marked not confirmed, because it may have been ended since the backup was made. It counts as connected again once Cyra confirms it through its server: Oura on a Sync that works (checked straight away, and removed from this device if it no longer works), Fitbit/Garmin/Whoop when readings arrive. A Fitbit/Garmin/Whoop connection you ended after the backup can't send readings, so tap Disconnect to remove it. One this device is still waiting to see disconnected isn't restored. A connection this device has now for the same service is replaced, so remove Cyra in that account if you want it ended.",
     "A connection this device has that the backup doesn't (Oura or Fitbit/Garmin/Whoop) stays connected here and keeps fetching readings through Cyra's server as before. Tap Disconnect under Wearables on Home if you don't want it.",
+    // Added by L5 (cycle flags restored literally), directly before the POTS line, which stays last.
+    "Cycles you left out of predictions are restored as the backup has them; a backup made before you left any out uses every cycle again.",
     "A backup made before you turned on POTS tools has no POTS log, so restoring it clears the POTS log on this device.",
   ],
   wipeConfirm: " Every check-in, POTS log, note, appointment and setting goes for good. This also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop. Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.",
@@ -139,7 +141,7 @@ test("disclosures: the shipping defaults (ai, webReminders), web and phone", () 
     "Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase.",
   ]);
   assert.equal(restoreFoot(DEF), "Unlocked on this device with your passphrase. It replaces your record here.");
-  assert.deepEqual(restoreChanges(DEF), ["Your settings are replaced too, except this device's choices about Cyra's AI, browser reminders and appearance (light or dark).", PRE.restoreChanges[3]]);
+  assert.deepEqual(restoreChanges(DEF), ["Your settings are replaced too, except this device's choices about Cyra's AI, browser reminders and appearance (light or dark).", PRE.restoreChanges[3], PRE.restoreChanges[4]]);
   assert.deepEqual(wipeMore(DEF, false), [
     "If Cyra's server can't confirm that, Cyra tells you what did and didn't end and keeps your record on this device until you choose.",
     "Questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms.",
@@ -168,7 +170,7 @@ test("disclosures: none — the minimal outputs", () => {
   assert.equal(consentDeleteFact(NONE, true), "Delete everything from Settings, anytime. It also turns off reminders.");
   for (const native of [false, true]) assert.deepEqual(consentDetails(NONE, native), [PRE.consentDetails[1]]);
   assert.deepEqual(leaveDevice(NONE), ["Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase."]);
-  assert.deepEqual(restoreChanges(NONE), ["Your settings are replaced too, except this device's choices about appearance (light or dark).", PRE.restoreChanges[3]]);
+  assert.deepEqual(restoreChanges(NONE), ["Your settings are replaced too, except this device's choices about appearance (light or dark).", PRE.restoreChanges[3], PRE.restoreChanges[4]]);
   assert.equal(wipeConfirm(NONE, false), " Every check-in, POTS log, note, appointment and setting goes for good. Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.");
   assert.deepEqual(wipeMore(NONE, false), [PRE.wipeMoreWeb[2]]);
   assert.deepEqual(wipeMore(NONE, true), [PRE.wipeMoreWeb[2]]);
@@ -188,6 +190,12 @@ test("disclosures: restoreChanges and serverSees for all, default and none, with
   assert.equal(restoreChanges(DEF)[0], "Your settings are replaced too, except this device's choices about Cyra's AI, browser reminders and appearance (light or dark).");
   assert.equal(restoreChanges(NONE)[0], "Your settings are replaced too, except this device's choices about appearance (light or dark).");
   assert.equal(restoreChanges.length, 1, "takes only the flags: no server or platform wording");
+  // L5: the cycles line is second to last and the POTS line stays last in every configuration (the POTS suites assert it).
+  for (let mask = 0; mask < 1 << FEATURE_NAMES.length; mask++) {
+    const list = restoreChanges(Object.fromEntries(FEATURE_NAMES.map((n, i) => [n, !!(mask & (1 << i))])));
+    assert.equal(list[list.length - 1], PRE.restoreChanges[4]);
+    assert.equal(list[list.length - 2], PRE.restoreChanges[3]);
+  }
 });
 
 test("disclosures: singular forms for one feature", () => {

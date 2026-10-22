@@ -1,15 +1,18 @@
 import Advice from "../components/Advice.jsx";
 import { PatternsCard, ChartSoon, windowDays, dayStats } from "../components/PatternCharts.jsx";
 import { INSIGHT_STARTERS } from "../lib/askStarters.js";
+import { lensLabel } from "../lib/engine.js";
 
 /* Cycle & Peri — Patterns: the patterns card (the same card Home shows: day-score line with the
    symptom rows, or the cycle rings), insight + advice cards and trial before/after cards. Every
    insight card ends in an action row: "Add to visit notes →" opens the Report tab (which turns the
    record into the one-page summary) and, when the written library has a question for it,
    "Ask about this →" opens Ask with that question answered on the device (lib/askStarters.js).
-   onGo(tab), onAsk(question) and onPots() come from App.jsx. */
-export default function PatternsScreen({ ins, symIds, symMap, stage, isMeno = false, todayIso, medEffects, potsOn = false, popIso = null, onGo, onAsk, onPots = null }) {
+   onGo(tab), onAsk(question) and onPots() come from App.jsx. The perimenopause spread is a clinical marker: it
+   counts every cycle, and lens6 (engine cycleSummary) labels the ones she left out of predictions (L5). */
+export default function PatternsScreen({ ins, lens6 = null, symIds, symMap, stage, isMeno = false, todayIso, medEffects, potsOn = false, popIso = null, onGo, onAsk, onPots = null }) {
   const days = windowDays(ins.sorted, symIds, todayIso);
+  const lensList = lens6 || ins.lens.map((len) => ({ len, excluded: false }));
   const logged = days.filter((d) => d.e).length;
   const starts = isMeno ? [] : ins.starts || [];
   const stats = logged >= 3 ? dayStats(days) : null;
@@ -39,7 +42,7 @@ export default function PatternsScreen({ ins, symIds, symMap, stage, isMeno = fa
       )}
       {stage === "peri" && ins.variability != null && (
         <div className="icard">
-          <div className="card"><div className="num">{ins.variability}d</div><p>Cycles ran {ins.lens.join(" · ")} days — a 7+ day spread is the clinical marker of the transition (STRAW staging).</p></div>
+          <div className="card"><div className="num">{ins.variability}d</div><p>Cycles ran {lensList.map(lensLabel).join(" · ")} days — a 7+ day spread is the clinical marker of the transition (STRAW staging).</p></div>
           <Advice urgency="visit" mid>Start the treatment conversation early — and ask about a lipid panel and bone-health baseline; the transition is when both start shifting.</Advice>
           {actions("var")}
         </div>

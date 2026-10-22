@@ -9,7 +9,7 @@ import {
   RECORD_VERSION, MIGRATIONS, migrate, PERSISTED, DEVICE_ONLY, DEVICE_PREFS, RECORD, NOT_IN_BACKUP, backupCopy,
   RULES, validateRecord, entryFor, upsertDay, cyclesFrom, PHASES, phaseOf, daysLogged,
 } from "./record.js";
-import { seed, insights, localDay, cycleStarts, cycleLens } from "./engine.js";
+import { seed, insights, localDay, cycleStarts, cycleLens, cycleSpans } from "./engine.js";
 import { PSYM, SYMS } from "./constants.js";
 import { freshEmpty } from "./pots.js";
 
@@ -29,7 +29,7 @@ const DEFAULTS = () => ({
   meds: [], medLog: {}, appts: [], journal: {}, wearSources: {}, wearData: [], acct: { name: "", email: "", anon: false }, research: false,
   stage: "peri", stageName: "Perimenopause", welcome: "", days: seed(), pregLog: {}, pulseQueue: null, pulseSent: null, pulseLastSend: null,
   pulseRev: 0, askAI: false, regAnswers: null, reminders: { enabled: false, endpoint: null, pending: [], rev: 0 }, terraOff: [], kickTally: null,
-  pots: freshEmpty(), lastBackupAt: null, installHint: null, appearance: "system",
+  pots: freshEmpty(), lastBackupAt: null, installHint: null, appearance: "system", cycleFlags: {},
 });
 const appRecord = (over = {}) => {
   const d = { ...DEFAULTS(), ...over };
@@ -104,8 +104,8 @@ test("migrate: a missing, throwing or non-advancing step returns the input (all 
 /* ---------- keys ---------- */
 
 test("key lists are the ones App.jsx used before L3 (pinned)", () => {
-  // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS).
-  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance"]);
+  // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags (a record key: in RECORD and in backups).
+  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags"]);
   assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint"]);
   assert.deepEqual([...DEVICE_PREFS], ["appearance"]);
   assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "appearance"]);
@@ -188,7 +188,7 @@ test("validateRecord: an app-shaped record has no problems", () => {
     pulseQueue: { day: iso(0), stage: "preg", events: ["nau"] }, pulseSent: { week: "2026-W43", keys: ["preg|nau"] }, pulseLastSend: iso(1), pulseRev: 1760000000000,
     research: true, askAI: true, regAnswers: { stage: "Pregnant", conditions: [], zip: "90210", age: "35–44" },
     reminders: { enabled: true, endpoint: "https://push.example/x", pending: [], rev: 3 }, terraOff: [{ key: "k".repeat(43) }],
-    kickTally: { day: iso(0), n: 4 }, lastBackupAt: iso(3), installHint: "installed", appearance: "dark",
+    kickTally: { day: iso(0), n: 4 }, lastBackupAt: iso(3), installHint: "installed", appearance: "dark", cycleFlags: { [iso(40)]: { exclude: true }, [iso(70)]: { exclude: false, note: "later field" } },
     acct: { name: "Ada", email: "ada@example.com", anon: false }, welcome: "Your pregnancy space is ready.",
     days: [{ date: iso(1), sleepQ: "poor", period: true, scales: { fatigue: 3, pain: 2, moodq: 7, stress: 1 }, flow: "heavy", disch: "creamy", odor: "none", bodyOdor: "same", sym: { crm: 3, hda: 0 } }],
   });
@@ -210,6 +210,19 @@ test("validateRecord: problems are reported by path", () => {
   assert.ok(problems.includes(`days: two entries for ${iso(5)}`));
   assert.ok(problems.includes('stage: expected periods, preg, peri or null, got "x"'));
   for (const p of problems) assert.match(p, /^[\w.[\]]+: |^days: /, p);
+});
+
+test("cycleFlags (L5): a record key, in backups; the rule flags anything cleanCycleFlags would change", () => {
+  assert.ok(RECORD.includes("cycleFlags"), "adopted by other tabs");
+  assert.ok(!DEVICE_ONLY.includes("cycleFlags") && !NOT_IN_BACKUP.includes("cycleFlags"), "in backups, applied by a restore");
+  assert.deepEqual(backupCopy(appRecord({ cycleFlags: { [iso(30)]: { exclude: true } } })).cycleFlags, { [iso(30)]: { exclude: true } });
+  assert.deepEqual(RULES.cycleFlags({}, "cycleFlags"), []);
+  assert.deepEqual(RULES.cycleFlags({ [iso(30)]: { exclude: true } }, "cycleFlags"), []);
+  for (const bad of [[], null, "x", { "2026-1-1": { exclude: true } }, { [iso(30)]: true }, { [iso(30)]: { exclude: false } }, { [iso(30)]: { exclude: "yes" } }]) {
+    const out = RULES.cycleFlags(bad, "cycleFlags");
+    assert.equal(out.length, 1, JSON.stringify(bad));
+    assert.match(out[0], /^cycleFlags: expected /);
+  }
 });
 
 test("validateRecord never throws and is lenient where it must be", () => {
@@ -297,6 +310,16 @@ test("cyclesFrom agrees with insights()", () => {
     assert.deepEqual(counted.slice(-6), ins.lens);
   }
   assert.ok(cyclesFrom(seed()).length >= 2, "the demo seed has cycles");
+});
+
+test("cyclesFrom is engine cycleSpans plus the running cycle (one cycle-detection implementation, L5)", () => {
+  for (const days of [seed(), [], [{ date: iso(140), period: true, sym: {} }, { date: iso(10), period: true, sym: {} }]]) {
+    const spans = cycleSpans(cycleStarts(days));
+    const cycles = cyclesFrom(days);
+    assert.deepEqual(cycles.slice(0, spans.length).map(({ start, next, length, counted }) => ({ start, next, len: length, counted })), spans);
+    assert.equal(cycles.length, spans.length + (cycleStarts(days).length ? 1 : 0));
+  }
+  assert.ok(!/\bnew Date\(next\)|CYCLE_MIN|CYCLE_MAX/.test(stripComments(read("lib/record.js"))), "record.js measures no cycle itself");
 });
 
 test("phaseOf and PHASES", () => {

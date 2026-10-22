@@ -145,6 +145,7 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `kickTally` | today's kicks between taps | health log | yes | yes | yes |
 | `regAnswers` | registration answers | health log | yes, without `zip` and `age` | yes | yes |
 | `pots` | the POTS add-on | health log | yes | yes, literally, with a new epoch (a backup without one clears the POTS log; a newer build's locked log stays untouched) | yes, 3-way merged (`mergePots`, epochs) |
+| `cycleFlags` | cycles she left out of predictions, `{ [startIso]: { exclude: true } }` (L5, spec §3.5) | health record (her choice) | yes | yes, literally (`cleanCycleFlags`; a backup without it clears it) | yes (sanitised by `cleanCycleFlags`) |
 | `palIdx` | palette per stage | setting | yes | yes | yes |
 | `cadence` | check-in rhythm | setting | yes | yes | yes |
 | `quietHours` | reminder time of day | setting | yes | yes | yes |
@@ -186,7 +187,9 @@ The typedefs in `src/lib/record.js` are the working definitions (spec §3.1 and 
   (`upsertDay`); `entryFor` returns the first one, as `days.find` did.
 - **PregEntry** — `{ sym, kicks?, scales?, odor?, bodyOdor? }`, kept in `pregLog` by date.
 - **Cycle** (derived, never stored) — `{ start, next, length, counted, periodDays }` from
-  `cyclesFrom(days)`.
+  `cyclesFrom(days)`, which builds on engine `cycleSpans(cycleStarts(days))` plus the running cycle.
+- **CycleFlags** — `{ [cycleStartIso]: { exclude: boolean } }`, her "Don't use for predictions" choices; a key within
+  2 days of a start applies to it (`flagKey`).
 - **Settings group** — Settings, StoredReminders, Account, Med, Appt, ConnEntry, WearRow,
   PulseQueue, PulseSent, KickTally. The POTS log's shape is `lib/pots.js`'s.
 
@@ -226,6 +229,12 @@ Where each comes from: `insights()` and `predict()` (`lib/engine.js`), `cyclesFr
 (`lib/record.js`), `dayScore()` (engine), the monthly recap, medication comparisons and wearable
 insights (App.jsx `useMemo` and render-time code), pattern charts (`components/PatternCharts.jsx`),
 POTS totals and patterns (`lib/pots.js`, `lib/potsPatterns.js`).
+
+Predictions since L5: `predict()`, `whyNoPrediction()` and `cycleSummary()` (`lib/engine.js`) are computed on the device
+from `days`, `cycleFlags` and the registration answers, every time they are shown, and never stored; only her flags
+are. The clinical markers (`insights()`: `lens`, `variability`, `lens30`, `variability30`) never read `cycleFlags`, so
+the perimenopause marker and the Report count every cycle. `engine.js` owns cycle detection (`cycleStarts`,
+`cycleSpans`, `cycleLens`); `record.js` `cyclesFrom()` delegates to it, so there is one implementation.
 
 ## 8. Saving, other tabs, backup and restore, delete
 

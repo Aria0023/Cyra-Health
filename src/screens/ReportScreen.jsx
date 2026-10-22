@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { fmt, localDay } from "../lib/engine.js";
+import { fmt, localDay, lensLabel } from "../lib/engine.js";
 import { FAMILIES, SYM_FAMILY, famVar } from "../lib/constants.js";
 import { copyText } from "../lib/clipboard.js";
 import Icon from "../components/Icon.jsx";
@@ -46,8 +46,9 @@ function Delta({ prev, cur }) {
 }
 
 /* Cycle lengths as dots on one scale, the shortest-to-longest span bracketed. Decorative: the
-   sentence beside it carries the lengths and the spread. */
-function CycleDots({ lens }) {
+   sentence beside it carries the lengths and the spread. A cycle she left out of predictions (outs[i]) is a hollow
+   dot: it still counts here (L5). */
+function CycleDots({ lens, outs = [] }) {
   const W = 300, H = 30, L = 14, R = 14;
   const lo = Math.min(18, Math.min(...lens) - 2), hi = Math.max(50, Math.max(...lens) + 2);
   const x = (v) => L + ((Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)) * (W - L - R);
@@ -56,7 +57,9 @@ function CycleDots({ lens }) {
     <svg viewBox={`0 0 ${W} ${H}`} className="cyclesvg" aria-hidden="true" focusable="false">
       <line x1={L} x2={W - R} y1={19} y2={19} stroke="var(--line)" strokeWidth={1} />
       {mx > mn && <line x1={x(mn)} x2={x(mx)} y1={19} y2={19} stroke="var(--primary)" strokeWidth={3} strokeLinecap="round" opacity={0.35} />}
-      {lens.map((l, i) => <circle key={i} cx={x(l)} cy={19} r={5} fill="var(--primary)" stroke="var(--card)" strokeWidth={2} />)}
+      {lens.map((l, i) => (outs[i]
+        ? <circle key={i} cx={x(l)} cy={19} r={5} fill="var(--card)" stroke="var(--primary)" strokeWidth={2} />
+        : <circle key={i} cx={x(l)} cy={19} r={5} fill="var(--primary)" stroke="var(--card)" strokeWidth={2} />))}
       <text x={x(mn)} y={8} textAnchor={x(mn) < 30 ? "start" : "middle"} className="ptick">{mn}d</text>
       {mx > mn && <text x={x(mx)} y={8} textAnchor={x(mx) > W - 30 ? "end" : "middle"} className="ptick">{mx}d</text>}
     </svg>
@@ -78,8 +81,10 @@ function Meter({ color, any, strong, mounted }) {
 
 const Sec = ({ n, children }) => <p className="rsec"><span className="rnum">{n}</span><span>{children}</span></p>;
 
-export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, showTable, setShowTable, potsOn = false, todayIso = localDay(), appt = null, daysUntil = () => 0, goTab = () => {}, setShowAppts = () => {}, scoreOn = () => null, scoreColor = () => "var(--primary)" }) {
+export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, showTable, setShowTable, potsOn = false, todayIso = localDay(), appt = null, daysUntil = () => 0, goTab = () => {}, setShowAppts = () => {}, scoreOn = () => null, scoreColor = () => "var(--primary)", lens6 = null }) {
   const n = ins.last30.length; // days logged in the last 30 calendar days
+  // The last 6 cycle lengths, each marked when she left it out of predictions (L5): the spread still counts every one.
+  const lensList = lens6 || ins.lens.map((len) => ({ len, excluded: false }));
   const [picked, setPicked] = useState([]); // indices of scripts going into the email (max PICK_MAX)
   const [copied, setCopied] = useState(null); // index of the script whose Copy just landed
   const [mounted, setMounted] = useState(false); // flips once so the meters grow from 0
@@ -208,8 +213,8 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
             {ins.variability != null && (
               <div className="finding">
                 <div className="fhead"><i className="fdot" style={{ background: "var(--primary)" }} aria-hidden="true" /><b>Your periods came {ins.variability >= 7 ? "at quite different times" : "fairly steadily"}</b><span className="fchip" style={{ background: tint("var(--primary)", 14) }}>{ins.variability}-day spread</span></div>
-                <CycleDots lens={ins.lens} />
-                <p className="plain fsub">{ins.lens.join(", ")} days apart. Doctors call that a {ins.variability}-day spread.</p>
+                <CycleDots lens={lensList.map((x) => x.len)} outs={lensList.map((x) => x.excluded)} />
+                <p className="plain fsub">{lensList.map(lensLabel).join(", ")} days apart. Doctors call that a {ins.variability}-day spread.</p>
               </div>
             )}
             {stage === "peri" && ins.hfMult && ins.hfMult > 1.2 && (
@@ -273,7 +278,7 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
                 </tr>
               );
             })}</tbody></table>
-          {ins.variability != null && <p className="rfoot">Cycle lengths: {ins.lens.join(", ")} days ({ins.variability}-day spread).</p>}
+          {ins.variability != null && <p className="rfoot">Cycle lengths: {lensList.map(lensLabel).join(", ")} days ({ins.variability}-day spread).</p>}
           <p className="rfoot">Logged daily by you. Observations, not diagnoses.</p>
         </div>
       )}

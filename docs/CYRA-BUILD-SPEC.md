@@ -99,6 +99,20 @@ collecting identifiers alongside health data changes the legal posture of the pr
 ### 3.4 The saved record
 `{ v: RECORD_VERSION, savedAt, phase: "app", ...PERSISTED keys }`, RECORD_VERSION = 1, every load and restore through `migrate()`; key classes and backup rules in docs/ARCHITECTURE.md §4.
 
+### 3.5 Cycle flags (local-first L5)
+```js
+cycleFlags: { [cycleStartIso]: { exclude: true } }   // e.g. { "2026-07-11": { exclude: true } }
+```
+Her own choice only: the "Don't use" switch under Calendar → Your cycles is the one writer (engine `toggleExclude`);
+Cyra may suggest leaving out a cycle that looks unusual but never sets a flag itself. A key within 2 days of a cycle's
+start applies to that cycle (`flagKey`: a back-filled or un-marked first period day can move a start; starts are at
+least 6 days apart, so it is never ambiguous); a key with no start near it is kept, harmless, and applies again if that
+start comes back. Sanitised on load, cross-tab adopt and restore by `cleanCycleFlags` (YYYY-MM-DD keys, plain-object
+values, `exclude` a boolean, unknown fields kept, empty entries dropped, at most 400 entries, the newest kept). A record
+key (in PERSISTED, not DEVICE_ONLY): saved with the record, adopted by her other open tabs, encrypted into a backup she
+saves, restored literally (a backup without the key clears it) and deleted by Delete everything. No RECORD_VERSION bump:
+missing means `{}`. Predictions read it; the clinical markers (§6.2 variability, the Report's cycle lengths) never do.
+
 ---
 
 ## 4. APPLICATION FLOW (state machine)
@@ -187,7 +201,10 @@ remounts on a change and fades in once over --t-base with `cy-fade-rise`; no lab
 
 ### 5.1 Cycle & Peri stages — tabs: Today · Calendar · Patterns · Report · Care · Ask
 
-**Today:** cycle-status card (day N, phase, days to next period or days late) ·
+**Today:** cycle-status card (day N, phase, and the likely start: `periodHead(pred)` + "." — "Period likely Oct 26 – Nov 1."
+or "Period likely any day now, by Nov 1." — or, past the range, "Later than your usual range, which ended {date}." with
+" — with your spread, irregularity is data too." in place of the full stop in perimenopause; no card when there is no
+prediction, e.g. in menopause, pregnancy or after a gap over 120 days) ·
 live day-score meter (see 6.3) · symptom chips (tap cycles 0→1→2→3→0, showing ●○○ dots) ·
 0–10 sliders for the four scales · sleep quality (3 buttons) · collapsible **Body Signals**
 panel (flow, discharge, vaginal odor, body odor) · save button · phase-appropriate daily read.
@@ -243,10 +260,11 @@ the save handler, never on hydration or restore); the patterns card (`popIso`) w
 `.readcard.compact` sits directly under the phase card, hint clamped to two lines, matching Pregnancy Today.
 
 **Calendar:** month grid. Logged days filled with their day-score color. Period days
-marked. Predicted period (dashed) and estimated fertile window (accent) for unlogged
-future days. Tap any day → detail panel showing what was logged → "Edit this day" loads
-that date into the check-in form and saves back to it. Confidence card: ±days derived
-from cycle variability, explicitly stating it is not contraception.
+marked, the mark sized by flow. Predicted period (dashed: every day of the likely-start range) and
+estimated fertile window (accent) for unlogged days. Tap any day → detail panel showing what was logged →
+"Edit this day" loads that date into the check-in form and saves back to it. Confidence card: ±half of the
+likely-start range (§6.2), explicitly stating it is not contraception. "Your cycles" under it lists her
+cycles and lets her leave one out of predictions (L5).
 
 **Calendar rules (UI C1; `src/screens/CalendarScreen.jsx`, `PregCalendarScreen.jsx`).**
 *Month navigation:* the `h1.disp` sits between two 44px `.sbtn` buttons (`aria-label` "Previous month" /
@@ -265,21 +283,65 @@ is `.c-today` (inset ink ring); before anything is logged it also takes `.c-empt
 hint reads "Tap today to log your first day. Periods, predictions and the fertile window appear here as you go."
 *Selected cell:* `.c-sel` draws a card-gap + 5px --primary ring (absorbed by the 5px grid gap; `.c-today.c-sel`
 keeps the inset ring inside it) and the cell is `aria-pressed="true"`; exactly one cell is pressed at a time.
-*Accessible name:* every cell is named "{Weekday}, {Month} {day}" followed by ", today", ", period",
+*Accessible name:* every cell is named "{Weekday}, {Month} {day}" followed by ", today", ", period" (then the
+flow: ", light flow", ", medium flow", ", heavy flow" or ", flooding"; nothing when no flow was set),
 ", predicted period", ", estimated fertile window" and ", {scoreLabel}" as they apply (pregnancy: ", week N
 starts", ", logged"); today also carries `aria-current="date"`.
+*Flow overlay (L5):* the period mark `span.c-per-mark` takes a flow class in the same position, tokens only —
+`f-light` (light, or no flow set) the 5px dot, `f-med` a 9 × 5px pill, `f-heavy` (heavy and flooding) a 13 × 5px
+pill. No legend row: the cell's name and the day card name the flow.
+*Predicted and fertile cells (L5):* a cell is predicted when `pred.fromIso <= iso <= pred.toIso` (the whole
+likely-start range) and fertile when `pred.fertileFromIso <= iso <= pred.fertileToIso`, compared inclusively as ISO
+days (the old `inRange` compared noon with midnight and dropped the last day of both windows, so the fertile window
+showed 4 days, not 5). Class precedence stays period > pred > fert: where the last fertile day is also the first
+likely-start day (a ±10 range), that cell is dashed and its name carries both phrases.
+*Menopause:* the hint under the title reads "Logged days and any bleeding you note. After menopause, Cyra doesn't
+predict periods."; the first-run calhint "Tap today to log your first day. What you log appears here as you go.";
+the legend shows only the period swatch; no predicted or fertile cells and no "Your cycles". The other stages keep
+their hint, calhint and legend exactly.
 *Day card:* `.card.daycard[role=region][aria-label="Selected day"]` renders directly after `.calgrid`
 (before the legends) with a 180ms `cy-fade-rise`; `.dayhead` holds "{Wkd}, {Mon} {d}" and the `.scorepill`
 (score fill + `scoreInk`); symptoms are a `.pday-s` list whose severity dots take the symptom's family colour
 through `--fc` (`famColor()`); the footer is "Edit this day" for a logged day, "Log this day" for an unlogged
 day up to today (both open the Today edit flow via `onEdit(iso)` — "Fixing up {date}"), or the sentence
 "That day hasn't happened yet." for a future day, and always "Close".
-*Confidence card:* the number keeps `.num` with "confidence" as `.rmeta` under it; the sentence names one
-basis only — told: "Based on the {n}-day cycle you gave at sign-up{ (one logged so far: {len}d)}. After two
-logged cycles this becomes your own number."; logged: "Based on your last {k} cycles ({a · b}d)." ("your last
-cycle" when k = 1); no prior and nothing logged: "Based on a typical 28-day cycle until two of yours are
-logged." — each followed by "Estimates — not contraception." verbatim. "Tap any day to see or edit what you
-logged." is a one-line `.hint.calhint` under the legends.
+*Confidence card (L5):* `<div class="card"><div class="num">±{pred.half}d<span class="rmeta">confidence</span></div><p>…</p></div>`;
+the sentence joins, with spaces: (a) the range — upcoming "Period likely {Oct 26 – Nov 1}." (`fmtRange`, spaced en
+dash, both dates in full); window "Period likely any day now, by {Nov 1}."; later "Later than your usual range, which
+ended {date}. If it came and you didn't log it, tap that day to add it."; (b) one basis — logged, two or more in use:
+"Based on your last {n} cycles ({a · b · …}d){, with {k} left out}."; logged, one: "Based on your last cycle
+({len}d){, with {k} left out}."; told, none left out: "Based on the {n}-day cycle you gave at sign-up{ (one logged so
+far: {len}d)}. After two logged cycles this becomes your own number."; told, some left out: "Based on the {n}-day
+cycle you gave at sign-up, with {k} logged cycle(s) left out. Once two cycles are in use, this becomes your own
+number."; default: "Based on a typical 28-day cycle until two of yours are logged."; (c) perimenopause only: "Cycles
+vary more in perimenopause, so the range is wider."; (d) "Estimates — not contraception." verbatim.
+*No-prediction card:* `.num` "—" and, by `whyNoPrediction().kind`: none — "No predictions yet. Log a period day (light
+flow or more on the Today screen) and the calendar starts estimating your next one."; unsure — "At sign-up you said
+your cycles are irregular or you're not sure how long they run, so Cyra won't guess yet. Log a couple of periods
+(light flow or more on the Today screen) and the calendar starts estimating your next one."; excluded — "Every cycle
+you've logged is left out of predictions, so Cyra won't guess. Turn one back on under “Your cycles” below, or keep
+logging."; long — "It's been {n} days since the last period Cyra knows about, longer than it predicts across. If you
+had one since, tap that day to log it." then " Long gaps are common in perimenopause." (peri) or " If you haven't and
+that's unexpected, it's worth mentioning to a clinician."; meno — "After menopause Cyra doesn't predict periods. Any
+bleeding now is worth mentioning to your doctor — log it on the Today screen so it's in your record."
+*Your cycles (L5):* after the card, outside menopause and when at least one finished cycle exists, `div.cycwrap` holds
+a closed `Details` (the bordered disclosure on paper, like Settings: the wrapper breaks the `.card + .morewrap` hairline
+rule) labelled "Your cycles", plus `<span class="dsub"> · {n} look(s) unusual</span>` while an unusual cycle is still
+among the ones in use. Inside (components/CycleList.jsx): "Predictions use up to your last 6 cycles. Tap “Don't use” on
+one that wasn't typical for you — after stopping the pill, an illness or a pregnancy, for example. Cyra may point out a
+cycle that looks unusual, but only you can leave one out." and "Your Report and insights still count every cycle.",
+then `ul.cyclist`, newest first: the running cycle (`li.cycrow.now`: start, "day {n} so far", a faded bar, no switch)
+and up to 12 earlier ones (`li.cycrow`, `.out` when left out): start (`.cycstart`, "Started " for screen readers),
+"{len} days" (`.cyclen`), a decorative `span.cycbar[aria-hidden]` (width = len / min(120, max(40, current day, longest
+counted)), --primary) and the switch `button.takebtn.cycuse[aria-pressed]` (`.on` when left out) named "Don't use for
+predictions: the cycle that started {Weekday, Month D}" (the visible "Don't use" first). A row may add `p.cycwhy`:
+uncounted spans "Not counted as a cycle: under 15 days." / "…over 120 days." (no bar, no switch); a left-out cycle
+"Left out of predictions."; an unusual one (§6.2) a `.statechip.flag` "Unusual" chip and "Much longer|shorter than your
+others ({lo}–{hi} days). If it wasn't typical for you, you can stop using it for predictions." — in perimenopause a
+long one reads "Much longer than your others ({lo}–{hi} days). Longer cycles are common in perimenopause, so keep it
+unless you know it was a one-off." Over 12 cycles: "Showing your last 12 cycles." Toasts: "Cycle from {Mon D} left
+out of predictions. Your Report still counts it." / "Cycle from {Mon D} is used for predictions again."
+"Tap any day to see or edit what you logged." is a one-line `.hint.calhint` under the legends.
 
 **Patterns:** one patterns card with two views behind a "Day by day / By cycle" switch (the
 switch appears only with two logged period starts, never in menopause or pregnancy). *Day by day:*
@@ -295,6 +357,9 @@ day card naming what was logged, so colour is never the only cue · insight card
 with an **advice card** carrying an urgency chip (Self-care / Next visit / This week). The same
 card, with a "More in Patterns →" link, sits on Home under Today's insight once 3 days are
 logged, compact: up to three symptom rows, no hint line, and the day card once a day is tapped.
+*Perimenopause spread card (L5, D5):* the number (`{variability}d`) counts every cycle; the sentence lists the last six
+lengths with a left-out one labelled: "Cycles ran 28 · 29 · 27 · 30 · 61 (left out of predictions) · 28 days — a 7+
+day spread is the clinical marker of the transition (STRAW staging)." (`lensLabel`, from `cycleSummary().lens6`).
 
 **Patterns tab rules (P1; everything here is gated on the full card, `!compact`, so Home's compact card is as A1
 describes it).** *Takeaway first:* the callout is the card's headline, `.pcallout.pcallout-top`, between the view
@@ -343,6 +408,12 @@ the POTS page (Home's handler).
    days logged in the 30 days before the window, the change in symptom days against that
    month. Cycle lengths are drawn as dots on one scale with the shortest-to-longest span
    bracketed. Colour is never the only cue: every visual sits beside its sentence.
+   *Left-out cycles (L5, D5):* the cycle finding and its numbers keep every cycle. The sentence lists the last six
+   lengths with a left-out one labelled — "28, 29, 27, 30, 61 (left out of predictions), 28 days apart. Doctors call
+   that a 34-day spread." — and so does the table footer ("Cycle lengths: 28, 29, 27, 30, 61 (left out of
+   predictions), 28 days (34-day spread)."); a left-out cycle's dot is hollow (card fill, --primary 2px ring). The
+   spread, its chip, the "My cycles have ranged from…" script and the doctor email keep every cycle unlabelled (the
+   email lists what happened; the label is about the app's predictions).
 2. *What this might mean* — interpretation in everyday language, threshold-driven, each
    paragraph headed and colour-edged by the finding it is about, always closing with
    "observations, not a diagnosis".
@@ -467,18 +538,42 @@ shown, i.e. best − hardest means differ by 0.08 or more), `Advice urgency="vis
 Report tab turns this into a one-page summary you can hand over.", and the action row "Add to visit notes →" (Report).
 It is computed from the on-device record and never stored.
 
-### 6.2 Cycle detection
+### 6.2 Cycle detection and prediction (normative since local-first L5; src/lib/engine.js)
 ```
-period start = a period-flagged day with no period-flagged day in the prior 5 days
-cycleLength  = days between consecutive starts; keep only 15..120
-variability  = max(recent lengths) - min(recent lengths)   // use last 6
-prediction   = lastStart + round(mean(lengths))
-ovulation    ≈ nextStart - 14 ; fertile window = [ovu-3, ovu+1]
-confidence   = ±max(2, round(variability/2)) days
+period start = a period-flagged day (spotting never counts) with no period-flagged day in the prior 5 days
+cycle        = days between consecutive starts (cycleSpans); counted when 15 ≤ length ≤ 120 (CYCLE_MIN, CYCLE_MAX)
+kept         = counted cycles she did not mark "Don't use" (cycleFlags, §3.5); the last 6 KEPT are used,
+               so a left-out cycle is replaced by the next older one
+centre       = round(median(kept lengths))            with ≥ 2 kept
+             = her sign-up length (Under 24 → 23, 24–31 → 28, Over 31 → 34)   else, when given
+             = the one kept length                    else, with one kept
+             = 28                                     else
+half         = clamp(max(centre − shortest, longest − centre), min, max)   with ≥ 2 kept
+             = few                                    otherwise
+               My Cycle / Trying to conceive: min 2, max 10, few 4 · Perimenopause: min 4, max 20, few 6
+range        = lastStart + [max(15, centre − half), min(120, centre + half)]    (fromIso … toIso, inclusive)
+state        = upcoming (before the range) · window (inside it) · later (past it: "later than your usual range")
+no prediction (whyNoPrediction kind): pregnancy (none) · menopause (meno) · Irregular / Not sure at sign-up with
+               < 2 kept (unsure; excluded when ≥ 2 are counted) · every counted cycle left out and no sign-up length
+               (excluded) · more than 120 days since the last start (long) · nothing logged and no usable sign-up
+               answer (none). One internal plan() decides, so predict() and whyNoPrediction() always agree.
+ovulation    ≈ lastStart + centre − 14
+fertile      = [ovu − 3 − e, ovu + 1 + e],  e = min(3, max(0, half − 2))   (5 days at ±2, 11 days from ±5)
+confidence   = ±half
+unusual      = outside median ± max(7, 2.5 × MAD) of the last 12 counted cycles (≥ 3 cycles), strictly outside;
+               a SUGGESTION only (the "Unusual" chip): Cyra never leaves a cycle out by itself
+variability  = max(lengths) − min(lengths) over every counted cycle (insights(); unchanged, never reads cycleFlags)
 ```
-`cyclesFrom(days)` (src/lib/record.js) lists one cycle per start; `counted` = 15 ≤ length ≤ 120 (`CYCLE_MIN`, `CYCLE_MAX` in engine.js); the running cycle has no length.
+`predict()` returns, besides the range, `cycleDay`, `center` (also `avgLen`, the name the wearable insight reads),
+`late` (days past the centre; the opt-in mood-swings flag still reads it), `daysTo`, `pastRange`, `phase` (day ≤ 5
+menstrual, inside the fertile window fertile, before it follicular, else luteal), `fertileDay`, `basis` (logged | told
+| default), `used`/`usedLens`/`usedStarts`, `left` (left-out cycles among the ones in use, or all of them when none are),
+`oneLogged` and `wide` (perimenopause). Everything is computed on the device and never stored; only her flags are.
+`cyclesFrom(days)` (src/lib/record.js) lists one cycle per start from the same engine `cycleSpans()`; `counted` = 15 ≤
+length ≤ 120; the running cycle has no length.
 **Clinical rule:** variability ≥ 7 days in the peri stage is the flagged marker of the
-menopause transition and must trigger the corresponding advice.
+menopause transition and must trigger the corresponding advice. It counts every cycle, including ones she left out of
+predictions (D5); where it lists lengths, left-out ones are labelled "(left out of predictions)".
 
 ### 6.3 Day score (drives all color)
 ```
@@ -980,6 +1075,8 @@ toast about 4s after a 70-character one.
 - [ ] Every AI feature still works with the network unavailable.
 - [ ] No health data is transmitted anywhere; no API key exists in client code.
 - [ ] Pregnancy shows week markers and milestones — never fertile windows.
+- [ ] Outlier cycles are suggested, never excluded automatically; exclusions change predictions only.
+- [ ] No period prediction in pregnancy or menopause.
 
 ---
 
@@ -1031,7 +1128,16 @@ doesn't apply).
   stands in: an aria-hidden seven-dot sketch in --line/--soft only (no `.pchart`/`.psvg` classes, no family colours),
   "Your 60-day chart appears after 3 check-ins · {k} of 3" and a three-segment `.msbar.three`.
 - *Coming up.* The predicted-period and late rows are `role=button` (click, Enter, Space) and open the Calendar; their
-  sub-line ends in " · Calendar →". The appointment row keeps its Report nudge.
+  sub-line ends in " · Calendar →". The appointment row keeps its Report nudge. Since L5 the period rows read: upcoming
+  "Period likely Oct 26 – Nov 1" and window "Period likely any day now, by Nov 1", each over `basisLine(pred)` ("Based
+  on your last 5 cycles · 1 left out", "Based on your last cycle", "Based on your sign-up answer", "Based on a typical
+  28-day cycle") + " · Calendar →"; later "Period later than your usual range" over "Your range ended {date} · Normal
+  variation happens · Calendar →" ("Irregularity is data too" in perimenopause); and, with no prediction because the
+  last start is over 120 days ago, "No period on record for {n} days" over "Over 120 days, so Cyra won't guess ·
+  Calendar →" ("Long gaps are common in perimenopause" in perimenopause). No period row in pregnancy or menopause.
+- *Perimenopause insight.* The 7+ day spread insight keeps its number and sentence (every cycle counts); when she has
+  left cycles out of predictions it adds " This counts every cycle, including the one you left out of predictions."
+  ("the {n}" for more than one).
 - *Doors.* Each grid button keeps its base label as the first text node and appends its status in `<span class="dsub">
   · …</span>`: Month vs last month · {±n | unchanged | soon}; Wearables · {n connected | optional}; What I'm trying ·
   {latest trial}, day {n}; Appointments · {who | visit} in {n} days (or today); Journal · last entry {today | weekday |
@@ -1235,6 +1341,12 @@ Apple stays first.
 - [ ] Choose VITE_FEATURES for each release and list the matching backend modules (§9.1); the default offers Ask
       Cyra's AI and web reminders only. For a phone release, match the iOS privacy manifest, the HealthKit
       entitlement, the Health Connect permissions and the store answers to the release's flags (PRIVACY-AUDIT, L4).
+- [x] Irregular cycles (local-first L5): predictions from the median of her last up-to-6 kept cycles with an honest
+      likely-start range, long cycles to 120 days, "Don't use" per cycle (suggested, never automatic), clinical markers
+      keep every cycle (§3.5, §6.2, §5.1 Calendar rules).
+- [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the
+      predicted date to Cyra's server, and today's copy promises one reminder at most. The brief's item 7 ("optional
+      reminders for logging or predicted period") is met today by the optional logging reminder (A8).
 
 **Settings sheet (UI S1).** `SettingsSheet` is `section.palsheet#settings-sheet[aria-label="Check-in settings"]` with a
 sticky `.sheethead` (an `h2.sheettitle` "Settings" that takes focus on open, and a 44px `.sheetclose` button labelled
@@ -1570,3 +1682,16 @@ Normative text in §9.1 (flags, modules, the backup protocol) and the flag notes
   nothing imports it, so no build contains it.
 - The default build makes no request at launch; the uiux snap/axe demo builds use the defaults, the harness dists and
   the live suites use `VITE_FEATURES=all`, and `lf/l4/flags-e2e.mjs` checks default / none / all.
+
+### A14.5 Irregular cycles: outliers, honest ranges, long cycles (L5)
+
+Decision D5: outlier cycles change predictions only. Normative text in §3.5 (cycleFlags), §6.2 (the algorithm), §5.1
+(Today's phase card, the Calendar rules: predicted and fertile cells, the flow overlay, the confidence and no-prediction
+cards, "Your cycles"; the Patterns peri card; the Report's labelled lengths), A1 (Coming up, the peri insight) and §12.
+- `src/lib/engine.js` (pure, unit-tested in `src/lib/predict.test.mjs`): `daysBetween`, `addDays`, `median`, `mad`,
+  `cycleSpans`, `RANGE`, `cleanCycleFlags`, `flagKey`, `isExcluded`, `toggleExclude`, `unusualCycles`, `predict(ins,
+  prior, { flags, stage, isMeno, today })`, `whyNoPrediction` (one internal `plan()` for both), `predictionWaits`
+  (kept for compatibility), `fmtRange`, `periodHead`, `basisLine`, `lensLabel`, `cycleSummary`. `insights()` also
+  returns `cycles` and never reads cycleFlags.
+- `src/components/CycleList.jsx` renders "Your cycles"; the restore line lives in `lib/disclosures.js` `restoreChanges`.
+- Nothing new leaves the device (docs/PRIVACY-AUDIT.md, Local-first L5).
