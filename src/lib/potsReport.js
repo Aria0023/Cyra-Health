@@ -792,7 +792,7 @@ export function modelTexts(model) {
 
 /* ---------- PDF layout (design 6.2) ---------- */
 // Data colours come from the data-viz ramp only (one fixed ramp, so a file's colours never hint
-// at her life stage); chrome is greys and black.
+// at her life stage); chrome is greys and black. The light ramp always: the PDF stays light whatever the appearance.
 const RAMP = RAMPS.peri;
 const INK = [34, 34, 34], SOFT = [95, 95, 95], RULE = [170, 170, 170];
 

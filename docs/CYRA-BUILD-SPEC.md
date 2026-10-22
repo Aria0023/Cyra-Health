@@ -554,12 +554,29 @@ postpartum items — never "Weeks any". Trimester headers are `.rsec.tri` with a
 ## 8. VISUAL DESIGN
 
 ### 8.1 Stage palettes (UI chrome — calm, high-contrast)
+`PALETTES` in `src/lib/constants.js` is the normative list: three palettes per stage (nine in all), the first of each
+stage being its default, offered as a user setting (the palette sheet). Each entry carries the seven UI tokens for light
+and a `dark` object with the same seven (decision D9, L2). `ORGS` themes carry the same shape (ORGS.cyra dresses the
+splash and registration; ORGS.bloom is not selectable). Values, light / dark:
+
 ```
-peri:    primary #2C6A61  accent #6E7EB0  paper #E4EBE7  card #FFF  ink #17241F  line #B9CCC4
-preg:    primary #2F736E  accent #D9737F  paper #EFE2E1  card #FFF  ink #241A1D  line #D4BEBC
-periods: primary #33567D  accent #D26A54  paper #E3E9F0  card #FFF  ink #141E29  line #BCCAD8
+                       paper              card               ink                soft               line               primary            accent
+peri.teal (default)    #E4EBE7 / #121815  #FFFFFF / #1C221F  #17241F / #E2ECE8  #4E625B / #97B0A7  #6E8A7F / #627D72  #2C6A61 / #7BC4B8  #5A6A9E / #9EB0E9
+peri.dusk              #E5EAEF / #13161A  #FFFFFF / #1D2125  #16212B / #E3EAF1  #4D5F6E / #9AACBB  #73889F / #67788A  #3A5F80 / #8BBAE4  #607C69 / #9EBBA7
+peri.lav               #EAE6F0 / #17141C  #FFFFFF / #221F27  #1E1A2A / #EAE8F1  #5A5270 / #ABA6BA  #897EA8 / #787289  #5B4E85 / #B7A9EC  #6A7B5C / #A7BA99
+preg.rose (default)    #EFE2E1 / #1D1313  #FFFFFF / #281D1D  #241A1D / #F1E6E9  #6B585B / #BBA2A6  #9A7B79 / #8A6E6C  #2F736E / #75C5BE  #B8505E / #EB989F
+preg.sage              #EDE7DD / #1A150E  #FFFFFF / #252017  #1F2620 / #E4ECE5  #5C6459 / #A2AD9E  #908373 / #837360  #4F7355 / #95C19B  #A06836 / #E0A472
+preg.coral             #E6EBEF / #13171A  #FFFFFF / #1C2125  #152029 / #E3EBF1  #4F6070 / #9BACBC  #73889F / #67788A  #37627E / #87BCE0  #CA4B2A / #EB9C87
+periods.blue (default) #E3E9F0 / #12161C  #FFFFFF / #1C2127  #141E29 / #E4EAF1  #4E6070 / #9AACBB  #70859D / #67788A  #33567D / #8BB8EB  #B9513C / #EB9B89
+periods.plum           #EFE5EC / #1B1319  #FFFFFF / #261D24  #231825 / #EDE7EE  #5F4E5C / #B5A3B2  #967E91 / #836F7F  #6B3F63 / #D99ECD  #BF5729 / #E99D80
+periods.mint           #E3EDE8 / #101814  #FFFFFF / #1A231F  #15241E / #E2ECE8  #4C6259 / #98B0A6  #698C7D / #637D71  #2F6B5C / #7EC5B1  #B65B42 / #EA9C86
+ORGS.cyra              #EDE4DC / #1B150E  #FFFFFF / #261F18  #241A28 / #EDE7EF  #5B4E63 / #B0A4B7  #927F6F / #857261  #7A2F4E / #E69BB5  #AB6229 / #E4A274
+ORGS.bloom             #F2F5F1 / #141713  #FBFDFA / #1E221D  #26332E / #E2ECE8  #5F6E67 / #9AAFA5  #DCE3DD / #6F7971  #2F5D50 / #8AC2B0  #C89A5B / #D8A96A
 ```
-Offer 2–3 alternate palettes per stage as a user setting.
+**Dark design rule.** Paper is the darkest surface and card is one step lighter (cards lift by lightness, not by
+shadow); primary and accent are light tones of the same hue, so each stage stays recognisable (teal and lavender, dusty
+blue and sage, rose, sand, coral, plum, mint) and filled controls carry `--on-primary` text (the dark paper), never
+white. `paletteFor(p, scheme)` (lib/appearance.js) picks the seven tokens for the scheme on screen.
 
 ### 8.2 Data ramps (saturated — deliberately independent of chrome)
 ```
@@ -569,6 +586,30 @@ periods: good rgb(46,154,198)  mid rgb(250,186,82)  rough rgb(226,88,74)
 ```
 **Rule:** calm palettes make poor data colors. Chrome uses the palette; charts,
 calendar fills, and score meters use the ramp. Interpolate good↔mid↔rough by score.
+
+**Dark mode (L2).** Data colours have their own dark steps, kept in the data section of `src/lib/constants.js`, apart
+from PALETTES and SCHEME_TOKENS and never derived from a UI palette:
+```
+RAMPS_DARK  peri:    good rgb(0,159,139)   mid rgb(189,137,0)   rough rgb(150,83,178)
+            preg:    good rgb(0,159,142)   mid rgb(198,129,55)  rough rgb(219,41,84)
+            periods: good rgb(39,149,193)  mid rgb(194,134,3)   rough rgb(212,64,64)
+FAMILIES    Heat #E34948 / dark #DF445B   Sleep #2A78D6 / #3987E5   Mind #008300 / #117E00
+            Pain #EDA100 / #C38606        Body #1BAF7A / #00A994
+```
+Validated with the dataviz skill's validator: `node .../dataviz/scripts/validate_palette.js
+"#DF445B,#3987E5,#117E00,#C38606,#00A994" --mode dark --surface <each dark card> --pairs all` passes every check on all
+11 dark cards (CVD 8.2, normal vision 17.8, every colour >= 3:1); the three ramp runs (each stage's anchors against that
+stage's three dark cards and ORGS.cyra's) pass with CVD 12.1, 8.6 and 8.5 and normal vision 19.3, 18.0 and 16.7. In each
+dark ramp `mid` is the lightest anchor. The light RAMPS are unchanged: they were owner-approved, and their mid anchors sit
+above the validator's light band. The unit tests (lib/appearance.test.mjs) re-run the same OKLab / Machado checks.
+
+**Delivery.** Marks never carry a literal colour. `vizVars(scheme, stage)` sets `--fam-heat … --fam-body` and
+`--ramp-good / --ramp-mid / --ramp-rough` inline on `.cy` beside the palette variables; marks read them through
+`famVar(fam)` / `famColor(symptomId)` (`var(--fam-*)`, undefined without a family so `var(--fc, var(--primary))`
+fallbacks still work) and `rampVar(k)` (`var(--ramp-*)`, the POTS charts). The day-score fill and its ink are pure
+functions in `src/lib/engine.js`: `scoreRgb(s, ramp)`, `scoreColorOf(s, ramp)` ("rgb(r,g,b)") and `inkOn(rgb)`, with
+`rampOf(stage, scheme)` choosing RAMPS or RAMPS_DARK. The POTS PDF (lib/potsReport.js) keeps the light `RAMPS.peri`
+whatever the appearance.
 
 **Family colours and the Heat / Mind pair (residual).** The symptom-family marks (FAMILIES: Heat #E34948, Sleep
 #2A78D6, Mind #008300, Pain #EDA100, Body #1BAF7A) keep a red/green pair on the chart dots, which deuteranopes and
@@ -580,13 +621,22 @@ count as words. Every dot also carries a 0.8px ink hairline on Patterns for edge
 period band. No colour anywhere in the app is the only carrier of a meaning.
 
 ### 8.3 Contrast requirements
-Cards pure white on tinted paper; borders 1.5px in a visibly darker tone; subtle
-shadow lift; near-black ink. Pale-on-pale fails — this was a real defect once.
+Light: white cards on tinted paper; dark: cards one step lighter than a near-black paper of the same hue. Borders
+1.5px in a visibly different tone; subtle shadow lift in light (deeper shadows in dark, where the lightness step does
+the lifting); near-black ink in light, near-white ink in dark. Pale-on-pale fails — this was a real defect once.
+
+**Dark minima (L2, all 11 dark themes, WCAG, color-mix computed as an sRGB mix; lib/appearance.test.mjs).** Ink 13.3:1
+on card (14.9:1 on paper); soft 6.8:1 on card and 5.65:1 on the 10% primary / 10% accent / 5% ink tints; line 3.53:1 on
+card (3.92:1 on paper); primary 7.5:1 on card and 5.49:1 on its own 16% tint; accent 7.4:1 on card; on-primary text
+(the dark paper on a filled primary) 8.4:1. Status tokens in dark: --bad 7.6:1 on card and 6.1:1 on --bad-chip, the
+dark paper on a --bad fill 8.5:1, --good 8.6:1 on card, the ev chips 7.8:1 and 8.5:1.
 
 **Score ink (UI C1).** Text drawn on a score fill (calendar digits, the day card's `.scorepill`) uses
-`scoreInk(s)` in App.jsx, next to `scoreColor`: `#000000` when the fill's relative luminance is above 0.179,
+`scoreInk(s)` in App.jsx, next to `scoreColor` (both now thin wrappers over `inkOn` / `scoreColorOf` in
+lib/engine.js, L2): `#000000` when the fill's relative luminance is above 0.179,
 `#FFFFFF` below it. 0.179 is where black and white both measure 4.5:1 against the fill, so the digit never
-drops under 4.58:1 anywhere on the three ramps (the old `sc > 0.3` pick with white measured 2.34:1 at worst).
+drops under 4.58:1 anywhere on the three ramps, light or dark (the old `sc > 0.3` pick with white measured 2.34:1 at
+worst). The dark fills stay >= 3.2:1 against their stage's dark cards.
 No `> 0.3` ink pick remains in `src/`. Small accent-coloured text on a tinted cell (`.c-wklab`) uses
 `--accent-text` = color-mix(accent 82%, ink), >= 5.1:1 on the 10% accent tint in the three pregnancy palettes.
 
@@ -608,9 +658,64 @@ colour    --primary-text  color-mix(primary 82%, ink): the tint for small primar
           all nine palettes; Fraunces numbers, filled buttons and the streak/pulse figures keep --primary.
           --good #43604F  --bad #A04545  --bad-bg #FBEEEA: the only status hues in chrome (.up/.down/.better/
           .worse, urgent cards, error hints, the stop button). Data-viz colours stay in FAMILIES / RAMPS.
+          These and every other status/surface colour come from SCHEME_TOKENS (lib/constants.js), light and dark
+          (the table under "Light and dark" below).
 safe area --sa-t / --sa-b: Capacitor's --safe-area-inset-top/bottom when the shell provides them, else
           env(safe-area-inset-*), else 0. Every sticky bar and toast offsets by these, never by env() directly.
 ```
+
+**Light and dark (L2, decision D9).** Settings → Appearance offers System (default), Light and Dark. The scheme on
+screen is `resolveScheme(appearance, systemDark, printing)` in lib/appearance.js: printing → light; otherwise her explicit
+choice; otherwise System, read with `matchMedia("(prefers-color-scheme: dark)")` and followed live. Shell puts the result
+on `.cy[data-scheme="light" | "dark"]`; the palette variables (`paletteVars(paletteFor(theme, scheme))`) and the data-viz
+variables (`vizVars(scheme, stage)`) arrive inline on `.cy`, and styles.js writes `SCHEME_TOKENS.light` into the `.cy`
+rule and `SCHEME_TOKENS.dark` into `.cy[data-scheme="dark"]` (with `color-scheme:light` / `dark`, so native controls
+and scrollbars follow). The tokens that are not part of a palette, light and dark:
+
+```
+--good            #43604F                     #8FCBA4
+--bad             #A04545                     #F29B91
+--bad-bg          #FBEEEA                     #3B2120
+--bad-chip        #F3DBDB                     #4A2826
+--err-line        #E0A99B                     #B4685F
+--err-edge        #E7C3B8                     #6E3B36
+--ev-mixed-bg     #FBEEE2                     #3D2C1B
+--ev-mixed-ink    #8A4E18                     #F0BC86
+--ev-comfort-bg   #EDE7EF                     #302A36
+--ev-comfort-ink  #6E6076                     #D3C6DC
+--on-primary      #FFF                        var(--paper)
+--on-bad          #FFF                        var(--paper)
+--on-ink          #FFF                        var(--paper)
+--knob            #FFF                        #EEF1F0
+--knob-edge       rgba(0,0,0,.12)             rgba(0,0,0,.5)
+--halo            rgba(255,255,255,.7)        rgba(0,0,0,.55)
+--mark-edge       rgba(0,0,0,.35)             rgba(255,255,255,.55)
+--cell-edge       rgba(0,0,0,.14)             rgba(255,255,255,.16)
+--toast-dot       var(--accent)               color-mix(in srgb, var(--accent) 60%, var(--paper))
+--sh-card         0 1px 2px rgba(0,0,0,.04)   0 1px 2px rgba(0,0,0,.3)
+--sh-opt          0 1px 2px rgba(0,0,0,.05)   0 1px 2px rgba(0,0,0,.3)
+--sh-meter        0 1px 3px rgba(0,0,0,.06)   0 1px 3px rgba(0,0,0,.35)
+--sh-sheet        0 2px 8px rgba(0,0,0,.07)   0 4px 16px rgba(0,0,0,.5)
+--sh-thumb        0 1px 2px rgba(0,0,0,.2)    0 1px 2px rgba(0,0,0,.6)
+--sh-toast        0 4px 14px rgba(0,0,0,.18)  0 4px 16px rgba(0,0,0,.55)
+```
+`--on-primary` is the text on a filled primary (.cta, `.seg .mc.on`, `.takebtn.on` and its knob, the done milestone
+dots, `.ppill.now`, `.route.primary`, `.orgbtn.on`, `.topbtn.on`, the `.scorepill` fallback), `--on-bad` the text on
+`.cta.stopbtn`, `--on-ink` the toast text. **Rule:** no colour literal (hex, rgb(), rgba(), white, black) in styles.js
+outside the `@media print` block, and none in JSX; a new colour is a token with a light and a dark value
+(lib/appearance.test.mjs scans for one). The light values are the literals the stylesheet used before L2, unchanged.
+
+**Print stays light.** `beforeprint` and `matchMedia("print")` set `printing` with `flushSync`, so the page the browser
+snapshots already wears the light palette; `afterprint` (or the media query ending) flips it back. A print neither event
+reaches (some share-sheet prints) falls back to a monochrome rule inside `@media print`: `.cy[data-scheme="dark"]`
+forces white paper and card, black ink and primary, grey soft/line/accent and the light SCHEME_TOKENS, all `!important`.
+
+**Document outside the column.** index.html carries `<meta name="color-scheme" content="light dark">`, two theme-color
+metas (`#EDE4DC` for `(prefers-color-scheme: light)`, `#1B150E` for dark: ORGS.cyra's light and dark paper, which the
+splash wears) and `--doc-bg` (the same two values) as the html/body/#root background, so there is no white flash before
+the app runs. Once it runs, `applyDocumentScheme(document, { scheme, paper })` (a layout effect in App.jsx, the only
+runtime writer of theme-color) sets `documentElement.style.colorScheme`, `--doc-bg` and every theme-color meta to the
+paper on screen, so the page beside the 430px column and the browser chrome match the stage paper in both schemes.
 
 **Reduced motion is reduce, not remove.** Under `prefers-reduced-motion: reduce` keyframe animations do not
 run at all and transitions are limited to background-color, border-color, color and opacity at --t-fast, so a
@@ -622,7 +727,8 @@ only on `.toast.show` and `.tabpanel`. Nothing is scroll-linked. No requestAnima
 250ms score tween. Each entrance runs once per mount behind a ref, <= 600ms. The shared keyframes are
 `cy-fade-rise`, `cy-pop`, `cy-draw`, `cy-spin`, `cy-pulse` and `cy-grow`; new motion reuses them.
 
-**Palette crossfade.** For 400ms after a palette change App.jsx sets `.cy.repaint`, under which the chrome (`.card`,
+**Palette crossfade.** For 400ms after a palette change (and after an Appearance tap or a flip of the device's own
+light/dark setting, `flashRepaint()`; never on hydrate, a cross-tab adopt or print) App.jsx sets `.cy.repaint`, under which the chrome (`.card`,
 `.plaincard`, `.cta`, `.tab-on`, `.mc.on`, `.stagecard.on`, `.pulse`, `.meter`, `.disclosure`, `.pchart`, `.streak`,
 `.readcard`) transitions background-color, border-color and color over --t-slow, so cards, CTA and tabs recolour
 together. It is scoped to that window so the 100ms press feedback above is untouched the rest of the time, and
@@ -652,7 +758,8 @@ targets   44px minimum on .mc .pill .takebtn .sbtn .linkbtn .route .inp .slider 
 
 **Segmented control vs pill.** Two to five mutually exclusive answers or views (a chart view, a check-in style,
 a sleep answer) are a joined control: the `.mcrow` gets `seg`, the buttons keep `.mc` / `.on` and `aria-pressed`,
-and the row renders as one pill-shaped border with the selected segment primary-filled in white text. Segment
+and the row renders as one pill-shaped border with the selected segment primary-filled in --on-primary text (white in
+light, the dark paper in dark). Segment
 labels wrap to two lines at 12px/700; they never truncate (`.seg.scroll` is the variant for more than five short
 labels, which scrolls instead). Standalone `.mc` pills remain for multi-select and for independent choices.
 
@@ -668,7 +775,7 @@ pill ("Delete everything") carries `.mc.danger`: --bad text with a 40% --bad bor
 **Icons (src/components/Icon.jsx).** `Icon({ name, size = 16, className })` renders one inline `<svg aria-hidden="true">`
 on a 24-unit grid, `stroke="currentColor"`, 2px round strokes, from a path map: chevron, check, close, lock, bell, clock,
 chart, clipboard, drop, salt, heart, book, sparkle, print, share, people, plus-circle, lightning, foot, palette, sliders,
-apple, google, facebook. No emoji anywhere in src (they render differently per OS and the palette emoji was the most
+apple, google, facebook, file, download, moon (Settings → Appearance). No emoji anywhere in src (they render differently per OS and the palette emoji was the most
 saturated object on every screen): the header buttons are `sliders` (settings) and `palette`, the kick button `foot`,
 the palette tick and the Milestones "done" tag `check`. An icon is decorative: the text node beside it, or the button's
 aria-label, carries the meaning, and asserted texts ("✓ On", "✓ Taken", "✓ Sync", the `.ckbox` glyphs) stay as text.
@@ -690,6 +797,9 @@ with one continuous border. An Advice with no card above it takes `alone` (full 
 PregTodayScreen, ScaleSection, BodySignals. `.disclosure` padding is 12px 16px and `.bodypanel` 4px 16px 14px, so panel
 text aligns with card text. On Home, opening a grid section scrolls its `#home-*` panel into view (`block: nearest`,
 smooth unless `reduceMotion()`) and the open panel `.bodypanel.detached` is outlined in --primary.
+
+**Toast.** An inverse surface in both schemes: `--ink` background with `--on-ink` text (white on near-black ink in
+light, the dark paper on near-white ink in dark), a `--toast-dot` before the text and the `--sh-toast` shadow.
 
 **Accent anchors.** `.section-lab::before` draws a 6px --accent dot before every section label (a pseudo-element, so
 `textContent` is unchanged for the asserted labels). It is off inside `.pchart`, `.pots` and `.palsheet` (data areas and
@@ -1043,24 +1153,37 @@ receive only name/email, never health data.
       stylesheet's `--sa-t`/`--sa-b` tokens read Capacitor's `--safe-area-inset-*` variables first and fall
       back to `env()`; the iOS config must set the Keyboard plugin to `resize: "body"` so the Ask textarea and
       the Today form are not covered by the keyboard under a sticky bottom bar (no code dependency; a
-      `capacitor.config` setting when the shell is assembled).
+      `capacitor.config` setting when the shell is assembled). Light and dark (L2): `index.html` carries
+      `<meta name="color-scheme" content="light dark">`, two theme-color metas with `media="(prefers-color-scheme:
+      light)"` (#EDE4DC) and `(prefers-color-scheme: dark)` (#1B150E), and `--doc-bg` (the same two values) as the
+      html/body/#root background, so the first paint is never white; `applyDocumentScheme` (lib/appearance.js) keeps
+      color-scheme, `--doc-bg` and every theme-color meta on the paper on screen afterwards. Printing forces the
+      light scheme (`flushSync` on `beforeprint` and on `matchMedia("print")`), with the monochrome print fallback
+      in styles.js for a print neither event reaches (§8.4).
 - [ ] Every UI privacy claim verified literally true of the shipped build.
 - [x] Installable web app that opens offline (A14.1); Render serves /, /index.html, /sw.js and /manifest.webmanifest
       with Cache-Control: no-cache.
 
 **Settings sheet (UI S1).** `SettingsSheet` is `section.palsheet#settings-sheet[aria-label="Check-in settings"]` with a
 sticky `.sheethead` (an `h2.sheettitle` "Settings" that takes focus on open, and a 44px `.sheetclose` button labelled
-"Close settings"; the bottom "Done" stays), three `.setgroup` blocks (Check-ins / Add-ons & sharing / Your data), and
-each option row a `[role=group][aria-labelledby]` named by its `p.section-lab` (ids `set-rhythm`, `set-nudge`,
-`set-style`, `set-addons`, `set-reminders`, `set-counts`, `set-data`), every label opening with an `svg.labico` glyph.
+"Close settings"; the bottom "Done" stays), four `.setgroup` blocks (Check-ins / Add-ons & sharing / Appearance /
+Your data), and each option row a `[role=group][aria-labelledby]` named by its `p.section-lab` (ids `set-rhythm`,
+`set-nudge`, `set-style`, `set-addons`, `set-reminders`, `set-counts`, `set-appearance`, `set-data`), every label opening
+with an `svg.labico` glyph. Appearance (L2) is `p.section-lab#set-appearance` (the `moon` glyph) over a joined
+`div.mcrow.seg[role=group][aria-labelledby="set-appearance"]` of three `button.mc` with `aria-pressed`: "System" (the
+default), "Light" and "Dark", and a `p.rfoot` "System follows this device's light or dark setting. Your choice stays on
+this device and isn't part of a backup." A tap applies at once (with the 400ms chrome crossfade) and shows no toast.
 The header buttons carry `aria-controls="settings-sheet"` / `"palette-sheet"` next to their `aria-expanded`; opening one
 sheet closes the other (`setShowPal(false); setShowSettings(s => !s)` and the mirror), and Done / Close hand focus back
 to the button that opened the sheet (`triggerRef`). The palette sheet (`#palette-sheet`) is a `[role=group]` named by
 `p#pal-lab`; each `.palopt` carries `aria-pressed` and its own `--primary` / `--accent` / `--line` / `--paper-mini`,
 so its name, border, check and `.palmini` page swatch preview that palette before it is chosen.
-On the web, when this browser can install Cyra and the record is in IndexedDB, a fourth `.setgroup` "Install"
+The palette previews show the scheme on screen (`paletteFor(p, scheme)`: the light values or the `dark` object) and a
+`p.rfoot` above Done says "Showing the light versions." / "Showing the dark versions." followed by "Settings →
+Appearance switches between light and dark."; registration's stage-card `.swatch-dot`s use the same scheme.
+On the web, when this browser can install Cyra and the record is in IndexedDB, a further `.setgroup` "Install"
 (`p.section-lab#set-install`, focusable with `tabIndex=-1` so Home's iOS tip can open the sheet on it) sits between
-Add-ons & sharing and Your data (A14.1). It never shows in the phone app, in standalone mode or without IndexedDB.
+Appearance and Your data (A14.1), so the groups run Check-ins, Add-ons & sharing, Appearance, [Install], Your data. It never shows in the phone app, in standalone mode or without IndexedDB.
 
 **Data status strip (UI S1).** Above the Encrypted backup / Restore / Delete everything pills, `p.datastat` reads
 "{N} days logged · last backup {today | yesterday | N days ago | Mon D | never}" ("never — worth doing once" from seven
@@ -1068,7 +1191,11 @@ logged days). `relDay(iso, todayIso)` lives in `lib/engine.js` next to `fmt`. Th
 `lastBackupAt` (ISO day, set by `exportBackup` on success only: after the share sheet returns on the phone, after the
 download is triggered on the web), which is DEVICE_ONLY: it is not in the record other tabs adopt, it is deleted from
 the snapshot before encryption so it is never in a backup file, a restore keeps this device's own value, and Delete
-everything removes it with the rest. The backup and restore inputs have visible `label.flab` wrappers; their
+everything removes it with the rest. The persisted key `appearance` (L2: `"system" | "light" | "dark"`, anything else
+reads as "system") is a `DEVICE_PREFS` key in App.jsx, kept next to DEVICE_ONLY: it is saved with the on-device record
+and stays in RECORD, so every open tab of this browser follows a change (they are one device); `exportBackup` deletes
+every DEVICE_PREFS key from the snapshot before encryption, `importBackup` skips them and keeps this device's value, and
+Delete everything and Start over erase it with the record (the next launch is System). The backup and restore inputs have visible `label.flab` wrappers; their
 placeholders and aria-labels are unchanged. The POTS add-on's off-state description is one sentence; "Works alongside
 {stage}. It doesn't change your life stage." moved verbatim into its "Exactly what's kept" panel (PRIVACY-AUDIT, UI S1).
 
@@ -1148,7 +1275,7 @@ which is cleared on every change of stage into pregnancy.
   (HR 20–300, systolic 40–300, diastolic 20–250), so an extreme real reading still raises its card.
 - Blood pressure result: "held steady" only when a lying BP and at least one standing BP in the first
   3 minutes were taken; otherwise the result says which blood pressure wasn't taken.
-- Safety: the safety screen and two gates precede every test; a red Stop (≥ 56 px, #A04545/#FFF) sits directly
+- Safety: the safety screen and two gates precede every test; a red Stop (≥ 56 px, --bad/--on-bad: #A04545/#FFF in light, #F29B91 on the dark paper's text in dark) sits directly
   under the phase heading and again in a sticky bar, in every running phase (the bar is lifted above an on-screen
   keyboard that only shrinks the visual viewport, and a focused field is scrolled clear of it, so a Stop stays in
   view while she types; the app toast sits above the bar and never takes a tap); inputs are never auto-focused; the
@@ -1245,7 +1372,10 @@ motif width 0.78 of the canvas for "any", 0.62 for maskable (the whole motif ins
 the Apple icon. `index.html` links the manifest, the 192 icon and the Apple icon, sets `mobile-web-app-capable`,
 `apple-mobile-web-app-capable`, `apple-mobile-web-app-title` "Cyra" and `apple-mobile-web-app-status-bar-style`
 default, and uses `#EDE4DC` for `theme-color` and the pre-render background, so launch screen, first paint and splash
-are one colour. At runtime `setThemeColor(t.paper)` keeps `theme-color` on the paper on screen.
+are one colour. L2 makes both per scheme (`#EDE4DC` light, `#1B150E` dark, through two `media` theme-color metas and
+`--doc-bg`, §8.4); at runtime `applyDocumentScheme` (lib/appearance.js) keeps every theme-color meta on the paper on
+screen, replacing L1's `setThemeColor`. The manifest keeps its single light `theme_color` / `background_color`, so an
+installed app's launch splash is light even in OS dark mode.
 
 **The worker (`public/sw.js`).** A classic script at `/sw.js`, scope `/`. Its push and notificationclick handlers are
 byte-for-byte the ones before L1. One marked line, `const BUILD = {…}; // @cyra-build`, holds the dev placeholder

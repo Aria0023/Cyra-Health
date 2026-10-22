@@ -5,7 +5,7 @@ import Advice from "../components/Advice.jsx";
 import Details from "../components/Details.jsx";
 import Icon from "../components/Icon.jsx";
 import { dominantFamily, ChartSoon } from "../components/PatternCharts.jsx";
-import { FAMILIES } from "../lib/constants.js";
+import { famVar } from "../lib/constants.js";
 import { reduceMotion } from "../lib/motion.js";
 import { InstallTip } from "../components/Pwa.jsx";
 import { useEffect, useRef } from "react";
@@ -47,7 +47,6 @@ const DISCLOSE = {
     ],
   },
 };
-const FAM_COLOR = Object.fromEntries(FAMILIES.map((f) => [f.id, f.color]));
 const SLEPT = { good: "well", fair: "so-so", poor: "poorly" };
 /* The seven-dot sketch that stands in for the chart before 3 check-ins: --line and --soft only, no data. */
 const delta = (a, b, goodUp = true) => { const d = b - a; if (d === 0) return <span className="flat">unchanged</span>; const good = goodUp ? d > 0 : d < 0; return <span className={good ? "up" : "down"}>{d > 0 ? "+" : ""}{d}</span>; };
@@ -75,7 +74,7 @@ export default function HomeScreen({
     const fam = dominantFamily(todayEntry, scoreIds);
     const parts = ["Today", ...(score != null ? [`score ${score}`] : []), ...(todayEntry.sleepQ ? [`slept ${SLEPT[todayEntry.sleepQ] || todayEntry.sleepQ}`] : [])];
     if (syms.length) parts.push(`${syms.slice(0, 2).map((k) => scoreLabels[k] || k).join(", ")}${syms.length > 2 ? ` +${syms.length - 2}` : ""}`);
-    return { text: parts.join(" · "), color: fam ? FAM_COLOR[fam] : "var(--line)" };
+    return { text: parts.join(" · "), color: fam ? famVar(fam) : "var(--line)" };
   })();
   // Pregnancy week bar: three trimester segments (weeks 1–12, 13–27, 28–40), the elapsed part filled.
   const wkSegs = [[0, 12], [12, 27], [27, 40]].map(([a, b]) => Math.max(0, Math.min(1, (pregWeek - a) / (b - a))));
@@ -125,7 +124,7 @@ export default function HomeScreen({
       {installTip && <InstallTip tip={installTip} returnFocusRef={ctaRef} />}
 
       <p className="section-lab">Today's insight</p>
-      <div className="card insight"><div className="num">{homeInsight.num}</div><p>{homeInsight.fam && <i className="fdot" aria-hidden="true" style={{ background: FAM_COLOR[homeInsight.fam] }} />}{homeInsight.text}</p></div>
+      <div className="card insight"><div className="num">{homeInsight.num}</div><p>{homeInsight.fam && <i className="fdot" aria-hidden="true" style={{ background: famVar(homeInsight.fam) }} />}{homeInsight.text}</p></div>
 
       {/* The patterns card (components/PatternCharts.jsx), the same card the Patterns tab opens with;
           before 3 check-ins, a grey sketch that counts the gap (no chart classes, no family colours). */}

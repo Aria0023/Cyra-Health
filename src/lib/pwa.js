@@ -202,9 +202,3 @@ export async function clearShellCaches() {
   const keys = await caches.keys();
   await Promise.all(keys.filter((k) => k.startsWith(SHELL_CACHE_PREFIX)).map((k) => caches.delete(k)));
 }
-
-/** The browser chrome colour of the installed app follows the paper colour on screen. */
-export function setThemeColor(color) {
-  if (typeof document === "undefined" || typeof color !== "string" || !/^#[0-9a-f]{3,8}$/i.test(color)) return;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", color);
-}

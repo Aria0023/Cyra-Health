@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 /* ================================================================
    CYRA HEALTH — reference implementation
@@ -43,8 +44,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
    ./components; constants and pure engine functions in ./lib.
    ================================================================ */
 
-import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, RAMPS, SYM_FAMILY, PRENATAL } from "./lib/constants.js";
-import { seed, fmt, insights, predict, predictionWaits, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick } from "./lib/engine.js";
+import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, SYM_FAMILY, PRENATAL, vizVars, rampOf } from "./lib/constants.js";
+import { seed, fmt, insights, predict, predictionWaits, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick, scoreRgb, scoreColorOf, inkOn } from "./lib/engine.js";
+import { DEFAULT_APPEARANCE, SYSTEM_DARK_QUERY, cleanAppearance, resolveScheme, paletteFor, paletteVars, applyDocumentScheme } from "./lib/appearance.js";
 import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
 import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource, drainTerra, mergeRows, disconnectHelp } from "./lib/wearables.js";
 import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue, pruneQueue, mergeQueues, localDay, weekKey } from "./lib/pulse.js";
@@ -55,14 +57,14 @@ import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, known
 import { isNative, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pots/ui.js";
-import { registerWorker, whenActive, hasShellCache, checkForUpdate, applyUpdate, clearShellCaches, setThemeColor, displayStandalone, currentInstallMode, listenForInstall, promptInstall, cleanInstallHint, mergeInstallHint, showInstallHint, offersInstall } from "./lib/pwa.js";
+import { registerWorker, whenActive, hasShellCache, checkForUpdate, applyUpdate, clearShellCaches, displayStandalone, currentInstallMode, listenForInstall, promptInstall, cleanInstallHint, mergeInstallHint, showInstallHint, offersInstall } from "./lib/pwa.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
 /* What persists on the device: the health record and settings. Never UI state.
    reminders persists { enabled, endpoint, pending, rev } — this browser's push address, any
    address Cyra's server still has to forget, and a version so every open tab agrees on the
    on/off switch; its status is worked out again at every launch. */
-const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint"];
+const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance"];
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -70,6 +72,11 @@ const PERSISTED = ["palIdx", "relationship", "connLog", "cadence", "quietHours",
    is whether this browser's Home install tip should stay away (null | "dismissed" |
    "installed", lib/pwa.js), also left out of the backup file. */
 const DEVICE_ONLY = ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint"];
+/* A display preference of this device (L2): appearance ("system" | "light" | "dark", lib/appearance.js).
+   It is saved with the record and followed by every open tab of this browser (so it stays in RECORD,
+   they are all the same device), but it is never in a backup file and never taken from one:
+   exportBackup deletes it before encryption and importBackup keeps this device's value. */
+const DEVICE_PREFS = ["appearance"];
 /* The health record and settings another open tab of this browser can hand over (everything
    saved except the per-device consents and this browser's reminder addresses). */
 const RECORD = PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders");
@@ -248,6 +255,12 @@ export default function CyraDemo() {
   const [toast, setToast] = useState("");
   const [tabEdge, setTabEdge] = useState({ start: false, end: false }); // which edges of the tab strip are scrolled against
   const [repaint, setRepaint] = useState(false); // true for --t-slow after a palette change: chrome colours crossfade together
+  /* Appearance (L2, spec §8.4): her choice (persisted, a DEVICE_PREFS key), the device's own light/dark
+     setting (matchMedia, followed live) and whether a print is under way (always light). */
+  const [appearance, setAppearance] = useState(DEFAULT_APPEARANCE);
+  const [systemDark, setSystemDark] = useState(() => typeof matchMedia === "function" && matchMedia(SYSTEM_DARK_QUERY).matches);
+  const [printing, setPrinting] = useState(false);
+  const scheme = resolveScheme(appearance, systemDark, printing);
   const [hydrated, setHydrated] = useState(false);
   const [recordUnavailable, setRecordUnavailable] = useState(false); // phone: the record exists but can't be read right now
   const [recordLocked, setRecordLocked] = useState(false); // iOS: unreadable because the phone is locked (file protection)
@@ -294,7 +307,8 @@ export default function CyraDemo() {
   // Registration: from the moment she picks a stage card, the chrome wears that stage's first palette
   // (the same one finishReg lands on), so the choice shows before the app does. UI palette only.
   const regPal = phase === "register" && reg.stage ? PALETTES[REG_STAGE[reg.stage]][0] : null;
-  const t = { ...org.theme, ...(stagePal || regPal || {}) };
+  // The seven UI tokens for the scheme on screen (each palette's light values or its `dark` object).
+  const t = { ...paletteFor(org.theme, scheme), ...(stagePal ? paletteFor(stagePal, scheme) : regPal ? paletteFor(regPal, scheme) : {}) };
   const symMap = stage === "periods" ? PSYM : SYM;
   const symIds = Object.keys(symMap);
   const ins = useMemo(() => insights(days, stage === "periods" ? Object.keys(PSYM) : SYMS), [days, stage]);
@@ -393,21 +407,12 @@ export default function CyraDemo() {
      score and the save use (symptom chips, quick answers, sleep, scales, body signals, kicks). */
   const touched = draftIds.some((id) => (draft[id] || 0) > 0) || ["q1", "q2", "q3"].some((k) => draft[k] != null) || !!sleepQ
     || Object.values(scales).some((v) => v > 0) || !!flow || !!disch || !!odor || !!bodyOdor || kicks > 0;
-  /* Data-viz ramp: saturated and readable, independent of UI chrome colors. */
-  const ramp = () => RAMPS[stage] || RAMPS.peri;
-  const scoreColor = (s) => {
-    const lerp = (a, b, u) => a.map((c, i) => Math.round(c + (b[i] - c) * u));
-    const { good, mid, rough } = ramp();
-    const c = s > 0.5 ? lerp(mid, good, (s - 0.5) * 2) : lerp(rough, mid, s * 2);
-    return `rgb(${c})`;
-  };
-  /* Ink for text drawn on a score fill (calendar digits, the day card's score pill): black above a relative
-     luminance of 0.179, white below it — the crossover where both inks measure 4.5:1 against the fill. */
-  const scoreInk = (s) => {
-    const [r, g, b] = scoreColor(s).match(/\d+/g).map(Number);
-    const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
-    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) > 0.179 ? "#000000" : "#FFFFFF";
-  };
+  /* Data-viz ramp: saturated and readable, independent of UI chrome colors; its dark steps on a dark card
+     (lib/constants.js rampOf). Score fill and the ink on it come from lib/engine.js. */
+  const ramp = () => rampOf(stage, scheme);
+  const scoreColor = (s) => scoreColorOf(s, ramp());
+  // Ink for text drawn on a score fill (calendar digits, the day card's score pill): black or white, >= 4.5:1.
+  const scoreInk = (s) => inkOn(scoreRgb(s, ramp()));
 
   /* ======================= HOME ======================= */
   const goTab = (t2) => (stage === "preg" ? setPregTab(t2) : setAppTab(t2));
@@ -486,6 +491,33 @@ export default function CyraDemo() {
     if (phase !== "register") return;
     setRepaint(true); const t = setTimeout(() => setRepaint(false), 400); return () => clearTimeout(t);
   }, [reg.stage]);
+  /* Appearance: an Appearance tap or a flip of the device's light/dark setting crossfades the chrome the
+     same way. Never on hydrate, a cross-tab adopt or printing (those just switch). */
+  const repaintTimer = useRef(null);
+  const flashRepaint = () => { clearTimeout(repaintTimer.current); setRepaint(true); repaintTimer.current = setTimeout(() => setRepaint(false), 400); };
+  const chooseAppearance = (v) => { const next = cleanAppearance(v); if (next === appearance) return; setAppearance(next); flashRepaint(); };
+  /* The device's setting is followed live (System). Printing always renders the light palette: beforeprint
+     (and matchMedia("print"), which also covers print previews) flips it with flushSync, so the page the
+     browser snapshots is already light; afterprint flips it back. styles.js keeps a monochrome fallback for a
+     print neither event reaches. */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sys = typeof matchMedia === "function" ? matchMedia(SYSTEM_DARK_QUERY) : null;
+    const pr = typeof matchMedia === "function" ? matchMedia("print") : null;
+    const onSys = (e) => { setSystemDark(!!e.matches); flashRepaint(); };
+    const before = () => flushSync(() => setPrinting(true));
+    const after = () => setPrinting(false);
+    const onPrint = (e) => (e.matches ? before() : after());
+    sys?.addEventListener?.("change", onSys);
+    pr?.addEventListener?.("change", onPrint);
+    window.addEventListener("beforeprint", before);
+    window.addEventListener("afterprint", after);
+    return () => {
+      sys?.removeEventListener?.("change", onSys); pr?.removeEventListener?.("change", onPrint);
+      window.removeEventListener("beforeprint", before); window.removeEventListener("afterprint", after);
+      clearTimeout(repaintTimer.current);
+    };
+  }, []); // eslint-disable-line
 
   /* ---------- POTS add-on: the switch and its one tab ----------
      Settings → Add-ons turns it on and off; it never changes the life stage, and changing stage
@@ -912,7 +944,9 @@ export default function CyraDemo() {
   else if (pred) nextUp.push(pred.late > 0 ? { k: "late", text: `Period ${pred.late} day${pred.late > 1 ? "s" : ""} past your average`, sub: `${stage === "peri" ? "Irregularity is data too" : "Normal variation happens"} · Calendar →`, action: () => goTab("cal") } : { k: "period", text: `Period expected in ~${pred.daysTo} days`, sub: `Avg cycle ${pred.avgLen} days · Calendar →`, action: () => goTab("cal") });
   if (upcoming[0]) nextUp.push({ k: "appt", text: `Appointment${upcoming[0].who ? ` with ${upcoming[0].who}` : ""} in ${daysUntil(upcoming[0].date)} day${daysUntil(upcoming[0].date) === 1 ? "" : "s"}`, sub: daysUntil(upcoming[0].date) <= 7 && stage !== "preg" ? "Prep your report →" : fmt(upcoming[0].date), action: daysUntil(upcoming[0].date) <= 7 && stage !== "preg" ? () => goTab("report") : null }); // pregnancy has no Report tab
 
-  const style = { "--primary": t.primary, "--paper": t.paper, "--card": t.card, "--accent": t.accent, "--ink": t.ink, "--soft": t.soft, "--line": t.line };
+  // The palette (UI) and data-viz custom properties, inline on .cy; data-scheme picks the dark token rule (Shell).
+  const style = { ...paletteVars(t), ...vizVars(scheme, stage) };
+  const shell = { style, scheme };
 
   /* ---------- agentic intake routing ---------- */
   const rulesRoute = (a) => {
@@ -937,8 +971,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: 1, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1145,8 +1179,8 @@ export default function CyraDemo() {
       .catch(() => { /* no offline copy this time; tried again at the next launch */ });
     if (!isNative() && displayStandalone()) setInstallHint((h) => mergeInstallHint(h, "installed"));
   }, [hydrated, phase]);
-  // The installed app's status bar follows the paper colour on screen.
-  useEffect(() => { setThemeColor(t.paper); }, [t.paper]);
+  // The document outside the column (color-scheme, --doc-bg) and the browser chrome (theme-color) follow the scheme and paper on screen.
+  useLayoutEffect(() => { applyDocumentScheme(document, { scheme, paper: t.paper }); }, [scheme, t.paper]);
   useEffect(() => { if (!showSettings) setSettingsFocus(null); }, [showSettings]);
 
   /* Phone: a backup copy, POTS report or POTS spreadsheet an interrupted share left in the
@@ -1161,12 +1195,13 @@ export default function CyraDemo() {
   const exportBackup = async (passphrase) => {
     // The backup carries the record, minus what belongs to this device only: the ZIP and the
     // age band (neither is used after registration; their screen says they "stay on this
-    // device") and this browser's push addresses.
+    // device"), this browser's push addresses and this device's display preferences.
     const snap = snapshot();
     if (snap.regAnswers && typeof snap.regAnswers === "object") { const ra = { ...snap.regAnswers }; delete ra.zip; delete ra.age; snap.regAnswers = ra; }
     snap.reminders = { enabled: !!snap.reminders?.enabled };
     delete snap.lastBackupAt; // this device's own note of when it last backed up: never in the file
     delete snap.installHint; // this browser's install-tip note: installing is per device, never in the file
+    for (const k of DEVICE_PREFS) delete snap[k]; // this device's display preferences (appearance): never in the file
     const env = await encryptBackup(snap, passphrase);
     const name = `cyra-backup-${todayIso}.cyra.json`;
     if (isNative()) {
@@ -1199,7 +1234,7 @@ export default function CyraDemo() {
   };
   // Restoring brings back the record and settings, but never the per-device consents
   // (weekly counts, Cyra's AI, and in a browser the reminders, which would register this
-  // browser with Cyra's server): those stay as they are on this device. A wearable
+  // browser with Cyra's server), nor this device's appearance (DEVICE_PREFS): those stay as they are on this device. A wearable
   // connection in the backup comes back on this device unconfirmed; one this device has that the backup
   // doesn't is kept (the restore form says so).
   const importBackup = async (file, passphrase) => {
@@ -1222,12 +1257,12 @@ export default function CyraDemo() {
        It starts a new epoch, so another open tab takes the restored log over whole instead of
        merging its own older entries back in. A log from a newer build stays untouched. */
     const restoredPots = newEpoch(saved.pots ?? freshEmpty(), Date.now());
-    applySaved({ ...saved, pots: restoredPots, wearSources: wear }, { skip: [...DEVICE_ONLY, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
+    applySaved({ ...saved, pots: restoredPots, wearSources: wear }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
     potsBase.current = restoredPots; setPotsHomeLast(null);
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
-    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint };
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance };
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, ...keep, reminders: rem, v: 1, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     ping(!isNative() && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored");
@@ -1618,13 +1653,13 @@ export default function CyraDemo() {
     // the record that names them can't be read (the screen says so). It always leaves this
     // week's hold, since that record may say counts already went this week. A phone has no
     // server-side reminder row, so nothing on the server can block it.
-    if (recordUnavailable) return <Shell style={style}><RecordUnavailableScreen platform={platform()} locked={recordLocked} onRetry={hydrate} onStartOver={() => wipe({}, { holdWeek: true })} /></Shell>;
-    return <Shell style={style}><main aria-busy="true" /></Shell>;
+    if (recordUnavailable) return <Shell {...shell}><RecordUnavailableScreen platform={platform()} locked={recordLocked} onRetry={hydrate} onStartOver={() => wipe({}, { holdWeek: true })} /></Shell>;
+    return <Shell {...shell}><main aria-busy="true" /></Shell>;
   }
 
   if (phase === "splash") {
     return (
-      <Shell style={style} toast={toast}>
+      <Shell {...shell} toast={toast}>
         <SplashScreen onStart={() => setPhase("register")} onImport={importBackup} />
       </Shell>
     );
@@ -1632,8 +1667,8 @@ export default function CyraDemo() {
 
   if (phase === "register") {
     return (
-      <Shell style={style} toast={toast} repaint={repaint}>
-        <RegisterScreen reg={reg} setReg={setReg} regStep={regStep} setRegStep={setRegStep} regTouched={regTouched} setRegTouched={setRegTouched} cadence={cadence} setCadence={setCadence} socialBusy={socialBusy} startSocial={startSocial} finishReg={finishReg} onBackToSplash={() => setPhase("splash")} />
+      <Shell {...shell} toast={toast} repaint={repaint}>
+        <RegisterScreen reg={reg} setReg={setReg} regStep={regStep} setRegStep={setRegStep} regTouched={regTouched} setRegTouched={setRegTouched} cadence={cadence} setCadence={setCadence} socialBusy={socialBusy} startSocial={startSocial} finishReg={finishReg} onBackToSplash={() => setPhase("splash")} scheme={scheme} />
       </Shell>
     );
   }
@@ -1656,12 +1691,12 @@ export default function CyraDemo() {
   const updateRow = updateReady ? <UpdateRow onReload={reloadForUpdate} /> : null;
   const keepsWeekNote = pulseSent?.week === weekKey() || holdWeek === weekKey();
   const settingsSheet = showSettings && <SettingsSheet daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} triggerRef={settingsBtnRef} cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storageDriver} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} keepsWeekNote={keepsWeekNote} reminders={reminders} reminderSupport={reminderSupport()} onReminders={(on) => applyReminders(on)} research={research} setResearch={setSharing} stage={stage} stageName={stageName} pots={pots} onPotsOn={potsOn} onPotsOff={potsOff}
-    install={offersInstall({ mode: installMode, stored: recordInIdb }) ? { mode: installMode, onInstall: () => installNow("settings") } : null} focusTo={settingsFocus} offlineCopy={offlineReady} />;
+    install={offersInstall({ mode: installMode, stored: recordInIdb }) ? { mode: installMode, onInstall: () => installNow("settings") } : null} focusTo={settingsFocus} offlineCopy={offlineReady} appearance={appearance} onAppearance={chooseAppearance} />;
   if (!stage) {
     // Choosing a stage again: the saved record is still here, so Settings (and Delete
     // everything) stays one tap away.
     return (
-      <Shell style={style} toast={toast}>
+      <Shell {...shell} toast={toast}>
         <header className="mast" style={{ justifyContent: "flex-end", marginBottom: 0 }}>
           <button ref={settingsBtnRef} className="stagechip icon" onClick={() => setShowSettings((v) => !v)} aria-label="Settings and your data" aria-expanded={showSettings} aria-controls="settings-sheet"><Icon name="sliders" size={18} /></button>
           {updateRow}
@@ -1739,7 +1774,7 @@ export default function CyraDemo() {
      switch, Settings, a restore, a wipe or a stage change can't happen mid-test or mid-session. */
   if (potsRun && potsOk) {
     return (
-      <Shell style={style} toast={toast}>
+      <Shell {...shell} toast={toast}>
         <header className="mast"><span className="mark">{org.name}<span className="sub">{org.tag}</span></span></header>
         {potsRun.kind === "session"
           ? <SessionRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping}
@@ -1752,7 +1787,7 @@ export default function CyraDemo() {
   const connView = <ConnectScreen relationship={relationship} setRelationship={setRelationship} conn={conn} setConn={setConn} intimacy={intimacy} setIntimacy={setIntimacy} after={after} setAfter={setAfter} connLog={connLog} setConnLog={setConnLog} todayIso={todayIso} stage={stage} ping={ping} />;
 
   return (
-    <Shell style={style} toast={toast} repaint={repaint}>
+    <Shell {...shell} toast={toast} repaint={repaint}>
       <header className="mast">
         <span className="mark">{org.name}<span className="sub">{org.tag}</span></span>
         {stage && <span className="acctchip" title={`${acct.anon ? "Anonymous" : acct.name || "You"}${research && hasServer() ? " · sharing counts ✓" : ""}`}>{acct.anon ? "Anonymous" : acct.name || "You"}{research && hasServer() ? " · sharing counts ✓" : ""}</span>}
@@ -1765,7 +1800,7 @@ export default function CyraDemo() {
 
       {/* ============ APP ============ */}
       {settingsSheet}
-      {showPal && stage && orgId === "cyra" && <PaletteSheet stage={stage} stageName={stageName} palIdx={palIdx} setPalIdx={setPalIdx} setShowPal={setShowPal} triggerRef={palBtnRef} />}
+      {showPal && stage && orgId === "cyra" && <PaletteSheet stage={stage} stageName={stageName} palIdx={palIdx} setPalIdx={setPalIdx} setShowPal={setShowPal} triggerRef={palBtnRef} scheme={scheme} />}
       <div>
 
         {/* ---------- PREGNANCY: its own component ---------- */}

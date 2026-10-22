@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fmt, localDay } from "../lib/engine.js";
-import { FAMILIES, SYM_FAMILY } from "../lib/constants.js";
+import { FAMILIES, SYM_FAMILY, famVar } from "../lib/constants.js";
 import { copyText } from "../lib/clipboard.js";
 import Icon from "../components/Icon.jsx";
 
@@ -15,7 +15,8 @@ import Icon from "../components/Icon.jsx";
    the email can take up to three of the scripts, and the text leaves by email, clipboard,
    the browser's print dialog or the OS share sheet — Cyra itself still sends nothing. */
 
-const FAM = Object.fromEntries(FAMILIES.map((f) => [f.id, f]));
+// Each family's colour as its CSS variable (--fam-*, vizVars): tint(), the meters, the meaning rails and the table bars follow light or dark.
+const FAM = Object.fromEntries(FAMILIES.map((f) => [f.id, { ...f, color: famVar(f.id) }]));
 const famOf = (id) => FAM[SYM_FAMILY[id] || "body"];
 const tint = (color, pct) => `color-mix(in srgb, ${color} ${pct}%, var(--card))`;
 const dayIso = (iso, k) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + k); return localDay(d); };

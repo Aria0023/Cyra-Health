@@ -164,3 +164,17 @@ export const dayScore = (entry, ids) => {
   return 1 - Math.min(1, symBurden(entry.sym || {}, ids) * 0.5 + ((sc.fatigue || 0) / 10) * 0.2 + ((sc.pain || 0) / 10) * 0.2 + ((10 - (sc.moodq ?? 5)) / 10) * 0.1);
 };
 export const sevDots = (n) => "●".repeat(n) + "○".repeat(3 - n);
+/* ---------- day-score colour (data viz; the ramp comes from lib/constants.js rampOf(stage, scheme)) ----------
+   rough → mid for s ≤ 0.5, mid → good above, each channel rounded. */
+export const scoreRgb = (s, ramp) => {
+  const lerp = (a, b, u) => a.map((c, i) => Math.round(c + (b[i] - c) * u));
+  const { good, mid, rough } = ramp;
+  return s > 0.5 ? lerp(mid, good, (s - 0.5) * 2) : lerp(rough, mid, s * 2);
+};
+export const scoreColorOf = (s, ramp) => `rgb(${scoreRgb(s, ramp)})`;
+/* Ink for text drawn on a score fill (calendar digits, the day card's score pill): black above a relative
+   luminance of 0.179, white below it — the crossover where both inks measure 4.5:1 against the fill. */
+export const inkOn = ([r, g, b]) => {
+  const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b) > 0.179 ? "#000000" : "#FFFFFF";
+};

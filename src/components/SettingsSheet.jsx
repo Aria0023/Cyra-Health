@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { CADENCE } from "../lib/constants.js";
+import { APPEARANCES } from "../lib/appearance.js";
 import { hasServer } from "../lib/api.js";
 import { STAGE_GROUP, flagWords } from "../lib/pulse.js";
 import DataControls from "./DataControls.jsx";
@@ -11,18 +12,20 @@ import { reduceMotion } from "../lib/motion.js";
 
 /* Settings: check-in cadence, nudge time, quick vs full check-in, add-ons (POTS tools),
    reminders, the "Share anonymous weekly counts" switch, and Your data.
-   UI S1: a sticky header with a Close button (the bottom Done stays), three groups (Check-ins /
-   Add-ons & sharing / Your data), each option row a labelled group with an icon in its label.
+   UI S1: a sticky header with a Close button (the bottom Done stays), four groups (Check-ins /
+   Add-ons & sharing / Appearance / Your data), each option row a labelled group with an icon in its label.
    Opening moves focus to the title; Close and Done hand it back to the gear (triggerRef).
    L1 (spec A14.1): an Install group on the web when this browser can install Cyra (install,
    from App.jsx; never in the phone app, in standalone mode or without IndexedDB), directly
    before Your data. Home's iOS tip opens the sheet with focusTo "install": focus goes to that
    group's label instead of the title. offlineCopy tells Your data that this browser keeps
-   Cyra's offline copy of its own files. */
+   Cyra's offline copy of its own files.
+   L2 (spec §8.4): Appearance (System / Light / Dark, a .seg) sits between Add-ons & sharing and
+   Install; it is this device's display preference (App.jsx chooseAppearance), never in a backup. */
 /* A group label: an id its option row points at (aria-labelledby) and a small accent glyph (G3 .labico). */
 const Lab = ({ id, icon, children, style }) => <p className="section-lab" id={id} style={style}><Icon name={icon} className="labico" />{children}</p>;
 
-export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, keepsWeekNote, reminders, reminderSupport, onReminders, research, setResearch, stage, stageName, pots, onPotsOn, onPotsOff, daysLogged = 0, lastBackupAt = null, todayIso, triggerRef, install = null, focusTo = null, offlineCopy = false }) {
+export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, keepsWeekNote, reminders, reminderSupport, onReminders, research, setResearch, stage, stageName, pots, onPotsOn, onPotsOff, daysLogged = 0, lastBackupAt = null, todayIso, triggerRef, install = null, focusTo = null, offlineCopy = false, appearance = "system", onAppearance }) {
   const headRef = useRef(null);
   const installLabRef = useRef(null);
   useEffect(() => {
@@ -126,6 +129,15 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
         ) : (
           <p className="hint" style={{ margin: "0 0 8px" }}>Weekly counts aren't available in this version of Cyra, so nothing is shared.</p>
         )}
+      </div>
+      <div className="setgroup">
+        <Lab id="set-appearance" icon="moon" style={{ margin: "0 0 6px" }}>Appearance</Lab>
+        <div className="mcrow seg" role="group" aria-labelledby="set-appearance">
+          {APPEARANCES.map(([v, label]) => (
+            <button key={v} className={`mc ${appearance === v ? "on" : ""}`} aria-pressed={appearance === v} onClick={() => onAppearance(v)}>{label}</button>
+          ))}
+        </div>
+        <p className="rfoot">System follows this device's light or dark setting. Your choice stays on this device and isn't part of a backup.</p>
       </div>
       {install && <InstallSettings install={install} labRef={installLabRef} />}
       <div className="setgroup">

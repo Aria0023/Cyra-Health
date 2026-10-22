@@ -126,41 +126,74 @@ export const SHELF = [
 /* Stage palettes — the app's mood shifts with life stage.
    peri/meno: cool, calming, trust-building (teal + sage + lavender)
    pregnancy: soft pink + teal with warm neutrals
-   cycle:     fresh dusty blue + soft coral, young without being girly */
+   cycle:     fresh dusty blue + soft coral, young without being girly
+   Each entry carries the seven UI tokens for light and a `dark` object with the same seven (L2,
+   decision D9). Dark rule: paper is the darkest surface, card one step lighter, and primary and
+   accent are light tones of the same hue, so text on a filled primary uses --on-primary. Every
+   dark set passes WCAG AA for text and 3:1 for UI boundaries (lib/appearance.test.mjs). */
 export const PALETTES = {
   peri: [
-    { id: "teal", name: "Teal & Lavender", note: "Clinical calm", primary: "#2C6A61", accent: "#5A6A9E", paper: "#E4EBE7", card: "#FFFFFF", ink: "#17241F", soft: "#4E625B", line: "#6E8A7F" },
-    { id: "dusk", name: "Dusty Blue & Sage", note: "Steady, grounded", primary: "#3A5F80", accent: "#607C69", paper: "#E5EAEF", card: "#FFFFFF", ink: "#16212B", soft: "#4D5F6E", line: "#73889F" },
-    { id: "lav", name: "Lavender & Moss", note: "Soft, restorative", primary: "#5B4E85", accent: "#6A7B5C", paper: "#EAE6F0", card: "#FFFFFF", ink: "#1E1A2A", soft: "#5A5270", line: "#897EA8" },
+    { id: "teal", name: "Teal & Lavender", note: "Clinical calm", primary: "#2C6A61", accent: "#5A6A9E", paper: "#E4EBE7", card: "#FFFFFF", ink: "#17241F", soft: "#4E625B", line: "#6E8A7F", dark: { paper: "#121815", card: "#1C221F", ink: "#E2ECE8", soft: "#97B0A7", line: "#627D72", primary: "#7BC4B8", accent: "#9EB0E9" } },
+    { id: "dusk", name: "Dusty Blue & Sage", note: "Steady, grounded", primary: "#3A5F80", accent: "#607C69", paper: "#E5EAEF", card: "#FFFFFF", ink: "#16212B", soft: "#4D5F6E", line: "#73889F", dark: { paper: "#13161A", card: "#1D2125", ink: "#E3EAF1", soft: "#9AACBB", line: "#67788A", primary: "#8BBAE4", accent: "#9EBBA7" } },
+    { id: "lav", name: "Lavender & Moss", note: "Soft, restorative", primary: "#5B4E85", accent: "#6A7B5C", paper: "#EAE6F0", card: "#FFFFFF", ink: "#1E1A2A", soft: "#5A5270", line: "#897EA8", dark: { paper: "#17141C", card: "#221F27", ink: "#EAE8F1", soft: "#ABA6BA", line: "#787289", primary: "#B7A9EC", accent: "#A7BA99" } },
   ],
   preg: [
-    { id: "rose", name: "Teal & Dusty Rose", note: "Warm & reassuring", primary: "#2F736E", accent: "#B8505E", paper: "#EFE2E1", card: "#FFFFFF", ink: "#241A1D", soft: "#6B585B", line: "#9A7B79" },
-    { id: "sage", name: "Sage & Warm Sand", note: "Earthy, gentle", primary: "#4F7355", accent: "#A06836", paper: "#EDE7DD", card: "#FFFFFF", ink: "#1F2620", soft: "#5C6459", line: "#908373" },
-    { id: "coral", name: "Muted Blue & Coral", note: "Fresh, modern", primary: "#37627E", accent: "#CA4B2A", paper: "#E6EBEF", card: "#FFFFFF", ink: "#152029", soft: "#4F6070", line: "#73889F" },
+    { id: "rose", name: "Teal & Dusty Rose", note: "Warm & reassuring", primary: "#2F736E", accent: "#B8505E", paper: "#EFE2E1", card: "#FFFFFF", ink: "#241A1D", soft: "#6B585B", line: "#9A7B79", dark: { paper: "#1D1313", card: "#281D1D", ink: "#F1E6E9", soft: "#BBA2A6", line: "#8A6E6C", primary: "#75C5BE", accent: "#EB989F" } },
+    { id: "sage", name: "Sage & Warm Sand", note: "Earthy, gentle", primary: "#4F7355", accent: "#A06836", paper: "#EDE7DD", card: "#FFFFFF", ink: "#1F2620", soft: "#5C6459", line: "#908373", dark: { paper: "#1A150E", card: "#252017", ink: "#E4ECE5", soft: "#A2AD9E", line: "#837360", primary: "#95C19B", accent: "#E0A472" } },
+    { id: "coral", name: "Muted Blue & Coral", note: "Fresh, modern", primary: "#37627E", accent: "#CA4B2A", paper: "#E6EBEF", card: "#FFFFFF", ink: "#152029", soft: "#4F6070", line: "#73889F", dark: { paper: "#13171A", card: "#1C2125", ink: "#E3EBF1", soft: "#9BACBC", line: "#67788A", primary: "#87BCE0", accent: "#EB9C87" } },
   ],
   periods: [
-    { id: "blue", name: "Dusty Blue & Coral", note: "Fresh, youthful", primary: "#33567D", accent: "#B9513C", paper: "#E3E9F0", card: "#FFFFFF", ink: "#141E29", soft: "#4E6070", line: "#70859D" },
-    { id: "plum", name: "Plum & Peach", note: "Soft, expressive", primary: "#6B3F63", accent: "#BF5729", paper: "#EFE5EC", card: "#FFFFFF", ink: "#231825", soft: "#5F4E5C", line: "#967E91" },
-    { id: "mint", name: "Deep Mint & Clay", note: "Clean, calm", primary: "#2F6B5C", accent: "#B65B42", paper: "#E3EDE8", card: "#FFFFFF", ink: "#15241E", soft: "#4C6259", line: "#698C7D" },
+    { id: "blue", name: "Dusty Blue & Coral", note: "Fresh, youthful", primary: "#33567D", accent: "#B9513C", paper: "#E3E9F0", card: "#FFFFFF", ink: "#141E29", soft: "#4E6070", line: "#70859D", dark: { paper: "#12161C", card: "#1C2127", ink: "#E4EAF1", soft: "#9AACBB", line: "#67788A", primary: "#8BB8EB", accent: "#EB9B89" } },
+    { id: "plum", name: "Plum & Peach", note: "Soft, expressive", primary: "#6B3F63", accent: "#BF5729", paper: "#EFE5EC", card: "#FFFFFF", ink: "#231825", soft: "#5F4E5C", line: "#967E91", dark: { paper: "#1B1319", card: "#261D24", ink: "#EDE7EE", soft: "#B5A3B2", line: "#836F7F", primary: "#D99ECD", accent: "#E99D80" } },
+    { id: "mint", name: "Deep Mint & Clay", note: "Clean, calm", primary: "#2F6B5C", accent: "#B65B42", paper: "#E3EDE8", card: "#FFFFFF", ink: "#15241E", soft: "#4C6259", line: "#698C7D", dark: { paper: "#101814", card: "#1A231F", ink: "#E2ECE8", soft: "#98B0A6", line: "#637D71", primary: "#7EC5B1", accent: "#EA9C86" } },
   ],
 };
 
 export const ORGS = {
-  cyra: { slug: "cyra", name: "Cyra", tag: "Health", theme: { primary: "#7A2F4E", paper: "#EDE4DC", card: "#FFFFFF", accent: "#AB6229", ink: "#241A28", soft: "#5B4E63", line: "#927F6F" }, partnerIds: null, plan: "Consumer (D2C)" },
-  bloom: { slug: "bloom", name: "Bloom", tag: "by AcmeCare", theme: { primary: "#2F5D50", paper: "#F2F5F1", card: "#FBFDFA", accent: "#C89A5B", ink: "#26332E", soft: "#5F6E67", line: "#DCE3DD" }, partnerIds: ["midi", "restfully"], plan: "Employer benefit (500 seats)" },
+  cyra: { slug: "cyra", name: "Cyra", tag: "Health", theme: { primary: "#7A2F4E", paper: "#EDE4DC", card: "#FFFFFF", accent: "#AB6229", ink: "#241A28", soft: "#5B4E63", line: "#927F6F", dark: { paper: "#1B150E", card: "#261F18", ink: "#EDE7EF", soft: "#B0A4B7", line: "#857261", primary: "#E69BB5", accent: "#E4A274" } }, partnerIds: null, plan: "Consumer (D2C)" },
+  bloom: { slug: "bloom", name: "Bloom", tag: "by AcmeCare", theme: { primary: "#2F5D50", paper: "#F2F5F1", card: "#FBFDFA", accent: "#C89A5B", ink: "#26332E", soft: "#5F6E67", line: "#DCE3DD", dark: { paper: "#141713", card: "#1E221D", ink: "#E2ECE8", soft: "#9AAFA5", line: "#6F7971", primary: "#8AC2B0", accent: "#D8A96A" } }, partnerIds: ["midi", "restfully"], plan: "Employer benefit (500 seats)" },
+};
+
+/* Status and surface tokens that are not part of a palette, for each scheme (UI side, never data
+   colours). styles.js writes `light` into the .cy rule and `dark` into .cy[data-scheme="dark"].
+   The light values are the literals the stylesheet used before L2, unchanged. Filled primary and
+   danger controls carry --on-primary / --on-bad text (white in light, the dark paper in dark,
+   because the dark primary is a light tone); the toast is an inverse surface with --on-ink text. */
+export const SCHEME_TOKENS = {
+  light: {
+    "--good": "#43604F", "--bad": "#A04545", "--bad-bg": "#FBEEEA", "--bad-chip": "#F3DBDB", "--err-line": "#E0A99B", "--err-edge": "#E7C3B8",
+    "--ev-mixed-bg": "#FBEEE2", "--ev-mixed-ink": "#8A4E18", "--ev-comfort-bg": "#EDE7EF", "--ev-comfort-ink": "#6E6076",
+    "--on-primary": "#FFF", "--on-bad": "#FFF", "--on-ink": "#FFF", "--knob": "#FFF", "--knob-edge": "rgba(0,0,0,.12)",
+    "--halo": "rgba(255,255,255,.7)", "--mark-edge": "rgba(0,0,0,.35)", "--cell-edge": "rgba(0,0,0,.14)", "--toast-dot": "var(--accent)",
+    "--sh-card": "0 1px 2px rgba(0,0,0,.04)", "--sh-opt": "0 1px 2px rgba(0,0,0,.05)", "--sh-meter": "0 1px 3px rgba(0,0,0,.06)",
+    "--sh-sheet": "0 2px 8px rgba(0,0,0,.07)", "--sh-thumb": "0 1px 2px rgba(0,0,0,.2)", "--sh-toast": "0 4px 14px rgba(0,0,0,.18)",
+  },
+  dark: {
+    "--good": "#8FCBA4", "--bad": "#F29B91", "--bad-bg": "#3B2120", "--bad-chip": "#4A2826", "--err-line": "#B4685F", "--err-edge": "#6E3B36",
+    "--ev-mixed-bg": "#3D2C1B", "--ev-mixed-ink": "#F0BC86", "--ev-comfort-bg": "#302A36", "--ev-comfort-ink": "#D3C6DC",
+    "--on-primary": "var(--paper)", "--on-bad": "var(--paper)", "--on-ink": "var(--paper)", "--knob": "#EEF1F0", "--knob-edge": "rgba(0,0,0,.5)",
+    "--halo": "rgba(0,0,0,.55)", "--mark-edge": "rgba(255,255,255,.55)", "--cell-edge": "rgba(255,255,255,.16)", "--toast-dot": "color-mix(in srgb, var(--accent) 60%, var(--paper))",
+    "--sh-card": "0 1px 2px rgba(0,0,0,.3)", "--sh-opt": "0 1px 2px rgba(0,0,0,.3)", "--sh-meter": "0 1px 3px rgba(0,0,0,.35)",
+    "--sh-sheet": "0 4px 16px rgba(0,0,0,.5)", "--sh-thumb": "0 1px 2px rgba(0,0,0,.6)", "--sh-toast": "0 4px 16px rgba(0,0,0,.55)",
+  },
 };
 
 
-/* Patterns charts: every symptom belongs to one family, and each family has one fixed data-viz colour
+/* ---- Data viz (kept apart from PALETTES and SCHEME_TOKENS; never derived from a UI palette) ----
+   Patterns charts: every symptom belongs to one family, and each family has one fixed data-viz colour
    (categorical, separate from the UI palettes). Colours are the reference categorical slots red, blue,
    green, amber and aqua, checked all-pairs on white: colour-blind separation >= 6.9 dE, so the charts
-   always pair colour with a label, the legend and the tap-for-detail card. */
+   always pair colour with a label, the legend and the tap-for-detail card.
+   `dark` is the same family on a dark card, validated with the dataviz validator
+   (validate_palette.js "#DF445B,#3987E5,#117E00,#C38606,#00A994" --mode dark --pairs all) against every
+   dark card colour in PALETTES and ORGS: all checks pass, CVD 8.2, normal vision 17.8, all >= 3:1.
+   Marks read them as CSS variables (--fam-*, from vizVars), never as literals. */
 export const FAMILIES = [
-  { id: "heat", label: "Heat", color: "#E34948" },
-  { id: "sleep", label: "Sleep", color: "#2A78D6" },
-  { id: "mind", label: "Mind", color: "#008300" },
-  { id: "pain", label: "Pain", color: "#EDA100" },
-  { id: "body", label: "Body", color: "#1BAF7A" },
+  { id: "heat", label: "Heat", color: "#E34948", dark: "#DF445B" },
+  { id: "sleep", label: "Sleep", color: "#2A78D6", dark: "#3987E5" },
+  { id: "mind", label: "Mind", color: "#008300", dark: "#117E00" },
+  { id: "pain", label: "Pain", color: "#EDA100", dark: "#C38606" },
+  { id: "body", label: "Body", color: "#1BAF7A", dark: "#00A994" },
 ];
 export const SYM_FAMILY = {
   hf: "heat", ns: "heat",
@@ -169,17 +202,37 @@ export const SYM_FAMILY = {
   ach: "pain", hda: "pain", crm: "pain", bak: "pain", ten: "pain",
   dry: "body", pal: "body", lib: "body", itc: "body", blo: "body", nau: "body", acn: "body", cra: "body",
 };
+/* A family's colour as a CSS variable (undefined without a family). The value follows the scheme on
+   screen (vizVars below, set inline on .cy), so marks never carry a literal colour. */
+export const famVar = (fam) => (fam ? `var(--fam-${fam})` : undefined);
 /* The family colour for a symptom id (undefined when the id has no family, so CSS falls back to --primary).
    Used only on data-bearing marks: chart dots, the Home today-line dot, the severity dots on a check-in chip. */
-const FAM_COLOR = Object.fromEntries(FAMILIES.map((f) => [f.id, f.color]));
-export const famColor = (id) => FAM_COLOR[SYM_FAMILY[id]];
+export const famColor = (id) => famVar(SYM_FAMILY[id]);
 
-/* Data-viz ramp: saturated and readable, independent of UI chrome colors. */
+/* Data-viz ramp: saturated and readable, independent of UI chrome colors. The light ramps are
+   owner-approved and unchanged. RAMPS_DARK keeps each stage's three anchors separable on the dark
+   cards: validated with the dataviz validator (--mode dark --pairs all) against that stage's three
+   dark cards and ORGS.cyra's (CVD 12.1 / 8.6 / 8.5, normal vision 19.3 / 18.0 / 16.7); interpolated
+   calendar fills stay >= 3.2:1 on the dark cards and inkOn (lib/engine.js) >= 4.58:1 on every fill. */
 export const RAMPS = {
   peri:    { good: [26, 168, 148], mid: [246, 189, 74], rough: [140, 74, 168] },
   preg:    { good: [42, 176, 158], mid: [249, 176, 104], rough: [222, 84, 112] },
   periods: { good: [46, 154, 198], mid: [250, 186, 82], rough: [226, 88, 74] },
 };
+export const RAMPS_DARK = {
+  peri:    { good: [0, 159, 139], mid: [189, 137, 0], rough: [150, 83, 178] },
+  preg:    { good: [0, 159, 142], mid: [198, 129, 55], rough: [219, 41, 84] },
+  periods: { good: [39, 149, 193], mid: [194, 134, 3], rough: [212, 64, 64] },
+};
+/* The ramp for a stage and scheme (peri's for any other stage). */
+export const rampOf = (stage, scheme = "light") => { const R = scheme === "dark" ? RAMPS_DARK : RAMPS; return R[stage] || R.peri; };
+/* A ramp anchor ("good" | "mid" | "rough") as a CSS variable, for the POTS charts. */
+export const rampVar = (k) => `var(--ramp-${k})`;
+/* The data-viz custom properties for the scheme on screen, set inline on .cy beside the palette ones. */
+export const vizVars = (scheme, stage) => ({
+  ...Object.fromEntries(FAMILIES.map((f) => [`--fam-${f.id}`, scheme === "dark" ? f.dark : f.color])),
+  ...Object.fromEntries(["good", "mid", "rough"].map((k) => [`--ramp-${k}`, `rgb(${rampOf(stage, scheme)[k].join(",")})`])),
+});
 
 export const READS = {
   menstrual: ["Why cramps peak on day 1–2", "Prostaglandins drive them — which is why anti-inflammatories and heat both genuinely work."],

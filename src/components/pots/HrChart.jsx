@@ -1,20 +1,18 @@
-import { RAMPS } from "../../lib/constants.js";
+import { rampVar } from "../../lib/constants.js";
 import { tickAt } from "../../lib/potsReport.js";
 
 /* Stand-test charts (design 4.8.6, 5.8). Inline SVG, role="img", with an aria-label that holds
    the whole series, so the chart never carries meaning a screen reader can't get. Data colour
-   comes from the data-viz ramp only (RAMPS, by stage); chrome (dashed reference lines, text)
-   comes from the palette (var(--ink)). Value labels sit on every point, so nothing depends on
-   colour alone. */
-const rgb = (c) => `rgb(${c.join(",")})`;
-const rampFor = (stage) => RAMPS[stage] || RAMPS.peri;
+   comes from the data-viz ramp only (--ramp-* from vizVars: the stage's ramp, its dark steps in
+   dark mode); chrome (dashed reference lines, text) comes from the palette (var(--ink)). Value
+   labels sit on every point, so nothing depends on colour alone. */
 /** A number as the result shows it: whole, or one decimal (a two-reading baseline can end in .5). */
 export const fmtN = (x) => (Number.isInteger(x) ? String(x) : String(Math.round(x * 10) / 10));
 const fmtM = (m) => (Number.isInteger(m) ? String(m) : String(Math.round(m * 10) / 10));
 
 /** Heart rate by minute for one test: the lying baseline and the threshold line (dashed, ink),
     the upright readings as a line with point markers and value labels (ramp().rough). */
-export function HrChart({ test, result, stage }) {
+export function HrChart({ test, result }) {
   const pts = (test.up || []).filter((r) => Number.isFinite(r.hr) && Number.isFinite(r.min)).sort((a, b) => a.min - b.min);
   if (!pts.length) return null;
   const base = result.baseHr, thr = result.thr;
@@ -23,7 +21,7 @@ export function HrChart({ test, result, stage }) {
   const lo = Math.floor((Math.min(...vals) - 8) / 10) * 10, hi = Math.ceil((Math.max(...vals) + 8) / 10) * 10;
   const maxMin = Math.max(10, ...pts.map((r) => r.min));
   const x = (m) => L + (m / maxMin) * (W - L - R), y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
-  const line = rgb(rampFor(stage).rough);
+  const line = rampVar("rough");
   // A value label sits above its point, or below it when the baseline, threshold or axis line
   // would run through the digits (a reading just under the threshold, say).
   const rules = [H - B, ...(base != null ? [y(base), y(base + thr)] : [])];
@@ -60,9 +58,8 @@ export function HrChart({ test, result, stage }) {
 /** Stand tests over time for one method (design 5.8): each test's largest rise as a dot, a
     dashed threshold line, value labels. Dots at or above the threshold use ramp().rough, the
     rest ramp().good. */
-export function TrendChart({ rows, thr, stage, methodLabel }) {
+export function TrendChart({ rows, thr, methodLabel }) {
   if (rows.length < 2) return null;
-  const ramp = rampFor(stage);
   const W = 340, H = 150, L = 22, R = 34, T = 18, B = 30;
   const vals = [...rows.map((r) => r.rise), thr, 0];
   const lo = Math.floor(Math.min(...vals) / 10) * 10, hi = Math.ceil((Math.max(...vals) + 6) / 10) * 10;
@@ -77,7 +74,7 @@ export function TrendChart({ rows, thr, stage, methodLabel }) {
       <line x1={L} y1={y(thr)} x2={W - R} y2={y(thr)} stroke="var(--ink)" strokeWidth="1.2" strokeDasharray="4 4" />
       <text x={W - 2} y={y(thr) + 4} fontSize="11" textAnchor="end" fill="var(--ink)">{`+${thr}`}</text>
       {rows.map((r, i) => {
-        const c = rgb(r.rise >= thr ? ramp.rough : ramp.good);
+        const c = r.rise >= thr ? rampVar("rough") : rampVar("good");
         return (
           <g key={r.id}>
             <circle cx={x(i)} cy={y(r.rise)} r="5" fill={c} />

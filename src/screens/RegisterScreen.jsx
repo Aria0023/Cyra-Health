@@ -6,6 +6,7 @@ import { isNative } from "../lib/native.js";
 import { TERMS_URL, PRIVACY_URL, POLICY_LINKS_READY, openExternal } from "../lib/links.js";
 import { allFlagGroups } from "../lib/pulse.js";
 import { reduceMotion } from "../lib/motion.js";
+import { paletteFor } from "../lib/appearance.js";
 import { REG_STAGE } from "../App.jsx";
 import Details, { WebReminderFacts } from "../components/Details.jsx";
 import Icon from "../components/Icon.jsx";
@@ -46,7 +47,7 @@ const NONE = /^None\b/;
 // A ZIP or postal code: letters, digits, spaces and hyphens, 10 characters at most — no room for a street address.
 const ZIP_CHARS = /[^A-Za-z0-9 -]/g;
 
-export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTouched, setRegTouched, cadence, setCadence, socialBusy, startSocial, finishReg, onBackToSplash }) {
+export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTouched, setRegTouched, cadence, setCadence, socialBusy, startSocial, finishReg, onBackToSplash, scheme = "light" }) {
   const rs = RSTEPS[regStep];
   const uid = useId();
   const labId = (k) => `${uid}-${k}`;
@@ -77,7 +78,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
   });
   // Anonymous Mode on: the name and email go, and their fields and the providers are hidden.
   const toggleAnon = () => setReg((x) => (x.anon ? { ...x, anon: false } : { ...x, anon: true, name: "", email: "" }));
-  // Error ink --bad (.labErr, .need) is >= 4.6:1 on every stage paper (axe-checked in all three palettes).
+  // Error ink --bad (.labErr, .need) is >= 4.6:1 on every light paper and >= 8.4:1 on every dark paper.
   // Plain functions, not inline components, so a tap re-renders the chips in place instead of remounting them.
   const lab = (k, text) => <p id={labId(k)} className={`lab ${bad(k) ? "labErr" : ""}`}>{text}{bad(k) && <span className="need"> · needed</span>}</p>;
   const chips = (k, opts) => (
@@ -193,7 +194,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
           {STAGE_CARDS.map(([lbl, d]) => (
             <button key={lbl} aria-pressed={reg.stage === lbl} className={`stagecard ${reg.stage === lbl ? "on" : ""}`} onClick={() => rup("stage", lbl)}>
               <b>{lbl}</b><span>{d}</span>
-              <span className="swatch-dot" aria-hidden="true" style={{ background: PALETTES[REG_STAGE[lbl]][0].primary }} />
+              <span className="swatch-dot" aria-hidden="true" style={{ background: paletteFor(PALETTES[REG_STAGE[lbl]][0], scheme).primary }} />
               {reg.stage === lbl && <Icon name="check" size={18} className="stagecheck" />}
             </button>
           ))}

@@ -438,3 +438,9 @@ repository.
   verifier only lived in memory, so the person has to start sign-in or connecting again.
   For Fitbit/Garmin/Whoop, the mailbox key is saved before the window opens, so **Sync**
   can still collect the readings once the connection finishes.
+- **Light and dark (L2).** The web view follows the phone's light or dark setting:
+  Android's `MainActivity` theme `AppTheme.NoActionBar` is `Theme.AppCompat.DayNight`,
+  and iOS sets no `UIUserInterfaceStyle`, so Cyra's System appearance matches the phone.
+  When Cyra's own Appearance (Settings → Appearance: Light or Dark) differs from the
+  phone, the status bar and the native launch screen still follow the phone. Styling them
+  from the app would need a status-bar plugin, a new dependency, so it is later work.

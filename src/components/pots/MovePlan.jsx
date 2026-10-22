@@ -3,7 +3,7 @@ import {
   moveState, moveOption, progress, weeklyCounts, planLine, setProgram, clearFaintPause,
   MOVE_STEPS, MOVE_COPY, PEM_OPTS, CLEAR_OPTS, CLEAR_PREG_OPTS, WEEKDAYS,
 } from "../../lib/potsMove.js";
-import { RAMPS } from "../../lib/constants.js";
+import { rampVar } from "../../lib/constants.js";
 import Advice from "../Advice.jsx";
 import Details from "../Details.jsx";
 import { Choice } from "./StandSafety.jsx";
@@ -27,12 +27,11 @@ import { numOf, numProps, useAnnounce } from "./ui.js";
      D9), and the heart-rate range her clinician gave in her own words. Cyra suggests none.
    - "Start a session" opens the guided timer (MoveSession.jsx, the running takeover); "Log a
      session I did" records one without it. No streaks; rest days are part of the plan. */
-const rgb = (c) => `rgb(${c.join(",")})`;
 const short = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
 /** Sessions per week over the last 8 weeks (fill ramp().mid), with the next days rated worse or
     crashed. Every value is in the aria-label. */
-function WeekBars({ weeks, ramp }) {
+function WeekBars({ weeks }) {
   const max = Math.max(1, ...weeks.map((w) => w.n));
   const label = `Sessions per week, last 8 weeks: ${weeks.map((w) => `week from ${short(w.from)}, ${w.n}${w.worse || w.crash ? ` (next day worse ${w.worse}, crashed ${w.crash})` : ""}`).join("; ")}.`;
   const worse = weeks.reduce((a, w) => a + w.worse, 0), crash = weeks.reduce((a, w) => a + w.crash, 0);
@@ -43,7 +42,7 @@ function WeekBars({ weeks, ramp }) {
         {weeks.map((w) => (
           <div key={w.from} className="brow" style={{ gridTemplateColumns: "84px 1fr 40px" }}>
             <span className="blab">{`from ${short(w.from)}`}</span>
-            <div className="btrack">{w.n > 0 && <div className="bfill" style={{ width: `${(w.n / max) * 100}%`, background: rgb(ramp.mid) }} />}</div>
+            <div className="btrack">{w.n > 0 && <div className="bfill" style={{ width: `${(w.n / max) * 100}%`, background: rampVar("mid") }} />}</div>
             <span className="bval" style={{ color: "var(--ink)" }}>{w.n}</span>
           </div>
         ))}
@@ -106,7 +105,6 @@ export default function MovePlan({ pots, setPots, stage, todayIso, ping, onStart
     );
   }
 
-  const ramp = RAMPS[stage] || RAMPS.peri;
   const opt = moveOption(pots, { stage, today: todayIso });
   const prog = st.planShown ? progress(pots, todayIso) : null;
   const weeks = weeklyCounts(pots, todayIso);
@@ -167,7 +165,7 @@ export default function MovePlan({ pots, setPots, stage, todayIso, ping, onStart
           {line && !st.paused && <p className="plain">{line}</p>}
         </>
       )}
-      {st.asked && weeks.some((w) => w.n > 0) && <WeekBars weeks={weeks} ramp={ramp} />}
+      {st.asked && weeks.some((w) => w.n > 0) && <WeekBars weeks={weeks} />}
 
       {st.asked && (
         <>

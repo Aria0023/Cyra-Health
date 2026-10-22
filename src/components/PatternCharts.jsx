@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { dayScore, isPeriodDay, fmt, localDay, sevDots } from "../lib/engine.js";
-import { FAMILIES, SYM_FAMILY } from "../lib/constants.js";
+import { FAMILIES, SYM_FAMILY, famVar } from "../lib/constants.js";
 import Details from "./Details.jsx";
 
 /* "Your patterns" card (Home and the Patterns tab; cycle and perimenopause/menopause stages).
@@ -20,7 +20,8 @@ import Details from "./Details.jsx";
    disclosure lists the same data as text, and the line and dots draw in once per mount.
    Everything is computed from the on-device record; nothing here is stored or sent. */
 
-const FAM = Object.fromEntries(FAMILIES.map((f) => [f.id, f]));
+// Each family's colour as its CSS variable (--fam-*, vizVars), so the marks follow light or dark without a literal.
+const FAM = Object.fromEntries(FAMILIES.map((f) => [f.id, { ...f, color: famVar(f.id) }]));
 const NONE = "var(--line)";
 // a hairline in the ink (not the card colour) so every dot has an edge on the card and on the period band
 const DOT_EDGE = "color-mix(in srgb, var(--ink) 35%, transparent)";
@@ -114,7 +115,7 @@ export function DayCard({ day, ids, labels, starts, empty, onStep = null, atStar
 function FamilyLegend({ fams, extra, className = "flegend" }) {
   return (
     <div className={className}>
-      {FAMILIES.filter((f) => fams.has(f.id)).map((f) => <span key={f.id}><i className="fdot" style={{ background: f.color }} aria-hidden="true" />{f.label}</span>)}
+      {FAMILIES.filter((f) => fams.has(f.id)).map((f) => <span key={f.id}><i className="fdot" style={{ background: famVar(f.id) }} aria-hidden="true" />{f.label}</span>)}
       {extra}
     </div>
   );
