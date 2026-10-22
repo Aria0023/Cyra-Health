@@ -829,12 +829,51 @@ Modular Node/Express. Features load from a config list; each is a folder exporti
 | agent | Pluggable reasoning provider (LLM or deterministic rules), shared tool registry |
 | orgs / users | Multi-tenant white-labeling: theme, stages, partner lineup per org |
 | auth | Org-scoped tokens |
+| oauth | Apple / Google / Facebook name-and-email prefill for step 1 (held in memory ≤ 5 min); app flag `signin` |
+| pulse | "You're not alone" anonymous weekly counts (weekly totals only, k ≥ 50); app flag `counts` |
+| push | Web push for check-in reminders (push address + keys, schedule, time zone, last day sent); app flag `webReminders` |
+| ai | Ask's opt-in AI fallback: forwards the question to Anthropic, keeps nothing; app flag `ai` |
+| backup | Encrypted cloud backup scaffold: opaque client-encrypted blobs, never decrypted (§9.1); app flag `cloudBackup`; not mounted in production |
 
 **Attribution model (important):** app requests a referral link keyed to an *opaque
 user hash*; user clicks through carrying the token; partner fires a signed webhook on
 conversion. First conversion per partner+patient-hash = new-patient bounty; later visits
 accrue per-visit fees only. Partners receive **tokens and cohort aggregates, never
 identities**. This is what lets affiliate revenue coexist with on-device privacy.
+
+### 9.1 Server surface and feature flags (local-first L4)
+
+**Production = push + ai.** `backend/config/app.json` (NODE_ENV=production) mounts only the two modules the app's
+default build calls; `registry.js` `PRODUCTION_MODULES = ["push", "ai"]`. oauth, integrations, pulse and backup stay in
+the code and in `config/app-dev.json`; listing one in `app.json` mounts it again (owner decision D2: reversible by
+configuration, never by deleting code; `scripts/prod-smoke.js` proves both).
+
+**`VITE_FEATURES`** (build time, `src/lib/features.js`): unset or empty = the defaults `ai,webReminders`; a comma list
+replaces the defaults; `all` = every flag; `none` = none; case-insensitive; unknown names are ignored with a build
+warning. The build logs `[cyra] features: …`. Flags and the module each one needs:
+
+| Flag | App | Module | Default |
+|---|---|---|---|
+| wearables | Oura, Fitbit/Garmin/Whoop (Terra), Apple Health / Health Connect, Home's Wearables door/panel/cards, wearable milestones, POTS watch/ring rows | integrations | off |
+| counts | "You're not alone" pulse, "Share anonymous weekly counts" | pulse | off |
+| ai | "Also ask Cyra's AI" | ai | on |
+| webReminders | reminders in a browser (phones always have local reminders) | push | on |
+| cloudBackup | nothing yet (scaffold) | backup | off |
+| signin | Apple / Google / Facebook prefill on step 1 | oauth | off |
+
+**Rule:** a feature that is off leaves no trace in the UI (no row, section, door, sentence or empty group) and makes
+no request; every privacy sentence stays literally true. Flag-dependent sentences are built in `src/lib/disclosures.js`
+(with every flag on they are the pre-L4 text exactly). A flag never deletes recorded data.
+
+**Backup module protocol** (`backend/src/modules/backup`): `POST /api/backup` (body = the encrypted envelope as
+`application/octet-stream`) → 201 `{id, token, expiresAt}` (id 128 random bits, token 256 random bits, returned once,
+only its SHA-256 kept); `PUT|GET|DELETE /api/backup/:id` with `authorization: Bearer <token>`. 415 for any other
+content type, 400 empty body, 401 no/malformed token, 404 for unknown id, malformed id, wrong token or expired (all
+alike), 413 over `maxBytes` (4 MiB), 507 over `maxRows` (10,000) or `maxTotalBytes` (1 GiB), 429 over the rate limit.
+TTL `ttlDays` (90) from the last write; an hourly sweep deletes expired blobs and orphan files. Rows are exactly
+`{id, tokenHash, size, createdAt, updatedAt, expiresAt}`; bytes in `<dir>/<id>.bin`. It never parses, decrypts or
+logs a body, token or id. The app's `cloudTransport` (lib/backup.js) is fail-closed and gated by
+`plan.can("cloudBackup") && FEATURES.cloudBackup` (lib/cloudBackup.js, imported by nothing yet).
 
 ---
 
@@ -966,7 +1005,10 @@ milestones") · "Coming up" (predicted period or lateness, due date, next appoin
 prep nudge ≤7 days out) · "You're not alone" pulse (one line when counts aren't available in
 the build; how the counts are made sits under "How these counts work") · a two-column grid of
 collapsible sections — Month vs last month, Wearables, What I'm trying, Appointments, Journal —
-each opening a titled panel under the grid.
+each opening a titled panel under the grid. Feature flags (§9.1): the pulse exists only in builds
+with `counts`, and the "From your wearable" cards, the Wearables door and its panel only with
+`wearables`; without wearables the grid has 4 doors (2 × 2, the existing odd-last-door span rule
+doesn't apply).
 
 **Home states (UI H1).**
 - *Greeting row.* Pregnancy reads "Week {n} · {first|second|third} trimester" (`trimesterOf(week)` in lib/engine.js:
@@ -996,6 +1038,10 @@ each opening a titled panel under the grid.
   date}. Scripts that assert these buttons match on the base label.
 
 ## A2. Pulse ("You're not alone")
+**Flag (§9.1):** `counts`, off by default. Without it there is no pulse section on Home, no GET /api/pulse, no
+"Share anonymous weekly counts" (consent step, Settings, Today's sharing note, the header's "· sharing counts ✓"),
+and a tally an earlier build queued is never sent.
+
 Three stage-specific anonymous aggregate counts ("3,550 women logged cramps this week").
 **Demo uses seeded placeholder numbers and says so in the UI.** Production MUST read these
 from the backend aggregate endpoint (counts only, k-anonymity threshold, never identities).
@@ -1097,6 +1143,12 @@ when reminders truly cannot work in the build: `status === "unsupported"` (this 
 with no server (`reminderSupport === "web" && !hasServer()`). A configured server that is merely unreachable keeps the
 switch and its existing "Off" / "Turn on" texts (`remindersText` is not retitled).
 
+**Flag (§9.1):** on the web the reminder controls (Settings rhythm `#set-rhythm`, nudge `#set-nudge` and Reminders
+`#set-reminders`, the consent step's "Remind me" row and its cadence question) need `webReminders` (on by default);
+phones always have them (`remindersInBuild(native)` in lib/features.js). A web build without it never subscribes:
+a switch an earlier build left on is turned off at launch, the browser subscription cancelled and its address asked
+to be forgotten. "Check-in style" then opens the Check-ins group.
+
 ## A9. Wearables & derived insights
 Sources: Apple Watch via HealthKit/Health Connect (preferred, on-device), Oura API v2, Terra
 aggregator (Fitbit/Garmin/Whoop). Normalized per day: `{ temp (°C deviation), rhr, hrv, sleep }`.
@@ -1113,6 +1165,13 @@ Derived, by stage:
 - **Pregnancy:** RHR average with expected 10–20 bpm climb; sudden jump = tell provider.
 **Demo seeds 30 days of stage-shaped illustrative data and says so in the UI.** Production
 ingests real device history through the backend integrations hub.
+
+**Flag (§9.1):** `wearables`, off by default (it also hides Apple Health / Health Connect on the phone). Without it:
+no Wearables door, panel or "From your wearable" cards, no "Wearable connected" / "Ovulation confirmed by temperature"
+milestones, no POTS watch/ring rows, no request to /api/integrations (connect, sync, Terra collect, disconnect retries,
+the Oura check after a restore, Delete everything's wearable steps). Recorded rows and connections are kept and
+travel in backups; Delete everything shows "Cyra can't end a wearable connection from this version. …" when the record
+still holds a real one.
 
 ## A10. Milestones (Home)
 Usage: first week, full month, wearable connected, started a trial, first visit debriefed.
@@ -1144,6 +1203,11 @@ real OAuth client IDs, backend callback, verified email+name only. **Apple Sign-
 on iOS whenever any third-party login is offered — keep it first.** Copy states providers
 receive only name/email, never health data.
 
+**Flag (§9.1):** `signin`, off by default, because the production config mounts no oauth module. Without it step 1
+has no "or fill in your name and email from" line, no provider buttons, no note and no "Exactly what's shared", a
+returning `#oauth=` code is dropped without an exchange, and no third-party login is offered at all. When shown,
+Apple stays first.
+
 ## A12. Production checklist (what the demo simulates)
 - [ ] Proxy all Anthropic calls through the backend; no API key in client code.
 - [ ] Real OAuth for Apple/Google/Facebook.
@@ -1168,13 +1232,18 @@ receive only name/email, never health data.
 - [ ] Every UI privacy claim verified literally true of the shipped build.
 - [x] Installable web app that opens offline (A14.1); Render serves /, /index.html, /sw.js and /manifest.webmanifest
       with Cache-Control: no-cache.
+- [ ] Choose VITE_FEATURES for each release and list the matching backend modules (§9.1); the default offers Ask
+      Cyra's AI and web reminders only. For a phone release, match the iOS privacy manifest, the HealthKit
+      entitlement, the Health Connect permissions and the store answers to the release's flags (PRIVACY-AUDIT, L4).
 
 **Settings sheet (UI S1).** `SettingsSheet` is `section.palsheet#settings-sheet[aria-label="Check-in settings"]` with a
 sticky `.sheethead` (an `h2.sheettitle` "Settings" that takes focus on open, and a 44px `.sheetclose` button labelled
 "Close settings"; the bottom "Done" stays), four `.setgroup` blocks (Check-ins / Add-ons & sharing / Appearance /
 Your data), and each option row a `[role=group][aria-labelledby]` named by its `p.section-lab` (ids `set-rhythm`,
 `set-nudge`, `set-style`, `set-addons`, `set-reminders`, `set-counts`, `set-appearance`, `set-data`), every label opening
-with an `svg.labico` glyph. Appearance (L2) is `p.section-lab#set-appearance` (the `moon` glyph) over a joined
+with an `svg.labico` glyph. The ids `set-counts`, `set-rhythm`, `set-nudge` and `set-reminders` exist only where their
+rows render (§9.1: counts; reminders on a phone or with webReminders), and a `.setgroup` renders only when at least one
+of its rows does. Appearance (L2) is `p.section-lab#set-appearance` (the `moon` glyph) over a joined
 `div.mcrow.seg[role=group][aria-labelledby="set-appearance"]` of three `button.mc` with `aria-pressed`: "System" (the
 default), "Light" and "Dark", and a `p.rfoot` "System follows this device's light or dark setting. Your choice stays on
 this device and isn't part of a backup." A tap applies at once (with the 400ms chrome crossfade) and shows no toast.
@@ -1485,3 +1554,19 @@ aiPatternReports: false, extraCustomisation: false, cloudBackup: false }`, and P
 - `exportsLeft(tally)` returns null (unlimited) on this plan, and `noteExport` records nothing.
 - No screen shows a plan, a limit, a price or an upgrade prompt.
 - Rules are in docs/MONETIZATION.md.
+
+### A14.4 Server surface, feature flags and the encrypted cloud backup scaffold (L4)
+
+Normative text in §9.1 (flags, modules, the backup protocol) and the flag notes in A1, A2, A8, A9, A11 and A12.
+- `src/lib/features.js` (pure, no imports): `FEATURE_NAMES`, `DEFAULT_FEATURES`, `FEATURE_MODULE`, `parseFeatures(raw)`,
+  `unknownFeatures(raw)`, `FEATURES`, `feature(name)`, `remindersInBuild(native, f)`.
+- `src/lib/disclosures.js` (imports only `remindersInBuild`): every flag-dependent privacy sentence as a builder of the
+  flags (`serverSees`, `consentDeleteFact`, `consentDetails`, `leaveDevice`, `filesSentence`, `restoreFoot`,
+  `restoreChanges`, `wipeConfirm`, `wipeMore`, `deleteAlso`, `intakeHint`, `startOverText`, the POTS footers) plus
+  `LEGACY_WEAR_LINE`. With every flag on each returns the pre-L4 text byte for byte (disclosures.test.mjs).
+- `src/lib/backup.js` (still no imports): `backupFileName`, `isEnvelope`, `fileTransport(io)` (today's download /
+  share sheet, moved from App.jsx unchanged), `CLOUD_MAX_BYTES`, `cloudTransport({ request, enabled, gate })`
+  (fail-closed). `src/lib/cloudBackup.js` wires the cloud transport behind `plan.can("cloudBackup")` and the flag;
+  nothing imports it, so no build contains it.
+- The default build makes no request at launch; the uiux snap/axe demo builds use the defaults, the harness dists and
+  the live suites use `VITE_FEATURES=all`, and `lf/l4/flags-e2e.mjs` checks default / none / all.

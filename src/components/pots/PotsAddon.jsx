@@ -3,6 +3,8 @@ import { POTS_LOCKED_COPY, POTS_ERASE } from "../../lib/potsConstants.js";
 import { isLockedPots } from "../../lib/pots.js";
 import Details from "../Details.jsx";
 import { potsUnsaved } from "./ui.js";
+import { FEATURES } from "../../lib/features.js";
+import { potsNeverSent } from "../../lib/disclosures.js";
 
 /** "Exactly what's kept", first line, by where the record really is (ui.js potsUnsaved). */
 const KEPT = {
@@ -70,7 +72,7 @@ export default function PotsAddon({ pots, stageName, onOn, onOff, storageDriver 
         <ul>
           <li>Works alongside {stageName || "your life stage"}. It doesn't change your life stage.</li>
           <li>{KEPT[potsUnsaved(storageDriver) || "saved"]}</li>
-          <li>None of it is part of weekly counts, and none of it is sent to Cyra's server or Cyra's AI.</li>
+          <li>{potsNeverSent(FEATURES)}</li>
           <li>A report or spreadsheet you make is an ordinary file, not locked with a passphrase. It goes only where you save or send it.</li>
           <li>Turning POTS tools off hides the tab and keeps what you logged, unless you choose to erase it.</li>
         </ul>

@@ -17,12 +17,15 @@ authoritative description of the record; this document explains it. The normativ
   connection (spec A14.1).
 - **A minimal, optional server.** A build without `VITE_API_BASE` makes no request to Cyra's server
   at all (on the web it fetches only Cyra's own app files from the site that serves it). With one,
-  the server answers one request per launch, once a life stage is set, for last week's anonymous
-  counts (no health data, no life stage and no identifier, only what any request carries: IP address
-  and user agent), and otherwise handles only the features she turns on or starts (sign-in, web
-  reminders, sharing weekly counts, Cyra's AI, wearable connections), each as its disclosure says
-  (the README's Privacy section, the `src/App.jsx` header). It never receives the record. An
-  optional backup must be encrypted on the device with a key she holds.
+  what the app may ask of it is set first by the build's feature flags (`VITE_FEATURES`, §10): the
+  default build offers only Cyra's AI and web reminders, makes no request at launch, and its first
+  server contact is her own opt-in (turning on browser reminders, or ticking "Also ask Cyra's AI").
+  A build with `counts` also reads last week's anonymous counts once per launch, once a life stage
+  is set (no health data, no life stage and no identifier, only what any request carries: IP
+  address and user agent); with `signin`, `wearables` or `counts` the server also handles sign-in
+  prefill, wearable connections or sharing weekly counts when she starts them. Each flow does what
+  its disclosure says (the README's Privacy section, the `src/App.jsx` header). The server never
+  receives the record. An optional backup must be encrypted on the device with a key she holds.
 - **Guidance, not diagnosis.** Analyses are computed from her own log, on the device, and say
   what to ask, never what she has.
 
@@ -34,10 +37,12 @@ UI          src/screens/*.jsx, src/components/**/*.jsx          (props in, callb
 State       src/App.jsx  (useState / useMemo, the 400 ms autosave, cross-tab messages)
   ↓
 Pure lib    engine.js  ←  record.js, pots.js (+ potsPatterns, potsReport, potsMove)
-            constants.js, appearance.js, askLibrary.js;  plan.js stands alone
+            constants.js, appearance.js, askLibrary.js;  plan.js and features.js stand alone;
+            disclosures.js imports only features.js
   ↓
 I/O lib     storage.js, backup.js, files.js, native.js, api.js
-            (pulse.js, notifications.js and wearables.js call api.js)
+            (pulse.js, notifications.js and wearables.js call api.js; backup.js imports nothing,
+            its transports are given their I/O; cloudBackup.js wires its cloud transport, unimported)
   ↓
 Device storage (IndexedDB / app sandbox)          optional server (VITE_API_BASE)
 ```
@@ -48,9 +53,11 @@ Dependency rules (unit-tested where a test can see them):
   them (`record.test.mjs` "layering and no I/O").
 - `record.js` imports only `./engine.js` and `./constants.js` (the allowed list lives in
   `record.test.mjs`; a later pure leaf module may be added to it, and none of them may import
-  `record.js` back). `plan.js` imports nothing.
+  `record.js` back). `plan.js` and `features.js` import nothing; `disclosures.js` imports only
+  `features.js`; `backup.js` imports nothing (the POTS suites load it straight from Node).
 - Pure modules never import `api.js`, `native.js` or `storage.js`, and never read `import.meta.env`,
-  so `node --test` can load them. (`pwa.js`, `links.js`, `api.js` and `wearables.js` read build
+  so `node --test` can load them. (`features.js` is the one exception that reads it, as
+  `import.meta.env?.VITE_FEATURES`, which is undefined in Node, so Node and `vite.config.js` load it.) (`pwa.js`, `links.js`, `api.js` and `wearables.js` read build
   settings and are not pure.)
 - Only `api.js` calls `fetch` (the service worker, `public/sw.js`, fetches Cyra's own files).
 - The phone app's web view has an iOS 15.0 deployment target: no `structuredClone`, `.at()`,
@@ -232,7 +239,9 @@ POTS totals and patterns (`lib/pots.js`, `lib/potsPatterns.js`).
   state, reminders and install hint, and 3-way merges the POTS log (`mergePots`, epochs). Weekly
   counts are sent inside the Web Lock `cyra-pulse-flush`.
 - **Backup.** `snapshot()` → `backupCopy()` → `encryptBackup()` (PBKDF2-SHA256, 600,000 rounds,
-  AES-256-GCM) → a download on the web or the share sheet on the phone. Cyra never receives it.
+  AES-256-GCM) → `fileTransport.save()` (lib/backup.js): a download on the web or the share sheet on
+  the phone. Cyra never receives it. A restore reads the chosen file with `fileTransport.load()`. The
+  cloud transport beside it is a scaffold no build can reach (§10).
 - **Restore.** `decryptBackup()` → `migrate()` → the version check (`v === RECORD_VERSION`, a stage
   set; otherwise "That backup is empty or from a different version") → every key applied except
   DEVICE_ONLY, DEVICE_PREFS and, on the web, `reminders` (§4) → saved at once.
@@ -257,20 +266,120 @@ she exports).
 - It needs new permission strings, a PrivacyInfo update, a PRIVACY-AUDIT entry and unit tests.
 - It sits behind the build's wearables flag (L4) and her own opt-in.
 
-## 10. Feature flags and plan hooks
+## 10. Server surface and feature flags
+
+### 10.1 The shipping surface
+
+Static/PWA hosting for the app, plus a backend that mounts **push and ai only** in production
+(`backend/config/app.json`, `NODE_ENV=production`). The app's default build (`VITE_FEATURES` unset)
+offers only Cyra's AI and web reminders: it makes **no request at launch**, and its first server
+contact is her own opt-in, turning on browser reminders (web push) or ticking "Also ask Cyra's AI"
+(the question alone). The phone app schedules reminders locally and needs no server for them. Every
+other server feature is present in the code, mounted in development (`config/app-dev.json`), and
+turned on for a release by configuration, never by deleting or adding code (owner decision D2).
+
+### 10.2 The flags
+
+`src/lib/features.js` reads `VITE_FEATURES` once, at build time: unset or empty = the defaults below;
+a comma list **replaces** the defaults (`counts,ai` offers only those two); `all` = every flag; `none`
+= none; names match without regard to case, and an unknown name is ignored with a build warning
+(`vite.config.js` logs `[cyra] features: …`). A flag decides only what the build **offers**: each
+opt-in still starts off for her and says what it sends before she turns it on. A feature that is off
+leaves no trace in the UI and makes no request.
+
+| Flag | What it adds in the app | Backend module (`FEATURE_MODULE`) | What the module keeps | Default |
+|---|---|---|---|---|
+| `wearables` | Home's Wearables door and panel, the "From your wearable" cards and milestones, Oura and Fitbit/Garmin/Whoop (Terra) connections, on the phone Apple Health / Health Connect, POTS watch/ring rows | `integrations` | Oura tokens in memory for at most 5 minutes during a connect; Fitbit/Garmin/Whoop readings in memory for at most 7 days until the device collects them | off |
+| `counts` | "You're not alone" on Home (one read per launch), "Share anonymous weekly counts" (consent and Settings) | `pulse` | weekly totals only: `{week, stage, event, count}` | off |
+| `ai` | "Also ask Cyra's AI when the library has no answer" on Ask | `ai` | nothing (it forwards the question to Anthropic) | on |
+| `webReminders` | check-in reminders in a browser (rhythm, nudge and Reminders in Settings, "Remind me" on the consent step); phones always have reminders | `push` | the browser's push address and keys, reminder days, time, time zone, the last day one was sent | on |
+| `cloudBackup` | nothing yet (scaffold, §10.5) | `backup` | opaque encrypted blobs and a hash of each write token, 90 days after the last write | off |
+| `signin` | the Apple / Google / Facebook prefill on step 1 (Apple first) | `oauth` | the provider's name and email in memory for at most 5 minutes | off |
+
+`signin` is a sixth flag beside the five D2 names: D2 makes production push + ai, so the oauth module
+is no longer mounted there, and the default build must not offer sign-in buttons that cannot work.
+
+### 10.3 Turning a feature on
+
+Both switches, and the secrets it needs:
+
+1. **The app:** add the flag to `VITE_FEATURES` for the static site (Render → cyra-health →
+   Environment) and for each phone build (`.env.local` before `npm run cap:sync`).
+2. **The server:** list its module in `backend/config/app.json` `"modules"`, and set the module's
+   variables from `.env.example` (Render → cyra-backend → Environment).
+
+One without the other fails visibly or idles: a flag without its module offers a feature whose
+requests answer 404 (the app then says it couldn't reach the service); a module without its flag is
+mounted but nothing calls it. `backend/scripts/prod-smoke.js` proves that re-listing oauth,
+integrations, pulse and backup brings them back on the same production server.
+
+### 10.4 Flag-dependent copy
+
+Every privacy sentence that names a flagged feature is built in one pure, unit-tested place,
+`src/lib/disclosures.js` (step 1's "What Cyra's server sees", the consent card's fifth fact and "The
+details", Your data's "What can leave this device", the restore and delete texts, the intake hint,
+Start over and the POTS footers). With every flag on each builder returns the pre-L4 text byte for
+byte; otherwise a shorter sentence that is still literally true (no dangling sentence, no empty
+list). Screens gate whole rows and sections on `FEATURES`; they never inline a flag condition inside
+a sentence. A later slice that adds or rewords such a sentence adds a builder (with tests) there
+(L5's restore line, L7's fertility privacy line, L9's PDF wording, L10's dashboard), and L10's
+privacy dashboard derives On / Off / "Not in this version" from `features.js`, `remindersInBuild`,
+`plan.js` and her settings. A flag never deletes or changes recorded data: an earlier build's
+wearable rows and connections, queued counts or choices are kept (and travel in backups) but are not
+shown, sent or contacted; Delete everything in a build without wearables shows `LEGACY_WEAR_LINE`
+when the record still holds a real connection.
+
+### 10.5 The encrypted cloud backup scaffold (D3)
+
+- **Protocol** (backend module `backup`, `backend/src/modules/backup/index.js`; listed in
+  `config/app-dev.json`, **not** in `config/app.json`): `POST /api/backup` with the bytes →
+  `201 {id, token, expiresAt}`; `PUT /api/backup/:id`, `GET /api/backup/:id` and
+  `DELETE /api/backup/:id` with `authorization: Bearer <token>`. Bodies are
+  `application/octet-stream` only (otherwise 415), at most `maxBytes` (4 MiB, 413); `maxRows`
+  (10,000) and `maxTotalBytes` (1 GiB) cap the store (507); a blob expires `ttlDays` (90) after its
+  last write and a sweep deletes it (hourly and at start, plus row-less files over an hour old); an
+  in-memory rate limit per address. id = 128 random bits, token = 256 random bits, and only the
+  token's SHA-256 is kept. Unknown id, malformed id, wrong token and expired all answer the same 404.
+  Rows are exactly `{id, tokenHash, size, createdAt, updatedAt, expiresAt}`; bytes live in
+  `<dir>/<id>.bin` (written to a temp file, then renamed). It never parses, inspects, decrypts or logs
+  a body, a token or an id.
+- **Client:** `src/lib/backup.js` has the transport interface. `fileTransport(io)` is today's
+  download / share sheet; `cloudTransport({ request, enabled, gate })` moves only an envelope that is
+  already encrypted (`isEnvelope`), never the passphrase or plaintext, and is fail-closed: every
+  method rejects with `CLOUD_OFF` before any request unless `enabled && request && gate()`.
+  `src/lib/cloudBackup.js` wires it with `apiFetch`, `hasServer()` and
+  `gate: () => FEATURES.cloudBackup && can("cloudBackup")`. Nothing imports that file, so it is in no
+  bundle.
+- **Three gates, all closed today:** `plan.cloudBackup` (false on the only plan), the build's
+  `cloudBackup` flag (off by default), and the `backup` module listed in `app.json` (not listed).
+- **Before enabling it:** a screen that shows her the id + write token as a recovery code (needed to
+  restore on another device); a new device-only key for them (proposed `cloudBackupRef`,
+  `DEVICE_ONLY`, never in a backup; not added yet); persistent storage for the module instead of
+  Render's instance disk, which is wiped on every deploy; and, in the same commit, the four privacy
+  sentences that say Cyra never receives the backup file (docs/PRIVACY-AUDIT.md, L4 section).
+
+### 10.6 Plan hooks
 
 A feature that is optional on the server side or paid passes three gates, in this order:
 
-1. **Build flag** — `src/lib/features.js` arrives in L4 (read from `VITE_FEATURES`, a comma list;
-   `all` turns everything on). Planned flags per decision D2: wearables, counts, ai, webReminders,
-   cloudBackup, with production defaults off / off / on / on / off. L4 replaces this section with the
-   real table.
+1. **Build flag** — `src/lib/features.js` (§10.2).
 2. **Plan** — `src/lib/plan.js` (`can(feature)`, the one entitlements object; today one free plan).
 3. **Her own opt-in** — the switch or consent on the screen, off until she turns it on.
 
 A screen never compares tier names; it asks `can(feature)`, which says no to anything it doesn't
 know. The free core, the paid extension points and the rules any paid feature must follow are in
 `docs/MONETIZATION.md`.
+
+### 10.7 Harness note
+
+The suites that pin today's full feature set build with `VITE_FEATURES=all`: `a12-8-loop/build-dists.sh`
+(dist-native, dist-plain, dist-links: every native, POTS and axe suite) and the two live suites, which
+also write a production config listing the five modules that build calls (oauth, integrations, pulse,
+push, ai). The hard-coded walks (`walk.mjs`, `axe.mjs`, `a12-8-plain/axe-expanded.mjs`,
+`final-review/axe-edit.mjs`) click "Apple" and "Wearables", so they need an `all` build and must never
+be pointed at a default-flag build. The uiux snap/axe demo builds pin the shipping defaults
+(`VITE_FEATURES=` empty), and `lf/l4/flags-e2e.mjs` (in `pots/s9/run-all.sh`) checks the default,
+`none` and `all` builds for DOM traces and requests.
 
 ## 11. Changing the record
 

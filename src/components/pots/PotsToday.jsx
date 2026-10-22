@@ -21,6 +21,8 @@ import { nextDayPending, setNextDay, skipNextDay, planLine, modeWord, NEXT_OPTS,
 import { SessionEdit } from "./MoveSession.jsx";
 import { fmtN } from "./HrChart.jsx";
 import { hm, ampm, dayLabel, addDays, SEV_WORD, intakeText, symLabel, medName, useAnnounce, potsUnsaved } from "./ui.js";
+import { FEATURES } from "../../lib/features.js";
+import { potsTodayFoot, potsTodayFootUnsaved, potsTodayFoot2 } from "../../lib/disclosures.js";
 
 /* POTS → Today (design 4.2, Full view) and Simple view (4.3). Every tap commits at once
    through a lib/pots.js action in a functional update (saved on this device by the record
@@ -29,15 +31,14 @@ import { hm, ampm, dayLabel, addDays, SEV_WORD, intakeText, symLabel, medName, u
    Sheets (other amount, goals, episode, reading, medicines) open in place of the section and
    hand focus back to the button that opened them. The section owns one role="alert" node
    (urgentLive) for safety cards that appear because of an answer she just picked. */
-export const TODAY_FOOT = "Saved on this device as you tap. Cyra's server never gets your POTS log, and it isn't part of weekly counts.";
+/* The footers name weekly counts only in builds with counts (lib/features.js); with every flag on they
+   are the pre-L4 text exactly (lib/disclosures.js, disclosures.test.mjs). */
+export const TODAY_FOOT = potsTodayFoot(FEATURES);
 /** The footer while the record isn't being saved (lib/storage.js driver, ui.js potsUnsaved). */
-export const TODAY_FOOT_UNSAVED = {
-  memory: "Not being saved: Cyra couldn't open this browser's storage, so what you log here is lost when you close Cyra. Cyra's server never gets your POTS log, and it isn't part of weekly counts.",
-  stale: "Cyra couldn't confirm your latest taps were saved on this device; they may be lost when you close Cyra. Cyra's server never gets your POTS log, and it isn't part of weekly counts.",
-};
+export const TODAY_FOOT_UNSAVED = potsTodayFootUnsaved(FEATURES);
 /** Under the footer, after setup (PotsScreen's top hint is then one sentence): the two sentences
     that used to sit in that hint, verbatim. */
-export const TODAY_FOOT_2 = "Never part of weekly counts. Cyra can't diagnose POTS; only a clinician can.";
+export const TODAY_FOOT_2 = potsTodayFoot2(FEATURES);
 export const NEAR_FAINT = "Nearly fainting most days is worth raising soon. Bring your log.";
 const RATINGS = [[1, "Good"], [2, "Okay"], [3, "Rough"], [4, "Bad"]];
 const SLEEP = [["good", "Slept well"], ["fair", "So-so"], ["poor", "Rough night"]];

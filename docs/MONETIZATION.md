@@ -48,7 +48,7 @@ tests.
 | `pdfExportsPerMonth` | `null` (unlimited) | richer or unlimited exports, if a free limit is ever set | `plan.exportsLeft` / `plan.noteExport` at the Report's Download PDF | L9 |
 | `aiPatternReports` | `false` | an advanced pattern report, with consent for each report | reserved; nothing calls it while false; no UI | L8 |
 | `extraCustomisation` | `false` | extras beyond the free favourites and palettes, such as custom symptoms or themes | none yet; the favourites sheet (L6) is free core and never calls `plan.can` | L6 |
-| `cloudBackup` | `false` | end-to-end-encrypted cloud backup and multi-device sync, the first paid server feature | `plan.can("cloudBackup")` AND the build's `cloudBackup` flag (`src/lib/features.js`), in the backup cloud transport and the backend module `backup` (not mounted) | L4 |
+| `cloudBackup` | `false` | end-to-end-encrypted cloud backup and multi-device sync, the first paid server feature | scaffolded in L4, still off with no UI: the backend module `backup` (opaque encrypted blobs, never decrypted; listed in `config/app-dev.json`, not mounted in production), `cloudTransport` in `src/lib/backup.js` (fail-closed) and its configured instance `src/lib/cloudBackup.js` (imported by nothing). Three gates: `plan.can("cloudBackup")`, the build's `cloudBackup` flag (`VITE_FEATURES`), and the module listed in `backend/config/app.json`. Turning it on is a paid-tier decision plus the privacy-copy changes recorded in `docs/PRIVACY-AUDIT.md` (L4) | L4 |
 
 ## 4. How a feature is gated
 
@@ -103,9 +103,9 @@ closed: an unknown feature, or a paid extension whose value isn't exactly `true`
   token only."
 - **Backend** (`backend/src/modules`): the partners, referrals, webhooks, payouts, affiliates and
   reports modules are for development and demos (`backend/config/app-dev.json`). Production mounts
-  only oauth, integrations, pulse, push and ai (`backend/config/app.json`), and the app calls none
-  of those business endpoints (`grep -rn "/api/" src` finds only ai, integrations, oauth, pulse and
-  push).
+  only push and ai (`backend/config/app.json`, since L4; oauth, integrations, pulse and backup are
+  mounted by listing them), and the app calls none of those business endpoints (`grep -rn "/api/" src`
+  finds only ai, backup, integrations, oauth, pulse and push).
 
 ## 8. Before a paid tier ships
 

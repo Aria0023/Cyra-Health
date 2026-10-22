@@ -4,6 +4,8 @@ import { isNative } from "../lib/native.js";
 import { relDay } from "../lib/engine.js";
 import Details from "./Details.jsx";
 import Icon from "./Icon.jsx";
+import { FEATURES } from "../lib/features.js";
+import { leaveDevice, restoreFoot, restoreChanges, wipeConfirm, wipeMore, LEGACY_WEAR_LINE } from "../lib/disclosures.js";
 
 /* Your data: where it lives, encrypted backup out/in, delete everything.
    Encryption, decryption and deletion run on this device. The passphrase lives only
@@ -17,7 +19,11 @@ import Icon from "./Icon.jsx";
    on this device anyway with exactly what stays connected and where to remove it.
    offlineCopy (web, once the offline worker is active and its cache exists; spec A14.1): one
    line under the storage line says this browser also keeps Cyra's own app files, which hold
-   none of her record, and the delete details say that copy goes too (cleanUpHere in App.jsx). */
+   none of her record, and the delete details say that copy goes too (cleanUpHere in App.jsx).
+   L4: every sentence that names a flagged feature comes from lib/disclosures.js with this build's
+   FEATURES (identical to the text before L4 when every flag is on). legacyWear (App.jsx): a build
+   without wearables whose record still holds a real connection says, under the delete confirm, where
+   to remove it, because this build doesn't ask Cyra's server to end it. */
 const noSave = { autoComplete: "off", "data-1p-ignore": "true", "data-lpignore": "true" };
 
 export function RestoreForm({ onImport, onDone, compact = false }) {
@@ -37,14 +43,9 @@ export function RestoreForm({ onImport, onDone, compact = false }) {
       <label className="flab"><span>Passphrase</span><input className="inp" type="password" placeholder="Backup passphrase" aria-label="Backup passphrase" {...noSave} value={pass} onChange={(e) => setPass(e.target.value)} /></label>
       {err && <p className="errhint" style={{ marginTop: 0 }}>{err}</p>}
       <button className="cta" disabled={busy} onClick={go}>{busy ? "Unlocking…" : "Restore"}</button>
-      <p className="rfoot">Unlocked on this device with your passphrase. It replaces your record here. Oura and Fitbit/Garmin/Whoop connections in the backup come back unconfirmed until Cyra checks them through its server; ones only on this device stay connected.</p>
+      <p className="rfoot">{restoreFoot(FEATURES)}</p>
       <Details label="What a restore changes">
-        <ul>
-          <li>Your settings are replaced too, except this device's choices about weekly counts, Cyra's AI, browser reminders and appearance (light or dark).</li>
-          <li>If the backup has Oura or Fitbit/Garmin/Whoop connected, that connection comes back on this device marked not confirmed, because it may have been ended since the backup was made. It counts as connected again once Cyra confirms it through its server: Oura on a Sync that works (checked straight away, and removed from this device if it no longer works), Fitbit/Garmin/Whoop when readings arrive. A Fitbit/Garmin/Whoop connection you ended after the backup can't send readings, so tap Disconnect to remove it. One this device is still waiting to see disconnected isn't restored. A connection this device has now for the same service is replaced, so remove Cyra in that account if you want it ended.</li>
-          <li>A connection this device has that the backup doesn't (Oura or Fitbit/Garmin/Whoop) stays connected here and keeps fetching readings through Cyra's server as before. Tap Disconnect under Wearables on Home if you don't want it.</li>
-          <li>A backup made before you turned on POTS tools has no POTS log, so restoring it clears the POTS log on this device.</li>
-        </ul>
+        <ul>{restoreChanges(FEATURES).map((t) => <li key={t}>{t}</li>)}</ul>
       </Details>
     </div>
   );
@@ -71,7 +72,7 @@ const STAYS = {
 };
 const andList = (a) => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`);
 
-export default function DataControls({ driver, onExport, onImport, onWipe, ping, keepsWeekNote = false, daysLogged = 0, lastBackupAt = null, todayIso, offlineCopy = false }) {
+export default function DataControls({ driver, onExport, onImport, onWipe, ping, keepsWeekNote = false, daysLogged = 0, lastBackupAt = null, todayIso, offlineCopy = false, legacyWear = false }) {
   const [mode, setMode] = useState(null); // null | "export" | "import" | "wipe"
   const [pass, setPass] = useState("");
   const [pass2, setPass2] = useState("");
@@ -80,6 +81,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
   const [wiping, setWiping] = useState(false);
   const [blocked, setBlocked] = useState(null); // { failed: [{ name, kind }], ended: [names] } from a Delete everything that stopped
   const phone = driver === "app-sandbox" || isNative();
+  const native = isNative();
   const where = driver == null ? null
     : driver === "app-sandbox" ? "in this app's private storage on this device"
     : driver === "indexeddb" ? "in this browser's on-device database (not cookies, not localStorage); in a private window it's erased once you close every private window"
@@ -113,9 +115,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
       <p className="hint" style={{ margin: "0 0 8px" }}>{where ? `Your check-ins, notes and history are stored ${where}.` : "Checking where your check-ins, notes and history are stored…"} Cyra's servers don't keep a copy.</p>
       {offlineCopy && <p className="rfoot" style={{ margin: "0 0 8px" }}>This browser also keeps a copy of Cyra's own app files, so Cyra opens without a connection. That copy holds none of your check-ins, notes or settings.</p>}
       <Details label="What can leave this device">
-        <p>Features you turn on (reminders in a browser, weekly counts, Cyra's AI, Oura, Fitbit/Garmin/Whoop) each say, before you turn them on, what they send and where.</p>
-        <p>Restoring a backup brings back its wearable connections on this device.</p>
-        <p>Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase and never include readings Cyra gets from a connected watch, ring or health app.</p>
+        {leaveDevice(FEATURES).map((t) => <p key={t}>{t}</p>)}
       </Details>
       <div className="mcrow" role="group" aria-labelledby="set-data">
         <button className={`mc ${mode === "export" ? "on" : ""}`} aria-expanded={mode === "export"} aria-controls="data-export-panel" onClick={() => switchTo("export")}>Encrypted backup</button>
@@ -142,13 +142,11 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
       {mode === "import" && <div id="data-import-panel"><RestoreForm onImport={onImport} onDone={() => setMode(null)} compact /></div>}
       {mode === "wipe" && !blocked && (
         <div className="plaincard" id="data-wipe-panel" style={{ marginTop: 10 }}>
-          <p className="plain"><b>Delete everything on this device?</b> Every check-in, POTS log, note, appointment and setting goes for good. This also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop. Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.</p>
+          <p className="plain"><b>Delete everything on this device?</b>{wipeConfirm(FEATURES, native)}</p>
+          {legacyWear && <p className="rfoot" style={{ marginTop: 0 }}>{LEGACY_WEAR_LINE}</p>}
           <Details label="More about deleting">
             <ul>
-              <li>If Cyra's server, Oura or Fitbit/Garmin/Whoop can't confirm that, Cyra tells you what did and didn't end and keeps your record on this device until you choose.</li>
-              <li>Anonymous counts you already shared stay counted. Questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy.</li>
-              {isNative() && <li>Apple Health or Health Connect access stays on until you turn it off in your phone's settings.</li>}
-              <li>Report files you already saved or shared aren't on this device's record. Delete them wherever you put them.</li>
+              {wipeMore(FEATURES, native).map((t) => <li key={t}>{t}</li>)}
               {offlineCopy && <li>Cyra's offline copy of its own app files is removed from this browser too.</li>}
               {keepsWeekNote && <li>So this device isn't counted twice, Cyra keeps only this week's date here (nothing else, nothing about your health) and deletes it the first time Cyra opens after this week ends.</li>}
             </ul>

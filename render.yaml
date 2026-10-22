@@ -13,6 +13,9 @@ services:
         value: "22"
       - key: VITE_API_BASE
         value: https://cyra-backend.onrender.com
+      # VITE_FEATURES unset = the shipping defaults (Ask Cyra's AI and browser reminders). To offer more
+      # (wearables, counts, signin, cloudBackup; .env.example), set it here AND add the matching module to
+      # backend/config/app.json.
       # Published Terms and Privacy Policy (https://…), linked from the consent step. Public, not
       # secret, but set per deployment: paste them under this service's Environment tab.
       # Unset = the build warns and the app says the documents "aren't published yet". When set, the build fetches each URL and fails unless it serves a document.
@@ -65,6 +68,8 @@ services:
         sync: false
       - key: AUTH_SECRET
         sync: false
+      # The Apple / Google / Facebook, Oura and Terra keys below are used only when config/app.json mounts
+      # oauth or integrations (not by default).
       - key: APPLE_CLIENT_ID
         sync: false
       - key: APPLE_TEAM_ID
@@ -97,9 +102,10 @@ services:
         sync: false
       - key: VAPID_SUBJECT
         sync: false
-      # Where the backend keeps data/push.json (web reminder subscriptions) and data/pulse.json
-      # (weekly counts). Unset = ./data on the instance's own disk, which Render wipes on every
-      # deploy and restart. Set it to a persistent disk's mount path (a disk needs a paid instance)
-      # once one is attached; until then, those two files are lost on each deploy.
+      # Where the backend keeps data/push.json (web reminder subscriptions) and, only when the pulse
+      # module is listed in config/app.json, data/pulse.json (weekly counts). Unset = ./data on the
+      # instance's own disk, which Render wipes on every deploy and restart. Set it to a persistent
+      # disk's mount path (a disk needs a paid instance) once one is attached; until then, those
+      # files are lost on each deploy.
       - key: DATA_DIR
         sync: false

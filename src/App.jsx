@@ -7,33 +7,44 @@ import { flushSync } from "react-dom";
    The health record (daily logs, journal, intimacy log, trials, appointments,
    wearable rows once collected) lives in this component's state and is saved only
    on this device (IndexedDB or the app sandbox; lib/storage.js). What can leave the
-   device, each disclosed where it is turned on:
-   - always, with no health data: the stage-less read of last week's anonymous
-     counts (GET /api/pulse) — IP address and user agent, like any request;
-   - opt-in "Share anonymous weekly counts": life stage group + yes/no event flags,
+   device depends first on the features this build offers (VITE_FEATURES, lib/features.js;
+   the default build offers only Ask Cyra's AI and web reminders, and makes no request at
+   launch), then on her opt-in. Each flow, tagged with its flag, is disclosed where it is
+   turned on (lib/disclosures.js holds the flag-dependent sentences):
+   - [counts] with no health data: the stage-less read of last week's anonymous counts
+     (GET /api/pulse) once per launch — IP address and user agent, like any request;
+   - [counts] opt-in "Share anonymous weekly counts": life stage group + yes/no event flags,
      at most once a day, on a later day than the check-in (lib/pulse.js); the server
      keeps them only as weekly totals;
-   - opt-in "Also ask Cyra's AI": only the typed question, and only when the
+   - [ai] opt-in "Also ask Cyra's AI": only the typed question, and only when the
      on-device library has no answer (lib/askLibrary.js, runAsk below);
-   - opt-in Oura / Fitbit · Garmin · Whoop connections (lib/wearables.js): Oura
+   - [wearables] opt-in Oura / Fitbit · Garmin · Whoop connections (lib/wearables.js): Oura
      readings pass through the server on each sync and are not kept; Fitbit/Garmin/
      Whoop readings wait in server memory (never on disk) for up to 7 days until this
      device collects them, and Terra keeps its own copy under its policy; the device
      sends its Oura tokens / Terra mailbox key in request bodies;
-   - web reminders: the browser's push subscription (address and keys), reminder days,
-     time and time zone (plus the last day a reminder went out, so there is never a
-     second one) (lib/notifications.js); phone reminders are scheduled on the phone;
-   - only when she starts it: the encrypted backup file (lib/backup.js), the
-     doctor-summary email draft (mailto) and the copied summary text (ReportScreen);
+   - [webReminders] web reminders: the browser's push subscription (address and keys), reminder
+     days, time and time zone (plus the last day a reminder went out, so there is never a
+     second one) (lib/notifications.js); phone reminders are scheduled on the phone in every build;
+   - [signin] Apple / Google / Facebook prefill of the name and email on step 1 (startSocial below);
+   - only when she starts it: the encrypted backup file (lib/backup.js's file transport: a
+     download, or the phone's share sheet), the doctor-summary email draft (mailto) and the
+     copied summary text (ReportScreen). The encrypted backup goes only where she saves it:
+     backup.js's cloud transport is unreachable in every build (its configured instance is
+     imported by nothing, and plan.can("cloudBackup") is false);
    - user-started file exports (POTS report PDF/CSV, lib/files.js): a web download, or the
      phone share sheet via a plaintext file in the app cache that is deleted after sharing and
      swept at launch and wipe. No network. The POTS summary email draft and copied summary
      text work like the doctor summary (components/pots/PotsReport.jsx).
+   A flag never deletes or changes what is recorded: a record from a build with more features
+   keeps its wearable rows and connections, queues and choices, and this build just doesn't show,
+   send or contact them (a queued weekly-counts tally is never sent; with webReminders off, a web
+   push subscription left on is cancelled and its address forgotten at launch, which is clean-up).
    The web build's service worker (public/sw.js) shows reminders and keeps Cyra's own app files
    for offline use; it fetches only those files from the site that serves Cyra and never stores
    health data or any server answer (spec A14.1, lib/pwa.js).
-   Backend requests use ./lib/api.js (fetch), except the sign-in, Oura and Terra
-   connection windows. These are browser navigations to `${API_BASE}/api/oauth/:id/start`,
+   Backend requests use ./lib/api.js (fetch), except the sign-in [signin], Oura and Terra
+   [wearables] connection windows. These are browser navigations to `${API_BASE}/api/oauth/:id/start`,
    `${API_BASE}/api/integrations/oura/start` and the Terra widget URL that
    /api/integrations/terra/session returns, and each one ends on a backend callback or
    done page (startSocial below; lib/wearables.js). A build without VITE_API_BASE makes
@@ -54,7 +65,8 @@ import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue,
 import { answerLocally } from "./lib/askLibrary.js";
 import { storage } from "./lib/storage.js";
 import { PERSISTED, DEVICE_ONLY, DEVICE_PREFS, RECORD, RECORD_VERSION, migrate, backupCopy, entryFor, phaseOf } from "./lib/record.js";
-import { encryptBackup, decryptBackup } from "./lib/backup.js";
+import { encryptBackup, decryptBackup, fileTransport, backupFileName } from "./lib/backup.js";
+import { FEATURES, remindersInBuild } from "./lib/features.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
 import { isNative, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
@@ -62,6 +74,10 @@ import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pot
 import { registerWorker, whenActive, hasShellCache, checkForUpdate, applyUpdate, clearShellCaches, displayStandalone, currentInstallMode, listenForInstall, promptInstall, cleanInstallHint, mergeInstallHint, showInstallHint, offersInstall } from "./lib/pwa.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
+// The encrypted backup's file transport (lib/backup.js): a download in a browser, the share sheet on a phone.
+const backupFile = fileTransport({ isNative, Filesystem, Directory, Encoding, Share });
+// A stable empty list for what a build without a feature passes down (PotsPatterns' memo doesn't recompute).
+const NO_ROWS = Object.freeze([]);
 const recordSig = (o) => JSON.stringify(RECORD.map((k) => o?.[k] ?? null));
 // The tab bar scrolls sideways. Chromium doesn't scroll a partly hidden tab into view when the
 // keyboard focuses it, so a focused tab (and its ring) could sit half off the edge. Only keyboard
@@ -177,10 +193,10 @@ export default function CyraDemo() {
   const [regStep, setRegStep] = useState(0);
   const [regTouched, setRegTouched] = useState({});
   // Registration answers are stored on this device. The only ones that ever reach a server
-  // are opt-ins: with "Remind me" in a web browser, the reminder days, time and time zone go
-  // to Cyra's server for web push; with weekly counts on, the life-stage group goes out with
-  // the tallies; sign-in prefill puts the provider's name and email in server memory for at
-  // most 5 minutes. They also leave inside any encrypted backup she exports (the ZIP and age
+  // are opt-ins: with "Remind me" in a web browser (builds with webReminders), the reminder days,
+  // time and time zone go to Cyra's server for web push; with weekly counts on (builds with
+  // counts), the life-stage group goes out with the tallies; sign-in prefill (builds with signin)
+  // puts the provider's name and email in server memory for at most 5 minutes. They also leave inside any encrypted backup she exports (the ZIP and age
   // band are left out). There is no Cyra account, so there is no password; name and email are
   // optional and are kept nowhere, not even on this device, in Anonymous Mode.
   const [reg, setReg] = useState({
@@ -349,8 +365,9 @@ export default function CyraDemo() {
      does the question go to Cyra's backend, which forwards the text verbatim to
      Anthropic. The request body is { question } alone — no stage, name, account or entry
      log — though whatever she typed goes as typed, and like any request it carries the
-     device's IP address and user agent. */
-  const aiAvailable = !!API_BASE;
+     device's IP address and user agent. A build without the ai flag (or without a server)
+     never offers it: Ask then answers from the library only. */
+  const aiAvailable = FEATURES.ai && !!API_BASE;
   // q: a question string (a Patterns "Ask about this →" or a starter) or the Ask button's click event
   // (then the textarea's text); ai overrides the saved "Also ask Cyra's AI" choice for this one call.
   const runAsk = async (q, { ai } = {}) => {
@@ -586,10 +603,11 @@ export default function CyraDemo() {
      re-reads that stored switch and sends nothing once it is off, and a send never turns a
      stored "off" back on. */
   const [pulseAll, setPulseAll] = useState(null);
-  const [pulseStatus, setPulseStatus] = useState(API_BASE ? "loading" : "unavailable");
+  // A build without the counts flag never reads or sends counts (Home then has no pulse section).
+  const [pulseStatus, setPulseStatus] = useState(FEATURES.counts && API_BASE ? "loading" : "unavailable");
   const pulseRead = useRef(false);
   useEffect(() => {
-    if (!stage || pulseRead.current || !API_BASE) return;
+    if (!FEATURES.counts || !stage || pulseRead.current || !API_BASE) return;
     pulseRead.current = true;
     fetchPulse().then((j) => { setPulseAll(j); setPulseStatus("ok"); }, () => setPulseStatus("offline"));
   }, [stage]);
@@ -599,7 +617,7 @@ export default function CyraDemo() {
   // A check-in saved (again): its flags replace whatever that day's earlier save queued. An
   // edit of an earlier day (Calendar) can only take back flags still waiting for that day.
   const contribute = (events, dateIso = todayIso) => {
-    if (!researchRef.current || !stage) return;
+    if (!FEATURES.counts || !researchRef.current || !stage) return;
     const past = dateIso !== todayIso; // an earlier day's phase isn't known here, so it never yields mood_dip
     setPulseQueue((q) => queueEvents(q, pulseSent, stage, past ? events.filter((e) => e !== "mood_dip") : events, new Date(), { day: past ? dateIso : null }));
   };
@@ -710,7 +728,7 @@ export default function CyraDemo() {
   const [wearConfirm, setWearConfirm] = useState(null); // a server-mediated source whose disclosure card is open
   const restoredOuraGone = "The Oura connection in the backup no longer works, so it was removed from this device. Tap Connect to reconnect; if Cyra still shows in your Oura account's connected apps, you can remove it there.";
   const connectWear = async (id, label, { confirmed = false } = {}) => {
-    if (wearBusy) return;
+    if (!FEATURES.wearables || wearBusy) return;
     if (DEMO_WEARABLES) { // illustrative data, build-flag only; the UI says so
       if (wearSources[id]) return ping(`Demo mode — ${label} is already showing illustrative data`);
       if (wearData.length) return ping("Demo mode — no device connected; nothing was added");
@@ -749,7 +767,7 @@ export default function CyraDemo() {
      confirm is kept in terraOff and asked again until it confirms (retryTerraOff). */
   const disconnectWear = async (id, label) => {
     const st = wearSources[id];
-    if (wearBusy || !st) return;
+    if (!FEATURES.wearables || wearBusy || !st) return;
     setWearBusy(`${id}:off`);
     try {
       if (id === "terra" && st.key) { try { const rows = await drainTerra(st.key); if (rows.length) setWearData((d) => mergeRows(d, rows)); } catch { /* nothing collected */ } }
@@ -777,7 +795,7 @@ export default function CyraDemo() {
   const terraOffBusy = useRef(false);
   const retryTerraOff = async () => {
     const list = cleanTerraOff(terraOffRef.current);
-    if (!list.length || !API_BASE || wipingRef.current || terraOffBusy.current) return;
+    if (!FEATURES.wearables || !list.length || !API_BASE || wipingRef.current || terraOffBusy.current) return;
     terraOffBusy.current = true;
     try {
       const done = [];
@@ -794,7 +812,7 @@ export default function CyraDemo() {
   // While a disconnect is unconfirmed: try again on a timer (30 s, doubling to 15 min).
   const terraOffLeft = terraOff.length > 0;
   useEffect(() => {
-    if (!terraOffLeft || !API_BASE || !hydrated) return;
+    if (!FEATURES.wearables || !terraOffLeft || !API_BASE || !hydrated) return;
     let delay = 30_000, t = null, stop = false;
     const tick = async () => { if (stop) return; await retryTerraOff(); delay = Math.min(delay * 2, 15 * 60_000); if (!stop) t = setTimeout(tick, delay); };
     t = setTimeout(tick, delay);
@@ -806,7 +824,7 @@ export default function CyraDemo() {
   const lastDrain = useRef(0);
   const drainTerraNow = async () => {
     const st = wearSourcesRef.current.terra;
-    if (!st?.key || !API_BASE || DEMO_WEARABLES || wipingRef.current || Date.now() - lastDrain.current < 60_000) return;
+    if (!FEATURES.wearables || !st?.key || !API_BASE || DEMO_WEARABLES || wipingRef.current || Date.now() - lastDrain.current < 60_000) return;
     lastDrain.current = Date.now();
     try {
       const { rows, state } = await syncSource("terra", st);
@@ -820,8 +838,9 @@ export default function CyraDemo() {
   const has = (v) => typeof v === "number" && Number.isFinite(v);
   const wAvg = (k) => { const vals = wearData.map((m) => m[k]).filter(has); return vals.length ? Math.round((vals.reduce((a, v) => a + v, 0) / vals.length) * (k === "temp" ? 100 : 1)) / (k === "temp" ? 100 : 1) : null; };
 
+  // A build without the wearables flag keeps the rows (and backups carry them) but shows nothing from them.
   const wearInsights = (() => {
-    if (!wearData.length) return [];
+    if (!FEATURES.wearables || !wearData.length) return [];
     const out = [];
     const sorted = [...wearData].sort((a, b) => a.date.localeCompare(b.date));
     if (stage === "periods") {
@@ -862,7 +881,7 @@ export default function CyraDemo() {
     if (stage === "periods") {
       ms.push({ done: di.lens.length >= 1, label: "First full cycle logged" });
       ms.push({ done: di.lens.length >= 3, label: "3 cycles — predictions sharpen" });
-      if (wearData.length) ms.push({ done: wearInsights.some((w) => w.num === "Ovulated"), label: "Ovulation confirmed by temperature" });
+      if (FEATURES.wearables && wearData.length) ms.push({ done: wearInsights.some((w) => w.num === "Ovulated"), label: "Ovulation confirmed by temperature" });
     }
     if (stage === "peri") {
       const lastP = di.starts[di.starts.length - 1];
@@ -871,7 +890,7 @@ export default function CyraDemo() {
       ms.push({ done: monthsSince != null && monthsSince >= 12, label: `12 months without a period — menopause${monthsSince != null ? ` · ${Math.min(12, monthsSince)} of 12` : ""}`, progress: monthsSince != null ? Math.min(1, monthsSince / 12) : 0 });
     }
     if (stage === "preg") { ms.push({ done: pregWeek >= 13, label: "Second trimester" }); ms.push({ done: pregWeek >= 22, label: "Anatomy scan window" }); ms.push({ done: pregWeek >= 28, label: "Third trimester" }); }
-    ms.push({ done: Object.values(wearSources).some((w) => w && !w.pending), label: "Wearable connected" });
+    if (FEATURES.wearables) ms.push({ done: Object.values(wearSources).some((w) => w && !w.pending), label: "Wearable connected" });
     ms.push({ done: meds.length > 0, label: "Trying something new — a med, supplement or habit" });
     ms.push({ done: appts.some((a) => a.note), label: "First visit written up" });
     return ms;
@@ -943,7 +962,7 @@ export default function CyraDemo() {
     // Routing runs on this device only: the intake answers (pregnancy, periods, hot
     // flashes, age band) are health data and are never stored or sent; the spec's stage map
     // is deterministic. The resulting stage reaches Cyra's server only inside the opt-in
-    // weekly counts (lib/pulse.js); the counts read itself sends no stage. Otherwise it
+    // weekly counts (builds with counts; lib/pulse.js); the counts read itself sends no stage. Otherwise it
     // leaves the device only when she moves it herself: inside an encrypted backup she
     // exports, and implied by the doctor-email text she chooses to send, or in a POTS report
     // or spreadsheet she exports, only when she leaves 'Cycle or pregnancy details' ticked.
@@ -1073,7 +1092,7 @@ export default function CyraDemo() {
      the record's stage is dropped. A browser without Web Locks sends nothing (there would be
      no way to keep it to one a day across tabs); the phone app has a single web view. */
   const flushPulse = async () => {
-    if (!API_BASE) return;
+    if (!API_BASE || !FEATURES.counts) return; // a build without counts never sends a tally, even one an earlier build queued
     const locks = typeof navigator !== "undefined" ? navigator.locks : null;
     if (!locks?.request && !isNative()) return;
     const run = async () => {
@@ -1180,34 +1199,11 @@ export default function CyraDemo() {
     // device"), this browser's push addresses and this device's display preferences.
     const snap = backupCopy(snapshot());
     const env = await encryptBackup(snap, passphrase);
-    const name = `cyra-backup-${todayIso}.cyra.json`;
-    if (isNative()) {
-      // Phone: the already-encrypted file goes to the app's cache while the share sheet
-      // (Save to Files, Drive, AirDrop…) is in use and is deleted as soon as Cyra hears back
-      // from it (on iPhone when the sheet or the chosen action closes; on Android when she
-      // returns to Cyra from the app she chose). A copy left behind by an interrupted share
-      // (app closed or killed mid-share) is deleted at the next launch (sweepBackupCache) or
-      // by Delete everything. Where it goes is her choice; its contents are unreadable
-      // without the passphrase (the file name shows only the date it was made).
-      let uri;
-      try { ({ uri } = await Filesystem.writeFile({ path: name, data: JSON.stringify(env), directory: Directory.Cache, encoding: Encoding.UTF8 })); }
-      catch { throw new Error("Couldn't prepare the backup file on this phone"); }
-      try { await Share.share({ title: "Cyra encrypted backup", files: [uri] }); }
-      catch (e) {
-        const m = String(e?.message || e);
-        if (/cancel/i.test(m)) return false;
-        if (/must provide|in progress/i.test(m)) throw new Error("Couldn't open the share sheet on this phone");
-        throw new Error("Sharing didn't finish — the backup may not have reached where you sent it. Anything that did is still encrypted.");
-      }
-      finally { await Filesystem.deleteFile({ path: name, directory: Directory.Cache }).catch(() => { /* already gone */ }); }
-      setLastBackupAt(todayIso);
-      return true;
-    }
-    const blob = new Blob([JSON.stringify(env)], { type: "application/json" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    setLastBackupAt(todayIso);
-    return true;
+    // The file transport (lib/backup.js) hands the encrypted file over: a download, or the phone's share
+    // sheet via the app cache (deleted as soon as Cyra hears back; sweepBackupCache catches an interrupted one).
+    const handed = await backupFile.save(env, { name: backupFileName(todayIso) });
+    if (handed) setLastBackupAt(todayIso);
+    return handed;
   };
   // Restoring brings back the record and settings, but never the per-device consents
   // (weekly counts, Cyra's AI, and in a browser the reminders, which would register this
@@ -1215,7 +1211,7 @@ export default function CyraDemo() {
   // connection in the backup comes back on this device unconfirmed; one this device has that the backup
   // doesn't is kept (the restore form says so).
   const importBackup = async (file, passphrase) => {
-    let env; try { env = JSON.parse(await file.text()); } catch { throw new Error("That file isn't a Cyra backup"); }
+    const env = await backupFile.load(file);
     const saved = migrate(await decryptBackup(env, passphrase));
     if (!saved || saved.v !== RECORD_VERSION || !saved.stage) throw new Error("That backup is empty or from a different version");
     /* Oura / Terra connections in the backup may have been ended since it was made. One whose
@@ -1243,7 +1239,7 @@ export default function CyraDemo() {
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     ping(!isNative() && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored");
-    if (wear.oura?.restored && API_BASE && !DEMO_WEARABLES) checkRestoredOura(wear.oura);
+    if (FEATURES.wearables && wear.oura?.restored && API_BASE && !DEMO_WEARABLES) checkRestoredOura(wear.oura);
   };
   const checkRestoredOura = async (st) => {
     setWearBusy("oura");
@@ -1259,9 +1255,10 @@ export default function CyraDemo() {
   };
 
   /* ---------- Delete everything / Start over ----------
-     Delete everything — first, Cyra's server: (d) Oura, if connected: the token is revoked;
-     (a) web reminders: the server forgets every push address this browser holds or held;
-     (c) Terra, if connected (and every earlier Terra disconnect not yet confirmed), last
+     Delete everything — first, Cyra's server: (d) Oura, if connected (builds with wearables): the
+     token is revoked; (a) web reminders: the server forgets every push address this browser holds
+     or held (in every build, since the server may still hold one); (c) Terra, if connected (and every
+     earlier Terra disconnect not yet confirmed; builds with wearables), last
      because it empties the server's mailbox: readings waiting there are collected into the
      record first, then the server ends the connection and drops the mailbox. If any of these can't be confirmed (offline, server down, Terra/Oura
      didn't confirm, or this device holds nothing that could end it), the record on this
@@ -1320,7 +1317,9 @@ export default function CyraDemo() {
     if (hasServer()) {
       const kindOf = (e) => (e?.code === "NO_KEY" ? "nokey" : e?.status ? "refused" : "network");
       const serverStep = async (name, fn) => { try { await fn(); ended.push(name); } catch (e) { failed.push({ name, kind: kindOf(e) }); } };
-      if (sources.oura && !sources.oura.demo) await serverStep("oura", () => disconnectSource("oura", sources.oura, { timeoutMs: 8000 }));
+      // Wearables: only a build that has them asks Cyra's server to end a connection (otherwise Delete everything
+      // shows LEGACY_WEAR_LINE for one an earlier build or a backup left in the record).
+      if (FEATURES.wearables && sources.oura && !sources.oura.demo) await serverStep("oura", () => disconnectSource("oura", sources.oura, { timeoutMs: 8000 }));
       if (!isNative()) {
         const all = await knownEndpoints(pushKnown);
         const r = await forgetOnServerWhy(all, { timeoutMs: 6000 });
@@ -1331,7 +1330,7 @@ export default function CyraDemo() {
         if (pushForgot) await unsubscribeBrowser().catch(() => []); // the server forgot this browser: no reminder is shown here any more
       }
       // Fitbit/Garmin/Whoop: the live connection plus any earlier disconnect not yet confirmed.
-      const terraItems = [...(sources.terra && !sources.terra.demo ? [{ st: sources.terra, live: true }] : []), ...cleanTerraOff(terraOffRef.current).map((st) => ({ st }))];
+      const terraItems = FEATURES.wearables ? [...(sources.terra && !sources.terra.demo ? [{ st: sources.terra, live: true }] : []), ...cleanTerraOff(terraOffRef.current).map((st) => ({ st }))] : [];
       if (terraItems.length) {
         await serverStep("terra", async () => {
           let first = null;
@@ -1448,6 +1447,9 @@ export default function CyraDemo() {
   }, [pendingCount > 0, hydrated]); // eslint-disable-line
   const blockedMsg = (r) => (isNative() ? "Notifications for Cyra are off in your phone's Settings — turn them on there to get reminders" : r.denied ? "Notifications for Cyra are blocked in this browser's site settings" : "Reminders need your permission — tap Turn on and choose Allow");
   const applyReminders = async (enabled, cad = cadence, nudge = quietHours, { prompt = true } = {}) => {
+    // A web build without webReminders never subscribes: a switch an earlier build left on is turned off
+    // at launch (the browser subscription is cancelled and any known address is asked to be forgotten).
+    if (enabled && !remindersInBuild(isNative())) enabled = false;
     const gen = ++remGen.current;
     const current = () => gen === remGen.current;
     const known = knownPush();
@@ -1520,10 +1522,13 @@ export default function CyraDemo() {
      device. Web: a full-page redirect that comes back as #oauth=<code>. Phone app: a sign-in
      window (iOS: ASWebAuthenticationSession; Android: the system browser), back through
      cyrahealth://auth/oauth?a=<attempt>#oauth=<code>, redeemable only with this
-     attempt's one-time verifier. A build without a server makes no request at all. */
+     attempt's one-time verifier. A build without a server makes no request at all, and a
+     build without the signin flag (the default: production mounts no oauth module) shows no
+     provider buttons and never exchanges a returning #oauth= code. */
   const PROVIDER_LABEL = { apple: "Apple", google: "Google", facebook: "Facebook" };
   const signInRetry = "Sign-in didn't complete — try again or fill in the form; anything the provider sent is erased from Cyra's server within 5 minutes.";
   const startSocial = async (id, label) => {
+    if (!FEATURES.signin) return; // a build without signin shows no provider buttons (RegisterScreen)
     setSocialBusy(id);
     if (!hasServer()) { ping(`Sign-in isn't available in this version — fill in the form or use Anonymous Mode; your profile stays on this ${isNative() ? "phone" : "device"}.`); setSocialBusy(null); return; }
     try {
@@ -1585,7 +1590,7 @@ export default function CyraDemo() {
     const m = /^#oauth(_error)?=(.+)$/.exec(window.location.hash || "");
     if (!m) return;
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
-    finishSocial(m[1] ? { error: true } : { code: decodeURIComponent(m[2]) });
+    if (FEATURES.signin) finishSocial(m[1] ? { error: true } : { code: decodeURIComponent(m[2]) }); // otherwise just dropped: no exchange request
   }, []);
 
   const finishReg = async () => {
@@ -1607,10 +1612,10 @@ export default function CyraDemo() {
     setAppTab("home"); setPregTab("home");
     // The welcome is written here, on the device. Registration answers stay on this device,
     // except what she opts into on the last step: with "Remind me" in a web browser, her
-    // reminder days, time and time zone go to Cyra's server for web push; with weekly counts
-    // on, her life-stage group goes out with yes/no check-in flags (at most one send a day,
-    // each flag at most once a week, never on the day it was logged). They are also in any
-    // encrypted backup she exports (the ZIP and the age band are left out of it), and her
+    // reminder days, time and time zone go to Cyra's server for web push (builds with
+    // webReminders); with weekly counts on (builds with counts), her life-stage group goes out
+    // with yes/no check-in flags (at most one send a day, each flag at most once a week, never on
+    // the day it was logged). They are also in any encrypted backup she exports (the ZIP and the age band are left out of it), and her
     // first name is in the doctor-email subject when she uses Open in email or Copy email
     // (Report). A POTS report or spreadsheet uses no registration answer; her first name goes
     // on it only if she ticks "Put my first name on it" (lib/potsReport.js).
@@ -1667,8 +1672,11 @@ export default function CyraDemo() {
   // The last child of header.mast (inside the banner landmark), on the app and intake screens only.
   const updateRow = updateReady ? <UpdateRow onReload={reloadForUpdate} /> : null;
   const keepsWeekNote = pulseSent?.week === weekKey() || holdWeek === weekKey();
+  /* A build without wearables can't end a connection an earlier build (or a restored backup) left in the
+     record, so Delete everything says where to remove it (DataControls, LEGACY_WEAR_LINE). Demo rows don't count. */
+  const legacyWear = !FEATURES.wearables && (Object.values(wearSources).some((s) => s && typeof s === "object" && !s.demo) || terraOff.length > 0);
   const settingsSheet = showSettings && <SettingsSheet daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} triggerRef={settingsBtnRef} cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storageDriver} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} keepsWeekNote={keepsWeekNote} reminders={reminders} reminderSupport={reminderSupport()} onReminders={(on) => applyReminders(on)} research={research} setResearch={setSharing} stage={stage} stageName={stageName} pots={pots} onPotsOn={potsOn} onPotsOff={potsOff}
-    install={offersInstall({ mode: installMode, stored: recordInIdb }) ? { mode: installMode, onInstall: () => installNow("settings") } : null} focusTo={settingsFocus} offlineCopy={offlineReady} appearance={appearance} onAppearance={chooseAppearance} />;
+    install={offersInstall({ mode: installMode, stored: recordInIdb }) ? { mode: installMode, onInstall: () => installNow("settings") } : null} focusTo={settingsFocus} offlineCopy={offlineReady} appearance={appearance} onAppearance={chooseAppearance} legacyWear={legacyWear} />;
   if (!stage) {
     // Choosing a stage again: the saved record is still here, so Settings (and Delete
     // everything) stays one tap away.
@@ -1697,7 +1705,7 @@ export default function CyraDemo() {
   const appIs = (id) => !potsPage && appTab === id;
   const homeView = (
     <HomeScreen
-      acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} tri={tri} dueDate={dueDate} pred={pred} loggedLast14={loggedLast14} loggedTotal={stage === "preg" ? Object.keys(pregLog).length : ins.sorted.length} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} patternsCard={patternsCard} wearInsights={wearInsights} milestones={milestones} justReached={justReached} nextUp={nextUp} pulse={pulse}
+      acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} tri={tri} dueDate={dueDate} pred={pred} loggedLast14={loggedLast14} loggedTotal={stage === "preg" ? Object.keys(pregLog).length : ins.sorted.length} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} patternsCard={patternsCard} wearInsights={wearInsights} milestones={milestones} justReached={justReached} nextUp={nextUp} pulse={FEATURES.counts ? pulse : null}
       todayEntry={entryOn(todayIso) || null} scoreIds={stage === "preg" ? Object.keys(GSYM) : symIds} scoreLabels={stage === "preg" ? GSYM : symMap} dayScore={dayScore}
       recap={recap} showRecap={showRecap} setShowRecap={setShowRecap}
       showWear={showWear} setShowWear={setShowWear} wearSources={wearSources} terraOffCount={terraOff.length} connectWear={connectWear} disconnectWear={disconnectWear} wearConfirm={wearConfirm} setWearConfirm={setWearConfirm} wearBusy={wearBusy} wearData={wearData} wAvg={wAvg}
@@ -1732,7 +1740,7 @@ export default function CyraDemo() {
       sections={potsOk ? {
         today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => { setPotsSec("stand"); setPotsFocus("stand"); }} onReport={() => setPotsSec("report")} storageDriver={storageDriver} syncDay={syncDay} />,
         report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={acct.anon ? "" : (acct.name || "").trim()} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} />,
-        patterns: <PotsPatterns pots={pots} stage={stage} stageName={stageName} todayIso={todayIso} starts={ins.starts} checkin={potsCheckin} wearData={wearData} connected={potsWearConnected} />,
+        patterns: <PotsPatterns pots={pots} stage={stage} stageName={stageName} todayIso={todayIso} starts={ins.starts} checkin={potsCheckin} wearData={FEATURES.wearables ? wearData : NO_ROWS} connected={FEATURES.wearables ? potsWearConnected : NO_ROWS} />,
         stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focus={potsFocus === "stand"} onFocused={potsFocused} cyc={potsCyc}
           onStart={() => setPotsRun({ kind: "test", id: null, phase: "safety", phaseStart: Date.now(), standAt: null, done: [], interrupt: null })} />,
         move: <MovePlan pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} focus={potsFocus === "move"} onFocused={potsFocused}
@@ -1767,7 +1775,7 @@ export default function CyraDemo() {
     <Shell {...shell} toast={toast} repaint={repaint}>
       <header className="mast">
         <span className="mark">{org.name}<span className="sub">{org.tag}</span></span>
-        {stage && <span className="acctchip" title={`${acct.anon ? "Anonymous" : acct.name || "You"}${research && hasServer() ? " · sharing counts ✓" : ""}`}>{acct.anon ? "Anonymous" : acct.name || "You"}{research && hasServer() ? " · sharing counts ✓" : ""}</span>}
+        {stage && <span className="acctchip" title={`${acct.anon ? "Anonymous" : acct.name || "You"}${research && FEATURES.counts && hasServer() ? " · sharing counts ✓" : ""}`}>{acct.anon ? "Anonymous" : acct.name || "You"}{research && FEATURES.counts && hasServer() ? " · sharing counts ✓" : ""}</span>}
         {/* One sheet at a time: opening either closes the other (UI S1). */}
         {stage && orgId === "cyra" && <button ref={palBtnRef} className="stagechip icon" onClick={() => { setShowSettings(false); setShowPal((s) => !s); }} aria-label="Color palette" aria-expanded={showPal} aria-controls="palette-sheet"><Icon name="palette" size={18} /></button>}
         {stage && <button ref={settingsBtnRef} className="stagechip icon" onClick={() => { setShowPal(false); setShowSettings((s) => !s); }} aria-label="Check-in settings" aria-expanded={showSettings} aria-controls="settings-sheet"><Icon name="sliders" size={18} /></button>}
@@ -1797,7 +1805,7 @@ export default function CyraDemo() {
             {potsPage && potsView}
 
             {pregIs("today") && (
-              <PregTodayScreen onPots={potsTab ? () => openPots() : null} pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} anyLogged={Object.keys(pregLog).length > 0} onEditDay={startEdit} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
+              <PregTodayScreen onPots={potsTab ? () => openPots() : null} pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} anyLogged={Object.keys(pregLog).length > 0} onEditDay={startEdit} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={FEATURES.counts && research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
             )}
             {pregIs("cal") && (
               <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={dayScore} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} onEdit={startEdit} ping={ping} />
@@ -1821,7 +1829,7 @@ export default function CyraDemo() {
             {potsPage && potsView}
 
             {appIs("today") && (
-              <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} expanded={expanded} setExpanded={setExpanded} quickCheckin={quickCheckin} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} onEditDay={startEdit} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} days={days} setDays={setDays} onSaved={onSaved} ping={ping} setAppTab={setAppTab} research={research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
+              <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} expanded={expanded} setExpanded={setExpanded} quickCheckin={quickCheckin} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} onEditDay={startEdit} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} days={days} setDays={setDays} onSaved={onSaved} ping={ping} setAppTab={setAppTab} research={FEATURES.counts && research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
             )}
             {appIs("cal") && (
               <CalendarScreen pred={pred} predWaits={predWaits} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} ins={ins} />

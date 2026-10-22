@@ -8,6 +8,8 @@ import { allFlagGroups } from "../lib/pulse.js";
 import { reduceMotion } from "../lib/motion.js";
 import { paletteFor } from "../lib/appearance.js";
 import { REG_STAGE } from "../App.jsx";
+import { FEATURES, remindersInBuild } from "../lib/features.js";
+import { serverSees, consentDeleteFact, consentDetails } from "../lib/disclosures.js";
 import Details, { WebReminderFacts } from "../components/Details.jsx";
 import Icon from "../components/Icon.jsx";
 
@@ -27,7 +29,13 @@ import Icon from "../components/Icon.jsx";
    UI O1: the short path first (inputs, then Anonymous Mode, then the providers 3-up with
    Apple leftmost, both detail panels last); the chosen stage's palette from the moment she
    picks it (App.jsx regPal); each step slides in, scrolls to the top and hands focus to its
-   heading; the progress strip is a progressbar; "None" answers are exclusive. */
+   heading; the progress strip is a progressbar; "None" answers are exclusive.
+   L4 (feature flags, lib/features.js): the provider row (Apple first), its note and "Exactly what's
+   shared" exist only in builds with signin (off by default: production mounts no oauth module). The
+   weekly-counts consent row needs counts and a server; "Remind me" on the web needs webReminders and a
+   server; the cadence question shows only where this build has reminders (phones always). Every
+   flag-dependent sentence ("What Cyra's server sees", the fifth consent fact, "The details") comes from
+   lib/disclosures.js, and equals the pre-L4 text when every flag is on. */
 const RSTEPS = [
   { key: "account", short: "Device", title: "Set up Cyra on this device", sub: "There's no Cyra account. Your name, email and answers are saved on this device. Lose the device or clear the browser and you lose them, unless you saved an encrypted backup, which keeps most of them." },
   { key: "basics", short: "About you", title: "A bit about you", sub: "Your age band, plus an optional ZIP. Both stay on this device." },
@@ -97,10 +105,10 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
      only when this build has a server to count them. Nothing is pre-ticked. */
   const isNativeBuild = isNative();
   const remindKind = reminderSupport(); // "native" | "web" | "none"
-  const webReminders = !isNativeBuild && remindKind === "web" && hasServer();
+  const webReminders = !isNativeBuild && remindKind === "web" && hasServer() && FEATURES.webReminders;
   const consentRows = [
     (isNativeBuild || webReminders) && ["notifOptin", "Remind me on this device", isNativeBuild ? "Scheduled on this phone — no server involved. No phone number, no texts, ever." : "A plain reminder, nothing about your health in it. Cyra's server keeps this browser's push address and your reminder schedule; turning reminders off erases them. No phone number, no texts, ever."],
-    hasServer() && ["research", "Share anonymous weekly counts", "Cyra's server gets your life stage group and which of a few symptoms you logged, each at most once a week. No dates, values or name. Counts already added can't be taken back."],
+    hasServer() && FEATURES.counts && ["research", "Share anonymous weekly counts", "Cyra's server gets your life stage group and which of a few symptoms you logged, each at most once a week. No dates, values or name. Counts already added can't be taken back."],
     // Until the published Terms and Privacy Policy can be linked, the box asks only for
     // agreement to what this screen itself says.
     ["terms", POLICY_LINKS_READY ? "I agree to the Terms & Privacy Policy" : "I agree to how Cyra handles my data, as described above", POLICY_LINKS_READY ? "Nothing here is pre-ticked, and every optional choice can be changed later in Settings." : "Plain language, no dark patterns."],
@@ -143,7 +151,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
             </>
           )}
           <button className="ghostbtn quiet" aria-pressed={!!reg.anon} onClick={toggleAnon}>{reg.anon ? "✓ Anonymous Mode on" : "Continue in Anonymous Mode instead"}</button>
-          {!reg.anon && (
+          {!reg.anon && FEATURES.signin && (
             <>
               <div className="orline"><span>or fill in your name and email from</span></div>
               <div className="social">
@@ -157,19 +165,9 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
             </>
           )}
           <Details label="What Cyra's server sees">
-            <ul>
-              <li>An encrypted backup keeps your name, email and other sign-up answers, except your ZIP and age band.</li>
-              <li>Anonymous Mode skips your name and email entirely.</li>
-              <li>Cyra's servers keep no account and no profile of you in either mode: no age, health history or check-ins.</li>
-              <li>A few optional choices send a little to Cyra's server, and each one says exactly what before you turn it on.</li>
-              <li>Two of them keep a little there while they're on. Browser reminders: this browser's push address and its encryption keys, your reminder days, time and time zone, and the last day a reminder went out. Fitbit/Garmin/Whoop sync: new readings, held up to 7 days until this device collects them.</li>
-              <li>Turning one off erases it from Cyra's server. If the server can't be reached then, Cyra keeps asking until it confirms, and Delete everything tells you if anything stays connected.</li>
-              <li>If you choose to share weekly counts, they're added to anonymous weekly totals that stay on the server.</li>
-              <li>Sign-in prefill and Oura connect leave your name and email, or your Oura access, there for 5 minutes at most.</li>
-              <li>Like any app that goes online, our server and its host see your device's internet address and app or browser type when the app connects. Cyra's own code doesn't keep the address.</li>
-            </ul>
+            <ul>{serverSees(FEATURES, hasServer()).map((t) => <li key={t}>{t}</li>)}</ul>
           </Details>
-          {!reg.anon && (
+          {!reg.anon && FEATURES.signin && (
             <Details label="Exactly what's shared">
               <p>They send Cyra's server sign-in tokens, your name, email and an account ID (Google also sends basic profile details, such as a profile-photo link).</p>
               <p>Only your name, plus your email from Apple or Google when it's verified, comes to this device. Facebook fills in your name only.</p>
@@ -257,26 +255,25 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
                 "Nothing about your health leaves this device unless you turn on a feature that sends it, or take it out yourself.",
                 "Never sold. Care partners get nothing from Cyra about you.",
                 "Doctor sharing happens only when you send it or save a file yourself.",
-                "Delete everything from Settings, anytime. It also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop.",
+                consentDeleteFact(FEATURES, isNativeBuild),
                 "A backup is a file you keep, locked with a passphrase only you know. Cyra never receives the file or the passphrase, so we can't read it or recover a lost passphrase.",
               ].map((txt, i) => <li key={i}><Icon name={FACT_ICONS[i]} className="labico" />{txt}</li>)}
             </ul>
             <Details label="The details">
-              <ul>
-                <li>Features that send something: weekly counts, Cyra's AI and wearable syncs. Each one tells you what it sends before you turn it on.</li>
-                <li>Taking it out yourself means a doctor summary you open in email or copy, a POTS report or spreadsheet you save or share, which isn't locked, or a backup file you save, which stays locked with your passphrase.</li>
-                <li>If Delete everything can't confirm that reminders are off and Oura and Fitbit/Garmin/Whoop are disconnected, Cyra tells you what did and didn't happen, and keeps your record on this device until you choose.</li>
-                <li>Deleting can't pull back what already left: anonymous counts you shared stay counted, questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy.</li>
-              </ul>
+              <ul>{consentDetails(FEATURES, isNativeBuild).map((t) => <li key={t}>{t}</li>)}</ul>
             </Details>
           </div>
-          <p className="lab" id={labId("cadence")}>How often should Cyra check in?</p>
-          <div className="regcards cadgrid" role="group" aria-labelledby={labId("cadence")} style={{ marginBottom: 14 }}>
-            {CADENCE.map((cd) => (
-              <button key={cd.id} aria-pressed={cadence === cd.id} className={`stagecard ${cadence === cd.id ? "on" : ""}`} onClick={() => setCadence(cd.id)}><b>{cd.label}</b><span>{cd.desc}</span></button>
-            ))}
-          </div>
-          <p className="rfoot" style={{ marginBottom: 14 }}>You can change this anytime in Settings. Cyra sends one reminder at most, never a second nudge, and never guilts you for a missed day — gaps are fine, your patterns still work.</p>
+          {remindersInBuild(isNativeBuild) && (
+            <>
+              <p className="lab" id={labId("cadence")}>How often should Cyra check in?</p>
+              <div className="regcards cadgrid" role="group" aria-labelledby={labId("cadence")} style={{ marginBottom: 14 }}>
+                {CADENCE.map((cd) => (
+                  <button key={cd.id} aria-pressed={cadence === cd.id} className={`stagecard ${cadence === cd.id ? "on" : ""}`} onClick={() => setCadence(cd.id)}><b>{cd.label}</b><span>{cd.desc}</span></button>
+                ))}
+              </div>
+              <p className="rfoot" style={{ marginBottom: 14 }}>You can change this anytime in Settings. Cyra sends one reminder at most, never a second nudge, and never guilts you for a missed day — gaps are fine, your patterns still work.</p>
+            </>
+          )}
           {consentRows.map(([k, t2, d]) => [
             <button key={k} role="checkbox" aria-checked={!!(reg[k])} className={`consentopt ${reg[k] ? "on" : ""} ${k === "terms" && bad("terms") ? "inpErr" : ""}`} style={{ marginBottom: 9 }} onClick={() => rup(k, !reg[k])}>
               <span className="ckbox">{reg[k] ? "✓" : ""}</span>

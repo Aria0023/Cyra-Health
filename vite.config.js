@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { precacheList, injectBuild } from "./src/lib/swBuild.js";
+import { parseFeatures, unknownFeatures, FEATURE_NAMES } from "./src/lib/features.js";
 
 /* The consent step links the Terms and the Privacy Policy (src/lib/links.js). Until the
    attorney-reviewed documents are published and VITE_TERMS_URL / VITE_PRIVACY_URL are set
@@ -104,4 +105,25 @@ function cyraServiceWorker() {
   };
 }
 
-export default defineConfig({ plugins: [react(), policyLinksCheck(), policyLinksFetch(), cyraServiceWorker()] });
+/* Feature flags (local-first L4, src/lib/features.js): a build says which optional features it offers,
+   so a release can't ship a different set by accident, and warns about a name it doesn't know. The app
+   itself reads the same value (import.meta.env.VITE_FEATURES, inlined by Vite). Build only. */
+function featureFlagsReport() {
+  let said = false;
+  return {
+    name: "cyra-feature-flags",
+    configResolved(config) {
+      if (said || config.command !== "build") return;
+      said = true;
+      const raw = loadEnv(config.mode, config.envDir || process.cwd(), "VITE_").VITE_FEATURES ?? process.env.VITE_FEATURES;
+      const f = parseFeatures(raw);
+      const on = FEATURE_NAMES.filter((n) => f[n]);
+      const unset = raw == null || !String(raw).trim();
+      console.log(`[cyra] features: ${on.length ? on.join(", ") : "none"}${unset ? " (VITE_FEATURES unset: the shipping defaults)" : ""}`);
+      const bad = unknownFeatures(raw);
+      if (bad.length) console.warn(`[cyra] WARNING: VITE_FEATURES names unknown features: ${bad.join(", ")} (known: ${FEATURE_NAMES.join(", ")}, all, none)`);
+    },
+  };
+}
+
+export default defineConfig({ plugins: [react(), policyLinksCheck(), policyLinksFetch(), cyraServiceWorker(), featureFlagsReport()] });

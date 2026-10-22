@@ -60,18 +60,34 @@ backend is **when you build it**:
 ```sh
 npm install
 export VITE_API_BASE=https://cyra-backend.onrender.com   # or put it in .env.local, which git ignores
+export VITE_FEATURES=all  # or a list; unset = Ask Cyra's AI and reminders only (docs/ARCHITECTURE.md §10)
 npm run cap:sync      # vite build, then copy dist/ and the plugins into ios/ and android/
 npm run cap:ios       # the same, then open ios/App/App.xcodeproj in Xcode
 npm run cap:android   # the same, then open android/ in Android Studio
 ```
 
+**Feature flags.** `VITE_FEATURES` decides which optional features the phone app offers
+(`src/lib/features.js`). With the default flags (unset: `ai,webReminders`) the phone app offers
+Ask Cyra's AI and its local check-in reminders, and **no** Apple Health / Health Connect,
+Oura or Fitbit/Garmin/Whoop, sign-in prefill or weekly counts: those screens, rows and sentences
+aren't there. Each server feature also needs its module in `backend/config/app.json` (production
+mounts only push and ai). For a store release, match the build to its metadata: with `wearables`
+off, the HealthKit entitlement, the Info.plist Health strings and the Android Health Connect
+permissions are unused (App Review and Play may reject an app that declares health access it never
+asks for), and the iOS privacy manifest over-declares (Name, Email, User ID, Oura tokens). Either
+build phones with `wearables` (and the matching modules), or remove those for that release and update
+`PrivacyInfo.xcprivacy` and the store answers (docs/PRIVACY-AUDIT.md, L4).
+
 If `VITE_API_BASE` is missing, the app still works on the phone and makes no request to a
-backend at all: every helper in `src/lib/api.js` fails at once without calling `fetch`.
-Sign-in shows "Sign-in isn't set up in this version of the app yet — continue with email",
-and connecting Oura, Fitbit, Garmin or Whoop shows "This version of the app isn't set up to
-connect accounts yet". The anonymous counts say they're "not available in this version of
-the app", no weekly counts are sent, and Ask Cyra answers from its on-device library only. Apple Health / Health Connect and
-reminders work as usual, because they never use the server.
+backend at all: every helper in `src/lib/api.js` fails at once without calling `fetch`. Ask
+Cyra answers from its on-device library only (the "Also ask Cyra's AI" choice isn't shown), and
+local reminders, Apple Health / Health Connect (in a build with `wearables`) work as usual,
+because they never use the server. In a build that offers them: sign-in shows "Sign-in isn't
+available in this version — fill in the form or use Anonymous Mode; your profile stays on this
+phone.", connecting Oura, Fitbit, Garmin or Whoop shows "This version of the app isn't set up to
+connect accounts yet", the anonymous counts say "Community counts aren't available in this version
+of the app", and Settings says "Weekly counts aren't available in this version of Cyra, so nothing
+is shared."
 
 Also set `VITE_TERMS_URL` and `VITE_PRIVACY_URL` (the published Terms and Privacy Policy)
 before a public release. Without them the build still passes, prints a warning, and the

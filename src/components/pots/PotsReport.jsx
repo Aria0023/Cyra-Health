@@ -7,6 +7,8 @@ import { saveFile } from "../../lib/files.js";
 import { isNative } from "../../lib/native.js";
 import { rampVar } from "../../lib/constants.js";
 import Details from "../Details.jsx";
+import { FEATURES } from "../../lib/features.js";
+import { potsFixedLine } from "../../lib/disclosures.js";
 import { HrChart, TrendChart } from "./HrChart.jsx";
 import { CheckRow, Choice } from "./StandSafety.jsx";
 
@@ -23,7 +25,8 @@ import { CheckRow, Choice } from "./StandSafety.jsx";
    The preview below the buttons is an on-screen copy of exactly what the PDF holds, with real
    tables and labelled charts; it and the spreadsheet are the accessible versions of the PDF,
    which is untagged. Her own visit questions are kept in settings.questions. */
-export const FIXED_LINE = "Readings Cyra gets from a connected watch, ring or health app aren't included in this report or spreadsheet. Heart rates and blood pressures you type in yourself are, even if you read them off a watch.";
+/* Only in builds with wearables (lib/features.js): without them no watch, ring or health app can be connected. */
+export const FIXED_LINE = potsFixedLine(FEATURES);
 export const WARNING = "This file isn't locked. Anyone who gets it can read it. Send it straight to your clinician or their patient portal, and avoid group chats or shared folders.";
 export const REPORT_HINT = "Make a report to send or print. Cyra itself sends nothing; the file goes only where you take it.";
 export const WINANSI_WARNING = "Some characters you typed, such as in your own symptom or medicine names, can't be shown in the PDF and will appear as '?' or be left out. The spreadsheet keeps them exactly.";
@@ -238,7 +241,7 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
         ) : <p className="hint">You have 10 questions, the most there can be. Remove one to add another.</p>}
       </section>
 
-      <p className="plain" style={{ marginTop: 14 }}>{FIXED_LINE}</p>
+      {FIXED_LINE && <p className="plain" style={{ marginTop: 14 }}>{FIXED_LINE}</p>}
       <div className="plaincard"><p className="plain">{WARNING}</p></div>
       {lossyText && <p className="hint">{WINANSI_WARNING}</p>}
       {!model.enough && <p className="plain" id="pots-rep-gate"><b>Log a standing test or a few days first.</b></p>}

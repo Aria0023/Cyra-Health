@@ -1,9 +1,12 @@
 // Module registry: every feature is a module exporting { mount(router, ctx) } and,
 // optionally, basePath. Which modules load is configuration:
-//   NODE_ENV=production → config/app.json: only what the shipped app calls
-//                         (oauth, integrations, pulse, push, ai). ADMIN_KEY and
-//                         AUTH_SECRET come from the environment only, and the server
-//                         refuses to start when either is unset or a demo value.
+//   NODE_ENV=production → config/app.json: only what the app's default build calls
+//                         (push and ai; VITE_FEATURES unset, src/lib/features.js).
+//                         oauth, integrations, pulse and backup stay in the code and
+//                         are mounted by listing them there, for a build whose
+//                         VITE_FEATURES turns them on. ADMIN_KEY and AUTH_SECRET come
+//                         from the environment only, and the server refuses to start
+//                         when either is unset or a demo value.
 //   any other NODE_ENV  → config/app-dev.json: every module, the ops console and
 //                         demo secrets, for local work and demos.
 //   CYRA_CONFIG=<file>  → that file instead (tests), in either mode.
@@ -14,7 +17,7 @@ import path from "path";
 import crypto from "crypto";
 import express from "express";
 
-export const PRODUCTION_MODULES = ["oauth", "integrations", "pulse", "push", "ai"];
+export const PRODUCTION_MODULES = ["push", "ai"];
 const DEMO_VALUES = ["demo-admin-key-change-me", "demo-auth-secret-change-me"];
 const env = (k) => (process.env[k] || "").trim();
 const isProduction = () => env("NODE_ENV") === "production";

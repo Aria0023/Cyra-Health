@@ -19,7 +19,8 @@
     "ai",
     "oauth",
     "pulse",
-    "push"
+    "push",
+    "backup"
   ],
   "opsConsole": true,
   "storage": {
@@ -37,5 +38,11 @@
   },
   "pulse": {
     "k": 50
+  },
+  "backup": {
+    "maxBytes": 4194304,
+    "ttlDays": 90,
+    "maxRows": 10000,
+    "maxTotalBytes": 1073741824
   }
 }

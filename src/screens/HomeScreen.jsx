@@ -8,12 +8,16 @@ import { dominantFamily, ChartSoon } from "../components/PatternCharts.jsx";
 import { famVar } from "../lib/constants.js";
 import { reduceMotion } from "../lib/motion.js";
 import { InstallTip } from "../components/Pwa.jsx";
+import { FEATURES } from "../lib/features.js";
 import { useEffect, useRef } from "react";
 
 /* Home (default tab): greeting + streak, check-in CTA, today's top insight, the patterns card,
    wearable cards, milestones, coming up, pulse, and a grid of collapsible sections (month vs
    last month, Wearables, What I'm trying, Appointments, Journal) whose open panels sit under
-   the grid. With POTS tools on, a "POTS today" card (potsCard, built in App.jsx) sits under the
+   the grid. Feature flags (local-first L4, lib/features.js): the pulse ("You're not alone") shows
+   only in builds with counts (App.jsx passes pulse = null otherwise); the wearable cards, the
+   Wearables door and its panel only in builds with wearables (without it the grid has 4 doors,
+   2 × 2). With POTS tools on, a "POTS today" card (potsCard, built in App.jsx) sits under the
    check-in button. On the web, once 3 days are logged and while this browser can install Cyra,
    one dismissible install tip (installTip, components/Pwa.jsx; spec A14.1) sits after that card
    and before "Today's insight"; it is not a section label or card, so Home's labels don't move. */
@@ -188,6 +192,7 @@ export default function HomeScreen({
         </>
       )}
 
+      {pulse && (<>
       <p className="section-lab">You're not alone <span className="seclite">· last week, from people who share counts</span></p>
       <div className={`pulse ${pulse.status === "unavailable" ? "quiet" : ""}`}>
         {pulse.status === "unavailable" ? (
@@ -208,8 +213,9 @@ export default function HomeScreen({
           <p>The Cyra app adds to them only for people who turn on sharing, at most once a week from each phone or browser, so one person sharing from two devices counts twice. A number shows only once {pulse.k || 50} or more contributions are in. Because no one is identified, Cyra's server can't check who sends a count, so treat these as rough numbers.</p>
         </Details>
       </div>
+      </>)}
 
-      {/* ---- The five collapsible sections: buttons in a two-column grid, the open panels under it ---- */}
+      {/* ---- The collapsible sections (five, or four without wearables): buttons in a two-column grid, the open panels under it ---- */}
       {(() => {
         // Each door carries its status after the base label (the base label stays the first text node).
         const scoreDelta = recap ? recap.score[1] - recap.score[0] : null;
@@ -218,11 +224,11 @@ export default function HomeScreen({
         const apptIn = upcoming[0] ? daysUntil(upcoming[0].date) : null;
         const sections = [
           { id: "recap", label: "Month vs last month", status: recap ? (scoreDelta ? `${scoreDelta > 0 ? "+" : "−"}${Math.abs(scoreDelta)}` : "unchanged") : "soon", open: showRecap, set: setShowRecap },
-          { id: "wear", label: "Wearables", status: connectedCount ? `${connectedCount} connected` : "optional", open: showWear, set: setShowWear },
+          FEATURES.wearables && { id: "wear", label: "Wearables", status: connectedCount ? `${connectedCount} connected` : "optional", open: showWear, set: setShowWear },
           { id: "meds", label: "What I'm trying", status: lastMed ? `${lastMed.name}, day ${Math.max(1, 1 - daysUntil(lastMed.started))}` : "", open: showMeds, set: setShowMeds },
           { id: "appts", label: "Appointments", status: upcoming[0] ? `${upcoming[0].who || "visit"} ${apptIn === 0 ? "today" : `in ${apptIn} day${apptIn === 1 ? "" : "s"}`}` : "", open: showAppts, set: setShowAppts },
           { id: "journal", label: "Journal", status: lastJ ? `last entry ${wd(lastJ)}` : "", open: showJournal, set: setShowJournal },
-        ];
+        ].filter(Boolean);
         return (
           <div className="dgrid">
             {sections.map((sec) => (
@@ -250,7 +256,7 @@ export default function HomeScreen({
       )}
 
       {/* ---- Wearables ---- */}
-      {showWear && (
+      {showWear && FEATURES.wearables && (
         <div className="bodypanel detached" id="home-wear">
           <p className="ptitle">Wearables</p>
           <p className="hint" style={{ margin: "10px 0" }}>Entirely optional. Cyra works fully without a device. Connect one and Cyra keeps only temperature, resting heart rate, HRV and sleep from it — whichever your device records.</p>

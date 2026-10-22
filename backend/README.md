@@ -11,7 +11,7 @@ browsers' push services (web reminders). `render.yaml` configures all of them.
 | | `NODE_ENV=production` (Render) | anything else (local, demos) |
 |---|---|---|
 | Config file | `config/app.json` | `config/app-dev.json` |
-| Modules mounted | `oauth`, `integrations`, `pulse`, `push`, `ai` — only what the shipped app calls | every module in `src/modules/` |
+| Modules mounted | `push` and `ai` — what the app's default build (`VITE_FEATURES` unset) calls. `oauth`, `integrations`, `pulse` and `backup` are listed in `config/app.json` only to serve a build whose `VITE_FEATURES` turns them on (`signin`, `wearables`, `counts`, `cloudBackup`) | every module in `src/modules/` |
 | Partner/referral demo, `/r/:code`, FHIR, orgs, users, auth, agent, affiliates, catalog, payouts, reports | not mounted (404) | mounted |
 | Ops console at `/` | not served | served (`public/index.html`) |
 | `ADMIN_KEY`, `AUTH_SECRET` | from the environment only; the server **refuses to start** (exit 1) when either is unset, a demo/placeholder value, shorter than 16 characters, or both are equal | environment, else the demo values in `config/app-dev.json` |
@@ -28,7 +28,7 @@ can't silently fall back to a demo key.
     node server.js                 # development: every module -> http://localhost:3000
     node scripts/smoke.js          # referral demo end to end (in a second terminal)
     BASE=http://127.0.0.1:3290 node scripts/smoke.js   # against another port
-    npm run smoke:all              # ai, oauth, integrations, pulse, push and the production guard
+    npm run smoke:all              # ai, oauth, integrations, pulse, push, backup and the production guard
 
 Production on Render: set these in Render → cyra-backend → Environment (names
 as in `.env.example`; never commit values): `ADMIN_KEY`, `AUTH_SECRET`
@@ -37,19 +37,22 @@ as in `.env.example`; never commit values): `ADMIN_KEY`, `AUTH_SECRET`
 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FACEBOOK_APP_ID`,
 `FACEBOOK_APP_SECRET`, `OURA_CLIENT_ID`, `OURA_CLIENT_SECRET`, `TERRA_DEV_ID`,
 `TERRA_API_KEY`, `TERRA_SIGNING_SECRET`, `VAPID_PUBLIC_KEY`,
-`VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`. A sign-in, wearable or push integration
-whose variables are unset answers 503 — the app never fakes it; without
-`ANTHROPIC_API_KEY`, Ask answers from the deterministic library.
+`VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`. The Apple/Google/Facebook, Oura and Terra
+variables are used only when `config/app.json` lists `oauth` or `integrations`
+(not by default). A sign-in, wearable or push integration whose variables are
+unset answers 503 — the app never fakes it; without `ANTHROPIC_API_KEY`, Ask
+answers from the deterministic library.
 
 ## Status
 `render.yaml` deploys this backend with `NODE_ENV=production`, and the shipped
 app sends it live traffic. In place: HTTPS via Render; per-address rate limits
 on `/api/ai/ask`, `/api/pulse/tally` and `POST /api/push/subscribe` (which also
 takes only browser push-service endpoints and caps its rows); provider secrets
-from the environment; the start-up guard above; only the five modules the app
-calls are mounted.
-Not yet in place: a database or encrypted disk (`data/pulse.json` and
-`data/push.json` are plain JSON on the instance disk — on Render without a
+from the environment; the start-up guard above; only the modules the default app
+calls (push and ai) are mounted; turning another one on is one word in
+`config/app.json` (`scripts/prod-smoke.js` proves it).
+Not yet in place: a database or encrypted disk (`data/push.json`, and
+`data/pulse.json` when the pulse module is listed, are plain JSON on the instance disk — on Render without a
 persistent disk, until the next deploy or restart; `DATA_DIR` moves them to a
 disk's mount path once one is attached), audit logging and monitoring. Render's own request logs (paths, times, client addresses) are
 outside this code.
@@ -65,16 +68,21 @@ would also need a HIPAA business-associate review: BAA, encryption at rest,
 audit logging, access controls.
 
 ## Endpoints
-Production (and development):
+Production today (and development):
 
     GET  /health
     POST /api/ai/ask                                       (AI proxy; see below)
-    GET  /api/oauth/providers    GET /api/oauth/:provider/start?return=    GET|POST /api/oauth/:provider/callback    POST /api/oauth/exchange
-    GET  /api/integrations/sources
+    GET  /api/push/vapid         POST|DELETE /api/push/subscribe
+
+By configuration (mounted in development; in production only when `config/app.json` lists the module, for a
+build whose `VITE_FEATURES` offers it):
+
+    oauth (signin):        GET  /api/oauth/providers    GET /api/oauth/:provider/start?return=    GET|POST /api/oauth/:provider/callback    POST /api/oauth/exchange
+    integrations (wearables): GET /api/integrations/sources
          oura:  GET /start  GET /callback  POST /exchange  POST /refresh  POST /pull  POST /revoke
          terra: POST /session  GET /done  POST /webhook  POST /inbox  POST /disconnect  POST /disconnect-legacy
-    GET  /api/pulse              POST /api/pulse/tally
-    GET  /api/push/vapid         POST|DELETE /api/push/subscribe
+    pulse (counts):        GET  /api/pulse              POST /api/pulse/tally
+    backup (cloudBackup):  POST /api/backup   PUT|GET|DELETE /api/backup/:id   (see "Encrypted backup module")
 
 Development only (not mounted with `NODE_ENV=production`):
 
@@ -323,6 +331,36 @@ challenge is sealed into the state and bound to the handoff, and `POST
 (`#terra=1`), and its data is collected only with the device's key. Web flows
 send no challenge. The callback pages only `postMessage` to http(s) openers; for
 app returns they redirect straight to the app link.
+
+## Encrypted backup module (`src/modules/backup/`) — not mounted in production
+
+A scaffold for the optional encrypted cloud backup (owner decision D3). It keeps opaque blobs: the
+app's `cyra-backup` envelope, encrypted on her device with AES-256-GCM under a key only her
+passphrase derives. The server never parses, inspects, decrypts or logs a body.
+
+- **Protocol.** `POST /api/backup` with the bytes (`content-type: application/octet-stream`, anything
+  else is 415) → `201 { id, token, expiresAt }`: a random 128-bit id and a random 256-bit write token,
+  both base64url; the token is returned once and only its SHA-256 is kept. `PUT /api/backup/:id`
+  (replace; the TTL starts again), `GET /api/backup/:id` (the exact bytes, `application/octet-stream`,
+  `nosniff`; a read doesn't extend the TTL) and `DELETE /api/backup/:id`, each with
+  `authorization: Bearer <token>` (missing or malformed: 401). An unknown id, a malformed id, a wrong
+  token and an expired blob all answer the same 404, and an expired blob is deleted on the spot. Every
+  answer is `cache-control: no-store`.
+- **Limits** (`config.backup`): `maxBytes` 4 MiB per blob (413), `maxRows` 10,000 and `maxTotalBytes`
+  1 GiB (507), `ttlDays` 90 after the last write, and an in-memory rate limit (`perMinute` 10 per
+  address, `globalPerMinute` 300; 429; the address is held only as a daily-salted hash for about a
+  minute).
+- **Storage.** Metadata rows in the store's `backups` collection, exactly
+  `{ id, tokenHash, size, createdAt, updatedAt, expiresAt }` (never an address, user agent or token);
+  the bytes in `<DATA_DIR | storage.dir>/backup/<id>.bin`, written to a temp file and renamed, with
+  the id checked against `/^[A-Za-z0-9_-]{22}$/` before any path is built. An hourly sweep (and one at
+  start) deletes expired blobs and row-less files over an hour old.
+- **Logging.** Only the mount line, "body refused (<error type>)" and "storage error (<code>)": never a
+  body, token, id or address.
+- **Before production:** persistent storage (Render's instance disk is wiped on every deploy), the
+  app's cloud-backup screen with its recovery code, and the privacy copy changes listed in
+  `docs/PRIVACY-AUDIT.md` (L4), all in the same change that lists `backup` in `config/app.json`.
+  `npm run smoke:backup` tests all of the above.
 
 ## Development-only modules
 - **Agent (`src/modules/agent/`)** — task + shared tool registry + pluggable

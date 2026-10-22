@@ -1,5 +1,9 @@
+import { FEATURES } from "../lib/features.js";
+import { intakeHint } from "../lib/disclosures.js";
+
 /* Stage intake ("change" from the header chip): four taps re-route the user to
-   exactly one life-stage experience. Pregnancy always wins. */
+   exactly one life-stage experience. Pregnancy always wins. The hint names weekly counts only in
+   builds with counts (lib/disclosures.js intakeHint). */
 const OBQ = [
   { key: "preg", q: "Are you currently pregnant?", opts: [["yes", "Yes"], ["no", "No"], ["ttc", "Trying to be"]] },
   { key: "age", q: "Which fits you?", opts: [["u35", "Under 35"], ["3544", "35–44"], ["45p", "45+"]] },
@@ -14,7 +18,7 @@ export default function IntakeScreen({ org, acct, ob, setOb, obBusy, setObBusy, 
       <span className="mark">{org.name}<span className="sub">{org.tag}</span></span>
       <h1 className="disp" style={{ marginTop: 22 }}>{acct.name ? `${acct.name}, let's set up` : "Let's set up"}
         <br />your space.</h1>
-      <p className="hint">Four quick taps. Your answers shape the whole app — one experience, built for where you are. Your answers stay on this device. (If you share weekly counts, your life stage is part of what's shared.)</p>
+      <p className="hint">{intakeHint(FEATURES)}</p>
       {obBusy ? (
         <div className="card" style={{ display: "block" }} role="status" aria-live="polite"><p>Personalizing your space…</p></div>
       ) : (

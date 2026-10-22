@@ -1,8 +1,8 @@
 {
-  "_note": "Production (NODE_ENV=production): only the modules the shipped app calls. ADMIN_KEY and AUTH_SECRET come from the environment; the server refuses to start without real values. Development uses config/app-dev.json.",
+  "_note": "Production (NODE_ENV=production): push and ai — what the app's default build (VITE_FEATURES unset) calls. oauth, integrations, pulse and backup are in the code and in config/app-dev.json; list one here to serve a build whose VITE_FEATURES turns it on (signin → oauth, wearables → integrations, counts → pulse, cloudBackup → backup). ADMIN_KEY and AUTH_SECRET come from the environment; the server refuses to start without real values.",
   "baseUrl": "http://localhost:3000",
   "port": 3000,
-  "modules": ["oauth", "integrations", "pulse", "push", "ai"],
+  "modules": ["push", "ai"],
   "storage": {
     "driver": "json",
     "dir": "./data"
@@ -13,5 +13,11 @@
   },
   "pulse": {
     "k": 50
+  },
+  "backup": {
+    "maxBytes": 4194304,
+    "ttlDays": 90,
+    "maxRows": 10000,
+    "maxTotalBytes": 1073741824
   }
 }
