@@ -147,7 +147,7 @@ function Preview({ model, stage }) {
   );
 }
 
-export default function PotsReport({ pots, setPots, stage, stageName, todayIso, ping, firstName = "", checkin, checkinLabels, starts = NONE, locale }) {
+export default function PotsReport({ pots, setPots, stage, stageName, todayIso, ping, firstName = "", checkin, checkinLabels, starts = NONE, locale, onHandoff = null }) {
   const s = pots.settings;
   const [period, setPeriod] = useState("30");
   // "Movement" starts ticked when she has logged a session or answered the Move questions.
@@ -169,6 +169,7 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
 
   const exportFile = async (kind) => {
     if (!model.enough || busy) return;
+    onHandoff?.(); // L10: the share sheet / download this tap opens must not lock the app on its own hide
     setBusy(kind);
     try {
       let data, name, mime, title;
@@ -191,6 +192,7 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
   };
   const openEmail = () => {
     if (!model.enough) return;
+    onHandoff?.();
     window.open(`mailto:?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`);
     ping("Handing off to your email… If nothing opens, use Copy summary text instead.");
   };

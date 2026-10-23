@@ -39,7 +39,11 @@ import { flushSync } from "react-dom";
      the POTS report PDF/CSV, lib/files.js): a web download, or the
      phone share sheet via a plaintext file in the app cache that is deleted after sharing and
      swept at launch and wipe. No network. The POTS summary email draft and copied summary
-     text work like the doctor summary (components/pots/PotsReport.jsx).
+     text work like the doctor summary (components/pots/PotsReport.jsx);
+   - nothing for the app lock (L10, D4): the PIN hash, salt, settings and passkey id stay in a
+     device-only slot (lib/storage.js) outside the record and WebAuthn runs on the device
+     (lib/lock.js). Settings → Privacy & your data lists every flow above with its live state
+     (lib/privacyFlows.js, components/PrivacyFlows.jsx).
    A flag never deletes or changes what is recorded: a record from a build with more features
    keeps its wearable rows and connections, queues and choices, and this build just doesn't show,
    send or contact them (a queued weekly-counts tally is never sent; with webReminders off, a web
@@ -68,15 +72,17 @@ import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource
 import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue, pruneQueue, mergeQueues, localDay, weekKey } from "./lib/pulse.js";
 import { answerLocally } from "./lib/askLibrary.js";
 import { storage } from "./lib/storage.js";
-import { PERSISTED, DEVICE_ONLY, DEVICE_PREFS, RECORD, RECORD_VERSION, migrate, backupCopy, entryFor, phaseOf } from "./lib/record.js";
+import { PERSISTED, DEVICE_ONLY, DEVICE_PREFS, NOT_IN_BACKUP, RECORD, RECORD_VERSION, migrate, backupCopy, entryFor, phaseOf } from "./lib/record.js";
 import { trackedIds, cleanSymPrefs, cleanNote } from "./lib/daylog.js";
 import { periodSummary, patternFindings, homePick, recapFrom } from "./lib/insights.js";
 import { encryptBackup, decryptBackup, fileTransport, backupFileName } from "./lib/backup.js";
-import { FEATURES, remindersInBuild } from "./lib/features.js";
-import { fertPrivacyLine } from "./lib/disclosures.js";
+import { FEATURES, feature, remindersInBuild } from "./lib/features.js";
+import { fertPrivacyLine, deleteAlso } from "./lib/disclosures.js";
+import { cleanLock, hashPin, checkPin, newLock, afterFail, afterSuccess, awayMs, shouldLock, passkeyAvailable, createPasskey, verifyPasskey, forgotPinRecord, GRACE_MS, LOCK_COPY } from "./lib/lock.js";
+import { flowRows } from "./lib/privacyFlows.js";
 import { fertShown, isTTC, cleanFertPrefs, restoredFertPrefs, defaultTempUnit, FERT_FORM_EMPTY, fertFormFrom, fertFormKey, fertTouched, fertRead, fertWindow, fertSummary, fertSummaryLines, bbtShiftSentence, fertEmailLine, cleanFert, FERT_COPY } from "./lib/fertility.js";
 import { visitModel, paperForLocale } from "./lib/visitReport.js";
-import { PLAN, exportsLeft, noteExport } from "./lib/plan.js";
+import { PLAN, can, exportsLeft, noteExport } from "./lib/plan.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
 import { isNative, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
@@ -137,6 +143,7 @@ import Icon from "./components/Icon.jsx";
 import { UpdateRow } from "./components/Pwa.jsx";
 import { reduceMotion } from "./lib/motion.js";
 import SplashScreen from "./screens/SplashScreen.jsx";
+import LockScreen from "./screens/LockScreen.jsx";
 import RecordUnavailableScreen from "./screens/RecordUnavailableScreen.jsx";
 import RegisterScreen from "./screens/RegisterScreen.jsx";
 import IntakeScreen from "./screens/IntakeScreen.jsx";
@@ -228,6 +235,22 @@ export default function CyraDemo() {
   const [pulseRev, setPulseRev] = useState(0); // version of the sharing state above, so a stale tab can't roll it back
   const [askAI, setAskAI] = useState(false); // "Also ask Cyra's AI when the library has no answer" — off until she turns it on
   const [lastBackupAt, setLastBackupAt] = useState(null); // local day this device last made an encrypted backup (device-only, never in the file)
+  /* The app lock (L10, decision D4; lib/lock.js). lockCfg is this device's app lock, read from its own device-only slot
+     (lib/storage.js) after the record; never in the record, the autosave, other tabs' adoption or a backup. It is
+     null (no lock), a LockCfg, or { unreadable: true } when the slot couldn't be read (the lock screen then offers
+     Try again and the Forgot options). locked: the lock screen is showing. passkeyOk: a user-verifying platform
+     authenticator exists (probed only while a lock exists). initialRestore: the splash opens its restore form after
+     a forgotten-PIN restore that emptied the device but couldn't write the backup (#restore). */
+  const [lockCfg, setLockCfg] = useState(null);
+  const [locked, setLocked] = useState(false);
+  const [passkeyOk, setPasskeyOk] = useState(false);
+  const [initialRestore, setInitialRestore] = useState(false);
+  const hidden = useRef(null);        // { at, mono, graced } while the app is hidden
+  const graceUntil = useRef(0);       // until when a hide is a hand-off Cyra started (holdLock)
+  const passkeyAbort = useRef(null);  // the passkey prompt under way on the lock screen
+  const forgotBackup = useRef(null);  // the decrypted backup held in memory only between "Open my backup" and the restore
+  const restoredNote = useRef(null);  // "restored" | "rem" | "failed": what to say once hydrated, from the #restored / #restore hash
+  const lockHooks = useRef({ hide: () => {}, show: () => {} });
   /* Installable web app (spec A14.1, lib/pwa.js). installHint is persisted (device-only, never in
      a backup, only ever gets stronger: null → "dismissed" → "installed"); the rest is UI only. */
   const [installMode, setInstallMode] = useState("none"); // "none" | "prompt" | "ios" | "standalone"
@@ -309,6 +332,7 @@ export default function CyraDemo() {
      { kind: "session", id, day, phase, phaseStart, plan, paused, pausedMs, ... }
      (components/pots/MoveSession.jsx). */
   const [potsRun, setPotsRun] = useState(null);
+  const lockRef = useRef({}); lockRef.current = { cfg: lockCfg, locked, running: !!potsRun };
   /* One-shot focus request for a POTS section ("stand" | "move" | null): set when a test or
      session ends, or by Today's "Start a stand test", and cleared by the section once it has
      moved focus to its heading, so a later chip tap to that section leaves focus on the chip. */
@@ -396,6 +420,37 @@ export default function CyraDemo() {
      to clear and the native suite reads the toast about 4s after a 70-character one appears. */
   const setFertOn = (on) => { setFertSigns((p) => ({ ...p, on })); ping(on ? FERT_COPY.toastOn : FERT_COPY.toastOff); };
   const ping = (m) => { clearTimeout(toastTimer.current); setToast(m); const ms = Math.min(8000, Math.max(2600, 1000 + m.length * 35)); toastTimer.current = setTimeout(() => setToast(""), ms); };
+  /* ---------- the app lock: show, hide, grace (L10) ----------
+     holdLock: a hand-off Cyra starts itself (backup share, file picker, passkey prompt, a Report or POTS share) hides
+     the page for a moment; the hide inside GRACE_MS is graced and locks only after GRACE_MAX_MS away (lib/lock.js).
+     lockNow drops the toast and the palette sheet; the Settings sheet keeps showSettings and remounts after the
+     unlock (its typed passphrase or PIN is dropped with it). unlock cancels a passkey prompt still open. */
+  const holdLock = () => { graceUntil.current = Date.now() + GRACE_MS; };
+  const lockNow = () => { clearTimeout(toastTimer.current); setToast(""); setShowPal(false); setLocked(true); };
+  const unlock = () => { passkeyAbort.current?.abort(); setLocked(false); };
+  const tellLock = () => { try { channel.current?.postMessage({ type: "lock" }); } catch { /* single tab */ } };
+  // Another tab changed the lock: take the slot's value (an off lock there opens this tab too).
+  const reloadLock = () => storage.loadLock().then((raw) => { const c = cleanLock(raw); setLockCfg(c); if (!c) setLocked(false); }, () => {});
+  const reloadLockRef = useRef(reloadLock); reloadLockRef.current = reloadLock;
+  /* hide / show: called from the visibility, pagehide / pageshow and app-state listeners below (through lockHooks, as
+     that effect runs once). "Immediately" locks on the hide itself, so the lock screen is up before she comes back;
+     the other choices measure the time away on show. Nothing locks while a POTS stand test or movement session runs
+     or while Delete everything is under way. */
+  const hide = () => {
+    if (hidden.current) return;
+    const now = Date.now();
+    hidden.current = { at: now, mono: performance.now(), graced: now <= graceUntil.current };
+    const { cfg, locked: isLocked, running } = lockRef.current;
+    if (cfg && !cfg.unreadable && !isLocked && !running && !hidden.current.graced && cfg.after === 0 && !wipingRef.current) lockNow();
+  };
+  const show = () => {
+    const h = hidden.current; hidden.current = null;
+    if (!h) return;
+    const { cfg, locked: isLocked, running } = lockRef.current;
+    if (!cfg || cfg.unreadable || isLocked || wipingRef.current) return;
+    if (shouldLock({ afterSec: cfg.after, awayMs: awayMs({ hiddenAt: h.at, now: Date.now(), hiddenMono: h.mono, nowMono: performance.now() }), graced: h.graced, running })) lockNow();
+  };
+  lockHooks.current = { hide, show };
   // Milestones → Appointments bridge (UI M1, spec A4/A10): a now/soon roadmap item prefills the add-appointment note
   // and opens Home with the Appointments panel out; the person picks the date. `when` is the item's eyebrow text.
   const onPlan = (label, when) => { setNewAppt((a) => ({ ...a, note: `${label} (${when.charAt(0).toLowerCase()}${when.slice(1)})` })); setShowAppts(true); setPregTab("home"); ping("Added to Appointments — pick the date"); };
@@ -557,13 +612,22 @@ export default function CyraDemo() {
   const curTab = stage === "preg" ? pregTab : appTab;
   useEffect(() => { if (editDate && curTab !== "today") endEdit(); }, [curTab]); // eslint-disable-line -- leaving Today ends an edit
   // The selected tab is always fully inside the strip (a Home card can select Report, which starts off-screen).
-  useEffect(() => { document.querySelector(".tab-on")?.scrollIntoView?.({ inline: "nearest", block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" }); }, [appTab, pregTab]);
+  useEffect(() => { document.querySelector(".tab-on")?.scrollIntoView?.({ inline: "nearest", block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" }); }, [appTab, pregTab, locked]);
   const measureTabs = (bar) => { if (!bar) return; const e = tabEdges(bar); setTabEdge((c) => (c.start === e.start && c.end === e.end ? c : e)); };
   useEffect(() => { // once on mount (and whenever the strip appears) plus on resize; scrolling the strip reports itself
     const bar = document.querySelector(".tabs"); measureTabs(bar);
     const onResize = () => measureTabs(document.querySelector(".tabs"));
     window.addEventListener("resize", onResize); return () => window.removeEventListener("resize", onResize);
-  }, [stage]);
+  }, [stage, locked]);
+  // After an unlock, focus lands on the selected tab (an open sheet focuses its own title when it remounts).
+  const wasLocked = useRef(false);
+  useEffect(() => {
+    if (locked) { wasLocked.current = true; return; }
+    if (!wasLocked.current) return;
+    wasLocked.current = false;
+    const id = requestAnimationFrame(() => { if (!showSettings && !showPal) document.querySelector(".tab-on")?.focus(); });
+    return () => cancelAnimationFrame(id);
+  }, [locked]); // eslint-disable-line
   const regPalFirst = useRef(true);
   // The stage card tap recolours the registration chrome the same way (UI O1). A layout effect, so .repaint
   // lands before the browser paints the new colours: it is what lets the page background fade (styles.js).
@@ -1072,6 +1136,7 @@ export default function CyraDemo() {
   // is saved over it; RecordUnavailableScreen offers Try again.
   const hydrate = () => storage.load().then(
     async (saved) => {
+      let lock = null; // this device's app lock, read only after the record (and only when there is one)
       try {
         if (saved && saved.v === RECORD_VERSION && saved.phase === "app") {
           // A record with no `pots` at all was last saved by a build from before POTS (a tab left
@@ -1084,15 +1149,63 @@ export default function CyraDemo() {
           // closed mid-test): it keeps every reading it saved and is offered as Keep it / Discard.
           // Only here, at launch: a cross-tab adopt never marks another window's live test.
           setPots((p) => markStaleRunning(p, Date.now()));
+          try { lock = cleanLock(await storage.loadLock()); } catch { lock = { unreadable: true }; }
         }
       }
-      finally { setRecordUnavailable(false); setHydrated(true); }
+      // One batch: the first render after hydration is already locked, so the record never paints behind the lock.
+      finally { setLockCfg(lock); setLocked(!!lock); setRecordUnavailable(false); setHydrated(true); }
     },
     (e) => { setRecordLocked(!!e?.locked); setRecordUnavailable(true); },
   );
   /* At every start, before and whether or not the record loads: (phone) delete a backup copy
      an interrupted share left in the cache — no share can be under way in a freshly started
      app — and drop a week-only hold whose week is over. */
+  /* ---------- the app lock's API (L10): every write goes to the device-only slot, then this tab's state, then the
+     other tabs ("lock" message → reloadLock). verifyPin is the one PIN check: the lock screen and every current-PIN
+     field in Settings share it, and so the same persisted back-off (lib/lock.js afterFail). ---------- */
+  const latestLock = async () => cleanLock(await storage.loadLock());
+  const writeLock = async (next) => { await storage.saveLock(next); setLockCfg(next); tellLock(); };
+  const verifyPin = async (pin) => {
+    if (wipingRef.current) return { ok: false };
+    let cur;
+    try { cur = await latestLock(); } catch { return { ok: false, error: "read" }; }
+    if (!cur) { setLockCfg(null); setLocked(false); return { ok: true }; } // another tab turned the lock off
+    const now = Date.now();
+    if (cur.waitUntil > now) return { ok: false, fails: cur.fails, waitUntil: cur.waitUntil };
+    const ok = await checkPin(pin, cur.pin);
+    const next = ok ? afterSuccess(cur) : afterFail(cur, now);
+    if (next !== cur) { try { await storage.saveLock(next); } catch { /* the back-off still applies in this tab */ } tellLock(); }
+    setLockCfg(next);
+    return { ok, fails: next.fails, waitUntil: next.waitUntil };
+  };
+  const onLockPin = async (pin) => { const r = await verifyPin(pin); if (r.ok) unlock(); return r; };
+  const setPin = async (pin) => { await writeLock(newLock(await hashPin(pin), { after: 0 })); ping(LOCK_COPY.toastOn); };
+  const changePin = async (pin) => { const cur = (await latestLock()) || lockRef.current.cfg; await writeLock({ ...cur, pin: await hashPin(pin), fails: 0, waitUntil: 0 }); ping(LOCK_COPY.toastChanged); };
+  const turnOffLock = async () => { const had = !!lockRef.current.cfg?.cred; await storage.clearLock(); setLockCfg(null); tellLock(); ping(LOCK_COPY.toastOff + (had ? LOCK_COPY.toastOffCred : "")); };
+  const setLockAfter = async (sec) => { const cur = (await latestLock()) || lockRef.current.cfg; if (cur) await writeLock({ ...cur, after: sec }); };
+  // The passkey is made inside her tap: createPasskey asks the authenticator before its first await.
+  const passkeyOn = async () => {
+    holdLock();
+    const { id } = await createPasskey();
+    const cur = (await latestLock()) || lockRef.current.cfg;
+    try { await writeLock({ ...cur, cred: { id } }); } catch (e) { const err = e instanceof Error ? e : new Error("save"); err.code = "save"; throw err; }
+    ping(LOCK_COPY.toastBioOn);
+  };
+  const passkeyOff = async () => { const cur = (await latestLock()) || lockRef.current.cfg; await writeLock({ ...cur, cred: null }); ping(LOCK_COPY.toastBioOff); };
+  const unlockWithPasskey = async () => {
+    const cfg = lockRef.current.cfg;
+    if (!cfg?.cred) return { ok: false, error: "none" };
+    holdLock(); passkeyAbort.current?.abort();
+    const ac = new AbortController(); passkeyAbort.current = ac;
+    try { const ok = await verifyPasskey(cfg.cred.id, { signal: ac.signal }); if (ok) unlock(); return { ok, error: ok ? null : "failed" }; }
+    catch (e) { return { ok: false, error: e?.code || "failed" }; }
+  };
+  const retryLockRead = async () => { try { const c = cleanLock(await storage.loadLock()); setLockCfg(c); if (!c) setLocked(false); } catch { setLockCfg({ unreadable: true }); } };
+  // Whether this device can offer a passkey: probed only while a lock exists (never in a harness run, which sets none).
+  const hasLock = !!lockCfg && !lockCfg.unreadable;
+  useEffect(() => { if (!hasLock) return; let on = true; passkeyAvailable({ native: isNative() }).then((ok) => { if (on) setPasskeyOk(ok); }); return () => { on = false; }; }, [hasLock]);
+  // Phone: a lock file left by a failed lock-file delete after a record delete must not lock a new record.
+  const clearStaleLock = () => { if (isNative()) storage.loadLock().then((v) => { if (v != null) storage.clearLock(); }, () => storage.clearLock()); };
   useEffect(() => {
     hydrate(); storage.probe().then(setStorageDriver);
     if (isNative()) sweepBackupCache().catch(() => { /* best effort */ });
@@ -1228,18 +1341,21 @@ export default function CyraDemo() {
   }, []); // eslint-disable-line
   useEffect(() => {
     // Hidden, closed or sent to the background: a save still waiting on its 400 ms timer is written now.
-    const onVisible = () => { if (document.visibilityState === "visible") { syncDay(); drainTerraNow(); retryPushForget(); retryTerraOff(); checkForUpdate(); } else flushSave(); };
+    // The app lock (L10) watches the same events through lockHooks (hide is idempotent: both of a pair may fire).
+    const onVisible = () => { if (document.visibilityState === "visible") { lockHooks.current.show(); syncDay(); drainTerraNow(); retryPushForget(); retryTerraOff(); checkForUpdate(); } else { flushSave(); lockHooks.current.hide(); } };
+    const onPageHide = () => { flushSave(); lockHooks.current.hide(); };
+    const onPageShow = (e) => { syncDay(); if (e?.persisted) lockHooks.current.show(); };
     document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("pagehide", flushSave);
+    window.addEventListener("pagehide", onPageHide);
     // Back from the background, a restored page or a focused window: the day may have changed.
-    window.addEventListener("pageshow", syncDay); window.addEventListener("focus", syncDay);
-    const sub = isNative() ? CapApp.addListener("appStateChange", (st) => { if (st?.isActive) { syncDay(); drainTerraNow(); retryTerraOff(); } else flushSave(); }) : null;
+    window.addEventListener("pageshow", onPageShow); window.addEventListener("focus", syncDay);
+    const sub = isNative() ? CapApp.addListener("appStateChange", (st) => { if (st?.isActive) { lockHooks.current.show(); syncDay(); drainTerraNow(); retryTerraOff(); } else { flushSave(); lockHooks.current.hide(); } }) : null;
     // Local midnight while the app stays open. Checked at least once a minute, because a timer
     // doesn't count the time a device spends asleep and the clock or time zone can change.
     let dayTimer = null;
     const armDay = () => { const n = new Date(), next = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1, 0, 0, 1); dayTimer = setTimeout(() => { syncDay(); armDay(); }, Math.max(1000, Math.min(next - n, 60000))); };
     armDay();
-    return () => { document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("pagehide", flushSave); window.removeEventListener("pageshow", syncDay); window.removeEventListener("focus", syncDay); clearTimeout(dayTimer); sub?.then((h) => h.remove()).catch(() => {}); };
+    return () => { document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("pagehide", onPageHide); window.removeEventListener("pageshow", onPageShow); window.removeEventListener("focus", syncDay); clearTimeout(dayTimer); sub?.then((h) => h.remove()).catch(() => {}); };
   }, []); // eslint-disable-line
 
   /* ---------- installable web app (spec A14.1, lib/pwa.js) ----------
@@ -1266,7 +1382,9 @@ export default function CyraDemo() {
     if (!isNative() && displayStandalone()) setInstallHint((h) => mergeInstallHint(h, "installed"));
   }, [hydrated, phase]);
   // The document outside the column (color-scheme, --doc-bg) and the browser chrome (theme-color) follow the scheme and paper on screen.
-  useLayoutEffect(() => { applyDocumentScheme(document, { scheme, paper: t.paper }); }, [scheme, t.paper]);
+  // While locked the page wears the base theme (no stage colour in the theme-color meta or the page background).
+  const lockT = paletteFor(org.theme, scheme);
+  useLayoutEffect(() => { applyDocumentScheme(document, { scheme, paper: locked ? lockT.paper : t.paper }); }, [scheme, t.paper, locked, lockT.paper]);
   useEffect(() => { if (!showSettings) setSettingsFocus(null); }, [showSettings]);
 
   /* Phone: a backup copy, appointment PDF (cyra-summary-*.pdf), POTS report or POTS spreadsheet an interrupted share left in the
@@ -1279,6 +1397,7 @@ export default function CyraDemo() {
     for (const f of files) { const n = typeof f === "string" ? f : f?.name; if (/^cyra-(backup-.*\.cyra\.json|(report|summary|data)-\d{4}-\d{2}-\d{2}\.(pdf|csv))$/.test(n || "")) await Filesystem.deleteFile({ path: n, directory: Directory.Cache }).catch(() => {}); }
   };
   const exportBackup = async (passphrase) => {
+    holdLock(); // the download / share sheet hides the page for a moment: not a reason to lock
     // The backup carries the record, minus what belongs to this device only: the ZIP and the
     // age band (neither is used after registration; their screen says they "stay on this
     // device"), this browser's push addresses and this device's display preferences.
@@ -1295,10 +1414,15 @@ export default function CyraDemo() {
   // browser with Cyra's server), nor this device's appearance (DEVICE_PREFS): those stay as they are on this device. A wearable
   // connection in the backup comes back on this device unconfirmed; one this device has that the backup
   // doesn't is kept (the restore form says so).
-  const importBackup = async (file, passphrase) => {
+  // Reads and checks a backup file (shared by the Settings / splash restore and the lock screen's forgotten-PIN restore).
+  const readBackup = async (file, passphrase) => {
     const env = await backupFile.load(file);
     const saved = migrate(await decryptBackup(env, passphrase));
     if (!saved || saved.v !== RECORD_VERSION || !saved.stage) throw new Error("That backup is empty or from a different version");
+    return saved;
+  };
+  const importBackup = async (file, passphrase) => {
+    const saved = await readBackup(file, passphrase);
     /* Oura / Terra connections in the backup may have been ended since it was made. One whose
        Terra disconnect this device is already asking for is left out; the others come back
        unconfirmed (pending + restored): they don't count as connected until a Sync gets
@@ -1331,8 +1455,26 @@ export default function CyraDemo() {
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     // The reminders clause only where Settings has a reminders row (a web build without webReminders has none).
-    ping(!isNative() && remindersInBuild(false) && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored");
+    const msg = !isNative() && remindersInBuild(false) && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored";
+    ping(msg);
     if (FEATURES.wearables && wear.oura?.restored && API_BASE && !DEMO_WEARABLES) checkRestoredOura(wear.oura);
+    return msg;
+  };
+  /* Forgotten PIN (L10, D4, no back door): "Open my backup" decrypts and checks the file into memory only; "Yes,
+     restore my backup" then runs the full Delete everything wipe and writes the backup into the fresh store before
+     the reload (wipe's `then`). The record is never merged into the device's current state: a backup missing keys
+     would otherwise leave her current days, journal and wearable tokens in place behind a cleared lock. */
+  const openForgotBackup = async (file, passphrase) => { forgotBackup.current = await readBackup(file, passphrase); };
+  const onForgotRestore = (opts = {}) => {
+    const saved = forgotBackup.current;
+    return wipe(wearSources, { ...opts, pushKnown: knownPush(),
+      hash: !isNative() && remindersInBuild(false) && saved?.reminders?.enabled ? "#restored=rem" : "#restored",
+      then: async () => {
+        const rec = forgotPinRecord(saved, { persisted: PERSISTED, deviceOnly: DEVICE_ONLY, devicePrefs: DEVICE_PREFS, notInBackup: NOT_IN_BACKUP, native: isNative(), now: new Date() });
+        rec.pots = newEpoch(saved.pots ?? freshEmpty(), Date.now());
+        await storage.save(rec);
+        forgotBackup.current = null;
+      } });
   };
   const checkRestoredOura = async (st) => {
     setWearBusy("oura");
@@ -1380,6 +1522,7 @@ export default function CyraDemo() {
       if (e.data?.type === "pulse") { if ((e.data.pulseRev || 0) > pulseRevRef.current) adoptPulse(e.data); return; }
       if (e.data?.type === "reminders") { adoptReminders(e.data); return; }
       if (e.data?.type === "record") { adoptRecordRef.current(); return; }
+      if (e.data?.type === "lock") { reloadLockRef.current(); return; }
       if (e.data?.type !== "wipe") return;
       if (e.data.phase === "cancel") { wipingRef.current = false; return; }
       wipingRef.current = true; cancelSave();
@@ -1395,7 +1538,9 @@ export default function CyraDemo() {
     if (!isNative()) await step(clearShellCaches); // the offline copy of Cyra's own files (spec A14.1); the splash never registers again
     if (isNative()) await step(sweepBackupCache);
   };
-  const wipe = async (sources = {}, { force = false, pushKnown = [], holdWeek: startOver = false } = {}) => {
+  // then / hash (L10): a forgotten-PIN restore writes the backup into the emptied store before the reload and lands on
+  // #restored (or #restore when that write failed, so the splash opens its restore form).
+  const wipe = async (sources = {}, { force = false, pushKnown = [], holdWeek: startOver = false, then = null, hash = "" } = {}) => {
     wipingRef.current = true; cancelSave();
     tellOtherTabs("start");
     const failed = [], ended = []; // failed: [{ name, kind: network | refused | nokey }]
@@ -1455,9 +1600,13 @@ export default function CyraDemo() {
       const list = done.length < 2 ? done.join("") : `${done.slice(0, -1).join(", ")} and ${done[done.length - 1]}`;
       throw new Error(`${head} ${list.replace(/^./, (c) => c.toUpperCase())}.`);
     }
+    await storage.clearLock(); // the app lock goes with the record (web: clear() already removed it in the same transaction)
     await storage.dropDatabase();
+    if (then) { try { await then(); } catch { hash = "#restore"; } }
     tellOtherTabs("done");
-    window.location.replace(window.location.pathname);
+    // A hash alone is a fragment navigation (no reload), so the restore paths reload explicitly after setting it.
+    window.location.replace(window.location.pathname + hash);
+    if (hash) window.location.reload();
   };
   // Settings shows a failure itself (DataControls), with Try again / Delete on this device anyway.
   const wipeDevice = (opts = {}) => wipe(wearSources, { ...opts, pushKnown: knownPush() });
@@ -1685,6 +1834,23 @@ export default function CyraDemo() {
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
     if (FEATURES.signin) finishSocial(m[1] ? { error: true } : { code: decodeURIComponent(m[2]) }); // otherwise just dropped: no exchange request
   }, []);
+  // After a forgotten-PIN restore (L10): #restored / #restored=rem say so once the restored record is loaded; #restore
+  // means the device was emptied but the backup couldn't be written, so the splash opens on its restore form.
+  useEffect(() => {
+    const h = window.location.hash || "";
+    const m = /^#restored(=rem)?$/.exec(h);
+    if (!m && h !== "#restore") return;
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    if (m) restoredNote.current = m[1] ? "rem" : "restored";
+    else { restoredNote.current = "failed"; setInitialRestore(true); }
+  }, []);
+  useEffect(() => {
+    if (!hydrated || !restoredNote.current) return;
+    const n = restoredNote.current; restoredNote.current = null;
+    if (n === "failed") { ping(LOCK_COPY.toastRestoreFailed); return; }
+    ping(n === "rem" ? LOCK_COPY.toastRestoredRem : LOCK_COPY.toastRestored);
+    if (FEATURES.wearables && wearSources.oura?.restored && API_BASE && !DEMO_WEARABLES) checkRestoredOura(wearSources.oura);
+  }, [hydrated]); // eslint-disable-line
 
   const finishReg = async () => {
     const labels = { "My Cycle": "My Cycle", "Trying to conceive": "Trying to Conceive", "Pregnant": "Pregnancy", "Perimenopause": "Perimenopause", "Menopause & beyond": "Menopause" };
@@ -1715,6 +1881,7 @@ export default function CyraDemo() {
     // on it only if she ticks "Put my first name on it" (lib/potsReport.js).
     setWelcome(`Welcome${name ? `, ${name}` : ""} — your ${slabel} space is ready.`);
     setPhase("app");
+    clearStaleLock();
   };
 
   /* ---------- shared check-in pieces (one instance, rendered by whichever Today is active) ---------- */
@@ -1727,6 +1894,10 @@ export default function CyraDemo() {
   // "more detail" opens the full form for this visit only: the answers so far move onto their symptom chips; the Settings preference is untouched.
   const quickCheckin = <QuickCheckin stage={stage} draft={draft} setDraft={setDraft} onMore={() => { setDraft((d) => foldQuick(d, stage)); setExpanded(true); }} />;
 
+  /* The privacy dashboard's rows (L10, lib/privacyFlows.js): each flow this build can use, with its live state from the
+     flags, the plan, the server setting, the platform and her settings. */
+  const flows = useMemo(() => flowRows({ native: isNative(), server: hasServer(), flags: { wearables: feature("wearables"), counts: feature("counts"), ai: feature("ai"), webReminders: feature("webReminders"), cloudBackup: feature("cloudBackup"), signin: feature("signin") }, planCloud: can("cloudBackup"), reminderSupport: reminderSupport(), reminders, research, askAI, wearLive: Object.entries(wearSources).filter(([k, v]) => VIA_SERVER.has(k) && v && !v.demo).length, terraOff: terraOff.length, demoWear: DEMO_WEARABLES }), [reminders, research, askAI, wearSources, terraOff]); // eslint-disable-line
+
   if (!hydrated) {
     // Start over runs the same clean-up as Delete everything, minus the wearable disconnects:
     // the record that names them can't be read (the screen says so). It always leaves this
@@ -1736,10 +1907,27 @@ export default function CyraDemo() {
     return <Shell {...shell}><main aria-busy="true" /></Shell>;
   }
 
+  const keepsWeekNote = pulseSent?.week === weekKey() || holdWeek === weekKey();
+  /* A build without wearables can't end a connection an earlier build (or a restored backup) left in the
+     record, so Delete everything says where to remove it (DataControls, LEGACY_WEAR_LINE). Demo rows don't count. */
+  const legacyWear = !FEATURES.wearables && (Object.values(wearSources).some((s) => s && typeof s === "object" && !s.demo) || terraOff.length > 0);
+  /* The lock screen (L10): before the splash, intake and running-takeover branches, so no header, chip, tab, sheet,
+     screen or runner renders behind it; the base theme only (never the stage palette) and no toast. */
+  if (locked) {
+    const also = deleteAlso(FEATURES, isNative());
+    return (
+      <Shell {...shell} style={{ ...paletteVars(lockT), ...vizVars(scheme, stage) }}>
+        <LockScreen cfg={lockCfg?.unreadable ? null : lockCfg} unreadable={!!lockCfg?.unreadable} passkeyOk={passkeyOk} onPin={onLockPin} onPasskey={unlockWithPasskey} onRetryRead={retryLockRead}
+          onOpenBackup={openForgotBackup} onCancelBackup={() => { forgotBackup.current = null; }} onRestore={onForgotRestore} onWipe={wipeDevice}
+          keepsWeekNote={keepsWeekNote} legacyWear={legacyWear} offlineCopy={offlineReady} wipeAlso={also ? `This also ${also}.` : ""} />
+      </Shell>
+    );
+  }
+
   if (phase === "splash") {
     return (
       <Shell {...shell} toast={toast}>
-        <SplashScreen onStart={() => setPhase("register")} onImport={importBackup} />
+        <SplashScreen onStart={() => setPhase("register")} onImport={async (f, p) => { await importBackup(f, p); clearStaleLock(); }} initialRestore={initialRestore} />
       </Shell>
     );
   }
@@ -1768,13 +1956,11 @@ export default function CyraDemo() {
   const reloadForUpdate = async () => { if (updating.current) return; updating.current = true; await settleSaves(); await applyUpdate(); };
   // The last child of header.mast (inside the banner landmark), on the app and intake screens only.
   const updateRow = updateReady ? <UpdateRow onReload={reloadForUpdate} /> : null;
-  const keepsWeekNote = pulseSent?.week === weekKey() || holdWeek === weekKey();
-  /* A build without wearables can't end a connection an earlier build (or a restored backup) left in the
-     record, so Delete everything says where to remove it (DataControls, LEGACY_WEAR_LINE). Demo rows don't count. */
-  const legacyWear = !FEATURES.wearables && (Object.values(wearSources).some((s) => s && typeof s === "object" && !s.demo) || terraOff.length > 0);
+  const lockApi = { cfg: lockCfg, passkeyOk, native: isNative(), lastBackupAt, verify: verifyPin, setPin, changePin, turnOff: turnOffLock, setAfter: setLockAfter, passkeyOn, passkeyOff, lockNow };
   const settingsSheet = showSettings && <SettingsSheet daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} triggerRef={settingsBtnRef} cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storageDriver} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} keepsWeekNote={keepsWeekNote} reminders={reminders} reminderSupport={reminderSupport()} onReminders={(on) => applyReminders(on)} research={research} setResearch={setSharing} stage={stage} stageName={stageName} pots={pots} onPotsOn={potsOn} onPotsOff={potsOff}
     install={offersInstall({ mode: installMode, stored: recordInIdb }) ? { mode: installMode, onInstall: () => installNow("settings") } : null} focusTo={settingsFocus} offlineCopy={offlineReady} appearance={appearance} onAppearance={chooseAppearance} legacyWear={legacyWear}
-    fertRow={stage === "periods" ? { on: fertOn, setOn: setFertOn, ttc, privacy: fertPrivacy } : null} />;
+    fertRow={stage === "periods" ? { on: fertOn, setOn: setFertOn, ttc, privacy: fertPrivacy } : null}
+    flows={flows} flowCtx={{ native: isNative(), server: hasServer(), stage }} lock={lockApi} potsOn={potsTab && potsOk} onHandoff={holdLock} />;
   if (!stage) {
     // Choosing a stage again: the saved record is still here, so Settings (and Delete
     // everything) stays one tap away.
@@ -1838,7 +2024,7 @@ export default function CyraDemo() {
     <PotsScreen onBack={() => setPotsOpen(false)} pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"} storageDriver={storageDriver}
       sections={potsOk ? {
         today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => { setPotsSec("stand"); setPotsFocus("stand"); }} onReport={() => setPotsSec("report")} storageDriver={storageDriver} syncDay={syncDay} />,
-        report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={firstName} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} />,
+        report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={firstName} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} onHandoff={holdLock} />,
         patterns: <PotsPatterns pots={pots} stage={stage} stageName={stageName} todayIso={todayIso} starts={ins.starts} checkin={potsCheckin} wearData={FEATURES.wearables ? wearData : NO_ROWS} connected={FEATURES.wearables ? potsWearConnected : NO_ROWS} />,
         stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focus={potsFocus === "stand"} onFocused={potsFocused} cyc={potsCyc}
           onStart={() => setPotsRun({ kind: "test", id: null, phase: "safety", phaseStart: Date.now(), standAt: null, done: [], interrupt: null })} />,
@@ -1934,7 +2120,7 @@ export default function CyraDemo() {
               <CalendarScreen pred={pred} predWhy={predWhy} cyc={cyc} onCycleUse={setCycleUse} stage={stage} isMeno={isMeno} days={days} symIds={symIds} symMap={symMap} dayScore={scoreDay} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} fertOn={fertOn} tempUnit={tempUnit} />
             )}
             {appIs("patterns") && <PatternsScreen ins={ins} lens6={cyc.lens6} symIds={symIds} symMap={symMap} scoreScale={scoreScale} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} fert={ttc && fertOn ? { unit: tempUnit } : null} week={week} month={month} found={found} scoreColor={scoreColor} energyId={ENERGY_ID} />}
-            {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} scheme={scheme} fert={ttc && fertOn ? { unit: tempUnit } : null} buildVisit={buildVisit} pdfLeft={pdfLeft} onPdfMade={onPdfMade} pdfLimit={PLAN.pdfExportsPerMonth} />}
+            {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} scheme={scheme} fert={ttc && fertOn ? { unit: tempUnit } : null} buildVisit={buildVisit} pdfLeft={pdfLeft} onPdfMade={onPdfMade} pdfLimit={PLAN.pdfExportsPerMonth} onHandoff={holdLock} />}
             {appIs("shelf") && <CareScreen shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Cyra will compare your days before and after"); }} />}
             {appIs("ask") && askView}
             {appIs("connect") && connView}

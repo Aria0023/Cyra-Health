@@ -2,7 +2,7 @@ import { fmt } from "../lib/engine.js";
 import { SOURCES, DEMO_WEARABLES } from "../lib/wearables.js";
 import { isNative } from "../lib/native.js";
 import Advice from "../components/Advice.jsx";
-import Details from "../components/Details.jsx";
+import Details, { WearableFacts } from "../components/Details.jsx";
 import Icon from "../components/Icon.jsx";
 import { dominantFamily, ChartSoon } from "../components/PatternCharts.jsx";
 import { famVar } from "../lib/constants.js";
@@ -302,15 +302,7 @@ export default function HomeScreen({
             : DEMO_WEARABLES && !wearData.length ? "In this demo build, connecting a device adds 30 days of illustrative data shaped to your stage — not from a real device. "
             : isNative() ? "Apple Health and Health Connect are read on this phone and leave it only inside an encrypted backup you choose to save. " : ""}Wearable signals confirm patterns after the fact — they don't replace a clinician and aren't contraception.</p>
           {!allDemo && !(DEMO_WEARABLES && !wearData.length) && (
-            <Details label="How each connection works">
-              <ul>
-                {isNative() && <li>Cyra never sends Apple Health or Health Connect readings anywhere; they leave this phone only inside an encrypted backup you choose to save.</li>}
-                <li>Oura readings pass through Cyra's server on the way to you and aren't stored there.</li>
-                <li>Fitbit, Garmin and Whoop connect through Terra, a health-data service that keeps your connection, and the data it collects, under its own policy. Their readings wait in Cyra's server memory (never on disk) until this device collects them, and are deleted after 7 days if not collected.</li>
-                <li>Disconnect ends the connection; anything Terra already collected stays under Terra's policy.</li>
-                <li>Delete everything also ends both connections. If Cyra can't confirm that, your record isn't deleted yet: Cyra shows what did and didn't end, and lets you try again where that can help, or delete on this device anyway.</li>
-              </ul>
-            </Details>
+            <Details label="How each connection works"><WearableFacts native={isNative()} /></Details>
           )}
         </div>
       )}

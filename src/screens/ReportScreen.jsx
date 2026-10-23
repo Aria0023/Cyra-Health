@@ -98,7 +98,7 @@ function Meter({ color, any, strong, mounted }) {
 
 const Sec = ({ n, children }) => <p className="rsec"><span className="rnum">{n}</span><span>{children}</span></p>;
 
-export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, showTable, setShowTable, potsOn = false, todayIso = localDay(), appt = null, daysUntil = () => 0, goTab = () => {}, setShowAppts = () => {}, scoreOn = () => null, scoreColor = () => "var(--primary)", scheme = "light", lens6 = null, fert = null, buildVisit = null, pdfLeft = null, onPdfMade = () => {}, pdfLimit = null }) {
+export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, showTable, setShowTable, potsOn = false, todayIso = localDay(), appt = null, daysUntil = () => 0, goTab = () => {}, setShowAppts = () => {}, scoreOn = () => null, scoreColor = () => "var(--primary)", scheme = "light", lens6 = null, fert = null, buildVisit = null, pdfLeft = null, onPdfMade = () => {}, pdfLimit = null, onHandoff = null }) {
   const n = ins.last30.length; // days logged in the last 30 calendar days
   // The last 6 cycle lengths, each marked when she left it out of predictions (L5): the spread still counts every one.
   const lensList = lens6 || ins.lens.map((len) => ({ len, excluded: false }));
@@ -170,6 +170,7 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
   const firstOfNextMonth = `${addDays(`${todayIso.slice(0, 7)}-01`, 32).slice(0, 7)}-01`; // for limitLine, only if a limit is ever set
   const makePdf = async () => {
     if (busy || !visit || !visit.enough || limitHit) return;
+    onHandoff?.(); // L10: the share sheet / download this tap opens must not lock the app on its own hide
     setBusy(true);
     try {
       const data = visitPdf(visit, PdfDoc);
@@ -213,10 +214,10 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
       <p className="rsec">Preview</p>
       <textarea className="inp emailpreview" readOnly rows={emailText.split("\n").length + 1} aria-label="Email preview" value={emailText} onFocus={(e) => e.target.select()} />
       <div className="routes">
-        <button type="button" className="route" onClick={() => { window.open(`mailto:?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`); ping("Handing off to your email… If nothing opens, use Copy email instead."); }}>Open in email<span>pre-filled draft</span></button>
+        <button type="button" className="route" onClick={() => { onHandoff?.(); window.open(`mailto:?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`); ping("Handing off to your email… If nothing opens, use Copy email instead."); }}>Open in email<span>pre-filled draft</span></button>
         <button type="button" className="route" onClick={() => copyText(emailText, "Email copied — paste anywhere", ping)}>Copy email<span>paste anywhere</span></button>
-        <button type="button" className="route" onClick={() => window.print()}>Print this page<span>from your browser</span></button>
-        {canShare && <button type="button" className="route" onClick={() => navigator.share({ title: email.subject, text: emailText }).catch(() => {})}>Share…<span>Messages, Files, a portal</span></button>}
+        <button type="button" className="route" onClick={() => { onHandoff?.(); window.print(); }}>Print this page<span>from your browser</span></button>
+        {canShare && <button type="button" className="route" onClick={() => { onHandoff?.(); navigator.share({ title: email.subject, text: emailText }).catch(() => {}); }}>Share…<span>Messages, Files, a portal</span></button>}
       </div>
       {mailtoLong && <p className="hint rlong">Long for an email link — use Copy email or Share…</p>}
       {potsOn && <p className="hint" style={{ marginTop: 10 }}>Your POTS report (standing tests, drinks, medicines) is in POTS tools (open it from Home).</p>}

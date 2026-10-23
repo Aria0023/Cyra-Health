@@ -1070,7 +1070,7 @@ rest      card fill, 1.5px --line border, ink text (pills .mc/.pill/.chip/.minic
           .obopt/.consentopt/.palopt/.disclosure/.route; .cta primary-filled). Buttons set touch-action:manipulation
           and no tap highlight, so the press state below is the only feedback.
 pressed   :active, 100ms --ease-std on transform: pills scale(.96) and take the selected tint (primary 12% on card,
-          primary border); cards and the CTA scale(.985), the CTA also brightness(.94). Under reduced motion the
+          primary border; the lock screen's .key too, L10); cards and the CTA scale(.985), the CTA also brightness(.94). Under reduced motion the
           scale is instant and only the colour transition remains.
 hover     only inside @media (hover:hover): border-color moves to color-mix(primary 55%, line). Touch never hovers.
 focus     the shared 3px --primary outline (offset 2px). .c-today draws its own ring as an inset box-shadow so
@@ -1081,8 +1081,8 @@ selected  .on / .pill-on / .minichip.on: primary border, primary 12% fill, prima
 disabled  .cta:disabled opacity .6; .sbtn:disabled / [aria-disabled="true"] dashed --line border, --soft text,
           weight 600, cursor default. A state that is not a button (e.g. "coming soon") is a .statechip: dashed
           pill, 11px/700, --soft. Scale values at 0 render --soft (.scalehead b.zero), so nothing reads as logged.
-targets   44px minimum on .mc .pill .takebtn .sbtn .linkbtn .route .inp .slider .minichip .scopy .palopt .calcell
-          (not only inside .pots). .inp[type=date] keeps its native appearance so iOS shows the picker affordance.
+targets   44px minimum on .mc .pill .takebtn .sbtn .linkbtn .route .inp .slider .minichip .scopy .palopt .calcell .key
+          (not only inside .pots; .key is 56px tall on the lock screen, L10). .inp[type=date] keeps its native appearance so iOS shows the picker affordance.
 ```
 
 **Segmented control vs pill.** Two to five mutually exclusive answers or views (a chart view, a check-in style,
@@ -1105,7 +1105,8 @@ pill ("Delete everything") carries `.mc.danger`: --bad text with a 40% --bad bor
 on a 24-unit grid, `stroke="currentColor"`, 2px round strokes, from a path map: chevron, check, close, lock, bell, clock,
 chart, clipboard, drop, salt, heart, book, sparkle, print, share, people, plus-circle, lightning, foot, palette, sliders,
 apple, google, facebook, file, download, moon (Settings → Appearance), arrow-up and arrow-down (the Move up / Move down
-buttons in "Your symptoms", L6), teststrip and thermometer (fertility signs, L7; `drop` stands for mucus). No emoji anywhere in src (they render differently per OS and the palette emoji was the most
+buttons in "Your symptoms", L6), teststrip and thermometer (fertility signs, L7; `drop` stands for mucus), shield
+(Settings → Privacy & your data, L10) and backspace (the lock screen's "Delete last digit", L10). No emoji anywhere in src (they render differently per OS and the palette emoji was the most
 saturated object on every screen): the header buttons are `sliders` (settings) and `palette`, the kick button `foot`,
 the palette tick and the Milestones "done" tag `check`. An icon is decorative: the text node beside it, or the button's
 aria-label, carries the meaning, and asserted texts ("✓ On", "✓ Taken", "✓ Sync", the `.ckbox` glyphs) stay as text.
@@ -1613,15 +1614,23 @@ Apple stays first.
       fertility signs for Trying to conceive, her picked questions, day notes only with "Include my notes"), handed
       over like the POTS report; gated through plan.js with no paywall; the Report stays its accessible version
       (§5.1 "Local-first L9", A14.9).
+- [x] Privacy dashboard and app lock (local-first L10, D4): Settings → Privacy & your data shows where the record
+      lives and a live "What can leave this device" list; a 4–6 digit PIN (PBKDF2-hashed, device-only slot, never in a
+      backup), an optional passkey on the web, lock on launch and after Immediately / 1 min / 5 min away, a lock screen
+      with back-off, and Forgot PIN → restore a backup (wipe first) or erase, with no back door (A12 "Privacy & your
+      data (L10)", "App lock (L10)", "Forgot PIN (L10)", A14.10).
+- [ ] Native biometric unlock (Face ID / fingerprint) through a Capacitor plugin — later work; the phone build offers
+      the PIN only (D4).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the
       predicted date to Cyra's server, and today's copy promises one reminder at most. The brief's item 7 ("optional
       reminders for logging or predicted period") is met today by the optional logging reminder (A8).
 
 **Settings sheet (UI S1).** `SettingsSheet` is `section.palsheet#settings-sheet[aria-label="Check-in settings"]` with a
 sticky `.sheethead` (an `h2.sheettitle` "Settings" that takes focus on open, and a 44px `.sheetclose` button labelled
-"Close settings"; the bottom "Done" stays), four `.setgroup` blocks (Check-ins / Add-ons & sharing / Appearance /
-Your data), and each option row a `[role=group][aria-labelledby]` named by its `p.section-lab` (ids `set-rhythm`,
-`set-nudge`, `set-style`, `set-addons`, `set-reminders`, `set-counts`, `set-appearance`, `set-data`), every label opening
+"Close settings"; the bottom "Done" stays), the `.setgroup` blocks Check-ins / Add-ons & sharing / Appearance / [Install] /
+Privacy & your data (L10; "Your data" before), and each option row a `[role=group][aria-labelledby]` named by its `p.section-lab` (ids `set-rhythm`,
+`set-nudge`, `set-style`, `set-addons`, `set-reminders`, `set-counts`, `set-appearance`, `set-privacy`, `set-flows`, `set-data`
+(now labelling "Backup, restore or delete"), `set-lock`, `set-lock-after`, `set-lock-bio`), every label opening
 with an `svg.labico` glyph. The ids `set-counts`, `set-rhythm`, `set-nudge` and `set-reminders` exist only where their
 rows render (§9.1: counts; reminders on a phone or with webReminders), and a `.setgroup` renders only when at least one
 of its rows does. Appearance (L2) is `p.section-lab#set-appearance` (the `moon` glyph) over a joined
@@ -1638,7 +1647,114 @@ The palette previews show the scheme on screen (`paletteFor(p, scheme)`: the lig
 Appearance switches between light and dark."; registration's stage-card `.swatch-dot`s use the same scheme.
 On the web, when this browser can install Cyra and the record is in IndexedDB, a further `.setgroup` "Install"
 (`p.section-lab#set-install`, focusable with `tabIndex=-1` so Home's iOS tip can open the sheet on it) sits between
-Appearance and Your data (A14.1), so the groups run Check-ins, Add-ons & sharing, Appearance, [Install], Your data. It never shows in the phone app, in standalone mode or without IndexedDB.
+Appearance and Privacy & your data (A14.1), so the groups run Check-ins, Add-ons & sharing, Appearance, [Install], Privacy & your data (the last group). It never shows in the phone app, in standalone mode or without IndexedDB.
+
+**Privacy & your data (L10).** The last Settings group, top to bottom: `p.section-lab#set-privacy` "Privacy & your data"
+(`shield` glyph) → the unchanged `p.datastat` strip → the unchanged "where it lives" `p.hint` (rendered exactly once; L1's
+offline-copy `p.rfoot` directly under it) → `p.section-lab#set-flows` "What can leave this device" (`share` glyph) →
+`p.hint.flowintro` "What this version of Cyra can send, and when. Nothing about your health leaves this device unless a
+row below says On, or you take it out yourself as a backup, file or summary." → `ul.flowlist[role=list]` → an optional
+`Details` "Other connections Cyra makes" → `p.section-lab#set-data` "Backup, restore or delete" (`file` glyph) over the
+unchanged Encrypted backup / Restore / Delete everything pills → the App lock block (below) → Done. The rows come from the
+pure `flowRows(c)` in `src/lib/privacyFlows.js` (`components/PrivacyFlows.jsx` renders them; App.jsx builds `c` from
+`lib/features.js` flags, `plan.can("cloudBackup")`, `hasServer()`, `isNative()`, `reminderSupport()` and her settings), in
+the order reminders, counts, ai, wearables, files, cloud, each `{ id, name, state: on | off | you | na, note }`:
+- reminders: phone — always available, named "Reminders", On iff enabled and status "on"; web — available iff the
+  webReminders flag and a server, named "Browser reminders", Off with note `unsupported` in a browser that can't show
+  them, else On iff enabled and status "on", with note `pending` while addresses wait to be forgotten; otherwise `na`.
+- counts: available iff the counts flag and a server; On iff `research`. ai: iff the ai flag and a server; On iff `askAI`.
+- wearables: with the flag in a `VITE_DEMO_WEARABLES` build → Off with note `demo`; else iff the flag and a server → On
+  iff a non-demo Oura / Terra entry or an unconfirmed Terra disconnect exists (note `terraOff` when one does); else `na`.
+- files: always `you` ("When you make one"). cloud: Off iff the cloudBackup flag and `plan.can("cloudBackup")`, else `na`.
+A row with state `na` is not rendered (D2 / D3: a feature that is off leaves no trace; there is no cloud row while the plan
+says no). Each rendered row is `li.flowrow` with `div.flowhead` (`b#flow-{id}` the name, `span.flowstate.{state}` the
+chip On / Off / When you make one), `p.flowline` (exactly what is sent, `FLOW_COPY.lines`), an optional `p.flownote`
+(`FLOW_COPY.notes`) and one `Details` labelled "Details" whose button carries `aria-describedby="flow-{id}"`. The Details
+reuse the fact lists their screens show, byte-identical (`components/Details.jsx`: `WebReminderFacts`, `CountsFacts({
+stage })`, `AiFacts`, `WearableFacts({ native })`), plus the sentences in `FLOW_COPY.details`, `filesSentence(FEATURES)`
+and `WEAR_RESTORE_LINE` (`lib/disclosures.js`; `leaveDevice` is retired). "Other connections Cyra makes" lists `web`
+(not on the phone), `server` (only when the build has at least one server flow: web reminders, counts, AI, wearables or
+sign-in, with a server) and `signin` (the signin flag and a server), and is omitted when empty. No row has a switch: the
+controls stay where each feature lives. Rows are never `.medrow` and never contain the strings the suites use to find
+Settings rows (privacyFlows.test.mjs).
+
+**App lock (L10, decision D4).** `p.section-lab#set-lock` "App lock" (`lock` glyph) over a `.medrow[role=group]`
+(`b` Off / On, `span` "Ask for a PIN each time Cyra opens on this device." or "{PIN | PIN, or fingerprint, face or screen
+lock}. Cyra locks when it opens and {as soon as you leave it | after a minute away | after 5 minutes away}.", and a
+`.takebtn` "Set a PIN" (`aria-expanded` / `aria-controls="lock-panel"`) or "Lock now"), the honest `p.rfoot` (web: "The
+lock keeps Cyra closed on this device until your PIN is entered. It doesn't encrypt what's stored: anyone with full
+access to this browser, for example through its developer tools, could still read your record. Only an encrypted backup
+file is locked with a passphrase."; phone: "…on this phone… It doesn't encrypt what's stored; your phone's own passcode
+is what protects its storage. …") and a `Details` of the lock facts (`LOCK_COPY.facts`, plus the POTS line while POTS is
+on and the phone line on a phone). While on: `p.section-lab#set-lock-after` "Lock again after" over a `.mcrow.seg` of
+`.mc[aria-pressed]` Immediately / 1 minute / 5 minutes (`after` 0 / 60 / 300); on the web, when
+`PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()` is true, the passkey `.medrow` (`b#set-lock-bio`
+"Fingerprint, face or screen lock", `.takebtn[aria-pressed]` Turn on / ✓ On, its Details); a `.mcrow` of `.mc` "Change
+PIN" and "Turn off lock". Panels share `div.plaincard#lock-panel` (set: New PIN / Repeat it, "Turn on the lock" / Cancel;
+change: Current PIN + the two, "Save new PIN"; off: "Turn off the app lock?", Current PIN, "Turn off the lock" / "Keep it
+on"; passkey: Current PIN → Continue, then "Set it up", which calls `createPasskey` inside the tap). Opening a panel
+focuses its first field; Cancel or success returns focus to the opener. Errors: "Use 4 to 6 digits.", "The two PINs don't
+match.", "That PIN is easy to guess. Avoid a run like 1234 or one digit repeated.", "That isn't your current PIN.", "Too
+many tries. Try again in m:ss." (live), "Cyra couldn't save the lock on this device. Try again.", "Setting up
+fingerprint, face or screen lock didn't finish. Your PIN still works.". Every string is in `LOCK_COPY` (`src/lib/lock.js`).
+- **PIN.** 4–6 digits (`validPin`; `weakPin` refuses a repeated digit or a straight run), hashed with PBKDF2-SHA-256,
+  600,000 rounds (`PIN_ITER`, the backup's cost), a random 16-byte salt, 32-byte output (`hashPin` → `{ salt, hash, iter,
+  len }`); `checkPin` re-derives and compares in constant time. The PIN is never stored.
+- **The slot.** `LockCfg = { v: 1, pin, after, cred: { id } | null, fails, waitUntil }` lives outside the record: web
+  IndexedDB `cyra` / `state` key `v1-lock`; phone `Library/NoCloud/cyra-lock.json` (`storage.loadLock` / `saveLock` /
+  `clearLock`, all through the save queue). It is not in PERSISTED, RECORD, DEVICE_ONLY or `snapshot()`, so never in a
+  backup, the autosave or another tab's adoption; `cleanLock` validates it on every read (a damaged slot reads as no lock;
+  `waitUntil` is capped at now + 15 min). App.jsx reads it in `hydrate`, only after the record and only when there is one,
+  and the first render after hydration is already locked. Delete everything removes it (web: `clear()`, same
+  transaction; phone: `clearLock()` after the record), as do Start over and a forgotten-PIN restore; the phone also
+  clears a stale copy when a new record starts (`finishReg`, the splash restore).
+- **When it locks.** At every launch with a slot, and on hide / show: `after === 0` locks on the hide itself
+  (visibilitychange hidden, pagehide, appStateChange inactive); otherwise `shouldLock({ afterSec, awayMs, graced,
+  running })` on show (`awayMs` is the larger of the wall-clock and `performance.now()` deltas). A hide within `GRACE_MS`
+  (3 s) of a hand-off Cyra started itself (`holdLock`: the backup download / share, the Restore file picker, the passkey
+  prompt, the Report's PDF / email / print / share, the POTS report save / share) is graced and locks only after
+  `GRACE_MAX_MS` (5 min). Nothing locks while a POTS stand test or movement session runs (`running`) or during a wipe.
+  "Lock now" locks at once. Another tab's change arrives as the BroadcastChannel message `lock` (→ `reloadLock`).
+- **Back-off.** `FREE_TRIES` 5, then `BACKOFF_SEC` 30 / 60 / 120 / 300 / 900 s (`afterFail` persists `fails` and
+  `waitUntil`; `afterSuccess` zeroes them). `verifyPin` is the one check: the lock screen and every Current PIN field in
+  Settings share it and the persisted counter.
+- **Passkey (web only).** `createPasskey` (rp "Cyra", user "Cyra lock", platform attachment, user verification required,
+  attestation none) keeps only the base64url credential id; `verifyPasskey` asks for an assertion with that id and checks
+  rawId, type, challenge, origin and the UP + UV flags itself (`checkClientData`, `checkAssertion`). No network. The phone
+  build never offers it.
+- **Lock screen** (`src/screens/LockScreen.jsx`): `main.splash.lockscreen[aria-labelledby=lock-title]` in the base org
+  theme (never the stage palette; the theme-color meta and page background follow) with the wordmark, `h1#lock-title`
+  "Cyra is locked" (focused on mount), no BUILD stamp, no header, tabs, sheets or toasts behind it. View pin: "Enter your
+  PIN to open it.", `input.inp.pinfield[aria-label=PIN][aria-describedby=lock-status]` (digits only; Enter submits; the
+  PIN's length auto-submits), `p#lock-status.lockstatus[role=status]` ("Checking…", "That PIN isn't right. {n} more
+  {try|tries} before a short wait.", "That PIN isn't right.", "Too many tries. Try again in m:ss." with a 1 s tick in an
+  aria-hidden span and a `.sr-only` "Too many tries. You can try again in {30 seconds | 1 minute | 2 minutes | 5 minutes |
+  15 minutes}." announced once, "You can try again now.", "Fingerprint, face or screen lock didn't unlock Cyra. Use your
+  PIN.", "Cyra couldn't check your PIN just now. Try again."), `div.keypad[role=group][aria-label="PIN keypad"]` of 3×4
+  `button.key` (1–9, a spacer, 0, `.key.del` "Delete last digit" with the `backspace` glyph; 56px tall, disabled while
+  checking or waiting), a document keydown handler for 0–9 / Backspace / Enter while no field has focus, the
+  `.ghostbtn` "Use fingerprint, face or screen lock" when a passkey is set, and `.linkbtn.lockforgot` "Forgot your PIN?".
+  View unreadable (the slot couldn't be read at launch): "Cyra couldn't read its lock settings on this device.", `.cta`
+  "Try again", and the Forgot options. After an unlock focus lands on `.tab-on` (an open sheet focuses its own title).
+
+**Forgot PIN (L10).** View forgot: "Cyra can't reset your PIN. There's no account and no back door. You can restore an
+encrypted backup, which replaces everything on this device and turns the lock off, or erase Cyra's record on this
+device.", a `.mcrow` of `.mc` "Restore from a backup" and `.mc.danger` "Erase this device's record"
+(`aria-expanded` / `aria-controls`), and `.linkbtn.lockforgot` "Back to the PIN". Erase shows the existing Delete
+everything confirm (`WipeConfirm`, `#lock-wipe-panel`, byte-identical). Restore, step 1 (`#lock-restore-panel`): Backup
+file, Passphrase ("Backup passphrase"), `.cta` "Open my backup" ("Unlocking…"), "Opened on this device with your
+passphrase. Nothing changes until you confirm on the next step."; the backup is decrypted and checked (`readBackup`, the
+same errors as Settings) into memory only. Step 2: the same `WipeConfirm` with the intro "Your backup opened. Restore it
+on this device? Cyra first deletes everything on this device, the same as Delete everything: every check-in, POTS log,
+note, appointment and setting here, and the app lock.[ This also {deleteAlso}.] Then it puts your backup in their place
+and opens without a PIN." and the button "Yes, restore my backup" ("Restoring…"). It runs `wipe()` (every server step,
+this device's clean-up, the record, the lock) with `then` = write `forgotPinRecord(backup)` (`lib/lock.js`: persisted keys
+from the backup only, minus DEVICE_ONLY / DEVICE_PREFS / NOT_IN_BACKUP and `reminders`; wearable connections from the
+backup, marked unconfirmed; reminders off on the web; a new POTS epoch) into the fresh store, then reloads on `#restored`
+(or `#restored=rem` when the backup had reminders on in a web build with reminders; `#restore` when the write failed,
+which opens the splash on its restore form with "Cyra deleted this device's record but couldn't put your backup in its
+place. Choose the backup file again to restore it."). Verify → wipe → write → reload, never a merge: a merge would have
+let a crafted backup unlock the existing record.
 
 **Data status strip (UI S1).** Above the Encrypted backup / Restore / Delete everything pills, `p.datastat` reads
 "{N} days logged · last backup {today | yesterday | N days ago | Mon D | never}" ("never — worth doing once" from seven
@@ -2070,7 +2186,19 @@ the `.pdfcard` in `src/screens/ReportScreen.jsx`, `src/lib/files.js` (unchanged 
 - **New persisted key `exportLog`** (`{ month: "YYYY-MM", n } | null`): DEVICE_ONLY and NOT_IN_BACKUP, written only
   while `PLAN.pdfExportsPerMonth` is non-null (it is null, so the shipping app stores nothing about the PDFs she
   makes); cleared by Delete everything; kept by a restore.
-- **Copy widened.** The consent details and Settings → Your data name the appointment PDF among files she makes
+- **Copy widened.** The consent details and Settings → Your data (now Privacy & your data, L10) name the appointment PDF among files she makes
   (lib/disclosures.js); the day-note hint says the note goes into an appointment PDF only with the tick; "Print or
   save PDF" → "Print this page"; "Add to email" → "Add to email and PDF". The phone sweep also removes
   `cyra-summary-*.pdf`.
+
+### A14.10 Privacy dashboard and app lock (L10)
+
+Brief item 6, decision D4. Code: `src/lib/lock.js` (pure plus WebCrypto / WebAuthn; imports only record.js), `src/lib/privacyFlows.js`
+(pure), `src/lib/storage.js` (the device-only lock slot), `src/components/PrivacyFlows.jsx`, `src/components/LockSettings.jsx`,
+`src/components/DataControls.jsx` (the group, `WipeConfirm` extracted, `noSave` exported, `onHandoff`), `src/components/Details.jsx`
+(`describedBy`; the shared `CountsFacts` / `AiFacts` / `WearableFacts`), `src/screens/LockScreen.jsx`, App.jsx (hydrate, `verifyPin`,
+hide / show, `wipe({ then, hash })`, the `#restored` / `#restore` hashes). Rules and copy: A12 "Privacy & your data (L10)", "App lock
+(L10)" and "Forgot PIN (L10)"; §8.4 (`.key`, the shield and backspace glyphs). Tests: `src/lib/lock.test.mjs`,
+`src/lib/privacyFlows.test.mjs`; the scratch acceptance `lf/l10/lock-check.mjs` (Chromium's CDP virtual authenticator, simulated
+visibility, `page.clock`). No new dependency, network call or record key; the lock slot is documented in docs/ARCHITECTURE.md §3 and
+docs/PRIVACY-AUDIT.md (L10). No harness file was edited and no suite sets a lock. Privacy controls stay free core (docs/MONETIZATION.md).

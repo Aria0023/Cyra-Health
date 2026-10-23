@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import Advice from "../components/Advice.jsx";
-import Details from "../components/Details.jsx";
+import Details, { AiFacts } from "../components/Details.jsx";
 import { STARTERS } from "../lib/askStarters.js";
 import { copyText } from "../lib/clipboard.js";
 import { reduceMotion } from "../lib/motion.js";
@@ -74,12 +74,7 @@ export default function AskScreen({ org, stage, askQ, setAskQ, runAsk, askBusy, 
             <span><b>Also ask Cyra's AI when the library has no answer</b></span>
           </button>
           <p className="rfoot" id="ask-ai-disclosure" style={{ margin: "0 0 4px" }}>{AI_DISCLOSURE}</p>
-          <Details label="Exactly what's sent">
-            <ul>
-              <li>The question you typed (up to 500 characters) is sent. Your name, account and life stage don't go with it.</li>
-              <li>Cyra doesn't keep your question. Anthropic keeps it for a limited time under its own terms.</li>
-            </ul>
-          </Details>
+          <Details label="Exactly what's sent"><AiFacts /></Details>
         </>
       )}
       <button className="cta" onClick={runAsk} disabled={askBusy}>{askBusy ? <><span className="askspin" aria-hidden="true" />Asking Cyra's AI…</> : "Ask"}</button>

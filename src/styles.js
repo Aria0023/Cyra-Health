@@ -332,8 +332,8 @@ html { scroll-padding-top:60px; }
 .cta, .ghostbtn, .back, .stagecard, .disclosure, .route, .socialbtn, .obopt, .consentopt, .palopt { transition:transform var(--t-fast) var(--ease-std), background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast); }
 .cta:active, .ghostbtn:active, .back:active, .stagecard:active, .disclosure:active, .route:active, .socialbtn:active, .obopt:active, .consentopt:active, .palopt:active { transform:scale(.985); }
 .cta:active { filter:brightness(.94); }
-.mc, .chip, .pill, .takebtn, .tipclose, .sbtn, .minichip, .tab, .calcell, .scopy, .linkbtn { transition:transform var(--t-fast) var(--ease-std), background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast); }
-.mc:active, .chip:active, .pill:active, .takebtn:active, .tipclose:active, .sbtn:active, .minichip:active, .calcell:active { transform:scale(.96); background:color-mix(in srgb, var(--primary) 12%, var(--card)); border-color:var(--primary); }
+.mc, .chip, .pill, .takebtn, .tipclose, .sbtn, .minichip, .tab, .calcell, .scopy, .linkbtn, .key { transition:transform var(--t-fast) var(--ease-std), background-color var(--t-fast), border-color var(--t-fast), color var(--t-fast); }
+.mc:active, .chip:active, .pill:active, .takebtn:active, .tipclose:active, .sbtn:active, .minichip:active, .calcell:active, .key:active { transform:scale(.96); background:color-mix(in srgb, var(--primary) 12%, var(--card)); border-color:var(--primary); }
 @media (hover:hover) { .mc:hover, .chip:hover, .pill:hover, .disclosure:hover, .stagecard:hover, .takebtn:hover, .sbtn:hover, .route:hover, .obopt:hover { border-color:color-mix(in srgb, var(--primary) 55%, var(--line)); } }
 /* Danger: the one destructive pill (Delete everything) is red-outlined and never takes the primary tint. */
 .mc.danger { color:var(--bad); border-color:color-mix(in srgb, var(--bad) 40%, var(--line)); }
@@ -544,7 +544,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [tabindex]:fo
 /* The tab bar scrolls sideways (overflow-x:auto), which clips anything drawn outside it, so a tab's ring sits just inside the tab. */
 .tab:focus-visible { outline-offset:-3px; }
 .seg.scroll .mc:focus-visible { outline-offset:-3px; } .seg.scroll .mc.on:focus-visible { outline-color:var(--card); }
-.mc, .pill, .takebtn, .sbtn, .orgbtn, .stagechip, .topbtn, .linkbtn, .ghost, .route, .inp, .slider, .minichip, .scopy, .palopt, .calcell { min-height:44px; }
+.mc, .pill, .takebtn, .sbtn, .orgbtn, .stagechip, .topbtn, .linkbtn, .ghost, .route, .inp, .slider, .minichip, .scopy, .palopt, .calcell, .key { min-height:44px; }
 .sdot.on, .c-per-mark { outline:1.5px solid var(--mark-edge); }
 .wearbtns { display:flex; gap:6px; flex-shrink:0; align-items:center; }
 .wearconfirm { margin:2px 0 12px; }
@@ -703,6 +703,31 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .rnotes li { padding:6px 0; border-top:1px solid var(--line); overflow-wrap:anywhere; }
 .rnotes b { margin-right:6px; }
 .emailpreview { resize:none; field-sizing:content; background:color-mix(in srgb, var(--primary) 5%, var(--card)); border-radius:var(--r-card); padding:13px 15px; overflow:hidden; }
+/* L10: the privacy dashboard rows (Settings → Privacy & your data → What can leave this device) and the lock screen. Tokens only; no animation is added, so the reduced-motion block above already covers them. */
+.flowlist { list-style:none; margin:0 0 6px; padding:0; }
+.flowrow { padding:10px 0 2px; border-top:1.5px solid var(--line); }
+.flowrow:first-child { border-top:none; padding-top:2px; }
+.flowhead { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.flowhead b { font-size:14px; color:var(--ink); line-height:1.3; }
+.flowstate { flex-shrink:0; font:700 11px 'Karla Variable','Karla'; line-height:1.2; border:1.5px solid var(--line); border-radius:var(--r-pill); padding:4px 10px; color:var(--soft); background:var(--card); }
+.flowstate.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary-text); }
+.flowstate.you { border-color:color-mix(in srgb, var(--accent) 55%, var(--line)); color:var(--accent-text); }
+.flowstate.na { border-style:dashed; }
+.flowline { margin:3px 0 0; font-size:var(--fs-sm); line-height:1.45; color:var(--soft); }
+.flownote { margin:4px 0 0; font-size:var(--fs-sm); line-height:1.45; color:var(--primary-text); font-weight:600; }
+.flowrow .morewrap { margin:2px 0 8px; }
+.flowintro { margin:0 0 6px; font-size:var(--fs-sm); }
+.lockscreen { text-align:center; }
+.lockscreen .disp { margin-top:22px; }
+.pinfield { display:block; max-width:220px; margin:14px auto 4px; text-align:center; font:600 24px 'Karla Variable','Karla'; letter-spacing:.45em; }
+.lockstatus { min-height:1.5em; margin:0 0 10px; font-size:var(--fs-md); color:var(--soft); }
+.lockstatus.bad { color:var(--bad); font-weight:600; }
+.keypad { display:grid; grid-template-columns:repeat(3, 1fr); gap:var(--gap) 14px; max-width:276px; margin:0 auto 10px; }
+.key { min-height:56px; min-width:44px; display:inline-flex; align-items:center; justify-content:center; border:1.5px solid var(--line); background:var(--card); border-radius:var(--r-pill); font:500 22px 'Fraunces Variable','Fraunces',serif; color:var(--ink); cursor:pointer; }
+.key.del { border-color:transparent; background:none; color:var(--primary-text); }
+.key:disabled { color:var(--soft); border-style:dashed; cursor:default; }
+.lockforgot { display:flex; margin:14px auto 0; min-height:44px; }
+.lockscreen .plaincard, .lockscreen .mcrow { text-align:left; }
 @media print {
   .mast, nav[aria-label="Sections"], .tabswrap, .routes, .pdfcard, .rappt .linkbtn, .rcov-today .linkbtn, .sadd, .scopy, .toast, .disclosure, .savebar, .report .cta, .rlong { display:none !important; }
   .bodypanel { display:block !important; border-radius:0; }

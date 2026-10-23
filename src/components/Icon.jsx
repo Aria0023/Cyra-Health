@@ -35,6 +35,8 @@ const PATHS = {
   "arrow-down": "M12 5v14M19 12l-7 7-7-7",
   teststrip: "M9 2h6v20H9zM11 7h2M11 11h2", // an ovulation test strip with its control and test lines (L7)
   thermometer: "M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z", // basal body temperature (L7)
+  shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z", // Settings → Privacy & your data (L10)
+  backspace: "M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM18 9l-6 6M12 9l6 6", // the lock screen's Delete last digit (L10)
 };
 
 export default function Icon({ name, size = 16, className }) {

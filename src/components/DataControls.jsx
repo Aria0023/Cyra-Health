@@ -5,9 +5,11 @@ import { relDay } from "../lib/engine.js";
 import Details from "./Details.jsx";
 import Icon from "./Icon.jsx";
 import { FEATURES } from "../lib/features.js";
-import { leaveDevice, restoreFoot, restoreChanges, wipeConfirm, wipeMore, LEGACY_WEAR_LINE } from "../lib/disclosures.js";
+import { restoreFoot, restoreChanges, wipeConfirm, wipeMore, LEGACY_WEAR_LINE } from "../lib/disclosures.js";
 
-/* Your data: where it lives, encrypted backup out/in, delete everything.
+/* Privacy & your data (L10; "Your data" before): where the record lives, the live "What can leave this device"
+   dashboard (rendered by SettingsSheet as `children`, components/PrivacyFlows.jsx), encrypted backup out/in,
+   delete everything; the App lock block follows this component in the same group (components/LockSettings.jsx).
    Encryption, decryption and deletion run on this device. The passphrase lives only
    in this form's state while it is typed, is cleared on every way out (done, cancel,
    error), and is never saved; the fields ask password managers not to keep it.
@@ -23,10 +25,13 @@ import { leaveDevice, restoreFoot, restoreChanges, wipeConfirm, wipeMore, LEGACY
    L4: every sentence that names a flagged feature comes from lib/disclosures.js with this build's
    FEATURES (identical to the text before L4 when every flag is on). legacyWear (App.jsx): a build
    without wearables whose record still holds a real connection says, under the delete confirm, where
-   to remove it, because this build doesn't ask Cyra's server to end it. */
-const noSave = { autoComplete: "off", "data-1p-ignore": "true", "data-lpignore": "true" };
+   to remove it, because this build doesn't ask Cyra's server to end it.
+   L10: the Delete everything confirm (both of its panels, byte-identical) is WipeConfirm, exported so the lock
+   screen's "Erase this device's record" and its forgotten-PIN restore show the same card; onHandoff (App.jsx
+   holdLock) runs when the Restore file picker opens, so the hide it causes doesn't lock the app. */
+export const noSave = { autoComplete: "off", "data-1p-ignore": "true", "data-lpignore": "true" };
 
-export function RestoreForm({ onImport, onDone, compact = false }) {
+export function RestoreForm({ onImport, onDone, compact = false, onPick = null }) {
   const [file, setFile] = useState(null);
   const [pass, setPass] = useState("");
   const [busy, setBusy] = useState(false);
@@ -39,7 +44,7 @@ export function RestoreForm({ onImport, onDone, compact = false }) {
   return (
     <div className="plaincard" style={{ marginTop: compact ? 10 : 0 }}>
       <p className="lab" style={{ margin: "0 0 6px" }}>Restore from an encrypted backup</p>
-      <label className="flab"><span>Backup file</span><input className="inp" type="file" accept=".json,.cyra,application/json" aria-label="Backup file" onChange={(e) => setFile(e.target.files?.[0] || null)} /></label>
+      <label className="flab"><span>Backup file</span><input className="inp" type="file" accept=".json,.cyra,application/json" aria-label="Backup file" onClick={() => onPick?.()} onChange={(e) => setFile(e.target.files?.[0] || null)} /></label>
       <label className="flab"><span>Passphrase</span><input className="inp" type="password" placeholder="Backup passphrase" aria-label="Backup passphrase" {...noSave} value={pass} onChange={(e) => setPass(e.target.value)} /></label>
       {err && <p className="errhint" style={{ marginTop: 0 }}>{err}</p>}
       <button className="cta" disabled={busy} onClick={go}>{busy ? "Unlocking…" : "Restore"}</button>
@@ -72,16 +77,56 @@ const STAYS = {
 };
 const andList = (a) => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`);
 
-export default function DataControls({ driver, onExport, onImport, onWipe, ping, keepsWeekNote = false, daysLogged = 0, lastBackupAt = null, todayIso, offlineCopy = false, legacyWear = false }) {
+/* The Delete everything confirm: the question card, then, when the server steps couldn't all be confirmed, the
+   blocked card with Try again / Delete on this device anyway. `intro` replaces the question (the lock screen's
+   forgotten-PIN restore, which wipes first); the ids, classes and every other sentence are unchanged. */
+export function WipeConfirm({ onWipe, keepsWeekNote = false, onCancel, panelId = "data-wipe-panel", intro = null, confirmLabel = "Yes, delete it all", busyLabel = "Deleting…", legacyWear = false, offlineCopy = false }) {
+  const [wiping, setWiping] = useState(false);
+  const [err, setErr] = useState("");
+  const [blocked, setBlocked] = useState(null); // { failed: [{ name, kind }], ended: [names] } from a Delete everything that stopped
+  const native = isNative();
+  const runWipe = async (opts) => {
+    setWiping(true); setErr("");
+    try { await onWipe(opts); }
+    catch (e) { if (Array.isArray(e?.failed) && e.failed.length) setBlocked({ failed: e.failed, ended: Array.isArray(e.ended) ? e.ended : [] }); else { setBlocked(null); setErr(e?.message || "Couldn't delete the record — try again"); } }
+    finally { setWiping(false); }
+  };
+  if (blocked) {
+    return (
+      <div className="plaincard" id={panelId} style={{ marginTop: 10 }} role="alert">
+        <p className="plain"><b>Your check-ins, notes and settings haven't been deleted.</b>{blocked.ended.length ? ` Already done: ${andList(blocked.ended.map((k) => ENDED[k]).filter(Boolean))}.` : ""} {["network", "refused", "nokey"].map((kind) => { const steps = blocked.failed.filter((f) => f.kind === kind).map((f) => f.name); return steps.length ? failLine(kind, steps) : ""; }).filter(Boolean).join(" ")} Or delete on this device anyway.</p>
+        <p className="rfoot" style={{ marginTop: 0 }}>If you delete anyway, {andList(blocked.failed.map((f) => STAYS[f.name]).filter(Boolean))}.</p>
+        {blocked.failed.some((f) => f.kind !== "nokey") && <button className="cta" disabled={wiping} onClick={() => runWipe({})}>{wiping ? "Trying…" : "Try again"}</button>}
+        <button className="cta stopbtn" disabled={wiping} onClick={() => runWipe({ force: true })}>{wiping ? "Deleting…" : "Delete on this device anyway"}</button>
+        <button className="ghostbtn" disabled={wiping} onClick={() => { setBlocked(null); onCancel?.(); }}>Keep my data</button>
+      </div>
+    );
+  }
+  return (
+    <div className="plaincard" id={panelId} style={{ marginTop: 10 }}>
+      <p className="plain">{intro ?? <><b>Delete everything on this device?</b>{wipeConfirm(FEATURES, native)}</>}</p>
+      {legacyWear && <p className="rfoot" style={{ marginTop: 0 }}>{LEGACY_WEAR_LINE}</p>}
+      <Details label="More about deleting">
+        <ul>
+          {wipeMore(FEATURES, native).map((t) => <li key={t}>{t}</li>)}
+          {offlineCopy && <li>Cyra's offline copy of its own app files is removed from this browser too.</li>}
+          {keepsWeekNote && <li>So this device isn't counted twice, Cyra keeps only this week's date here (nothing else, nothing about your health) and deletes it the first time Cyra opens after this week ends.</li>}
+        </ul>
+      </Details>
+      {err && <p className="errhint" role="alert" style={{ marginTop: 0 }}>{err}</p>}
+      <button className="cta stopbtn" disabled={wiping} onClick={() => runWipe({})}>{wiping ? busyLabel : confirmLabel}</button>
+      <button className="ghostbtn" disabled={wiping} onClick={() => onCancel?.()}>Keep my data</button>
+    </div>
+  );
+}
+
+export default function DataControls({ driver, onExport, onImport, onWipe, ping, keepsWeekNote = false, daysLogged = 0, lastBackupAt = null, todayIso, offlineCopy = false, legacyWear = false, onHandoff = null, children = null }) {
   const [mode, setMode] = useState(null); // null | "export" | "import" | "wipe"
   const [pass, setPass] = useState("");
   const [pass2, setPass2] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [wiping, setWiping] = useState(false);
-  const [blocked, setBlocked] = useState(null); // { failed: [{ name, kind }], ended: [names] } from a Delete everything that stopped
   const phone = driver === "app-sandbox" || isNative();
-  const native = isNative();
   const where = driver == null ? null
     : driver === "app-sandbox" ? "in this app's private storage on this device"
     : driver === "indexeddb" ? "in this browser's on-device database (not cookies, not localStorage); in a private window it's erased once you close every private window"
@@ -89,13 +134,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
     : driver === "unreadable" ? "in memory for this session only: Cyra couldn't open this browser's storage. An earlier record may still be stored here; clear this site's data in your browser to remove it"
     : "in memory for this session only — nothing is saved on this device";
   const clearPass = () => { setPass(""); setPass2(""); };
-  const switchTo = (m) => { setMode(mode === m ? null : m); setErr(""); setBlocked(null); clearPass(); };
-  const runWipe = async (opts) => {
-    setWiping(true); setErr("");
-    try { await onWipe(opts); }
-    catch (e) { if (Array.isArray(e?.failed) && e.failed.length) setBlocked({ failed: e.failed, ended: Array.isArray(e.ended) ? e.ended : [] }); else { setBlocked(null); setErr(e?.message || "Couldn't delete the record — try again"); } }
-    finally { setWiping(false); }
-  };
+  const switchTo = (m) => { setMode(mode === m ? null : m); setErr(""); clearPass(); }; // a closed WipeConfirm unmounts, which drops its blocked state
   const doExport = async () => {
     setErr("");
     if (passphraseLength(pass) < 8) { clearPass(); return setErr("Use a passphrase of at least 8 characters"); }
@@ -110,13 +149,12 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
   };
   return (
     <>
-      <p className="section-lab" id="set-data" style={{ margin: "0 0 6px" }}><Icon name="lock" className="labico" />Your data</p>
+      <p className="section-lab" id="set-privacy" style={{ margin: "0 0 6px" }}><Icon name="shield" className="labico" />Privacy &amp; your data</p>
       <p className="datastat"><b>{daysLogged === 1 ? "1 day logged" : `${daysLogged} days logged`}</b><span aria-hidden="true">·</span><span>last backup {lastBackupAt && todayIso ? relDay(lastBackupAt, todayIso) : (daysLogged >= 7 ? "never — worth doing once" : "never")}</span></p>
       <p className="hint" style={{ margin: "0 0 8px" }}>{where ? `Your check-ins, notes and history are stored ${where}.` : "Checking where your check-ins, notes and history are stored…"} Cyra's servers don't keep a copy.</p>
       {offlineCopy && <p className="rfoot" style={{ margin: "0 0 8px" }}>This browser also keeps a copy of Cyra's own app files, so Cyra opens without a connection. That copy holds none of your check-ins, notes or settings.</p>}
-      <Details label="What can leave this device">
-        {leaveDevice(FEATURES).map((t) => <p key={t}>{t}</p>)}
-      </Details>
+      {children}
+      <p className="section-lab" id="set-data" style={{ margin: "12px 0 6px" }}><Icon name="file" className="labico" />Backup, restore or delete</p>
       <div className="mcrow" role="group" aria-labelledby="set-data">
         <button className={`mc ${mode === "export" ? "on" : ""}`} aria-expanded={mode === "export"} aria-controls="data-export-panel" onClick={() => switchTo("export")}>Encrypted backup</button>
         <button className={`mc ${mode === "import" ? "on" : ""}`} aria-expanded={mode === "import"} aria-controls="data-import-panel" onClick={() => switchTo("import")}>Restore</button>
@@ -139,32 +177,8 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
           </Details>
         </div>
       )}
-      {mode === "import" && <div id="data-import-panel"><RestoreForm onImport={onImport} onDone={() => setMode(null)} compact /></div>}
-      {mode === "wipe" && !blocked && (
-        <div className="plaincard" id="data-wipe-panel" style={{ marginTop: 10 }}>
-          <p className="plain"><b>Delete everything on this device?</b>{wipeConfirm(FEATURES, native)}</p>
-          {legacyWear && <p className="rfoot" style={{ marginTop: 0 }}>{LEGACY_WEAR_LINE}</p>}
-          <Details label="More about deleting">
-            <ul>
-              {wipeMore(FEATURES, native).map((t) => <li key={t}>{t}</li>)}
-              {offlineCopy && <li>Cyra's offline copy of its own app files is removed from this browser too.</li>}
-              {keepsWeekNote && <li>So this device isn't counted twice, Cyra keeps only this week's date here (nothing else, nothing about your health) and deletes it the first time Cyra opens after this week ends.</li>}
-            </ul>
-          </Details>
-          {err && <p className="errhint" role="alert" style={{ marginTop: 0 }}>{err}</p>}
-          <button className="cta stopbtn" disabled={wiping} onClick={() => runWipe({})}>{wiping ? "Deleting…" : "Yes, delete it all"}</button>
-          <button className="ghostbtn" disabled={wiping} onClick={() => setMode(null)}>Keep my data</button>
-        </div>
-      )}
-      {mode === "wipe" && blocked && (
-        <div className="plaincard" id="data-wipe-panel" style={{ marginTop: 10 }} role="alert">
-          <p className="plain"><b>Your check-ins, notes and settings haven't been deleted.</b>{blocked.ended.length ? ` Already done: ${andList(blocked.ended.map((k) => ENDED[k]).filter(Boolean))}.` : ""} {["network", "refused", "nokey"].map((kind) => { const steps = blocked.failed.filter((f) => f.kind === kind).map((f) => f.name); return steps.length ? failLine(kind, steps) : ""; }).filter(Boolean).join(" ")} Or delete on this device anyway.</p>
-          <p className="rfoot" style={{ marginTop: 0 }}>If you delete anyway, {andList(blocked.failed.map((f) => STAYS[f.name]).filter(Boolean))}.</p>
-          {blocked.failed.some((f) => f.kind !== "nokey") && <button className="cta" disabled={wiping} onClick={() => runWipe({})}>{wiping ? "Trying…" : "Try again"}</button>}
-          <button className="cta stopbtn" disabled={wiping} onClick={() => runWipe({ force: true })}>{wiping ? "Deleting…" : "Delete on this device anyway"}</button>
-          <button className="ghostbtn" disabled={wiping} onClick={() => { setBlocked(null); setMode(null); }}>Keep my data</button>
-        </div>
-      )}
+      {mode === "import" && <div id="data-import-panel"><RestoreForm onImport={onImport} onDone={() => setMode(null)} compact onPick={onHandoff} /></div>}
+      {mode === "wipe" && <WipeConfirm onWipe={onWipe} keepsWeekNote={keepsWeekNote} legacyWear={legacyWear} offlineCopy={offlineCopy} onCancel={() => setMode(null)} />}
     </>
   );
 }

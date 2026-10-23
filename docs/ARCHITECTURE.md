@@ -38,7 +38,8 @@ State       src/App.jsx  (useState / useMemo, the 400 ms autosave, cross-tab mes
   ↓
 Pure lib    engine.js  ←  record.js, pots.js (+ potsPatterns, potsReport, potsMove)
             daylog.js  ←  record.js;  constants.js, appearance.js, askLibrary.js;  plan.js and features.js stand alone;
-            disclosures.js imports only features.js
+            disclosures.js imports only features.js;  privacyFlows.js stands alone (L10);
+            lock.js ← record.js (L10: PIN hashing, back-off, WebAuthn checks; no api/native/storage/features import)
   ↓
 I/O lib     storage.js, backup.js, files.js, native.js, api.js
             (pulse.js, notifications.js and wearables.js call api.js; backup.js imports nothing,
@@ -66,7 +67,7 @@ Dependency rules (unit-tested where a test can see them):
 ## 3. Where the record is stored
 
 In a browser the whole record is one value in IndexedDB (database `cyra`, store `state`, key `v1`),
-with a second copy of the POTS log under `v1-pots` and a week-only hold in database `cyra-hold`;
+with a second copy of the POTS log under `v1-pots`, the app lock under `v1-lock` (L10) and a week-only hold in database `cyra-hold`;
 never localStorage or cookies. On iPhone and Android it is one file, `NoCloud/cyra-state.json`, in
 the app's private Library folder (left out of iPhone backups with complete file protection; Android
 backup and transfer switched off), written through a temp file and a rename. The phone build opens
@@ -78,20 +79,28 @@ Details (all in `src/lib/storage.js`; phone specifics in `docs/NATIVE.md`):
   copy, written in the same transaction as every save, so a tab still running a build from before
   POTS can't lose it) and, for a moment during the probe, `probe` (a random token written and read
   back before the UI names the store). Database `cyra-hold` holds the week-only hold: the ISO week
-  in which this device last sent weekly counts, nothing else. `navigator.storage.persist()` is asked
-  once per launch, after the first save.
+  in which this device last sent weekly counts, nothing else. `v1-lock` (L10) holds this device's app
+  lock (`LockCfg`, `lib/lock.js`: the PIN's salt and PBKDF2 hash, lock-after, the passkey id, the
+  attempt back-off), written only by lock actions and removed by `clear()` with the record.
+  `navigator.storage.persist()` is asked once per launch, after the first save.
 - **Phone.** `Library/NoCloud/cyra-state.json` (iPhone: excluded from backup, complete file
   protection; Android: the app's internal files folder, backup and transfer off). A save writes
   `cyra-state.json.tmp` and renames it over the record; a load falls back to the temp file when a
-  save was interrupted. `NoCloud/cyra-hold.json` is the hold. While she shares an encrypted backup or
+  save was interrupted. `NoCloud/cyra-hold.json` is the hold; `NoCloud/cyra-lock.json` is the app
+  lock (L10), under the same exclusion and protection, deleted by `clearLock()` after the record. While she shares an encrypted backup or
   a POTS file, the file (the backup already encrypted; a POTS report or spreadsheet unencrypted) sits
   in the app cache and is deleted afterwards, and any leftover is swept at launch and by Delete
   everything.
 - **Which store is in use.** `storage.driver()` returns `indexeddb`, `app-sandbox`, `memory`
   (nothing can be stored), `stale` (a save failed; an older copy is still on the device) or
-  `unreadable` (web: a record exists but couldn't be read). Settings → Your data words its storage
+  `unreadable` (web: a record exists but couldn't be read). Settings → Privacy & your data words its storage
   sentence from it, so it never says less is stored than really is. A new driver needs its own
   sentence there and a PRIVACY-AUDIT entry.
+- **The app-lock slot (L10) is not a record key.** `storage.loadLock` / `saveLock` / `clearLock` read and
+  write it through the same save queue, but it is in none of PERSISTED, RECORD, DEVICE_ONLY or `snapshot()`:
+  never in a backup (`backupCopy` never sees it), never adopted by or written from another tab's autosave,
+  never applied by a restore. App.jsx reads it in `hydrate` after the record, and only when a record exists.
+  Delete everything, Start over and a forgotten-PIN restore remove it; a Settings restore keeps it.
 - **Other on-device locations.** The web build's service worker keeps Cyra's own app files (the
   build's file list only, no record data, no server answers) in one Cache Storage entry named
   `cyra-shell-<version>`, only in a production web build and only while a record exists (spec
@@ -289,7 +298,15 @@ Trying to conceive with signs on, L7's fertility sentences; the PDF is drawn wit
   `cyra-report-*.pdf`, `cyra-summary-*.pdf` (the appointment PDF, L9) and `cyra-data-*.csv`.
 - **Delete everything.** See the "Delete everything / Start over" comment in App.jsx: the server
   steps first (each confirmed or explained), then this device's clean-up (worker and offline copy,
-  cache files, the record), and every other open tab is told to stop saving.
+  cache files, the record, the app lock), and every other open tab is told to stop saving.
+- **The app lock and the privacy dashboard (L10).** `lib/lock.js` is pure logic over WebCrypto and
+  WebAuthn (`hashPin` / `checkPin`, `cleanLock`, `afterFail` / `afterSuccess`, `shouldLock`,
+  `createPasskey` / `verifyPasskey`, `forgotPinRecord`); no network. The lock screen is rendered
+  instead of everything else while `locked`, and a forgotten PIN has two exits: the existing wipe, or
+  verify the backup → `wipe()` → write `forgotPinRecord(backup)` → reload (never a merge). The
+  dashboard's states come from `lib/privacyFlows.js` `flowRows`, computed from `features.js` flags,
+  `plan.can("cloudBackup")`, `hasServer()`, the platform and her settings; a flow the build cannot
+  use is not rendered.
 
 ## 9. Health platforms: where HealthKit / Health Connect sync plugs in
 
@@ -359,7 +376,7 @@ integrations, pulse and backup brings them back on the same production server.
 
 Every privacy sentence that names a flagged feature is built in one pure, unit-tested place,
 `src/lib/disclosures.js` (step 1's "What Cyra's server sees", the consent card's fifth fact and "The
-details", Your data's "What can leave this device", the restore and delete texts, the intake hint,
+details", the files sentence and wearable restore line in Privacy & your data's "What can leave this device" (L10), the restore and delete texts, the intake hint,
 Start over and the POTS footers). With every flag on each builder returns the pre-L4 text byte for
 byte; otherwise a shorter sentence that is still literally true (no dangling sentence, no empty
 list). Screens gate whole rows and sections on `FEATURES`; they never inline a flag condition inside

@@ -5,9 +5,10 @@ import Icon from "../components/Icon.jsx";
 /* Phase 1: splash. Wordmark, tagline, value proposition, "Get started", and a way
    back in from an encrypted backup. UI O1: a ring motif in the stage-neutral palette, the three
    promises as icon rows, and the two privacy sentences (unchanged, docs/PRIVACY-AUDIT.md) in
-   their own paragraph under a lock, directly above the button. */
-export default function SplashScreen({ onStart, onImport }) {
-  const [restore, setRestore] = useState(false);
+   their own paragraph under a lock, directly above the button. initialRestore (L10): App.jsx opens the restore form
+   straight away after a forgotten-PIN restore that deleted the record but couldn't write the backup. */
+export default function SplashScreen({ onStart, onImport, initialRestore = false }) {
+  const [restore, setRestore] = useState(initialRestore);
   return (
     <main className="splash">
       <svg className="splashmotif" aria-hidden="true" focusable="false" width="96" height="64" viewBox="0 0 96 64">

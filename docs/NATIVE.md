@@ -395,6 +395,21 @@ App Review Guideline 5.1.3(ii): apps "may not store personal health information 
 iCloud". So the person has to choose where the file goes, and the app must never write it
 into an iCloud-synced folder on its own. It doesn't: it only writes to its own cache.
 
+## 7c. The app lock on the phone (local-first L10)
+
+The lock's settings (`Library/NoCloud/cyra-lock.json`: the PIN's salt and PBKDF2 hash, lock-after,
+the attempt back-off; never the PIN) sit next to the record and get the same treatment: CyraNoCloud's
+per-launch and per-background backup exclusion and Complete protection cover the whole `NoCloud`
+folder, and Delete everything / Start over remove the file after the record. It is never in an
+encrypted backup. The app reads it only after the record, at launch, and locks before anything
+renders; `appStateChange` (inactive) and `visibilitychange` drive "Immediately" / 1 minute / 5
+minutes. Passkey unlock is web-only: WKWebView would need associated domains and the Android WebView a
+WebAuthn opt-in, so the phone app unlocks with the PIN only, and the Settings row says so. Native
+biometrics (Face ID, fingerprint) through a Capacitor plugin are later work, deliberately not added
+(D4: no new dependency). Verify on a real iPhone and Android that `appStateChange` fires on
+background and screen lock; iOS also fires it for Control Center and the notification shade, so
+"Immediately" locks there too.
+
 ## 8. What has and hasn't been verified
 
 The phone code was written against the official documentation and the installed

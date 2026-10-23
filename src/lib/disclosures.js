@@ -73,20 +73,12 @@ export function consentDetails(f, native) {
   return on([li1, li2, li3, li4]);
 }
 
-/* ---------- Settings → Your data ---------- */
-/** The last paragraph of "What can leave this device" (also reused by later slices). */
+/* ---------- Settings → Privacy & your data (L10: the "Backups and files you make" row and the wearables row) ---------- */
+/** The files sentence in the "Backups and files you make" row's Details (its wearable clause only where a watch, ring or health app can be connected). */
 export const filesSentence = (f) => `Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase${f.wearables ? " and never include readings Cyra gets from a connected watch, ring or health app" : ""}.`;
 
-/** The paragraphs of "What can leave this device". */
-export function leaveDevice(f) {
-  const feats = on([f.webReminders && "reminders in a browser", f.counts && "weekly counts", f.ai && "Cyra's AI", f.wearables && "Oura", f.wearables && "Fitbit/Garmin/Whoop"]);
-  return on([
-    feats.length >= 2 ? `Features you turn on (${feats.join(", ")}) each say, before you turn them on, what they send and where.`
-      : feats.length === 1 ? `A feature you turn on (${feats[0]}) says, before you turn it on, what it sends and where.` : null,
-    f.wearables && "Restoring a backup brings back its wearable connections on this device.",
-    filesSentence(f),
-  ]);
-}
+/** The "Wearable connections" row's Details (so only where the wearables flag is on, the one configuration with wearable connections). */
+export const WEAR_RESTORE_LINE = "Restoring a backup brings back its wearable connections on this device.";
 
 /** The line under the Restore button (Settings and the splash). */
 export const restoreFoot = (f) => `Unlocked on this device with your passphrase. It replaces your record here.${f.wearables ? " Oura and Fitbit/Garmin/Whoop connections in the backup come back unconfirmed until Cyra checks them through its server; ones only on this device stay connected." : ""}`;

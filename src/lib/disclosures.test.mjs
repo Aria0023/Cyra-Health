@@ -6,7 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { FEATURE_NAMES, parseFeatures, remindersInBuild } from "./features.js";
 import {
-  andList, oxfordList, deleteAlso, serverSees, consentDeleteFact, consentDetails, filesSentence, leaveDevice, restoreFoot, restoreChanges,
+  andList, oxfordList, deleteAlso, serverSees, consentDeleteFact, consentDetails, filesSentence, WEAR_RESTORE_LINE, restoreFoot, restoreChanges,
   wipeConfirm, wipeMore, LEGACY_WEAR_LINE, intakeHint, startOverText, potsTodayFoot, potsTodayFootUnsaved, potsTodayFoot2, potsHintTail,
   potsNeverSent, potsFixedLine, potsRemindersLine, fertPrivacyLine,
 } from "./disclosures.js";
@@ -33,11 +33,10 @@ const PRE = {
     "If Delete everything can't confirm that reminders are off and Oura and Fitbit/Garmin/Whoop are disconnected, Cyra tells you what did and didn't happen, and keeps your record on this device until you choose.",
     "Deleting can't pull back what already left: anonymous counts you shared stay counted, questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy.",
   ],
-  leaveDevice: [
-    "Features you turn on (reminders in a browser, weekly counts, Cyra's AI, Oura, Fitbit/Garmin/Whoop) each say, before you turn them on, what they send and where.",
-    "Restoring a backup brings back its wearable connections on this device.",
-    "Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase and never include readings Cyra gets from a connected watch, ring or health app.",
-  ],
+  // L10 retired leaveDevice (its first paragraph is gone: the live dashboard names each flow and its state instead); its
+  // second and third sentences live on as WEAR_RESTORE_LINE and filesSentence, byte-identical.
+  wearRestore: "Restoring a backup brings back its wearable connections on this device.",
+  filesSentence: "Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase and never include readings Cyra gets from a connected watch, ring or health app.",
   restoreFoot: "Unlocked on this device with your passphrase. It replaces your record here. Oura and Fitbit/Garmin/Whoop connections in the backup come back unconfirmed until Cyra checks them through its server; ones only on this device stay connected.",
   restoreChanges: [
     "Your settings are replaced too, except this device's choices about weekly counts, Cyra's AI, browser reminders and appearance (light or dark).",
@@ -73,7 +72,7 @@ const REMINDERS_SHORT = "Cyra doesn't send medicine or drink reminders. If remin
 const outputs = (f, native, server = true) => {
   const list = [
     ["serverSees", serverSees(f, server)], ["consentDeleteFact", consentDeleteFact(f, native)], ["consentDetails", consentDetails(f, native)],
-    ["leaveDevice", leaveDevice(f)], ["filesSentence", filesSentence(f)], ["restoreFoot", restoreFoot(f)], ["restoreChanges", restoreChanges(f)],
+    ["wearRestore", f.wearables ? WEAR_RESTORE_LINE : null], ["filesSentence", filesSentence(f)], ["restoreFoot", restoreFoot(f)], ["restoreChanges", restoreChanges(f)],
     ["wipeConfirm", wipeConfirm(f, native)], ["wipeMore", wipeMore(f, native)], ["intakeHint", intakeHint(f)],
     ["startOverText", startOverText(f)], ["potsTodayFoot", potsTodayFoot(f)], ["potsTodayFootUnsaved", Object.values(potsTodayFootUnsaved(f))],
     ["potsTodayFoot2", potsTodayFoot2(f)], ["potsHintTail", potsHintTail(f)], ["potsNeverSent", potsNeverSent(f)],
@@ -110,8 +109,8 @@ test("disclosures: with every flag on, web and phone, each builder is the pre-L4
     assert.deepEqual(serverSees(ALL, true), PRE.serverSees);
     assert.equal(consentDeleteFact(ALL, native), PRE.consentDeleteFact);
     assert.deepEqual(consentDetails(ALL, native), PRE.consentDetails);
-    assert.deepEqual(leaveDevice(ALL), PRE.leaveDevice);
-    assert.equal(filesSentence(ALL), PRE.leaveDevice[2]);
+    assert.equal(WEAR_RESTORE_LINE, PRE.wearRestore);
+    assert.equal(filesSentence(ALL), PRE.filesSentence);
     assert.equal(restoreFoot(ALL), PRE.restoreFoot);
     assert.deepEqual(restoreChanges(ALL), PRE.restoreChanges);
     assert.equal(wipeConfirm(ALL, native), PRE.wipeConfirm);
@@ -149,10 +148,7 @@ test("disclosures: the shipping defaults (ai, webReminders), web and phone", () 
     "Deleting can't pull back what already left: questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms.",
   ]);
   assert.deepEqual(consentDetails(DEF, true), [consentDetails(DEF, false)[0], PRE.consentDetails[1], consentDetails(DEF, false)[3]], "phone: a cancel never needs the server");
-  assert.deepEqual(leaveDevice(DEF), [
-    "Features you turn on (reminders in a browser, Cyra's AI) each say, before you turn them on, what they send and where.",
-    "Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase.",
-  ]);
+  assert.equal(filesSentence(DEF), "Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase.");
   assert.equal(restoreFoot(DEF), "Unlocked on this device with your passphrase. It replaces your record here.");
   assert.deepEqual(restoreChanges(DEF), ["Your settings are replaced too, except this device's choices about Cyra's AI, browser reminders and appearance (light or dark).", PRE.restoreChanges[3], PRE.restoreChanges[4]]);
   assert.deepEqual(wipeMore(DEF, false), [
@@ -182,7 +178,7 @@ test("disclosures: none — the minimal outputs", () => {
   assert.equal(consentDeleteFact(NONE, false), "Delete everything from Settings, anytime.");
   assert.equal(consentDeleteFact(NONE, true), "Delete everything from Settings, anytime. It also turns off reminders.");
   for (const native of [false, true]) assert.deepEqual(consentDetails(NONE, native), [PRE.consentDetails[1]]);
-  assert.deepEqual(leaveDevice(NONE), ["Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase."]);
+  assert.equal(filesSentence(NONE), filesSentence(DEF), "the files sentence depends on wearables only");
   assert.deepEqual(restoreChanges(NONE), ["Your settings are replaced too, except this device's choices about appearance (light or dark).", PRE.restoreChanges[3], PRE.restoreChanges[4]]);
   assert.equal(wipeConfirm(NONE, false), " Every check-in, POTS log, note, appointment and setting goes for good. Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.");
   assert.deepEqual(wipeMore(NONE, false), [PRE.wipeMoreWeb[2]]);
@@ -215,7 +211,7 @@ test("disclosures: singular forms for one feature", () => {
   const one = parseFeatures("ai");
   assert.equal(serverSees(one)[3], "One optional choice sends a little to Cyra's server, and it says exactly what before you turn it on.");
   assert.equal(consentDetails(one, false)[0], "A feature that sends something: Cyra's AI. It tells you what it sends before you turn it on.");
-  assert.equal(leaveDevice(one)[0], "A feature you turn on (Cyra's AI) says, before you turn it on, what it sends and where.");
+  assert.equal(filesSentence(parseFeatures("wearables")), PRE.filesSentence, "the wearable clause follows the wearables flag alone");
   const rem = parseFeatures("webReminders");
   assert.equal(serverSees(rem)[4], "It keeps a little there while it's on. Browser reminders: this browser's push address and its encryption keys, your reminder days, time and time zone, and the last day a reminder went out.");
   const wear = parseFeatures("wearables");

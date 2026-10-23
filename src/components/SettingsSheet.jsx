@@ -4,7 +4,9 @@ import { APPEARANCES } from "../lib/appearance.js";
 import { hasServer } from "../lib/api.js";
 import { STAGE_GROUP, flagWords } from "../lib/pulse.js";
 import DataControls from "./DataControls.jsx";
-import Details, { WebReminderFacts } from "./Details.jsx";
+import PrivacyFlows from "./PrivacyFlows.jsx";
+import LockSettings from "./LockSettings.jsx";
+import Details, { WebReminderFacts, CountsFacts } from "./Details.jsx";
 import Icon from "./Icon.jsx";
 import PotsAddon from "./pots/PotsAddon.jsx";
 import { InstallSettings } from "./Pwa.jsx";
@@ -13,9 +15,9 @@ import { FEATURES, remindersInBuild } from "../lib/features.js";
 import { FERT_COPY } from "../lib/fertility.js";
 
 /* Settings: check-in cadence, nudge time, quick vs full check-in, add-ons (POTS tools),
-   reminders, the "Share anonymous weekly counts" switch, and Your data.
-   UI S1: a sticky header with a Close button (the bottom Done stays), four groups (Check-ins /
-   Add-ons & sharing / Appearance / Your data), each option row a labelled group with an icon in its label.
+   reminders, the "Share anonymous weekly counts" switch, and Privacy & your data.
+   UI S1: a sticky header with a Close button (the bottom Done stays), the groups Check-ins /
+   Add-ons & sharing / Appearance / [Install] / Privacy & your data, each option row a labelled group with an icon in its label.
    Opening moves focus to the title; Close and Done hand it back to the gear (triggerRef).
    L1 (spec A14.1): an Install group on the web when this browser can install Cyra (install,
    from App.jsx; never in the phone app, in standalone mode or without IndexedDB), directly
@@ -31,11 +33,15 @@ import { FERT_COPY } from "../lib/fertility.js";
    to Your data (DataControls).
    L7 (fertility signs, D6): for stage periods, a "Track fertility signs" switch row (fertRow, from App.jsx) sits inside
    Add-ons after POTS tools, with no new section label; the weekly-counts list says fertility signs are never part of
-   weekly counts. */
+   weekly counts.
+   L10 (privacy dashboard and app lock, D4): the last group is "Privacy & your data": DataControls (status strip, where
+   the record lives), the live "What can leave this device" list (PrivacyFlows, rows from App.jsx flowRows), the backup /
+   restore / delete pills, then LockSettings (the PIN, lock-after, passkey). The weekly-counts "Exactly what's sent" list
+   is the shared CountsFacts (Details.jsx), so the dashboard's row shows the same words. */
 /* A group label: an id its option row points at (aria-labelledby) and a small accent glyph (G3 .labico). */
 const Lab = ({ id, icon, children, style }) => <p className="section-lab" id={id} style={style}><Icon name={icon} className="labico" />{children}</p>;
 
-export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, keepsWeekNote, reminders, reminderSupport, onReminders, research, setResearch, stage, stageName, pots, onPotsOn, onPotsOff, daysLogged = 0, lastBackupAt = null, todayIso, triggerRef, install = null, focusTo = null, offlineCopy = false, appearance = "system", onAppearance, legacyWear = false, fertRow = null }) {
+export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, keepsWeekNote, reminders, reminderSupport, onReminders, research, setResearch, stage, stageName, pots, onPotsOn, onPotsOff, daysLogged = 0, lastBackupAt = null, todayIso, triggerRef, install = null, focusTo = null, offlineCopy = false, appearance = "system", onAppearance, legacyWear = false, fertRow = null, flows = [], flowCtx = {}, lock = null, potsOn = false, onHandoff = null }) {
   const headRef = useRef(null);
   const installLabRef = useRef(null);
   useEffect(() => {
@@ -139,16 +145,7 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
               <div className="medinfo"><b id="share-counts-title">Share anonymous weekly counts</b><span>Your life stage group{STAGE_GROUP[stage] ? ` (${STAGE_GROUP[stage]})` : ""} and whether you logged {flagWords(stage) || "a few symptoms"}, each at most once a week, with no dates or values. Turning this off stops sharing right away. Counts already added can't be taken back.</span></div>
               <button className={`takebtn ${research ? "on" : ""}`} aria-pressed={!!research} aria-describedby="share-counts-title" onClick={() => setResearch(!research)}>{research ? "✓ On" : "Turn on"}</button>
             </div>
-            <Details label="Exactly what's sent">
-              <ul>
-                <li>Sent at most once a day, and never on the day you log them.</li>
-                <li>"Once a week" is counted on this device: deleting the app or clearing this browser's data resets it.</li>
-                <li>No dates, values, name or account. Like any request, it carries your device's internet address.</li>
-                <li>They're added to the weekly "You're not alone" counts.</li>
-                {stage === "periods" && <li>{FERT_COPY.countsLi}</li>}
-                <li>Nothing you log in POTS tools is ever part of weekly counts.</li>
-              </ul>
-            </Details>
+            <Details label="Exactly what's sent"><CountsFacts stage={stage} /></Details>
           </>
         ) : (
           <p className="hint" style={{ margin: "0 0 8px" }}>Weekly counts aren't available in this version of Cyra, so nothing is shared.</p>
@@ -166,7 +163,10 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
       </div>
       {install && <InstallSettings install={install} labRef={installLabRef} />}
       <div className="setgroup">
-        <DataControls driver={storageDriver} onExport={onExport} onImport={onImport} onWipe={onWipe} ping={ping} keepsWeekNote={keepsWeekNote} daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} offlineCopy={offlineCopy} legacyWear={legacyWear} />
+        <DataControls driver={storageDriver} onExport={onExport} onImport={onImport} onWipe={onWipe} ping={ping} keepsWeekNote={keepsWeekNote} daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} offlineCopy={offlineCopy} legacyWear={legacyWear} onHandoff={onHandoff}>
+          <PrivacyFlows rows={flows} {...flowCtx} />
+        </DataControls>
+        {lock && <LockSettings lock={lock} potsOn={potsOn} />}
       </div>
       <button className="ghostbtn" onClick={close}>Done</button>
     </section>

@@ -34,6 +34,10 @@ A feature that ships free stays free.
 - The POTS add-on.
 - Reminders.
 - The encrypted backup file and restore, and Delete everything.
+- The privacy controls (local-first L10): the privacy dashboard ("What can leave this device"), the app lock (PIN,
+  passkey on the web, lock-after), encrypted backup / restore and Delete everything are free core and are never
+  gated through `plan.js`. The dashboard shows no cloud-backup row and no upgrade wording while
+  `plan.cloudBackup` is false (D2 / D3).
 - Palettes, light and dark mode, and the installable web app that opens offline.
 - Symptom favourites per stage (order, "More symptoms", symptoms added from the other stage's list) and day notes,
   both part of the fast daily log (brief must-have 1). They are never behind `plan.can()`;
@@ -42,8 +46,6 @@ A feature that ships free stays free.
   (local-first L7) — free core, never gated in plan.js.
 - Plain-language summaries and simple links (local-first L8): "This week / This month", sleep links and cycle-day
   clusters in her own log, Home's insight — worked out on the device, free core, never gated in plan.js.
-
-**Coming in this work, also free:** the privacy dashboard and the app lock.
 
 ## 3. Paid extension points (none active)
 
