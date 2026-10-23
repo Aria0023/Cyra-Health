@@ -512,7 +512,10 @@ device only in a report you choose to share." The chart's Rough nights row count
    ≥40% "about half the days", ≥20% "a few days a week", else "now and then". Each finding
    is a row: a dot in the symptom's family colour (the same Heat/Sleep/Mind/Pain/Body colours
    as the patterns card), the frequency words as a chip, a meter of the logged days (filled
-   where the symptom showed up, darker where it was moderate or strong) and, with ten or more
+   where the symptom showed up, the family colour itself where it was moderate or strong over a 34% tint
+   of it for the other days; the first finding's legend says "Darker = moderate or strong" in light and
+   in print, "Full colour = moderate or strong" in dark, where the tint is the darker segment:
+   `strongMeterWord(scheme)` in lib/appearance.js) and, with ten or more
    days logged in the 30 days before the window, the change in symptom days against that
    month. Cycle lengths are drawn as dots on one scale with the shortest-to-longest span
    bracketed. Colour is never the only cue: every visual sits beside its sentence.
@@ -966,7 +969,9 @@ outside the `@media print` block, and none in JSX; a new colour is a token with 
 (lib/appearance.test.mjs scans for one). The light values are the literals the stylesheet used before L2, unchanged.
 
 **Print stays light.** `beforeprint` and `matchMedia("print")` set `printing` with `flushSync`, so the page the browser
-snapshots already wears the light palette; `afterprint` (or the media query ending) flips it back. A print neither event
+snapshots already wears the light palette; `afterprint` (or the media query ending) flips it back. A browser that sends
+neither (headless Chromium never fires `afterprint`) leaves the app light after the print until it is reloaded:
+harmless, nothing is lost. A print neither event
 reaches (some share-sheet prints) falls back to a monochrome rule inside `@media print`: `.cy[data-scheme="dark"]`
 forces white paper and card, black ink and primary, grey soft/line/accent and the light SCHEME_TOKENS, all `!important`.
 
@@ -987,12 +992,20 @@ only on `.toast.show` and `.tabpanel`. Nothing is scroll-linked. No requestAnima
 250ms score tween. Each entrance runs once per mount behind a ref, <= 600ms. The shared keyframes are
 `cy-fade-rise`, `cy-pop`, `cy-draw`, `cy-spin`, `cy-pulse` and `cy-grow`; new motion reuses them.
 
-**Palette crossfade.** For 400ms after a palette change (and after an Appearance tap or a flip of the device's own
-light/dark setting, `flashRepaint()`; never on hydrate, a cross-tab adopt or print) App.jsx sets `.cy.repaint`, under which the chrome (`.card`,
-`.plaincard`, `.cta`, `.tab-on`, `.mc.on`, `.stagecard.on`, `.pulse`, `.meter`, `.disclosure`, `.pchart`, `.streak`,
-`.readcard`) transitions background-color, border-color and color over --t-slow, so cards, CTA and tabs recolour
-together. It is scoped to that window so the 100ms press feedback above is untouched the rest of the time, and
-FAMILIES / RAMPS inline colours (chart dots, severity marks) are deliberately not in the list: data never animates.
+**Palette crossfade.** For 400ms after a palette tap in the palette sheet, an Appearance tap, a flip of the device's own
+light/dark setting while Appearance is System (`flashRepaint()`, called from the tap or the media-query listener in the
+same render as the new colours) or a registration stage-card tap (a layout effect on `reg.stage`), App.jsx sets
+`.cy.repaint`. Under it the page background (`.cy`) and the chrome (`.card`, `.plaincard`, `.cta`, `.tab-on`, `.mc.on`,
+`.stagecard.on`, `.pulse`, `.meter`, `.disclosure`, `.pchart`, `.streak`, `.readcard`) transition background-color,
+border-color and color over --t-slow, so page, cards, CTA and tabs recolour together. The `.cy` background has no
+transition outside that window, and nothing sets `.repaint` on hydrate, a restore, a cross-tab adopt or print: those
+replace the palette and the appearance in one frame. So a launch whose saved Appearance differs from the device's
+setting shows nothing but the empty loading page in the device's scheme until the record is read, and its first frame
+with content already wears the chosen scheme (measured: content at 90-160ms after navigation, final colours in that
+frame, no `.repaint`; an adopting tab's page background and cards switch in one frame, with only the 100ms press
+transitions of buttons and pills running). The window is scoped so the 100ms press feedback above is untouched the
+rest of the time, and FAMILIES / RAMPS inline colours (chart dots, severity marks) are deliberately not in the list:
+data never animates.
 
 **Control states (one recipe for every custom control).**
 
@@ -1755,7 +1768,8 @@ default, and uses `#EDE4DC` for `theme-color` and the pre-render background, so 
 are one colour. L2 makes both per scheme (`#EDE4DC` light, `#1B150E` dark, through two `media` theme-color metas and
 `--doc-bg`, §8.4); at runtime `applyDocumentScheme` (lib/appearance.js) keeps every theme-color meta on the paper on
 screen, replacing L1's `setThemeColor`. The manifest keeps its single light `theme_color` / `background_color`, so an
-installed app's launch splash is light even in OS dark mode.
+installed app's launch splash is light even in OS dark mode, and `apple-mobile-web-app-status-bar-style` stays default,
+so the status bar of the app installed on iOS may not match a dark page either (later work, like the native status bar).
 
 **The worker (`public/sw.js`).** A classic script at `/sw.js`, scope `/`. Its push and notificationclick handlers are
 byte-for-byte the ones before L1. One marked line, `const BUILD = {…}; // @cyra-build`, holds the dev placeholder

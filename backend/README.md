@@ -11,7 +11,7 @@ browsers' push services (web reminders). `render.yaml` configures all of them.
 | | `NODE_ENV=production` (Render) | anything else (local, demos) |
 |---|---|---|
 | Config file | `config/app.json` | `config/app-dev.json` |
-| Modules mounted | `push` and `ai` — what the app's default build (`VITE_FEATURES` unset) calls. `oauth`, `integrations`, `pulse` and `backup` are listed in `config/app.json` only to serve a build whose `VITE_FEATURES` turns them on (`signin`, `wearables`, `counts`, `cloudBackup`) | every module in `src/modules/` |
+| Modules mounted | `push` and `ai` — what the app's default build (`VITE_FEATURES` unset) calls. `oauth`, `integrations`, `pulse` and `backup` would be listed in `config/app.json` only to serve a build whose `VITE_FEATURES` turns them on (`signin`, `wearables`, `counts`, `cloudBackup`) | every module in `src/modules/` |
 | Partner/referral demo, `/r/:code`, FHIR, orgs, users, auth, agent, affiliates, catalog, payouts, reports | not mounted (404) | mounted |
 | Ops console at `/` | not served | served (`public/index.html`) |
 | `ADMIN_KEY`, `AUTH_SECRET` | from the environment only; the server **refuses to start** (exit 1) when either is unset, a demo/placeholder value, shorter than 16 characters, or both are equal | environment, else the demo values in `config/app-dev.json` |

@@ -543,22 +543,24 @@ export default function CyraDemo() {
     const onResize = () => measureTabs(document.querySelector(".tabs"));
     window.addEventListener("resize", onResize); return () => window.removeEventListener("resize", onResize);
   }, [stage]);
-  const palFirst = useRef(true);
-  useEffect(() => { // a palette change crossfades the chrome (cards, CTA, tabs) over --t-slow; chart colours are inline and do not transition
-    if (palFirst.current) { palFirst.current = false; return; }
-    setRepaint(true); const t = setTimeout(() => setRepaint(false), 400); return () => clearTimeout(t);
-  }, [palIdx]);
   const regPalFirst = useRef(true);
-  useEffect(() => { // the stage card tap recolours the registration chrome the same way (UI O1)
+  // The stage card tap recolours the registration chrome the same way (UI O1). A layout effect, so .repaint
+  // lands before the browser paints the new colours: it is what lets the page background fade (styles.js).
+  useLayoutEffect(() => {
     if (regPalFirst.current) { regPalFirst.current = false; return; }
     if (phase !== "register") return;
     setRepaint(true); const t = setTimeout(() => setRepaint(false), 400); return () => clearTimeout(t);
   }, [reg.stage]);
-  /* Appearance: an Appearance tap or a flip of the device's light/dark setting crossfades the chrome the
-     same way. Never on hydrate, a cross-tab adopt or printing (those just switch). */
+  /* A palette tap, an Appearance tap or a flip of the device's light/dark setting (while Appearance is System)
+     crossfades the page and the chrome (cards, CTA, tabs) over --t-slow; chart colours are inline and do not
+     transition. It is set from the tap itself, in the same render as the new colours, never from an effect on
+     palIdx: hydrate, a restore and a cross-tab adopt replace palIdx and the appearance too, and those just switch
+     (as does printing), so a launch in a chosen scheme that differs from the device's never fades across. */
   const repaintTimer = useRef(null);
   const flashRepaint = () => { clearTimeout(repaintTimer.current); setRepaint(true); repaintTimer.current = setTimeout(() => setRepaint(false), 400); };
+  const choosePalette = (upd) => { setPalIdx(upd); flashRepaint(); };
   const chooseAppearance = (v) => { const next = cleanAppearance(v); if (next === appearance) return; setAppearance(next); flashRepaint(); };
+  const appearanceRef = useRef(appearance); appearanceRef.current = appearance;
   /* The device's setting is followed live (System). Printing always renders the light palette: beforeprint
      (and matchMedia("print"), which also covers print previews) flips it with flushSync, so the page the
      browser snapshots is already light; afterprint flips it back. styles.js keeps a monochrome fallback for a
@@ -567,7 +569,7 @@ export default function CyraDemo() {
     if (typeof window === "undefined") return;
     const sys = typeof matchMedia === "function" ? matchMedia(SYSTEM_DARK_QUERY) : null;
     const pr = typeof matchMedia === "function" ? matchMedia("print") : null;
-    const onSys = (e) => { setSystemDark(!!e.matches); flashRepaint(); };
+    const onSys = (e) => { setSystemDark(!!e.matches); if (appearanceRef.current === "system") flashRepaint(); };
     const before = () => flushSync(() => setPrinting(true));
     const after = () => setPrinting(false);
     const onPrint = (e) => (e.matches ? before() : after());
@@ -1307,7 +1309,8 @@ export default function CyraDemo() {
     const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance };
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
-    ping(!isNative() && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored");
+    // The reminders clause only where Settings has a reminders row (a web build without webReminders has none).
+    ping(!isNative() && remindersInBuild(false) && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored");
     if (FEATURES.wearables && wear.oura?.restored && API_BASE && !DEMO_WEARABLES) checkRestoredOura(wear.oura);
   };
   const checkRestoredOura = async (st) => {
@@ -1860,7 +1863,7 @@ export default function CyraDemo() {
 
       {/* ============ APP ============ */}
       {settingsSheet}
-      {showPal && stage && orgId === "cyra" && <PaletteSheet stage={stage} stageName={stageName} palIdx={palIdx} setPalIdx={setPalIdx} setShowPal={setShowPal} triggerRef={palBtnRef} scheme={scheme} />}
+      {showPal && stage && orgId === "cyra" && <PaletteSheet stage={stage} stageName={stageName} palIdx={palIdx} setPalIdx={choosePalette} setShowPal={setShowPal} triggerRef={palBtnRef} scheme={scheme} />}
       <div>
 
         {/* ---------- PREGNANCY: its own component ---------- */}
@@ -1910,7 +1913,7 @@ export default function CyraDemo() {
               <CalendarScreen pred={pred} predWhy={predWhy} cyc={cyc} onCycleUse={setCycleUse} stage={stage} isMeno={isMeno} days={days} symIds={symIds} symMap={symMap} dayScore={scoreDay} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} fertOn={fertOn} tempUnit={tempUnit} />
             )}
             {appIs("patterns") && <PatternsScreen ins={ins} lens6={cyc.lens6} symIds={symIds} symMap={symMap} scoreScale={scoreScale} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} fert={ttc && fertOn ? { unit: tempUnit } : null} week={week} month={month} found={found} scoreColor={scoreColor} energyId={ENERGY_ID} />}
-            {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} fert={ttc && fertOn ? { unit: tempUnit } : null} />}
+            {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} scheme={scheme} fert={ttc && fertOn ? { unit: tempUnit } : null} />}
             {appIs("shelf") && <CareScreen shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Cyra will compare your days before and after"); }} />}
             {appIs("ask") && askView}
             {appIs("connect") && connView}

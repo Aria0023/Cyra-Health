@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { fmt, localDay, lensLabel } from "../lib/engine.js";
 import { FAMILIES, SYM_FAMILY, famVar } from "../lib/constants.js";
+import { strongMeterWord } from "../lib/appearance.js";
 import { copyText } from "../lib/clipboard.js";
 import Icon from "../components/Icon.jsx";
 import { FertilityFinding } from "../components/FertilitySummary.jsx";
@@ -68,7 +69,8 @@ function CycleDots({ lens, outs = [] }) {
   );
 }
 
-/* The meter: logged days as the track, the symptom's days as the fill, moderate-or-strong darker, with
+/* The meter: logged days as the track, the symptom's days as the fill, moderate-or-strong in the full family
+   colour (the darker segment in light, the brighter one in dark: the legend says which, strongMeterWord), with
    ticks at the 60% ("most days") and 80% ("nearly every day") thresholds. Grows once per mount; the
    sentence under it is the text twin. */
 function Meter({ color, any, strong, mounted }) {
@@ -83,7 +85,7 @@ function Meter({ color, any, strong, mounted }) {
 
 const Sec = ({ n, children }) => <p className="rsec"><span className="rnum">{n}</span><span>{children}</span></p>;
 
-export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, showTable, setShowTable, potsOn = false, todayIso = localDay(), appt = null, daysUntil = () => 0, goTab = () => {}, setShowAppts = () => {}, scoreOn = () => null, scoreColor = () => "var(--primary)", lens6 = null, fert = null }) {
+export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, showTable, setShowTable, potsOn = false, todayIso = localDay(), appt = null, daysUntil = () => 0, goTab = () => {}, setShowAppts = () => {}, scoreOn = () => null, scoreColor = () => "var(--primary)", scheme = "light", lens6 = null, fert = null }) {
   const n = ins.last30.length; // days logged in the last 30 calendar days
   // The last 6 cycle lengths, each marked when she left it out of predictions (L5): the spread still counts every one.
   const lensList = lens6 || ins.lens.map((len) => ({ len, excluded: false }));
@@ -209,7 +211,7 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
                 <div className="finding" key={c.id}>
                   <div className="fhead"><i className="fdot" style={{ background: f.color }} aria-hidden="true" /><b>{c.label}</b><span className="fchip" style={{ background: tint(f.color, 16) }}>{inWords(c.days, n)}</span></div>
                   <Meter color={f.color} any={frac(c.days)} strong={frac(c.strong)} mounted={mounted} />
-                  {idx === 0 && <p className="flegend fleg"><span>Filled = days it showed up</span><span>Darker = moderate or strong</span><span>Ticks = most days · nearly every day</span></p>}
+                  {idx === 0 && <p className="flegend fleg"><span>Filled = days it showed up</span><span>{strongMeterWord(scheme)} = moderate or strong</span><span>Ticks = most days · nearly every day</span></p>}
                   <p className="plain fsub"><b className="fcount">{c.days} of {n} days</b>{c.strong > 0 ? `, ${c.strong} of them moderate or strong` : ""}.{prev != null && <> <Delta prev={prev} cur={c.days} /></>}</p>
                 </div>
               );

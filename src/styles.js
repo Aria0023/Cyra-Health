@@ -13,7 +13,7 @@ export const css = `
    L2: every status and surface colour (--good, --bad, --on-primary, --knob, the --sh-* shadows, …) is a token from
    SCHEME_TOKENS in lib/constants.js, its light value here and its dark value in the rule below. No colour literal
    appears in this stylesheet outside the print block (lib/appearance.test.mjs scans for one). ---- */
-.cy { --fs-xs:11px; --fs-sm:12.5px; --fs-md:13.5px; --fs-lg:15.5px; --fs-num:23px; --fs-title:26px; --r-card:13px; --r-inner:11px; --r-pill:999px; --gap:8px; --stack:12px; --t-fast:100ms; --t-base:200ms; --t-slow:300ms; --ease-std:cubic-bezier(.2,0,0,1); --ease-in:cubic-bezier(.05,.7,.1,1); --ease-out:cubic-bezier(.3,0,.8,.15); --primary-text:color-mix(in srgb, var(--primary) 82%, var(--ink)); --accent-text:color-mix(in srgb, var(--accent) 82%, var(--ink)); ${tokenDecls(SCHEME_TOKENS.light)}; --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); background:var(--paper); color:var(--ink); font-family:'Karla Variable','Karla',sans-serif; line-height:1.5; min-height:100dvh; max-width:430px; margin:0 auto; padding:18px 16px 48px; box-sizing:border-box; transition:background var(--t-slow); color-scheme:light; }
+.cy { --fs-xs:11px; --fs-sm:12.5px; --fs-md:13.5px; --fs-lg:15.5px; --fs-num:23px; --fs-title:26px; --r-card:13px; --r-inner:11px; --r-pill:999px; --gap:8px; --stack:12px; --t-fast:100ms; --t-base:200ms; --t-slow:300ms; --ease-std:cubic-bezier(.2,0,0,1); --ease-in:cubic-bezier(.05,.7,.1,1); --ease-out:cubic-bezier(.3,0,.8,.15); --primary-text:color-mix(in srgb, var(--primary) 82%, var(--ink)); --accent-text:color-mix(in srgb, var(--accent) 82%, var(--ink)); ${tokenDecls(SCHEME_TOKENS.light)}; --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); background:var(--paper); color:var(--ink); font-family:'Karla Variable','Karla',sans-serif; line-height:1.5; min-height:100dvh; max-width:430px; margin:0 auto; padding:18px 16px 48px; box-sizing:border-box; color-scheme:light; }
 /* Dark (L2, spec §8.4): App.jsx resolves Appearance to data-scheme on .cy; the palette and data-viz variables arrive inline. */
 .cy[data-scheme="dark"] { color-scheme:dark; ${tokenDecls(SCHEME_TOKENS.dark)} }
 /* html is above .cy, so the one html-level rule (scroll padding under the POTS stop bar) gets the same inset tokens. */
@@ -704,9 +704,11 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
   .cy, .cy *, .cy *::before, .cy *::after { transition:none !important; animation:none !important; }
   .cy[data-scheme="dark"] { color-scheme:light; --paper:#FFFFFF !important; --card:#FFFFFF !important; --ink:#000000 !important; --soft:#444444 !important; --line:#999999 !important; --primary:#000000 !important; --accent:#555555 !important; ${tokenDecls(SCHEME_TOKENS.light, true)} }
 }
-/* Palette crossfade: for --t-slow after a palette change, an Appearance tap or a system light/dark flip (.cy.repaint,
-   App.jsx; never on hydrate, a cross-tab adopt or print) the chrome recolours together.
+/* Palette crossfade: for --t-slow after a palette tap, an Appearance tap or a system light/dark flip (.cy.repaint,
+   App.jsx; never on hydrate, a cross-tab adopt or print) the page and the chrome recolour together. The .cy background
+   transitions only inside that window: outside it (launch, adopt) a scheme change lands in one frame.
    FAMILIES / RAMPS inline colours (chart dots, severity marks) are not in this list by design: data never animates. */
+.cy.repaint { transition:background var(--t-slow); }
 .cy.repaint .card, .cy.repaint .plaincard, .cy.repaint .cta, .cy.repaint .tab-on, .cy.repaint .mc.on, .cy.repaint .stagecard.on, .cy.repaint .pulse, .cy.repaint .meter, .cy.repaint .disclosure, .cy.repaint .pchart, .cy.repaint .streak, .cy.repaint .readcard { transition-property:background-color, border-color, color; transition-duration:var(--t-slow); }
 /* ---- UI S1: Settings and palette sheets. A sticky title bar with a Close button (Done stays at the bottom), three
    groups separated by a rule, labels with a glyph, a nudge row that says when its time isn't used (tinted, never

@@ -33,3 +33,11 @@ export function applyDocumentScheme(doc, { scheme, paper }) {
   root.style.setProperty("--doc-bg", paper);
   for (const m of doc.querySelectorAll('meta[name="theme-color"]')) m.setAttribute("content", paper);
 }
+
+/* The Report meter legend's word for the moderate-or-strong segment (ReportScreen, "What stands out").
+   That segment is the family colour itself and the other symptom days a 34% tint of it into the card
+   (styles.js .fm-strong / .fm-any). On a light card the tint is paler, so the strong segment is the darker
+   one; on a dark card the tint is darker, so "Darker" would point at the wrong days. The dark word names
+   what holds there, and in the monochrome print fallback too. Printing resolves to light, so print says
+   "Darker" like the light screen. */
+export const strongMeterWord = (scheme) => (scheme === "dark" ? "Full colour" : "Darker");

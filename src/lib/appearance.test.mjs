@@ -6,7 +6,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  APPEARANCES, DEFAULT_APPEARANCE, cleanAppearance, resolveScheme, PALETTE_KEYS, paletteFor, paletteVars, tokenDecls, applyDocumentScheme,
+  APPEARANCES, DEFAULT_APPEARANCE, cleanAppearance, resolveScheme, PALETTE_KEYS, paletteFor, paletteVars, tokenDecls, applyDocumentScheme, strongMeterWord,
 } from "./appearance.js";
 import { PALETTES, ORGS, SCHEME_TOKENS, FAMILIES, RAMPS, RAMPS_DARK, famVar, famColor, rampOf, rampVar, vizVars } from "./constants.js";
 
@@ -225,4 +225,26 @@ test("source scan (L2): the POTS PDF keeps the light ramp; appearance.js never t
   const imp = app.slice(app.indexOf("const importBackup = async"), app.indexOf("const checkRestoredOura"));
   assert.match(imp, /skip: \[\.\.\.DEVICE_ONLY, \.\.\.DEVICE_PREFS, "reminders"\]/);
   assert.match(imp, /const keep = \{[^}]*\bappearance\b[^}]*\}/);
+});
+
+test("Report meter legend (L2): the word for the moderate-or-strong segment is true in light, in dark and in the print fallback", () => {
+  // styles.js: the strong segment is the family colour itself; the other symptom days are a tint of it into the card (the later rule wins).
+  const css = readFileSync(join(SRC, "styles.js"), "utf8");
+  assert.match(css, /\.fm-strong \{ background:var\(--fc\);/);
+  const anyPct = [...css.matchAll(/\.fm-any \{ background:color-mix\(in srgb, var\(--fc\) (\d+)%, var\(--card\)\); \}/g)].map((m) => +m[1] / 100);
+  assert.ok(anyPct.length > 0, ".fm-any tint rule");
+  const pct = anyPct.at(-1);
+  // Light (and print, which resolves to light): on every light card the strong segment is darker than the tint.
+  assert.equal(strongMeterWord("light"), "Darker");
+  for (const [name, p] of THEMES) for (const f of FAMILIES) assert.ok(lum(f.color) < lum(mix(f.color, p.card, pct)), `light ${name} ${f.id}: strong not darker`);
+  // Dark: on every dark card the strong segment is the lighter one, so "Darker" would be backwards. The dark word names the
+  // full colour, which also holds in the monochrome print fallback (white card, dark family colours: the tint is paler there).
+  assert.equal(strongMeterWord("dark"), "Full colour");
+  for (const card of DARK_CARDS) for (const f of FAMILIES) assert.ok(lum(f.dark) > lum(mix(f.dark, card, pct)), `dark ${card} ${f.id}: strong not brighter`);
+  for (const f of FAMILIES) assert.ok(lum(f.dark) < lum(mix(f.dark, "#FFFFFF", pct)), `print fallback ${f.id}`);
+  // ReportScreen draws the legend from the scheme on screen, and App.jsx passes it.
+  const rep = readFileSync(join(SRC, "screens/ReportScreen.jsx"), "utf8");
+  assert.ok(rep.includes("<span>{strongMeterWord(scheme)} = moderate or strong</span>"), "ReportScreen legend uses strongMeterWord(scheme)");
+  assert.ok(!stripComments(rep).includes("Darker = moderate"), "no fixed Darker legend");
+  assert.match(readFileSync(join(SRC, "App.jsx"), "utf8"), /<ReportScreen [^>]*\bscheme=\{scheme\}/);
 });
