@@ -190,7 +190,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
             </Details>
           </div>
           {consentRows.map(([k, t2, d]) => [
-            <button key={k} role="checkbox" aria-checked={!!(reg[k])} aria-controls={k === "notifOptin" && rhythmHere ? labId("cadwrap") : undefined} className={`consentopt ${reg[k] ? "on" : ""} ${k === "terms" && bad("terms") ? "inpErr" : ""}`} style={{ marginBottom: 9 }} onClick={() => rup(k, !reg[k])}>
+            <button key={k} role="checkbox" aria-checked={!!(reg[k])} aria-controls={k === "notifOptin" && rhythmHere && reg.notifOptin ? labId("cadwrap") : undefined} className={`consentopt ${reg[k] ? "on" : ""} ${k === "terms" && bad("terms") ? "inpErr" : ""}`} style={{ marginBottom: 9 }} onClick={() => rup(k, !reg[k])}>
               <span className="ckbox">{reg[k] ? "✓" : ""}</span>
               <span><b>{t2}</b><br />{d}</span>
             </button>,
