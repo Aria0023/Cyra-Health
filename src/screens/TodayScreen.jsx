@@ -8,6 +8,7 @@ import { SYMS, PSYM, READS, famColor } from "../lib/constants.js";
 import { fmt, sevDots, foldQuick, periodHead } from "../lib/engine.js";
 import { upsertDay } from "../lib/record.js";
 import { chipLayout, cleanNote } from "../lib/daylog.js";
+import { FERT_FORM_EMPTY, fertEntryFields, FERT_COPY } from "../lib/fertility.js";
 
 /* Cycle & Peri — Today: cycle-status card (day, phase and the same likely-start wording as Home: lib/engine.js periodHead;
    no card when there is no prediction, e.g. in menopause), live score meter, quick or full
@@ -29,8 +30,13 @@ import { chipLayout, cleanNote } from "../lib/daylog.js";
    Her symptom list (L6, D8): the chips follow symPrefs for this stage (lib/daylog.js chipLayout); "Edit" opens the
    "Your symptoms" sheet in place of the grid, and hidden symptoms sit under "More symptoms" (one that has a value
    is lifted into the grid while that panel is closed). The day note (D7) follows Body signals in every form; it is
-   saved on the entry and never handed to contribute(). */
-export default function TodayScreen({ onPots = null, pred, stage, welcome, editDate, onEndEdit, setDraft, setSleepQ, scoreMeter, quickMode, expanded = false, setExpanded = () => {}, quickCheckin, savedToday = false, yesterdayIso = null, yesterdayLogged = true, onEditDay = null, symPrefs = {}, setSymPrefs = () => {}, dayNote = "", setDayNote = () => {}, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, setEditPeriod, scales, flow, disch, odor, bodyOdor, days = [], setDays, onSaved = null, ping, setAppTab, research, contribute }) {
+   saved on the entry and never handed to contribute().
+   Fertility signs (L7, D6): where App.jsx shows them (fertSection, components/FertilitySigns.jsx) the group sits just
+   before Body signals in the quick, full and edit forms. The save writes cm / opk / bbt on the entry from the form state
+   (fert, lib/fertility.js fertEntryFields) whether or not the group is shown, so a day saved while it was shown keeps
+   them when edited after it's hidden; a temperature that isn't a reading stops the save. The fertility group never
+   reaches contribute(): it gets { sym, sleepQ, flow } only. */
+export default function TodayScreen({ onPots = null, pred, stage, welcome, editDate, onEndEdit, setDraft, setSleepQ, scoreMeter, quickMode, expanded = false, setExpanded = () => {}, quickCheckin, savedToday = false, yesterdayIso = null, yesterdayLogged = true, onEditDay = null, symPrefs = {}, setSymPrefs = () => {}, dayNote = "", setDayNote = () => {}, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, setEditPeriod, scales, flow, disch, odor, bodyOdor, days = [], setDays, onSaved = null, ping, setAppTab, research, contribute, fertSection = null, fert = FERT_FORM_EMPTY, tempUnit = "C", fertOn = false }) {
   // The quick card is on screen: quick mode, not an edit, not expanded for this visit. Everything that
   // depends on "which form is this" (hint, chips, the peri sleep pills, what contribute() sends) keys on it.
   const quickCard = quickMode && !editDate && !expanded;
@@ -128,10 +134,16 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
         </div>
       )}
       {!quickCard && scaleSection}
+      {fertSection}
       {bodySection}
       <DayNote key={editDate || "today"} value={dayNote} onChange={setDayNote} label={editDate ? `Note for ${fmt(editDate)}` : "Note for today"} />
       <div className="stopbar savebar"><button className="cta" onClick={() => {
         const target = editDate || todayIso;
+        // Fertility signs (L7): a temperature that isn't a reading stops the save, with focus on the field.
+        // (A half-typed value left in a group that has since been hidden is dropped instead: there is no field to fix.)
+        let fo = fertEntryFields(fert, tempUnit);
+        if (!fo.ok && fertOn) { ping(FERT_COPY.saveBlocked); document.getElementById("fert-bbt")?.focus(); return; }
+        if (!fo.ok) fo = fertEntryFields({ ...fert, bbtText: "" }, tempUnit);
         // Quick answers (also ones carried over by "more detail" or left from quick mode) are
         // saved as the hero symptoms they ask about.
         const mapped = foldQuick(draft, stage);
@@ -142,7 +154,7 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
         const bleeding = !!flow && flow !== "spot";
         // Her day note (D7) is kept on the entry, trimmed, and only when there is one. It never goes to contribute().
         const note = cleanNote(dayNote);
-        const entry = { date: target, sleepQ: sleepQ || "fair", period: editDate ? !!editPeriod : bleeding, scales: { ...scales }, flow, disch, odor, bodyOdor, sym, ...(note ? { note } : {}) };
+        const entry = { date: target, sleepQ: sleepQ || "fair", period: editDate ? !!editPeriod : bleeding, scales: { ...scales }, flow, disch, odor, bodyOdor, sym, ...(note ? { note } : {}), ...fo.fields };
         const next = upsertDay(days, entry);
         setDays((d) => upsertDay(d, entry));
         ping(editDate ? `${fmt(target)} updated` : "Saved — check Patterns");
@@ -161,6 +173,7 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
           <Details label="Exactly what's sent">
             <ul>
               <li>Until it's sent on a later day, saving this check-in again today replaces what it counts, and a fix from the Calendar on a later day can only take flags back, never add one. A fix after it's sent can't change counts already sent.</li>
+              {fertOn && <li>{FERT_COPY.todayCountsLi}</li>}
               {quickCard && <li>{stage === "peri" ? "A quick check-in shares only whether you had a poor night's sleep." : "A quick check-in shares only whether you logged a heavy-flow day."}</li>}
               <li>Sent at most once a day. Like any request, it carries your device's internet address.</li>
               <li>You can turn this off in <Icon name="sliders" size={12} className="labico" />Settings.</li>

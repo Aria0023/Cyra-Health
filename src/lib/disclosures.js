@@ -153,3 +153,12 @@ export const potsFixedLine = (f) => (f.wearables ? "Readings Cyra gets from a co
 export const potsRemindersLine = (f, native) => (remindersInBuild(native, f)
   ? "Cyra doesn't send medicine or drink reminders. The only reminder Cyra can send is your check-in reminder, if you turned it on. If reminders help you, your phone's clock app can set them."
   : "Cyra doesn't send medicine or drink reminders. If reminders help you, your phone's clock app can set them.");
+
+/* ---------- fertility signs (L7, decision D6) ---------- */
+/** The privacy line under Today's Fertility signs group and in Settings' "Track fertility signs" row. Each clause only
+    where this build has the feature it names; all are true in every build (the fields live only in the day entries:
+    contribute() gets { sym, sleepQ, flow } and the AI request body is { question }). */
+export const fertPrivacyLine = (f) => (f.counts && f.ai ? "Kept on this device. Never part of weekly counts or sent to Cyra's AI."
+  : f.counts ? "Kept on this device. Never part of weekly counts."
+  : f.ai ? "Kept on this device. Never sent to Cyra's AI."
+  : "Kept on this device.");

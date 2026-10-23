@@ -10,6 +10,7 @@ import PotsAddon from "./pots/PotsAddon.jsx";
 import { InstallSettings } from "./Pwa.jsx";
 import { reduceMotion } from "../lib/motion.js";
 import { FEATURES, remindersInBuild } from "../lib/features.js";
+import { FERT_COPY } from "../lib/fertility.js";
 
 /* Settings: check-in cadence, nudge time, quick vs full check-in, add-ons (POTS tools),
    reminders, the "Share anonymous weekly counts" switch, and Your data.
@@ -27,11 +28,14 @@ import { FEATURES, remindersInBuild } from "../lib/features.js";
    has reminders (always on a phone; on the web only with webReminders), and the Anonymous weekly counts
    group only with counts. A .setgroup renders only when at least one of its rows does, so no group is ever
    empty; every id, aria-labelledby and sentence is unchanged wherever its row renders. legacyWear goes on
-   to Your data (DataControls). */
+   to Your data (DataControls).
+   L7 (fertility signs, D6): for stage periods, a "Track fertility signs" switch row (fertRow, from App.jsx) sits inside
+   Add-ons after POTS tools, with no new section label; the weekly-counts list says fertility signs are never part of
+   weekly counts. */
 /* A group label: an id its option row points at (aria-labelledby) and a small accent glyph (G3 .labico). */
 const Lab = ({ id, icon, children, style }) => <p className="section-lab" id={id} style={style}><Icon name={icon} className="labico" />{children}</p>;
 
-export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, keepsWeekNote, reminders, reminderSupport, onReminders, research, setResearch, stage, stageName, pots, onPotsOn, onPotsOff, daysLogged = 0, lastBackupAt = null, todayIso, triggerRef, install = null, focusTo = null, offlineCopy = false, appearance = "system", onAppearance, legacyWear = false }) {
+export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, keepsWeekNote, reminders, reminderSupport, onReminders, research, setResearch, stage, stageName, pots, onPotsOn, onPotsOff, daysLogged = 0, lastBackupAt = null, todayIso, triggerRef, install = null, focusTo = null, offlineCopy = false, appearance = "system", onAppearance, legacyWear = false, fertRow = null }) {
   const headRef = useRef(null);
   const installLabRef = useRef(null);
   useEffect(() => {
@@ -106,6 +110,12 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
             <Lab id="set-addons" icon="plus-circle" style={{ margin: "0 0 6px" }}>Add-ons</Lab>
             <div role="group" aria-labelledby="set-addons">
               <PotsAddon pots={pots} stageName={stageName} onOn={onPotsOn} onOff={onPotsOff} storageDriver={storageDriver} />
+              {fertRow && (
+                <div className="medrow fertrow">
+                  <div className="medinfo"><b id="fert-switch-title">{FERT_COPY.settingTitle}</b><span>{`${fertRow.ttc ? FERT_COPY.settingTtc : FERT_COPY.settingCycle} ${fertRow.privacy}`}</span></div>
+                  <button type="button" className={`takebtn ${fertRow.on ? "on" : ""}`} aria-pressed={!!fertRow.on} aria-describedby="fert-switch-title" onClick={() => fertRow.setOn(!fertRow.on)}>{fertRow.on ? "✓ On" : "Turn on"}</button>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -135,6 +145,7 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
                 <li>"Once a week" is counted on this device: deleting the app or clearing this browser's data resets it.</li>
                 <li>No dates, values, name or account. Like any request, it carries your device's internet address.</li>
                 <li>They're added to the weekly "You're not alone" counts.</li>
+                {stage === "periods" && <li>{FERT_COPY.countsLi}</li>}
                 <li>Nothing you log in POTS tools is ever part of weekly counts.</li>
               </ul>
             </Details>

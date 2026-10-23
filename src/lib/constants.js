@@ -77,6 +77,13 @@ export const SCALES = [
 ];
 export const FLOW = [["spot", "Spotting"], ["light", "Light"], ["med", "Medium"], ["heavy", "Heavy"], ["flood", "Flooding"]];
 export const DISCHARGE = [["none", "None"], ["creamy", "Creamy"], ["eggwhite", "Egg-white"], ["sticky", "Sticky"], ["watery", "Watery"], ["unusual", "Unusual"]];
+/* Fertility signs (L7, decision D6): UI option lists for Today's "Fertility signs" group (lib/fertility.js), not data-viz
+   colours. "none" on the ovulation test means "Not tested" and is never saved (an absent opk is "not tested"). */
+export const CERVICAL_MUCUS = [["dry", "Dry"], ["sticky", "Sticky"], ["creamy", "Creamy"], ["watery", "Watery"], ["eggwhite", "Egg-white"]];
+export const OVULATION_TEST = [["none", "Not tested"], ["neg", "Negative"], ["pos", "Positive"]];
+/* The stage label that marks Trying to conceive (stage "periods"): written by finishReg and engine routeIntake, read by
+   lib/fertility.js isTTC (re-exported there as TTC_NAME) and equal to lib/record.js PHASES.ttc.stageName. */
+export const TTC_NAME = "Trying to Conceive";
 export const ODOR = [["none", "Nothing unusual"], ["mild", "Mild change"], ["strong", "Strong"], ["fishy", "Fishy"], ["yeasty", "Yeasty / sour"]];
 export const BODYODOR = [["same", "Same as usual"], ["stronger", "Stronger"], ["changed", "Different"]];
 

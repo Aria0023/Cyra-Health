@@ -20,7 +20,10 @@ import { useEffect, useRef } from "react";
    2 × 2). With POTS tools on, a "POTS today" card (potsCard, built in App.jsx) sits under the
    check-in button. On the web, once 3 days are logged and while this browser can install Cyra,
    one dismissible install tip (installTip, components/Pwa.jsx; spec A14.1) sits after that card
-   and before "Today's insight"; it is not a section label or card, so Home's labels don't move. */
+   and before "Today's insight"; it is not a section label or card, so Home's labels don't move.
+   L7 (fertility signs, Trying to conceive only): no new section or card. When today's entry has a fertility sign,
+   App.jsx passes fertRead (lib/fertility.js) and the same today line shows it instead of its usual text; Coming up's
+   first row can be the estimated fertile window (built in App.jsx nextUp, ending "An estimate, not contraception"). */
 /* A trial without enough logged days on both sides of its start date (App.jsx medEffects):
    how many more it needs, or, when the days left can't get there, that it can't be compared. */
 const plural = (n) => `${n} logged day${n === 1 ? "" : "s"}`;
@@ -65,6 +68,7 @@ export default function HomeScreen({
   showJournal, setShowJournal, journal, jDraft, setJDraft, setJournal,
   potsCard = null,
   installTip = null,
+  fertRead = null,
 }) {
   const hour = new Date().getHours();
   const connectedCount = Object.values(wearSources).filter((w) => w && !w.pending).length;
@@ -78,7 +82,7 @@ export default function HomeScreen({
     const fam = dominantFamily(todayEntry, scoreIds);
     const parts = ["Today", ...(score != null ? [`score ${score}`] : []), ...(todayEntry.sleepQ ? [`slept ${SLEPT[todayEntry.sleepQ] || todayEntry.sleepQ}`] : [])];
     if (syms.length) parts.push(`${syms.slice(0, 2).map((k) => scoreLabels[k] || k).join(", ")}${syms.length > 2 ? ` +${syms.length - 2}` : ""}`);
-    return { text: parts.join(" · "), color: fam ? famVar(fam) : "var(--line)" };
+    return { text: fertRead || parts.join(" · "), color: fam ? famVar(fam) : "var(--line)" };
   })();
   // Pregnancy week bar: three trimester segments (weeks 1–12, 13–27, 28–40), the elapsed part filled.
   const wkSegs = [[0, 12], [12, 27], [27, 40]].map(([a, b]) => Math.max(0, Math.min(1, (pregWeek - a) / (b - a))));

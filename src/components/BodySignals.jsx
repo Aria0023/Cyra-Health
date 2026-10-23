@@ -1,9 +1,14 @@
 import { FLOW, DISCHARGE, ODOR, BODYODOR } from "../lib/constants.js";
 import Advice from "./Advice.jsx";
 import Icon from "./Icon.jsx";
+import { FERT_COPY } from "../lib/fertility.js";
 
-/* Collapsible Body Signals panel: flow, discharge, vaginal odor, body odor. */
-export default function BodySignals({ stage, showBody, setShowBody, flow, setFlow, disch, setDisch, odor, setOdor, bodyOdor, setBodyOdor }) {
+/* Collapsible Body Signals panel: flow, discharge, vaginal odor, body odor.
+   L7: while Today shows the Fertility signs group (fertOn), the Discharge row offers only "Unusual" (plus a value a
+   day already has, so it stays visible and can be cleared) under a note pointing mucus to Fertility signs, so cervical
+   mucus is never logged twice. Flow, odor, body odor, the advice and the panel's label are unchanged. */
+export default function BodySignals({ stage, showBody, setShowBody, flow, setFlow, disch, setDisch, odor, setOdor, bodyOdor, setBodyOdor, fertOn = false }) {
+  const dischOpts = fertOn ? DISCHARGE.filter(([v]) => v === "unusual" || v === disch) : DISCHARGE;
   const odorAdvice = () => {
     if (odor === "fishy") return <Advice urgency="now" alone>A fishy odor — especially with grey or thin discharge — is the classic sign of bacterial vaginosis. It's common, it's not your fault, and it's treated with a short course of antibiotics. Worth a visit this week rather than a drugstore guess.</Advice>;
     if (odor === "yeasty") return <Advice urgency="visit" alone>A yeasty or sour smell with thick white discharge and itching usually points to a yeast infection — treatable over the counter, but if it's your first time or it keeps returning, get it confirmed. Recurring thrush can signal something else worth checking.</Advice>;
@@ -28,8 +33,9 @@ export default function BodySignals({ stage, showBody, setShowBody, flow, setFlo
               </div>
               {flow === "flood" && <Advice urgency="now" alone>Flooding — soaking a pad or tampon hourly, or passing large clots — is a see-someone-now symptom, not something to endure. Heavy bleeding is treatable and can cause anemia if it goes unchecked.</Advice>}
               <p className="section-lab">Discharge</p>
+              {fertOn && <p className="hint dischnote">{FERT_COPY.dischNote}</p>}
               <div className="wrapchips">
-                {DISCHARGE.map(([v, l]) => <button key={v} aria-pressed={disch === v} className={`minichip ${disch === v ? "on" : ""}`} onClick={() => setDisch(disch === v ? null : v)}>{l}</button>)}
+                {dischOpts.map(([v, l]) => <button key={v} aria-pressed={disch === v} className={`minichip ${disch === v ? "on" : ""}`} onClick={() => setDisch(disch === v ? null : v)}>{l}</button>)}
               </div>
             </>
           )}

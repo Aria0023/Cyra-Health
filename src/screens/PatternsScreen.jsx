@@ -2,6 +2,7 @@ import Advice from "../components/Advice.jsx";
 import { PatternsCard, ChartSoon, windowDays, dayStats } from "../components/PatternCharts.jsx";
 import { INSIGHT_STARTERS } from "../lib/askStarters.js";
 import { lensLabel } from "../lib/engine.js";
+import FertilitySummary from "../components/FertilitySummary.jsx";
 
 /* Cycle & Peri — Patterns: the patterns card (the same card Home shows: day-score line with the
    symptom rows, or the cycle rings), insight + advice cards and trial before/after cards. Every
@@ -10,7 +11,7 @@ import { lensLabel } from "../lib/engine.js";
    "Ask about this →" opens Ask with that question answered on the device (lib/askStarters.js).
    onGo(tab), onAsk(question) and onPots() come from App.jsx. The perimenopause spread is a clinical marker: it
    counts every cycle, and lens6 (engine cycleSummary) labels the ones she left out of predictions (L5). */
-export default function PatternsScreen({ ins, lens6 = null, symIds, symMap, stage, isMeno = false, todayIso, medEffects, potsOn = false, popIso = null, onGo, onAsk, onPots = null, scoreScale }) {
+export default function PatternsScreen({ ins, lens6 = null, symIds, symMap, stage, isMeno = false, todayIso, medEffects, potsOn = false, popIso = null, onGo, onAsk, onPots = null, scoreScale, fert = null }) {
   const days = windowDays(ins.sorted, symIds, todayIso, 60, scoreScale);
   const lensList = lens6 || ins.lens.map((len) => ({ len, excluded: false }));
   const logged = days.filter((d) => d.e).length;
@@ -32,6 +33,8 @@ export default function PatternsScreen({ ins, lens6 = null, symIds, symMap, stag
         </ChartSoon>
       )}
       <PatternsCard days={days} ids={symIds} labels={symMap} starts={starts} sorted={ins.sorted} todayIso={todayIso} popIso={popIso} allowCycle={!isMeno} scale={scoreScale} />
+      {/* Trying to conceive with fertility signs shown (L7): this cycle's signs, an observation only. */}
+      {fert && <FertilitySummary days={ins.sorted} starts={ins.starts} todayIso={todayIso} unit={fert.unit} onLog={() => onGo("today")} />}
 
       {stats && stats.diff != null && stats.diff <= -10 && (
         <div className="icard">

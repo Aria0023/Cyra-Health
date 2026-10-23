@@ -147,6 +147,7 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `pots` | the POTS add-on | health log | yes | yes, literally, with a new epoch (a backup without one clears the POTS log; a newer build's locked log stays untouched) | yes, 3-way merged (`mergePots`, epochs) |
 | `cycleFlags` | cycles she left out of predictions, `{ [startIso]: { exclude: true } }` (L5, spec §3.5) | health record (her choice) | yes | yes, literally (`cleanCycleFlags`; a backup without it clears it) | yes (sanitised by `cleanCycleFlags`) |
 | `symPrefs` | her symptom list per stage id, `{ periods?, peri?, preg? }` × `{ order, hidden, added }` (L6, spec §3.6) | record (a setting) | yes | yes, literally (`cleanSymPrefs`; a backup without it brings back Cyra's order) | yes (sanitised by `cleanSymPrefs`) |
+| `fertSigns` | fertility signs switch and temperature unit, `{ on: true\|false\|null, unit: "C"\|"F"\|null }` (L7, spec A14.7); `on` null = the stage default | record (a setting, no health data) | yes | yes, literally (`restoredFertPrefs`; a backup without it resets `on` to null and keeps this device's unit) | yes (sanitised by `cleanFertPrefs`) |
 | `palIdx` | palette per stage | setting | yes | yes | yes |
 | `cadence` | check-in rhythm | setting | yes | yes | yes |
 | `quietHours` | reminder time of day | setting | yes | yes | yes |
@@ -183,7 +184,9 @@ setter and a value in App.jsx. A slice that adds a key updates this table in the
 The typedefs in `src/lib/record.js` are the working definitions (spec §3.1 and §3.4):
 
 - **DayEntry** — `{ date: "YYYY-MM-DD" (unique), sym: { id: 0–3 }, scales?: { fatigue, pain, moodq,
-  stress: 0–10 }, sleepQ?: good | fair | poor, period?: boolean, flow?, disch?, odor?, bodyOdor?, note? }`.
+  stress: 0–10 }, sleepQ?: good | fair | poor, period?: boolean, flow?, disch?, odor?, bodyOdor?, note?, cm?, opk?,
+  bbt? }`. `cm` (cervical mucus: dry | sticky | creamy | watery | eggwhite), `opk` (ovulation test: neg | pos; absent =
+  not tested) and `bbt` (°C, 34–40, 3 decimals) are the L7 fertility signs, written only when set (`lib/fertility.js`).
   `note` (L6) is her day note: trimmed, at most 280 UTF-16 units (`daylog.js` `cleanNote`), absent when empty; on the
   device and in backups only.
   Older records and `seed()` may carry only date, sleepQ, period and sym. At most one entry per date

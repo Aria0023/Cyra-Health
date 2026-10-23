@@ -92,3 +92,26 @@ test("inkOn (L2): the score ink is >= 4.5:1 on every fill, both schemes; dark fi
   assert.equal(inkOn([255, 255, 255]), "#000000");
   assert.equal(inkOn([0, 0, 0]), "#FFFFFF");
 });
+
+/* ---------- routeIntake (moved from App.jsx rulesRoute in L7) ---------- */
+import { routeIntake } from "./engine.js";
+test("routeIntake: the old branches are unchanged; 'Trying to be' routes to Trying to Conceive", () => {
+  const W = {
+    preg: "Your pregnancy space is ready — week tracking, kick counts, and gentle guidance.",
+    meno: "Welcome — this space tracks symptoms and builds the record your doctor can act on, no period tracking in your way.",
+    periIrr: "Changing cycles are the story here — this space is built to read them, not fight them.",
+    periVms: "Hot flashes and sleep changes front and center — with honest guidance on what's treatable.",
+    cycle: "Your cycle space is ready — predictions, patterns, and zero judgment.",
+    ttc: "Your trying-to-conceive space is ready — your estimated fertile window, the signs that matter, and honest uncertainty.",
+  };
+  assert.deepEqual(routeIntake({ preg: "yes" }), { stage: "preg", label: "Pregnancy", welcome: W.preg });
+  assert.deepEqual(routeIntake({ preg: "ttc", age: "u35", per: "regular", vms: "no" }), { stage: "periods", label: "Trying to Conceive", welcome: W.ttc });
+  assert.deepEqual(routeIntake({ preg: "ttc", per: "none12" }), { stage: "periods", label: "Trying to Conceive", welcome: W.ttc });
+  assert.deepEqual(routeIntake({ preg: "ttc", age: "45p", per: "irregular", vms: "yes" }).label, "Trying to Conceive");
+  assert.deepEqual(routeIntake({ preg: "no", per: "none12" }), { stage: "peri", label: "Menopause", welcome: W.meno });
+  assert.deepEqual(routeIntake({ preg: "no", age: "45p", per: "irregular" }), { stage: "peri", label: "Perimenopause", welcome: W.periIrr });
+  assert.deepEqual(routeIntake({ preg: "no", age: "45p", vms: "yes" }), { stage: "peri", label: "Perimenopause", welcome: W.periVms });
+  assert.deepEqual(routeIntake({ preg: "no", age: "u35", per: "regular", vms: "no" }), { stage: "periods", label: "My Cycle", welcome: W.cycle });
+  assert.deepEqual(routeIntake({ preg: "no", age: "u35", per: "irregular", vms: "no" }), { stage: "periods", label: "My Cycle", welcome: W.cycle });
+  assert.deepEqual(routeIntake({ preg: "no", age: "u35", per: "irregular", vms: "yes" }).label, "Perimenopause");
+});

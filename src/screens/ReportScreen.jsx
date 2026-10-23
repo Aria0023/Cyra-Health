@@ -3,6 +3,8 @@ import { fmt, localDay, lensLabel } from "../lib/engine.js";
 import { FAMILIES, SYM_FAMILY, famVar } from "../lib/constants.js";
 import { copyText } from "../lib/clipboard.js";
 import Icon from "../components/Icon.jsx";
+import { FertilityFinding } from "../components/FertilitySummary.jsx";
+import { fertSummary } from "../lib/fertility.js";
 
 /* Cycle & Peri — Report, "What to tell your doctor": plain-language findings,
    what they might mean, verbatim scripts, send-ahead email, and the collapsed
@@ -81,7 +83,7 @@ function Meter({ color, any, strong, mounted }) {
 
 const Sec = ({ n, children }) => <p className="rsec"><span className="rnum">{n}</span><span>{children}</span></p>;
 
-export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, showTable, setShowTable, potsOn = false, todayIso = localDay(), appt = null, daysUntil = () => 0, goTab = () => {}, setShowAppts = () => {}, scoreOn = () => null, scoreColor = () => "var(--primary)", lens6 = null }) {
+export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, showTable, setShowTable, potsOn = false, todayIso = localDay(), appt = null, daysUntil = () => 0, goTab = () => {}, setShowAppts = () => {}, scoreOn = () => null, scoreColor = () => "var(--primary)", lens6 = null, fert = null }) {
   const n = ins.last30.length; // days logged in the last 30 calendar days
   // The last 6 cycle lengths, each marked when she left it out of predictions (L5): the spread still counts every one.
   const lensList = lens6 || ins.lens.map((len) => ({ len, excluded: false }));
@@ -102,6 +104,8 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
 
   // the window itself (the engine's last 30 calendar days) and the 30 days before it
   const from = dayIso(todayIso, -29), pfrom = dayIso(todayIso, -59);
+  // Fertility signs (L7, Trying to conceive only): the same 30-day window as everything else on this page.
+  const fsum = fert ? fertSummary(ins.sorted, { from, to: todayIso }) : null;
   const loggedSet = new Set(ins.last30.map((d) => d.date));
   const cells = Array.from({ length: 30 }, (_, i) => dayIso(from, i));
   const prev30 = ins.sorted.filter((d) => d.date >= pfrom && d.date < from);
@@ -217,6 +221,7 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
                 <p className="plain fsub">{lensList.map(lensLabel).join(", ")} days apart. Doctors call that a {ins.variability}-day spread.</p>
               </div>
             )}
+            {fert && <FertilityFinding sum={fsum} unit={fert.unit} />}
             {stage === "peri" && ins.hfMult && ins.hfMult > 1.2 && (
               <div className="finding fstat">
                 <div className="num">{ins.hfMult.toFixed(1)}×</div>

@@ -57,7 +57,10 @@ seriously by a clinician. Every feature serves that.
   disch: "none"|"creamy"|"eggwhite"|"sticky"|"watery"|"unusual" | null,
   odor: "none"|"mild"|"strong"|"fishy"|"yeasty" | null,
   bodyOdor: "same"|"stronger"|"changed" | null,
-  note?: string // her day note, trimmed, ≤ 280 (UTF-16 units), absent when empty; on the device and in backups only
+  note?: string, // her day note, trimmed, ≤ 280 (UTF-16 units), absent when empty; on the device and in backups only
+  cm?: "dry"|"sticky"|"creamy"|"watery"|"eggwhite", // cervical mucus (L7); written only when set
+  opk?: "neg"|"pos",          // ovulation (LH) test result (L7); absent = not tested
+  bbt?: number                // basal body temperature in °C, 34–40, at most 3 decimals (L7); written only when set
 }
 ```
 Every field except `date` and `sym` may be absent in older records (the demo seed writes only date, sleepQ, period and sym); `sym` keys are ids from any symptom library with values 0–3; there is at most one entry per date (`upsertDay`). The `DayEntry` typedef in src/lib/record.js is the working definition; later features add their fields here.
@@ -204,6 +207,9 @@ the inputs, and a summary line below. Optional fields never turn red.
 "Perimenopause"       -> peri
 "Menopause & beyond"  -> peri
 ```
+The intake shown after "{stage} · change" routes on the device through `routeIntake` in lib/engine.js (L7):
+"Are you currently pregnant?" Yes → Pregnancy; "Trying to be" → Trying to Conceive (stage `periods`), ahead of the
+period and hot-flash answers; otherwise Menopause / Perimenopause / My Cycle as before.
 After routing, the user sees ONLY that stage's tabs, symptoms, palette, and partners.
 A header chip shows the current stage with a "change" affordance that re-runs intake.
 
@@ -238,8 +244,8 @@ quick mode, "Tap what showed up (up to 3× for strong). Takes 30 seconds, promis
 Today reads "Tap a symptom once for mild, up to 3× for strong." The welcome sentence written at registration shows
 once, as `p.hint.welcome-line` directly under the h1 while `days.length === 0` (no card); the first save clears it
 (App `onSaved`). *Empty meter:* until something on the form is set (`touched` in App.jsx: any symptom chip > 0, any
-quick answer, sleep, any scale > 0, flow / discharge / odor / body odor, kicks > 0 — the same state the score and the
-save read) the meter is `.meter.meter-empty`: "Nothing logged yet" · "—", an empty track, border and dot `--line`,
+quick answer, sleep, any scale > 0, flow / discharge / odor / body odor, kicks > 0, and (L7) cervical mucus, an
+ovulation test or a temperature — the same state the score and the save read) the meter is `.meter.meter-empty`: "Nothing logged yet" · "—", an empty track, border and dot `--line`,
 `role=progressbar` with `aria-valuenow=0` and `aria-label="Day score: nothing logged yet"`, left foot "Tap below — your
 score updates live". The first tap switches it to the scored label and ramp colour in the same frame. The live score
 folds quick answers onto their hero symptoms (`foldQuick`) so the meter agrees with the score the day is saved with.
@@ -353,7 +359,8 @@ hint reads "Tap today to log your first day. Periods, predictions and the fertil
 keeps the inset ring inside it) and the cell is `aria-pressed="true"`; exactly one cell is pressed at a time.
 *Accessible name:* every cell is named "{Weekday}, {Month} {day}" followed by ", today", ", period" (then the
 flow: ", light flow", ", medium flow", ", heavy flow" or ", flooding"; nothing when no flow was set),
-", predicted period", ", estimated fertile window" and ", {scoreLabel}" as they apply (pregnancy: ", week N
+", predicted period", ", estimated fertile window", (L7, while fertility signs are shown) ", egg-white mucus" and
+", positive ovulation test", and ", {scoreLabel}" as they apply (pregnancy: ", week N
 starts", ", logged"); today also carries `aria-current="date"`.
 *Flow overlay (L5):* the period mark `span.c-per-mark` takes a flow class in the same position, tokens only —
 `f-light` (light, or no flow set) the 5px dot, `f-med` a 9 × 5px pill, `f-heavy` (heavy and flooding) a 13 × 5px
@@ -966,7 +973,7 @@ pill ("Delete everything") carries `.mc.danger`: --bad text with a 40% --bad bor
 on a 24-unit grid, `stroke="currentColor"`, 2px round strokes, from a path map: chevron, check, close, lock, bell, clock,
 chart, clipboard, drop, salt, heart, book, sparkle, print, share, people, plus-circle, lightning, foot, palette, sliders,
 apple, google, facebook, file, download, moon (Settings → Appearance), arrow-up and arrow-down (the Move up / Move down
-buttons in "Your symptoms", L6). No emoji anywhere in src (they render differently per OS and the palette emoji was the most
+buttons in "Your symptoms", L6), teststrip and thermometer (fertility signs, L7; `drop` stands for mucus). No emoji anywhere in src (they render differently per OS and the palette emoji was the most
 saturated object on every screen): the header buttons are `sliders` (settings) and `palette`, the kick button `foot`,
 the palette tick and the Milestones "done" tag `check`. An icon is decorative: the text node beside it, or the button's
 aria-label, carries the meaning, and asserted texts ("✓ On", "✓ Taken", "✓ Sync", the `.ckbox` glyphs) stay as text.
@@ -1071,6 +1078,8 @@ Three call sites, each with a deterministic fallback:
 3. **Ask** — returns `{answer, source_note, ask_your_doctor, urgent}`.
 
 Send only aggregated data keyed to an opaque ID — never names, never raw entry logs.
+Fertility signs (L7: cervical mucus, ovulation tests, basal temperature) are never in an AI payload: Ask sends
+`{ question }` only.
 System prompts must forbid diagnosis and dosing, and require an urgent flag for
 red-flag symptoms. **In production, proxy these through the backend** — never ship an
 API key in client code.
@@ -1183,6 +1192,12 @@ with the `.sub` tag) · name chip `.acctchip` (ellipsised past 110px, full text 
 link as `.stagechip.quiet` (no fill or border, underlined, may wrap to two lines inside its 44px box). Gap 4px; only when
 even the wrapped link does not fit does it drop to a second row.
 
+**Trying to conceive (L7).** With fertility signs shown, Home gains no section or card: Coming up's first row is the
+estimated fertile window while it is ahead or under way ("Fertile window likely {range}" / "In your estimated fertile
+window, until {date}", sub "An estimate, not contraception · Calendar →", opens the Calendar), and the today line under
+the check-in button reads today's signs when any are logged. It sits after "POTS today" in reading order and never
+moves a section label.
+
 Both stage experiences open on **Home**, not on the check-in form. Home contains, in order:
 greeting (time-of-day + name) with cycle day/phase or pregnancy week · gentle 14-day streak
 ("N of 14 days", never a broken-chain penalty) · one check-in CTA · today's single highest-
@@ -1235,6 +1250,8 @@ doesn't apply).
   date}. Scripts that assert these buttons match on the base label.
 
 ## A2. Pulse ("You're not alone")
+Fertility signs (L7) are never a weekly-count flag: `contribute()` gets `{ sym, sleepQ, flow }` only, and
+`FLAG_WORDS`, `PULSE_EVENTS` and `eventsForDay` are unchanged.
 **Flag (§9.1):** `counts`, off by default. Without it there is no pulse section on Home, no GET /api/pulse, no
 "Share anonymous weekly counts" (consent step, Settings, Today's sharing note, the header's "· sharing counts ✓"),
 and a tally an earlier build queued is never sent.
@@ -1445,6 +1462,9 @@ Apple stays first.
       other stage's library; everything logged still counts), Low energy in the cycle and perimenopause libraries, an
       optional day note of up to 280 characters on every check-in, kept on the device and in backups (§3.6, §5.1
       "Today: her symptom list and a day note", A8 tap budget, A14.6).
+- [x] Trying to conceive: fertility signs (local-first L7, D6): cervical mucus, ovulation tests and basal temperature
+      on Today, marked on the Calendar, the fertile-window row and today's read on Home, a Patterns card and a Report
+      finding for Trying to conceive; an opt-in for My Cycle; never in weekly counts or the AI (§3.1, A14.7).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the
       predicted date to Cyra's server, and today's copy promises one reminder at most. The brief's item 7 ("optional
       reminders for logging or predicted period") is met today by the optional logging reminder (A8).
@@ -1815,3 +1835,53 @@ and A8 (tap budget).
 - Free core (brief must-have 1): no plan gate, never `plan.can()`. Nothing new leaves the device: the note and her list
   are in the record and in the encrypted backup she saves, never in weekly counts, Ask, the doctor email or the POTS
   report (docs/PRIVACY-AUDIT.md, L6).
+
+### A14.7 Trying to conceive: fertility signs (L7)
+
+Decision D6. Code: `src/lib/fertility.js` (pure; imports only engine.js and constants.js, unit-tested in
+`fertility.test.mjs`), `src/components/FertilitySigns.jsx` (Today) and `src/components/FertilitySummary.jsx` (Patterns,
+Report), with the privacy line built in `src/lib/disclosures.js` `fertPrivacyLine(f)`.
+- **Who sees it.** `fertShown(stage, stageName, on)`: stage `periods` only; her Settings choice `on`, or with none yet
+  (null) the stage default — on for Trying to Conceive, off for My Cycle. Never in pregnancy, perimenopause or
+  menopause, even when a restored record holds signs. The record key `fertSigns = { on, unit }` (§3.4 list, in backups)
+  holds the choice and the temperature unit; `on` goes back to null when the intake changes the stage label and at
+  registration (re-running the intake into the same label keeps it). Restore is literal: a backup without fertSigns
+  resets `on` to null and keeps this device's unit. "Trying to be" in the intake routes to Trying to Conceive (§4.3).
+- **Today.** `div.plaincard.fertsigns[role=group]` labelled "Fertility signs" sits directly before Body signals in the
+  quick, full and edit forms: "Cervical mucus" (`.seg`: Dry, Sticky, Creamy, Watery, Egg-white), "Ovulation test"
+  (Not tested — pressed while nothing is set —, Negative, Positive) and "Basal body temperature" (`#fert-bbt`, text,
+  decimal keyboard, with a °C / °F `.seg` labelled "Temperature unit"). All optional; a second tap on a choice clears
+  it. The unit starts from the locale (°F for en-US and the other Fahrenheit locales) and every tap on it is saved.
+  `parseBbt` accepts 2–3 digits with up to 2 decimals (comma or point), °C 34–40, °F 93.2–104; a reading in the other
+  unit's range says "That looks like a °F reading. Switch the unit?" (or °C), anything else "Type a reading like
+  36.45." / "That looks unusual. Check the number?". Switching the unit converts a valid reading. Saving with an
+  invalid reading is stopped: toast "Check the temperature: it doesn't look like a reading. Fix it or clear it, then
+  save." and focus on the field. The entry stores `cm`, `opk` and `bbt` (°C, 3 decimals, so every °F reading
+  round-trips) only when set (§3.1). The footer is `fertPrivacyLine(FEATURES)` + "A guide to timing, not a confirmation
+  of ovulation — and not contraception.". While the group is shown, Body signals' Discharge row offers only "Unusual"
+  (plus a value a day already has) under "Mucus changes through your cycle go under Fertility signs above. Use this if
+  something seems unusual."
+- **Calendar.** While shown, a day with egg-white mucus or a positive test gets a 10px drop / test-strip mark
+  (`span.c-fmarks[aria-hidden]`, in the cell's own ink), the legend adds "egg-white" and "positive test", the cell name
+  adds ", egg-white mucus" / ", positive ovulation test", and the day card adds "Fertility signs: {parts}" before any
+  Note line. Predictions never read the signs.
+- **Home (Trying to conceive).** The Coming up row and the today line in A1. No new section label; Home grows by at most
+  about 60px.
+- **Patterns (Trying to conceive).** "Fertility signs this cycle" (from her last period start, 45 days ago or less) or
+  "Fertility signs · last 35 days": egg-white and watery mucus days, positive tests (or "Ovulation tests: {k} negative,
+  no positive yet"), temperature days, the temperature observation, and "Mucus and test results point to your most
+  fertile days; on their own they can't show that ovulation happened. Not contraception."
+- **Report (Trying to conceive).** One "Fertility signs" finding in What stands out over the same 30 days, and one email
+  line "• Fertility signs in these 30 days: …" when anything was logged.
+- **The 3-over-6 rule (an observation).** The first reading with six readings in the 10 days before it, followed by
+  readings on three consecutive days that are all above the highest of those six, the third at least 0.2 °C above it
+  (whole thousandths). Worded: "From {date}, your temperature stayed above the six readings before it (highest {temp})
+  for three days in a row. A rise like this is often seen after ovulation: an observation from your own readings, not
+  a confirmation." With 9+ readings and no rise: "No sustained temperature rise in these readings yet."
+- **Copy rules.** `FERT_BANNED` (no "ovulation confirmed", "you ovulated", "safe days", "birth control", guarantees…)
+  and `contraOk` (contraception only as "not contraception") are unit-tested over every output and checked in the e2e
+  over every fertility element on screen.
+- **Never sent.** The signs never enter `dayScore`, insights, predictions, weekly counts (`contribute()` gets
+  `{ sym, sleepQ, flow }`), the AI (`{ question }`) or the POTS report and spreadsheet. They leave the device only inside
+  the encrypted backup she saves, and as the one email line she sends herself (docs/PRIVACY-AUDIT.md, L7).
+- Free core: never gated in plan.js.

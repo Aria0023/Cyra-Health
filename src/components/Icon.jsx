@@ -33,6 +33,8 @@ const PATHS = {
   moon: "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z",
   "arrow-up": "M12 19V5M5 12l7-7 7 7",
   "arrow-down": "M12 5v14M19 12l-7 7-7-7",
+  teststrip: "M9 2h6v20H9zM11 7h2M11 11h2", // an ovulation test strip with its control and test lines (L7)
+  thermometer: "M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z", // basal body temperature (L7)
 };
 
 export default function Icon({ name, size = 16, className }) {

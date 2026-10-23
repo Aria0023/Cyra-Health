@@ -1,4 +1,4 @@
-import { ALL_SYM, QUICK_MAP, PRENATAL } from "./constants.js";
+import { ALL_SYM, QUICK_MAP, PRENATAL, TTC_NAME } from "./constants.js";
 
 /* Deterministic demo data, cycle detection, prediction and scoring. Pure
    functions only — no React, no state, no side effects.
@@ -136,6 +136,18 @@ export function insights(days, ids, today = new Date()) {
   const lens30 = cycleLens(starts.filter((d) => d >= from));
   const variability30 = lens30.length >= 2 ? Math.max(...lens30) - Math.min(...lens30) : null;
   return { sorted, last30, counts, roughNights, hfMult, hfMult30, lens: lens.slice(-6), variability, lens30, variability30, starts, cycles: cycleSpans(starts) };
+}
+
+/** The intake's stage routing (spec §4.3; moved here from App.jsx in L7): the four answers { preg, age, per, vms }
+    → { stage, label, welcome }. Runs on the device only; the answers are never stored or sent. "Trying to be" (preg
+    "ttc") routes to Trying to Conceive, ahead of the period and hot-flash answers (L7, decision D6). */
+export function routeIntake(a) {
+  if (a.preg === "yes") return { stage: "preg", label: "Pregnancy", welcome: "Your pregnancy space is ready — week tracking, kick counts, and gentle guidance." };
+  if (a.preg === "ttc") return { stage: "periods", label: TTC_NAME, welcome: "Your trying-to-conceive space is ready — your estimated fertile window, the signs that matter, and honest uncertainty." };
+  if (a.per === "none12") return { stage: "peri", label: "Menopause", welcome: "Welcome — this space tracks symptoms and builds the record your doctor can act on, no period tracking in your way." };
+  if (a.per === "irregular" && (a.age !== "u35" || a.vms === "yes")) return { stage: "peri", label: "Perimenopause", welcome: "Changing cycles are the story here — this space is built to read them, not fight them." };
+  if (a.vms === "yes" && a.age === "45p") return { stage: "peri", label: "Perimenopause", welcome: "Hot flashes and sleep changes front and center — with honest guidance on what's treatable." };
+  return { stage: "periods", label: "My Cycle", welcome: "Your cycle space is ready — predictions, patterns, and zero judgment." };
 }
 
 /* Registration answers that can seed a prediction before two cycles are logged. */

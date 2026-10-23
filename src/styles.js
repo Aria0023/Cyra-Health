@@ -808,4 +808,26 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .notecount { flex-shrink:0; font-size:var(--fs-sm); color:var(--soft); font-variant-numeric:tabular-nums; }
 .notecount.near { color:var(--ink); font-weight:700; }
 .daycard .dayline.noteline { white-space:pre-wrap; overflow-wrap:anywhere; }
+/* L7 fertility signs (decision D6): Today's group, the Calendar marks and legend, the Patterns card. Existing tokens only
+   (no FAMILIES or RAMPS colours), no motion; every target uses the existing 44px .mc / .linkbtn / .takebtn / .inp rules. */
+.fertsigns { margin:var(--stack) 0; }
+.fertsigns > .section-lab { margin:0 0 2px; }
+.fertsigns .fertsub { font-size:var(--fs-sm); margin:0 0 10px; }
+.fertsigns [role=group] { margin-bottom:10px; }
+.fertsigns label.qlab { display:block; }
+.fertseg .mc { padding:7px 2px; }
+.bbtrow { display:flex; gap:var(--gap); align-items:stretch; }
+.bbtrow .inp { flex:1 1 auto; min-width:0; margin-bottom:0; font-variant-numeric:tabular-nums; }
+.seg.unitseg { flex:0 0 112px; width:112px; margin-bottom:0; }
+.fertsigns .inphelp, .fertsigns .errhint { margin:6px 0 0; }
+.fertfoot { margin-top:10px; }
+.dischnote { font-size:var(--fs-sm); margin:0 0 6px; }
+.c-fmarks { position:absolute; top:3px; right:3px; display:flex; gap:1px; line-height:0; pointer-events:none; }
+.c-fmarks svg { stroke-width:3; }
+.fm-ew path { fill:currentColor; }
+.callegend .d-ficon { width:11px; height:11px; margin-right:4px; vertical-align:-1px; color:var(--ink); }
+.fertsum .fertlist { list-style:none; margin:0; padding:0; display:grid; gap:6px; font-size:var(--fs-md); }
+.fertsum .fertlist li { display:flex; gap:8px; align-items:flex-start; }
+.fertsum .fertlist .labico { flex:0 0 auto; margin:3px 0 0; }
+.fertsum .fertshift { margin:10px 0 0; }
 `;

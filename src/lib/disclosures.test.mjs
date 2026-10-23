@@ -8,7 +8,7 @@ import { FEATURE_NAMES, parseFeatures, remindersInBuild } from "./features.js";
 import {
   andList, oxfordList, deleteAlso, serverSees, consentDeleteFact, consentDetails, filesSentence, leaveDevice, restoreFoot, restoreChanges,
   wipeConfirm, wipeMore, LEGACY_WEAR_LINE, intakeHint, startOverText, potsTodayFoot, potsTodayFootUnsaved, potsTodayFoot2, potsHintTail,
-  potsNeverSent, potsFixedLine, potsRemindersLine,
+  potsNeverSent, potsFixedLine, potsRemindersLine, fertPrivacyLine,
 } from "./disclosures.js";
 
 const ALL = parseFeatures("all"), DEF = parseFeatures(undefined), NONE = parseFeatures("none");
@@ -77,10 +77,23 @@ const outputs = (f, native, server = true) => {
     ["wipeConfirm", wipeConfirm(f, native)], ["wipeMore", wipeMore(f, native)], ["intakeHint", intakeHint(f)],
     ["startOverText", startOverText(f)], ["potsTodayFoot", potsTodayFoot(f)], ["potsTodayFootUnsaved", Object.values(potsTodayFootUnsaved(f))],
     ["potsTodayFoot2", potsTodayFoot2(f)], ["potsHintTail", potsHintTail(f)], ["potsNeverSent", potsNeverSent(f)],
-    ["potsFixedLine", potsFixedLine(f)], ["potsRemindersLine", potsRemindersLine(f, native)],
+    ["potsFixedLine", potsFixedLine(f)], ["potsRemindersLine", potsRemindersLine(f, native)], ["fertPrivacyLine", fertPrivacyLine(f)],
   ];
   return list.flatMap(([name, v]) => (Array.isArray(v) ? v : [v]).filter((t) => t != null).map((text) => ({ name, text })));
 };
+
+test("disclosures: fertPrivacyLine (L7) has four variants, keyed on the counts and ai flags only", () => {
+  const v = (counts, ai) => fertPrivacyLine({ ...NONE, counts, ai });
+  assert.equal(v(true, true), "Kept on this device. Never part of weekly counts or sent to Cyra's AI.");
+  assert.equal(v(true, false), "Kept on this device. Never part of weekly counts.");
+  assert.equal(v(false, true), "Kept on this device. Never sent to Cyra's AI.");
+  assert.equal(v(false, false), "Kept on this device.");
+  assert.equal(fertPrivacyLine(ALL), v(true, true));
+  assert.equal(fertPrivacyLine(DEF), v(false, true));
+  assert.equal(fertPrivacyLine(NONE), v(false, false));
+  // The other flags never change it.
+  for (const n of FEATURE_NAMES) if (n !== "counts" && n !== "ai") assert.equal(fertPrivacyLine({ ...ALL, [n]: false }), v(true, true));
+});
 
 test("disclosures: list helpers", () => {
   assert.equal(andList([]), ""); assert.equal(andList(["a"]), "a"); assert.equal(andList(["a", "b"]), "a and b"); assert.equal(andList(["a", "b", "c"]), "a, b and c");

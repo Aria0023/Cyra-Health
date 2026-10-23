@@ -3,7 +3,7 @@
    device and in `node --test`. lib/storage.js passes every record it loads through migrate(), and
    App.jsx importBackup passes every decrypted backup through it too. RECORD_VERSION is 1 and there
    are no migration steps yet, so migrate() returns today's records untouched (the same object).
-   engine.js and daylog.js (L6) are lower layers: this file may import them; neither ever imports this file.
+   engine.js, daylog.js (L6) and fertility.js (L7) are lower layers: this file may import them; none ever imports this file.
 
    Written for the iOS 15.0 web view as well: no structuredClone, Array.prototype.at, findLast or
    Object.hasOwn (Object.prototype.hasOwnProperty.call instead). docs/ARCHITECTURE.md §4 describes
@@ -12,6 +12,7 @@
 import { localDay, isPeriodDay, cycleStarts, cycleSpans, cleanCycleFlags } from "./engine.js";
 import { PALETTES, CADENCE, FLOW, DISCHARGE, ODOR, BODYODOR, RELATIONSHIP, INTIMACY, AFTER } from "./constants.js";
 import { cleanSymPrefs, NOTE_MAX } from "./daylog.js";
+import { cleanFert, cleanFertPrefs } from "./fertility.js";
 
 /* ======================= shapes (documentation only) =======================
    Class tags: [record] the health record and settings (in the backup file, applied by a restore,
@@ -60,6 +61,7 @@ import { cleanSymPrefs, NOTE_MAX } from "./daylog.js";
  * @property {"system"|"light"|"dark"} appearance [device-pref] [not-in-backup] this device's light / dark choice (lib/appearance.js).
  * @property {CycleFlags} cycleFlags [record] cycles she left out of predictions (L5); missing means {}.
  * @property {SymPrefs} symPrefs [record] her symptom list per stage (L6); missing means {} (Cyra's order).
+ * @property {FertSigns} fertSigns [record] fertility signs switch and unit (L7); missing means { on: null, unit: null }.
  */
 
 /**
@@ -77,6 +79,9 @@ import { cleanSymPrefs, NOTE_MAX } from "./daylog.js";
  * @property {string|null} [odor] ODOR id.
  * @property {string|null} [bodyOdor] BODYODOR id.
  * @property {string} [note] her day note (L6): trimmed, at most 280 UTF-16 units (lib/daylog.js cleanNote); absent when empty.
+ * @property {"dry"|"sticky"|"creamy"|"watery"|"eggwhite"} [cm] cervical mucus (L7, lib/fertility.js); absent when not logged.
+ * @property {"neg"|"pos"} [opk] ovulation (LH) test result (L7); absent means not tested.
+ * @property {number} [bbt] basal body temperature in °C, 34–40, at most 3 decimals (L7); absent when not logged.
  *   On the device and in backups only; never in weekly counts, Ask or the doctor email.
  */
 
@@ -117,6 +122,14 @@ import { cleanSymPrefs, NOTE_MAX } from "./daylog.js";
  * literally (a backup without it brings back Cyra's order). The tracked list (library + added, hidden included)
  * drives every insight, so hiding a chip never hides what she logged.
  * @typedef {Object<string, {order: string[], hidden: string[], added: string[]}>} SymPrefs
+ */
+
+/**
+ * Fertility signs (L7, lib/fertility.js): on is her Settings choice (null = the stage default: on for Trying to
+ * conceive, off for My Cycle; reset to null when the intake or registration changes the stage label); unit is the
+ * display and entry unit for temperature (null = from the locale). In the record and in backups; a restore is
+ * literal (a backup without it resets on to null and keeps this device's unit). Holds no health data.
+ * @typedef {{on: boolean|null, unit: "C"|"F"|null}} FertSigns
  */
 
 /**
@@ -185,8 +198,9 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    address Cyra's server still has to forget, and a version so every open tab agrees on the
    on/off switch; its status is worked out again at every launch.
    cycleFlags (L5) is her own per-cycle choice ("Don't use for predictions"): part of the record, so it travels in backups.
-   symPrefs (L6) is her symptom list per stage (order, More symptoms, added from the other list): record, in backups. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs"]);
+   symPrefs (L6) is her symptom list per stage (order, More symptoms, added from the other list): record, in backups.
+   fertSigns (L7) is the fertility signs switch and temperature unit: record, in backups (no health data). */
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -294,11 +308,18 @@ const pickProblems = (e, p, field, list) => (has(e, field) && e[field] !== undef
    absent when empty). Reported, never trimmed or dropped here. */
 const noteProblems = (e, p) => (has(e, "note") && e.note !== undefined && !(typeof e.note === "string" && e.note.trim() !== "" && e.note.length <= NOTE_MAX)
   ? [`${p}.note: expected text of 1–${NOTE_MAX} characters, got ${show(e.note)}`] : []);
+/* Fertility signs (L7): each of cm, opk and bbt, when present, must be what lib/fertility.js cleanFert keeps. */
+const FERT_WHAT = { cm: "dry, sticky, creamy, watery or eggwhite", opk: "neg or pos", bbt: "a °C temperature from 34 to 40" };
+const fertProblems = (d, p) => {
+  const ok = cleanFert(d);
+  return ["cm", "opk", "bbt"].filter((k) => has(d, k) && d[k] !== undefined && ok[k] === null).map((k) => `${p}.${k}: expected ${FERT_WHAT[k]}, got ${show(d[k])}`);
+};
 function dayEntryProblems(d, p) {
   const out = [...symProblems(d.sym, `${p}.sym`), ...scalesProblems(d.scales, `${p}.scales`), ...noteProblems(d, p)];
   if (d.sleepQ !== undefined && d.sleepQ !== null && !SLEEP_Q.includes(d.sleepQ)) out.push(`${p}.sleepQ: expected good, fair or poor, got ${show(d.sleepQ)}`);
   if (d.period !== undefined && typeof d.period !== "boolean") out.push(`${p}.period: expected true or false, got ${show(d.period)}`);
   out.push(...pickProblems(d, p, "flow", FLOW), ...pickProblems(d, p, "disch", DISCHARGE), ...pickProblems(d, p, "odor", ODOR), ...pickProblems(d, p, "bodyOdor", BODYODOR));
+  out.push(...fertProblems(d, p));
   return out;
 }
 const daysRule = (v, p) => {
@@ -409,6 +430,8 @@ export const RULES = Object.freeze({
   // Her "Don't use for predictions" choices: a problem whenever cleanCycleFlags would change anything.
   cycleFlags: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanCycleFlags(v)) ? [] : [`${p}: expected { YYYY-MM-DD: { exclude: true|false, … } } (at most 400, no empty entries), got ${show(v)}`]),
   // Her symptom list per stage (L6): a problem whenever cleanSymPrefs would change anything.
+  // Fertility signs switch and unit (L7): a problem whenever cleanFertPrefs would change anything.
+  fertSigns: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanFertPrefs(v)) ? [] : [`${p}: expected { on: true|false|null, unit: "C"|"F"|null }, got ${show(v)}`]),
   symPrefs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanSymPrefs(v)) ? [] : [`${p}: expected { periods|peri|preg: { order, hidden, added } } (lists of symptom ids, at most 40 each, no empty stages), got ${show(v)}`]),
 });
 

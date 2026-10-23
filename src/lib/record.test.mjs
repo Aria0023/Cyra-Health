@@ -29,7 +29,7 @@ const DEFAULTS = () => ({
   meds: [], medLog: {}, appts: [], journal: {}, wearSources: {}, wearData: [], acct: { name: "", email: "", anon: false }, research: false,
   stage: "peri", stageName: "Perimenopause", welcome: "", days: seed(), pregLog: {}, pulseQueue: null, pulseSent: null, pulseLastSend: null,
   pulseRev: 0, askAI: false, regAnswers: null, reminders: { enabled: false, endpoint: null, pending: [], rev: 0 }, terraOff: [], kickTally: null,
-  pots: freshEmpty(), lastBackupAt: null, installHint: null, appearance: "system", cycleFlags: {}, symPrefs: {},
+  pots: freshEmpty(), lastBackupAt: null, installHint: null, appearance: "system", cycleFlags: {}, symPrefs: {}, fertSigns: { on: null, unit: null },
 });
 const appRecord = (over = {}) => {
   const d = { ...DEFAULTS(), ...over };
@@ -104,8 +104,8 @@ test("migrate: a missing, throwing or non-advancing step returns the input (all 
 /* ---------- keys ---------- */
 
 test("key lists are the ones App.jsx used before L3 (pinned)", () => {
-  // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags and L6 symPrefs (record keys: in RECORD and in backups).
-  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs"]);
+  // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags, L6 symPrefs and L7 fertSigns (record keys: in RECORD and in backups).
+  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns"]);
   assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint"]);
   assert.deepEqual([...DEVICE_PREFS], ["appearance"]);
   assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "appearance"]);
@@ -190,6 +190,7 @@ test("validateRecord: an app-shaped record has no problems", () => {
     reminders: { enabled: true, endpoint: "https://push.example/x", pending: [], rev: 3 }, terraOff: [{ key: "k".repeat(43) }],
     kickTally: { day: iso(0), n: 4 }, lastBackupAt: iso(3), installHint: "installed", appearance: "dark", cycleFlags: { [iso(40)]: { exclude: true }, [iso(70)]: { exclude: false, note: "later field" } },
     symPrefs: { peri: { order: ["eng", "hf"], hidden: ["itc"], added: ["crm"] }, preg: { order: [], hidden: ["brx"], added: [] } },
+    fertSigns: { on: true, unit: "F" },
     acct: { name: "Ada", email: "ada@example.com", anon: false }, welcome: "Your pregnancy space is ready.",
     days: [{ date: iso(1), sleepQ: "poor", period: true, scales: { fatigue: 3, pain: 2, moodq: 7, stress: 1 }, flow: "heavy", disch: "creamy", odor: "none", bodyOdor: "same", sym: { crm: 3, hda: 0, eng: 2 }, note: "Migraine after the late shift.\nTook the day slowly." }],
   });
@@ -262,6 +263,33 @@ test("symPrefs and day notes (L6): symPrefs is a record key in backups; notes ar
   const before = clone(old);
   assert.equal(migrate(old), old);
   assert.deepEqual(old, before);
+  assert.deepEqual(validateRecord(old), []);
+});
+
+test("fertility signs (L7): fertSigns is a record key in backups; cm, opk and bbt are reported, never changed", () => {
+  assert.ok(RECORD.includes("fertSigns"), "adopted by other tabs");
+  assert.ok(!DEVICE_ONLY.includes("fertSigns") && !NOT_IN_BACKUP.includes("fertSigns"), "in backups, applied by a restore");
+  assert.deepEqual(backupCopy(appRecord({ fertSigns: { on: false, unit: "C" } })).fertSigns, { on: false, unit: "C" });
+  for (const ok of [{ on: null, unit: null }, { on: true, unit: "F" }, { on: false, unit: "C" }]) assert.deepEqual(RULES.fertSigns(ok, "fertSigns"), []);
+  for (const bad of [null, [], "x", { on: "yes", unit: null }, { on: null, unit: "K" }, { on: null }, { on: null, unit: null, extra: 1 }]) {
+    const out = RULES.fertSigns(bad, "fertSigns");
+    assert.equal(out.length, 1, JSON.stringify(bad));
+    assert.match(out[0], /^fertSigns: expected /);
+  }
+  const day = (extra) => ({ date: iso(2), sleepQ: "fair", period: false, sym: { crm: 1 }, ...extra });
+  assert.deepEqual(validateRecord(appRecord({ days: [day({ cm: "eggwhite", opk: "pos", bbt: 36.5 }), { ...day({ cm: "dry", opk: "neg", bbt: 34 }), date: iso(3) }] })), []);
+  for (const [extra, field] of [[{ cm: "foo" }, "cm"], [{ opk: "maybe" }, "opk"], [{ bbt: "hot" }, "bbt"], [{ bbt: 60 }, "bbt"], [{ opk: "none" }, "opk"]]) {
+    const days = [day(extra)];
+    const before = clone(days);
+    const out = validateRecord(appRecord({ days }));
+    assert.equal(out.length, 1, JSON.stringify(out));
+    assert.ok(out[0].startsWith(`days[0].${field}: expected `), out[0]);
+    assert.deepEqual(days, before, "the validator never drops a value");
+  }
+  // A pre-L7 record (no fertSigns, no fertility fields) needs no migration step.
+  const old = appRecord();
+  delete old.fertSigns;
+  assert.equal(migrate(old), old);
   assert.deepEqual(validateRecord(old), []);
 });
 
@@ -389,7 +417,7 @@ test("daysLogged", () => {
 
 // record.js may import only these pure leaf modules. A later slice may add one (L6 './daylog.js',
 // L7 './fertility.js'); none of them may import record.js back.
-const RECORD_IMPORTS = ["./engine.js", "./constants.js", "./daylog.js"];
+const RECORD_IMPORTS = ["./engine.js", "./constants.js", "./daylog.js", "./fertility.js"];
 const importsOf = (code) => [...code.matchAll(/^\s*import\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]);
 
 test("layering and no I/O", () => {

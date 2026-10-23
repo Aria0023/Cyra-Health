@@ -4,6 +4,8 @@ import { localDay, isPeriodDay, sevDots, fmt, fmtRange } from "../lib/engine.js"
 import { cleanNote } from "../lib/daylog.js";
 import Details from "../components/Details.jsx";
 import CycleList from "../components/CycleList.jsx";
+import Icon from "../components/Icon.jsx";
+import { cleanFert, fertParts } from "../lib/fertility.js";
 
 /* Cycle & Peri — Calendar: any month, one at a time (‹ › move, "Back to this month" returns;
    the month resets when the tab is re-entered because the tab panel remounts). Fill = day
@@ -16,13 +18,16 @@ import CycleList from "../components/CycleList.jsx";
    28 days, and how many she left out) and "Estimates — not contraception."; with no prediction a card
    says why (nothing logged, irregular at sign-up, every cycle left out, a gap over 120 days, menopause).
    "Your cycles" (a closed Details, not in menopause) lists the running cycle and up to 12 earlier ones,
-   newest first, with the Unusual suggestion and her "Don't use" switch (components/CycleList.jsx). */
+   newest first, with the Unusual suggestion and her "Don't use" switch (components/CycleList.jsx).
+   Fertility signs (L7, D6), only while App.jsx shows them (fertOn): a day with egg-white mucus or a positive ovulation
+   test gets a small drop / test-strip mark in its cell (aria-hidden; the cell's name says it too), the legend names both,
+   and the day card lists that day's signs. They never change pred. */
 const FLOW_MARK = { light: "f-light", med: "f-med", heavy: "f-heavy", flood: "f-heavy" };
 const FLOW_WORDS = { light: ", light flow", med: ", medium flow", heavy: ", heavy flow", flood: ", flooding" };
 const longDay = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 const shortDay = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 
-export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCycleUse = () => {}, stage, isMeno = false, days, symIds, symMap, dayScore, scoreColor, scoreInk, scoreLabel, todayIso, selDay, setSelDay, onEdit }) {
+export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCycleUse = () => {}, stage, isMeno = false, days, symIds, symMap, dayScore, scoreColor, scoreInk, scoreLabel, todayIso, selDay, setSelDay, onEdit, fertOn = false, tempUnit = "C" }) {
   const [mo, setMo] = useState(0);
   const now = new Date();
   const first = new Date(now.getFullYear(), now.getMonth() + mo, 1);
@@ -39,14 +44,17 @@ export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCyc
     const predP = !!pred && iso >= pred.fromIso && iso <= pred.toIso;
     const fert = !!pred && iso >= pred.fertileFromIso && iso <= pred.fertileToIso;
     const flowWords = logged ? FLOW_WORDS[entry.flow] || "" : "";
+    const f = fertOn ? cleanFert(entry) : {};
+    const ew = f.cm === "eggwhite", pos = f.opk === "pos";
     const sc = dayScore(entry, symIds);
     const isToday = iso === todayIso;
     const tint = sc != null ? { background: scoreColor(sc), color: scoreInk(sc), fontWeight: 700 } : {};
-    const label = `${longDay(iso)}${isToday ? ", today" : ""}${logged ? `, period${flowWords}` : ""}${predP ? ", predicted period" : ""}${fert ? ", estimated fertile window" : ""}${sc != null ? `, ${scoreLabel(sc)}` : ""}`;
+    const label = `${longDay(iso)}${isToday ? ", today" : ""}${logged ? `, period${flowWords}` : ""}${predP ? ", predicted period" : ""}${fert ? ", estimated fertile window" : ""}${ew ? ", egg-white mucus" : ""}${pos ? ", positive ovulation test" : ""}${sc != null ? `, ${scoreLabel(sc)}` : ""}`;
     const cls = `calcell ${logged ? "c-period" : predP ? "c-pred" : fert ? "c-fert" : ""} ${isToday ? "c-today" : ""} ${isToday && firstRun ? "c-empty" : ""} ${iso === selDay ? "c-sel" : ""} ${iso > todayIso ? "c-future" : ""}`;
     cells.push(
       <button key={iso} type="button" style={tint} className={cls} aria-label={label} aria-pressed={iso === selDay} aria-current={isToday ? "date" : undefined} onClick={() => setSelDay(iso)}>
         {dnum}{logged && <span className={`c-per-mark ${FLOW_MARK[entry.flow] || "f-light"}`} />}
+        {(ew || pos) && <span className="c-fmarks" aria-hidden="true">{ew && <Icon name="drop" size={10} className="fm-ew" />}{pos && <Icon name="teststrip" size={10} />}</span>}
       </button>
     );
   }
@@ -81,6 +89,7 @@ export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCyc
                   </ul>
                 ) : <p className="dayline">No symptoms</p>}
                 <p className="dayline">{isPeriodDay(e) ? "Period · " : ""}Sleep: {e.sleepQ}</p>
+                {fertOn && fertParts(e, tempUnit).length > 0 && <p className="dayline fertline">{`Fertility signs: ${fertParts(e, tempUnit).join(" · ")}`}</p>}
                 {cleanNote(e.note) && <p className="dayline noteline"><b>Note:</b> {cleanNote(e.note)}</p>}
               </>
             ) : (
@@ -97,6 +106,7 @@ export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCyc
       })()}
       <div className="callegend">
         {!isMeno && <><span><i className="dot d-pred" /> predicted</span><span><i className="dot d-fert" /> fertile (est.)</span></>}<span><i className="dot d-permark" /> period</span>
+        {fertOn && <><span><Icon name="drop" size={11} className="d-ficon fm-ew" />egg-white</span><span><Icon name="teststrip" size={11} className="d-ficon" />positive test</span></>}
       </div>
       <div className="gradlegend">
         <span>rough day</span>

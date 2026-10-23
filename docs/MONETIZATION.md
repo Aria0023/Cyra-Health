@@ -37,6 +37,8 @@ A feature that ships free stays free.
 - Symptom favourites per stage (order, "More symptoms", symptoms added from the other stage's list) and day notes,
   both part of the fast daily log (brief must-have 1). They are never behind `plan.can()`;
   `plan.extraCustomisation` is for extras beyond these.
+- Fertility signs (Trying to conceive; opt-in for My Cycle): cervical mucus, ovulation tests and basal temperature
+  (local-first L7) — free core, never gated in plan.js.
 
 **Coming in this work, also free:** fertility signs, plain-language
 summaries, the PDF export (unlimited today), the privacy dashboard and the app lock.
