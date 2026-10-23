@@ -29,14 +29,14 @@ const PRE = {
   consentDeleteFact: "Delete everything from Settings, anytime. It also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop.",
   consentDetails: [
     "Features that send something: weekly counts, Cyra's AI and wearable syncs. Each one tells you what it sends before you turn it on.",
-    "Taking it out yourself means a doctor summary you open in email or copy, a POTS report or spreadsheet you save or share, which isn't locked, or a backup file you save, which stays locked with your passphrase.",
+    "Taking it out yourself means a doctor summary you open in email or copy, an appointment PDF, POTS report or spreadsheet you save or share, which isn't locked, or a backup file you save, which stays locked with your passphrase.",
     "If Delete everything can't confirm that reminders are off and Oura and Fitbit/Garmin/Whoop are disconnected, Cyra tells you what did and didn't happen, and keeps your record on this device until you choose.",
     "Deleting can't pull back what already left: anonymous counts you shared stay counted, questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy.",
   ],
   leaveDevice: [
     "Features you turn on (reminders in a browser, weekly counts, Cyra's AI, Oura, Fitbit/Garmin/Whoop) each say, before you turn them on, what they send and where.",
     "Restoring a backup brings back its wearable connections on this device.",
-    "Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase and never include readings Cyra gets from a connected watch, ring or health app.",
+    "Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase and never include readings Cyra gets from a connected watch, ring or health app.",
   ],
   restoreFoot: "Unlocked on this device with your passphrase. It replaces your record here. Oura and Fitbit/Garmin/Whoop connections in the backup come back unconfirmed until Cyra checks them through its server; ones only on this device stay connected.",
   restoreChanges: [
@@ -151,7 +151,7 @@ test("disclosures: the shipping defaults (ai, webReminders), web and phone", () 
   assert.deepEqual(consentDetails(DEF, true), [consentDetails(DEF, false)[0], PRE.consentDetails[1], consentDetails(DEF, false)[3]], "phone: a cancel never needs the server");
   assert.deepEqual(leaveDevice(DEF), [
     "Features you turn on (reminders in a browser, Cyra's AI) each say, before you turn them on, what they send and where.",
-    "Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase.",
+    "Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase.",
   ]);
   assert.equal(restoreFoot(DEF), "Unlocked on this device with your passphrase. It replaces your record here.");
   assert.deepEqual(restoreChanges(DEF), ["Your settings are replaced too, except this device's choices about Cyra's AI, browser reminders and appearance (light or dark).", PRE.restoreChanges[3], PRE.restoreChanges[4]]);
@@ -182,7 +182,7 @@ test("disclosures: none — the minimal outputs", () => {
   assert.equal(consentDeleteFact(NONE, false), "Delete everything from Settings, anytime.");
   assert.equal(consentDeleteFact(NONE, true), "Delete everything from Settings, anytime. It also turns off reminders.");
   for (const native of [false, true]) assert.deepEqual(consentDetails(NONE, native), [PRE.consentDetails[1]]);
-  assert.deepEqual(leaveDevice(NONE), ["Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase."]);
+  assert.deepEqual(leaveDevice(NONE), ["Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase."]);
   assert.deepEqual(restoreChanges(NONE), ["Your settings are replaced too, except this device's choices about appearance (light or dark).", PRE.restoreChanges[3], PRE.restoreChanges[4]]);
   assert.equal(wipeConfirm(NONE, false), " Every check-in, POTS log, note, appointment and setting goes for good. Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.");
   assert.deepEqual(wipeMore(NONE, false), [PRE.wipeMoreWeb[2]]);

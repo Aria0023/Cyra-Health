@@ -27,7 +27,8 @@ A feature that ships free stays free.
 - Check-ins, quick and full, in every life stage (cycle, trying to conceive, pregnancy,
   perimenopause, menopause), and logging any past day from the Calendar.
 - Calendar, Home and Today, Patterns and the basic insights.
-- The Report tab: on screen, print or save as PDF from the browser, the email draft, copy.
+- The Report tab: on screen, the appointment PDF made on the device (local-first L9, unlimited today), print from
+  the browser, the email draft, copy.
 - Care, Ask (the on-device library; Cyra's AI where the build offers it, opt-in), the journal,
   appointments, What I'm trying, Connect and Milestones.
 - The POTS add-on.
@@ -42,7 +43,7 @@ A feature that ships free stays free.
 - Plain-language summaries and simple links (local-first L8): "This week / This month", sleep links and cycle-day
   clusters in her own log, Home's insight — worked out on the device, free core, never gated in plan.js.
 
-**Coming in this work, also free:** the PDF export (unlimited today), the privacy dashboard and the app lock.
+**Coming in this work, also free:** the privacy dashboard and the app lock.
 
 ## 3. Paid extension points (none active)
 
@@ -78,8 +79,16 @@ closed: an unknown feature, or a paid extension whose value isn't exactly `true`
   nothing used, and fails closed (0) when the configured limit is not a whole number ≥ 0.
 - It applies to the generated PDF file only. The on-screen Report, printing, copying and the email
   draft are never limited.
-- The wording for a reached limit is written only when a limit is actually configured, and it has
-  no upgrade prompt while no paid tier exists.
+- The wording for a reached limit (`limitLine` in `src/lib/visitReport.js`: "You've made this month's
+  N PDFs. You can make another from {date}. Print this page works any time.") shows only when a limit
+  is actually configured, as an `aria-disabled` button with that line; it is never an upgrade prompt.
+- **Where it is wired (L9).** `ReportScreen` renders the Appointment PDF card only when
+  `plan.can("pdfExport")`. App.jsx passes `pdfLeft = exportsLeft(exportLog, { now })` (null = unlimited)
+  and the button is gated when `pdfLeft !== null && pdfLeft <= 0`. After a save that was not cancelled,
+  `noteExport(exportLog, { now })` returns the next tally, and only a non-null result is written to the
+  `exportLog` key (DEVICE_ONLY, NOT_IN_BACKUP, `src/lib/record.js`): in the shipping plan it is always
+  null, so nothing is counted or stored. The POTS report is not gated or counted. A later paid tier could
+  raise the limit or add richer exports without changing the free file.
 - Tested in `src/lib/plan.test.mjs` with a limit of 3 (counting down, never negative, a new month,
   the December to January rollover, garbage tallies, bad limits).
 

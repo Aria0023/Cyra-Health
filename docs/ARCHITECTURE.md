@@ -167,6 +167,7 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `pulseRev` | version of the sharing state | bookkeeping, device-only | yes | no | through the pulse merge |
 | `lastBackupAt` | day this device last made a backup | bookkeeping, device-only | **no** (NOT_IN_BACKUP) | no | no |
 | `installHint` | whether this browser's install tip stays away | device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no (RECORD excludes it; each save merges the stored value one way: installed > dismissed > null) |
+| `exportLog` | appointment PDFs made this month, `{ month, n }`; null unless plan.js sets a monthly limit (none today, so it stays null) | bookkeeping, device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
 | `appearance` | System / Light / Dark | device preference (DEVICE_PREFS) | **no** (NOT_IN_BACKUP) | never (this device's kept) | yes (same browser, same device) |
 | `reminders` | the switch, this browser's push addresses, a version | bookkeeping | `{ enabled }` only | on the phone only (the web keeps this browser's switch) | own merge (`rev`, the `reminders` message) |
 
@@ -258,6 +259,12 @@ in `lib/engine.js`. All pure, computed by App.jsx (`useMemo`) on render, never s
 they read no day note and no fertility sign. The AI pattern-report hook (`plan.aiPatternReports`) stays false and
 nothing calls it.
 
+The appointment PDF (L9): `visitModel()` / `visitPdf()` / `visitTexts()` in `lib/visitReport.js` sit beside
+`lib/potsReport.js` as the second file she can make. The model is built on render from `days`, `insights()`, the
+tracked ids, `SCORE_SCALE[stage]`, `cycleFlags`, her picked questions, the "Include my notes" tick (UI state) and, for
+Trying to conceive with signs on, L7's fertility sentences; the PDF is drawn with `lib/pdf.js` and handed over by
+`lib/files.js` `saveFile` (a download, or the phone's cache → share sheet → delete). Never stored, never sent.
+
 ## 8. Saving, other tabs, backup and restore, delete
 
 - **Autosave.** Any change to a PERSISTED value schedules a save 400 ms later (App.jsx autosave
@@ -276,6 +283,10 @@ nothing calls it.
 - **Restore.** `decryptBackup()` → `migrate()` → the version check (`v === RECORD_VERSION`, a stage
   set; otherwise "That backup is empty or from a different version") → every key applied except
   DEVICE_ONLY, DEVICE_PREFS and, on the web, `reminders` (§4) → saved at once.
+- **Files she makes.** `lib/files.js` `saveFile({ name, data, mime, title })`: on the web a Blob download; on the
+  phone a plaintext file in the app cache handed to the share sheet and deleted in `finally`. The launch sweep
+  (`sweepBackupCache`, also run by Delete everything / Start over) removes leftover `cyra-backup-*.cyra.json`,
+  `cyra-report-*.pdf`, `cyra-summary-*.pdf` (the appointment PDF, L9) and `cyra-data-*.csv`.
 - **Delete everything.** See the "Delete everything / Start over" comment in App.jsx: the server
   steps first (each confirmed or explained), then this device's clean-up (worker and offline copy,
   cache files, the record), and every other open tab is told to stop saving.

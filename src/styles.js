@@ -685,9 +685,26 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .route.primary span { color:color-mix(in srgb, var(--on-primary) 92%, transparent); font-size:11px; }
 .rlong { margin:8px 0 0; }
 .report .rsec + .emailpreview { margin-top:0; }
+/* L9: the Appointment PDF card at the top of "Send it ahead", its notes opt-in, and the cycle table / notes list in "The numbers behind this". Tokens only. */
+.pdfcard { background:var(--card); border:1.5px solid var(--primary); border-radius:var(--r-card); padding:14px 16px; margin:0 0 var(--stack); }
+.pdfhead { display:flex; gap:10px; align-items:flex-start; }
+.pdfico { flex-shrink:0; color:var(--primary-text); margin-top:3px; }
+.pdftitle { font:600 var(--fs-lg)/1.2 'Fraunces Variable','Fraunces',serif; color:var(--ink); margin:0; }
+.pdfin { font-size:var(--fs-sm); color:var(--soft); line-height:1.45; margin:3px 0 0; }
+.pdfcard .consentopt { margin-top:12px !important; }
+.pdfcard .routes { margin-top:12px; }
+.pdfcard .route.primary { flex:1 1 100%; min-height:56px; }
+.pdfcard .route[aria-disabled="true"] { background:var(--card); color:var(--primary-text); border-style:dashed; cursor:default; }
+.pdfcard .route[aria-disabled="true"] span { color:var(--soft); }
+.pdfnote { margin:8px 0 0; font-size:var(--fs-sm); }
+.pdfacc { margin:8px 0 0; }
+.rcap { caption-side:top; text-align:left; font:600 15px 'Fraunces Variable','Fraunces',serif; color:var(--ink); padding:14px 0 6px; margin:0; }
+.rnotes { list-style:none; margin:0; padding:0; font-size:var(--fs-sm); line-height:1.5; }
+.rnotes li { padding:6px 0; border-top:1px solid var(--line); overflow-wrap:anywhere; }
+.rnotes b { margin-right:6px; }
 .emailpreview { resize:none; field-sizing:content; background:color-mix(in srgb, var(--primary) 5%, var(--card)); border-radius:var(--r-card); padding:13px 15px; overflow:hidden; }
 @media print {
-  .mast, nav[aria-label="Sections"], .tabswrap, .routes, .rappt .linkbtn, .rcov-today .linkbtn, .sadd, .scopy, .toast, .disclosure, .savebar, .report .cta, .rlong { display:none !important; }
+  .mast, nav[aria-label="Sections"], .tabswrap, .routes, .pdfcard, .rappt .linkbtn, .rcov-today .linkbtn, .sadd, .scopy, .toast, .disclosure, .savebar, .report .cta, .rlong { display:none !important; }
   .bodypanel { display:block !important; border-radius:0; }
   .rappt { min-height:0; margin:0 0 6px; } .rappt:not(:has(b)), .rcov-today { display:none !important; }
   .cy { padding:0; max-width:none; background:#FFF; color:#000; }

@@ -35,7 +35,8 @@ import { flushSync } from "react-dom";
      copied summary text (ReportScreen). The encrypted backup goes only where she saves it:
      backup.js's cloud transport is unreachable in every build (its configured instance is
      imported by nothing, and plan.can("cloudBackup") is false);
-   - user-started file exports (POTS report PDF/CSV, lib/files.js): a web download, or the
+   - user-started file exports (the appointment PDF from the Report, cyra-summary-{date}.pdf, and
+     the POTS report PDF/CSV, lib/files.js): a web download, or the
      phone share sheet via a plaintext file in the app cache that is deleted after sharing and
      swept at launch and wipe. No network. The POTS summary email draft and copied summary
      text work like the doctor summary (components/pots/PotsReport.jsx).
@@ -73,7 +74,9 @@ import { periodSummary, patternFindings, homePick, recapFrom } from "./lib/insig
 import { encryptBackup, decryptBackup, fileTransport, backupFileName } from "./lib/backup.js";
 import { FEATURES, remindersInBuild } from "./lib/features.js";
 import { fertPrivacyLine } from "./lib/disclosures.js";
-import { fertShown, isTTC, cleanFertPrefs, restoredFertPrefs, defaultTempUnit, FERT_FORM_EMPTY, fertFormFrom, fertFormKey, fertTouched, fertRead, fertWindow, fertSummary, fertEmailLine, cleanFert, FERT_COPY } from "./lib/fertility.js";
+import { fertShown, isTTC, cleanFertPrefs, restoredFertPrefs, defaultTempUnit, FERT_FORM_EMPTY, fertFormFrom, fertFormKey, fertTouched, fertRead, fertWindow, fertSummary, fertSummaryLines, bbtShiftSentence, fertEmailLine, cleanFert, FERT_COPY } from "./lib/fertility.js";
+import { visitModel, paperForLocale } from "./lib/visitReport.js";
+import { PLAN, exportsLeft, noteExport } from "./lib/plan.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
 import { isNative, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
@@ -282,6 +285,7 @@ export default function CyraDemo() {
      (on null = the stage default: on for Trying to conceive, off for My Cycle); fert is the check-in form's group
      (form state, saved on the day entry as cm / opk / bbt). Shown only in stage periods (fertShown), never sent anywhere. */
   const [fertSigns, setFertSigns] = useState({ on: null, unit: null });
+  const [exportLog, setExportLog] = useState(null); // { month: "YYYY-MM", n }: appointment PDFs made this month. Written only while plan.js sets a monthly limit (none today), so the shipping app keeps no count; device-only, never in a backup file.
   const [fert, setFert] = useState(FERT_FORM_EMPTY);
   const fertOn = fertShown(stage, stageName, fertSigns.on);
   const ttc = isTTC(stage, stageName);
@@ -398,7 +402,24 @@ export default function CyraDemo() {
 
   /* The doctor email: everything in it comes from one window — the last 30 calendar days —
      and the denominator is the number of days she actually logged in it. */
-  // questions: scripts she picked on the Report ("Add to email"), listed before the sign-off.
+  // Her first name for files she makes (the appointment PDF header, the POTS report's opt-in): never in Anonymous Mode.
+  const firstName = acct.anon ? "" : (acct.name || "").trim();
+  /* The appointment PDF's model (lib/visitReport.js, L9): the same insights, symptom ids and score scale as the screen,
+     her picked questions, day notes only with includeNotes, and L7's fertility sentences only for Trying to conceive
+     with signs on (the same rule as the Report's finding and the email line). Nothing else is an input. */
+  const buildVisit = ({ questions = [], includeNotes = false } = {}) => {
+    let fertilityLines = null;
+    if (ttc && fertOn) {
+      const sum = fertSummary(ins.sorted, { from: addDays(todayIso, -29), to: todayIso });
+      fertilityLines = sum.logged ? [...fertSummaryLines(sum).map((l) => l.text), ...(sum.bbt.shift ? [bbtShiftSentence(sum.bbt.shift, tempUnit)] : [])] : null;
+    }
+    return visitModel({ days, ins, ids: symIds, stage, stageName, name: firstName, today: todayIso, questions, includeNotes, cycleFlags, fertilityLines, paper: paperForLocale(typeof navigator !== "undefined" ? navigator.language : "en-US"), scale: SCORE_SCALE[stage] });
+  };
+  // PDFs left this month (null = unlimited, the shipping plan) and the tally after one more (null while unlimited: nothing stored).
+  const pdfNow = new Date(todayIso + "T12:00:00");
+  const pdfLeft = exportsLeft(exportLog, { now: pdfNow });
+  const onPdfMade = () => { const next = noteExport(exportLog, { now: pdfNow }); if (next) setExportLog(next); };
+  // questions: scripts she picked on the Report ("Add to email and PDF"), listed before the sign-off.
   const buildEmail = (questions = []) => {
     const subject = `Symptom summary ahead of my appointment${acct.name ? ` — ${acct.name}` : ""}`;
     const n = ins.last30.length;
@@ -1036,8 +1057,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1248,14 +1269,14 @@ export default function CyraDemo() {
   useLayoutEffect(() => { applyDocumentScheme(document, { scheme, paper: t.paper }); }, [scheme, t.paper]);
   useEffect(() => { if (!showSettings) setSettingsFocus(null); }, [showSettings]);
 
-  /* Phone: a backup copy, POTS report or POTS spreadsheet an interrupted share left in the
+  /* Phone: a backup copy, appointment PDF (cyra-summary-*.pdf), POTS report or POTS spreadsheet an interrupted share left in the
      app's cache (app closed or killed while the share sheet was open). Run at every launch,
      before and whether or not the record loads (no share can be under way in a freshly
      started app), and by Delete everything and Start over once they reach this device's
      clean-up. Only Cyra's own export names match; nothing else in the cache is touched. */
   const sweepBackupCache = async () => {
     const { files = [] } = await Filesystem.readdir({ path: "", directory: Directory.Cache });
-    for (const f of files) { const n = typeof f === "string" ? f : f?.name; if (/^cyra-(backup-.*\.cyra\.json|(report|data)-\d{4}-\d{2}-\d{2}\.(pdf|csv))$/.test(n || "")) await Filesystem.deleteFile({ path: n, directory: Directory.Cache }).catch(() => {}); }
+    for (const f of files) { const n = typeof f === "string" ? f : f?.name; if (/^cyra-(backup-.*\.cyra\.json|(report|summary|data)-\d{4}-\d{2}-\d{2}\.(pdf|csv))$/.test(n || "")) await Filesystem.deleteFile({ path: n, directory: Directory.Cache }).catch(() => {}); }
   };
   const exportBackup = async (passphrase) => {
     // The backup carries the record, minus what belongs to this device only: the ZIP and the
@@ -1306,7 +1327,7 @@ export default function CyraDemo() {
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
-    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance };
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, exportLog };
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     // The reminders clause only where Settings has a reminders row (a web build without webReminders has none).
@@ -1817,7 +1838,7 @@ export default function CyraDemo() {
     <PotsScreen onBack={() => setPotsOpen(false)} pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"} storageDriver={storageDriver}
       sections={potsOk ? {
         today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => { setPotsSec("stand"); setPotsFocus("stand"); }} onReport={() => setPotsSec("report")} storageDriver={storageDriver} syncDay={syncDay} />,
-        report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={acct.anon ? "" : (acct.name || "").trim()} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} />,
+        report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={firstName} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} />,
         patterns: <PotsPatterns pots={pots} stage={stage} stageName={stageName} todayIso={todayIso} starts={ins.starts} checkin={potsCheckin} wearData={FEATURES.wearables ? wearData : NO_ROWS} connected={FEATURES.wearables ? potsWearConnected : NO_ROWS} />,
         stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focus={potsFocus === "stand"} onFocused={potsFocused} cyc={potsCyc}
           onStart={() => setPotsRun({ kind: "test", id: null, phase: "safety", phaseStart: Date.now(), standAt: null, done: [], interrupt: null })} />,
@@ -1913,7 +1934,7 @@ export default function CyraDemo() {
               <CalendarScreen pred={pred} predWhy={predWhy} cyc={cyc} onCycleUse={setCycleUse} stage={stage} isMeno={isMeno} days={days} symIds={symIds} symMap={symMap} dayScore={scoreDay} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} fertOn={fertOn} tempUnit={tempUnit} />
             )}
             {appIs("patterns") && <PatternsScreen ins={ins} lens6={cyc.lens6} symIds={symIds} symMap={symMap} scoreScale={scoreScale} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} fert={ttc && fertOn ? { unit: tempUnit } : null} week={week} month={month} found={found} scoreColor={scoreColor} energyId={ENERGY_ID} />}
-            {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} scheme={scheme} fert={ttc && fertOn ? { unit: tempUnit } : null} />}
+            {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} scheme={scheme} fert={ttc && fertOn ? { unit: tempUnit } : null} buildVisit={buildVisit} pdfLeft={pdfLeft} onPdfMade={onPdfMade} pdfLimit={PLAN.pdfExportsPerMonth} />}
             {appIs("shelf") && <CareScreen shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Cyra will compare your days before and after"); }} />}
             {appIs("ask") && askView}
             {appIs("connect") && connView}

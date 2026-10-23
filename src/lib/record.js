@@ -60,6 +60,7 @@ import { cleanFert, cleanFertPrefs } from "./fertility.js";
  * @property {null|"dismissed"|"installed"} installHint [device-only] [not-in-backup] whether this browser's install tip stays away (lib/pwa.js).
  * @property {"system"|"light"|"dark"} appearance [device-pref] [not-in-backup] this device's light / dark choice (lib/appearance.js).
  * @property {CycleFlags} cycleFlags [record] cycles she left out of predictions (L5); missing means {}.
+ * @property {ExportTally|null} exportLog [device-only] [not-in-backup] appointment PDFs made this month (L9, lib/plan.js ExportTally); null while exports are unlimited.
  * @property {SymPrefs} symPrefs [record] her symptom list per stage (L6); missing means {} (Cyra's order).
  * @property {FertSigns} fertSigns [record] fertility signs switch and unit (L7); missing means { on: null, unit: null }.
  */
@@ -199,15 +200,18 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    on/off switch; its status is worked out again at every launch.
    cycleFlags (L5) is her own per-cycle choice ("Don't use for predictions"): part of the record, so it travels in backups.
    symPrefs (L6) is her symptom list per stage (order, More symptoms, added from the other list): record, in backups.
-   fertSigns (L7) is the fertility signs switch and temperature unit: record, in backups (no health data). */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns"]);
+   fertSigns (L7) is the fertility signs switch and temperature unit: record, in backups (no health data).
+   exportLog (L9) is this month's count of appointment PDFs, { month: "YYYY-MM", n }, written only while plan.js sets a
+   monthly limit (none today, so it stays null): device-only and never in a backup file. */
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
    health), shown in Settings → Your data and left out of the backup file itself; installHint
    is whether this browser's Home install tip should stay away (null | "dismissed" |
-   "installed", lib/pwa.js), also left out of the backup file. */
-export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint"]);
+   "installed", lib/pwa.js), also left out of the backup file; exportLog is this device's count of
+   appointment PDFs this month (L9), null while exports are unlimited, also left out of the file. */
+export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog"]);
 /* A display preference of this device (L2): appearance ("system" | "light" | "dark", lib/appearance.js).
    It is saved with the record and followed by every open tab of this browser (so it stays in RECORD,
    they are all the same device), but it is never in a backup file and never taken from one:
@@ -218,8 +222,9 @@ export const DEVICE_PREFS = Object.freeze(["appearance"]);
 export const RECORD = Object.freeze(PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders"));
 /* Keys deleted from the snapshot before it is encrypted, so they are never in a backup file:
    lastBackupAt (this device's own note of when it last backed up), installHint (whether this
-   device's install tip is hidden) and appearance (this device's light/dark choice). */
-export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", ...DEVICE_PREFS]);
+   device's install tip is hidden), exportLog (this device's PDF count this month, L9) and appearance
+   (this device's light/dark choice). */
+export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", ...DEVICE_PREFS]);
 
 /** The record as it goes into an encrypted backup file, as a new object (the input is not
     changed): every saved key, except that regAnswers loses zip and age (neither is used after
@@ -432,6 +437,8 @@ export const RULES = Object.freeze({
   // Her symptom list per stage (L6): a problem whenever cleanSymPrefs would change anything.
   // Fertility signs switch and unit (L7): a problem whenever cleanFertPrefs would change anything.
   fertSigns: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanFertPrefs(v)) ? [] : [`${p}: expected { on: true|false|null, unit: "C"|"F"|null }, got ${show(v)}`]),
+  // Appointment PDFs this month (L9): null, or { month: YYYY-MM, n: a whole number ≥ 0 }.
+  exportLog: (v, p) => (v === null || (isObj(v) && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && isCount(v.n)) ? [] : [`${p}: expected null or { month: YYYY-MM, n: a whole number ≥ 0 }, got ${show(v)}`]),
   symPrefs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanSymPrefs(v)) ? [] : [`${p}: expected { periods|peri|preg: { order, hidden, added } } (lists of symptom ids, at most 40 each, no empty stages), got ${show(v)}`]),
 });
 

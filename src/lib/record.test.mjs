@@ -29,7 +29,7 @@ const DEFAULTS = () => ({
   meds: [], medLog: {}, appts: [], journal: {}, wearSources: {}, wearData: [], acct: { name: "", email: "", anon: false }, research: false,
   stage: "peri", stageName: "Perimenopause", welcome: "", days: seed(), pregLog: {}, pulseQueue: null, pulseSent: null, pulseLastSend: null,
   pulseRev: 0, askAI: false, regAnswers: null, reminders: { enabled: false, endpoint: null, pending: [], rev: 0 }, terraOff: [], kickTally: null,
-  pots: freshEmpty(), lastBackupAt: null, installHint: null, appearance: "system", cycleFlags: {}, symPrefs: {}, fertSigns: { on: null, unit: null },
+  pots: freshEmpty(), lastBackupAt: null, installHint: null, appearance: "system", cycleFlags: {}, symPrefs: {}, fertSigns: { on: null, unit: null }, exportLog: null,
 });
 const appRecord = (over = {}) => {
   const d = { ...DEFAULTS(), ...over };
@@ -105,10 +105,10 @@ test("migrate: a missing, throwing or non-advancing step returns the input (all 
 
 test("key lists are the ones App.jsx used before L3 (pinned)", () => {
   // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags, L6 symPrefs and L7 fertSigns (record keys: in RECORD and in backups).
-  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns"]);
-  assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint"]);
+  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog"]);
+  assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog"]);
   assert.deepEqual([...DEVICE_PREFS], ["appearance"]);
-  assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "appearance"]);
+  assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "exportLog", "appearance"]);
   assert.deepEqual([...RECORD], PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders"));
   for (const k of NOT_IN_BACKUP) { assert.ok(PERSISTED.includes(k), `${k} persisted`); assert.ok(DEVICE_ONLY.includes(k) || DEVICE_PREFS.includes(k), `${k} device-only or a device pref`); }
   for (const k of DEVICE_ONLY) assert.ok(PERSISTED.includes(k), `${k} persisted`);
@@ -142,6 +142,7 @@ test("backupCopy matches the transform exportBackup used before L3", () => {
     snap.reminders = { enabled: !!snap.reminders?.enabled };
     delete snap.lastBackupAt;
     delete snap.installHint;
+    delete snap.exportLog; // L9: this device's PDF count this month never travels
     for (const k of ["appearance"]) delete snap[k];
     return snap;
   };
@@ -157,6 +158,7 @@ test("backupCopy matches the transform exportBackup used before L3", () => {
   assert.equal("lastBackupAt" in out, false);
   assert.equal("installHint" in out, false);
   assert.equal("appearance" in out, false);
+  assert.equal("exportLog" in out, false);
   assert.deepEqual(out.regAnswers, { stage: "My Cycle" });
   assert.deepEqual(out.reminders, { enabled: true });
   // The other DEVICE_ONLY keys are still in the file (a restore never applies them).
@@ -436,4 +438,17 @@ test("layering and no I/O", () => {
   assert.ok(app.includes("migrate(await decryptBackup"), "importBackup runs the decrypted backup through migrate");
   assert.ok(app.includes("backupCopy(snapshot())"), "exportBackup uses backupCopy");
   assert.equal(read("screens/TodayScreen.jsx").split("upsertDay(").length - 1, 2, "TodayScreen saves through upsertDay");
+});
+
+test("appointment PDFs (L9): exportLog is device-only, never in a backup, null unless a monthly limit is configured", () => {
+  assert.ok(PERSISTED.includes("exportLog") && DEVICE_ONLY.includes("exportLog") && NOT_IN_BACKUP.includes("exportLog"));
+  assert.ok(!RECORD.includes("exportLog"), "never handed to another tab");
+  assert.equal("exportLog" in backupCopy(appRecord({ exportLog: { month: "2026-10", n: 2 } })), false);
+  for (const ok of [null, { month: "2026-10", n: 0 }, { month: "2026-10", n: 3 }]) assert.deepEqual(RULES.exportLog(ok, "exportLog"), []);
+  for (const bad of [undefined, [], "x", 1, { month: "2026-1", n: 1 }, { month: "2026-10", n: -1 }, { month: "2026-10", n: 1.5 }, { n: 1 }]) {
+    const out = RULES.exportLog(bad, "exportLog");
+    assert.equal(out.length, 1, JSON.stringify(bad));
+    assert.match(out[0], /^exportLog: expected null or \{ month: YYYY-MM, n: a whole number ≥ 0 \}/);
+  }
+  assert.deepEqual(validateRecord(appRecord({ exportLog: null })), []);
 });

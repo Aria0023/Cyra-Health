@@ -385,6 +385,12 @@ saves downloads (iOS has no download handling in Capacitor; Android has no
 made on the web or on a phone. The delete warning says, on every platform, that the log
 can't be recovered unless the person saved a backup.
 
+The appointment PDF from the Report (`cyra-summary-<date>.pdf`, local-first L9) and the POTS
+report files (`cyra-report-<date>.pdf`, `cyra-data-<date>.csv`) use the same path as the backup:
+written to the app cache, handed to the share sheet, deleted afterwards (also on cancel or error),
+and swept at launch and by Delete everything / Start over. Unlike the backup they are not
+encrypted — the screen says so ("This file isn't locked…") every time.
+
 App Review Guideline 5.1.3(ii): apps "may not store personal health information in
 iCloud". So the person has to choose where the file goes, and the app must never write it
 into an iCloud-synced folder on its own. It doesn't: it only writes to its own cache.

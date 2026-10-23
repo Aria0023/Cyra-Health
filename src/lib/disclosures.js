@@ -63,7 +63,7 @@ export function consentDetails(f, native) {
   const send = on([f.counts && "weekly counts", f.ai && "Cyra's AI", f.wearables && "wearable syncs"]);
   const li1 = send.length >= 2 ? `Features that send something: ${andList(send)}. Each one tells you what it sends before you turn it on.`
     : send.length === 1 ? `A feature that sends something: ${send[0]}. It tells you what it sends before you turn it on.` : null;
-  const li2 = "Taking it out yourself means a doctor summary you open in email or copy, a POTS report or spreadsheet you save or share, which isn't locked, or a backup file you save, which stays locked with your passphrase.";
+  const li2 = "Taking it out yourself means a doctor summary you open in email or copy, an appointment PDF, POTS report or spreadsheet you save or share, which isn't locked, or a backup file you save, which stays locked with your passphrase.";
   const li3 = f.wearables && f.webReminders ? "If Delete everything can't confirm that reminders are off and Oura and Fitbit/Garmin/Whoop are disconnected, Cyra tells you what did and didn't happen, and keeps your record on this device until you choose."
     : f.wearables ? "If Delete everything can't confirm that Oura and Fitbit/Garmin/Whoop are disconnected, Cyra tells you what did and didn't happen, and keeps your record on this device until you choose."
     : f.webReminders && !native ? "If Delete everything can't confirm that reminders are off, Cyra tells you what did and didn't happen, and keeps your record on this device until you choose."
@@ -75,7 +75,7 @@ export function consentDetails(f, native) {
 
 /* ---------- Settings → Your data ---------- */
 /** The last paragraph of "What can leave this device" (also reused by later slices). */
-export const filesSentence = (f) => `Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase${f.wearables ? " and never include readings Cyra gets from a connected watch, ring or health app" : ""}.`;
+export const filesSentence = (f) => `Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase${f.wearables ? " and never include readings Cyra gets from a connected watch, ring or health app" : ""}.`;
 
 /** The paragraphs of "What can leave this device". */
 export function leaveDevice(f) {

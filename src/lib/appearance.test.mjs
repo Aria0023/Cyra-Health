@@ -213,6 +213,11 @@ test("source scan (L2): the POTS PDF keeps the light ramp; appearance.js never t
   assert.match(pdf, /import \{ RAMPS \} from "\.\/constants\.js"/);
   const pdfCode = stripComments(pdf);
   for (const w of ["RAMPS_DARK", "scheme", "appearance"]) assert.ok(!pdfCode.includes(w), `potsReport.js mentions ${w}`);
+  // L9: the appointment PDF (lib/visitReport.js) keeps the light ramp too.
+  const visit = readFileSync(join(SRC, "lib/visitReport.js"), "utf8");
+  assert.match(visit, /import \{ RAMPS \} from "\.\/constants\.js"/);
+  const visitCode = stripComments(visit);
+  for (const w of ["RAMPS_DARK", "scheme", "appearance"]) assert.ok(!visitCode.includes(w), `visitReport.js mentions ${w}`);
   const ap = readFileSync(join(SRC, "lib/appearance.js"), "utf8");
   for (const w of ["localStorage", "sessionStorage", "document.cookie", "fetch("]) assert.ok(!ap.includes(w), `appearance.js mentions ${w}`);
   const app = readFileSync(join(SRC, "App.jsx"), "utf8");

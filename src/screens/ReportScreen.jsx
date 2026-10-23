@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { fmt, localDay, lensLabel } from "../lib/engine.js";
+import { fmt, localDay, lensLabel, addDays } from "../lib/engine.js";
 import { FAMILIES, SYM_FAMILY, famVar } from "../lib/constants.js";
 import { strongMeterWord } from "../lib/appearance.js";
 import { copyText } from "../lib/clipboard.js";
 import Icon from "../components/Icon.jsx";
 import { FertilityFinding } from "../components/FertilitySummary.jsx";
 import { fertSummary } from "../lib/fertility.js";
+import { PdfDoc } from "../lib/pdf.js";
+import { visitPdf, visitTexts, FILE_WARNING, GATE_EMPTY, LOSSY_LINE, SAME_NUMBERS, limitLine } from "../lib/visitReport.js";
+import { pdfLossy } from "../lib/potsReport.js";
+import { saveFile } from "../lib/files.js";
+import { isNative } from "../lib/native.js";
+import { can } from "../lib/plan.js";
+import { CheckRow } from "../components/pots/StandSafety.jsx";
 
 /* Cycle & Peri — Report, "What to tell your doctor": plain-language findings,
    what they might mean, verbatim scripts, send-ahead email, and the collapsed
@@ -16,14 +23,20 @@ import { fertSummary } from "../lib/fertility.js";
    UI R1: the page names the appointment it is for, thin logs get an honest state and a way
    to Today, findings lead with the count and meters carry the 60% / 80% threshold ticks,
    the email can take up to three of the scripts, and the text leaves by email, clipboard,
-   the browser's print dialog or the OS share sheet — Cyra itself still sends nothing. */
+   the browser's print dialog or the OS share sheet — Cyra itself still sends nothing.
+   Local-first L9: section 4 opens with the Appointment PDF card. The file is built on this device by
+   lib/visitReport.js (visitModel from App's buildVisit, drawn with the statically bundled PdfDoc, so
+   nothing is fetched) and handed to a browser download or the phone share sheet by lib/files.js, the
+   same path as the POTS report. Her day notes go in only while "Include my notes" is ticked (UI state,
+   unticked on every visit, never saved); her picked questions ride along in the email and the PDF. The
+   PDF is untagged, so this page is its accessible version: "The numbers behind this" carries the same
+   cycle table, day-score sentence and (when ticked) notes, and the symptom table reads the same model. */
 
 // Each family's colour as its CSS variable (--fam-*, vizVars): tint(), the meters, the meaning rails and the table bars follow light or dark.
 const FAM = Object.fromEntries(FAMILIES.map((f) => [f.id, { ...f, color: famVar(f.id) }]));
 const famOf = (id) => FAM[SYM_FAMILY[id] || "body"];
 const tint = (color, pct) => `color-mix(in srgb, ${color} ${pct}%, var(--card))`;
 const dayIso = (iso, k) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + k); return localDay(d); };
-const isIOS = typeof navigator !== "undefined" && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
 const MAILTO_MAX = 1900; // encoded body length above which mail clients start dropping the draft silently
 const PICK_MAX = 3;
 
@@ -85,13 +98,15 @@ function Meter({ color, any, strong, mounted }) {
 
 const Sec = ({ n, children }) => <p className="rsec"><span className="rnum">{n}</span><span>{children}</span></p>;
 
-export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, showTable, setShowTable, potsOn = false, todayIso = localDay(), appt = null, daysUntil = () => 0, goTab = () => {}, setShowAppts = () => {}, scoreOn = () => null, scoreColor = () => "var(--primary)", scheme = "light", lens6 = null, fert = null }) {
+export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, showTable, setShowTable, potsOn = false, todayIso = localDay(), appt = null, daysUntil = () => 0, goTab = () => {}, setShowAppts = () => {}, scoreOn = () => null, scoreColor = () => "var(--primary)", scheme = "light", lens6 = null, fert = null, buildVisit = null, pdfLeft = null, onPdfMade = () => {}, pdfLimit = null }) {
   const n = ins.last30.length; // days logged in the last 30 calendar days
   // The last 6 cycle lengths, each marked when she left it out of predictions (L5): the spread still counts every one.
   const lensList = lens6 || ins.lens.map((len) => ({ len, excluded: false }));
   const [picked, setPicked] = useState([]); // indices of scripts going into the email (max PICK_MAX)
   const [copied, setCopied] = useState(null); // index of the script whose Copy just landed
   const [mounted, setMounted] = useState(false); // flips once so the meters grow from 0
+  const [withNotes, setWithNotes] = useState(false); // "Include my notes" (L9): UI only, unticked on every visit, never saved
+  const [busy, setBusy] = useState(false); // a PDF is being made or shared
   const copyTimer = useRef(null);
   useEffect(() => { setMounted(true); return () => clearTimeout(copyTimer.current); }, []);
   // Printing wants the numbers table open; beforeprint covers the real dialog, the media query covers previews.
@@ -105,13 +120,11 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
   }, [setShowTable]);
 
   // the window itself (the engine's last 30 calendar days) and the 30 days before it
-  const from = dayIso(todayIso, -29), pfrom = dayIso(todayIso, -59);
+  const from = dayIso(todayIso, -29);
   // Fertility signs (L7, Trying to conceive only): the same 30-day window as everything else on this page.
   const fsum = fert ? fertSummary(ins.sorted, { from, to: todayIso }) : null;
   const loggedSet = new Set(ins.last30.map((d) => d.date));
   const cells = Array.from({ length: 30 }, (_, i) => dayIso(from, i));
-  const prev30 = ins.sorted.filter((d) => d.date >= pfrom && d.date < from);
-  const prevFor = (c) => (prev30.length >= 10 ? prev30.filter((d) => (d.sym?.[c.id] || 0) > 0).length : null);
   const top = ins.counts.filter((c) => c.days > 0).slice(0, 3);
   const frac = (d) => Math.min(1, d / Math.max(1, n));
   const pct = (d) => `${Math.round(frac(d) * 100)}%`;
@@ -135,7 +148,12 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
     "If we try something, how will we know in a few months whether it's working?",
   ];
   const togglePick = (i) => setPicked((p) => (p.includes(i) ? p.filter((x) => x !== i) : p.length >= PICK_MAX ? p : [...p, i]));
-  const email = buildEmail(picked.slice().sort((a, b) => a - b).map((i) => scripts[i]).filter(Boolean));
+  const pickedScripts = picked.slice().sort((a, b) => a - b).map((i) => scripts[i]).filter(Boolean);
+  // The appointment PDF's model (L9): the picked questions and, while ticked, her notes. It is also the one source of the
+  // comparison numbers on this page (prevFor), so the screen and the file cannot drift.
+  const visit = buildVisit ? buildVisit({ questions: pickedScripts, includeNotes: withNotes }) : null;
+  const prevFor = (c) => (visit && visit.symptoms.prevOk ? visit.symptoms.prevDays[c.id] ?? 0 : null);
+  const email = buildEmail(pickedScripts);
   const emailText = `Subject: ${email.subject}\n\n${email.body}`;
   const mailtoLong = encodeURIComponent(email.body).length > MAILTO_MAX;
   const canShare = typeof navigator !== "undefined" && !!navigator.canShare?.({ text: emailText });
@@ -147,15 +165,57 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
   const logToday = () => goTab("today");
   const apptIn = appt ? daysUntil(appt.date) : null;
 
+  // ---- the appointment PDF (L9): made on this device, handed over by lib/files.js, counted only if plan.js ever sets a limit ----
+  const limitHit = pdfLeft !== null && pdfLeft <= 0;
+  const firstOfNextMonth = `${addDays(`${todayIso.slice(0, 7)}-01`, 32).slice(0, 7)}-01`; // for limitLine, only if a limit is ever set
+  const makePdf = async () => {
+    if (busy || !visit || !visit.enough || limitHit) return;
+    setBusy(true);
+    try {
+      const data = visitPdf(visit, PdfDoc);
+      const r = await saveFile({ name: visit.files.pdf, data, mime: "application/pdf", title: "Cyra report", onReady: () => ping("PDF ready. Choose where to send it") });
+      if (r !== "cancelled") onPdfMade();
+      if (r === "downloaded") ping("PDF downloaded. It's in your browser's downloads");
+    } catch (e) { ping(e?.message || "Couldn't make the PDF"); } finally { setBusy(false); }
+  };
+  const pdfAttrs = !visit || !visit.enough ? { "aria-disabled": "true", "aria-describedby": "pdf-gate" } : limitHit ? { "aria-disabled": "true", "aria-describedby": "pdf-limit" } : busy ? { "aria-disabled": "true" } : {};
+  const notesK = visit ? visit.notesInWindow : 0;
+  const pdfCard = visit && can("pdfExport") && (
+    <section className="pdfcard" aria-labelledby="pdf-h">
+      <div className="pdfhead">
+        <Icon name="file" size={20} className="pdfico" />
+        <div>
+          <h2 className="pdftitle" id="pdf-h">Appointment PDF</h2>
+          {visit.enough && <p className="pdfin">{visit.contents} {visit.top}</p>}
+        </div>
+      </div>
+      {notesK > 0 && (
+        <>
+          <CheckRow on={withNotes} onToggle={() => setWithNotes((v) => !v)}>Include my notes</CheckRow>
+          <p className="hint pdfnote">{withNotes ? `${notesK} day note${notesK === 1 ? "" : "s"} in these 30 days will be in the PDF.` : `${notesK} day note${notesK === 1 ? "" : "s"} in these 30 days. They go in only while this is ticked.`}</p>
+        </>
+      )}
+      {visitTexts(visit).some(pdfLossy) && <p className="hint pdfnote">{LOSSY_LINE}</p>}
+      <div className="routes">
+        <button type="button" className="route primary" {...pdfAttrs} onClick={makePdf}>{isNative() ? "Share PDF…" : "Download PDF"}<span>made on this device</span></button>
+      </div>
+      {!visit.enough && <p className="hint pdfnote" id="pdf-gate">{GATE_EMPTY}</p>}
+      {visit.enough && limitHit && <p className="hint pdfnote" id="pdf-limit">{limitLine(pdfLimit, firstOfNextMonth)}</p>}
+      <p className="hint pdfnote">{FILE_WARNING}</p>
+      {visit.enough && <p className="rfoot pdfacc">{SAME_NUMBERS}</p>}
+    </section>
+  );
+
   const sendAhead = (
     <>
+      {pdfCard}
       <p className="hint" style={{ marginBottom: 10 }}>A short email your doctor can read in twenty seconds — nothing to log into on their end. Below is exactly what it says. Cyra itself sends nothing; the text goes only where you take it.</p>
       <p className="rsec">Preview</p>
       <textarea className="inp emailpreview" readOnly rows={emailText.split("\n").length + 1} aria-label="Email preview" value={emailText} onFocus={(e) => e.target.select()} />
       <div className="routes">
-        <button type="button" className="route primary" onClick={() => { window.open(`mailto:?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`); ping("Handing off to your email… If nothing opens, use Copy email instead."); }}>Open in email<span>pre-filled draft</span></button>
+        <button type="button" className="route" onClick={() => { window.open(`mailto:?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`); ping("Handing off to your email… If nothing opens, use Copy email instead."); }}>Open in email<span>pre-filled draft</span></button>
         <button type="button" className="route" onClick={() => copyText(emailText, "Email copied — paste anywhere", ping)}>Copy email<span>paste anywhere</span></button>
-        <button type="button" className="route" onClick={() => window.print()}>Print or save PDF<span>{isIOS ? "pinch the preview to save" : "from your browser"}</span></button>
+        <button type="button" className="route" onClick={() => window.print()}>Print this page<span>from your browser</span></button>
         {canShare && <button type="button" className="route" onClick={() => navigator.share({ title: email.subject, text: emailText }).catch(() => {})}>Share…<span>Messages, Files, a portal</span></button>}
       </div>
       {mailtoLong && <p className="hint rlong">Long for an email link — use Copy email or Share…</p>}
@@ -247,7 +307,7 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
           </div>
 
           <Sec n={3}>What to say out loud</Sec>
-          <p className="hint" style={{ marginBottom: 10 }}>Read these word for word if it helps. Knowing the question is half of getting a real answer. Up to three can ride along in the email.</p>
+          <p className="hint" style={{ marginBottom: 10 }}>Read these word for word if it helps. Knowing the question is half of getting a real answer. Up to three can ride along in the email and the PDF.</p>
           <div className="plaincard">
             {scripts.map((s, i) => {
               const on = picked.includes(i);
@@ -256,7 +316,7 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
                   <span className="sbadge" aria-hidden="true">{i + 1}</span>
                   <div className="sbody">
                     <p className="script">“{s}”</p>
-                    <button type="button" className={`linkbtn sadd${on ? " on" : ""}`} aria-pressed={on} disabled={!on && picked.length >= PICK_MAX} onClick={() => togglePick(i)}>{on ? "Added ✓" : "Add to email"}</button>
+                    <button type="button" className={`linkbtn sadd${on ? " on" : ""}`} aria-pressed={on} disabled={!on && picked.length >= PICK_MAX} onClick={() => togglePick(i)}>{on ? "Added ✓" : "Add to email and PDF"}</button>
                   </div>
                   <button type="button" className={`linkbtn scopy${copied === i ? " ok" : ""}`} aria-label={`Copy question ${i + 1}`} onClick={() => copyScript(s, i)}>{copied === i ? "Copied" : "Copy"}</button>
                 </div>
@@ -286,7 +346,21 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
                 </tr>
               );
             })}</tbody></table>
+          {/* L9: the same cycle table, day-score sentence and (when ticked) notes as the appointment PDF — this page is its accessible version. */}
+          {visit && visit.cycles.rows.length > 0 && (
+            <table className="rtab"><caption className="rcap">Recent cycles</caption>
+              <thead><tr>{visit.cycles.head.map((h) => <th key={h} scope="col">{h}</th>)}</tr></thead>
+              <tbody>{visit.cycles.rows.map((r) => <tr key={r.start}>{r.cells.map((c, j) => <td key={j}>{c}</td>)}</tr>)}</tbody>
+            </table>
+          )}
           {ins.variability != null && <p className="rfoot">Cycle lengths: {lensList.map(lensLabel).join(", ")} days ({ins.variability}-day spread).</p>}
+          {visit && <p className="rfoot">Day score (0–100, higher is a better day): {visit.trend.sentence}</p>}
+          {visit && withNotes && visit.notes.length > 0 && (
+            <>
+              <p className="rcap">My day notes</p>
+              <ul className="rnotes">{visit.notes.map(({ iso, text }) => <li key={iso}><b>{fmt(iso)}</b> {text}</li>)}</ul>
+            </>
+          )}
           <p className="rfoot">Logged daily by you. Observations, not diagnoses.</p>
         </div>
       )}

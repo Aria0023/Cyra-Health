@@ -57,7 +57,7 @@ seriously by a clinician. Every feature serves that.
   disch: "none"|"creamy"|"eggwhite"|"sticky"|"watery"|"unusual" | null,
   odor: "none"|"mild"|"strong"|"fishy"|"yeasty" | null,
   bodyOdor: "same"|"stronger"|"changed" | null,
-  note?: string, // her day note, trimmed, ≤ 280 (UTF-16 units), absent when empty; on the device and in backups only
+  note?: string, // her day note, trimmed, ≤ 280 (UTF-16 units), absent when empty; on the device and in backups; reaches a file only through the Report's "Include my notes" tick (the appointment PDF, L9)
   cm?: "dry"|"sticky"|"creamy"|"watery"|"eggwhite", // cervical mucus (L7); written only when set
   opk?: "neg"|"pos",          // ovulation (LH) test result (L7); absent = not tested
   bbt?: number                // basal body temperature in °C, 34–40, at most 3 decimals (L7); written only when set
@@ -535,7 +535,8 @@ device only in a report you choose to share." The chart's Rough nights row count
 3. *What to say out loud* — numbered verbatim scripts she can read to her clinician, each
    with a Copy button (clipboard only), including "If we try something, how will we know in
    a few months whether it's working?"
-4. *Send it ahead* — generate a short email (mailto + copy-to-clipboard).
+4. *Send it ahead* — opens with the Appointment PDF card (L9: a real PDF made on the device, "Download
+   PDF" on the web / "Share PDF…" on the phone), then the short email (mailto + copy-to-clipboard).
 5. Collapsed "The numbers behind this" — the data table, demoted below the guidance; each
    row carries the family dot and a small bar of days (the table is the text twin of the
    meters above).
@@ -566,23 +567,78 @@ device only in a report you choose to share." The chart's Rough nights row count
   above the heading and a rail softened to a 55% mix of the family colour with the card.
   Section numerals are Fraunces in --primary (`.rnum`); scripts are set in Fraunces 15px with
   no left rule.
-- **Questions that ride along.** Each script has "Add to email" (aria-pressed; "Added ✓" when
+- **Questions that ride along.** Each script has "Add to email and PDF" (aria-pressed; "Added ✓" when
   picked; at most three, further buttons disabled). `buildEmail(questions)` lists them under
-  "Questions I'd like to cover:" before the sign-off. When the encoded mailto body passes 1,900
+  "Questions I'd like to cover:" before the sign-off, and the same picks go into the appointment
+  PDF's "Questions I'd like to cover" section (L9). The hint ends "Up to three can ride along in the
+  email and the PDF." When the encoded mailto body passes 1,900
   characters the page says "Long for an email link — use Copy email or Share…" (the link is
   still offered). "Copy" on a script reads "Copied" for 1.5s and still toasts; the helper is
   `copyText(text, okMsg, ping)` in `src/lib/clipboard.js`.
-- **Routes.** "Open in email" is the filled primary route; "Copy email" outlined; "Print or save
-  PDF" calls `window.print()` (sub-label "pinch the preview to save" on iOS, "from your browser"
-  elsewhere); "Share…" (`navigator.share({ title, text })`) renders only when
-  `navigator.canShare({ text })` is true. Routes wrap (two per row). The preview is labelled
+- **Routes.** "Download PDF" / "Share PDF…" (sub-label "made on this device") is the filled primary
+  route, inside the Appointment PDF card (L9); "Open in email" and "Copy email" are outlined; "Print
+  this page" (sub-label "from your browser"; it replaced "Print or save PDF" and the iOS sub-label is
+  gone, so the print dialog is not confused with the real PDF route) calls `window.print()`; "Share…"
+  (`navigator.share({ title, text })`) renders only when `navigator.canShare({ text })` is true. Routes
+  wrap (two per row); page-wide `.routes .route` order is Download PDF, Open in email, Copy email,
+  Print this page, [Share…]. The preview is labelled
   "Preview", sized to the whole email (`field-sizing:content`, no inner scroll) and keeps
   `aria-label="Email preview"`.
-- **Print.** `@media print` hides the header, section bar, routes, Copy / Add / Change links and
+- **Print.** `@media print` hides the header, section bar, routes, the `.pdfcard`, Copy / Add / Change links and
   the toast, switches the cards to block flow with `break-inside:avoid`, and the page opens
   "The numbers behind this" on `beforeprint` (and on the print media query) so the table prints.
   Print and share hand the same text to the OS that email and the clipboard do; Cyra itself
   still sends nothing (docs/PRIVACY-AUDIT.md, "UI R1").
+
+*Local-first L9 — the appointment PDF* (normative; brief item 5, decision D1; `src/lib/visitReport.js`,
+`src/screens/ReportScreen.jsx`, `src/lib/files.js`):
+- **File.** `cyra-summary-{today}.pdf`, PDF /Title "Cyra report" (lib/pdf.js), A4 or Letter by locale
+  (`paperForLocale`: en-US / en-CA → letter). Built on the device by `visitPdf(visitModel(...), PdfDoc)`
+  with the statically bundled writer; handed over by `saveFile` (a browser download, or the phone's
+  cache → share sheet → delete path the POTS report uses). No request is made.
+- **Header.** Title "Cycle and symptom summary" ("Symptom summary" when no period start is logged) plus
+  " · {first name}" only when she gave one and is not in Anonymous Mode; then "{stage} · {Mon d – Mon d,
+  yyyy} · N of the last 30 days logged"; then "Prepared by the user in Cyra · observations, not a
+  diagnosis".
+- **Sections, numbered only when present, in this order.** 1 Recent cycles (the last 7 period starts,
+  oldest first: Start / Length ("day k so far" for the running one) / Period days logged / Note —
+  "Left out of predictions" and/or "Not counted as a cycle: under 15 days | over 120 days"; above it the
+  Report footer's own sentence "Cycle lengths: … days (N-day spread)." built from `cycleSummary().lens6`
+  and `ins.variability`, followed by "Every cycle is counted here, including any she left out of
+  predictions." when one is excluded (D5); "No period start logged in Cyra." without starts).
+  2 Symptoms, last 30 days (up to 8 rows, engine order: Symptom / Days (of N logged) / Moderate or
+  strong (severity ≥ 2) and, only when 10 or more days were logged in the 30 days before, "30 days before
+  (of M logged)" and Change "same | k more | k fewer" — the screen's rule; otherwise "No comparison with
+  the 30 days before (range): M days were logged then, and Cyra compares only with 10 or more."; rows
+  beyond 8 in "Also logged: …"). 3 Day score, last 30 days (a 104pt chart with 0/50/100 gridlines, grey
+  period bars, a dashed 30-day average, a grey line through runs of logged days and a dot per logged
+  day coloured on the stage's light ramp with an ink ring; skipped with fewer than 2 logged days; the
+  caption names dayScore's inputs; then "Average a over n logged days; lowest l on d, highest h on d.
+  The 30 days before: average p over m logged days." with the averages from L8's `periodSummary` at
+  `SCORE_SCALE[stage]`). 4 Fertility signs (only for Trying to conceive with signs on — the same rule as
+  the Report's finding and email line: L7's `fertSummaryLines` plus the temperature-rise sentence, then
+  L7's Patterns footer as the caveat). Questions I'd like to cover (the picked scripts, at most 3, "1."
+  "2." "3."). My day notes (Date / Note, chronological) only while "Include my notes" is ticked.
+- **Footer on every page.** "Page n of m · Cyra · Observations, not a diagnosis." Page budget: one or two
+  pages without notes; 30 maximum-length notes may reach three.
+- **The card** (`section.pdfcard[aria-labelledby=pdf-h]`, first in section 4, both thin and full
+  states, rendered only when `plan.can("pdfExport")`): h2 "Appointment PDF"; the contents line built
+  from the same model ("In it: …" + "At the top: [your name, ]your life stage and the dates it
+  covers."); a `CheckRow` checkbox "Include my notes" when the window has notes (UI state, unticked on
+  every visit, never saved; hint "{k} day note(s) in these 30 days. They go in only while this is
+  ticked." / "… will be in the PDF."); the WinAnsi warning when a note or name cannot be shown; the
+  primary route; the gate "Log a day first. The PDF is made from your check-ins." (`aria-disabled`,
+  `aria-describedby=pdf-gate`, never `disabled`, no toast); the limit line only if plan.js ever sets a
+  monthly limit (`exportsLeft` / `noteExport`, nothing counted or stored while unlimited, never an
+  upgrade prompt); the file warning; "The same numbers are on this page; the tables are under "The
+  numbers behind this"."
+- **Toasts.** Web: "PDF downloaded. It's in your browser's downloads". Phone: "PDF ready. Choose where
+  to send it" before the share sheet; cancel shows nothing; saveFile's own errors unchanged. `busy`
+  guards a double tap.
+- **Accessible version.** The PDF is untagged; "The numbers behind this" carries the identical cycle
+  table (`<caption>` "Recent cycles", th scope=col), the day-score sentence ("Day score (0–100, higher
+  is a better day): …") and, while ticked, the "My day notes" list, and the symptom deltas read the same
+  model (`visit.symptoms.prevDays`), so screen and file cannot drift.
 
 **Care:** partner list filtered by stage, ordered by match to her logged symptoms.
 Each card: brand, "Partner" pill, offer, "Matched: <symptom> (n/30)", **evidence label**
@@ -1247,6 +1303,7 @@ toast about 4s after a 70-character one.
 - [ ] Logging a rough day visibly shifts the score meter color and the calendar fill.
 - [ ] Cycle variability ≥7 days in peri produces the transition advice card.
 - [ ] The Report opens with plain-language findings; the data table is collapsed below.
+- [ ] The Report's Download PDF makes a one-or-two-page PDF on the device; day notes go in only when she ticks Include my notes.
 - [ ] Every Care item shows an honest evidence label; commission disclosure precedes the list.
 - [ ] Every AI feature still works with the network unavailable.
 - [ ] No health data is transmitted anywhere; no API key exists in client code.
@@ -1551,6 +1608,11 @@ Apple stays first.
 - [x] Plain-language summaries and simple links (local-first L8): "This week / This month" on Patterns, sleep links and
       cycle-day clusters in her own log with minimum-data rules and "in your log" wording, Home's insight leads with
       what is new; all worked out on the device, nothing saved or sent (§6.1, §5.1, A1, A6, A14.8).
+- [x] Structured PDF export for appointments (local-first L9): the Report's "Download PDF" / "Share PDF…" makes a
+      one-or-two-page PDF on the device (recent cycles, top symptoms against the month before, a day-score chart,
+      fertility signs for Trying to conceive, her picked questions, day notes only with "Include my notes"), handed
+      over like the POTS report; gated through plan.js with no paywall; the Report stays its accessible version
+      (§5.1 "Local-first L9", A14.9).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the
       predicted date to Cyra's server, and today's copy promises one reminder at most. The brief's item 7 ("optional
       reminders for logging or predicted period") is met today by the optional logging reminder (A8).
@@ -1993,3 +2055,22 @@ Brief item 4. Code: `src/lib/insights.js` (pure; imports only engine.js and cons
   so it waits for a reviewed change.
 - **Nothing saved or sent.** No new record key; the summary period is React state. Day notes and fertility signs are
   never read. The AI pattern-report hook stays `plan.aiPatternReports = false` with no UI (docs/PRIVACY-AUDIT.md, L8).
+
+### A14.9 Structured PDF export for appointments (L9)
+
+Brief item 5, decision D1. Code: `src/lib/visitReport.js` (pure; no React, storage, network or Date.now; imports
+engine.js, potsReport.js's date helpers, constants.js RAMPS, record.js cyclesFrom, daylog.js cleanNote, insights.js
+periodSummary and fertility.js FERT_COPY; never pdf.js — the caller passes PdfDoc), `src/lib/visitReport.test.mjs`,
+the `.pdfcard` in `src/screens/ReportScreen.jsx`, `src/lib/files.js` (unchanged path), `src/lib/plan.js` (L3's
+`can("pdfExport")`, `exportsLeft`, `noteExport`). Rules and copy: §5.1 "Local-first L9 — the appointment PDF".
+- **One model, two outputs.** `visitModel({ days, ins, ids, stage, stageName, name, today, questions, includeNotes,
+  cycleFlags, fertilityLines, paper, scale })` is built by App.jsx `buildVisit` from the same insights, tracked ids
+  and score scale as the screen; `visitPdf(model, PdfDoc)` draws it; the Report renders it as the accessible version.
+  Registration answers, wearable rows, the journal, the Connect log, appointments and POTS data are never inputs.
+- **New persisted key `exportLog`** (`{ month: "YYYY-MM", n } | null`): DEVICE_ONLY and NOT_IN_BACKUP, written only
+  while `PLAN.pdfExportsPerMonth` is non-null (it is null, so the shipping app stores nothing about the PDFs she
+  makes); cleared by Delete everything; kept by a restore.
+- **Copy widened.** The consent details and Settings → Your data name the appointment PDF among files she makes
+  (lib/disclosures.js); the day-note hint says the note goes into an appointment PDF only with the tick; "Print or
+  save PDF" → "Print this page"; "Add to email" → "Add to email and PDF". The phone sweep also removes
+  `cyra-summary-*.pdf`.

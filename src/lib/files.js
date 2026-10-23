@@ -1,5 +1,6 @@
-/* Hands a file she made (the POTS report PDF or spreadsheet) to wherever she chooses
-   (design 6.5). Started only by her own tap; nothing here talks to a server.
+/* Hands a file she made (the appointment PDF from the Report, or the POTS report PDF or
+   spreadsheet) to wherever she chooses (design 6.5, L9). Started only by her own tap; nothing
+   here talks to a server.
 
    - Web: a Blob and a temporary <a download>; the object URL is revoked after 2 s. No copy is
      written to app storage.
@@ -8,7 +9,7 @@
      file is plaintext for the seconds it exists. iOS Caches and Android cache dirs are excluded
      from device and cloud backup, and the sweep covers interrupted shares (App.jsx
      sweepBackupCache runs at every launch and on Delete everything / Start over, and removes
-     leftover cyra-report-*.pdf and cyra-data-*.csv files). Android's FileProvider already
+     leftover cyra-report-*.pdf, cyra-summary-*.pdf and cyra-data-*.csv files). Android's FileProvider already
      covers the cache directory (cache-path "."), so no native change is needed.
 
    The backup export (App.jsx exportBackup) is deliberately not moved onto this helper in v1,
