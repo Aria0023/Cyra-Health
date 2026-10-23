@@ -23,7 +23,11 @@ import { useEffect, useRef } from "react";
    and before "Today's insight"; it is not a section label or card, so Home's labels don't move.
    L7 (fertility signs, Trying to conceive only): no new section or card. When today's entry has a fertility sign,
    App.jsx passes fertRead (lib/fertility.js) and the same today line shows it instead of its usual text; Coming up's
-   first row can be the estimated fertile window (built in App.jsx nextUp, ending "An estimate, not contraception"). */
+   first row can be the estimated fertile window (built in App.jsx nextUp, ending "An estimate, not contraception").
+   L8: Today's insight is App.jsx's homePick (lib/insights.js): the strongest new finding in her log (one that qualifies
+   today but didn't 7 days ago), else a daily rotation through the three strongest, the perimenopause variability
+   marker first. It is always one .card.insight with a two-line text ("In your log" wording, never causal); the
+   "Month vs last month" recap uses the same 30-calendar-day numbers as Patterns "This month". No markup change. */
 /* A trial without enough logged days on both sides of its start date (App.jsx medEffects):
    how many more it needs, or, when the days left can't get there, that it can't be compared. */
 const plural = (n) => `${n} logged day${n === 1 ? "" : "s"}`;

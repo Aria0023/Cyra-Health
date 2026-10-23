@@ -59,7 +59,7 @@ import { flushSync } from "react-dom";
    The saved record's shape, version and key lists live in ./lib/record.js; entitlements in ./lib/plan.js.
    ================================================================ */
 
-import { SYMS, GSYM, ALL_SYM, SCORE_SCALE, SHELF, PALETTES, ORGS, SYM_FAMILY, PRENATAL, vizVars, rampOf } from "./lib/constants.js";
+import { SYMS, GSYM, ALL_SYM, ENERGY_ID, SCORE_SCALE, SHELF, PALETTES, ORGS, SYM_FAMILY, PRENATAL, vizVars, rampOf } from "./lib/constants.js";
 import { seed, fmt, addDays, routeIntake, insights, predict, whyNoPrediction, cycleSummary, cleanCycleFlags, toggleExclude, periodHead, basisLine, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick, scoreRgb, scoreColorOf, inkOn } from "./lib/engine.js";
 import { DEFAULT_APPEARANCE, SYSTEM_DARK_QUERY, cleanAppearance, resolveScheme, paletteFor, paletteVars, applyDocumentScheme } from "./lib/appearance.js";
 import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
@@ -69,6 +69,7 @@ import { answerLocally } from "./lib/askLibrary.js";
 import { storage } from "./lib/storage.js";
 import { PERSISTED, DEVICE_ONLY, DEVICE_PREFS, RECORD, RECORD_VERSION, migrate, backupCopy, entryFor, phaseOf } from "./lib/record.js";
 import { trackedIds, cleanSymPrefs, cleanNote } from "./lib/daylog.js";
+import { periodSummary, patternFindings, homePick, recapFrom } from "./lib/insights.js";
 import { encryptBackup, decryptBackup, fileTransport, backupFileName } from "./lib/backup.js";
 import { FEATURES, remindersInBuild } from "./lib/features.js";
 import { fertPrivacyLine } from "./lib/disclosures.js";
@@ -350,6 +351,24 @@ export default function CyraDemo() {
   const [todayIso, setTodayIso] = useState(() => localDay());
   const syncDay = () => { const now = localDay(); setTodayIso((cur) => (cur === now ? cur : now)); return now; };
   const isMeno = phaseOf(stage, stageName) === "meno";
+  /* Summaries and links in her log (L8, lib/insights.js): worked out here on render from the on-device record, never
+     saved or sent. week / month: the last 7 / 30 calendar days against the 7 / 30 before (Patterns' summary; month also
+     feeds Home's monthly recap, from the pregnancy log in pregnancy). found: the sleep links and cycle-day clusters
+     Patterns shows; keysBefore: what qualified 7 days ago, so Home's Today's insight can lead with what is new. */
+  const weekAgo = addDays(todayIso, -7);
+  const week = useMemo(() => (stage === "preg" ? null : periodSummary(ins.sorted, symIds, symMap, todayIso, 7, SCORE_SCALE[stage])), [ins, stage, symIds, symMap, todayIso]);
+  const month = useMemo(() => (stage === "preg"
+    ? periodSummary(Object.keys(pregLog).sort().map((k) => ({ date: k, ...pregLog[k] })), Object.keys(GSYM), GSYM, todayIso, 30, SCORE_SCALE.preg)
+    : periodSummary(ins.sorted, symIds, symMap, todayIso, 30, SCORE_SCALE[stage])), [ins, stage, symIds, symMap, pregLog, todayIso]);
+  const found = useMemo(() => (stage === "preg" ? null : patternFindings({ sorted: ins.sorted, ids: symIds, labels: symMap, starts: isMeno ? [] : ins.starts, cycles: !isMeno, todayIso, energyId: ENERGY_ID })), [ins, stage, symIds, symMap, isMeno, todayIso]);
+  const keysBefore = useMemo(() => {
+    if (stage === "preg") return new Set();
+    const then = ins.sorted.filter((d) => d.date <= weekAgo);
+    const f = patternFindings({ sorted: then, ids: symIds, labels: symMap, starts: isMeno ? [] : ins.starts.filter((d) => d <= weekAgo), cycles: !isMeno, todayIso: weekAgo, energyId: ENERGY_ID });
+    const keys = new Set([...f.sleep, ...f.cycle].map((x) => x.key));
+    if (stage === "peri" && insights(then, symIds, new Date(weekAgo + "T12:00:00")).variability >= 7) keys.add("var");
+    return keys;
+  }, [ins, stage, symIds, symMap, isMeno, weekAgo]);
   /* Predictions (L5, spec §6.2): the median of her last up-to-6 kept cycles (the ones she didn't mark "Don't use"),
      a likely-start range, and an honest reason when there is none. Until two cycles are kept they start from the
      registration answers (last period, usual length). No period prediction in pregnancy or menopause. */
@@ -391,7 +410,7 @@ export default function CyraDemo() {
       ...(ins.lens30.length >= 1 ? [``, `• Cycle length${ins.lens30.length > 1 ? "s" : ""} in these 30 days: ${ins.lens30.join(", ")} days${ins.variability30 != null ? ` (${ins.variability30}-day spread)` : ""}`] : []),
       // Trying to conceive with fertility signs shown (L7): one line, from the same 30 days, only when something was logged.
       ...(ttc && fertOn && (fertLine = fertEmailLine(fertSummary(ins.sorted, { from: addDays(todayIso, -29), to: todayIso }))) ? [``, fertLine] : []),
-      ...(stage === "peri" && ins.hfMult30 ? [`• Hot flashes were ${ins.hfMult30.toFixed(1)}x more likely after poorly-rated nights`] : []),
+      ...(stage === "peri" && ins.hfMult30 ? [`• In my log, hot flashes were moderate or strong ${ins.hfMult30.toFixed(1)}x as often after a rough night`] : []),
       ...(questions.length ? [``, `Questions I'd like to cover:`, ...questions.map((q, i) => `${i + 1}. ${q}`)] : []),
       ``,
       `Happy to share the full day-by-day log at the visit. Thank you!`,
@@ -715,19 +734,9 @@ export default function CyraDemo() {
     adoptPulse(p); tellPulse(p);
   }, [stage, hydrated]); // eslint-disable-line
 
-  /* Monthly recap: last 30 vs the 30 before */
-  const recap = (() => {
-    const sorted = stage === "preg" ? Object.keys(pregLog).sort().map((k) => ({ date: k, ...pregLog[k] })) : ins.sorted;
-    const ids = stage === "preg" ? Object.keys(GSYM) : symIds;
-    const last30 = sorted.slice(-30), prev30 = sorted.slice(-60, -30);
-    if (last30.length < 10 || prev30.length < 10) return null;
-    const avg = (arr) => Math.round((arr.reduce((a, d) => a + scoreDay(d, ids), 0) / arr.length) * 100);
-    const calm = (arr) => arr.filter((d) => scoreDay(d, ids) > 0.64).length;
-    const poor = (arr) => arr.filter((d) => d.sleepQ === "poor").length;
-    const top = ins.counts[0];
-    const topN = (arr) => (top ? arr.filter((d) => ((d.sym || {})[top.id] || 0) > 0).length : 0);
-    return { score: [avg(prev30), avg(last30)], calm: [calm(prev30), calm(last30)], poor: [poor(prev30), poor(last30)], top: top ? { label: top.label, prev: topN(prev30), now: topN(last30) } : null };
-  })();
+  /* Monthly recap (L8): the last 30 calendar days against the 30 before, at least 10 logged on each side — the same
+     numbers as Patterns "This month" (month above; lib/insights.js recapFrom). */
+  const recap = recapFrom(month);
 
   /* Medication effects: 14 days before start vs 14 after, needs ≥5 logged each side. Only
      today and later days can still be logged, so a side that can no longer reach 5 says so
@@ -977,8 +986,14 @@ export default function CyraDemo() {
       const n = ins.sorted.length, left = 3 - n;
       return { num: `${n} of 3`, text: n === 0 ? "Log a few days and your first insight appears here." : `${left} more check-in${left === 1 ? "" : "s"} and your first insight appears here.` };
     }
-    if (stage === "peri" && ins.variability != null && ins.variability >= 7) return { num: `${ins.variability}d`, text: `Your cycles are varying by ${ins.variability} days — the clearest marker of the transition. Worth raising at your next visit.${countsEveryCycle}` };
-    if (stage === "peri" && ins.hfMult && ins.hfMult > 1.2) return { num: `${ins.hfMult.toFixed(1)}×`, text: `Hot flashes were ${ins.hfMult.toFixed(1)}× more likely after a rough night. Sleep is your biggest lever.`, fam: "heat" };
+    /* L8: the strongest new finding (one that qualifies today but didn't 7 days ago), else a daily rotation through the
+       three strongest (lib/insights.js homePick). The perimenopause variability marker ranks first (tier 0). */
+    const cands = [
+      ...(stage === "peri" && ins.variability != null && ins.variability >= 7 ? [{ key: "var", tier: 0, strength: ins.variability, num: `${ins.variability}d`, homeText: `Your cycles are varying by ${ins.variability} days — the clearest marker of the transition. Worth raising at your next visit.${countsEveryCycle}`, fam: null }] : []),
+      ...(found ? [...found.sleep, ...found.cycle] : []),
+    ];
+    const pick = homePick(cands, keysBefore, todayIso);
+    if (pick) return { num: pick.homeNum || pick.num, text: pick.homeText, fam: pick.fam };
     const top = ins.counts.find((x) => x.days > 0);
     if (top) return { num: `${top.days} days`, text: `${top.label} showed up most this month — ${top.days} of 30 days.`, fam: SYM_FAMILY[top.id] || "body" };
     return { num: "—", text: "Log a few days and your first insight appears here." };
@@ -1894,7 +1909,7 @@ export default function CyraDemo() {
             {appIs("cal") && (
               <CalendarScreen pred={pred} predWhy={predWhy} cyc={cyc} onCycleUse={setCycleUse} stage={stage} isMeno={isMeno} days={days} symIds={symIds} symMap={symMap} dayScore={scoreDay} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} fertOn={fertOn} tempUnit={tempUnit} />
             )}
-            {appIs("patterns") && <PatternsScreen ins={ins} lens6={cyc.lens6} symIds={symIds} symMap={symMap} scoreScale={scoreScale} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} fert={ttc && fertOn ? { unit: tempUnit } : null} />}
+            {appIs("patterns") && <PatternsScreen ins={ins} lens6={cyc.lens6} symIds={symIds} symMap={symMap} scoreScale={scoreScale} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} fert={ttc && fertOn ? { unit: tempUnit } : null} week={week} month={month} found={found} scoreColor={scoreColor} energyId={ENERGY_ID} />}
             {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} fert={ttc && fertOn ? { unit: tempUnit } : null} />}
             {appIs("shelf") && <CareScreen shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Cyra will compare your days before and after"); }} />}
             {appIs("ask") && askView}

@@ -21,19 +21,21 @@ export function foldQuick(draft, stage) {
   return out;
 }
 
+/* Each demo day pairs with its OWN night: a day's "Last night" answer is the night before it (L8, nightOf), so a poor
+   night raises that same day's symptoms. The number and order of rnd() calls never change, so the seed stays
+   deterministic. */
 export function seed() {
   let s = 42;
   const rnd = () => ((s = (s * 1664525 + 1013904223) % 4294967296), s / 4294967296);
-  const days = []; let prevPoor = false, since = 12, len = 27, pl = 0;
+  const days = []; let since = 12, len = 27, pl = 0;
   for (let i = 75; i >= 1; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
     if (since >= len) { pl = 4; since = 0; len = 23 + Math.floor(rnd() * 15); }
     const period = pl > 0; if (pl > 0) pl--; since++;
     const poor = rnd() < 0.32;
     const sleepQ = poor ? "poor" : rnd() < 0.4 ? "fair" : "good";
-    const sev = (b) => { const r = rnd(), p = prevPoor ? b + 0.26 : b; return r < p * 0.45 ? 3 : r < p ? 2 : r < p + 0.2 ? 1 : 0; };
-    days.push({ date: localDay(d), sleepQ, period, sym: { hf: sev(0.42), ns: prevPoor ? sev(0.4) : sev(0.22), fog: sev(prevPoor ? 0.5 : 0.3), mood: sev(0.3), slp: sleepQ === "poor" ? 2 + (rnd() < 0.4 ? 1 : 0) : sleepQ === "fair" ? (rnd() < 0.5 ? 1 : 0) : 0, ach: sev(0.24), crm: period ? sev(0.8) : sev(0.1), hda: sev(0.25), blo: sev(0.3), eng: sev(0.3) } });
-    prevPoor = poor;
+    const sev = (b) => { const r = rnd(), p = poor ? b + 0.26 : b; return r < p * 0.45 ? 3 : r < p ? 2 : r < p + 0.2 ? 1 : 0; };
+    days.push({ date: localDay(d), sleepQ, period, sym: { hf: sev(0.42), ns: poor ? sev(0.4) : sev(0.22), fog: sev(poor ? 0.5 : 0.3), mood: sev(0.3), slp: sleepQ === "poor" ? 2 + (rnd() < 0.4 ? 1 : 0) : sleepQ === "fair" ? (rnd() < 0.5 ? 1 : 0) : 0, ach: sev(0.24), crm: period ? sev(0.8) : sev(0.1), hda: sev(0.25), blo: sev(0.3), eng: sev(0.3) } });
   }
   return days;
 }
@@ -72,6 +74,15 @@ const isoBefore = (today, n) => { const d = typeof today === "string" ? new Date
 /* A period day for cycle maths: spotting alone (flow "spot") never starts or extends a period,
    including days an earlier version saved as period days. */
 export const isPeriodDay = (d) => !!d && !!d.period && d.flow !== "spot";
+/** The night a day's entry records (L8): "rough" | "good" | null (unknown).
+    - A day's entry records the night BEFORE it: Today labels the sleep pills "Last night", so a day pairs with its own
+      answer (the same reading as potsPatterns.js sleepPoor).
+    - Rough = sleepQ "poor", or Sleep disruption (sym.slp) logged as moderate or strong (≥ 2): the perimenopause quick
+      card saves Rough night / Barely slept there as slp 2 / 3 with sleepQ "fair".
+    - Good = sleepQ "good" (Slept well) with no moderate-or-strong Sleep disruption.
+    - "fair" alone is unknown: TodayScreen saves "fair" when sleep wasn't asked, so So-so can't be told from no answer. */
+export const nightOf = (e) => (!e ? null : e.sleepQ === "poor" || (e.sym?.slp || 0) >= 2 ? "rough" : e.sleepQ === "good" ? "good" : null);
+export const isRoughNight = (e) => nightOf(e) === "rough";
 /* A cycle length counts (lens, averages, variability) only within these bounds, in days (spec §6.2). */
 export const CYCLE_MIN = 15, CYCLE_MAX = 120;
 /* Whole days from one local day to another (YYYY-MM-DD), compared at noon so a daylight-saving change can't
@@ -108,17 +119,42 @@ export const cycleSpans = (starts) => {
   return out;
 };
 export const cycleLens = (starts) => cycleSpans(starts).filter((s) => s.counted).map((s) => s.len);
-const hfRatio = (pairs) => {
-  const ap = [], ao = [];
-  for (const [prev, day] of pairs) (prev.sleepQ === "poor" ? ap : ao).push(day);
-  const rate = (arr, id) => (arr.length ? arr.filter((d) => d.sym[id] >= 2).length / arr.length : 0);
-  return rate(ao, "hf") > 0 ? rate(ap, "hf") / rate(ao, "hf") : null;
-};
+/* ---------- sleep links (L8, spec §6.1) ----------
+   P(symptom moderate or strong | rough night) against P(… | good night), each day paired with its OWN "Last night"
+   answer (nightOf). A link shows only with minEach days on each side, minHits moderate-or-strong days in all, a ratio of
+   at least minRatio and a gap of at least minDiff (in rates; 0.2 = 20 in 100 days). level: the severity that counts. */
+export const SLEEP_LINK = Object.freeze({ minEach: 5, minHits: 4, minRatio: 1.3, minDiff: 0.2, level: 2 });
+/** One symptom against sleep: { id, rough: { n, hits }, good: { n, hits }, roughRate, goodRate, ratio, ok, why, strength }.
+    Days outside [from, to] (inclusive ISO; null = open), days with an unknown night and days whose form didn't carry
+    `id` (e.g. Low energy before L6) are skipped. ratio is null when no good-night day had it (a zero base, shown as
+    a/n). why: "few-nights" | "few-hits" | "no-link" (also the reversed direction) | null. strength ranks findings
+    only and is never shown. Any threshold can be overridden through the options. */
+export function sleepLink(entries, id, { from = null, to = null, ...min } = {}) {
+  const t = { ...SLEEP_LINK, ...min };
+  const rough = { n: 0, hits: 0 }, good = { n: 0, hits: 0 };
+  for (const e of entries || []) {
+    if (!e || (from && e.date < from) || (to && e.date > to)) continue;
+    const night = nightOf(e);
+    if (!night || !e.sym || !(id in e.sym)) continue;
+    const side = night === "rough" ? rough : good;
+    side.n++;
+    if ((e.sym[id] || 0) >= t.level) side.hits++;
+  }
+  const roughRate = rough.n ? rough.hits / rough.n : 0, goodRate = good.n ? good.hits / good.n : 0;
+  const ratio = goodRate > 0 ? roughRate / goodRate : null;
+  const why = rough.n < t.minEach || good.n < t.minEach ? "few-nights"
+    : rough.hits + good.hits < t.minHits ? "few-hits"
+    : roughRate - goodRate < t.minDiff - 1e-9 || (ratio != null && ratio < t.minRatio - 1e-9) ? "no-link" : null;
+  const strength = roughRate / ((good.hits + 0.5) / (good.n + 1));
+  return { id, rough, good, roughRate, goodRate, ratio, ok: why === null, why, strength };
+}
 
 /* Counts cover the last 30 CALENDAR days (today and the 29 before), so "N of the last 30
    days" means exactly that; last30 holds the days actually logged in that window. The
-   *30 values (hfMult30, lens30, variability30) use only that same window — what the
-   doctor email summarizes. hfMult, lens and variability use everything logged. These are the clinical
+   *30 values (lens30, variability30) use only that same window — what the doctor email summarizes. hfMult is the
+   hot-flash sleep link over the last 60 calendar days (the Patterns window) and hfMult30 over the last 30, both
+   pairing each day with its own night under the SLEEP_LINK thresholds (sleepLink; null when there is no clear link or
+   a zero base). roughNights counts isRoughNight days in the last 30. lens and variability use everything logged. These are the clinical
    markers: they keep every cycle and never read cycleFlags (her "Don't use" choices change predictions only).
    cycles is every span between logged starts (cycleSpans), for predict() and cycleSummary(). */
 export function insights(days, ids, today = new Date()) {
@@ -126,10 +162,11 @@ export function insights(days, ids, today = new Date()) {
   const from = isoBefore(today, 29);
   const last30 = sorted.filter((d) => d.date >= from);
   const counts = ids.map((id) => ({ id, label: ALL_SYM[id], days: last30.filter((d) => d.sym[id] > 0).length, strong: last30.filter((d) => d.sym[id] >= 2).length })).sort((a, b) => b.days - a.days);
-  const roughNights = last30.filter((d) => d.sleepQ === "poor").length;
-  const pairs = sorted.slice(1).map((d, i) => [sorted[i], d]);
-  const hfMult = hfRatio(pairs);
-  const hfMult30 = hfRatio(pairs.filter(([prev]) => prev.date >= from));
+  const roughNights = last30.filter(isRoughNight).length;
+  const from60 = isoBefore(today, 59);
+  const okRatio = (l) => (l.ok ? l.ratio : null);
+  const hfMult = okRatio(sleepLink(sorted, "hf", { from: from60 }));
+  const hfMult30 = okRatio(sleepLink(sorted, "hf", { from }));
   const starts = cycleStarts(sorted);
   const lens = cycleLens(starts);
   const variability = lens.length >= 2 ? Math.max(...lens) - Math.min(...lens) : null;

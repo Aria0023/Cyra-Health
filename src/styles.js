@@ -830,4 +830,15 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .fertsum .fertlist li { display:flex; gap:8px; align-items:flex-start; }
 .fertsum .fertlist .labico { flex:0 0 auto; margin:3px 0 0; }
 .fertsum .fertshift { margin:10px 0 0; }
+/* Patterns summary and links (L8) */
+.sumcard { padding:12px 14px 14px; } .sumcard .seg { margin-bottom:10px; }
+.summeta { font-size:var(--fs-sm); color:var(--soft); margin:0 0 6px; line-height:1.35; }
+.sumcells { display:grid; grid-template-columns:repeat(var(--n, 7), 1fr); gap:3px; margin:0 0 10px; }
+.sumcells i { display:block; height:10px; border-radius:3px; box-shadow:inset 0 0 0 1.5px var(--line); }
+.sumcells i.on { box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent); }
+.sumcells i.today:not(.on) { box-shadow:inset 0 0 0 1.5px var(--primary); }
+.sumtext { margin:0; }
+.card.findcard .fdot { width:8px; height:8px; margin-right:6px; vertical-align:1px; }
+.findhow { padding:4px 14px 8px; } .findhow .bodypanel p { margin:0 0 8px; }
+.findlist { margin:0 0 8px; padding-left:17px; } .findlist li { margin:3px 0; }
 `;

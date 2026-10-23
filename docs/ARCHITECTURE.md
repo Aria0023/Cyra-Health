@@ -251,6 +251,13 @@ never hides what she logged. Day scores divide by `SCORE_SCALE[stage]` (`lib/con
 sizes when the score was defined; App.jsx `scoreDay`), so neither a new library symptom nor her list rescales a past
 day. Both are derived on each render and never stored; only `symPrefs` is.
 
+Summaries and links (L8): `periodSummary` / `summarySentences` / `recapFrom` (the "This week / This month" summary and
+Home's monthly recap), `cycleDayCluster` / `patternFindings` (sleep links and cycle-day clusters, with the list of
+checks Cyra ran) and `homePick` (Today's insight) in `lib/insights.js`, and `nightOf` / `isRoughNight` / `sleepLink`
+in `lib/engine.js`. All pure, computed by App.jsx (`useMemo`) on render, never stored, never in backups, never sent;
+they read no day note and no fertility sign. The AI pattern-report hook (`plan.aiPatternReports`) stays false and
+nothing calls it.
+
 ## 8. Saving, other tabs, backup and restore, delete
 
 - **Autosave.** Any change to a PERSISTED value schedules a save 400 ms later (App.jsx autosave

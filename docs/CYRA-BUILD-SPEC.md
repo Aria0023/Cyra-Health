@@ -476,6 +476,34 @@ weekly average fell by 10 or more points (`dayStats().diff <= -10`) a trend-drop
 POTS add-on on, the pointer reads "Your POTS patterns live in POTS tools." with a "Go to POTS tools →" link that opens
 the POTS page (Home's handler).
 
+**Summary first (L8).** Directly under the h1, once anything is logged in the 60 days, `div.plaincard.sumcard`
+(`components/SummaryCard.jsx`): a `.mcrow.seg.sumseg[role=group][aria-label="Summary period"]` with two 44px
+`button.mc[aria-pressed]` "This week" (pressed on open) / "This month" (React state only, never saved); `p.summeta`
+("Oct 16–Oct 22 · compared with Oct 9–Oct 15", the comparison only when the earlier window has a check-in); a
+decorative `div.sumcells[aria-hidden=true]` strip of 7 or 30 cells, each logged day filled with its day-score colour
+from the data-viz ramp (`scoreColor`, never the UI palette), today ringed in --primary when not logged; and
+`p.plain.sumtext[aria-live=polite]` with the §6.1 sentences. With 3+ logged days and nothing in the chosen window it
+adds "Log today's check-in →"; under 3 logged days the ChartSoon placeholder below carries that link instead.
+
+**Links in your log (L8).** The old hot-flash card is replaced by `.icard` cards with `.card.findcard` (the family dot,
+`famVar(fam)`, before the text) from `patternFindings()`: at most 2 sleep links plus Low energy's, after the
+perimenopause spread card, then at most one cycle-day card (never in menopause), then the My Cycle counts card and the
+trial cards. Sleep link: `.num` "{R}×" (one decimal under 10, whole above) or "{a}/{n}" for a zero base; text "In your
+log, {symptom} was/were moderate or strong {R}× as often after a rough night: on {a} of {n} days after a rough night,
+and {b} of {m} after a night you slept well." (zero base: "… on {a} of {n} days after a rough night, and on none of the
+{m} days after a night you slept well."). Advice: hot flashes "Next visit" (the treatment sentence); Low energy
+"Self-care" ("A link in your log, not proof that one causes the other. If low energy lasts for weeks even after good
+nights, thyroid, iron and vitamin D are simple blood tests worth asking about."); any other "Self-care" (the same
+caveat, then CBT-I). Ask starters: hf → its own, Low energy → "Why am I so tired?", others → "Why can't I sleep?".
+Cycle card: `.num` "Days {a}–{b}"; "In your log, {symptom} showed up most on cycle days {a}–{b}: {x} of the {y} days
+you logged there, against {r} of {t} on your other cycle days. Seen in {c} of your last {n} cycles."; Self-care
+"Knowing when it tends to come lets you plan around it — …". After the trial cards and before the POTS pointer (which
+stays last), with 3+ logged days, `div.plaincard.findhow` holds a collapsed `Details` "How Cyra finds these": what a
+link means (not cause), the sleep rule, the cycle rule (not in menopause), `ul.findlist` with one line per check Cyra
+ran (ending "— a link.", "— no clear link.", "— a cluster.", "— no clear cluster." or "— not enough to compare yet.")
+and "Worked out on this device whenever Cyra shows them. Cyra doesn't save them or send them anywhere; they leave this
+device only in a report you choose to share." The chart's Rough nights row counts `isRoughNight` days.
+
 **Report — "What to tell your doctor"** (this is the flagship screen):
 0. *Cover* — days logged in the window as a number ("27/30 days logged", date range, stage)
    with a 30-cell strip of logged days (decorative; the number carries it).
@@ -494,6 +522,10 @@ the POTS page (Home's handler).
    predictions), 28 days (34-day spread)."); a left-out cycle's dot is hollow (card fill, --primary 2px ring). The
    spread, its chip, the "My cycles have ranged from…" script and the doctor email keep every cycle unlabelled (the
    email lists what happened; the label is about the app's predictions).
+   *Hot flashes and sleep (L8):* in perimenopause, when the 60-day sleep link holds (§6.1 hfMult): "**Rough nights and
+   hot flashes went together.** In your log, hot flashes were moderate or strong about {x} times as often after a
+   rough night." (it replaced the causal "Bad nights made the next day worse."); the doctor email's line is "• In my
+   log, hot flashes were moderate or strong {x}x as often after a rough night" (30-day link).
 2. *What this might mean* — interpretation in everyday language, threshold-driven, each
    paragraph headed and colour-edged by the finding it is about, always closing with
    "observations, not a diagnosis".
@@ -609,9 +641,16 @@ viewport; focus is not moved (it stays on the tab). Now/soon cards offer "Add to
 ```
 counts[symptom] = { days: entries in last 30 with severity>0,
                     strong: entries with severity>=2 }
-sleepCorrelation = P(symptom>=2 | previous day sleepQ="poor")
-                 / P(symptom>=2 | previous day sleepQ!="poor")
-   -- only over CONSECUTIVE logged days; require >=4 samples each side.
+nightOf(day)     = the night BEFORE that day: a day's own "Last night" answer (L8, src/lib/engine.js)
+   rough = sleepQ "poor" (Rough night) or Sleep disruption (sym.slp) >= 2 (the perimenopause quick card's
+           Rough night / Barely slept); good = sleepQ "good" (Slept well); So-so ("fair") / unanswered = unknown
+sleepLink(id)    = P(id>=2 | rough) / P(id>=2 | good), each day paired with its OWN night, over the last 60
+                   calendar days (Patterns); days with an unknown night or without id on that day's form are skipped
+   -- shows only with >=5 days on each side, >=4 moderate-or-strong days in all, ratio >=1.3 and a gap of
+      >=0.20 (20 in 100 days); a zero base (no hits after good nights) shows as a/n, never as a ratio
+      (SLEEP_LINK = { minEach: 5, minHits: 4, minRatio: 1.3, minDiff: 0.2, level: 2 }).
+hfMult   = sleepLink("hf") ratio over the last 60 calendar days (Report); hfMult30 = the last 30 (doctor email);
+           null when there is no clear link or a zero base. roughNights = isRoughNight days in the last 30.
 triggerMultiplier = same ratio for tagged vs untagged days; require >=5 each side;
    surface only if multiplier >= 1.3
 ```
@@ -622,6 +661,30 @@ over the last eight weeks — the hardest stretch was {hardest 4-day span}." (th
 shown, i.e. best − hardest means differ by 0.08 or more), `Advice urgency="visit"`: "Worth a conversation soon; the
 Report tab turns this into a one-page summary you can hand over.", and the action row "Add to visit notes →" (Report).
 It is computed from the on-device record and never stored.
+
+**Summaries (L8, `src/lib/insights.js` periodSummary / summarySentences).** Windows: the last 7 (or 30) calendar days,
+today included, against the 7 (or 30) before. A change is named only with `compareMin` logged days on both sides (3 for
+the week, 10 for the month). Score = round(mean dayScore(e, ids, SCORE_SCALE[stage]) × 100), the same number as the
+Calendar and Home; calm = score > 0.64; rough = isRoughNight; top = the 3 symptoms on the most days (ties: summed
+severity, then list order). Sentences: "You checked in on {n} of the last 7 days[, up from / down from {p} | , the same
+as the week before]." "Your average day score was {s}[, {d} points better than / lower than the week before | , about
+the same as the week before]." (±3 points or more is a change; one logged day: "That day's score was {s}.") "{Top}
+showed up most ({k} days)[, then {second} ({k2})], with {r} rough nights[, up from / down from {p} | , the same as the
+week before]." (no symptoms: "You logged no symptoms and …"; nothing this window: "No check-ins in the last 7 days
+yet." plus "You logged {p} days the week before." when there were). Month wording: "the last 30 days" / "the 30 days
+before".
+
+**Cycle-day clusters (L8, cycleDayCluster).** `CLUSTER = { maxCycles: 4, win: 4, maxDay: 45, minTotal: 6, minIn: 4,
+minLoggedIn: 5, minCycles: 2, minRatio: 2, minDiff: 0.25 }`. Over the last 4 logged period starts (every logged start
+counts, including cycles she left out of predictions: D5), each logged day from the oldest of them to today gets a
+cycle day (from the latest start before it; days past 45 skipped). The symptom needs 6 days in all; the 4-day window
+with the highest rate that holds ≥ 4 of them, from ≥ 2 different cycles, among ≥ 5 logged days, is a cluster when its
+rate is at least twice the other cycle days' and 25 in 100 days above it. Needs two starts; never in menopause.
+
+**Home pick (L8, homePick).** Candidates: the perimenopause variability marker (tier 0, the old text) plus every
+qualified sleep link and cluster (tier 1, ranked by an internal strength never shown). A finding that qualifies today
+but did not 7 days ago (computed on the record up to that day) is shown first, the strongest new one; otherwise the
+card rotates daily through the three strongest (day number mod min(3, n)).
 
 ### 6.2 Cycle detection and prediction (normative since local-first L5; src/lib/engine.js)
 ```
@@ -1226,7 +1289,13 @@ doesn't apply).
 - *Today's insight* is `.card.insight` (primary at 6% over the card) with a family dot before the sentence when the
   insight is about a symptom; the number reads "{n} days", not "n/30". Before 3 check-ins the card counts the gap:
   "0 of 3 · Log a few days and your first insight appears here." then "{k} more check-in(s) and your first insight
-  appears here.".
+  appears here.". From 3 check-ins (L8) the card shows `homePick` (§6.1): the strongest new finding, else a daily
+  rotation through the three strongest, the variability marker first (its text unchanged, with L5's left-out sentence).
+  Finding texts are two lines at 390px (measured; unit-tested at ≤ 75 characters for every label): "In your log,
+  {symptom} flared up {R}× as often after a rough night." / "… flared up after {a} of {n} rough nights." ("flared up"
+  stands for moderate or strong; the Patterns card says it in full) with `.num` "{R}×" / "{a}/{n}", and "In your log,
+  {symptom} cluster(s) on cycle days {a}–{b}." with `.num` "{a}–{b}". Never causal; the old "Sleep is your biggest
+  lever" line is gone. Otherwise the top-count line as before.
 - *Your patterns* on Home is the compact card: the view switch and the legend as on Patterns, the callout sentence
   ("Your weekly average is …" / "Days a–b …") above the plot as the card's headline (`.pcallout.top`), a shorter plot
   (viewBox height 150 instead of 206), at most three symptom rows in all (rough nights counted), the day card once a
@@ -1293,7 +1362,8 @@ existing Add toasts are unchanged. Nothing is added until the person picks a dat
 Free text per day, `journal[iso]`, private, last 5 shown. Prompt: "How are you, really?"
 
 ## A6. Monthly recap
-Last 30 logged entries vs the 30 before (needs ≥10 each). Shows avg day score, calm days
+The last 30 calendar days vs the 30 before (needs ≥10 logged in each; since L8, the same numbers as Patterns "This
+month": `recapFrom(periodSummary(…, 30))`; in pregnancy from the pregnancy log; rough nights = isRoughNight). Shows avg day score, calm days
 (>0.64), rough nights, and top-symptom days with +/− deltas colored by direction (fewer rough
 nights = good). Copy: "a harder month is information, not failure."
 
@@ -1465,6 +1535,9 @@ Apple stays first.
 - [x] Trying to conceive: fertility signs (local-first L7, D6): cervical mucus, ovulation tests and basal temperature
       on Today, marked on the Calendar, the fertile-window row and today's read on Home, a Patterns card and a Report
       finding for Trying to conceive; an opt-in for My Cycle; never in weekly counts or the AI (§3.1, A14.7).
+- [x] Plain-language summaries and simple links (local-first L8): "This week / This month" on Patterns, sleep links and
+      cycle-day clusters in her own log with minimum-data rules and "in your log" wording, Home's insight leads with
+      what is new; all worked out on the device, nothing saved or sent (§6.1, §5.1, A1, A6, A14.8).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the
       predicted date to Cyra's server, and today's copy promises one reminder at most. The brief's item 7 ("optional
       reminders for logging or predicted period") is met today by the optional logging reminder (A8).
@@ -1885,3 +1958,24 @@ Report), with the privacy line built in `src/lib/disclosures.js` `fertPrivacyLin
   `{ sym, sleepQ, flow }`), the AI (`{ question }`) or the POTS report and spreadsheet. They leave the device only inside
   the encrypted backup she saves, and as the one email line she sends herself (docs/PRIVACY-AUDIT.md, L7).
 - Free core: never gated in plan.js.
+
+### A14.8 Plain-language summaries and simple links (L8)
+
+Brief item 4. Code: `src/lib/insights.js` (pure; imports only engine.js and constants.js; unit-tested in
+`insights.test.mjs`, which also greps its source for any network or storage call), `nightOf` / `isRoughNight` /
+`SLEEP_LINK` / `sleepLink` in `src/lib/engine.js`, `src/components/SummaryCard.jsx`.
+- **What it computes.** `periodSummary` (week and month), `summarySentences`, `summaryMeta`, `recapFrom` (Home's
+  recap), `cycleDayCluster`, `patternFindings` (sleep candidates: the 3 most-logged symptoms in 60 days, never Sleep
+  disruption, plus Low energy when logged; cycle candidates: the 4 most-logged since the oldest of the last 4 starts)
+  and `homePick`. Rules and copy: §6.1, §5.1 "Summary first" / "Links in your log", A1, A6.
+- **Same-day pairing.** A day's "Last night" answer is the night before it, so a day pairs with its own answer (the
+  pairing the POTS patterns already used). This replaced the old previous-day hot-flash ratio, which showed on tiny
+  samples; the demo seed pairs each day with its own night.
+- **Two rough-night readings.** On the device (summaries, chart row, recap, links, Care matching) Sleep disruption ≥ 2
+  also counts as rough. The weekly counts' `rough_night` flag still uses only sleepQ "poor" (`eventsForDay` is
+  unchanged), so what is shared does not change.
+- **Known limit.** Peri quick-mode "Slept well" is saved as slp 0 with sleepQ "fair" (unknown), so a quick-card-only
+  user has no good nights and sees "not enough to compare yet"; changing that would change what weekly counts send,
+  so it waits for a reviewed change.
+- **Nothing saved or sent.** No new record key; the summary period is React state. Day notes and fertility signs are
+  never read. The AI pattern-report hook stays `plan.aiPatternReports = false` with no UI (docs/PRIVACY-AUDIT.md, L8).

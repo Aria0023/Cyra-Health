@@ -39,9 +39,10 @@ A feature that ships free stays free.
   `plan.extraCustomisation` is for extras beyond these.
 - Fertility signs (Trying to conceive; opt-in for My Cycle): cervical mucus, ovulation tests and basal temperature
   (local-first L7) — free core, never gated in plan.js.
+- Plain-language summaries and simple links (local-first L8): "This week / This month", sleep links and cycle-day
+  clusters in her own log, Home's insight — worked out on the device, free core, never gated in plan.js.
 
-**Coming in this work, also free:** fertility signs, plain-language
-summaries, the PDF export (unlimited today), the privacy dashboard and the app lock.
+**Coming in this work, also free:** the PDF export (unlimited today), the privacy dashboard and the app lock.
 
 ## 3. Paid extension points (none active)
 
@@ -51,7 +52,7 @@ tests.
 | Entitlement | Free value | What a paid tier could add | Hook | Slice |
 |---|---|---|---|---|
 | `pdfExportsPerMonth` | `null` (unlimited) | richer or unlimited exports, if a free limit is ever set | `plan.exportsLeft` / `plan.noteExport` at the Report's Download PDF | L9 |
-| `aiPatternReports` | `false` | an advanced pattern report, with consent for each report | reserved; nothing calls it while false; no UI | L8 |
+| `aiPatternReports` | `false` | an advanced pattern report, with consent for each report | reserved and unbuilt; nothing calls it while false; no UI. The free on-device summaries and links (L8) never call it. Building it would need explicit consent for each report, a minimal pseudonymised summary and the exact disclosure of what is sent | L8 |
 | `extraCustomisation` | `false` | extras beyond the free favourites and palettes, such as custom symptoms or themes | none yet; the favourites sheet (L6) is free core and never calls `plan.can` | L6 |
 | `cloudBackup` | `false` | end-to-end-encrypted cloud backup and multi-device sync, the first paid server feature | scaffolded in L4, still off with no UI: the backend module `backup` (opaque encrypted blobs, never decrypted; listed in `config/app-dev.json`, not mounted in production), `cloudTransport` in `src/lib/backup.js` (fail-closed) and its configured instance `src/lib/cloudBackup.js` (imported by nothing). Three gates: `plan.can("cloudBackup")`, the build's `cloudBackup` flag (`VITE_FEATURES`), and the module listed in `backend/config/app.json`. Turning it on is a paid-tier decision plus the privacy-copy changes recorded in `docs/PRIVACY-AUDIT.md` (L4) | L4 |
 

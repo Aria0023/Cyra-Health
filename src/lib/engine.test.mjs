@@ -115,3 +115,122 @@ test("routeIntake: the old branches are unchanged; 'Trying to be' routes to Tryi
   assert.deepEqual(routeIntake({ preg: "no", age: "u35", per: "irregular", vms: "no" }), { stage: "periods", label: "My Cycle", welcome: W.cycle });
   assert.deepEqual(routeIntake({ preg: "no", age: "u35", per: "irregular", vms: "yes" }).label, "Perimenopause");
 });
+
+/* ---------- L8: nights, sleep links, insights() hfMult, the demo seed ---------- */
+import { nightOf, isRoughNight, sleepLink, SLEEP_LINK, seed, addDays as addD, localDay as todayOf } from "./engine.js";
+import { readFileSync } from "node:fs";
+/* lib/pulse.js imports lib/api.js (Vite's import.meta.env), so eventsForDay is lifted from its source text, as
+   daylog.test.mjs and fertility.test.mjs do. */
+const pulseSrc = readFileSync(new URL("./pulse.js", import.meta.url), "utf8");
+const liftFn = (src, start) => {
+  const i = src.indexOf(start), j = src.indexOf(") {", i) + 2;
+  let depth = 0, k = j;
+  for (; k < src.length; k++) { if (src[k] === "{") depth++; else if (src[k] === "}" && --depth === 0) break; }
+  return src.slice(i, k + 1).replace(/^export /, "");
+};
+const { eventsForDay } = await import("data:text/javascript," + encodeURIComponent(`${liftFn(pulseSrc, "export function eventsForDay(")}\nexport { eventsForDay };`));
+
+test("nightOf / isRoughNight (L8): poor or Sleep disruption ≥ 2 is rough, Slept well is good, fair / none is unknown", () => {
+  assert.equal(nightOf({ sleepQ: "poor", sym: {} }), "rough");
+  assert.equal(nightOf({ sleepQ: "fair", sym: { slp: 2 } }), "rough");
+  assert.equal(nightOf({ sleepQ: "fair", sym: { slp: 3 } }), "rough");
+  assert.equal(nightOf({ sleepQ: "good", sym: { slp: 0 } }), "good");
+  assert.equal(nightOf({ sleepQ: "good", sym: { slp: 2 } }), "rough");
+  assert.equal(nightOf({ sleepQ: "good" }), "good");
+  assert.equal(nightOf({ sleepQ: "fair", sym: { slp: 1 } }), null);
+  assert.equal(nightOf({ sym: {} }), null);
+  assert.equal(nightOf(undefined), null);
+  assert.equal(nightOf(null), null);
+  assert.equal(isRoughNight({ sleepQ: "fair", sym: { slp: 2 } }), true);
+  assert.equal(isRoughNight({ sleepQ: "good", sym: {} }), false);
+  assert.equal(isRoughNight(null), false);
+});
+
+// n rough days with `rh` hits and m good days with `gh` hits for symptom fog (dates from 2026-01-01).
+const linkDays = (n, rh, m, gh, id = "fog", level = 2) => {
+  const out = []; let i = 0;
+  for (let k = 0; k < n; k++) out.push({ date: addD("2026-01-01", i++), sleepQ: "poor", sym: { [id]: k < rh ? level : 0 } });
+  for (let k = 0; k < m; k++) out.push({ date: addD("2026-01-01", i++), sleepQ: "good", sym: { [id]: k < gh ? level : 0 } });
+  return out;
+};
+
+test("sleepLink pairs a day with its OWN Last night answer", () => {
+  // R, G, R, G … 20 days; fog 2 on the day AFTER each rough night (the G days): no link (reversed).
+  const after = Array.from({ length: 20 }, (_, i) => ({ date: addD("2026-03-01", i), sleepQ: i % 2 ? "good" : "poor", sym: { fog: i % 2 ? 2 : 0 } }));
+  const a = sleepLink(after, "fog");
+  assert.deepEqual([a.rough, a.good, a.ok, a.why], [{ n: 10, hits: 0 }, { n: 10, hits: 10 }, false, "no-link"]);
+  // The same fog shifted onto the rough days themselves: a link with exact counts.
+  const same = after.map((d, i) => ({ ...d, sym: { fog: i % 2 ? 0 : 2 } }));
+  const b = sleepLink(same, "fog");
+  assert.deepEqual([b.rough, b.good, b.ok, b.why, b.ratio], [{ n: 10, hits: 10 }, { n: 10, hits: 0 }, true, null, null]);
+});
+
+test("sleepLink thresholds at their boundaries, each rule isolated", () => {
+  assert.equal(sleepLink(linkDays(4, 4, 10, 0), "fog").why, "few-nights");
+  assert.equal(sleepLink(linkDays(5, 4, 10, 0), "fog").ok, true);
+  assert.equal(sleepLink(linkDays(10, 4, 4, 0), "fog").why, "few-nights");
+  assert.equal(sleepLink(linkDays(5, 3, 5, 0), "fog").why, "few-hits");
+  assert.equal(sleepLink(linkDays(5, 4, 5, 0), "fog").ok, true);
+  const free = { minEach: 0, minHits: 0 };
+  assert.equal(sleepLink(linkDays(1000, 387, 1000, 300), "fog", { ...free, minDiff: 0 }).why, "no-link"); // 1.29×
+  assert.equal(sleepLink(linkDays(1000, 390, 1000, 300), "fog", { ...free, minDiff: 0 }).ok, true); // 1.30×
+  assert.equal(sleepLink(linkDays(100, 59, 100, 40), "fog", { ...free, minRatio: 0 }).why, "no-link"); // gap 0.19
+  assert.equal(sleepLink(linkDays(100, 60, 100, 40), "fog", { ...free, minRatio: 0 }).ok, true); // gap 0.20
+  // A severity of 1 is not a hit at level 2.
+  const mild = sleepLink(linkDays(10, 10, 10, 0, "fog", 1), "fog");
+  assert.deepEqual([mild.rough.hits, mild.why], [0, "few-hits"]);
+  assert.deepEqual(SLEEP_LINK, { minEach: 5, minHits: 4, minRatio: 1.3, minDiff: 0.2, level: 2 });
+});
+
+test("sleepLink edge cases: zero base, reverse direction, ignored days", () => {
+  const zero = sleepLink(linkDays(6, 5, 6, 0), "fog");
+  assert.deepEqual([zero.ratio, zero.ok, zero.goodRate], [null, true, 0]);
+  const rev = sleepLink(linkDays(6, 0, 6, 6), "fog");
+  assert.deepEqual([rev.ok, rev.why], [false, "no-link"]);
+  const base = linkDays(6, 5, 6, 1);
+  const ref = sleepLink(base, "fog");
+  const noisy = [
+    ...base,
+    { date: "2026-02-01", sleepQ: "fair", sym: { fog: 3 } }, // unknown night
+    { date: "2026-02-02", sym: { fog: 3 } }, // no answer
+    { date: "2026-02-03", sleepQ: "poor", sym: { hf: 3 } }, // fog not on that day's form
+    { date: "2025-12-01", sleepQ: "poor", sym: { fog: 3 } }, // before from
+    { date: "2026-03-01", sleepQ: "poor", sym: { fog: 3 } }, // after to
+  ];
+  const got = sleepLink(noisy, "fog", { from: "2026-01-01", to: "2026-02-28" });
+  assert.deepEqual([got.rough, got.good, got.ratio], [ref.rough, ref.good, ref.ratio]);
+  assert.equal(got.strength, ref.strength);
+});
+
+test("insights() L8: hfMult is the 60-day sleepLink('hf') ratio, hfMult30 the 30-day one; roughNights counts Sleep disruption ≥ 2", () => {
+  const today = "2026-10-22";
+  const days = [];
+  // Days 59..30 before today: 8 rough (hf 2 on 6), 8 good (hf 2 on 1). Days 29..0: 8 rough (hf 2 on 7), 8 good (hf 2 on 2).
+  const put = (ago, sleepQ, hf, extra = {}) => days.push({ date: addD(today, -ago), sleepQ, sym: { hf, slp: 0, ...extra } });
+  for (let k = 0; k < 8; k++) { put(59 - k, "poor", k < 6 ? 2 : 0); put(50 - k, "good", k < 1 ? 2 : 0); }
+  for (let k = 0; k < 8; k++) { put(29 - k, "poor", k < 7 ? 2 : 0); put(20 - k, "good", k < 2 ? 2 : 0); }
+  put(3, "fair", 0, { slp: 2 }); // a quick-card Rough night: rough, counted in roughNights and in the 30-day link
+  const ins = insights(days, ["hf", "slp"], new Date(today + "T12:00:00"));
+  const l60 = sleepLink(ins.sorted, "hf", { from: addD(today, -59) });
+  const l30 = sleepLink(ins.sorted, "hf", { from: addD(today, -29) });
+  assert.ok(l60.ok && l30.ok);
+  assert.equal(ins.hfMult, l60.ratio);
+  assert.equal(ins.hfMult30, l30.ratio);
+  assert.equal(ins.roughNights, days.filter((d) => d.date >= addD(today, -29) && (d.sleepQ === "poor" || d.sym.slp >= 2)).length);
+  // The old tiny-sample case (two consecutive days) and a below-1 ratio: both null.
+  const tiny = insights([{ date: "2026-10-20", sleepQ: "poor", sym: { hf: 2 } }, { date: "2026-10-21", sleepQ: "good", sym: { hf: 2 } }], ["hf"], new Date(today + "T12:00:00"));
+  assert.deepEqual([tiny.hfMult, tiny.hfMult30], [null, null]);
+  const below = insights(linkDays(10, 2, 10, 8, "hf").map((d, i) => ({ ...d, date: addD(today, -i) })), ["hf"], new Date(today + "T12:00:00"));
+  assert.deepEqual([below.hfMult, below.hfMult30], [null, null]);
+  // Weekly counts unchanged: a quick-card Rough night (slp 2, sleepQ fair) is no rough_night flag.
+  assert.ok(!eventsForDay("peri", { sym: { slp: 2 }, sleepQ: "fair" }).includes("rough_night"));
+  assert.ok(eventsForDay("peri", { sym: {}, sleepQ: "poor" }).includes("rough_night"));
+});
+
+test("seed() L8: deterministic, 75 days, and same-day pairing gives sleep links for ns and fog", () => {
+  const a = seed(), b = seed();
+  assert.deepEqual(a, b);
+  assert.equal(a.length, 75);
+  const from = addD(todayOf(), -59);
+  for (const id of ["ns", "fog"]) assert.equal(sleepLink(a, id, { from }).ok, true, id);
+});

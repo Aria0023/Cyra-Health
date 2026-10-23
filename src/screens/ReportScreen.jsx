@@ -222,10 +222,11 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
               </div>
             )}
             {fert && <FertilityFinding sum={fsum} unit={fert.unit} />}
-            {stage === "peri" && ins.hfMult && ins.hfMult > 1.2 && (
+            {/* L8: the 60-day sleep link (engine sleepLink, same-day pairing, with its thresholds); an observation, not a cause. */}
+            {stage === "peri" && ins.hfMult != null && (
               <div className="finding fstat">
                 <div className="num">{ins.hfMult.toFixed(1)}×</div>
-                <p className="plain"><b>Bad nights made the next day worse.</b> After a rough night's sleep, hot flashes were about {ins.hfMult.toFixed(1)} times more likely.</p>
+                <p className="plain"><b>Rough nights and hot flashes went together.</b> In your log, hot flashes were moderate or strong about {ins.hfMult.toFixed(1)} times as often after a rough night.</p>
               </div>
             )}
           </div>

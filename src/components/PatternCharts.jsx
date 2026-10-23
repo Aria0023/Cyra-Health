@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { dayScore, isPeriodDay, fmt, localDay, sevDots } from "../lib/engine.js";
+import { dayScore, isPeriodDay, isRoughNight, fmt, localDay, sevDots } from "../lib/engine.js";
 import { FAMILIES, SYM_FAMILY, famVar } from "../lib/constants.js";
 import Details from "./Details.jsx";
 
@@ -142,12 +142,14 @@ export function ChartSoon({ logged, children = null }) {
 
 /* ---------------- Day by day: the day-score line with the symptom rows under it ---------------- */
 
-/* Rough nights, then the `max` most-logged symptoms, each with a per-day value for its dots. */
+/* Rough nights, then the `max` most-logged symptoms, each with a per-day value for its dots. A rough night is engine
+   isRoughNight (L8: Rough night, or Sleep disruption moderate or strong), the same reading as the summary, the recap
+   and the sleep links. */
 export function symptomRows(days, ids, labels, max) {
   const count = (k) => days.filter((d) => (d.e?.sym?.[k] || 0) > 0).length;
-  const nights = days.filter((d) => d.e?.sleepQ === "poor").length;
+  const nights = days.filter((d) => isRoughNight(d.e)).length;
   return [
-    ...(nights ? [{ k: "_poor", label: "Rough nights", fam: "sleep", c: nights, v: (d) => (d.e?.sleepQ === "poor" ? 2 : 0) }] : []),
+    ...(nights ? [{ k: "_poor", label: "Rough nights", fam: "sleep", c: nights, v: (d) => (isRoughNight(d.e) ? 2 : 0) }] : []),
     ...ids.map((k) => ({ k, c: count(k) })).filter((o) => o.c > 0).sort((a, b) => b.c - a.c).slice(0, max)
       .map((o) => ({ k: o.k, label: labels[o.k] || o.k, fam: SYM_FAMILY[o.k] || "body", c: o.c, v: (d) => d.e?.sym?.[o.k] || 0 })),
   ];
