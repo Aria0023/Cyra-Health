@@ -90,14 +90,18 @@ SCALES = [ {id:"fatigue", low:"Energized", high:"Wiped out"},
            {id:"stress",  low:"Calm",      high:"Maxed"} ]
 ```
 
-### 3.3 Registration record
+### 3.3 Registration record (`regAnswers`; matches the build since L11)
 ```js
-{ name, email, pass, anon:bool, age, zip, stage,
-  cycleLen, cycleReg, lastPeriod, preg, births, contra,
-  conditions:[], familyHx:[], meds,
-  goals:[], sleep, activity,
-  emailOptin, notifOptin, research, terms }
+{ // asked during onboarding (L11, §4.2): stage, cycleLen, lastPeriod (cycle stages), dueDate (Pregnant),
+  // name, email, anon (Device step), notifOptin, research, terms (Consent step)
+  name, email, anon:bool, stage, cycleLen, lastPeriod, dueDate, notifOptin, research, terms,
+  // asked only in Settings → About you (optional, all empty after onboarding):
+  age, zip, cycleReg, preg, births, contra, conditions:[], familyHx:[], meds, goals:[], sleep, activity }
 ```
+There is no password and no email opt-in. `name` and `email` are deleted in Anonymous Mode. `dueDate` is "" or
+YYYY-MM-DD (`record.js` RULES) and drives the pregnancy week (`pregWeekFrom`, lib/onboarding.js); without one the week
+stays at the fixed 22 every build has shown. `src/lib/onboarding.js` holds the option lists, `ANSWER_BLANK` (every answer
+key empty, no identity key) and `pruneForStage` (answers typed on a step that left her flow are not saved).
 **Never collect:** SSN, government ID, insurance/policy numbers, payment cards,
 full street address (ZIP only), or medical records. This boundary is deliberate —
 collecting identifiers alongside health data changes the legal posture of the product.
@@ -145,7 +149,7 @@ Delete everything. No RECORD_VERSION bump: missing means `{}`.
 ## 4. APPLICATION FLOW (state machine)
 
 ```
-phase: "splash" -> "register" -> "app"
+phase: "splash" -> "register" (3–4 steps) -> "app"
 ```
 
 ### 4.1 Splash
@@ -154,45 +158,72 @@ Wordmark, tagline "One companion for every phase", value proposition, "Get start
 **UI O1.** Above the wordmark an aria-hidden ring motif (`.splashmotif`: three overlapping circles in --primary 14%,
 --accent 18% and --primary 8%, so it takes the stage palette after a restore). The value proposition is three icon rows
 (`ul.splashwhy`: clock "Track in 30 seconds a day.", chart "See your real patterns.", clipboard "Walk into appointments
-with evidence."). The two privacy sentences stay word for word in their own paragraph (`p.splashpriv`, lock icon) directly
-above "Get started" (docs/PRIVACY-AUDIT.md "UI O1"). The build stamp text is unchanged; `.rfoot b` is demoted to 11px /
-weight 500. "Restore from an encrypted backup" is unchanged.
+with evidence."). The build stamp text is unchanged; `.rfoot b` is demoted to 11px / weight 500.
 
-### 4.2 Registration — 8 steps, with validation
+**L11: the promise, stated once, before any personal question.** Under the value rows an `h2.section-lab#splash-promise`
+"Your privacy, plainly" labels `ul.splashpromise` (three `li`, one 16px `Icon` each; `p.splashpriv` is gone):
+1. lock — "Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that
+   tells you exactly what it sends." (unchanged sentence; it appears nowhere else in onboarding)
+2. user — "No account needed. There's no Cyra account to make, and your name and email are optional."
+3. book — "Guidance, never a diagnosis. For anything medical, talk with your clinician."
+Then `button.cta` "Get started", then `button.ghostbtn.quiet.splashrestore` "Restore from an encrypted backup" (a 44px
+toggle with a constant label; `aria-expanded` carries the state, `aria-controls="splash-restore"`, and `initialRestore`
+from L10 seeds it open) over `div#splash-restore` (hidden while closed; the compact `RestoreForm` while open), and last the
+`p.rfoot` "Free to use" + the build stamp (the "guidance, never diagnosis" clause moved into the list). "Get started" and
+the toggle both sit inside the first 844px at 390 wide (`.splash` padding-top 32px, h1 margin-top 16px).
+
+### 4.2 Registration — phase-first, 3–4 steps (L11)
+Routed by `regSteps(stage)` in `src/lib/onboarding.js` (the one step map; `REG_STAGE`, `STAGE_LABELS`, `STAGE_CARDS`,
+`STEP_COPY`, `missingFor`, `socialReturnStep` live there too):
 | # | Step | Fields | Required |
 |---|------|--------|----------|
-| 1 | Account | name (opt), email, password, **Anonymous Mode toggle** | email OR anon |
-| 2 | Basics | age band, ZIP | both |
-| 3 | Stage | 5 cards (see 4.3) | yes |
-| 4 | Cycle history | typical length, regularity, last period (opt) | length + regularity |
-| 5 | Reproductive | ever pregnant, births, contraception, has provider | ever pregnant |
-| 6 | Health | conditions (multi), family history (multi), medications | medications |
-| 7 | Goals | goals (multi), sleep, activity | all three |
-| 8 | Consent | email opt-in, push opt-in, research opt-in, **terms** | terms |
+| 1 | Stage | 5 cards (see 4.3) — "Where are you right now?" | yes |
+| 2 | Device | name (opt), email (opt), **Anonymous Mode toggle**, providers (signin builds) | nothing |
+| 3 | Cycle (My Cycle, Trying to conceive, Perimenopause) — "Your cycle history" | typical length, last period (opt) | length |
+| 3 | Pregnancy (Pregnant) — "Your pregnancy" | due date (opt; min today−14, max today+280) | nothing |
+| — | (Menopause & beyond skips step 3: 3 steps in all) | | |
+| 4 | Consent | reminders opt-in (+ the rhythm grid while ticked), weekly counts opt-in, **terms** | terms |
+
+**About you (Settings).** Age band, ZIP, regularity, reproductive history, health background, goals, sleep and activity
+are no longer asked at registration. They live in Settings → About you (`src/components/AboutYou.jsx`), each topic a
+collapsed Details ("Your cycle" for cycle stages / "Your pregnancy" for Pregnant, then "Age and ZIP", "Reproductive
+history", "Health background", "What brings you here"), with the old steps' footers word for word; each tap writes one
+key into `regAnswers`. Nothing reads them except the POTS offer (conditions), which now fires from Settings.
+
+**Measured path (Playwright, VITE_API_BASE= build, 390×844, splash → saved first check-in).** Before L11: 11 screens and
+20 taps for My Cycle, Trying to conceive, Perimenopause and Menopause & beyond (15 in registration); Pregnant 11 screens,
+17 taps; the 8 steps held ~809 words and the consent step was 1203px tall with the agree box below the fold. After:
+My Cycle / Trying to conceive / Perimenopause 7 screens, 13 taps (8 in registration); Menopause & beyond 6 screens, 11
+taps (6); Pregnant 7 screens, 9 taps (7); the consent step is 888px with nothing to tap below the fold.
 
 **Validation behavior:** red state appears **only after** the user taps Continue with
 fields missing — never on arrival. Show label in red with "· needed" suffix, red-tint
 the inputs, and a summary line below. Optional fields never turn red.
 
 **UI O1 (onboarding).**
-- Step 1 order: the short path first — name and email inputs (email placeholder "Email (optional)", its aria-label the
+- Device step (step 2) order: the short path first — name and email inputs (email placeholder "Email (optional)", its aria-label the
   full sentence "Email (optional, kept only on this device and in backups you save)", and the clause repeated as a visible
   helper line under the field), then "Continue in Anonymous Mode instead" (`.ghostbtn.quiet`, aria-pressed), then the
   providers in one 3-up row with Apple leftmost and inline SVG marks (`Icon apple|google|facebook`, no `.socialdot`), the
   provider footnote, and both detail panels ("What Cyra's server sees", "Exactly what's shared") together at the end.
-  "Continue" sits inside the first 844px at 390 wide. Back on step 1 returns to the splash.
-- Palette preview: `REG_STAGE` (exported from App.jsx: card label → periods | preg | peri) is the one routing map; finishReg
-  uses it. Each `.stagecard` carries a `.swatch-dot` in `PALETTES[REG_STAGE[label]][0].primary`; the selected card hides its
-  dot and shows a check in --primary. From the tap on, `regPal` (phase "register" only) merges that palette into the Shell
-  theme, so steps 3–8 wear the stage's first palette (crossfaded by the G4 `.cy.repaint` list), the same one finishReg lands
-  on. UI palette only; nothing is persisted until finishReg.
+  "Continue" sits inside the first 844px at 390 wide. Back on the stage step (step 1) returns to the splash.
+- Palette preview: `REG_STAGE` (lib/onboarding.js since L11: card label → periods | preg | peri) is the one routing map;
+  finishReg uses it. Each `.stagecard` carries a `.swatch-dot` in `paletteFor(PALETTES[REG_STAGE[label]][0], scheme).primary`;
+  the selected card hides its dot and shows a check in --primary. From the tap on, `regPal` (phase "register" only) merges that
+  palette into the Shell theme, so steps 2–4 wear the stage's first palette (crossfaded by the G4 `.cy.repaint` list), the same
+  one finishReg lands on. UI palette only; nothing is persisted until finishReg (no session, local or IndexedDB storage).
+- Sign-in return (L11): a native return lands on the step after Device (`socialReturnStep`: Cycle, Pregnancy or Consent) with
+  the prefill toast; a web redirect restarts the page, so nothing is carried across it and she lands on the stage step, with
+  her name and email waiting on the Device step after she picks a stage again.
 - Chip rows: every `.lab` has an id and its `.mcrow` is `role="group" aria-labelledby` it; multi-select chips expose
   aria-pressed; "None" and "None / unsure" are exclusive (choosing one clears the rest, choosing anything else clears it).
-- Consent step: cadence cards in a two-column grid (`.regcards.cadgrid`, the fifth spanning both columns); each data fact
-  carries a decorative icon (`.rlist.icons`, text byte-identical). The CTA logic is unchanged ("Complete required fields"
-  until the box is ticked, then "Enter Cyra").
-- Progress and steps: `.prog` is `role="progressbar"` ("Set-up progress", 1–8, valuenow = step); the step line reads
-  "Step n of 8 · Device | About you | Stage | Cycle | History | Health | Goals | Consent". The step body (`.regstep`, keyed by
+- Consent step: the cadence cards (`.regcards.cadgrid`, two columns, the fifth spanning both) sit inside `div.cadwrap`
+  directly under "Remind me on this device" (which `aria-controls` it) and render only while that box is ticked, followed by
+  the anti-nag sentence; where the build has no reminders there is no row and no grid. Each data fact carries a decorative
+  icon (`.rlist.icons`, text byte-identical). The CTA logic is unchanged ("Complete required fields" until the box is ticked,
+  then "Enter Cyra"). Nothing is pre-ticked.
+- Progress and steps: `.prog` is `role="progressbar"` ("Set-up progress", 1–N, valuenow = step, one span per step); the step
+  line reads "Step n of N · Stage | Device | Cycle | Pregnancy | Consent". The step body (`.regstep`, keyed by
   step) slides in with `cy-slide-in` forward / `cy-slide-back` on Back (--t-base, --ease-in; none under reduced motion), the
   page scrolls to the top (smooth unless `reduceMotion()`) and focus moves to the `h1.disp` (tabIndex -1, no outline,
   preventScroll). A failed Continue scrolls the first marked field into view and the summary line is `role="alert"`.
@@ -1466,7 +1497,7 @@ editorial, not clinical. Hint: "Optional, private, and judgment-free. It tracks 
 you feel, not just sex, and never assumes who your partner is or that there is only one."
 
 ## A8. Check-in cadence (anti-nag)
-Registration step 8 and ⚙ settings: daily / weekdays / 3× week / weekly / "when I feel like
+The consent step (under "Remind me on this device", while it is ticked; L11) and ⚙ settings: daily / weekdays / 3× week / weekly / "when I feel like
 it" (no reminders). Nudge time: morning / midday / evening / never. **Policy: one reminder
 max, never a second nudge, never guilt for missed days — patterns tolerate gaps.** Quick mode
 replaces the symptom grid with three stage-specific questions (~10 s) that map onto hero
@@ -1559,12 +1590,12 @@ Appointments panel open and scrolled into view (HomeScreen scrolls `#home-appts`
 prefilled note is pending). Neither direction stores anything until the appointment is added.
 
 ## A11. Social sign-in
-Account step offers Apple, Google, Facebook. Demo simulates the OAuth round-trip. Production:
+The Device step (step 2, L11) offers Apple, Google, Facebook. Demo simulates the OAuth round-trip. Production:
 real OAuth client IDs, backend callback, verified email+name only. **Apple Sign-In is required
 on iOS whenever any third-party login is offered — keep it first.** Copy states providers
 receive only name/email, never health data.
 
-**Flag (§9.1):** `signin`, off by default, because the production config mounts no oauth module. Without it step 1
+**Flag (§9.1):** `signin`, off by default, because the production config mounts no oauth module. Without it the Device step
 has no "or fill in your name and email from" line, no provider buttons, no note and no "Exactly what's shared", a
 returning `#oauth=` code is dropped without an exchange, and no third-party login is offered at all. When shown,
 Apple stays first.
@@ -1619,6 +1650,11 @@ Apple stays first.
       backup), an optional passkey on the web, lock on launch and after Immediately / 1 min / 5 min away, a lock screen
       with back-off, and Forgot PIN → restore a backup (wipe first) or erase, with no back door (A12 "Privacy & your
       data (L10)", "App lock (L10)", "Forgot PIN (L10)", A14.10).
+- [x] Onboarding short, phase-first, privacy-forward (local-first L11): the splash states the privacy promise once
+      ("Your privacy, plainly", three items) before any personal question, with a 44px "Restore from an encrypted backup"
+      toggle; registration is Stage → Device → Cycle | Pregnancy (skipped for Menopause & beyond) → Consent, 13 taps /
+      7 screens from the splash to a saved first check-in (was 20 / 11); the optional answers moved to Settings → About
+      you; the due date drives the pregnancy week; the install hint waits for the first saved check-in (§4.1, §4.2, A14.11).
 - [ ] Native biometric unlock (Face ID / fingerprint) through a Capacitor plugin — later work; the phone build offers
       the PIN only (D4).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the
@@ -1628,7 +1664,7 @@ Apple stays first.
 **Settings sheet (UI S1).** `SettingsSheet` is `section.palsheet#settings-sheet[aria-label="Check-in settings"]` with a
 sticky `.sheethead` (an `h2.sheettitle` "Settings" that takes focus on open, and a 44px `.sheetclose` button labelled
 "Close settings"; the bottom "Done" stays), the `.setgroup` blocks Check-ins / Add-ons & sharing / Appearance / [Install] /
-Privacy & your data (L10; "Your data" before), and each option row a `[role=group][aria-labelledby]` named by its `p.section-lab` (ids `set-rhythm`,
+About you (L11) / Privacy & your data (L10; "Your data" before), and each option row a `[role=group][aria-labelledby]` named by its `p.section-lab` (ids `set-rhythm`,
 `set-nudge`, `set-style`, `set-addons`, `set-reminders`, `set-counts`, `set-appearance`, `set-privacy`, `set-flows`, `set-data`
 (now labelling "Backup, restore or delete"), `set-lock`, `set-lock-after`, `set-lock-bio`), every label opening
 with an `svg.labico` glyph. The ids `set-counts`, `set-rhythm`, `set-nudge` and `set-reminders` exist only where their
@@ -1637,6 +1673,12 @@ of its rows does. Appearance (L2) is `p.section-lab#set-appearance` (the `moon` 
 `div.mcrow.seg[role=group][aria-labelledby="set-appearance"]` of three `button.mc` with `aria-pressed`: "System" (the
 default), "Light" and "Dark", and a `p.rfoot` "System follows this device's light or dark setting. Your choice stays on
 this device and isn't part of a backup." A tap applies at once (with the 400ms chrome crossfade) and shows no toast.
+**About you (L11).** `p.section-lab#set-about` (the `user` glyph) over `div[role=group][aria-labelledby="set-about"]` holding
+the `p.hint` "All optional, and you can change them anytime. They stay on this device and leave it only inside an encrypted
+backup you choose to save — and your age band and ZIP never go into one." and `AboutYou` (`div.aboutyou`: one collapsed
+`Details` per topic, chip rows as `ChipRow` / `MultiRow` from `src/components/AnswerChips.jsx`, no toast per tap). Each tap
+goes through App.jsx `setAnswer(k, v)` into `regAnswers` (autosaved within 1 s). `pregWeek` comes from
+`regAnswers.dueDate` (`pregWeekFrom`; the fixed week 22 without one), so a due date typed here updates Home at once.
 The header buttons carry `aria-controls="settings-sheet"` / `"palette-sheet"` next to their `aria-expanded`; opening one
 sheet closes the other (`setShowPal(false); setShowSettings(s => !s)` and the mirror), and Done / Close hand focus back
 to the button that opened the sheet (`triggerRef`). The palette sheet (`#palette-sheet`) is a `[role=group]` named by
@@ -2005,7 +2047,8 @@ mini-infobar away) → "prompt"; else "none". Install UI shows only in "prompt" 
   your Home Screen starts with its own record, separate from this one in your browser. To bring your check-ins along,
   make an encrypted backup below, then restore it there from Cyra's first screen." (no button).
 - Home tip (`InstallTip`, `.installtip`, `role=group` labelled by its sentence), after the check-in button, its today
-  line and the POTS card and before "Today's insight", from `INSTALL_HINT_AFTER = 3` logged days, never again once
+  line and the POTS card and before "Today's insight", from `INSTALL_HINT_AFTER = 1` logged day (L11: after the first saved
+  check-in; never on the splash, a register step or the stage-change intake), never again once
   `installHint` is set: prompt mode "Install Cyra to open it like an app, even without a connection." with "Install";
   iOS mode "Add Cyra to your Home Screen to open it like an app." with "Show me" (opens Settings with focus on
   `#set-install`, scrolled into view); both with a 44px icon button "Hide this tip" (`.tipclose`). Hiding it toasts
@@ -2190,6 +2233,21 @@ the `.pdfcard` in `src/screens/ReportScreen.jsx`, `src/lib/files.js` (unchanged 
   (lib/disclosures.js); the day-note hint says the note goes into an appointment PDF only with the tick; "Print or
   save PDF" → "Print this page"; "Add to email" → "Add to email and PDF". The phone sweep also removes
   `cyra-summary-*.pdf`.
+
+### A14.11 Onboarding: short, phase-first, privacy-forward (L11)
+
+Brief: "onboarding short, phase-first, strong privacy messaging". Code: `src/lib/onboarding.js` (pure: `REG_STAGE`,
+`STAGE_LABELS`, `STAGE_CARDS`, the option lists, `ANSWER_BLANK`, `STEP_COPY`, `regSteps`, `missingFor`, `socialReturnStep`,
+`toggleMulti`, `pruneForStage`, `sanitizeZip`, `pregWeekFrom`, `dueDateBounds`), `src/components/AnswerChips.jsx`
+(`ChipRow`, `MultiRow`), `src/components/AboutYou.jsx`, `src/screens/RegisterScreen.jsx` (rewritten around `regSteps`),
+`src/screens/SplashScreen.jsx`, `src/components/SettingsSheet.jsx` (`regAnswers`, `onAnswer`), App.jsx (`setAnswer`, the
+due-date week, `finishSocial` return step, `pruneForStage` in finishReg), `src/lib/pwa.js` (`INSTALL_HINT_AFTER = 1`),
+`src/lib/record.js` (`regAnswers.dueDate` rule, `RegAnswers` typedef), `Icon` `user`, styles `.splashpromise*`,
+`.ghostbtn.splashrestore`, `.cadwrap`, `.aboutyou`. Rules and copy: §4.1, §4.2, §3.3, A8, A11, A12 "About you". Tests:
+`src/lib/onboarding.test.mjs`; the measurement `lf/l11/measure-after.mjs` (before: `l11design/measure.mjs`). No new
+persisted key (`dueDate` is a field inside `regAnswers`, in backups), no new dependency, network call or request.
+Harness: every registration walk goes through the shared `lf/onboard.mjs`; `pots/e2e/nlib.mjs`'s
+`finishRegistrationFromStep2` throws so a missed call site fails loudly. Privacy: docs/PRIVACY-AUDIT.md "L11".
 
 ### A14.10 Privacy dashboard and app lock (L10)
 

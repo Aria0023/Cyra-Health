@@ -7,56 +7,47 @@ import { TERMS_URL, PRIVACY_URL, POLICY_LINKS_READY, openExternal } from "../lib
 import { allFlagGroups } from "../lib/pulse.js";
 import { reduceMotion } from "../lib/motion.js";
 import { paletteFor } from "../lib/appearance.js";
-import { REG_STAGE } from "../App.jsx";
+import { localDay } from "../lib/engine.js";
+import { REG_STAGE, STAGE_CARDS, STEP_COPY, CYCLE_LENS, regSteps, missingFor, dueDateBounds } from "../lib/onboarding.js";
 import { FEATURES, remindersInBuild } from "../lib/features.js";
 import { serverSees, consentDeleteFact, consentDetails } from "../lib/disclosures.js";
 import Details, { WebReminderFacts } from "../components/Details.jsx";
+import { ChipRow } from "../components/AnswerChips.jsx";
 import Icon from "../components/Icon.jsx";
 
-/* Phase 2: registration — 8 steps with validation. Red state appears only after
-   the user taps Continue with required fields missing; optional fields never turn red.
-   There is no Cyra account: every answer is stored only on this device (App.jsx
-   finishReg). Registration data reaches Cyra's server only through opt-ins: the check-in
-   cadence (sent for web push along with the Settings reminder time and the browser's time
-   zone); the coarse life-stage group in anonymous weekly counts; and, with
-   Apple/Google/Facebook prefill, the name and email the provider sends, which the server
-   holds in memory under a one-time code until the device collects them, or 5 minutes at
-   most. Answers also leave inside an encrypted backup the user saves (minus the ZIP and
-   the age band). No registration answer goes into a POTS report or spreadsheet
-   (lib/potsReport.js reads POTS data and app state only; tested). The first name is added
-   only if she ticks it. Required: an age band, a stage, cycle length and regularity, at least one
-   goal, and the consent box. Everything else can be skipped.
-   UI O1: the short path first (inputs, then Anonymous Mode, then the providers 3-up with
-   Apple leftmost, both detail panels last); the chosen stage's palette from the moment she
-   picks it (App.jsx regPal); each step slides in, scrolls to the top and hands focus to its
-   heading; the progress strip is a progressbar; "None" answers are exclusive.
-   L4 (feature flags, lib/features.js): the provider row (Apple first), its note and "Exactly what's
-   shared" exist only in builds with signin (off by default: production mounts no oauth module). The
-   weekly-counts consent row needs counts and a server; "Remind me" on the web needs webReminders and a
-   server; the cadence question shows only where this build has reminders (phones always). Every
-   flag-dependent sentence ("What Cyra's server sees", the fifth consent fact, "The details") comes from
-   lib/disclosures.js, and equals the pre-L4 text when every flag is on. */
-const RSTEPS = [
-  { key: "account", short: "Device", title: "Set up Cyra on this device", sub: "There's no Cyra account. Your name, email and answers are saved on this device. Lose the device or clear the browser and you lose them, unless you saved an encrypted backup, which keeps most of them." },
-  { key: "basics", short: "About you", title: "A bit about you", sub: "Your age band, plus an optional ZIP. Both stay on this device." },
-  { key: "stage", short: "Stage", title: "Where are you right now?", sub: "This shapes your entire experience. You can change it anytime." },
-  { key: "cycle", short: "Cycle", title: "Your cycle history", sub: "So predictions can start from day one. These answers stay on this device, and go into an encrypted backup only if you save one." },
-  { key: "repro", short: "History", title: "Reproductive history", sub: "Optional, and kept on this device (and in an encrypted backup, if you save one). Skip anything you like." },
-  { key: "health", short: "Health", title: "Health background", sub: "Diagnoses and family history that can affect hormonal health. All optional. They stay on this device and leave it only inside an encrypted backup you choose to save. We never import medical records." },
-  { key: "goals", short: "Goals", title: "What brings you here?", sub: "Pick as many as you like. These stay on this device and leave it only inside an encrypted backup you choose to save." },
-  { key: "consent", short: "Consent", title: "Your data and your choices", sub: "What Cyra does with your data today — and choices you can change later in Settings." },
-];
-const STAGE_CARDS = [["My Cycle", "periods & PMS"], ["Trying to conceive", "fertility"], ["Pregnant", "week by week"], ["Perimenopause", "changing cycles"], ["Menopause & beyond", "post-transition"]];
+/* Phase 2: registration (L11, spec §4.2) — phase-first, 4 steps (3 for Menopause & beyond), routed by
+   lib/onboarding.js regSteps(stage): Stage → Device → Cycle (My Cycle, Trying to conceive, Perimenopause) |
+   Pregnancy (Pregnant) | nothing (Menopause & beyond) → Consent. Required: a stage, a typical cycle length (cycle
+   stages only) and the consent box. Everything else can be skipped; the remaining answers (age band, ZIP,
+   regularity, reproductive history, health background, goals, sleep, activity) live in Settings → About you
+   (components/AboutYou.jsx) and are never asked here. Red state appears only after the user taps Continue with
+   required fields missing; optional fields never turn red.
+   There is no Cyra account: every answer is stored only on this device (App.jsx finishReg). Registration data
+   reaches Cyra's server only through opt-ins: the check-in cadence (sent for web push along with the Settings
+   reminder time and the browser's time zone); the coarse life-stage group in anonymous weekly counts; and, with
+   Apple/Google/Facebook prefill, the name and email the provider sends, which the server holds in memory under a
+   one-time code until the device collects them, or 5 minutes at most. A native sign-in returns to the step after
+   Device; a web sign-in redirect returns to the stage step, because the page restarts and nothing is carried across
+   it (no session or local storage is written before finishReg). Answers also leave inside an encrypted backup the
+   user saves (minus the ZIP and the age band). No registration answer goes into a POTS report or spreadsheet
+   (lib/potsReport.js reads POTS data and app state only; tested). The first name is added only if she ticks it.
+   UI O1: the short path first (inputs, then Anonymous Mode, then the providers 3-up with Apple leftmost, both
+   detail panels last); the chosen stage's palette from the moment she picks it (App.jsx regPal); each step slides
+   in, scrolls to the top and hands focus to its heading; the progress strip is a progressbar; "None" answers are
+   exclusive. The check-in rhythm grid sits under "Remind me on this device" and shows only while it is ticked.
+   L4 (feature flags, lib/features.js): the provider row (Apple first), its note and "Exactly what's shared" exist
+   only in builds with signin (off by default: production mounts no oauth module). The weekly-counts consent row
+   needs counts and a server; "Remind me" on the web needs webReminders and a server; the cadence question shows
+   only where this build has reminders (phones always). Every flag-dependent sentence ("What Cyra's server sees",
+   the fifth consent fact, "The details") comes from lib/disclosures.js, and equals the pre-L4 text when every flag
+   is on. */
 // The icon beside each data fact on the consent step (decorative; the sentence is unchanged).
 const FACT_ICONS = ["lock", "share", "heart", "clipboard", "trash", "file"];
-// A "None" / "None / unsure" answer clears the others, and any other answer clears it.
-const NONE = /^None\b/;
-
-// A ZIP or postal code: letters, digits, spaces and hyphens, 10 characters at most — no room for a street address.
-const ZIP_CHARS = /[^A-Za-z0-9 -]/g;
 
 export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTouched, setRegTouched, cadence, setCadence, socialBusy, startSocial, finishReg, onBackToSplash, scheme = "light" }) {
-  const rs = RSTEPS[regStep];
+  const steps = regSteps(reg.stage);
+  const key = steps[Math.min(regStep, steps.length - 1)];
+  const rs = STEP_COPY[key];
   const uid = useId();
   const labId = (k) => `${uid}-${k}`;
   const [dir, setDir] = useState("fwd"); // which way the step slides in
@@ -66,39 +57,11 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
     window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
     headRef.current?.focus({ preventScroll: true });
   }, [regStep]);
-  const REQ = {
-    account: [],
-    basics: [["age", reg.age]],
-    stage: [["stage", reg.stage]],
-    cycle: [["cycleLen", reg.cycleLen], ["cycleReg", reg.cycleReg]],
-    repro: [],
-    health: [],
-    goals: [["goals", reg.goals.length]],
-    consent: [["terms", reg.terms]],
-  };
-  const miss = (REQ[rs.key] || []).filter(([, ok]) => !ok).map(([k]) => k);
-  const bad = (k) => regTouched[rs.key] && miss.includes(k);
+  const miss = missingFor(key, reg);
+  const bad = (k) => !!regTouched[key] && miss.includes(k);
   const rup = (k, v) => setReg((x) => ({ ...x, [k]: v }));
-  const rtog = (k, v) => setReg((x) => {
-    if (x[k].includes(v)) return { ...x, [k]: x[k].filter((y) => y !== v) };
-    if (NONE.test(v)) return { ...x, [k]: [v] };
-    return { ...x, [k]: [...x[k].filter((y) => !NONE.test(y)), v] };
-  });
   // Anonymous Mode on: the name and email go, and their fields and the providers are hidden.
   const toggleAnon = () => setReg((x) => (x.anon ? { ...x, anon: false } : { ...x, anon: true, name: "", email: "" }));
-  // Error ink --bad (.labErr, .need) is >= 4.6:1 on every light paper and >= 8.4:1 on every dark paper.
-  // Plain functions, not inline components, so a tap re-renders the chips in place instead of remounting them.
-  const lab = (k, text) => <p id={labId(k)} className={`lab ${bad(k) ? "labErr" : ""}`}>{text}{bad(k) && <span className="need"> · needed</span>}</p>;
-  const chips = (k, opts) => (
-    <div role="group" aria-labelledby={labId(k)} className={`mcrow ${bad(k) ? "err" : ""}`}>
-      {opts.map((o) => <button key={o} aria-pressed={reg[k] === o} className={`mc ${reg[k] === o ? "on" : ""}`} onClick={() => rup(k, reg[k] === o ? null : o)}>{o}</button>)}
-    </div>
-  );
-  const multi = (k, opts) => (
-    <div role="group" aria-labelledby={labId(k)} className={`mcrow ${bad(k) ? "err" : ""}`}>
-      {opts.map((o) => <button key={o} aria-pressed={reg[k].includes(o)} className={`mc ${reg[k].includes(o) ? "on" : ""}`} onClick={() => rtog(k, o)}>{o}</button>)}
-    </div>
-  );
 
   /* Consent choices: each one is shown only where it can do what it says. Reminders: on the
      phone, or in a browser that can show them when this build has a server. Weekly counts:
@@ -119,29 +82,44 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
       style={{ display: "inline-flex", alignItems: "center", padding: "0 4px" }}
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); openExternal(url); }}>{children}</a>
   );
+  // The rhythm question (where this build has reminders) sits under "Remind me" and shows only while it is ticked.
+  const rhythmHere = remindersInBuild(isNativeBuild);
+  const b = key === "pregnancy" ? dueDateBounds(localDay()) : null;
 
   const go = (n, d) => { setDir(d); setRegStep(n); };
   const advance = () => {
     if (miss.length) {
-      setRegTouched((t) => ({ ...t, [rs.key]: true }));
+      setRegTouched((t) => ({ ...t, [key]: true }));
       // The first marked field comes into view; the summary line below announces itself (role=alert).
       setTimeout(() => document.querySelector(".labErr, .inpErr, .err")?.scrollIntoView({ block: "center", behavior: reduceMotion() ? "auto" : "smooth" }), 0);
       return;
     }
-    if (regStep < RSTEPS.length - 1) go(regStep + 1, "fwd"); else finishReg();
+    if (regStep < steps.length - 1) go(regStep + 1, "fwd"); else finishReg();
   };
   const back = () => { if (regStep > 0) go(regStep - 1, "back"); else onBackToSplash?.(); };
 
   return (
     <main className="obwrap">
       <span className="mark">Cyra<span className="sub">Health</span></span>
-      <div className="prog" role="progressbar" aria-label="Set-up progress" aria-valuemin={1} aria-valuemax={RSTEPS.length} aria-valuenow={regStep + 1} style={{ marginTop: 14 }}>{RSTEPS.map((_, i) => <span key={i} className={i <= regStep ? "on" : ""} />)}</div>
-      <div className="stepno">Step {regStep + 1} of {RSTEPS.length} · {rs.short}</div>
+      <div className="prog" role="progressbar" aria-label="Set-up progress" aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={regStep + 1} style={{ marginTop: 14 }}>{steps.map((k, i) => <span key={k} className={i <= regStep ? "on" : ""} />)}</div>
+      <div className="stepno">Step {regStep + 1} of {steps.length} · {rs.short}</div>
       <div className={`regstep ${dir}`} key={regStep}>
       <h1 className="disp" tabIndex={-1} ref={headRef}>{rs.title}</h1>
       <p className="hint">{rs.sub}</p>
 
-      {rs.key === "account" && (
+      {key === "stage" && (
+        <div className={`regcards ${bad("stage") ? "err" : ""}`}>
+          {STAGE_CARDS.map(([lbl, d]) => (
+            <button key={lbl} aria-pressed={reg.stage === lbl} className={`stagecard ${reg.stage === lbl ? "on" : ""}`} onClick={() => rup("stage", lbl)}>
+              <b>{lbl}</b><span>{d}</span>
+              <span className="swatch-dot" aria-hidden="true" style={{ background: paletteFor(PALETTES[REG_STAGE[lbl]][0], scheme).primary }} />
+              {reg.stage === lbl && <Icon name="check" size={18} className="stagecheck" />}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {key === "account" && (
         <>
           {!reg.anon && (
             <>
@@ -177,75 +155,23 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
         </>
       )}
 
-      {rs.key === "basics" && (
+      {key === "cycle" && (
         <>
-          {lab("age", "Age")}
-          {chips("age", ["Under 25", "25–34", "35–44", "45–54", "55+"])}
-          <p className="lab">ZIP or postal code (optional)</p>
-          <input className="inp" placeholder="e.g. 90210" aria-label="ZIP or postal code (optional)" maxLength={10} pattern="[A-Za-z0-9 \-]{0,10}" autoComplete="off" value={reg.zip} onChange={(e) => rup("zip", e.target.value.replace(ZIP_CHARS, "").slice(0, 10))} />
-          <p className="rfoot">ZIP is optional and stays on this device. Cyra doesn't use it yet and never sends it anywhere. Cyra never asks for your street address.</p>
-        </>
-      )}
-
-      {rs.key === "stage" && (
-        <div className={`regcards ${bad("stage") ? "err" : ""}`}>
-          {STAGE_CARDS.map(([lbl, d]) => (
-            <button key={lbl} aria-pressed={reg.stage === lbl} className={`stagecard ${reg.stage === lbl ? "on" : ""}`} onClick={() => rup("stage", lbl)}>
-              <b>{lbl}</b><span>{d}</span>
-              <span className="swatch-dot" aria-hidden="true" style={{ background: paletteFor(PALETTES[REG_STAGE[lbl]][0], scheme).primary }} />
-              {reg.stage === lbl && <Icon name="check" size={18} className="stagecheck" />}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {rs.key === "cycle" && (
-        <>
-          {lab("cycleLen", "Typical cycle length")}
-          {chips("cycleLen", ["Under 24 days", "24–31 days", "Over 31 days", "Irregular", "Not sure"])}
-          {lab("cycleReg", "How regular?")}
-          {chips("cycleReg", ["Clockwork", "Roughly", "All over"])}
+          <ChipRow id={labId("cycleLen")} label="Typical cycle length" options={CYCLE_LENS} value={reg.cycleLen} onPick={(v) => rup("cycleLen", v)} bad={bad("cycleLen")} />
           <p className="lab">First day of your last period (optional)</p>
           <input className="inp" type="date" aria-label="First day of your last period" value={reg.lastPeriod} onChange={(e) => rup("lastPeriod", e.target.value)} />
         </>
       )}
 
-      {rs.key === "repro" && (
+      {key === "pregnancy" && (
         <>
-          {lab("preg", "Ever been pregnant?")}
-          {chips("preg", ["Never", "Currently", "In the past", "Prefer not to say"])}
-          {lab("births", "Births")}
-          {chips("births", ["0", "1", "2", "3+"])}
-          {lab("contra", "Current birth control")}
-          {chips("contra", ["None", "Pill", "IUD", "Implant/shot", "Barrier", "Prefer not to say"])}
-          <p className="rfoot">Every question can be skipped. Your answers stay on this device (and in an encrypted backup, if you save one) and are never sold.</p>
+          <p className="lab" id={labId("due")}>When is your baby due? (optional)</p>
+          <input className="inp" type="date" aria-labelledby={labId("due")} min={b.min} max={b.max} value={reg.dueDate} onChange={(e) => rup("dueDate", e.target.value)} />
+          <p className="rfoot">Not sure yet? Leave it blank — you can add it anytime in Settings → About you.</p>
         </>
       )}
 
-      {rs.key === "health" && (
-        <>
-          {lab("conditions", "Relevant conditions (tap any)")}
-          {multi("conditions", ["PCOS", "Endometriosis", "Thyroid", "Diabetes", "Anemia", "Migraines", "High blood pressure", "Anxiety/depression", "POTS or dysautonomia", "None"])}
-          {lab("familyHx", "Family history worth noting")}
-          {multi("familyHx", ["Early menopause", "Osteoporosis", "Breast/ovarian cancer", "Heart disease", "None / unsure"])}
-          {lab("meds", "On regular medication or hormones?")}
-          {chips("meds", ["No", "Yes", "Prefer not to say"])}
-          <p className="rfoot">General categories only. We never ask for medical records, insurance or policy numbers, government ID, or an SSN.</p>
-        </>
-      )}
-
-      {rs.key === "goals" && (
-        <>
-          {lab("goals", "What would make this worth it? (pick a few)")}
-          {multi("goals", ["Understand my symptoms", "Predict my cycle", "Get pregnant", "Avoid pregnancy", "Prep for my doctor", "Sleep better", "Feel less alone", "Track the transition"])}
-          {lab("sleep", "Sleep, most nights")}
-          {chips("sleep", ["Solid", "Hit or miss", "Poor"])}
-          {lab("activity", "Activity level")}
-          {chips("activity", ["Low", "Moderate", "High"])}
-        </>
-      )}
-
-      {rs.key === "consent" && (
+      {key === "consent" && (
         <>
           <div className="consentcard">
             <b>What Cyra does with your data:</b>
@@ -263,23 +189,23 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
               <ul>{consentDetails(FEATURES, isNativeBuild).map((t) => <li key={t}>{t}</li>)}</ul>
             </Details>
           </div>
-          {remindersInBuild(isNativeBuild) && (
-            <>
-              <p className="lab" id={labId("cadence")}>How often should Cyra check in?</p>
-              <div className="regcards cadgrid" role="group" aria-labelledby={labId("cadence")} style={{ marginBottom: 14 }}>
-                {CADENCE.map((cd) => (
-                  <button key={cd.id} aria-pressed={cadence === cd.id} className={`stagecard ${cadence === cd.id ? "on" : ""}`} onClick={() => setCadence(cd.id)}><b>{cd.label}</b><span>{cd.desc}</span></button>
-                ))}
-              </div>
-              <p className="rfoot" style={{ marginBottom: 14 }}>You can change this anytime in Settings. Cyra sends one reminder at most, never a second nudge, and never guilts you for a missed day — gaps are fine, your patterns still work.</p>
-            </>
-          )}
           {consentRows.map(([k, t2, d]) => [
-            <button key={k} role="checkbox" aria-checked={!!(reg[k])} className={`consentopt ${reg[k] ? "on" : ""} ${k === "terms" && bad("terms") ? "inpErr" : ""}`} style={{ marginBottom: 9 }} onClick={() => rup(k, !reg[k])}>
+            <button key={k} role="checkbox" aria-checked={!!(reg[k])} aria-controls={k === "notifOptin" && rhythmHere ? labId("cadwrap") : undefined} className={`consentopt ${reg[k] ? "on" : ""} ${k === "terms" && bad("terms") ? "inpErr" : ""}`} style={{ marginBottom: 9 }} onClick={() => rup(k, !reg[k])}>
               <span className="ckbox">{reg[k] ? "✓" : ""}</span>
               <span><b>{t2}</b><br />{d}</span>
             </button>,
             k === "notifOptin" && webReminders && <Details key={`${k}-more`} label="Exactly what's kept"><WebReminderFacts /></Details>,
+            k === "notifOptin" && rhythmHere && reg.notifOptin && (
+              <div key={`${k}-rhythm`} className="cadwrap" id={labId("cadwrap")}>
+                <p className="lab" id={labId("cadence")}>How often should Cyra check in?</p>
+                <div className="regcards cadgrid" role="group" aria-labelledby={labId("cadence")} style={{ marginBottom: 14 }}>
+                  {CADENCE.map((cd) => (
+                    <button key={cd.id} aria-pressed={cadence === cd.id} className={`stagecard ${cadence === cd.id ? "on" : ""}`} onClick={() => setCadence(cd.id)}><b>{cd.label}</b><span>{cd.desc}</span></button>
+                  ))}
+                </div>
+                <p className="rfoot" style={{ marginBottom: 14 }}>You can change this anytime in Settings. Cyra sends one reminder at most, never a second nudge, and never guilts you for a missed day — gaps are fine, your patterns still work.</p>
+              </div>
+            ),
             k === "research" && (
               <Details key={`${k}-more`} label="Exactly what's sent">
                 <ul>
@@ -310,14 +236,14 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
         </>
       )}
 
-      {regTouched[rs.key] && miss.length > 0 && (
+      {regTouched[key] && miss.length > 0 && (
         <p className="errhint" role="alert">A few fields still need a tap — they're marked in red above.</p>
       )}
       </div>
 
       <div className="nav">
         <button className="back" onClick={back}>Back</button>
-        <button className="cta" onClick={advance}>{regStep < RSTEPS.length - 1 ? "Continue" : (miss.length ? "Complete required fields" : "Enter Cyra")}</button>
+        <button className="cta" onClick={advance}>{regStep < steps.length - 1 ? "Continue" : (miss.length ? "Complete required fields" : "Enter Cyra")}</button>
       </div>
     </main>
   );

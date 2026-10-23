@@ -188,7 +188,7 @@ test("validateRecord: an app-shaped record has no problems", () => {
     wearData: [{ date: iso(1), temp: 0.2, rhr: 61, hrv: null, sleep: 74, sourceId: "oura" }],
     wearSources: { oura: { connectedAt: 1, pending: true, restored: true } },
     pulseQueue: { day: iso(0), stage: "preg", events: ["nau"] }, pulseSent: { week: "2026-W43", keys: ["preg|nau"] }, pulseLastSend: iso(1), pulseRev: 1760000000000,
-    research: true, askAI: true, regAnswers: { stage: "Pregnant", conditions: [], zip: "90210", age: "35–44" },
+    research: true, askAI: true, regAnswers: { stage: "Pregnant", conditions: [], zip: "90210", age: "35–44", dueDate: iso(-126) },
     reminders: { enabled: true, endpoint: "https://push.example/x", pending: [], rev: 3 }, terraOff: [{ key: "k".repeat(43) }],
     kickTally: { day: iso(0), n: 4 }, lastBackupAt: iso(3), installHint: "installed", appearance: "dark", cycleFlags: { [iso(40)]: { exclude: true }, [iso(70)]: { exclude: false, note: "later field" } },
     symPrefs: { peri: { order: ["eng", "hf"], hidden: ["itc"], added: ["crm"] }, preg: { order: [], hidden: ["brx"], added: [] } },
@@ -197,6 +197,14 @@ test("validateRecord: an app-shaped record has no problems", () => {
     days: [{ date: iso(1), sleepQ: "poor", period: true, scales: { fatigue: 3, pain: 2, moodq: 7, stress: 1 }, flow: "heavy", disch: "creamy", odor: "none", bodyOdor: "same", sym: { crm: 3, hda: 0, eng: 2 }, note: "Migraine after the late shift.\nTook the day slowly." }],
   });
   assert.deepEqual(validateRecord(full), []);
+});
+
+test("validateRecord: regAnswers.dueDate is \"\" or YYYY-MM-DD (L11); absent is fine", () => {
+  assert.deepEqual(validateRecord(appRecord({ regAnswers: { stage: "Pregnant" } })), []);
+  assert.deepEqual(validateRecord(appRecord({ regAnswers: { stage: "Pregnant", dueDate: "" } })), []);
+  assert.deepEqual(validateRecord(appRecord({ regAnswers: { stage: "Pregnant", dueDate: "2027-02-01" } })), []);
+  assert.equal(validateRecord(appRecord({ regAnswers: { stage: "Pregnant", dueDate: "2027-13-01" } })).length, 1);
+  assert.equal(validateRecord(appRecord({ regAnswers: { stage: "Pregnant", dueDate: 20270201 } })).length, 1);
 });
 
 test("validateRecord: problems are reported by path", () => {

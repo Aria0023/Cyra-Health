@@ -51,7 +51,7 @@ import { cleanFert, cleanFertPrefs } from "./fertility.js";
  * @property {string|null} pulseLastSend [device-only] the local day this device last sent a tally.
  * @property {number} pulseRev [device-only] version of the sharing state, so a stale tab can't roll it back.
  * @property {boolean} askAI [device-only] "Also ask Cyra's AI", a consent given on this device.
- * @property {Object|null} regAnswers [record] registration answers (in the backup file without zip and age).
+ * @property {RegAnswers|null} regAnswers [record] registration and About you answers (in the backup file without zip and age).
  * @property {StoredReminders} reminders [record] reminder switch plus this browser's push addresses (the file keeps only enabled).
  * @property {Array<{key: string}|{ref: string}>} terraOff [device-only] unconfirmed Fitbit / Garmin / Whoop disconnects.
  * @property {KickTally|null} kickTally [record] today's kick count between taps.
@@ -152,6 +152,8 @@ import { cleanFert, cleanFertPrefs } from "./fertility.js";
  * @property {number} rev version, so every open tab agrees on the switch.
  */
 /** @typedef {{name: string, email: string, anon: boolean}} Account */
+/** @typedef {{stage: string|null, cycleLen?: string|null, cycleReg?: string|null, lastPeriod?: string, dueDate?: string, age?: string|null, zip?: string, preg?: string|null, births?: string|null, contra?: string|null, conditions?: string[], familyHx?: string[], meds?: string|null, goals?: string[], sleep?: string|null, activity?: string|null, name?: string, email?: string, anon?: boolean, notifOptin?: boolean, research?: boolean, terms?: boolean}} RegAnswers
+ *  Registration answers plus Settings → About you (L11). dueDate: "" or YYYY-MM-DD (Pregnant only; drives the week). name and email are absent in Anonymous Mode. */
 /** @typedef {{id: number|string, name: string, kind: string, started: string}} Med What I'm trying: started is YYYY-MM-DD. */
 /** @typedef {{id?: number|string, date: string, who: string, note: string}} Appt */
 /** @typedef {{closeness?: number, desire?: number, friction?: number, load?: number, intimacy?: string|null, after?: string|null}} ConnEntry scales 0–10; intimacy an INTIMACY id, after an AFTER id. */
@@ -416,7 +418,12 @@ export const RULES = Object.freeze({
   pulseLastSend: isoOrNullRule,
   pulseRev: (v, p) => (inRange(v, 0, Infinity) ? [] : [`${p}: expected a number ≥ 0, got ${show(v)}`]),
   askAI: boolRule,
-  regAnswers: (v, p) => (v === null || isObj(v) ? [] : [`${p}: expected an object or null, got ${show(v)}`]),
+  regAnswers: (v, p) => {
+    if (v === null) return [];
+    if (!isObj(v)) return [`${p}: expected an object or null, got ${show(v)}`];
+    // dueDate (L11): absent (older records), "" or a YYYY-MM-DD day.
+    return v.dueDate === undefined || v.dueDate === "" || isIso(v.dueDate) ? [] : [`${p}.dueDate: expected "" or YYYY-MM-DD, got ${show(v.dueDate)}`];
+  },
   reminders: (v, p) => {
     if (!isObj(v)) return [`${p}: expected { enabled, endpoint, pending, rev }, got ${show(v)}`];
     const out = [...boolRule(v.enabled, `${p}.enabled`)];

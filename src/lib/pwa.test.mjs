@@ -31,12 +31,12 @@ test("installModeFor: native > standalone > ios > prompt > none", () => {
 });
 
 test("showInstallHint: from INSTALL_HINT_AFTER days, prompt/ios only, never once hidden or installed, only when stored", () => {
-  assert.equal(INSTALL_HINT_AFTER, 3);
-  const base = { daysLogged: 3, installHint: null, stored: true };
-  assert.equal(showInstallHint({ ...base, mode: "prompt", daysLogged: 2 }), false);
+  assert.equal(INSTALL_HINT_AFTER, 1); // L11: the first saved check-in
+  const base = { daysLogged: 1, installHint: null, stored: true };
+  assert.equal(showInstallHint({ ...base, mode: "prompt", daysLogged: 0 }), false);
   assert.equal(showInstallHint({ ...base, mode: "prompt" }), true);
   assert.equal(showInstallHint({ ...base, mode: "ios" }), true);
-  assert.equal(showInstallHint({ ...base, mode: "ios", daysLogged: 2 }), false);
+  assert.equal(showInstallHint({ ...base, mode: "ios", daysLogged: 0 }), false);
   assert.equal(showInstallHint({ ...base, mode: "none" }), false);
   assert.equal(showInstallHint({ ...base, mode: "standalone" }), false);
   assert.equal(showInstallHint({ ...base, mode: "prompt", installHint: "dismissed" }), false);

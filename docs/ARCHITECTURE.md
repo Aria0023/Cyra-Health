@@ -40,6 +40,8 @@ Pure lib    engine.js  ←  record.js, pots.js (+ potsPatterns, potsReport, pots
             daylog.js  ←  record.js;  constants.js, appearance.js, askLibrary.js;  plan.js and features.js stand alone;
             disclosures.js imports only features.js;  privacyFlows.js stands alone (L10);
             lock.js ← record.js (L10: PIN hashing, back-off, WebAuthn checks; no api/native/storage/features import)
+            onboarding.js imports nothing (L11: the one registration routing and step map — REG_STAGE moved out of App.jsx —
+            the option lists, ANSWER_BLANK, pruneForStage, pregWeekFrom / dueDateBounds)
   ↓
 I/O lib     storage.js, backup.js, files.js, native.js, api.js
             (pulse.js, notifications.js and wearables.js call api.js; backup.js imports nothing,
@@ -152,7 +154,7 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `appts` | appointments | health log | yes | yes | yes |
 | `wearData` | daily wearable readings | health log | yes | yes | yes |
 | `kickTally` | today's kicks between taps | health log | yes | yes | yes |
-| `regAnswers` | registration answers | health log | yes, without `zip` and `age` | yes | yes |
+| `regAnswers` | registration and Settings → About you answers; `dueDate` ("" or YYYY-MM-DD, L11) drives the pregnancy week | health log | yes, without `zip` and `age` (`dueDate` is kept) | yes | yes |
 | `pots` | the POTS add-on | health log | yes | yes, literally, with a new epoch (a backup without one clears the POTS log; a newer build's locked log stays untouched) | yes, 3-way merged (`mergePots`, epochs) |
 | `cycleFlags` | cycles she left out of predictions, `{ [startIso]: { exclude: true } }` (L5, spec §3.5) | health record (her choice) | yes | yes, literally (`cleanCycleFlags`; a backup without it clears it) | yes (sanitised by `cleanCycleFlags`) |
 | `symPrefs` | her symptom list per stage id, `{ periods?, peri?, preg? }` × `{ order, hidden, added }` (L6, spec §3.6) | record (a setting) | yes | yes, literally (`cleanSymPrefs`; a backup without it brings back Cyra's order) | yes (sanitised by `cleanSymPrefs`) |
@@ -222,7 +224,9 @@ as advice: nothing calls it at runtime, and nothing is ever dropped or rewritten
 the label registration chose, and `phaseOf(stage, stageName)` names the phase: `cycle` (My Cycle),
 `ttc` (Trying to Conceive), `preg` (Pregnancy), `peri` (Perimenopause) or `meno` (Menopause). `PHASES`
 lists the exact labels `finishReg` and `rulesRoute` write; any other label of a stage counts as
-`cycle` or `peri`.
+`cycle` or `peri`. Registration routes with `REG_STAGE` and `STAGE_LABELS` in `src/lib/onboarding.js` (L11; unit-tested
+equal to `PHASES`), and `regSteps(stage)` decides which steps she sees (Stage → Device → Cycle | Pregnancy | nothing →
+Consent).
 
 Cycle, TTC, perimenopause and menopause all read the same `days`; pregnancy reads `pregLog`. Changing
 stage (`{stageName} · change`) keeps every log: the other one stays and is there again if she

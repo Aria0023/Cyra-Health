@@ -13,11 +13,12 @@ import { InstallSettings } from "./Pwa.jsx";
 import { reduceMotion } from "../lib/motion.js";
 import { FEATURES, remindersInBuild } from "../lib/features.js";
 import { FERT_COPY } from "../lib/fertility.js";
+import AboutYou from "./AboutYou.jsx";
 
 /* Settings: check-in cadence, nudge time, quick vs full check-in, add-ons (POTS tools),
    reminders, the "Share anonymous weekly counts" switch, and Privacy & your data.
    UI S1: a sticky header with a Close button (the bottom Done stays), the groups Check-ins /
-   Add-ons & sharing / Appearance / [Install] / Privacy & your data, each option row a labelled group with an icon in its label.
+   Add-ons & sharing / Appearance / [Install] / About you / Privacy & your data, each option row a labelled group with an icon in its label.
    Opening moves focus to the title; Close and Done hand it back to the gear (triggerRef).
    L1 (spec A14.1): an Install group on the web when this browser can install Cyra (install,
    from App.jsx; never in the phone app, in standalone mode or without IndexedDB), directly
@@ -37,11 +38,15 @@ import { FERT_COPY } from "../lib/fertility.js";
    L10 (privacy dashboard and app lock, D4): the last group is "Privacy & your data": DataControls (status strip, where
    the record lives), the live "What can leave this device" list (PrivacyFlows, rows from App.jsx flowRows), the backup /
    restore / delete pills, then LockSettings (the PIN, lock-after, passkey). The weekly-counts "Exactly what's sent" list
-   is the shared CountsFacts (Details.jsx), so the dashboard's row shows the same words. */
+   is the shared CountsFacts (Details.jsx), so the dashboard's row shows the same words.
+   L11 (onboarding): an "About you" group (#set-about) directly before Privacy & your data holds the optional answers
+   that used to be registration steps (AboutYou.jsx, collapsed Details per topic). Each tap goes through onAnswer into
+   regAnswers (App.jsx setAnswer): on this device, in encrypted backups without zip and age, never in a network payload.
+   It shows in the stage-less intake view too (the stage panels are hidden there). */
 /* A group label: an id its option row points at (aria-labelledby) and a small accent glyph (G3 .labico). */
 const Lab = ({ id, icon, children, style }) => <p className="section-lab" id={id} style={style}><Icon name={icon} className="labico" />{children}</p>;
 
-export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, keepsWeekNote, reminders, reminderSupport, onReminders, research, setResearch, stage, stageName, pots, onPotsOn, onPotsOff, daysLogged = 0, lastBackupAt = null, todayIso, triggerRef, install = null, focusTo = null, offlineCopy = false, appearance = "system", onAppearance, legacyWear = false, fertRow = null, flows = [], flowCtx = {}, lock = null, potsOn = false, onHandoff = null }) {
+export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, keepsWeekNote, reminders, reminderSupport, onReminders, research, setResearch, stage, stageName, pots, onPotsOn, onPotsOff, daysLogged = 0, lastBackupAt = null, todayIso, triggerRef, install = null, focusTo = null, offlineCopy = false, appearance = "system", onAppearance, legacyWear = false, fertRow = null, flows = [], flowCtx = {}, lock = null, potsOn = false, onHandoff = null, regAnswers = null, onAnswer = null }) {
   const headRef = useRef(null);
   const installLabRef = useRef(null);
   useEffect(() => {
@@ -162,6 +167,13 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
         <p className="rfoot">System follows this device's light or dark setting. Your choice stays on this device and isn't part of a backup.</p>
       </div>
       {install && <InstallSettings install={install} labRef={installLabRef} />}
+      <div className="setgroup">
+        <Lab id="set-about" icon="user" style={{ margin: "0 0 6px" }}>About you</Lab>
+        <div role="group" aria-labelledby="set-about">
+          <p className="hint" style={{ margin: "0 0 8px" }}>All optional, and you can change them anytime. They stay on this device and leave it only inside an encrypted backup you choose to save — and your age band and ZIP never go into one.</p>
+          <AboutYou answers={regAnswers} onAnswer={onAnswer || (() => {})} stage={stage} stageName={stageName} todayIso={todayIso} />
+        </div>
+      </div>
       <div className="setgroup">
         <DataControls driver={storageDriver} onExport={onExport} onImport={onImport} onWipe={onWipe} ping={ping} keepsWeekNote={keepsWeekNote} daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} offlineCopy={offlineCopy} legacyWear={legacyWear} onHandoff={onHandoff}>
           <PrivacyFlows rows={flows} {...flowCtx} />

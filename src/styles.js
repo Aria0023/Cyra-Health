@@ -204,7 +204,7 @@ html { scroll-padding-top:60px; }
 .kickcount { display:flex; flex-direction:column; align-items:center; justify-content:center; background:var(--card); border:1px solid var(--line); border-radius:13px; padding:6px 16px; }
 .kickcount b { font-family:'Fraunces Variable','Fraunces',serif; font-size:20px; color:var(--primary); } .kickcount span { font-size:10.5px; color:var(--soft); }
 .inp { width:100%; border:1.5px solid var(--line); background:var(--card); border-radius:11px; padding:11px 13px; font:500 13.5px 'Karla Variable','Karla'; color:var(--ink); margin-bottom:9px; }
-.splash { padding-top:46px; text-align:left; }
+.splash { padding-top:32px; text-align:left; }
 .splashmark { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:44px; }
 .splashmark span { color:var(--primary); }
 .splashtag { font-size:12px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--primary); margin-top:2px; }
@@ -416,8 +416,13 @@ html { scroll-padding-top:60px; }
 .splashwhy { list-style:none; margin:0 0 14px; padding:0; display:grid; gap:8px; }
 .splashwhy li { display:flex; align-items:center; gap:10px; font-size:var(--fs-lg); font-weight:600; color:var(--ink); line-height:1.35; }
 .splashwhy svg { flex-shrink:0; color:var(--accent); }
-.splashpriv { display:flex; align-items:flex-start; gap:8px; font-size:var(--fs-md); line-height:1.55; color:var(--soft); margin:0 0 16px; }
-.splashpriv svg { flex-shrink:0; margin-top:3px; color:var(--primary-text); }
+.splashpromise-h { margin:0 0 8px; }
+.splashpromise { list-style:none; margin:0 0 16px; padding:0; display:grid; gap:8px; }
+.splashpromise li { display:flex; align-items:flex-start; gap:8px; font-size:var(--fs-md); line-height:1.5; color:var(--soft); }
+.splashpromise svg { flex-shrink:0; margin-top:3px; color:var(--primary-text); }
+.ghostbtn.splashrestore { margin-top:10px; }
+.cadwrap { margin:-2px 0 12px; padding:10px 0 2px 12px; border-left:2px solid var(--line); }
+.aboutyou .morewrap + .morewrap { margin-top:6px; }
 .rfoot b { font-weight:500; font-size:11px; letter-spacing:.04em; }
 .social { grid-template-columns:repeat(3, 1fr); }
 .socialbtn { padding:10px 6px; font-size:13px; gap:6px; min-height:44px; }

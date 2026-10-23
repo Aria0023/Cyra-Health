@@ -87,6 +87,7 @@ import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, known
 import { isNative, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pots/ui.js";
+import { REG_STAGE, STAGE_LABELS, ANSWER_BLANK, pruneForStage, socialReturnStep, pregWeekFrom } from "./lib/onboarding.js";
 import { registerWorker, whenActive, hasShellCache, checkForUpdate, applyUpdate, clearShellCaches, displayStandalone, currentInstallMode, listenForInstall, promptInstall, cleanInstallHint, mergeInstallHint, showInstallHint, offersInstall } from "./lib/pwa.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
@@ -171,15 +172,15 @@ import { SessionRunner } from "./components/pots/MoveSession.jsx";
 import PotsReport from "./components/pots/PotsReport.jsx";
 import PotsPatterns from "./components/pots/PotsPatterns.jsx";
 
-/* Stage card -> life-stage experience (spec §4.3). finishReg routes with it; RegisterScreen colours each card's
-   swatch and the chrome preview (regPal) from PALETTES[REG_STAGE[label]][0]. Exactly one experience per user. */
-export const REG_STAGE = { "My Cycle": "periods", "Trying to conceive": "periods", "Pregnant": "preg", "Perimenopause": "peri", "Menopause & beyond": "peri" };
+/* Stage card -> life-stage experience (spec §4.3): REG_STAGE now lives in lib/onboarding.js (L11), the one routing and
+   step map. finishReg routes with it; RegisterScreen colours each card's swatch and the chrome preview (regPal) from
+   PALETTES[REG_STAGE[label]][0]. Exactly one experience per user. */
 
 export default function CyraDemo() {
   const [orgId, setOrgId] = useState("cyra");
   const [palIdx, setPalIdx] = useState({ peri: 0, preg: 0, periods: 0 });
   const [showPal, setShowPal] = useState(false);
-  const [phase, setPhase] = useState("splash"); // splash -> register (8 steps) -> app
+  const [phase, setPhase] = useState("splash"); // splash -> register (3–4 steps) -> app
   const [showTable, setShowTable] = useState(false);
   const [conn, setConn] = useState({ closeness: 5, desire: 5, friction: 2, load: 5 });
   const [intimacy, setIntimacy] = useState(null);
@@ -210,6 +211,9 @@ export default function CyraDemo() {
   const [showWear, setShowWear] = useState(false);
   const [regStep, setRegStep] = useState(0);
   const [regTouched, setRegTouched] = useState({});
+  // Registration (L11, lib/onboarding.js): phase-first, 3–4 steps — Stage, Device, Cycle or Pregnancy (skipped for
+  // Menopause & beyond), Consent. Only the stage, a typical cycle length (cycle stages) and the consent box are
+  // required; the other answers below are asked only in Settings → About you and stay empty here.
   // Registration answers are stored on this device. The only ones that ever reach a server
   // are opt-ins: with "Remind me" in a web browser (builds with webReminders), the reminder days,
   // time and time zone go to Cyra's server for web push; with weekly counts on (builds with
@@ -219,7 +223,7 @@ export default function CyraDemo() {
   // optional and are kept nowhere, not even on this device, in Anonymous Mode.
   const [reg, setReg] = useState({
     name: "", email: "", anon: false, age: null, zip: "",
-    stage: null, cycleLen: null, cycleReg: null, lastPeriod: "",
+    stage: null, cycleLen: null, cycleReg: null, lastPeriod: "", dueDate: "",
     preg: null, births: null, contra: null,
     conditions: [], familyHx: [], meds: null,
     goals: [], sleep: null, activity: null,
@@ -411,9 +415,14 @@ export default function CyraDemo() {
     setCycleFlags((f) => toggleExclude(f, start, exclude));
     ping(exclude ? `Cycle from ${fmt(start)} left out of predictions. Your Report still counts it.` : `Cycle from ${fmt(start)} is used for predictions again.`);
   };
-  const pregWeek = 22, trimester = 2;
+  /* Pregnancy week (L11): from the due date she gave (Pregnancy step or Settings → About you), read from regAnswers on
+     this device; without one, the fixed week every build has shown so far. */
+  const dueIso = stage === "preg" && regAnswers?.dueDate && pregWeekFrom(regAnswers.dueDate, todayIso) != null ? regAnswers.dueDate : null;
+  const pregWeek = dueIso ? pregWeekFrom(dueIso, todayIso) : 22; // no due date: the fixed week every build has shown so far
   const tri = trimesterOf(pregWeek); // "first" | "second" | "third", for the Home greeting and week bar
-  const dueDate = new Date(Date.now() + (40 - pregWeek) * 7 * 86400000).toLocaleDateString("en-US", { month: "long", day: "numeric" });
+  const trimester = tri === "first" ? 1 : tri === "second" ? 2 : 3;
+  const dueDay = dueIso ? new Date(dueIso + "T12:00:00") : new Date(Date.now() + (40 - pregWeek) * 7 * 86400000);
+  const dueDate = dueDay.toLocaleDateString("en-US", { month: "long", day: "numeric" });
   const toastTimer = useRef(null);
   /* A toast stays long enough to be read: 2.6s for a short one, then 1s + 35ms per character (a 70-character
      sentence shows for 3.5s, 180 characters for 7.3s), capped at 8s: the web-live suite waits 10s for a toast
@@ -1093,7 +1102,7 @@ export default function CyraDemo() {
   // Trying to conceive with fertility signs shown (L7): the estimated fertile window leads Coming up while it is still ahead or under way.
   const fertHead = ttc && fertOn ? fertWindow(pred, todayIso) : null;
   if (fertHead) nextUp.push({ k: "fertile", text: fertHead, sub: FERT_COPY.winSub, action: () => goTab("cal") });
-  if (stage === "preg") nextUp.push({ k: "due", text: `Due in about ${40 - pregWeek} weeks`, sub: new Date(Date.now() + (40 - pregWeek) * 7 * 86400000).toLocaleDateString("en-US", { month: "long", day: "numeric" }) });
+  if (stage === "preg") nextUp.push({ k: "due", text: `Due in about ${40 - pregWeek} weeks`, sub: dueDate });
   // The likely-start range (L5): "Period likely Oct 26 – Nov 1" over what it rests on; later than the range; or a gap too long to predict across.
   else if (pred) nextUp.push(pred.state === "later" ? { k: "late", text: periodHead(pred), sub: `Your range ended ${fmt(pred.toIso)} · ${stage === "peri" ? "Irregularity is data too" : "Normal variation happens"} · Calendar →`, action: () => goTab("cal") } : { k: "period", text: periodHead(pred), sub: `${basisLine(pred)} · Calendar →`, action: () => goTab("cal") });
   else if (predWhy?.kind === "long") nextUp.push({ k: "late", text: `No period on record for ${predWhy.days} days`, sub: `${stage === "peri" ? "Long gaps are common in perimenopause" : "Over 120 days, so Cyra won't guess"} · Calendar →`, action: () => goTab("cal") });
@@ -1799,7 +1808,7 @@ export default function CyraDemo() {
       ping("Couldn't reach the sign-in service — try again in a moment"); setSocialBusy(null);
     }
   };
-  // Shared by both returns: exchange the one-time code, prefill, move to step 2. Only a
+  // Shared by both returns: exchange the one-time code, prefill, move on from the Device step. Only a
   // verified email is filled in (the server drops unverified and Facebook emails and every
   // other provider field). The toast says what was filled in, and that a name or email she
   // had typed was kept. Anonymous Mode, if she turned it on meanwhile, wins: nothing is
@@ -1817,7 +1826,10 @@ export default function CyraDemo() {
         const typed = !!regRef.current.name, typedEmail = !!regRef.current.email;
         const fillName = !!first && !typed, fillEmail = !!email && !typedEmail;
         setReg((x) => (x.anon ? x : { ...x, email: x.email || email, name: x.name || first }));
-        setRegStep(1);
+        // A native return lands on the step after Device (L11). A web redirect restarted the page, so the stage is
+        // unknown and she lands on the stage step, with her name and email waiting on the Device step; nothing is
+        // carried across the redirect (no session or local storage is written before finishReg).
+        setRegStep(socialReturnStep(regRef.current.stage));
         const what = [fillName && "name", fillEmail && "email"].filter(Boolean).join(" and ");
         const parts = [];
         if (what) parts.push(`Filled in your ${what} from ${label} — saved only on this device`);
@@ -1853,14 +1865,15 @@ export default function CyraDemo() {
   }, [hydrated]); // eslint-disable-line
 
   const finishReg = async () => {
-    const labels = { "My Cycle": "My Cycle", "Trying to conceive": "Trying to Conceive", "Pregnant": "Pregnancy", "Perimenopause": "Perimenopause", "Menopause & beyond": "Menopause" };
-    const sid = REG_STAGE[reg.stage] || "peri", slabel = labels[reg.stage] || "Perimenopause";
+    const sid = REG_STAGE[reg.stage] || "peri", slabel = STAGE_LABELS[reg.stage] || "Perimenopause";
     // Anonymous Mode keeps no name and no email anywhere, not even on this device.
     const anon = !!reg.anon;
     const name = anon ? "" : reg.name.trim();
     setAcct(anon ? { name: "", email: "", anon: true } : { name, email: reg.email.trim(), anon: false });
     setResearch(!!reg.research);
-    const answers = { ...reg };
+    // Answers typed on a step that left her flow when she changed stage are not saved (lib/onboarding.js). The due
+    // date (Pregnant) stays in regAnswers: on this device and in encrypted backups, sent nowhere.
+    const answers = pruneForStage({ ...reg });
     if (anon) { delete answers.name; delete answers.email; }
     setRegAnswers(answers);
     setFertSigns((p) => ({ ...p, on: null })); // a new registration starts fertility signs at its stage's default (L7)
@@ -1957,7 +1970,9 @@ export default function CyraDemo() {
   // The last child of header.mast (inside the banner landmark), on the app and intake screens only.
   const updateRow = updateReady ? <UpdateRow onReload={reloadForUpdate} /> : null;
   const lockApi = { cfg: lockCfg, passkeyOk, native: isNative(), lastBackupAt, verify: verifyPin, setPin, changePin, turnOff: turnOffLock, setAfter: setLockAfter, passkeyOn, passkeyOff, lockNow };
-  const settingsSheet = showSettings && <SettingsSheet daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} triggerRef={settingsBtnRef} cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storageDriver} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} keepsWeekNote={keepsWeekNote} reminders={reminders} reminderSupport={reminderSupport()} onReminders={(on) => applyReminders(on)} research={research} setResearch={setSharing} stage={stage} stageName={stageName} pots={pots} onPotsOn={potsOn} onPotsOff={potsOff}
+  // Settings → About you (L11): one answer at a time into regAnswers; ANSWER_BLANK carries no name, email or anon key.
+  const setAnswer = (k, v) => setRegAnswers((a) => ({ ...ANSWER_BLANK, ...(a && typeof a === "object" ? a : {}), [k]: v }));
+  const settingsSheet = showSettings && <SettingsSheet regAnswers={regAnswers} onAnswer={setAnswer} daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} triggerRef={settingsBtnRef} cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storageDriver} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} keepsWeekNote={keepsWeekNote} reminders={reminders} reminderSupport={reminderSupport()} onReminders={(on) => applyReminders(on)} research={research} setResearch={setSharing} stage={stage} stageName={stageName} pots={pots} onPotsOn={potsOn} onPotsOff={potsOff}
     install={offersInstall({ mode: installMode, stored: recordInIdb }) ? { mode: installMode, onInstall: () => installNow("settings") } : null} focusTo={settingsFocus} offlineCopy={offlineReady} appearance={appearance} onAppearance={chooseAppearance} legacyWear={legacyWear}
     fertRow={stage === "periods" ? { on: fertOn, setOn: setFertOn, ttc, privacy: fertPrivacy } : null}
     flows={flows} flowCtx={{ native: isNative(), server: hasServer(), stage }} lock={lockApi} potsOn={potsTab && potsOk} onHandoff={holdLock} />;

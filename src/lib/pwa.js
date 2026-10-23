@@ -12,7 +12,7 @@
 import { isNative } from "./native.js";
 
 export const SHELL_CACHE_PREFIX = "cyra-shell-";
-export const INSTALL_HINT_AFTER = 3; // logged days before Home shows the install tip
+export const INSTALL_HINT_AFTER = 1; // logged days before Home shows the install tip (L11: after the first saved check-in, never during onboarding)
 export const UPDATE_CHECK_GAP_MS = 3600000; // at most one update check an hour when Cyra comes back on screen
 const PROD = (() => { try { return !!import.meta.env.PROD; } catch { return false; } })();
 /* The script this page runs. In the build that is /assets/index-<hash>.js, the entry chunk this

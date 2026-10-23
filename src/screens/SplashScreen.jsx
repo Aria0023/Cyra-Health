@@ -2,11 +2,13 @@ import { useState } from "react";
 import { RestoreForm } from "../components/DataControls.jsx";
 import Icon from "../components/Icon.jsx";
 
-/* Phase 1: splash. Wordmark, tagline, value proposition, "Get started", and a way
-   back in from an encrypted backup. UI O1: a ring motif in the stage-neutral palette, the three
-   promises as icon rows, and the two privacy sentences (unchanged, docs/PRIVACY-AUDIT.md) in
-   their own paragraph under a lock, directly above the button. initialRestore (L10): App.jsx opens the restore form
-   straight away after a forgotten-PIN restore that deleted the record but couldn't write the backup. */
+/* Phase 1: splash. Wordmark, tagline, value proposition, the privacy promise, "Get started", and a way back
+   in from an encrypted backup. UI O1: a ring motif in the stage-neutral palette and the three promises as icon
+   rows. L11 (spec §4.1): the privacy promise is stated once, plainly, before any personal question: "Your
+   privacy, plainly" with three items (the unchanged on-device sentence, docs/PRIVACY-AUDIT.md; no account
+   needed; guidance, never a diagnosis), directly above the button. The restore link is now a 44px toggle
+   (.ghostbtn.quiet, aria-expanded / aria-controls) with a constant label. initialRestore (L10): App.jsx opens the
+   restore form straight away after a forgotten-PIN restore that deleted the record but couldn't write the backup. */
 export default function SplashScreen({ onStart, onImport, initialRestore = false }) {
   const [restore, setRestore] = useState(initialRestore);
   return (
@@ -18,7 +20,7 @@ export default function SplashScreen({ onStart, onImport, initialRestore = false
       </svg>
       <div className="splashmark">Cyra<span>.</span></div>
       <div className="splashtag">One companion for every phase</div>
-      <h1 className="disp" style={{ marginTop: 22 }}>Periods, pregnancy,
+      <h1 className="disp" style={{ marginTop: 16 }}>Periods, pregnancy,
         <br />the transition — and
         <br />finally being heard.</h1>
       <ul className="splashwhy">
@@ -26,11 +28,16 @@ export default function SplashScreen({ onStart, onImport, initialRestore = false
         <li><Icon name="chart" size={18} />See your real patterns.</li>
         <li><Icon name="clipboard" size={18} />Walk into appointments with evidence.</li>
       </ul>
-      <p className="splashpriv"><Icon name="lock" size={16} />Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that tells you exactly what it sends.</p>
+      <h2 className="section-lab splashpromise-h" id="splash-promise">Your privacy, plainly</h2>
+      <ul className="splashpromise" aria-labelledby="splash-promise">
+        <li><Icon name="lock" size={16} />Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that tells you exactly what it sends.</li>
+        <li><Icon name="user" size={16} />No account needed. There's no Cyra account to make, and your name and email are optional.</li>
+        <li><Icon name="book" size={16} />Guidance, never a diagnosis. For anything medical, talk with your clinician.</li>
+      </ul>
       <button className="cta" onClick={onStart}>Get started</button>
-      <p className="rfoot" style={{ textAlign: "center" }}>Free to use · guidance, never diagnosis<br /><b>BUILD 2026.10.07-D</b></p>
-      <button className="linkbtn" style={{ display: "block", margin: "18px auto 0" }} onClick={() => setRestore((v) => !v)}>{restore ? "Hide restore" : "Restore from an encrypted backup"}</button>
-      {restore && <RestoreForm onImport={onImport} compact />}
+      <button type="button" className="ghostbtn quiet splashrestore" aria-expanded={restore} aria-controls="splash-restore" onClick={() => setRestore((v) => !v)}>Restore from an encrypted backup</button>
+      <div id="splash-restore" hidden={!restore}>{restore && <RestoreForm onImport={onImport} compact />}</div>
+      <p className="rfoot" style={{ textAlign: "center" }}>Free to use<br /><b>BUILD 2026.10.07-D</b></p>
     </main>
   );
 }
