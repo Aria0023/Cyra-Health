@@ -1,10 +1,20 @@
 /* Static libraries, option lists, palettes and copy tables. Every value here is
    normative (see docs/CYRA-BUILD-SPEC.md); nothing in this file holds state. */
 
-export const SYM = { hf: "Hot flashes", ns: "Night sweats", fog: "Brain fog", mood: "Mood swings", slp: "Sleep disruption", ach: "Joint aches", dry: "Vaginal dryness", pal: "Heart flutters", hda: "Headaches", lib: "Libido change", anx: "Anxiety", itc: "Skin/itching" };
+/* Low energy (L6, decision D8: the brief names energy). Its id is the last key of both check-in libraries; L8 reads it from here. */
+export const ENERGY_ID = "eng";
+export const SYM = { hf: "Hot flashes", ns: "Night sweats", fog: "Brain fog", mood: "Mood swings", slp: "Sleep disruption", ach: "Joint aches", dry: "Vaginal dryness", pal: "Heart flutters", hda: "Headaches", lib: "Libido change", anx: "Anxiety", itc: "Skin/itching", [ENERGY_ID]: "Low energy" };
 export const SYMS = Object.keys(SYM);
-export const PSYM = { crm: "Cramps", hda: "Headaches", blo: "Bloating", mood: "Mood swings", ten: "Breast tenderness", acn: "Skin breakouts", bak: "Back pain", nau: "Nausea", cra: "Cravings", lib: "Libido change" };
+export const PSYM = { crm: "Cramps", hda: "Headaches", blo: "Bloating", mood: "Mood swings", ten: "Breast tenderness", acn: "Skin breakouts", bak: "Back pain", nau: "Nausea", cra: "Cravings", lib: "Libido change", [ENERGY_ID]: "Low energy" };
 export const GSYM = { nau: "Nausea", hb: "Heartburn", swl: "Swelling", bak: "Back pain", crp: "Cramping", dzy: "Dizziness", brx: "Braxton-Hicks", con: "Constipation" };
+/* Every check-in symptom id (cycle and perimenopause libraries) → its label. Her list can borrow from the other
+   stage's library (lib/daylog.js), so the labels for any tracked id come from here. */
+export const ALL_SYM = { ...SYM, ...PSYM };
+/* Day-score divisor (spec §6.3): the library sizes when the score was defined. Fixed, so adding a symptom to a
+   library or to her list never rescales a past day; every tracked symptom still adds its severity. */
+export const SCORE_SCALE = Object.freeze({ peri: 12, periods: 10, preg: 8 });
+/* What the "Your symptoms" sheet calls the other stage's library ("Add from the perimenopause list"). */
+export const OTHER_LIST = Object.freeze({ periods: "perimenopause list", peri: "cycle list" });
 
 /* Scales & body signals logged separately from yes/no symptoms */
 /* Connection & intimacy — built on the dyadic/desire literature:
@@ -198,6 +208,8 @@ export const FAMILIES = [
 export const SYM_FAMILY = {
   hf: "heat", ns: "heat",
   slp: "sleep",
+  // Low energy is the everyday "tired", so a rough night and a flat next day share the Sleep colour.
+  [ENERGY_ID]: "sleep",
   fog: "mind", mood: "mind", anx: "mind",
   ach: "pain", hda: "pain", crm: "pain", bak: "pain", ten: "pain",
   dry: "body", pal: "body", lib: "body", itc: "body", blo: "body", nau: "body", acn: "body", cra: "body",

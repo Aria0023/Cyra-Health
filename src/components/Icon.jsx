@@ -31,6 +31,8 @@ const PATHS = {
   trash: "M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6",
   download: "M12 3v12M7 10l5 5 5-5M5 21h14",
   moon: "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z",
+  "arrow-up": "M12 19V5M5 12l7-7 7 7",
+  "arrow-down": "M12 5v14M19 12l-7 7-7-7",
 };
 
 export default function Icon({ name, size = 16, className }) {

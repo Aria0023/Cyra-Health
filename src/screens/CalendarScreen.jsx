@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { famColor } from "../lib/constants.js";
 import { localDay, isPeriodDay, sevDots, fmt, fmtRange } from "../lib/engine.js";
+import { cleanNote } from "../lib/daylog.js";
 import Details from "../components/Details.jsx";
 import CycleList from "../components/CycleList.jsx";
 
@@ -80,6 +81,7 @@ export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCyc
                   </ul>
                 ) : <p className="dayline">No symptoms</p>}
                 <p className="dayline">{isPeriodDay(e) ? "Period · " : ""}Sleep: {e.sleepQ}</p>
+                {cleanNote(e.note) && <p className="dayline noteline"><b>Note:</b> {cleanNote(e.note)}</p>}
               </>
             ) : (
               <p className="hint" style={{ margin: "6px 0 0" }}>Nothing logged this day.</p>

@@ -4,8 +4,8 @@ import { flushSync } from "react-dom";
 /* ================================================================
    CYRA HEALTH — reference implementation
    Life stages: My Cycle · Pregnancy · Peri/Meno — exactly one per user.
-   The health record (daily logs, journal, intimacy log, trials, appointments,
-   wearable rows once collected) lives in this component's state and is saved only
+   The health record (daily logs with their optional notes, her symptom list per stage, journal, intimacy log,
+   trials, appointments, wearable rows once collected) lives in this component's state and is saved only
    on this device (IndexedDB or the app sandbox; lib/storage.js). What can leave the
    device depends first on the features this build offers (VITE_FEATURES, lib/features.js;
    the default build offers only Ask Cyra's AI and web reminders, and makes no request at
@@ -56,7 +56,7 @@ import { flushSync } from "react-dom";
    The saved record's shape, version and key lists live in ./lib/record.js; entitlements in ./lib/plan.js.
    ================================================================ */
 
-import { SYM, SYMS, PSYM, GSYM, SHELF, PALETTES, ORGS, SYM_FAMILY, PRENATAL, vizVars, rampOf } from "./lib/constants.js";
+import { SYMS, GSYM, ALL_SYM, SCORE_SCALE, SHELF, PALETTES, ORGS, SYM_FAMILY, PRENATAL, vizVars, rampOf } from "./lib/constants.js";
 import { seed, fmt, insights, predict, whyNoPrediction, cycleSummary, cleanCycleFlags, toggleExclude, periodHead, basisLine, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick, scoreRgb, scoreColorOf, inkOn } from "./lib/engine.js";
 import { DEFAULT_APPEARANCE, SYSTEM_DARK_QUERY, cleanAppearance, resolveScheme, paletteFor, paletteVars, applyDocumentScheme } from "./lib/appearance.js";
 import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
@@ -65,6 +65,7 @@ import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue,
 import { answerLocally } from "./lib/askLibrary.js";
 import { storage } from "./lib/storage.js";
 import { PERSISTED, DEVICE_ONLY, DEVICE_PREFS, RECORD, RECORD_VERSION, migrate, backupCopy, entryFor, phaseOf } from "./lib/record.js";
+import { trackedIds, cleanSymPrefs, cleanNote } from "./lib/daylog.js";
 import { encryptBackup, decryptBackup, fileTransport, backupFileName } from "./lib/backup.js";
 import { FEATURES, remindersInBuild } from "./lib/features.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
@@ -232,6 +233,7 @@ export default function CyraDemo() {
   const [appTab, setAppTab] = useState("patterns");
   const [days, setDays] = useState(() => (DEMO_SEED ? seed() : []));
   const [draft, setDraft] = useState({});
+  const [dayNote, setDayNote] = useState(""); // the check-in form's day note (L6), saved on the entry as note
   const [sleepQ, setSleepQ] = useState(null);
   const [kicks, setKicks] = useState(0);
   const [kickTally, setKickTally] = useState(null); // { day, n }: today's kick count, kept on the device between taps (before Save today)
@@ -267,6 +269,8 @@ export default function CyraDemo() {
   const [regAnswers, setRegAnswers] = useState(null); // registration answers (no name or email in Anonymous Mode)
   // Cycles she left out of predictions, { [startIso]: { exclude: true } }; part of the record and of backups (L5).
   const [cycleFlags, setCycleFlags] = useState({});
+  // Her symptom list per stage id, { periods?, peri?, preg? } × { order, hidden, added } (lib/daylog.js); part of the record and of backups (L6).
+  const [symPrefs, setSymPrefs] = useState({});
   const [reminders, setReminders] = useState({ enabled: false, status: "off", endpoint: null, pending: [], rev: 0 }); // status: off | on | blocked (+denied) | unavailable | error | unsupported; pending: push addresses the server still has to forget
   /* POTS add-on (lib/pots.js, spec A13): one persisted key, part of the on-device record, never
      sent anywhere and never part of weekly counts. An older record without it keeps this
@@ -309,9 +313,12 @@ export default function CyraDemo() {
   const regPal = phase === "register" && reg.stage ? PALETTES[REG_STAGE[reg.stage]][0] : null;
   // The seven UI tokens for the scheme on screen (each palette's light values or its `dark` object).
   const t = { ...paletteFor(org.theme, scheme), ...(stagePal ? paletteFor(stagePal, scheme) : regPal ? paletteFor(regPal, scheme) : {}) };
-  const symMap = stage === "periods" ? PSYM : SYM;
-  const symIds = Object.keys(symMap);
-  const ins = useMemo(() => insights(days, stage === "periods" ? Object.keys(PSYM) : SYMS), [days, stage]);
+  /* The tracked list (L6): her stage's library plus what she added from the other one, hidden ones included
+     (lib/daylog.js trackedIds). Every insight, chart, calendar card, report row and the doctor email runs on it,
+     so a hidden chip still counts. */
+  const symIds = useMemo(() => (stage === "periods" || stage === "peri" ? trackedIds(stage, symPrefs) : SYMS), [stage, symPrefs]);
+  const symMap = useMemo(() => Object.fromEntries(symIds.map((id) => [id, ALL_SYM[id]])), [symIds]);
+  const ins = useMemo(() => insights(days, symIds), [days, symIds]);
   /* Care: items for this stage, the ones that fit what she logged in the last 30 days first
      (most-logged match first), then in shelf order. Matching runs here, on the device. */
   const shelfItems = useMemo(() => {
@@ -407,10 +414,14 @@ export default function CyraDemo() {
 
   /* ---------- day score: 0 (rough) .. 1 (great) ---------- */
   const draftIds = stage === "preg" ? Object.keys(GSYM) : symIds;
+  /* The day-score divisor (spec §6.3): the stage's library size when the score was defined, so neither Low energy
+     nor her list rescales a past day (lib/constants.js SCORE_SCALE). */
+  const scoreScale = SCORE_SCALE[stage];
+  const scoreDay = (e, ids) => dayScore(e, ids, scoreScale);
   // Quick answers (q1-q3) count as the hero symptoms they are saved as, so the live meter agrees with the day's saved score.
   const liveDraft = stage === "preg" ? draft : foldQuick(draft, stage);
   const liveBurden = Math.min(1,
-    symBurden(liveDraft, draftIds) * 0.5 +
+    symBurden(liveDraft, draftIds, scoreScale) * 0.5 +
     (scales.fatigue / 10) * 0.2 +
     (scales.pain / 10) * 0.2 +
     ((10 - scales.moodq) / 10) * 0.1
@@ -430,7 +441,7 @@ export default function CyraDemo() {
   /* ======================= HOME ======================= */
   const goTab = (t2) => (stage === "preg" ? setPregTab(t2) : setAppTab(t2));
   const entryOn = (iso) => (stage === "preg" ? pregLog[iso] : entryFor(days, iso));
-  const scoreOn = (iso) => { const e = entryOn(iso); return e ? dayScore(e, stage === "preg" ? Object.keys(GSYM) : symIds) : null; };
+  const scoreOn = (iso) => { const e = entryOn(iso); return e ? scoreDay(e, stage === "preg" ? Object.keys(GSYM) : symIds) : null; };
   // Today's status lines: whether today is already in the record and whether yesterday is missing (computed on render, never stored).
   const savedToday = stage === "preg" ? !!pregLog[todayIso] : days.some((d) => d.date === todayIso);
   const yesterdayIso = (() => { const d = new Date(todayIso + "T12:00:00"); d.setDate(d.getDate() - 1); return localDay(d); })();
@@ -445,13 +456,14 @@ export default function CyraDemo() {
   const formFrom = (e, tally = 0) => ({
     draft: e ? { ...(e.sym || {}) } : {}, sleepQ: e?.sleepQ ?? null, scales: { ...ZERO_SCALES, ...(e?.scales || {}) },
     flow: e?.flow ?? null, disch: e?.disch ?? null, odor: e?.odor ?? null, bodyOdor: e?.bodyOdor ?? null, kicks: Math.max(e?.kicks || 0, tally),
+    note: cleanNote(e?.note),
   });
   const formFor = (iso) => formFrom(entryOn(iso), stage === "preg" && iso === todayIso && kickTally?.day === iso ? kickTally.n || 0 : 0);
   // A form's contents for comparing (unset symptoms, key order and the quick-answer bookkeeping
   // __q, which a saved quick check-in keeps in the form, don't count; an unanswered sleep
-  // question saves as "fair").
-  const formKey = (f) => JSON.stringify([Object.entries(f.draft || {}).filter(([k, v]) => v && k !== "__q").sort(), f.sleepQ || "fair", Object.entries(f.scales || {}).sort(), f.flow ?? null, f.disch ?? null, f.odor ?? null, f.bodyOdor ?? null, f.kicks || 0]);
-  const applyForm = (f) => { setDraft(f.draft); setSleepQ(f.sleepQ); setScales(f.scales); setFlow(f.flow); setDisch(f.disch); setOdor(f.odor); setBodyOdor(f.bodyOdor); setKicks(f.kicks); };
+  // question saves as "fair"; the day note compares trimmed, as it is saved).
+  const formKey = (f) => JSON.stringify([Object.entries(f.draft || {}).filter(([k, v]) => v && k !== "__q").sort(), f.sleepQ || "fair", Object.entries(f.scales || {}).sort(), f.flow ?? null, f.disch ?? null, f.odor ?? null, f.bodyOdor ?? null, f.kicks || 0, (f.note || "").trim()]);
+  const applyForm = (f) => { setDraft(f.draft); setSleepQ(f.sleepQ); setScales(f.scales); setFlow(f.flow); setDisch(f.disch); setOdor(f.odor); setBodyOdor(f.bodyOdor); setKicks(f.kicks); setDayNote(f.note || ""); };
   const editSnap = useRef(null); // today's form, put aside while another day is edited
   const formStage = useRef(null);
   const formDay = useRef(null); // the day the open form was loaded for
@@ -465,14 +477,14 @@ export default function CyraDemo() {
     if (editDate && sameStage) { editSnap.current = f; return; } // an edit stays open; today's form comes back after it
     // Midnight (or a resume next morning) with a check-in half filled in: it stays open as an
     // edit of the day it was started on, so saving files it there, and nothing she picked is wiped.
-    if (sameStage && prevDay && prevDay < todayIso && formKey({ draft, sleepQ, scales, flow, disch, odor, bodyOdor, kicks }) !== formKey(formFor(prevDay))) {
+    if (sameStage && prevDay && prevDay < todayIso && formKey({ draft, sleepQ, scales, flow, disch, odor, bodyOdor, kicks, note: dayNote }) !== formKey(formFor(prevDay))) {
       editSnap.current = f; setEditPeriod(stage !== "preg" && isPeriodDay(entryOn(prevDay))); setEditDate(prevDay); return;
     }
     editSnap.current = null; setEditDate(null); applyForm(f);
   }, [hydrated, todayIso, stage, formRev]); // eslint-disable-line
   useEffect(() => { setExpanded(false); }, [quickMode]); // choosing a mode in Settings ends a per-visit expansion
   const startEdit = (iso) => {
-    if (!editDate) editSnap.current = { draft, sleepQ, scales, flow, disch, odor, bodyOdor, kicks };
+    if (!editDate) editSnap.current = { draft, sleepQ, scales, flow, disch, odor, bodyOdor, kicks, note: dayNote };
     applyForm(formFor(iso));
     setEditPeriod(stage !== "preg" && isPeriodDay(entryOn(iso)));
     setEditDate(iso); goTab("today");
@@ -690,8 +702,8 @@ export default function CyraDemo() {
     const ids = stage === "preg" ? Object.keys(GSYM) : symIds;
     const last30 = sorted.slice(-30), prev30 = sorted.slice(-60, -30);
     if (last30.length < 10 || prev30.length < 10) return null;
-    const avg = (arr) => Math.round((arr.reduce((a, d) => a + dayScore(d, ids), 0) / arr.length) * 100);
-    const calm = (arr) => arr.filter((d) => dayScore(d, ids) > 0.64).length;
+    const avg = (arr) => Math.round((arr.reduce((a, d) => a + scoreDay(d, ids), 0) / arr.length) * 100);
+    const calm = (arr) => arr.filter((d) => scoreDay(d, ids) > 0.64).length;
     const poor = (arr) => arr.filter((d) => d.sleepQ === "poor").length;
     const top = ins.counts[0];
     const topN = (arr) => (top ? arr.filter((d) => ((d.sym || {})[top.id] || 0) > 0).length : 0);
@@ -886,7 +898,7 @@ export default function CyraDemo() {
   /* ---- Milestones: clinical + usage. A pure function of a days array (the record it is given,
      not the state), so a save can be compared before and after; `milestones` is today's. ---- */
   const milestonesFor = (daysArr) => {
-    const di = daysArr === days ? ins : insights(daysArr, stage === "periods" ? Object.keys(PSYM) : SYMS);
+    const di = daysArr === days ? ins : insights(daysArr, symIds);
     const ms = [];
     const total = stage === "preg" ? Object.keys(pregLog).length : di.sorted.length;
     ms.push({ done: total >= 7, label: "First week tracked" });
@@ -990,8 +1002,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1251,13 +1263,15 @@ export default function CyraDemo() {
     /* Cycles she left out of predictions are restored literally too (L5): a backup without cycleFlags clears them here, so
        "It replaces your record here." stays true. */
     const restoredFlags = cleanCycleFlags(saved.cycleFlags);
-    applySaved({ ...saved, pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
+    // Her symptom list is restored literally as well (L6): a backup without symPrefs brings back Cyra's order.
+    const restoredPrefs = cleanSymPrefs(saved.symPrefs);
+    applySaved({ ...saved, pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
     potsBase.current = restoredPots; setPotsHomeLast(null);
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
     const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance };
-    await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
+    await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     ping(!isNative() && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored");
     if (FEATURES.wearables && wear.oura?.restored && API_BASE && !DEMO_WEARABLES) checkRestoredOura(wear.oura);
@@ -1715,9 +1729,9 @@ export default function CyraDemo() {
 
   /* Home: the patterns card (the same card the Patterns tab opens with, compact: fewer symptom
      rows, no hint, day card once a day is tapped), once 3 days are logged. */
-  const sixty = stage === "preg" ? null : windowDays(ins.sorted, symIds, todayIso);
+  const sixty = stage === "preg" ? null : windowDays(ins.sorted, symIds, todayIso, 60, scoreScale);
   const patternsCard = sixty && sixty.filter((d) => d.e).length >= 3
-    ? <PatternsCard days={sixty} ids={symIds} labels={symMap} starts={isMeno ? [] : ins.starts} sorted={ins.sorted} todayIso={todayIso} maxRows={3} compact popIso={justSaved} onMore={() => goTab("patterns")} />
+    ? <PatternsCard days={sixty} ids={symIds} labels={symMap} starts={isMeno ? [] : ins.starts} sorted={ins.sorted} todayIso={todayIso} maxRows={3} compact popIso={justSaved} onMore={() => goTab("patterns")} scale={scoreScale} />
     : null;
   /* POTS tools open as a page under the current tab (potsOpen): the tab bar stays, with the
      current tab still selected, and a Back button at the top of the page returns to it. */
@@ -1727,7 +1741,7 @@ export default function CyraDemo() {
   const homeView = (
     <HomeScreen
       acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} tri={tri} dueDate={dueDate} pred={pred} loggedLast14={loggedLast14} loggedTotal={stage === "preg" ? Object.keys(pregLog).length : ins.sorted.length} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} patternsCard={patternsCard} wearInsights={wearInsights} milestones={milestones} justReached={justReached} nextUp={nextUp} pulse={FEATURES.counts ? pulse : null}
-      todayEntry={entryOn(todayIso) || null} scoreIds={stage === "preg" ? Object.keys(GSYM) : symIds} scoreLabels={stage === "preg" ? GSYM : symMap} dayScore={dayScore}
+      todayEntry={entryOn(todayIso) || null} scoreIds={stage === "preg" ? Object.keys(GSYM) : symIds} scoreLabels={stage === "preg" ? GSYM : symMap} dayScore={scoreDay}
       recap={recap} showRecap={showRecap} setShowRecap={setShowRecap}
       showWear={showWear} setShowWear={setShowWear} wearSources={wearSources} terraOffCount={terraOff.length} connectWear={connectWear} disconnectWear={disconnectWear} wearConfirm={wearConfirm} setWearConfirm={setWearConfirm} wearBusy={wearBusy} wearData={wearData} wAvg={wAvg}
       showMeds={showMeds} setShowMeds={setShowMeds} meds={meds} medLog={medLog} medEffects={medEffects} setMedLog={setMedLog} newMed={newMed} setNewMed={setNewMed} setMeds={setMeds} ping={ping}
@@ -1826,10 +1840,10 @@ export default function CyraDemo() {
             {potsPage && potsView}
 
             {pregIs("today") && (
-              <PregTodayScreen onPots={potsTab ? () => openPots() : null} pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} anyLogged={Object.keys(pregLog).length > 0} onEditDay={startEdit} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={FEATURES.counts && research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
+              <PregTodayScreen onPots={potsTab ? () => openPots() : null} pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} anyLogged={Object.keys(pregLog).length > 0} onEditDay={startEdit} symPrefs={symPrefs} setSymPrefs={setSymPrefs} dayNote={dayNote} setDayNote={setDayNote} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={FEATURES.counts && research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
             )}
             {pregIs("cal") && (
-              <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={dayScore} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} onEdit={startEdit} ping={ping} />
+              <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={scoreDay} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} onEdit={startEdit} ping={ping} />
             )}
             {pregIs("mile") && <MilestonesScreen pregWeek={pregWeek} onPlan={onPlan} />}
             {pregIs("ask") && askView}
@@ -1850,12 +1864,12 @@ export default function CyraDemo() {
             {potsPage && potsView}
 
             {appIs("today") && (
-              <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} expanded={expanded} setExpanded={setExpanded} quickCheckin={quickCheckin} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} onEditDay={startEdit} symIds={symIds} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} days={days} setDays={setDays} onSaved={onSaved} ping={ping} setAppTab={setAppTab} research={FEATURES.counts && research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
+              <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} expanded={expanded} setExpanded={setExpanded} quickCheckin={quickCheckin} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} onEditDay={startEdit} symPrefs={symPrefs} setSymPrefs={setSymPrefs} dayNote={dayNote} setDayNote={setDayNote} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} days={days} setDays={setDays} onSaved={onSaved} ping={ping} setAppTab={setAppTab} research={FEATURES.counts && research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} />
             )}
             {appIs("cal") && (
-              <CalendarScreen pred={pred} predWhy={predWhy} cyc={cyc} onCycleUse={setCycleUse} stage={stage} isMeno={isMeno} days={days} symIds={symIds} symMap={symMap} dayScore={dayScore} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} />
+              <CalendarScreen pred={pred} predWhy={predWhy} cyc={cyc} onCycleUse={setCycleUse} stage={stage} isMeno={isMeno} days={days} symIds={symIds} symMap={symMap} dayScore={scoreDay} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} />
             )}
-            {appIs("patterns") && <PatternsScreen ins={ins} lens6={cyc.lens6} symIds={symIds} symMap={symMap} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} />}
+            {appIs("patterns") && <PatternsScreen ins={ins} lens6={cyc.lens6} symIds={symIds} symMap={symMap} scoreScale={scoreScale} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} />}
             {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} />}
             {appIs("shelf") && <CareScreen shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Cyra will compare your days before and after"); }} />}
             {appIs("ask") && askView}

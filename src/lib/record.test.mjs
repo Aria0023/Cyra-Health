@@ -29,7 +29,7 @@ const DEFAULTS = () => ({
   meds: [], medLog: {}, appts: [], journal: {}, wearSources: {}, wearData: [], acct: { name: "", email: "", anon: false }, research: false,
   stage: "peri", stageName: "Perimenopause", welcome: "", days: seed(), pregLog: {}, pulseQueue: null, pulseSent: null, pulseLastSend: null,
   pulseRev: 0, askAI: false, regAnswers: null, reminders: { enabled: false, endpoint: null, pending: [], rev: 0 }, terraOff: [], kickTally: null,
-  pots: freshEmpty(), lastBackupAt: null, installHint: null, appearance: "system", cycleFlags: {},
+  pots: freshEmpty(), lastBackupAt: null, installHint: null, appearance: "system", cycleFlags: {}, symPrefs: {},
 });
 const appRecord = (over = {}) => {
   const d = { ...DEFAULTS(), ...over };
@@ -104,8 +104,8 @@ test("migrate: a missing, throwing or non-advancing step returns the input (all 
 /* ---------- keys ---------- */
 
 test("key lists are the ones App.jsx used before L3 (pinned)", () => {
-  // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags (a record key: in RECORD and in backups).
-  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags"]);
+  // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags and L6 symPrefs (record keys: in RECORD and in backups).
+  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs"]);
   assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint"]);
   assert.deepEqual([...DEVICE_PREFS], ["appearance"]);
   assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "appearance"]);
@@ -177,7 +177,7 @@ test("validateRecord: an app-shaped record has no problems", () => {
   assert.deepEqual(validateRecord(appRecord()), []);
   const full = appRecord({
     stage: "preg", stageName: "Pregnancy", relationship: "partnered", cadence: "weekdays", quietHours: "never", quickMode: false,
-    pregLog: { [iso(1)]: { sym: { nau: 2, hb: 0 }, kicks: 9, scales: { fatigue: 4, pain: 0, moodq: 6, stress: 3 }, odor: null, bodyOdor: "same" }, [iso(0)]: { sym: {}, kicks: 0, scales: { fatigue: 0, pain: 0, moodq: 0, stress: 0 }, odor: "mild", bodyOdor: null } },
+    pregLog: { [iso(1)]: { sym: { nau: 2, hb: 0 }, kicks: 9, scales: { fatigue: 4, pain: 0, moodq: 6, stress: 3 }, odor: null, bodyOdor: "same", note: "Kicks were busy after lunch." }, [iso(0)]: { sym: {}, kicks: 0, scales: { fatigue: 0, pain: 0, moodq: 0, stress: 0 }, odor: "mild", bodyOdor: null } },
     journal: { [iso(2)]: "Tired today.\n\nBetter after a walk." },
     appts: [{ id: 1760000000000, date: iso(-3), who: "Dr. Lee", note: "" }],
     meds: [{ id: 1760000000001, name: "Magnesium", kind: "supp", started: iso(20) }],
@@ -189,8 +189,9 @@ test("validateRecord: an app-shaped record has no problems", () => {
     research: true, askAI: true, regAnswers: { stage: "Pregnant", conditions: [], zip: "90210", age: "35–44" },
     reminders: { enabled: true, endpoint: "https://push.example/x", pending: [], rev: 3 }, terraOff: [{ key: "k".repeat(43) }],
     kickTally: { day: iso(0), n: 4 }, lastBackupAt: iso(3), installHint: "installed", appearance: "dark", cycleFlags: { [iso(40)]: { exclude: true }, [iso(70)]: { exclude: false, note: "later field" } },
+    symPrefs: { peri: { order: ["eng", "hf"], hidden: ["itc"], added: ["crm"] }, preg: { order: [], hidden: ["brx"], added: [] } },
     acct: { name: "Ada", email: "ada@example.com", anon: false }, welcome: "Your pregnancy space is ready.",
-    days: [{ date: iso(1), sleepQ: "poor", period: true, scales: { fatigue: 3, pain: 2, moodq: 7, stress: 1 }, flow: "heavy", disch: "creamy", odor: "none", bodyOdor: "same", sym: { crm: 3, hda: 0 } }],
+    days: [{ date: iso(1), sleepQ: "poor", period: true, scales: { fatigue: 3, pain: 2, moodq: 7, stress: 1 }, flow: "heavy", disch: "creamy", odor: "none", bodyOdor: "same", sym: { crm: 3, hda: 0, eng: 2 }, note: "Migraine after the late shift.\nTook the day slowly." }],
   });
   assert.deepEqual(validateRecord(full), []);
 });
@@ -223,6 +224,45 @@ test("cycleFlags (L5): a record key, in backups; the rule flags anything cleanCy
     assert.equal(out.length, 1, JSON.stringify(bad));
     assert.match(out[0], /^cycleFlags: expected /);
   }
+});
+
+test("symPrefs and day notes (L6): symPrefs is a record key in backups; notes are reported, never changed", () => {
+  assert.ok(RECORD.includes("symPrefs"), "adopted by other tabs");
+  assert.ok(!DEVICE_ONLY.includes("symPrefs") && !NOT_IN_BACKUP.includes("symPrefs"), "in backups, applied by a restore");
+  const prefs = { periods: { order: ["eng", "crm"], hidden: ["acn"], added: ["hf"] } };
+  assert.deepEqual(backupCopy(appRecord({ symPrefs: prefs })).symPrefs, prefs);
+  assert.deepEqual(RULES.symPrefs({}, "symPrefs"), []);
+  assert.deepEqual(RULES.symPrefs(prefs, "symPrefs"), []);
+  for (const bad of [[], null, "x", { periods: { order: ["eng"] } }, { periods: { order: [], hidden: [], added: [] } }, { other: { order: ["eng"], hidden: [], added: [] } }, { peri: { order: ["Hot flashes"], hidden: [], added: [] } }]) {
+    const out = RULES.symPrefs(bad, "symPrefs");
+    assert.equal(out.length, 1, JSON.stringify(bad));
+    assert.match(out[0], /^symPrefs: expected /);
+  }
+  // A note: no problem when valid, exactly one each for 281 units, a number and a blank; the entry itself is never changed.
+  const day = (note) => ({ date: iso(2), sleepQ: "fair", period: false, sym: { crm: 1 }, note });
+  assert.deepEqual(validateRecord(appRecord({ days: [day("x".repeat(280))] })), []);
+  for (const bad of ["x".repeat(281), 42, "   "]) {
+    const days = [day(bad)];
+    const before = clone(days);
+    const out = validateRecord(appRecord({ days }));
+    assert.equal(out.length, 1, JSON.stringify(out));
+    assert.match(out[0], /^days\[0\]\.note: expected /);
+    assert.deepEqual(days, before, "the validator never trims or drops");
+  }
+  const preg = (note) => ({ [iso(1)]: { sym: { nau: 1 }, kicks: 3, note } });
+  assert.deepEqual(validateRecord(appRecord({ stage: "preg", pregLog: preg("Felt good") })), []);
+  for (const bad of ["y".repeat(281), 7, ""]) {
+    const out = validateRecord(appRecord({ stage: "preg", pregLog: preg(bad) }));
+    assert.equal(out.length, 1, JSON.stringify(out));
+    assert.ok(out[0].startsWith(`pregLog.${iso(1)}.note: expected `), out[0]);
+  }
+  // A pre-L6 record (no note, no symPrefs) needs no migration step: migrate() returns it as it is.
+  const old = appRecord();
+  delete old.symPrefs;
+  const before = clone(old);
+  assert.equal(migrate(old), old);
+  assert.deepEqual(old, before);
+  assert.deepEqual(validateRecord(old), []);
 });
 
 test("validateRecord never throws and is lenient where it must be", () => {
@@ -349,7 +389,7 @@ test("daysLogged", () => {
 
 // record.js may import only these pure leaf modules. A later slice may add one (L6 './daylog.js',
 // L7 './fertility.js'); none of them may import record.js back.
-const RECORD_IMPORTS = ["./engine.js", "./constants.js"];
+const RECORD_IMPORTS = ["./engine.js", "./constants.js", "./daylog.js"];
 const importsOf = (code) => [...code.matchAll(/^\s*import\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]);
 
 test("layering and no I/O", () => {

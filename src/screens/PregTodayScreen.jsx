@@ -1,15 +1,41 @@
+import { useRef, useState } from "react";
 import { flagWords } from "../lib/pulse.js";
 import Details from "../components/Details.jsx";
 import { GSYM, PREG_TIPS, famColor } from "../lib/constants.js";
 import { sevDots, fmt } from "../lib/engine.js";
+import { chipLayout, cleanNote } from "../lib/daylog.js";
 import Advice from "../components/Advice.jsx";
 import Icon from "../components/Icon.jsx";
+import SymptomSheet from "../components/SymptomSheet.jsx";
+import DayNote from "../components/DayNote.jsx";
 
 /* Pregnancy — Today: week + trimester + progress to 40, weekly read, pregnancy
    symptoms, scales, body signals, kick counter, red-flag swelling advice. Opens on what is
    already saved for the day (App.jsx loads it, and keeps today's kick count on the device
-   between taps); also the edit form for a day picked from the Calendar. */
-export default function PregTodayScreen({ onPots = null, pregWeek, trimester, scoreMeter, draft, setDraft, symMap, scaleSection, bodySection, kicks, onKick, setPregLog, todayIso, editDate, onEndEdit, savedToday = false, yesterdayIso = null, yesterdayLogged = true, anyLogged = false, onEditDay = null, scales, odor, bodyOdor, ping, research, contribute }) {
+   between taps); also the edit form for a day picked from the Calendar.
+   L6: her symptom list for pregnancy (order and Hide only, lib/daylog.js; nothing is borrowed into GSYM) behind the
+   same "Symptoms · Edit" row as Today, and the day note after the advice card (never handed to contribute()). */
+export default function PregTodayScreen({ onPots = null, pregWeek, trimester, scoreMeter, draft, setDraft, symMap, scaleSection, bodySection, kicks, onKick, setPregLog, todayIso, editDate, onEndEdit, savedToday = false, yesterdayIso = null, yesterdayLogged = true, anyLogged = false, onEditDay = null, symPrefs = {}, setSymPrefs = () => {}, dayNote = "", setDayNote = () => {}, scales, odor, bodyOdor, ping, research, contribute }) {
+  // UI state only, never saved: the "Your symptoms" sheet and the "More symptoms" panel.
+  const [symEdit, setSymEdit] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const editRef = useRef(null);
+  const { first, more } = chipLayout("preg", symPrefs);
+  // A hidden symptom with a value is lifted into the grid while More symptoms is closed; once lifted it stays there
+  // until the panel is next opened, so tapping it back to 0 never pulls the focused chip out of the page.
+  const keepLifted = useRef(new Set());
+  if (moreOpen || symEdit) keepLifted.current.clear();
+  const lifted = moreOpen ? [] : more.filter((id) => (draft[id] || 0) > 0 || keepLifted.current.has(id));
+  lifted.forEach((id) => keepLifted.current.add(id));
+  const chip = (id) => {
+    const label = GSYM[id];
+    const sev = draft[id] || 0;
+    return (
+      <button key={id} aria-pressed={sev > 0} aria-label={`${(symMap[id] || label)}, severity ${sev} of 3`} className={`chip sev-${sev}`} style={{ "--fc": famColor(id) }} onClick={() => setDraft((d) => ({ ...d, [id]: ((d[id] || 0) + 1) % 4 }))}>
+        <span>{label}</span><span key={sev} className="dots" aria-hidden="true" data-tick={sev || undefined}>{sevDots(sev)}</span>
+      </button>
+    );
+  };
   return (
     <main>
       <div className="pregband">
@@ -34,16 +60,25 @@ export default function PregTodayScreen({ onPots = null, pregWeek, trimester, sc
       <p className="hint">Tap a symptom once for mild, up to 3× for strong.</p>
       {scoreMeter}
       {savedToday && !editDate && <p className="savedline"><Icon name="check" size={14} /> Logged today — any change here updates it.</p>}
-      <div className="chips">
-        {Object.entries(GSYM).map(([id, label]) => {
-          const sev = draft[id] || 0;
-          return (
-            <button key={id} aria-pressed={sev > 0} aria-label={`${(symMap[id] || label)}, severity ${sev} of 3`} className={`chip sev-${sev}`} style={{ "--fc": famColor(id) }} onClick={() => setDraft((d) => ({ ...d, [id]: ((d[id] || 0) + 1) % 4 }))}>
-              <span>{label}</span><span key={sev} className="dots" aria-hidden="true" data-tick={sev || undefined}>{sevDots(sev)}</span>
-            </button>
-          );
-        })}
+      <div className="chiphead">
+        <p className="section-lab" id="sym-lab">Symptoms</p>
+        <button type="button" ref={editRef} className="linkbtn" aria-label="Edit symptoms" aria-expanded={symEdit} aria-controls="sym-sheet" onClick={() => setSymEdit((v) => !v)}>Edit</button>
       </div>
+      {symEdit ? (
+        <SymptomSheet stage="preg" symPrefs={symPrefs} setSymPrefs={setSymPrefs} days={[]} onClose={() => { setSymEdit(false); editRef.current?.focus(); }} />
+      ) : (
+        <>
+          <div className="chips" role="group" aria-labelledby="sym-lab">{[...first, ...lifted].map(chip)}</div>
+          {more.length > 0 && (
+            <>
+              <button type="button" className="disclosure more symmore" aria-expanded={moreOpen} aria-controls="sym-more" onClick={() => setMoreOpen((v) => !v)}>
+                <span>More symptoms<span className="dsub"> · {more.length}</span></span><Icon name="chevron" className="chev" />
+              </button>
+              <div id="sym-more" hidden={!moreOpen}>{moreOpen && <div className="chips morechips" role="group" aria-label="More symptoms">{more.map(chip)}</div>}</div>
+            </>
+          )}
+        </>
+      )}
       {scaleSection}
       {bodySection}
       {/* The kick counter is a tool, not the day's primary action: tinted and outlined inside its own card, so "Save today" is the one filled CTA. */}
@@ -59,13 +94,16 @@ export default function PregTodayScreen({ onPots = null, pregWeek, trimester, sc
       ) : (
         <Advice urgency="self" alone>Logging daily builds the record your provider actually uses at each visit — and the kick pattern matters more than any single count.</Advice>
       )}
+      <DayNote key={editDate || "today"} value={dayNote} onChange={setDayNote} label={editDate ? `Note for ${fmt(editDate)}` : "Note for today"} />
       <div className="stopbar savebar"><button className="cta" onClick={() => {
         const target = editDate || todayIso;
-        const entry = { sym: { ...draft }, kicks, scales: { ...scales }, odor, bodyOdor };
+        // Her day note (D7), trimmed and only when there is one; contribute() below never gets it.
+        const note = cleanNote(dayNote);
+        const entry = { sym: { ...draft }, kicks, scales: { ...scales }, odor, bodyOdor, ...(note ? { note } : {}) };
         setPregLog((l) => ({ ...l, [target]: entry }));
         ping(editDate ? `${fmt(target)} updated` : "Saved to your pregnancy journal — see Calendar");
         contribute({ sym: draft, kicks }, target);
-        if (editDate) onEndEdit(entry, target);
+        if (editDate) onEndEdit(entry, target); else setDayNote(note);
       }}>{editDate ? `Save changes to ${fmt(editDate)}` : "Save today"}</button></div>
       {onPots && !editDate && <button className="linkbtn potslink" style={{ marginTop: 10 }} onClick={onPots}>Log POTS symptoms and drinks →</button>}
       {research && !editDate && (

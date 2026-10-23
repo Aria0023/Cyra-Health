@@ -1,9 +1,13 @@
+import { useEffect, useRef, useState } from "react";
 import { flagWords } from "../lib/pulse.js";
 import Details from "../components/Details.jsx";
 import Icon from "../components/Icon.jsx";
+import SymptomSheet from "../components/SymptomSheet.jsx";
+import DayNote from "../components/DayNote.jsx";
 import { SYMS, PSYM, READS, famColor } from "../lib/constants.js";
 import { fmt, sevDots, foldQuick, periodHead } from "../lib/engine.js";
 import { upsertDay } from "../lib/record.js";
+import { chipLayout, cleanNote } from "../lib/daylog.js";
 
 /* Cycle & Peri — Today: cycle-status card (day, phase and the same likely-start wording as Home: lib/engine.js periodHead;
    no card when there is no prediction, e.g. in menopause), live score meter, quick or full
@@ -21,11 +25,35 @@ import { upsertDay } from "../lib/record.js";
    symptom flag is added; the expanded form names its symptoms exactly as the full check-in does.
    Body signals is always reachable, so flow can be logged from quick mode (heavy-flow shares as before).
    Family colour (FAMILIES) appears only on the severity dots of a chip that has a value — the one
-   data-bearing part of the form; chip borders and backgrounds stay on the UI palette. */
-export default function TodayScreen({ onPots = null, pred, stage, welcome, editDate, onEndEdit, setDraft, setSleepQ, scoreMeter, quickMode, expanded = false, setExpanded = () => {}, quickCheckin, savedToday = false, yesterdayIso = null, yesterdayLogged = true, onEditDay = null, symIds, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, setEditPeriod, scales, flow, disch, odor, bodyOdor, days = [], setDays, onSaved = null, ping, setAppTab, research, contribute }) {
+   data-bearing part of the form; chip borders and backgrounds stay on the UI palette.
+   Her symptom list (L6, D8): the chips follow symPrefs for this stage (lib/daylog.js chipLayout); "Edit" opens the
+   "Your symptoms" sheet in place of the grid, and hidden symptoms sit under "More symptoms" (one that has a value
+   is lifted into the grid while that panel is closed). The day note (D7) follows Body signals in every form; it is
+   saved on the entry and never handed to contribute(). */
+export default function TodayScreen({ onPots = null, pred, stage, welcome, editDate, onEndEdit, setDraft, setSleepQ, scoreMeter, quickMode, expanded = false, setExpanded = () => {}, quickCheckin, savedToday = false, yesterdayIso = null, yesterdayLogged = true, onEditDay = null, symPrefs = {}, setSymPrefs = () => {}, dayNote = "", setDayNote = () => {}, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, setEditPeriod, scales, flow, disch, odor, bodyOdor, days = [], setDays, onSaved = null, ping, setAppTab, research, contribute }) {
   // The quick card is on screen: quick mode, not an edit, not expanded for this visit. Everything that
   // depends on "which form is this" (hint, chips, the peri sleep pills, what contribute() sends) keys on it.
   const quickCard = quickMode && !editDate && !expanded;
+  // UI state only, never saved: the "Your symptoms" sheet and the "More symptoms" panel.
+  const [symEdit, setSymEdit] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const editRef = useRef(null);
+  useEffect(() => { if (quickCard) setSymEdit(false); }, [quickCard]);
+  const { first, more } = chipLayout(stage, symPrefs);
+  // A hidden symptom with a value is lifted into the grid while More symptoms is closed; once lifted it stays there
+  // until the panel is next opened, so tapping it back to 0 never pulls the focused chip out of the page.
+  const keepLifted = useRef(new Set());
+  if (moreOpen || symEdit) keepLifted.current.clear();
+  const lifted = moreOpen ? [] : more.filter((id) => (draft[id] || 0) > 0 || keepLifted.current.has(id));
+  lifted.forEach((id) => keepLifted.current.add(id));
+  const chip = (id) => {
+    const sev = draft[id] || 0;
+    return (
+      <button key={id} aria-pressed={sev > 0} aria-label={`${symMap[id]}, severity ${sev} of 3`} className={`chip sev-${sev}`} style={{ "--fc": famColor(id) }} onClick={() => setDraft((d) => ({ ...d, [id]: ((d[id] || 0) + 1) % 4 }))}>
+        <span>{symMap[id]}</span><span key={sev} className="dots" aria-hidden="true" data-tick={sev || undefined}>{sevDots(sev)}</span>
+      </button>
+    );
+  };
   return (
     <main>
       {pred && (
@@ -59,16 +87,29 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
       {savedToday && !editDate && <p className="savedline"><Icon name="check" size={14} /> Logged today — any change here updates it.</p>}
       {quickCard && quickCheckin}
       {quickMode && expanded && !editDate && <button type="button" className="linkbtn backquick" onClick={() => setExpanded(false)}>Back to quick check-in</button>}
-      {!quickCard && <div className="chips">
-        {symIds.map((id) => {
-          const sev = draft[id] || 0;
-          return (
-            <button key={id} aria-pressed={sev > 0} aria-label={`${symMap[id]}, severity ${sev} of 3`} className={`chip sev-${sev}`} style={{ "--fc": famColor(id) }} onClick={() => setDraft((d) => ({ ...d, [id]: ((d[id] || 0) + 1) % 4 }))}>
-              <span>{symMap[id]}</span><span key={sev} className="dots" aria-hidden="true" data-tick={sev || undefined}>{sevDots(sev)}</span>
-            </button>
-          );
-        })}
-      </div>}
+      {!quickCard && (
+        <>
+          <div className="chiphead">
+            <p className="section-lab" id="sym-lab">Symptoms</p>
+            <button type="button" ref={editRef} className="linkbtn" aria-label="Edit symptoms" aria-expanded={symEdit} aria-controls="sym-sheet" onClick={() => setSymEdit((v) => !v)}>Edit</button>
+          </div>
+          {symEdit ? (
+            <SymptomSheet stage={stage} symPrefs={symPrefs} setSymPrefs={setSymPrefs} days={[...days, { sym: draft }]} onClose={() => { setSymEdit(false); editRef.current?.focus(); }} />
+          ) : (
+            <>
+              <div className="chips" role="group" aria-labelledby="sym-lab">{[...first, ...lifted].map(chip)}</div>
+              {more.length > 0 && (
+                <>
+                  <button type="button" className="disclosure more symmore" aria-expanded={moreOpen} aria-controls="sym-more" onClick={() => setMoreOpen((v) => !v)}>
+                    <span>More symptoms<span className="dsub"> · {more.length}</span></span><Icon name="chevron" className="chev" />
+                  </button>
+                  <div id="sym-more" hidden={!moreOpen}>{moreOpen && <div className="chips morechips" role="group" aria-label="More symptoms">{more.map(chip)}</div>}</div>
+                </>
+              )}
+            </>
+          )}
+        </>
+      )}
       {/* Sleep: the peri quick card already asks "How did you sleep?" (q2, its answers are these pill texts), so the
           pill row is not drawn while that card is on screen; everywhere else it stays, under a "Last night" label. */}
       {!(stage === "peri" && quickCard) && (
@@ -88,6 +129,7 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
       )}
       {!quickCard && scaleSection}
       {bodySection}
+      <DayNote key={editDate || "today"} value={dayNote} onChange={setDayNote} label={editDate ? `Note for ${fmt(editDate)}` : "Note for today"} />
       <div className="stopbar savebar"><button className="cta" onClick={() => {
         const target = editDate || todayIso;
         // Quick answers (also ones carried over by "more detail" or left from quick mode) are
@@ -98,7 +140,9 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
         const sym = { ...Object.fromEntries([...SYMS, ...Object.keys(PSYM)].map((k) => [k, 0])), ...mapped };
         // Spotting alone is not a period day; an edit keeps the day's own "Period day" switch.
         const bleeding = !!flow && flow !== "spot";
-        const entry = { date: target, sleepQ: sleepQ || "fair", period: editDate ? !!editPeriod : bleeding, scales: { ...scales }, flow, disch, odor, bodyOdor, sym };
+        // Her day note (D7) is kept on the entry, trimmed, and only when there is one. It never goes to contribute().
+        const note = cleanNote(dayNote);
+        const entry = { date: target, sleepQ: sleepQ || "fair", period: editDate ? !!editPeriod : bleeding, scales: { ...scales }, flow, disch, odor, bodyOdor, sym, ...(note ? { note } : {}) };
         const next = upsertDay(days, entry);
         setDays((d) => upsertDay(d, entry));
         ping(editDate ? `${fmt(target)} updated` : "Saved — check Patterns");
@@ -108,7 +152,7 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
         // and while the quick card is the form on screen no symptom flag is added at all.
         const flagged = Object.fromEntries(Object.entries(mapped).filter(([k, v]) => !(k in fromQuick && fromQuick[k] === v)));
         contribute({ sym: quickCard ? {} : flagged, sleepQ: sleepQ || "fair", flow }, target);
-        if (editDate) { onEndEdit(entry); setAppTab("cal"); } else { setDraft(Object.keys(fromQuick).length ? { ...sym, __q: fromQuick } : sym); setAppTab("patterns"); }
+        if (editDate) { onEndEdit(entry); setAppTab("cal"); } else { setDraft(Object.keys(fromQuick).length ? { ...sym, __q: fromQuick } : sym); setDayNote(note); setAppTab("patterns"); }
       }}>{editDate ? `Save changes to ${fmt(editDate)}` : "Save today's check-in"}</button></div>
       {onPots && !editDate && <button className="linkbtn potslink" style={{ marginTop: 10 }} onClick={onPots}>Log POTS symptoms and drinks →</button>}
       {research && !editDate && (

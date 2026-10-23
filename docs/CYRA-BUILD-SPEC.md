@@ -56,7 +56,8 @@ seriously by a clinician. Every feature serves that.
   flow: "spot"|"light"|"med"|"heavy"|"flood" | null,
   disch: "none"|"creamy"|"eggwhite"|"sticky"|"watery"|"unusual" | null,
   odor: "none"|"mild"|"strong"|"fishy"|"yeasty" | null,
-  bodyOdor: "same"|"stronger"|"changed" | null
+  bodyOdor: "same"|"stronger"|"changed" | null,
+  note?: string // her day note, trimmed, ≤ 280 (UTF-16 units), absent when empty; on the device and in backups only
 }
 ```
 Every field except `date` and `sym` may be absent in older records (the demo seed writes only date, sleepQ, period and sym); `sym` keys are ids from any symptom library with values 0–3; there is at most one entry per date (`upsertDay`). The `DayEntry` typedef in src/lib/record.js is the working definition; later features add their fields here.
@@ -67,16 +68,18 @@ Every field except `date` and `sym` may be absent in older records (the demo see
 SYM = { hf:"Hot flashes", ns:"Night sweats", fog:"Brain fog", mood:"Mood swings",
         slp:"Sleep disruption", ach:"Joint aches", dry:"Vaginal dryness",
         pal:"Heart flutters", hda:"Headaches", lib:"Libido change",
-        anx:"Anxiety", itc:"Skin/itching" }
+        anx:"Anxiety", itc:"Skin/itching", eng:"Low energy" }
 
 // My Cycle stage
 PSYM = { crm:"Cramps", hda:"Headaches", blo:"Bloating", mood:"Mood swings",
          ten:"Breast tenderness", acn:"Skin breakouts", bak:"Back pain",
-         nau:"Nausea", cra:"Cravings", lib:"Libido change" }
+         nau:"Nausea", cra:"Cravings", lib:"Libido change", eng:"Low energy" }
 
 // Pregnancy stage
 GSYM = { nau:"Nausea", hb:"Heartburn", swl:"Swelling", bak:"Back pain",
          crp:"Cramping", dzy:"Dizziness", brx:"Braxton-Hicks", con:"Constipation" }
+
+// Every check-in symptom (L6): ALL_SYM = { ...SYM, ...PSYM }, the labels for any id her list can hold
 
 SCALES = [ {id:"fatigue", low:"Energized", high:"Wiped out"},
            {id:"pain",    low:"None",      high:"Severe"},
@@ -112,6 +115,27 @@ values, `exclude` a boolean, unknown fields kept, empty entries dropped, at most
 key (in PERSISTED, not DEVICE_ONLY): saved with the record, adopted by her other open tabs, encrypted into a backup she
 saves, restored literally (a backup without the key clears it) and deleted by Delete everything. No RECORD_VERSION bump:
 missing means `{}`. Predictions read it; the clinical markers (§6.2 variability, the Report's cycle lengths) never do.
+
+### 3.6 Her symptom list (symPrefs, local-first L6)
+```js
+symPrefs: { periods?: { order, hidden, added }, peri?: { order, hidden, added }, preg?: { order, hidden } }
+// order: ids in the order shown first; hidden: ids under "More symptoms"; added: ids borrowed from the other library
+// e.g. { periods: { order: ["eng", "crm"], hidden: ["acn"], added: ["hf"] } }
+```
+Keyed by stage id, so My Cycle and Trying to conceive share `periods`, and Perimenopause and Menopause share `peri`;
+pregnancy (`preg`, decision D8 "per stage") has order and hide only, since nothing is borrowed into GSYM. `{}` is Cyra's
+order: every library chip shows, in library order, and nothing is hidden. src/lib/daylog.js holds every rule:
+`cleanSymPrefs` (the stage keys only, in the input's order; distinct ids matching `/^[a-z][a-z0-9_]{0,15}$/`, at most 40
+per list; a stage with three empty lists is dropped; unknown well-formed ids are kept for a later version and ignored by
+every reader), `chipLayout` (first = her order, then the other shown ids; more = the hidden ones), and the editors
+(`moveSym`, `hideSym`, `showSym`, `addSym`, `removeSym`, `resetSyms`), which return a new object, leave other stages
+untouched and store an order equal to Cyra's as `[]`. **The tracked list** (`trackedIds`: her stage's library plus what
+she added, hidden ones included) is what every insight, the patterns card and its numbers, the Calendar day card, the
+Report table and the doctor email run on, so hiding a chip never hides what she logged. An added symptom can be removed
+only while nothing was ever logged for it (`canRemove`; the unsaved form counts too); once logged it can be hidden but
+not removed. A record key (in PERSISTED, not DEVICE_ONLY): saved with the record, adopted by her other open tabs,
+encrypted into a backup she saves, restored literally (a backup without it brings back Cyra's order) and deleted by
+Delete everything. No RECORD_VERSION bump: missing means `{}`.
 
 ---
 
@@ -259,6 +283,50 @@ the save handler, never on hydration or restore); the patterns card (`popIso`) w
 `g.dot-new`, which pops once (`cy-pop` 600 ms; none under reduced motion) and not on a later open. *Today's read:*
 `.readcard.compact` sits directly under the phase card, hint clamped to two lines, matching Pregnancy Today.
 
+**Today: her symptom list and a day note (L6, decisions D7 and D8; `TodayScreen.jsx`, `components/SymptomSheet.jsx`,
+`components/DayNote.jsx`, `lib/daylog.js`).** *Symptoms · Edit:* wherever the chips show (full, "more detail",
+"Fixing up"; never on the quick card) a `div.chiphead` sits directly above them: `p.section-lab#sym-lab` "Symptoms" and a
+`.linkbtn` "Edit" (`aria-label="Edit symptoms"`, `aria-expanded`, `aria-controls="sym-sheet"`, 44 px). The grid is
+`div.chips[role=group][aria-labelledby=sym-lab]` of `chipLayout(stage, symPrefs).first` (§3.6; by default every library
+chip in library order, Low energy last); each chip's markup is unchanged. *More symptoms:* when she has hidden any, a
+`button.disclosure.more.symmore` "More symptoms · n" (`aria-expanded`, `aria-controls="sym-more"`) follows the grid, and
+`div#sym-more` is always in the DOM (`hidden` while closed); open, it holds `.chips.morechips[role=group]
+[aria-label="More symptoms"]`. A hidden symptom with a value in the form is lifted into the main grid while the panel is
+closed (so nothing she logged is out of sight); once lifted it stays there until the panel or the sheet is next opened,
+so tapping it back to 0 never pulls the focused chip out of the page; a tap inside the open panel never moves a chip. *The sheet:* "Edit"
+replaces the grid with `section.symsheet#sym-sheet[aria-labelledby=sym-sheet-title]` (a card like the palette sheet,
+its title bar not sticky mid-page) and focuses its `h2.sheettitle` "Your symptoms"; a `.sheetclose` "Close symptom
+list", Escape and the closing `ghostbtn` "Done" all close it and return focus to Edit; the sheet also closes when the
+quick card comes back. Hint: "Pick what shows first and in what order. Hide moves a symptom under More symptoms.
+Everything you log stays in your patterns, calendar and report, wherever it sits. Changes save as you go." "Shown first"
+(`ul.symlist`, one `li.medrow` per symptom; an added one says "From the {perimenopause|cycle} list") gives each row
+icon buttons `#sym-up-{id}` "Move {label} up" (disabled on the first row) and `#sym-down-{id}` "Move {label} down"
+(disabled on the last), `arrow-up` / `arrow-down` icons, never drag-only, and `#sym-hide-{id}` "Hide" (disabled when
+it is the only one shown first). "Under More symptoms" rows offer `#sym-show-{id}` "Show" ("Show {label} first") and,
+only for a symptom she added and never logged, "Remove". A `Details` "Add from the perimenopause list" (My Cycle and
+Trying to conceive) / "Add from the cycle list" (Perimenopause and Menopause) says "These show up in your patterns,
+calendar and report like the rest. Once you've logged one, you can hide it but not remove it, so your history stays
+whole." and lists the other library's symptoms not yet added, each with "Add" (`#sym-add-{id}`). "Put back Cyra's
+order" (`.linkbtn.symreset`, only while an order or a hidden symptom is set) clears order and hidden and keeps what she
+added at the end. Every action writes `symPrefs` (the 400 ms autosave keeps it; no toasts); a visually hidden
+`aria-live="polite"` line says "{label} moved to {k} of {n}." / "{label} hidden. It's under More symptoms now." /
+"{label} shows first again, at the end." / "{label} added at the end." / "{label} removed from your list." / "Back to
+Cyra's order. Symptoms you added stay at the end." Focus follows the symptom, by element id after the next render: after
+a move it stays on the same arrow, or on the row's other arrow when the pressed one became disabled; after Hide on
+`#sym-show-{id}`; after Show or Add on `#sym-up-{id}`; after Remove or the reset on the h2. UI chrome only: no family
+colour in the sheet. *Day note:* after Body signals and before the Save bar in every form (quick, full, "more detail",
+"Fixing up") sits `button.linkbtn.addnote` "Add a note"; it opens `div.daynote` and focuses the field, bringing the
+note clear of the sticky Save bar: a `label.section-lab` "Note for today" ("Note for {Mon D}" when fixing up a day),
+`textarea#day-note.inp` (3 rows, `maxLength` 280, placeholder "A trigger, a change, anything worth remembering",
+`aria-describedby="day-note-hint day-note-count"`), the hint `p.rfoot#day-note-hint` "Kept with this day on this device
+and in backups you save. Cyra never sends it anywhere." and the counter `#day-note-count` "{n}/280" (`.notecount.near`
+from 260 on). A polite live line says "20 characters left." and "10 characters left." at exactly those counts and "The
+note is full." at 280. The field stays open while the day has a note (clearing it never collapses it mid-edit). The save
+stores `cleanNote(dayNote)` as `entry.note` (trimmed, CRLF to LF, at most 280 UTF-16 units, never half a surrogate pair;
+no key when empty); it is part of the form (App.jsx `dayNote`: loaded from the day's entry, kept aside with the rest of
+today's form while another day is edited, kept open past midnight, reloaded when another tab saves today) and is
+never handed to `contribute()`. *Tap budget (A8):* the quick path is still three answers + Save.
+
 **Calendar:** month grid. Logged days filled with their day-score color. Period days
 marked, the mark sized by flow. Predicted period (dashed: every day of the likely-start range) and
 estimated fertile window (accent) for unlogged days. Tap any day → detail panel showing what was logged →
@@ -304,7 +372,9 @@ their hint, calhint and legend exactly.
 (score fill + `scoreInk`); symptoms are a `.pday-s` list whose severity dots take the symptom's family colour
 through `--fc` (`famColor()`); the footer is "Edit this day" for a logged day, "Log this day" for an unlogged
 day up to today (both open the Today edit flow via `onEdit(iso)` — "Fixing up {date}"), or the sentence
-"That day hasn't happened yet." for a future day, and always "Close".
+"That day hasn't happened yet." for a future day, and always "Close". A day with a note (L6) adds
+`p.dayline.noteline` "**Note:** {text}" after the "Period · Sleep: …" line, rendered as text (never HTML) with its line
+breaks kept (`white-space:pre-wrap`); the symptom list is the tracked list (§3.6), so added and hidden symptoms appear.
 *Confidence card (L5):* `<div class="card"><div class="num">±{pred.half}d<span class="rmeta">confidence</span></div><p>…</p></div>`;
 the sentence joins, with spaces: (a) the range — upcoming "Period likely {Oct 26 – Nov 1}." (`fmtRange`, spaced en
 dash, both dates in full); window "Period likely any day now, by {Nov 1}."; later "Later than your usual range, which
@@ -501,6 +571,11 @@ Starter pills, the source badge, the landing and the one-tap AI route are in §1
 ### 5.2 Pregnancy stage — tabs: Today · Calendar · Milestones · Ask
 **Today:** week number + trimester + progress bar to 40 weeks · weekly read · pregnancy
 symptoms · **kick counter** · red-flag advice (e.g. severe swelling → contact provider today).
+*L6:* the same "Symptoms · Edit" row, "Your symptoms" sheet and "More symptoms · n" as §5.1, with order and Hide only
+(`symPrefs.preg`; nothing is borrowed into GSYM, so no "Add from" Details) and the hint "Pick what shows first and in
+what order. Hide moves a symptom under More symptoms. Everything you log stays in your calendar, wherever it sits.
+Changes save as you go." (pregnancy has no Patterns or Report tab). The day note (§5.1) sits after the advice card and
+before the Save bar, saved as `pregLog[iso].note`; `contribute({ sym, kicks })` never gets it.
 **Calendar:** week-start markers (w22, w23…), logged-day dots, due-date countdown. No
 fertile-window or period prediction — meaningless here.
 *UI C1:* the same month navigation, cell naming, selected ring, future styling and day card as §5.1 (the
@@ -510,7 +585,7 @@ that day" is unchanged). Week-start cells are `.c-wk` (2px --accent border, 10% 
 with the `.c-log` dot; the legend uses `.d-wk` and `.d-logdot` and is followed by the rough → great gradient
 legend. Under the legends a `.card` with Fraunces "w{week}" reads "{40 − week} weeks to your due date,
 {due}. Trimester {1|2|3}. Tap any day to see or add what you logged." The hint is "Week markers and your
-logged days."
+logged days." The day card adds "**Note:** {text}" after the "{n} kicks" line when that day has a note (L6).
 **Milestones:** the full evidence-based prenatal schedule (§7), each item status-tagged
 against her current week: done ✓ / in window / coming up / later.
 *UI M1:* the tab keeps its name, place and role. The screen opens on "you are here": a "Jump to this week" link
@@ -583,10 +658,17 @@ predictions (D5); where it lists lengths, left-out ones are labelled "(left out 
 ```
 burden = min(1, symptomBurden*0.5 + (fatigue/10)*0.2 + (pain/10)*0.2 + ((10-moodq)/10)*0.1)
    where symptomBurden = min(1, sum(severities) / (symptomCount * 1.6))
+         symptomCount = SCORE_SCALE[stage]: 12 peri / meno, 10 cycle / TTC, 8 pregnancy (L6)
 score  = 1 - burden        // 1 = great day, 0 = rough day
 labels: >0.82 "A really good day" | >0.64 "A good day" | >0.46 "A mixed day"
         | >0.28 "A hard day" | else "A rough day"
 ```
+`symptomCount` is fixed per stage (`SCORE_SCALE`, lib/constants.js): the library sizes when the score was defined.
+`sum(severities)` runs over the tracked list (§3.6), so every symptom she logs still adds its severity, but neither a new
+library symptom (Low energy, L6) nor her list ever rescales a past day: a day that didn't log the symptom concerned keeps
+its score exactly (unit-tested; the Calendar tints and digits of a record without Low energy are identical to the build
+before L6). `symBurden(sym, ids, scale)` / `dayScore(entry, ids, scale)` take it as a third argument; without one they
+divide by the number of ids, as before.
 
 ### 6.4 Advice thresholds (each produces guidance + urgency)
 | Condition | Urgency | Guidance must convey |
@@ -714,6 +796,10 @@ fallbacks still work) and `rampVar(k)` (`var(--ramp-*)`, the POTS charts). The d
 functions in `src/lib/engine.js`: `scoreRgb(s, ramp)`, `scoreColorOf(s, ramp)` ("rgb(r,g,b)") and `inkOn(rgb)`, with
 `rampOf(stage, scheme)` choosing RAMPS or RAMPS_DARK. The POTS PDF (lib/potsReport.js) keeps the light `RAMPS.peri`
 whatever the appearance.
+
+**Low energy's family (L6).** `SYM_FAMILY.eng = "sleep"`: Low energy is the everyday "tired", so a rough night and a
+flat next day share the Sleep colour. It is an editorial choice, recorded here; the 0–10 Fatigue slider stays as the
+detailed scale and Low energy is the fast severity tap (decision D8 keeps both).
 
 **Family colours and the Heat / Mind pair (residual).** The symptom-family marks (FAMILIES: Heat #E34948, Sleep
 #2A78D6, Mind #008300, Pain #EDA100, Body #1BAF7A) keep a red/green pair on the chart dots, which deuteranopes and
@@ -879,7 +965,8 @@ pill ("Delete everything") carries `.mc.danger`: --bad text with a 40% --bad bor
 **Icons (src/components/Icon.jsx).** `Icon({ name, size = 16, className })` renders one inline `<svg aria-hidden="true">`
 on a 24-unit grid, `stroke="currentColor"`, 2px round strokes, from a path map: chevron, check, close, lock, bell, clock,
 chart, clipboard, drop, salt, heart, book, sparkle, print, share, people, plus-circle, lightning, foot, palette, sliders,
-apple, google, facebook, file, download, moon (Settings → Appearance). No emoji anywhere in src (they render differently per OS and the palette emoji was the most
+apple, google, facebook, file, download, moon (Settings → Appearance), arrow-up and arrow-down (the Move up / Move down
+buttons in "Your symptoms", L6). No emoji anywhere in src (they render differently per OS and the palette emoji was the most
 saturated object on every screen): the header buttons are `sliders` (settings) and `palette`, the kick button `foot`,
 the palette tick and the Milestones "done" tag `check`. An icon is decorative: the text node beside it, or the button's
 aria-label, carries the meaning, and asserted texts ("✓ On", "✓ Taken", "✓ Sync", the `.ckbox` glyphs) stay as text.
@@ -893,7 +980,7 @@ disclosure pattern: `aria-expanded` plus `aria-controls` naming the panel (`Deta
 carry it. Body-signal `.minichip`s carry `aria-pressed`.
 
 **One level of containment.** A bordered button never sits inside a bordered card. A `Details` inside `.mscard`,
-`.pulse` or `.pchart` renders as a row: no border, a 1px --line hairline above, no fill, --primary-text label, the chevron
+`.pulse`, `.pchart` or `.symsheet` (L6) renders as a row: no border, a 1px --line hairline above, no fill, --primary-text label, the chevron
 at the right, 8px vertical padding; its panel is unbordered. The bordered `Details` on Settings, Connect, the consent step
 and the wearable confirm cards stay bordered (they sit on paper or in a plain card). `.icard` owns the shadow and radius of
 an insight card: its `.card` has no shadow and square bottom corners, so the number card and its Advice read as one card
@@ -1227,6 +1314,12 @@ max, never a second nudge, never guilt for missed days — patterns tolerate gap
 replaces the symptom grid with three stage-specific questions (~10 s) that map onto hero
 symptoms so patterns still compute; Full mode shows everything.
 
+**Tap budget (L6, brief must-have 1: a log in under 40 seconds).** Counted from the Today screen as it opens: a quick log
+is the three answers + "Save today's check-in" = 4 taps; a full log (a flow, three symptoms, sleep and Save) is 8 taps
+from quick mode ("more detail", "Body signals", the flow, three chips, "Slept well", Save) and 7 with Settings "Full
+detail". The day note and the symptom list add no tap to either path (the note is one optional link; her list only
+reorders what is already there). Measured with Playwright on every change to Today (lf/l6/taps.mjs in the harness).
+
 **Quick questions (UI T1).** `QUICK_Q[stage]` in `lib/constants.js` is three `{ q, a }` entries; `a` is four answers
 whose index 0–3 is the value saved (so `QUICK_MAP` and `foldQuick` are untouched and "Rough night" on "How did you
 sleep?" lands on `slp` as the 2 that "Yes" used to). The answers read as answers to their question:
@@ -1348,6 +1441,10 @@ Apple stays first.
 - [x] Irregular cycles (local-first L5): predictions from the median of her last up-to-6 kept cycles with an honest
       likely-start range, long cycles to 120 days, "Don't use" per cycle (suggested, never automatic), clinical markers
       keep every cycle (§3.5, §6.2, §5.1 Calendar rules).
+- [x] Faster, personal daily log (local-first L6): her symptom list per stage (order, More symptoms, added from the
+      other stage's library; everything logged still counts), Low energy in the cycle and perimenopause libraries, an
+      optional day note of up to 280 characters on every check-in, kept on the device and in backups (§3.6, §5.1
+      "Today: her symptom list and a day note", A8 tap budget, A14.6).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the
       predicted date to Cyra's server, and today's copy promises one reminder at most. The brief's item 7 ("optional
       reminders for logging or predicted period") is met today by the optional logging reminder (A8).
@@ -1699,3 +1796,22 @@ cards, "Your cycles"; the Patterns peri card; the Report's labelled lengths), A1
   returns `cycles` and never reads cycleFlags.
 - `src/components/CycleList.jsx` renders "Your cycles"; the restore line lives in `lib/disclosures.js` `restoreChanges`.
 - Nothing new leaves the device (docs/PRIVACY-AUDIT.md, Local-first L5).
+
+### A14.6 Faster, personal daily log: favourites, energy, a day note (L6)
+
+Decisions D7 (day note) and D8 (favourites, Low energy). Normative text in §3.1 (`note`), §3.2 (`eng`, `ALL_SYM`),
+§3.6 (symPrefs and the tracked list), §5.1 ("Today: her symptom list and a day note", the Calendar day card), §5.2
+(Pregnancy Today and its Calendar card), §6.3 (`SCORE_SCALE`), §8.2 (Low energy's family), §8.4 (icons, containment)
+and A8 (tap budget).
+- `src/lib/daylog.js` (pure, imports only constants.js, unit-tested in `src/lib/daylog.test.mjs`): `STAGE_LIB`,
+  `borrowable`, `cleanSymPrefs`, `prefsFor`, `trackedIds`, `chipLayout`, `moveSym`, `hideSym`, `showSym`, `addSym`,
+  `loggedEver`, `canRemove`, `removeSym`, `resetSyms`, `NOTE_MAX`, `cleanNote`. record.js imports it for
+  `RULES.symPrefs` and the note rule.
+- `src/lib/constants.js`: `ENERGY_ID`, `eng` last in SYM and PSYM, `ALL_SYM`, `SCORE_SCALE`, `OTHER_LIST`,
+  `SYM_FAMILY.eng`. `src/lib/engine.js`: `symBurden` / `dayScore` take a third `scale` argument.
+- `src/components/SymptomSheet.jsx` ("Your symptoms") and `src/components/DayNote.jsx`; Today, Pregnancy Today, both
+  Calendars, PatternCharts (`windowDays`, `ringModel`, `PatternsCard` take `scale`) and App.jsx (`symPrefs`, `dayNote`,
+  the tracked `symIds`, `scoreDay`).
+- Free core (brief must-have 1): no plan gate, never `plan.can()`. Nothing new leaves the device: the note and her list
+  are in the record and in the encrypted backup she saves, never in weekly counts, Ask, the doctor email or the POTS
+  report (docs/PRIVACY-AUDIT.md, L6).

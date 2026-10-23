@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { GSYM, famColor } from "../lib/constants.js";
 import { fmt, localDay, sevDots, trimesterOf } from "../lib/engine.js";
+import { cleanNote } from "../lib/daylog.js";
 
 /* Pregnancy — Calendar: any month, one at a time (‹ › move, "Back to this month" returns;
    the month resets when the tab is re-entered because the tab panel remounts). Week-start
@@ -74,6 +75,7 @@ export default function PregCalendarScreen({ pregWeek, pregLog, dayScore, scoreC
                   </ul>
                 ) : <p className="dayline">No symptoms</p>}
                 <p className="dayline">{e.kicks} kicks</p>
+                {cleanNote(e.note) && <p className="dayline noteline"><b>Note:</b> {cleanNote(e.note)}</p>}
               </>
             ) : (
               <p className="hint" style={{ margin: "6px 0 0" }}>Nothing logged this day.</p>

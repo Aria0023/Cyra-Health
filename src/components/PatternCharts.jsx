@@ -40,13 +40,14 @@ export function dominantFamily(entry, ids) {
   return entry.sleepQ === "poor" ? "sleep" : null;
 }
 
-/* The last `n` calendar days ending today, with the entry, score and family for each. */
-export function windowDays(sorted, ids, todayIso, n = 60) {
+/* The last `n` calendar days ending today, with the entry, score and family for each. scale: the day-score divisor
+   (App.jsx passes SCORE_SCALE[stage]; lib/engine.js dayScore). */
+export function windowDays(sorted, ids, todayIso, n = 60, scale = ids.length) {
   const by = new Map(sorted.map((d) => [d.date, d]));
   return Array.from({ length: n }, (_, i) => {
     const iso = addDays(todayIso, i - (n - 1));
     const e = by.get(iso) || null;
-    return { iso, e, score: e ? dayScore(e, ids) : null, fam: dominantFamily(e, ids) };
+    return { iso, e, score: e ? dayScore(e, ids, scale) : null, fam: dominantFamily(e, ids) };
   });
 }
 
@@ -259,13 +260,13 @@ function DayField({ days, rows, stats, sel, setSel, compact = false, popIso = nu
 /* The last 4 cycles that began with a logged start (the newest runs to today), every day placed on
    its ring, and the 5-day window of cycle days that is usually hardest (needs 2 cycles and 6 rated
    days in the window; null otherwise). */
-function ringModel(sorted, ids, starts, todayIso) {
+function ringModel(sorted, ids, starts, todayIso, scale = ids.length) {
   const by = new Map(sorted.map((d) => [d.date, d]));
   const cyc = starts.slice(-4).map((s) => {
     const next = starts[starts.indexOf(s) + 1];
     const end = next ? addDays(next, -1) : todayIso;
     const len = Math.min(45, daysBetween(s, end) + 1);
-    return { start: s, days: Array.from({ length: len }, (_, k) => { const iso = addDays(s, k), e = by.get(iso) || null; return { iso, cd: k + 1, e, score: e ? dayScore(e, ids) : null, fam: dominantFamily(e, ids) }; }) };
+    return { start: s, days: Array.from({ length: len }, (_, k) => { const iso = addDays(s, k), e = by.get(iso) || null; return { iso, cd: k + 1, e, score: e ? dayScore(e, ids, scale) : null, fam: dominantFamily(e, ids) }; }) };
   });
   const S = 340, cx = S / 2, cy = S / 2;
   const MAXD = Math.max(35, ...cyc.map((c) => c.days.length));
@@ -342,8 +343,8 @@ const Tri = ({ up }) => <svg className="ptri" width="10" height="10" viewBox="0 
    is picked. The view switch and the legend stay in both variants. popIso: the day just saved
    (App.jsx justSaved, 1.2 s after a save of today); its dot pops once (.dot-new). allowCycle
    (Patterns): false in menopause, so the "By cycle · after your 2nd period" placeholder never
-   shows there. Renders nothing until 3 days are logged. */
-export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso, maxRows = 6, onMore = null, compact = false, popIso = null, allowCycle = true }) {
+   shows there. scale: the day-score divisor for the rings (as windowDays). Renders nothing until 3 days are logged. */
+export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso, maxRows = 6, onMore = null, compact = false, popIso = null, allowCycle = true, scale }) {
   const [view, setView] = useState("days");
   // Patterns opens on the last logged day; Home waits for a tap
   const [selIso, setSelIso] = useState(() => (compact ? null : [...days].reverse().find((d) => d.e)?.iso ?? null));
@@ -361,7 +362,7 @@ export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso,
   const allRows = symptomRows(days, ids, labels, maxRows);
   const rows = compact ? allRows.slice(0, maxRows) : allRows;
   const stats = dayStats(days);
-  const model = cycleView ? ringModel(sorted, ids, starts, todayIso) : null;
+  const model = cycleView ? ringModel(sorted, ids, starts, todayIso, scale) : null;
   // one selection for both views, kept by date so switching views keeps the day when it is drawn
   const daySel = selIso == null ? null : days.findIndex((d) => d.iso === selIso);
   const ringSel = model && selIso != null ? model.pts.findIndex((p) => p.iso === selIso) : null;

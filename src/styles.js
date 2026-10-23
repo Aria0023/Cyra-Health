@@ -774,4 +774,38 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .installtip .tipico { flex:0 0 auto; color:var(--accent-text); }
 .installtip .takebtn { flex-shrink:0; padding:8px 11px; }
 .tipclose { flex:0 0 44px; width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; padding:0; border:none; background:none; color:var(--soft); border-radius:var(--r-pill); cursor:pointer; }
+/* ---- L6: symptom list and day note (spec §5.1 "Today: her symptom list and a day note"). The "Symptoms · Edit" row over
+   the chips, the "More symptoms · n" disclosure under them, the inline "Your symptoms" sheet (a card like the palette
+   sheet; its title bar is not sticky mid-page under the section bar; one level of containment, so its Details renders
+   as a row), and the day note with its counter. Tokens only; no family colours in the sheet. ---- */
+.chiphead { display:flex; justify-content:space-between; align-items:center; gap:10px; margin:2px 0 4px; }
+.chiphead .section-lab { margin:0; }
+.chiphead .linkbtn { font-size:var(--fs-sm); min-width:44px; justify-content:flex-end; }
+.disclosure.more.symmore { margin:-6px 0 12px; }
+.disclosure.more.symmore[aria-expanded="true"] { border-radius:var(--r-inner); }
+.chips.morechips { margin:8px 0 16px; }
+.symsheet { background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:14px; margin:0 0 16px; box-shadow:var(--sh-sheet); animation:cy-fade-rise var(--t-base) var(--ease-in); }
+.symsheet .sheethead { position:static; }
+.symsheet .section-lab::before { display:none; }
+.symsheet .section-lab { margin:14px 0 2px; }
+.symsheet > .hint { font-size:var(--fs-sm); margin:0 0 6px; }
+.symlist { list-style:none; margin:0; padding:0; }
+.symlist .medrow { flex-wrap:wrap; }
+.symlist .medinfo { flex:1 1 130px; min-width:0; overflow-wrap:anywhere; }
+.symlist .wearbtns { margin-left:auto; flex-wrap:wrap; justify-content:flex-end; }
+.sbtn.symmove { min-width:44px; padding:0 10px; display:inline-flex; align-items:center; justify-content:center; }
+.symsheet .disclosure.more { border:none; border-top:1px solid var(--line); border-radius:0; background:none; padding:8px 0; margin-top:10px; color:var(--primary-text); }
+.symsheet .bodypanel.more { border:none; padding:0 0 4px; }
+.symsheet .bodypanel.more ul { padding-left:0; }
+.symsheet .bodypanel.more li { margin:0; }
+.symsheet .linkbtn.symreset { display:flex; margin:10px 0 0; font-size:var(--fs-sm); }
+.linkbtn.addnote { display:flex; margin:10px 0 4px; font-size:var(--fs-md); }
+.daynote { margin:14px 0 4px; }
+.daynote .section-lab { display:block; margin:0 0 6px; }
+.daynote .inp { display:block; min-height:76px; resize:vertical; line-height:1.45; margin-bottom:4px; }
+.notefoot { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.notefoot .rfoot { margin:0; }
+.notecount { flex-shrink:0; font-size:var(--fs-sm); color:var(--soft); font-variant-numeric:tabular-nums; }
+.notecount.near { color:var(--ink); font-weight:700; }
+.daycard .dayline.noteline { white-space:pre-wrap; overflow-wrap:anywhere; }
 `;

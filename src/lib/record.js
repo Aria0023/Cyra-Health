@@ -3,7 +3,7 @@
    device and in `node --test`. lib/storage.js passes every record it loads through migrate(), and
    App.jsx importBackup passes every decrypted backup through it too. RECORD_VERSION is 1 and there
    are no migration steps yet, so migrate() returns today's records untouched (the same object).
-   engine.js is the lower layer: this file may import it; engine.js never imports this file.
+   engine.js and daylog.js (L6) are lower layers: this file may import them; neither ever imports this file.
 
    Written for the iOS 15.0 web view as well: no structuredClone, Array.prototype.at, findLast or
    Object.hasOwn (Object.prototype.hasOwnProperty.call instead). docs/ARCHITECTURE.md §4 describes
@@ -11,6 +11,7 @@
    record.test.mjs's pinned lists and in App.jsx's setters and values. */
 import { localDay, isPeriodDay, cycleStarts, cycleSpans, cleanCycleFlags } from "./engine.js";
 import { PALETTES, CADENCE, FLOW, DISCHARGE, ODOR, BODYODOR, RELATIONSHIP, INTIMACY, AFTER } from "./constants.js";
+import { cleanSymPrefs, NOTE_MAX } from "./daylog.js";
 
 /* ======================= shapes (documentation only) =======================
    Class tags: [record] the health record and settings (in the backup file, applied by a restore,
@@ -58,6 +59,7 @@ import { PALETTES, CADENCE, FLOW, DISCHARGE, ODOR, BODYODOR, RELATIONSHIP, INTIM
  * @property {null|"dismissed"|"installed"} installHint [device-only] [not-in-backup] whether this browser's install tip stays away (lib/pwa.js).
  * @property {"system"|"light"|"dark"} appearance [device-pref] [not-in-backup] this device's light / dark choice (lib/appearance.js).
  * @property {CycleFlags} cycleFlags [record] cycles she left out of predictions (L5); missing means {}.
+ * @property {SymPrefs} symPrefs [record] her symptom list per stage (L6); missing means {} (Cyra's order).
  */
 
 /**
@@ -74,6 +76,8 @@ import { PALETTES, CADENCE, FLOW, DISCHARGE, ODOR, BODYODOR, RELATIONSHIP, INTIM
  * @property {string|null} [disch] DISCHARGE id.
  * @property {string|null} [odor] ODOR id.
  * @property {string|null} [bodyOdor] BODYODOR id.
+ * @property {string} [note] her day note (L6): trimmed, at most 280 UTF-16 units (lib/daylog.js cleanNote); absent when empty.
+ *   On the device and in backups only; never in weekly counts, Ask or the doctor email.
  */
 
 /**
@@ -84,6 +88,7 @@ import { PALETTES, CADENCE, FLOW, DISCHARGE, ODOR, BODYODOR, RELATIONSHIP, INTIM
  * @property {{fatigue?: number, pain?: number, moodq?: number, stress?: number}} [scales] each 0–10.
  * @property {string|null} [odor] ODOR id.
  * @property {string|null} [bodyOdor] BODYODOR id.
+ * @property {string} [note] her day note (L6), as DayEntry.note.
  */
 /** @typedef {Object<string, PregEntry>} PregLog pregnancy check-ins by local day (YYYY-MM-DD). */
 
@@ -103,6 +108,15 @@ import { PALETTES, CADENCE, FLOW, DISCHARGE, ODOR, BODYODOR, RELATIONSHIP, INTIM
  * the clinical markers never do. Sanitised on load, adopt and restore by engine cleanCycleFlags (at most 400
  * entries). In backups, restored literally (a backup without it clears it).
  * @typedef {Object<string, {exclude: boolean}>} CycleFlags
+ */
+
+/**
+ * Her symptom list per stage id (L6, spec §3.4), lib/daylog.js: { periods?, peri?, preg? }, each { order, hidden, added }
+ * (lists of symptom ids, at most 40 each). My Cycle and Trying to conceive share "periods"; Perimenopause and Menopause
+ * share "peri"; pregnancy has order and hidden only. {} is Cyra's order. In the record and in backups, restored
+ * literally (a backup without it brings back Cyra's order). The tracked list (library + added, hidden included)
+ * drives every insight, so hiding a chip never hides what she logged.
+ * @typedef {Object<string, {order: string[], hidden: string[], added: string[]}>} SymPrefs
  */
 
 /**
@@ -170,8 +184,9 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    reminders persists { enabled, endpoint, pending, rev } — this browser's push address, any
    address Cyra's server still has to forget, and a version so every open tab agrees on the
    on/off switch; its status is worked out again at every launch.
-   cycleFlags (L5) is her own per-cycle choice ("Don't use for predictions"): part of the record, so it travels in backups. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags"]);
+   cycleFlags (L5) is her own per-cycle choice ("Don't use for predictions"): part of the record, so it travels in backups.
+   symPrefs (L6) is her symptom list per stage (order, More symptoms, added from the other list): record, in backups. */
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -275,8 +290,12 @@ const scalesProblems = (sc, p) => {
 };
 const pickProblems = (e, p, field, list) => (has(e, field) && e[field] !== undefined && !oneOfOrNull(e[field], idsOf(list)) ? [`${p}.${field}: expected ${listWords([...idsOf(list), "null"])}, got ${show(e[field])}`] : []);
 
+/* The day note (L6): when present, a non-empty string of at most NOTE_MAX UTF-16 units (it is saved trimmed and
+   absent when empty). Reported, never trimmed or dropped here. */
+const noteProblems = (e, p) => (has(e, "note") && e.note !== undefined && !(typeof e.note === "string" && e.note.trim() !== "" && e.note.length <= NOTE_MAX)
+  ? [`${p}.note: expected text of 1–${NOTE_MAX} characters, got ${show(e.note)}`] : []);
 function dayEntryProblems(d, p) {
-  const out = [...symProblems(d.sym, `${p}.sym`), ...scalesProblems(d.scales, `${p}.scales`)];
+  const out = [...symProblems(d.sym, `${p}.sym`), ...scalesProblems(d.scales, `${p}.scales`), ...noteProblems(d, p)];
   if (d.sleepQ !== undefined && d.sleepQ !== null && !SLEEP_Q.includes(d.sleepQ)) out.push(`${p}.sleepQ: expected good, fair or poor, got ${show(d.sleepQ)}`);
   if (d.period !== undefined && typeof d.period !== "boolean") out.push(`${p}.period: expected true or false, got ${show(d.period)}`);
   out.push(...pickProblems(d, p, "flow", FLOW), ...pickProblems(d, p, "disch", DISCHARGE), ...pickProblems(d, p, "odor", ODOR), ...pickProblems(d, p, "bodyOdor", BODYODOR));
@@ -297,7 +316,7 @@ const daysRule = (v, p) => {
 };
 const pregEntryProblems = (e, p) => {
   if (!isObj(e)) return [`${p}: expected a pregnancy entry, got ${show(e)}`];
-  const out = [...symProblems(e.sym, `${p}.sym`), ...scalesProblems(e.scales, `${p}.scales`)];
+  const out = [...symProblems(e.sym, `${p}.sym`), ...scalesProblems(e.scales, `${p}.scales`), ...noteProblems(e, p)];
   if (e.kicks !== undefined && !isCount(e.kicks)) out.push(`${p}.kicks: expected a whole number ≥ 0, got ${show(e.kicks)}`);
   out.push(...pickProblems(e, p, "odor", ODOR), ...pickProblems(e, p, "bodyOdor", BODYODOR));
   return out;
@@ -389,6 +408,8 @@ export const RULES = Object.freeze({
   appearance: enumRule(APPEARANCES),
   // Her "Don't use for predictions" choices: a problem whenever cleanCycleFlags would change anything.
   cycleFlags: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanCycleFlags(v)) ? [] : [`${p}: expected { YYYY-MM-DD: { exclude: true|false, … } } (at most 400, no empty entries), got ${show(v)}`]),
+  // Her symptom list per stage (L6): a problem whenever cleanSymPrefs would change anything.
+  symPrefs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanSymPrefs(v)) ? [] : [`${p}: expected { periods|peri|preg: { order, hidden, added } } (lists of symptom ids, at most 40 each, no empty stages), got ${show(v)}`]),
 });
 
 /** Problems with a record, each "<path>: <what is wrong>" (e.g. "days[2].sym.crm: expected a

@@ -1,4 +1,4 @@
-import { SYM, PSYM, QUICK_MAP, PRENATAL } from "./constants.js";
+import { ALL_SYM, QUICK_MAP, PRENATAL } from "./constants.js";
 
 /* Deterministic demo data, cycle detection, prediction and scoring. Pure
    functions only — no React, no state, no side effects.
@@ -125,8 +125,7 @@ export function insights(days, ids, today = new Date()) {
   const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
   const from = isoBefore(today, 29);
   const last30 = sorted.filter((d) => d.date >= from);
-  const lib = { ...SYM, ...PSYM };
-  const counts = ids.map((id) => ({ id, label: lib[id], days: last30.filter((d) => d.sym[id] > 0).length, strong: last30.filter((d) => d.sym[id] >= 2).length })).sort((a, b) => b.days - a.days);
+  const counts = ids.map((id) => ({ id, label: ALL_SYM[id], days: last30.filter((d) => d.sym[id] > 0).length, strong: last30.filter((d) => d.sym[id] >= 2).length })).sort((a, b) => b.days - a.days);
   const roughNights = last30.filter((d) => d.sleepQ === "poor").length;
   const pairs = sorted.slice(1).map((d, i) => [sorted[i], d]);
   const hfMult = hfRatio(pairs);
@@ -349,16 +348,19 @@ export function cycleSummary(ins, flags, todayIso, usedStarts = []) {
 /* Calendar no longer uses this (its cells compare ISO days); kept for compatibility. */
 export const inRange = (d, a, b) => d >= new Date(a.toDateString()) && d <= new Date(b.toDateString());
 
-/* ---------- day score: 0 (rough) .. 1 (great) ---------- */
-export const symBurden = (symObj, ids) => {
+/* ---------- day score: 0 (rough) .. 1 (great) ----------
+   scale is the divisor's symptom count. The app passes SCORE_SCALE[stage] (lib/constants.js: the library sizes when
+   the score was defined), so a symptom added to a library or to her list never rescales a past day, while every
+   tracked id still adds its severity. Without it, the count of ids (the behaviour before L6). */
+export const symBurden = (symObj, ids, scale = ids.length) => {
   const vals = ids.map((k) => symObj[k] || 0);
-  return vals.length ? Math.min(1, vals.reduce((a, b) => a + b, 0) / (ids.length * 1.6)) : 0;
+  return vals.length ? Math.min(1, vals.reduce((a, b) => a + b, 0) / (scale * 1.6)) : 0;
 };
 export const scoreLabel = (s) => s > 0.82 ? "A really good day" : s > 0.64 ? "A good day" : s > 0.46 ? "A mixed day" : s > 0.28 ? "A hard day" : "A rough day";
-export const dayScore = (entry, ids) => {
+export const dayScore = (entry, ids, scale = ids.length) => {
   if (!entry) return null;
   const sc = entry.scales || {};
-  return 1 - Math.min(1, symBurden(entry.sym || {}, ids) * 0.5 + ((sc.fatigue || 0) / 10) * 0.2 + ((sc.pain || 0) / 10) * 0.2 + ((10 - (sc.moodq ?? 5)) / 10) * 0.1);
+  return 1 - Math.min(1, symBurden(entry.sym || {}, ids, scale) * 0.5 + ((sc.fatigue || 0) / 10) * 0.2 + ((sc.pain || 0) / 10) * 0.2 + ((10 - (sc.moodq ?? 5)) / 10) * 0.1);
 };
 export const sevDots = (n) => "●".repeat(n) + "○".repeat(3 - n);
 /* ---------- day-score colour (data viz; the ramp comes from lib/constants.js rampOf(stage, scheme)) ----------

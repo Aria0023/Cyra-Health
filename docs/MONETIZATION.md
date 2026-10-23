@@ -34,8 +34,11 @@ A feature that ships free stays free.
 - Reminders.
 - The encrypted backup file and restore, and Delete everything.
 - Palettes, light and dark mode, and the installable web app that opens offline.
+- Symptom favourites per stage (order, "More symptoms", symptoms added from the other stage's list) and day notes,
+  both part of the fast daily log (brief must-have 1). They are never behind `plan.can()`;
+  `plan.extraCustomisation` is for extras beyond these.
 
-**Coming in this work, also free:** favourites, a day note, fertility signs, plain-language
+**Coming in this work, also free:** fertility signs, plain-language
 summaries, the PDF export (unlimited today), the privacy dashboard and the app lock.
 
 ## 3. Paid extension points (none active)

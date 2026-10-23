@@ -10,8 +10,8 @@ import { lensLabel } from "../lib/engine.js";
    "Ask about this →" opens Ask with that question answered on the device (lib/askStarters.js).
    onGo(tab), onAsk(question) and onPots() come from App.jsx. The perimenopause spread is a clinical marker: it
    counts every cycle, and lens6 (engine cycleSummary) labels the ones she left out of predictions (L5). */
-export default function PatternsScreen({ ins, lens6 = null, symIds, symMap, stage, isMeno = false, todayIso, medEffects, potsOn = false, popIso = null, onGo, onAsk, onPots = null }) {
-  const days = windowDays(ins.sorted, symIds, todayIso);
+export default function PatternsScreen({ ins, lens6 = null, symIds, symMap, stage, isMeno = false, todayIso, medEffects, potsOn = false, popIso = null, onGo, onAsk, onPots = null, scoreScale }) {
+  const days = windowDays(ins.sorted, symIds, todayIso, 60, scoreScale);
   const lensList = lens6 || ins.lens.map((len) => ({ len, excluded: false }));
   const logged = days.filter((d) => d.e).length;
   const starts = isMeno ? [] : ins.starts || [];
@@ -31,7 +31,7 @@ export default function PatternsScreen({ ins, lens6 = null, symIds, symMap, stag
           <p className="pline"><button type="button" className="linkbtn" onClick={() => onGo("today")}>Log today's check-in →</button></p>
         </ChartSoon>
       )}
-      <PatternsCard days={days} ids={symIds} labels={symMap} starts={starts} sorted={ins.sorted} todayIso={todayIso} popIso={popIso} allowCycle={!isMeno} />
+      <PatternsCard days={days} ids={symIds} labels={symMap} starts={starts} sorted={ins.sorted} todayIso={todayIso} popIso={popIso} allowCycle={!isMeno} scale={scoreScale} />
 
       {stats && stats.diff != null && stats.diff <= -10 && (
         <div className="icard">

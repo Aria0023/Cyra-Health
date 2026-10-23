@@ -37,7 +37,7 @@ UI          src/screens/*.jsx, src/components/**/*.jsx          (props in, callb
 State       src/App.jsx  (useState / useMemo, the 400 ms autosave, cross-tab messages)
   ↓
 Pure lib    engine.js  ←  record.js, pots.js (+ potsPatterns, potsReport, potsMove)
-            constants.js, appearance.js, askLibrary.js;  plan.js and features.js stand alone;
+            daylog.js  ←  record.js;  constants.js, appearance.js, askLibrary.js;  plan.js and features.js stand alone;
             disclosures.js imports only features.js
   ↓
 I/O lib     storage.js, backup.js, files.js, native.js, api.js
@@ -51,9 +51,9 @@ Dependency rules (unit-tested where a test can see them):
 
 - `engine.js` is the lowest pure layer. `record.js` and `pots.js` may import it; it never imports
   them (`record.test.mjs` "layering and no I/O").
-- `record.js` imports only `./engine.js` and `./constants.js` (the allowed list lives in
+- `record.js` imports only `./engine.js`, `./constants.js` and `./daylog.js` (L6; the allowed list lives in
   `record.test.mjs`; a later pure leaf module may be added to it, and none of them may import
-  `record.js` back). `plan.js` and `features.js` import nothing; `disclosures.js` imports only
+  `record.js` back). `daylog.js` imports only `./constants.js`. `plan.js` and `features.js` import nothing; `disclosures.js` imports only
   `features.js`; `backup.js` imports nothing (the POTS suites load it straight from Node).
 - Pure modules never import `api.js`, `native.js` or `storage.js`, and never read `import.meta.env`,
   so `node --test` can load them. (`features.js` is the one exception that reads it, as
@@ -146,6 +146,7 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `regAnswers` | registration answers | health log | yes, without `zip` and `age` | yes | yes |
 | `pots` | the POTS add-on | health log | yes | yes, literally, with a new epoch (a backup without one clears the POTS log; a newer build's locked log stays untouched) | yes, 3-way merged (`mergePots`, epochs) |
 | `cycleFlags` | cycles she left out of predictions, `{ [startIso]: { exclude: true } }` (L5, spec §3.5) | health record (her choice) | yes | yes, literally (`cleanCycleFlags`; a backup without it clears it) | yes (sanitised by `cleanCycleFlags`) |
+| `symPrefs` | her symptom list per stage id, `{ periods?, peri?, preg? }` × `{ order, hidden, added }` (L6, spec §3.6) | record (a setting) | yes | yes, literally (`cleanSymPrefs`; a backup without it brings back Cyra's order) | yes (sanitised by `cleanSymPrefs`) |
 | `palIdx` | palette per stage | setting | yes | yes | yes |
 | `cadence` | check-in rhythm | setting | yes | yes | yes |
 | `quietHours` | reminder time of day | setting | yes | yes | yes |
@@ -182,10 +183,14 @@ setter and a value in App.jsx. A slice that adds a key updates this table in the
 The typedefs in `src/lib/record.js` are the working definitions (spec §3.1 and §3.4):
 
 - **DayEntry** — `{ date: "YYYY-MM-DD" (unique), sym: { id: 0–3 }, scales?: { fatigue, pain, moodq,
-  stress: 0–10 }, sleepQ?: good | fair | poor, period?: boolean, flow?, disch?, odor?, bodyOdor? }`.
+  stress: 0–10 }, sleepQ?: good | fair | poor, period?: boolean, flow?, disch?, odor?, bodyOdor?, note? }`.
+  `note` (L6) is her day note: trimmed, at most 280 UTF-16 units (`daylog.js` `cleanNote`), absent when empty; on the
+  device and in backups only.
   Older records and `seed()` may carry only date, sleepQ, period and sym. At most one entry per date
   (`upsertDay`); `entryFor` returns the first one, as `days.find` did.
-- **PregEntry** — `{ sym, kicks?, scales?, odor?, bodyOdor? }`, kept in `pregLog` by date.
+- **PregEntry** — `{ sym, kicks?, scales?, odor?, bodyOdor?, note? }`, kept in `pregLog` by date (`note` as DayEntry).
+- **SymPrefs** — `{ periods?, peri?, preg? }`, each `{ order, hidden, added }` (lists of symptom ids, at most 40 each);
+  `{}` is Cyra's order. My Cycle and Trying to conceive share `periods`, Perimenopause and Menopause share `peri`.
 - **Cycle** (derived, never stored) — `{ start, next, length, counted, periodDays }` from
   `cyclesFrom(days)`, which builds on engine `cycleSpans(cycleStarts(days))` plus the running cycle.
 - **CycleFlags** — `{ [cycleStartIso]: { exclude: boolean } }`, her "Don't use for predictions" choices; a key within
@@ -194,8 +199,8 @@ The typedefs in `src/lib/record.js` are the working definitions (spec §3.1 and 
   PulseQueue, PulseSent, KickTally. The POTS log's shape is `lib/pots.js`'s.
 
 Symptom ids are stable keys and are never reused for another meaning, so an old entry always reads
-the same way. `sym` may hold ids from any library: `seed()` already writes `eng`, and a later slice
-lets her log a symptom from another stage's library. `validateRecord()` checks all of this, but only
+the same way. `sym` may hold ids from any library: `eng` ("Low energy") is in SYM and PSYM since L6, and
+her list can add a symptom from the other stage's library (`symPrefs.*.added`). `validateRecord()` checks all of this, but only
 as advice: nothing calls it at runtime, and nothing is ever dropped or rewritten because of it.
 
 ## 6. Life stages and phases: one experience, continuous data
@@ -235,6 +240,13 @@ from `days`, `cycleFlags` and the registration answers, every time they are show
 are. The clinical markers (`insights()`: `lens`, `variability`, `lens30`, `variability30`) never read `cycleFlags`, so
 the perimenopause marker and the Report count every cycle. `engine.js` owns cycle detection (`cycleStarts`,
 `cycleSpans`, `cycleLens`); `record.js` `cyclesFrom()` delegates to it, so there is one implementation.
+
+The tracked list (L6): `trackedIds(stage, symPrefs)` (`lib/daylog.js`) is her stage's library plus what she added from
+the other one, hidden ones included; App.jsx's `symIds` is that list for the cycle and perimenopause stages, and
+`insights()`, the patterns card, the Calendar day card, the Report and the doctor email all run on it, so hiding a chip
+never hides what she logged. Day scores divide by `SCORE_SCALE[stage]` (`lib/constants.js`: 12 / 10 / 8, the library
+sizes when the score was defined; App.jsx `scoreDay`), so neither a new library symptom nor her list rescales a past
+day. Both are derived on each render and never stored; only `symPrefs` is.
 
 ## 8. Saving, other tabs, backup and restore, delete
 
