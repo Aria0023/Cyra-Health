@@ -29,7 +29,7 @@ const DEFAULTS = () => ({
   meds: [], medLog: {}, appts: [], journal: {}, wearSources: {}, wearData: [], acct: { name: "", email: "", anon: false }, research: false,
   stage: "peri", stageName: "Perimenopause", welcome: "", days: seed(), pregLog: {}, pulseQueue: null, pulseSent: null, pulseLastSend: null,
   pulseRev: 0, askAI: false, regAnswers: null, reminders: { enabled: false, endpoint: null, pending: [], rev: 0 }, terraOff: [], kickTally: null,
-  pots: freshEmpty(), lastBackupAt: null, installHint: null, appearance: "system", cycleFlags: {}, symPrefs: {}, fertSigns: { on: null, unit: null }, exportLog: null,
+  pots: freshEmpty(), lastBackupAt: null, installHint: null, appearance: "system", cycleFlags: {}, symPrefs: {}, fertSigns: { on: null, unit: null }, exportLog: null, modules: {},
 });
 const appRecord = (over = {}) => {
   const d = { ...DEFAULTS(), ...over };
@@ -104,8 +104,8 @@ test("migrate: a missing, throwing or non-advancing step returns the input (all 
 /* ---------- keys ---------- */
 
 test("key lists are the ones App.jsx used before L3 (pinned)", () => {
-  // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags, L6 symPrefs and L7 fertSigns (record keys: in RECORD and in backups).
-  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog"]);
+  // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags, L6 symPrefs and L7 fertSigns (record keys: in RECORD and in backups); calm R1 appended modules (record, in backups).
+  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules"]);
   assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog"]);
   assert.deepEqual([...DEVICE_PREFS], ["appearance"]);
   assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "exportLog", "appearance"]);
@@ -192,7 +192,7 @@ test("validateRecord: an app-shaped record has no problems", () => {
     reminders: { enabled: true, endpoint: "https://push.example/x", pending: [], rev: 3 }, terraOff: [{ key: "k".repeat(43) }],
     kickTally: { day: iso(0), n: 4 }, lastBackupAt: iso(3), installHint: "installed", appearance: "dark", cycleFlags: { [iso(40)]: { exclude: true }, [iso(70)]: { exclude: false, note: "later field" } },
     symPrefs: { peri: { order: ["eng", "hf"], hidden: ["itc"], added: ["crm"] }, preg: { order: [], hidden: ["brx"], added: [] } },
-    fertSigns: { on: true, unit: "F" },
+    fertSigns: { on: true, unit: "F" }, modules: { pcos: { on: true, since: iso(5) } },
     acct: { name: "Ada", email: "ada@example.com", anon: false }, welcome: "Your pregnancy space is ready.",
     days: [{ date: iso(1), sleepQ: "poor", period: true, scales: { fatigue: 3, pain: 2, moodq: 7, stress: 1 }, flow: "heavy", disch: "creamy", odor: "none", bodyOdor: "same", sym: { crm: 3, hda: 0, eng: 2 }, note: "Migraine after the late shift.\nTook the day slowly." }],
   });
@@ -427,7 +427,7 @@ test("daysLogged", () => {
 
 // record.js may import only these pure leaf modules. A later slice may add one (L6 './daylog.js',
 // L7 './fertility.js'); none of them may import record.js back.
-const RECORD_IMPORTS = ["./engine.js", "./constants.js", "./daylog.js", "./fertility.js"];
+const RECORD_IMPORTS = ["./engine.js", "./constants.js", "./daylog.js", "./fertility.js", "./modules.js"];
 const importsOf = (code) => [...code.matchAll(/^\s*import\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]);
 
 test("layering and no I/O", () => {

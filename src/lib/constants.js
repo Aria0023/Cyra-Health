@@ -140,34 +140,45 @@ export const SHELF = [
   { id: "nightfall", brand: "Nightfall", name: "Cooling sleep set", price: "$68", ev: "Comfort, not a treatment", tone: "comfort", m: ["ns", "hf"], stages: ["peri"], partner: false },
 ];
 
-/* Stage palettes — the app's mood shifts with life stage.
-   peri/meno: cool, calming, trust-building (teal + sage + lavender)
-   pregnancy: soft pink + teal with warm neutrals
-   cycle:     fresh dusty blue + soft coral, young without being girly
-   Each entry carries the seven UI tokens for light and a `dark` object with the same seven (L2,
-   decision D9). Dark rule: paper is the darkest surface, card one step lighter, and primary and
-   accent are light tones of the same hue, so text on a filled primary uses --on-primary. Every
-   dark set passes WCAG AA for text and 3:1 for UI boundaries (lib/appearance.test.mjs). */
+/* Stage palettes (design system v2, calm R1; plan §6): warm airy off-white paper and white cards in light, deep
+   navy-charcoal paper and raised navy cards in dark, shared by every stage, and ONE muted, pastel-leaning accent per
+   stage carried by --primary: My Cycle & Trying to conceive = periwinkle/sky, Perimenopause = lavender, Pregnancy =
+   rose, Menopause & beyond = soft teal (stagePalettes below puts the teal first for Menopause, which shares the "peri"
+   stage id). --accent is a quiet companion hue. The pastel itself lives in the tints (--tint-*, color-mix of the
+   primary into the card) and the wash; the token values here are the AA-valid tones of each hue.
+   Each entry carries the seven UI tokens for light and a `dark` object with the same seven (L2, decision D9). Dark
+   rule: paper is the darkest surface, card one step lighter, and primary and accent are light tones of the same hue,
+   so text on a filled primary uses --on-primary. Every set passes WCAG AA for text (4.5:1) and 3:1 for UI boundaries
+   on paper AND card, light and dark (lib/appearance.test.mjs; numbers in docs/CYRA-BUILD-SPEC.md §8.5). */
 export const PALETTES = {
   peri: [
-    { id: "teal", name: "Teal & Lavender", note: "Clinical calm", primary: "#2C6A61", accent: "#5A6A9E", paper: "#E4EBE7", card: "#FFFFFF", ink: "#17241F", soft: "#4E625B", line: "#6E8A7F", dark: { paper: "#121815", card: "#1C221F", ink: "#E2ECE8", soft: "#97B0A7", line: "#627D72", primary: "#7BC4B8", accent: "#9EB0E9" } },
-    { id: "dusk", name: "Dusty Blue & Sage", note: "Steady, grounded", primary: "#3A5F80", accent: "#607C69", paper: "#E5EAEF", card: "#FFFFFF", ink: "#16212B", soft: "#4D5F6E", line: "#73889F", dark: { paper: "#13161A", card: "#1D2125", ink: "#E3EAF1", soft: "#9AACBB", line: "#67788A", primary: "#8BBAE4", accent: "#9EBBA7" } },
-    { id: "lav", name: "Lavender & Moss", note: "Soft, restorative", primary: "#5B4E85", accent: "#6A7B5C", paper: "#EAE6F0", card: "#FFFFFF", ink: "#1E1A2A", soft: "#5A5270", line: "#897EA8", dark: { paper: "#17141C", card: "#221F27", ink: "#EAE8F1", soft: "#ABA6BA", line: "#787289", primary: "#B7A9EC", accent: "#A7BA99" } },
+    { id: "lavender", name: "Lavender & Sky", note: "Soft, restorative", primary: "#6B52A8", accent: "#3D6E9E", paper: "#FAF7F4", card: "#FFFFFF", ink: "#1E2132", soft: "#585C72", line: "#8A8DA3", dark: { paper: "#131520", card: "#1C1F2D", ink: "#E9EAF3", soft: "#A5A9C0", line: "#6D7290", primary: "#C2AEF2", accent: "#9CC2EC" } },
+    { id: "seafoam", name: "Soft Teal & Lilac", note: "Clear, steady", primary: "#297070", accent: "#7150A6", paper: "#FAF7F4", card: "#FFFFFF", ink: "#1E2132", soft: "#585C72", line: "#8A8DA3", dark: { paper: "#131520", card: "#1C1F2D", ink: "#E9EAF3", soft: "#A5A9C0", line: "#6D7290", primary: "#86D2C9", accent: "#C6AEF2" } },
+    { id: "dusk", name: "Dusk Blue & Rose", note: "Quiet, grounded", primary: "#3E5F8C", accent: "#A84E6E", paper: "#FAF7F4", card: "#FFFFFF", ink: "#1E2132", soft: "#585C72", line: "#8A8DA3", dark: { paper: "#131520", card: "#1C1F2D", ink: "#E9EAF3", soft: "#A5A9C0", line: "#6D7290", primary: "#9DBBE6", accent: "#EFA3BE" } },
   ],
   preg: [
-    { id: "rose", name: "Teal & Dusty Rose", note: "Warm & reassuring", primary: "#2F736E", accent: "#B8505E", paper: "#EFE2E1", card: "#FFFFFF", ink: "#241A1D", soft: "#6B585B", line: "#9A7B79", dark: { paper: "#1D1313", card: "#281D1D", ink: "#F1E6E9", soft: "#BBA2A6", line: "#8A6E6C", primary: "#75C5BE", accent: "#EB989F" } },
-    { id: "sage", name: "Sage & Warm Sand", note: "Earthy, gentle", primary: "#4F7355", accent: "#A06836", paper: "#EDE7DD", card: "#FFFFFF", ink: "#1F2620", soft: "#5C6459", line: "#908373", dark: { paper: "#1A150E", card: "#252017", ink: "#E4ECE5", soft: "#A2AD9E", line: "#837360", primary: "#95C19B", accent: "#E0A472" } },
-    { id: "coral", name: "Muted Blue & Coral", note: "Fresh, modern", primary: "#37627E", accent: "#CA4B2A", paper: "#E6EBEF", card: "#FFFFFF", ink: "#152029", soft: "#4F6070", line: "#73889F", dark: { paper: "#13171A", card: "#1C2125", ink: "#E3EBF1", soft: "#9BACBC", line: "#67788A", primary: "#87BCE0", accent: "#EB9C87" } },
+    { id: "rose", name: "Rose & Lavender", note: "Warm & reassuring", primary: "#A3456A", accent: "#6550A0", paper: "#FAF7F4", card: "#FFFFFF", ink: "#1E2132", soft: "#585C72", line: "#8A8DA3", dark: { paper: "#131520", card: "#1C1F2D", ink: "#E9EAF3", soft: "#A5A9C0", line: "#6D7290", primary: "#F2A5C0", accent: "#C2B0F0" } },
+    { id: "blush", name: "Blush & Teal", note: "Gentle, fresh", primary: "#9C4A5A", accent: "#297070", paper: "#FAF7F4", card: "#FFFFFF", ink: "#1E2132", soft: "#585C72", line: "#8A8DA3", dark: { paper: "#131520", card: "#1C1F2D", ink: "#E9EAF3", soft: "#A5A9C0", line: "#6D7290", primary: "#EFAAB6", accent: "#86D2C9" } },
+    { id: "apricot", name: "Apricot & Sky", note: "Sunny, calm", primary: "#9C4D2C", accent: "#2A6694", paper: "#FAF7F4", card: "#FFFFFF", ink: "#1E2132", soft: "#585C72", line: "#8A8DA3", dark: { paper: "#131520", card: "#1C1F2D", ink: "#E9EAF3", soft: "#A5A9C0", line: "#6D7290", primary: "#F2B08E", accent: "#8EC3EC" } },
   ],
   periods: [
-    { id: "blue", name: "Dusty Blue & Coral", note: "Fresh, youthful", primary: "#33567D", accent: "#B9513C", paper: "#E3E9F0", card: "#FFFFFF", ink: "#141E29", soft: "#4E6070", line: "#70859D", dark: { paper: "#12161C", card: "#1C2127", ink: "#E4EAF1", soft: "#9AACBB", line: "#67788A", primary: "#8BB8EB", accent: "#EB9B89" } },
-    { id: "plum", name: "Plum & Peach", note: "Soft, expressive", primary: "#6B3F63", accent: "#BF5729", paper: "#EFE5EC", card: "#FFFFFF", ink: "#231825", soft: "#5F4E5C", line: "#967E91", dark: { paper: "#1B1319", card: "#261D24", ink: "#EDE7EE", soft: "#B5A3B2", line: "#836F7F", primary: "#D99ECD", accent: "#E99D80" } },
-    { id: "mint", name: "Deep Mint & Clay", note: "Clean, calm", primary: "#2F6B5C", accent: "#B65B42", paper: "#E3EDE8", card: "#FFFFFF", ink: "#15241E", soft: "#4C6259", line: "#698C7D", dark: { paper: "#101814", card: "#1A231F", ink: "#E2ECE8", soft: "#98B0A6", line: "#637D71", primary: "#7EC5B1", accent: "#EA9C86" } },
+    { id: "periwinkle", name: "Periwinkle & Rose", note: "Fresh, light", primary: "#4A5DB0", accent: "#B04B72", paper: "#FAF7F4", card: "#FFFFFF", ink: "#1E2132", soft: "#585C72", line: "#8A8DA3", dark: { paper: "#131520", card: "#1C1F2D", ink: "#E9EAF3", soft: "#A5A9C0", line: "#6D7290", primary: "#A7B5F4", accent: "#F0A0BE" } },
+    { id: "sky", name: "Sky & Peach", note: "Bright, easy", primary: "#2A6694", accent: "#A8552F", paper: "#FAF7F4", card: "#FFFFFF", ink: "#1E2132", soft: "#585C72", line: "#8A8DA3", dark: { paper: "#131520", card: "#1C1F2D", ink: "#E9EAF3", soft: "#A5A9C0", line: "#6D7290", primary: "#8EC3EC", accent: "#F2AE8A" } },
+    { id: "lilac", name: "Lilac & Sage", note: "Soft, expressive", primary: "#7150A6", accent: "#4F7A5C", paper: "#FAF7F4", card: "#FFFFFF", ink: "#1E2132", soft: "#585C72", line: "#8A8DA3", dark: { paper: "#131520", card: "#1C1F2D", ink: "#E9EAF3", soft: "#A5A9C0", line: "#6D7290", primary: "#C6AEF2", accent: "#A6CDB0" } },
   ],
+};
+/* The palette list for her stage, in the order the palette sheet shows it and palIdx counts it. Menopause & beyond
+   shares the "peri" stage id with Perimenopause but wears the soft teal first (plan §6), so a Menopause record at
+   palIdx.peri 0 shows teal and a Perimenopause one lavender; the alternates follow in the same order otherwise.
+   stageName is the label the app shows ("Menopause" picks the teal-first order; record.js PHASES.meno.stageName). */
+export const MENO_NAME = "Menopause";
+export const stagePalettes = (stage, stageName) => {
+  const ps = PALETTES[stage] || PALETTES.peri;
+  return stage === "peri" && stageName === MENO_NAME ? [ps[1], ps[0], ps[2]] : ps;
 };
 
 export const ORGS = {
-  cyra: { slug: "cyra", name: "Cyra", tag: "Health", theme: { primary: "#7A2F4E", paper: "#EDE4DC", card: "#FFFFFF", accent: "#AB6229", ink: "#241A28", soft: "#5B4E63", line: "#927F6F", dark: { paper: "#1B150E", card: "#261F18", ink: "#EDE7EF", soft: "#B0A4B7", line: "#857261", primary: "#E69BB5", accent: "#E4A274" } }, partnerIds: null, plan: "Consumer (D2C)" },
+  cyra: { slug: "cyra", name: "Cyra", tag: "Health", theme: { primary: "#5B54A6", paper: "#FAF7F4", card: "#FFFFFF", ink: "#1E2132", soft: "#585C72", line: "#8A8DA3", accent: "#A8486E", dark: { paper: "#131520", card: "#1C1F2D", ink: "#E9EAF3", soft: "#A5A9C0", line: "#6D7290", primary: "#B9B3F2", accent: "#F0A3C0" } }, partnerIds: null, plan: "Consumer (D2C)" },
   bloom: { slug: "bloom", name: "Bloom", tag: "by AcmeCare", theme: { primary: "#2F5D50", paper: "#F2F5F1", card: "#FBFDFA", accent: "#C89A5B", ink: "#26332E", soft: "#5F6E67", line: "#DCE3DD", dark: { paper: "#141713", card: "#1E221D", ink: "#E2ECE8", soft: "#9AAFA5", line: "#6F7971", primary: "#8AC2B0", accent: "#D8A96A" } }, partnerIds: ["midi", "restfully"], plan: "Employer benefit (500 seats)" },
 };
 
@@ -182,8 +193,13 @@ export const SCHEME_TOKENS = {
     "--ev-mixed-bg": "#FBEEE2", "--ev-mixed-ink": "#8A4E18", "--ev-comfort-bg": "#EDE7EF", "--ev-comfort-ink": "#6E6076",
     "--on-primary": "#FFF", "--on-bad": "#FFF", "--on-ink": "#FFF", "--knob": "#FFF", "--knob-edge": "rgba(0,0,0,.12)",
     "--halo": "rgba(255,255,255,.7)", "--mark-edge": "rgba(0,0,0,.35)", "--cell-edge": "rgba(0,0,0,.14)", "--toast-dot": "var(--accent)",
-    "--sh-card": "0 1px 2px rgba(0,0,0,.04)", "--sh-opt": "0 1px 2px rgba(0,0,0,.05)", "--sh-meter": "0 1px 3px rgba(0,0,0,.06)",
-    "--sh-sheet": "0 2px 8px rgba(0,0,0,.07)", "--sh-thumb": "0 1px 2px rgba(0,0,0,.2)", "--sh-toast": "0 4px 14px rgba(0,0,0,.18)",
+    "--sh-card": "0 1px 2px rgba(30,33,50,.04), 0 10px 28px -12px rgba(30,33,50,.14)", "--sh-opt": "0 1px 2px rgba(30,33,50,.05)", "--sh-meter": "0 1px 3px rgba(30,33,50,.06)",
+    "--sh-sheet": "0 -2px 6px rgba(30,33,50,.04), 0 18px 48px -12px rgba(30,33,50,.22)", "--sh-thumb": "0 1px 2px rgba(0,0,0,.2)", "--sh-toast": "0 4px 14px rgba(0,0,0,.18)",
+    // v2 (calm R1): the hairline on container surfaces (decorative; controls keep --line at 3:1), the faint pastel wash at
+    // the top of the paper (lavender → sky → pink, 6%), the domain tints and the lifted shadow of the nav pill and "+".
+    "--edge": "#ECE7E3", "--wash-a": "rgba(150,120,230,.06)", "--wash-b": "rgba(100,165,235,.06)", "--wash-c": "rgba(240,130,175,.06)",
+    "--tint-mind": "#EAF1FB", "--tint-body": "#F5EDF8", "--tint-patterns": "#FDF0E6", "--tint-you": "#F2F0ED",
+    "--sh-lift": "0 2px 6px rgba(30,33,50,.06), 0 14px 32px -10px rgba(30,33,50,.24)", "--scrim": "rgba(30,33,50,.34)",
   },
   dark: {
     "--good": "#8FCBA4", "--bad": "#F29B91", "--bad-bg": "#3B2120", "--bad-chip": "#4A2826", "--err-line": "#B4685F", "--err-edge": "#6E3B36",
@@ -192,6 +208,9 @@ export const SCHEME_TOKENS = {
     "--halo": "rgba(0,0,0,.55)", "--mark-edge": "rgba(255,255,255,.55)", "--cell-edge": "rgba(255,255,255,.16)", "--toast-dot": "color-mix(in srgb, var(--accent) 60%, var(--paper))",
     "--sh-card": "0 1px 2px rgba(0,0,0,.3)", "--sh-opt": "0 1px 2px rgba(0,0,0,.3)", "--sh-meter": "0 1px 3px rgba(0,0,0,.35)",
     "--sh-sheet": "0 4px 16px rgba(0,0,0,.5)", "--sh-thumb": "0 1px 2px rgba(0,0,0,.6)", "--sh-toast": "0 4px 16px rgba(0,0,0,.55)",
+    "--edge": "#2C3044", "--wash-a": "rgba(150,120,230,.07)", "--wash-b": "rgba(100,165,235,.06)", "--wash-c": "rgba(240,130,175,.05)",
+    "--tint-mind": "#1F2A40", "--tint-body": "#2A2339", "--tint-patterns": "#30261F", "--tint-you": "#262836",
+    "--sh-lift": "0 2px 6px rgba(0,0,0,.35), 0 14px 32px -10px rgba(0,0,0,.6)", "--scrim": "rgba(0,0,0,.58)",
   },
 };
 
@@ -243,6 +262,11 @@ export const RAMPS_DARK = {
   preg:    { good: [0, 159, 142], mid: [198, 129, 55], rough: [219, 41, 84] },
   periods: { good: [39, 149, 193], mid: [194, 134, 3], rough: [212, 64, 64] },
 };
+/* Soft ramp (calm R1, plan §6): one ordinal, single-hue periwinkle ramp for sparklines and plain bars, low step to
+   high, kept apart from the UI palettes like every data colour. Validated with the dataviz validator --ordinal:
+   light on #FFFFFF and #FAF7F4 (light end 2.51:1, ΔL >= 0.06, hue spread 6°), dark on #1C1F2D (light end 2.68:1, hue
+   spread 4°). Marks read it as --soft-1..--soft-4 (vizVars). */
+export const SOFT_RAMP = Object.freeze({ light: Object.freeze(["#A39BE4", "#857AD6", "#675CC2", "#4B42A4"]), dark: Object.freeze(["#5E56B0", "#7A70D0", "#988FE4", "#B8B1F4"]) });
 /* The ramp for a stage and scheme (peri's for any other stage). */
 export const rampOf = (stage, scheme = "light") => { const R = scheme === "dark" ? RAMPS_DARK : RAMPS; return R[stage] || R.peri; };
 /* A ramp anchor ("good" | "mid" | "rough") as a CSS variable, for the POTS charts. */
@@ -251,6 +275,7 @@ export const rampVar = (k) => `var(--ramp-${k})`;
 export const vizVars = (scheme, stage) => ({
   ...Object.fromEntries(FAMILIES.map((f) => [`--fam-${f.id}`, scheme === "dark" ? f.dark : f.color])),
   ...Object.fromEntries(["good", "mid", "rough"].map((k) => [`--ramp-${k}`, `rgb(${rampOf(stage, scheme)[k].join(",")})`])),
+  ...Object.fromEntries(SOFT_RAMP[scheme === "dark" ? "dark" : "light"].map((c, i) => [`--soft-${i + 1}`, c])),
 });
 
 export const READS = {

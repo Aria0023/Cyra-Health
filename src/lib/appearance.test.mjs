@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import {
   APPEARANCES, DEFAULT_APPEARANCE, cleanAppearance, resolveScheme, PALETTE_KEYS, paletteFor, paletteVars, tokenDecls, applyDocumentScheme, strongMeterWord,
 } from "./appearance.js";
-import { PALETTES, ORGS, SCHEME_TOKENS, FAMILIES, RAMPS, RAMPS_DARK, famVar, famColor, rampOf, rampVar, vizVars } from "./constants.js";
+import { PALETTES, ORGS, SCHEME_TOKENS, FAMILIES, RAMPS, RAMPS_DARK, SOFT_RAMP, stagePalettes, MENO_NAME, famVar, famColor, rampOf, rampVar, vizVars } from "./constants.js";
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -84,7 +84,7 @@ test("paletteFor / paletteVars (L2): all 11 themes carry a dark set of the same 
   }
   const v = paletteVars(paletteFor(PALETTES.peri[0], "light"));
   assert.deepEqual(Object.keys(v), ["--primary", "--paper", "--card", "--accent", "--ink", "--soft", "--line"]);
-  assert.equal(v["--primary"], "#2C6A61");
+  assert.equal(v["--primary"], "#6B52A8");
 });
 
 test("dark palettes (L2): WCAG AA for text and 3:1 for UI boundaries in every one of the 11", () => {
@@ -109,14 +109,17 @@ test("dark palettes (L2): WCAG AA for text and 3:1 for UI boundaries in every on
   for (const ps of Object.values(PALETTES)) for (const p of ps) assert.ok(cr(mix(p.primary, p.ink, 0.82), p.paper) >= 4.5, `${p.id} light primary-text`);
 });
 
-test("SCHEME_TOKENS (L2): light is today's literals; dark has the same keys and passes against every dark palette", () => {
+test("SCHEME_TOKENS (L2, v2 in calm R1): light is the v2 literals; dark has the same keys and passes against every dark palette", () => {
   assert.deepEqual(SCHEME_TOKENS.light, {
     "--good": "#43604F", "--bad": "#A04545", "--bad-bg": "#FBEEEA", "--bad-chip": "#F3DBDB", "--err-line": "#E0A99B", "--err-edge": "#E7C3B8",
     "--ev-mixed-bg": "#FBEEE2", "--ev-mixed-ink": "#8A4E18", "--ev-comfort-bg": "#EDE7EF", "--ev-comfort-ink": "#6E6076",
     "--on-primary": "#FFF", "--on-bad": "#FFF", "--on-ink": "#FFF", "--knob": "#FFF", "--knob-edge": "rgba(0,0,0,.12)",
     "--halo": "rgba(255,255,255,.7)", "--mark-edge": "rgba(0,0,0,.35)", "--cell-edge": "rgba(0,0,0,.14)", "--toast-dot": "var(--accent)",
-    "--sh-card": "0 1px 2px rgba(0,0,0,.04)", "--sh-opt": "0 1px 2px rgba(0,0,0,.05)", "--sh-meter": "0 1px 3px rgba(0,0,0,.06)",
-    "--sh-sheet": "0 2px 8px rgba(0,0,0,.07)", "--sh-thumb": "0 1px 2px rgba(0,0,0,.2)", "--sh-toast": "0 4px 14px rgba(0,0,0,.18)",
+    "--sh-card": "0 1px 2px rgba(30,33,50,.04), 0 10px 28px -12px rgba(30,33,50,.14)", "--sh-opt": "0 1px 2px rgba(30,33,50,.05)", "--sh-meter": "0 1px 3px rgba(30,33,50,.06)",
+    "--sh-sheet": "0 -2px 6px rgba(30,33,50,.04), 0 18px 48px -12px rgba(30,33,50,.22)", "--sh-thumb": "0 1px 2px rgba(0,0,0,.2)", "--sh-toast": "0 4px 14px rgba(0,0,0,.18)",
+    "--edge": "#ECE7E3", "--wash-a": "rgba(150,120,230,.06)", "--wash-b": "rgba(100,165,235,.06)", "--wash-c": "rgba(240,130,175,.06)",
+    "--tint-mind": "#EAF1FB", "--tint-body": "#F5EDF8", "--tint-patterns": "#FDF0E6", "--tint-you": "#F2F0ED",
+    "--sh-lift": "0 2px 6px rgba(30,33,50,.06), 0 14px 32px -10px rgba(30,33,50,.24)", "--scrim": "rgba(30,33,50,.34)",
   });
   assert.deepEqual(Object.keys(SCHEME_TOKENS.dark).sort(), Object.keys(SCHEME_TOKENS.light).sort());
   const T = SCHEME_TOKENS.dark;
@@ -252,4 +255,59 @@ test("Report meter legend (L2): the word for the moderate-or-strong segment is t
   assert.ok(rep.includes("<span>{strongMeterWord(scheme)} = moderate or strong</span>"), "ReportScreen legend uses strongMeterWord(scheme)");
   assert.ok(!stripComments(rep).includes("Darker = moderate"), "no fixed Darker legend");
   assert.match(readFileSync(join(SRC, "App.jsx"), "utf8"), /<ReportScreen [^>]*\bscheme=\{scheme\}/);
+});
+
+/* ---------- design system v2 (calm R1, plan §2/§6) ---------- */
+test("v2 palettes (R1): every light set is AA for primary/accent text and 3:1 for lines on paper AND card; one paper per scheme", () => {
+  for (const [name, p] of THEMES.filter(([n]) => n !== "ORGS.bloom")) {
+    for (const [k, min] of [["primary", 4.5], ["accent", 4.5], ["soft", 4.5], ["line", 3]]) for (const s of ["paper", "card"]) assert.ok(cr(p[k], p[s]) >= min, `${name} light ${k}/${s}: ${cr(p[k], p[s]).toFixed(2)}`);
+    assert.ok(cr("#FFFFFF", p.primary) >= 4.5, `${name} light on-primary`);
+    assert.ok(cr(mix(p.accent, p.ink, 0.82), mix(p.accent, p.card, 0.16)) >= 4.5, `${name} light accent-text on its 16% tint`);
+    assert.ok(cr(p.primary, mix(p.primary, p.card, 0.16)) >= 4.5, `${name} light primary on its 16% tint`);
+  }
+  const papers = new Set(Object.values(PALETTES).flat().map((p) => p.paper)), darkPapers = new Set(Object.values(PALETTES).flat().map((p) => p.dark.paper));
+  assert.deepEqual([...papers], ["#FAF7F4"]); assert.deepEqual([...darkPapers], ["#131520"]);
+  assert.equal(ORGS.cyra.theme.paper, "#FAF7F4"); assert.equal(ORGS.cyra.theme.dark.paper, "#131520");
+});
+
+test("v2 stage accents (R1): cycle periwinkle, perimenopause lavender, pregnancy rose, menopause soft teal first", () => {
+  assert.equal(stagePalettes("periods", "My Cycle")[0].id, "periwinkle");
+  assert.equal(stagePalettes("periods", "Trying to Conceive")[0].id, "periwinkle");
+  assert.equal(stagePalettes("peri", "Perimenopause")[0].id, "lavender");
+  assert.equal(stagePalettes("peri", MENO_NAME)[0].id, "seafoam");
+  assert.equal(stagePalettes("preg", "Pregnancy")[0].id, "rose");
+  assert.deepEqual(stagePalettes("peri", MENO_NAME).map((p) => p.id).sort(), PALETTES.peri.map((p) => p.id).sort(), "same set, different order");
+  assert.equal(stagePalettes("peri", "Perimenopause"), PALETTES.peri);
+  assert.equal(stagePalettes("nope", "x"), PALETTES.peri);
+});
+
+test("v2 tints and edge (R1): soft text and the stage primary read on every domain tint, light and dark", () => {
+  for (const scheme of ["light", "dark"]) {
+    const T = SCHEME_TOKENS[scheme];
+    for (const k of ["--tint-mind", "--tint-body", "--tint-patterns", "--tint-you"]) {
+      assert.match(T[k], HEX, `${scheme} ${k}`);
+      for (const [name, p] of THEMES.filter(([n]) => n !== "ORGS.bloom")) {
+        const d = scheme === "dark" ? p.dark : p;
+        assert.ok(cr(d.ink, T[k]) >= 7, `${scheme} ink on ${k} ${name}`);
+        assert.ok(cr(d.soft, T[k]) >= 4.5, `${scheme} soft on ${k} ${name}: ${cr(d.soft, T[k]).toFixed(2)}`);
+        assert.ok(cr(mix(d.primary, d.ink, 0.82), T[k]) >= 4.5, `${scheme} primary-text on ${k} ${name}`);
+        assert.ok(cr(d.primary, T[k]) >= 3, `${scheme} primary icon on ${k} ${name}`);
+      }
+    }
+    assert.match(T["--edge"], HEX);
+    for (const k of ["--wash-a", "--wash-b", "--wash-c"]) { const a = +/,\s*([\d.]+)\)$/.exec(T[k])[1]; assert.ok(a <= 0.07, `${scheme} ${k} alpha ${a}`); }
+  }
+});
+
+test("v2 soft ramp (R1): ordinal, single hue, separate from UI palettes, arrives as --soft-1..4", () => {
+  for (const scheme of ["light", "dark"]) {
+    const r = SOFT_RAMP[scheme]; assert.equal(r.length, 4);
+    const Ls = r.map((c) => oklch(c)[0]);
+    for (let i = 1; i < 4; i++) assert.ok(Math.abs(Ls[i] - Ls[i - 1]) >= 0.06, `${scheme} step ${i}`);
+    const surf = scheme === "dark" ? ["#1C1F2D"] : ["#FFFFFF", "#FAF7F4"];
+    for (const s of surf) assert.ok(cr(r[0], s) >= 2, `${scheme} light end on ${s}`);
+    for (let i = 0; i < 4; i++) assert.equal(vizVars(scheme, "peri")[`--soft-${i + 1}`], r[i]);
+  }
+  const ui = new Set(THEMES.flatMap(([, p]) => [...PALETTE_KEYS.map((k) => p[k]), ...PALETTE_KEYS.map((k) => p.dark[k])]));
+  for (const c of [...SOFT_RAMP.light, ...SOFT_RAMP.dark]) assert.ok(!ui.has(c), c);
 });

@@ -13,6 +13,7 @@ import { localDay, isPeriodDay, cycleStarts, cycleSpans, cleanCycleFlags } from 
 import { PALETTES, CADENCE, FLOW, DISCHARGE, ODOR, BODYODOR, RELATIONSHIP, INTIMACY, AFTER } from "./constants.js";
 import { cleanSymPrefs, NOTE_MAX } from "./daylog.js";
 import { cleanFert, cleanFertPrefs } from "./fertility.js";
+import { cleanModules } from "./modules.js";
 
 /* ======================= shapes (documentation only) =======================
    Class tags: [record] the health record and settings (in the backup file, applied by a restore,
@@ -63,6 +64,7 @@ import { cleanFert, cleanFertPrefs } from "./fertility.js";
  * @property {ExportTally|null} exportLog [device-only] [not-in-backup] appointment PDFs made this month (L9, lib/plan.js ExportTally); null while exports are unlimited.
  * @property {SymPrefs} symPrefs [record] her symptom list per stage (L6); missing means {} (Cyra's order).
  * @property {FertSigns} fertSigns [record] fertility signs switch and unit (L7); missing means { on: null, unit: null }.
+ * @property {Object<string, {on: boolean, since: (string|null)}>} modules [record] condition modules switched on or off (calm R1, lib/modules.js), POTS excepted (it stays in `pots`); missing means {} (all off).
  */
 
 /**
@@ -203,9 +205,11 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    cycleFlags (L5) is her own per-cycle choice ("Don't use for predictions"): part of the record, so it travels in backups.
    symPrefs (L6) is her symptom list per stage (order, More symptoms, added from the other list): record, in backups.
    fertSigns (L7) is the fertility signs switch and temperature unit: record, in backups (no health data).
+   modules (calm R1) is which condition modules are on ({ pcos: { on, since } }; lib/modules.js): record, in backups,
+   restored literally. POTS keeps its own `pots` key; modules.js reads it from there.
    exportLog (L9) is this month's count of appointment PDFs, { month: "YYYY-MM", n }, written only while plan.js sets a
    monthly limit (none today, so it stays null): device-only and never in a backup file. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog"]);
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -446,6 +450,8 @@ export const RULES = Object.freeze({
   fertSigns: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanFertPrefs(v)) ? [] : [`${p}: expected { on: true|false|null, unit: "C"|"F"|null }, got ${show(v)}`]),
   // Appointment PDFs this month (L9): null, or { month: YYYY-MM, n: a whole number ≥ 0 }.
   exportLog: (v, p) => (v === null || (isObj(v) && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && isCount(v.n)) ? [] : [`${p}: expected null or { month: YYYY-MM, n: a whole number ≥ 0 }, got ${show(v)}`]),
+  // Condition modules (calm R1): a problem whenever cleanModules would change anything.
+  modules: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanModules(v)) ? [] : [`${p}: expected { <module id>: { on: true|false, since: YYYY-MM-DD|null } } (POTS lives in pots), got ${show(v)}`]),
   symPrefs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanSymPrefs(v)) ? [] : [`${p}: expected { periods|peri|preg: { order, hidden, added } } (lists of symptom ids, at most 40 each, no empty stages), got ${show(v)}`]),
 });
 

@@ -1069,3 +1069,35 @@ Registration went from 8 steps to 4 (3 for Menopause & beyond): Stage → Device
 **Install hint (L1).** `INSTALL_HINT_AFTER` is 1: Home's install tip shows after the first saved check-in instead of the third, and never on the splash, a register step or the stage-change intake (it renders only in the app phase on Home). Its sentences are unchanged.
 
 **Harness.** Every registration walk in the suite set, the whole-app axe set, the uiux snap/axe walks, walk.mjs, flags-e2e, fert-e2e and the L1/L6 helper libs go through one shared walker (`lf/onboard.mjs`); `pots/e2e/nlib.mjs`'s `finishRegistrationFromStep2` now throws so a missed call site fails loudly. Historical scripts not run by any suite were left as they are.
+
+## Calm R1 (design system v2 and the condition-module registry) — one new record key, one gallery sentence in a dev-only build, nothing new leaves the device
+
+R1 changes how every screen looks (tokens, palettes, surfaces) and adds a module registry. No privacy sentence in the
+app was added, moved or reworded; no request, dependency, font or external asset was added (icons are inline SVG paths
+in `Icon.jsx`; the blobs are inline SVG).
+
+**New persisted key `modules`** (`{ pcos?: { on: true|false, since: "YYYY-MM-DD" | null } }`, src/lib/modules.js
+`cleanModules`). Class: record (a setting; it says whether a condition module is switched on, which is itself health
+information, so it is treated like the rest of the record). Where it goes: the on-device record (IndexedDB on the web,
+the app's own file on the phone); **in encrypted backups** (it is in RECORD and not in NOT_IN_BACKUP or DEVICE_ONLY);
+applied literally by a restore (a backup without it turns PCOS off); taken over by another open tab of this browser;
+erased by Delete everything with the rest of the record. It is never sent anywhere: no network path reads it (weekly
+counts send the stage group and symptom flags only, Ask sends the question only, push rows hold no record data, the AI
+proxy receives only the question). No screen reads or writes it yet (R2/R7 add the switch); App.jsx holds it in state
+and saves it.
+POTS is registered as a module but keeps its own `pots` key and switch (`isModuleOn` reads `pots.on`); its handling in
+this file is unchanged.
+
+**PCOS data (no UI yet).** The PCOS lab values (fasting glucose, HbA1c), waist measure and weight that later slices
+will log are specified in `MODULES.pcos` as on-device values she types from her own results; R4 records their storage
+here when it adds them. Nothing in R1 stores any of them.
+
+**Dev gallery (`#/dev/ui`).** Present only in a build whose VITE_FEATURES names `devGallery` (or `all`, the harness
+builds); the shipping build and the default Render build do not contain the route or its code (`__CYRA_DEV_GALLERY__`
+is false, so the import is dropped). Added sentence, gallery only: "Illustrative data. Nothing on this page is saved or
+sent." True: the gallery renders instead of the app (main.jsx), so the record is never loaded or saved, App.jsx's
+service-worker registration and reminder code never run, and the page makes no request beyond loading its own bundle; its stage and scheme
+switches live in the URL hash only.
+
+**Colour-only changes with a privacy surface.** None. The theme-color metas, `--doc-bg` and the web manifest colours
+changed to the v2 paper (#FAF7F4 / #131520); they carry no data.

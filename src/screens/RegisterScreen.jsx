@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { CADENCE, PALETTES } from "../lib/constants.js";
+import { CADENCE, stagePalettes } from "../lib/constants.js";
 import { hasServer } from "../lib/api.js";
 import { support as reminderSupport } from "../lib/notifications.js";
 import { isNative } from "../lib/native.js";
@@ -8,7 +8,7 @@ import { allFlagGroups } from "../lib/pulse.js";
 import { reduceMotion } from "../lib/motion.js";
 import { paletteFor } from "../lib/appearance.js";
 import { localDay } from "../lib/engine.js";
-import { REG_STAGE, STAGE_CARDS, STEP_COPY, CYCLE_LENS, regSteps, missingFor, dueDateBounds } from "../lib/onboarding.js";
+import { REG_STAGE, STAGE_LABELS, STAGE_CARDS, STEP_COPY, CYCLE_LENS, regSteps, missingFor, dueDateBounds } from "../lib/onboarding.js";
 import { FEATURES, remindersInBuild } from "../lib/features.js";
 import { serverSees, consentDeleteFact, consentDetails } from "../lib/disclosures.js";
 import Details, { WebReminderFacts } from "../components/Details.jsx";
@@ -112,7 +112,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
           {STAGE_CARDS.map(([lbl, d]) => (
             <button key={lbl} aria-pressed={reg.stage === lbl} className={`stagecard ${reg.stage === lbl ? "on" : ""}`} onClick={() => rup("stage", lbl)}>
               <b>{lbl}</b><span>{d}</span>
-              <span className="swatch-dot" aria-hidden="true" style={{ background: paletteFor(PALETTES[REG_STAGE[lbl]][0], scheme).primary }} />
+              <span className="swatch-dot" aria-hidden="true" style={{ background: paletteFor(stagePalettes(REG_STAGE[lbl], STAGE_LABELS[lbl])[0], scheme).primary }} />
               {reg.stage === lbl && <Icon name="check" size={18} className="stagecheck" />}
             </button>
           ))}

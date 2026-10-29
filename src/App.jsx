@@ -64,7 +64,7 @@ import { flushSync } from "react-dom";
    The saved record's shape, version and key lists live in ./lib/record.js; entitlements in ./lib/plan.js.
    ================================================================ */
 
-import { SYMS, GSYM, ALL_SYM, ENERGY_ID, SCORE_SCALE, SHELF, PALETTES, ORGS, SYM_FAMILY, PRENATAL, vizVars, rampOf } from "./lib/constants.js";
+import { SYMS, GSYM, ALL_SYM, ENERGY_ID, SCORE_SCALE, SHELF, stagePalettes, ORGS, SYM_FAMILY, PRENATAL, vizVars, rampOf } from "./lib/constants.js";
 import { seed, fmt, addDays, routeIntake, insights, predict, whyNoPrediction, cycleSummary, cleanCycleFlags, toggleExclude, periodHead, basisLine, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick, scoreRgb, scoreColorOf, inkOn } from "./lib/engine.js";
 import { DEFAULT_APPEARANCE, SYSTEM_DARK_QUERY, cleanAppearance, resolveScheme, paletteFor, paletteVars, applyDocumentScheme } from "./lib/appearance.js";
 import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
@@ -81,6 +81,7 @@ import { fertPrivacyLine, deleteAlso } from "./lib/disclosures.js";
 import { cleanLock, hashPin, checkPin, newLock, afterFail, afterSuccess, awayMs, shouldLock, passkeyAvailable, createPasskey, verifyPasskey, forgotPinRecord, GRACE_MS, LOCK_COPY } from "./lib/lock.js";
 import { flowRows } from "./lib/privacyFlows.js";
 import { fertShown, isTTC, cleanFertPrefs, restoredFertPrefs, defaultTempUnit, FERT_FORM_EMPTY, fertFormFrom, fertFormKey, fertTouched, fertRead, fertWindow, fertSummary, fertSummaryLines, bbtShiftSentence, fertEmailLine, cleanFert, FERT_COPY } from "./lib/fertility.js";
+import { cleanModules } from "./lib/modules.js";
 import { visitModel, paperForLocale } from "./lib/visitReport.js";
 import { PLAN, can, exportsLeft, noteExport } from "./lib/plan.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
@@ -174,7 +175,7 @@ import PotsPatterns from "./components/pots/PotsPatterns.jsx";
 
 /* Stage card -> life-stage experience (spec §4.3): REG_STAGE now lives in lib/onboarding.js (L11), the one routing and
    step map. finishReg routes with it; RegisterScreen colours each card's swatch and the chrome preview (regPal) from
-   PALETTES[REG_STAGE[label]][0]. Exactly one experience per user. */
+   stagePalettes(REG_STAGE[label], STAGE_LABELS[label])[0] (Menopause & beyond wears the soft teal first, calm R1). Exactly one experience per user. */
 
 export default function CyraDemo() {
   const [orgId, setOrgId] = useState("cyra");
@@ -312,6 +313,9 @@ export default function CyraDemo() {
      (on null = the stage default: on for Trying to conceive, off for My Cycle); fert is the check-in form's group
      (form state, saved on the day entry as cm / opk / bbt). Shown only in stage periods (fertShown), never sent anywhere. */
   const [fertSigns, setFertSigns] = useState({ on: null, unit: null });
+  /* Condition modules (calm R1, lib/modules.js): { pcos?: { on, since } }, part of the record and of backups, never sent
+     anywhere. POTS stays in `pots` (isModuleOn reads pots.on). No screen reads it yet: R2/R4/R7 surface PCOS. */
+  const [modules, setModules] = useState({});
   const [exportLog, setExportLog] = useState(null); // { month: "YYYY-MM", n }: appointment PDFs made this month. Written only while plan.js sets a monthly limit (none today), so the shipping app keeps no count; device-only, never in a backup file.
   const [fert, setFert] = useState(FERT_FORM_EMPTY);
   const fertOn = fertShown(stage, stageName, fertSigns.on);
@@ -355,10 +359,10 @@ export default function CyraDemo() {
   const settleSaves = async () => { await flushSave(); try { await lastSave.current; } catch { /* reported by the save itself */ } };
 
   const org = ORGS[orgId];
-  const stagePal = stage && orgId === "cyra" ? PALETTES[stage][palIdx[stage]] : null;
+  const stagePal = stage && orgId === "cyra" ? stagePalettes(stage, stageName)[palIdx[stage]] : null;
   // Registration: from the moment she picks a stage card, the chrome wears that stage's first palette
   // (the same one finishReg lands on), so the choice shows before the app does. UI palette only.
-  const regPal = phase === "register" && reg.stage ? PALETTES[REG_STAGE[reg.stage]][0] : null;
+  const regPal = phase === "register" && reg.stage ? stagePalettes(REG_STAGE[reg.stage], STAGE_LABELS[reg.stage])[0] : null;
   // The seven UI tokens for the scheme on screen (each palette's light values or its `dark` object).
   const t = { ...paletteFor(org.theme, scheme), ...(stagePal ? paletteFor(stagePal, scheme) : regPal ? paletteFor(regPal, scheme) : {}) };
   /* The tracked list (L6): her stage's library plus what she added from the other one, hidden ones included
@@ -1130,8 +1134,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1455,13 +1459,15 @@ export default function CyraDemo() {
     const restoredPrefs = cleanSymPrefs(saved.symPrefs);
     // Fertility signs' switch and unit are restored literally too (L7): a backup without them resets the switch to the stage default and keeps this device's unit.
     const restoredFert = restoredFertPrefs(saved.fertSigns, fertSigns);
-    applySaved({ ...saved, pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
+    // Condition modules are restored literally too (calm R1): a backup without them turns every module (but POTS, restored above) off.
+    const restoredModules = cleanModules(saved.modules);
+    applySaved({ ...saved, pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
     potsBase.current = restoredPots; setPotsHomeLast(null);
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
     const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, exportLog };
-    await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
+    await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     // The reminders clause only where Settings has a reminders row (a web build without webReminders has none).
     const msg = !isNative() && remindersInBuild(false) && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored";

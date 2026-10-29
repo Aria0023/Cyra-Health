@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { PALETTES } from "../lib/constants.js";
+import { stagePalettes } from "../lib/constants.js";
 import { paletteFor } from "../lib/appearance.js";
 import Icon from "./Icon.jsx";
 
@@ -16,7 +16,7 @@ export default function PaletteSheet({ stage, stageName, palIdx, setPalIdx, setS
     <section className="palsheet" aria-label="Color palette" id="palette-sheet">
       <p id="pal-lab" className="section-lab sheettitle-lab" tabIndex={-1} ref={headRef} style={{ margin: "0 0 8px" }}><Icon name="palette" className="labico" />Palette · {stageName}</p>
       <div role="group" aria-labelledby="pal-lab">
-        {PALETTES[stage].map((p, i) => {
+        {stagePalettes(stage, stageName).map((p, i) => {
           const on = palIdx[stage] === i;
           const q = paletteFor(p, scheme);
           return (

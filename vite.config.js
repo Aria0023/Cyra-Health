@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { precacheList, injectBuild } from "./src/lib/swBuild.js";
-import { parseFeatures, unknownFeatures, FEATURE_NAMES } from "./src/lib/features.js";
+import { parseFeatures, parseDevFlags, unknownFeatures, FEATURE_NAMES, DEV_FLAG_NAMES } from "./src/lib/features.js";
 
 /* The consent step links the Terms and the Privacy Policy (src/lib/links.js). Until the
    attorney-reviewed documents are published and VITE_TERMS_URL / VITE_PRIVACY_URL are set
@@ -117,13 +117,25 @@ function featureFlagsReport() {
       said = true;
       const raw = loadEnv(config.mode, config.envDir || process.cwd(), "VITE_").VITE_FEATURES ?? process.env.VITE_FEATURES;
       const f = parseFeatures(raw);
+      const dev = parseDevFlags(raw);
       const on = FEATURE_NAMES.filter((n) => f[n]);
       const unset = raw == null || !String(raw).trim();
       console.log(`[cyra] features: ${on.length ? on.join(", ") : "none"}${unset ? " (VITE_FEATURES unset: the shipping defaults)" : ""}`);
+      // Developer-only flags (calm R1) on their own line, so the product line above stays as it was.
+      const devOn = DEV_FLAG_NAMES.filter((n) => dev[n]);
+      if (devOn.length) console.log(`[cyra] dev flags: ${devOn.join(", ")} (not product features)`);
       const bad = unknownFeatures(raw);
-      if (bad.length) console.warn(`[cyra] WARNING: VITE_FEATURES names unknown features: ${bad.join(", ")} (known: ${FEATURE_NAMES.join(", ")}, all, none)`);
+      if (bad.length) console.warn(`[cyra] WARNING: VITE_FEATURES names unknown features: ${bad.join(", ")} (known: ${[...FEATURE_NAMES, ...DEV_FLAG_NAMES].join(", ")}, all, none)`);
     },
   };
 }
 
-export default defineConfig({ plugins: [react(), policyLinksCheck(), policyLinksFetch(), cyraServiceWorker(), featureFlagsReport()] });
+/* The dev gallery flag (calm R1, src/lib/features.js parseDevFlags) as a build-time constant, so main.jsx's
+   `__CYRA_DEV_GALLERY__ && import("./dev/DevGallery.jsx")` is dropped from a build without it (no chunk, no route). */
+export default defineConfig(({ mode }) => {
+  const raw = loadEnv(mode, process.cwd(), "VITE_").VITE_FEATURES ?? process.env.VITE_FEATURES;
+  return {
+    plugins: [react(), policyLinksCheck(), policyLinksFetch(), cyraServiceWorker(), featureFlagsReport()],
+    define: { __CYRA_DEV_GALLERY__: JSON.stringify(parseDevFlags(raw).devGallery) },
+  };
+});

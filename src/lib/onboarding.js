@@ -7,7 +7,7 @@
    background, goals, sleep, activity) are optional and live in Settings → About you (components/AboutYou.jsx). */
 
 /* Stage card -> life-stage experience (spec §4.3). App.jsx finishReg routes with it; RegisterScreen colours each card's
-   swatch and the chrome preview (regPal) from PALETTES[REG_STAGE[label]][0]. Exactly one experience per user. */
+   swatch and the chrome preview (regPal) from stagePalettes(REG_STAGE[label], STAGE_LABELS[label])[0] (constants.js). Exactly one experience per user. */
 export const REG_STAGE = { "My Cycle": "periods", "Trying to conceive": "periods", "Pregnant": "preg", "Perimenopause": "peri", "Menopause & beyond": "peri" };
 /* Stage card -> stageName (the label the app shows; record.js PHASES carries the same five). */
 export const STAGE_LABELS = { "My Cycle": "My Cycle", "Trying to conceive": "Trying to Conceive", "Pregnant": "Pregnancy", "Perimenopause": "Perimenopause", "Menopause & beyond": "Menopause" };

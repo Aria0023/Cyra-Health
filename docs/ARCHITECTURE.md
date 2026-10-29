@@ -159,7 +159,8 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `cycleFlags` | cycles she left out of predictions, `{ [startIso]: { exclude: true } }` (L5, spec §3.5) | health record (her choice) | yes | yes, literally (`cleanCycleFlags`; a backup without it clears it) | yes (sanitised by `cleanCycleFlags`) |
 | `symPrefs` | her symptom list per stage id, `{ periods?, peri?, preg? }` × `{ order, hidden, added }` (L6, spec §3.6) | record (a setting) | yes | yes, literally (`cleanSymPrefs`; a backup without it brings back Cyra's order) | yes (sanitised by `cleanSymPrefs`) |
 | `fertSigns` | fertility signs switch and temperature unit, `{ on: true\|false\|null, unit: "C"\|"F"\|null }` (L7, spec A14.7); `on` null = the stage default | record (a setting, no health data) | yes | yes, literally (`restoredFertPrefs`; a backup without it resets `on` to null and keeps this device's unit) | yes (sanitised by `cleanFertPrefs`) |
-| `palIdx` | palette per stage | setting | yes | yes | yes |
+| `modules` | condition modules switched on, `{ pcos?: { on, since } }` (calm R1, `lib/modules.js`); POTS is not here (it stays in `pots`) | record (a setting, no health data) | yes | yes, literally (`cleanModules`; a backup without it turns PCOS off) | yes (sanitised by `cleanModules`) |
+| `palIdx` | palette per stage (an index into `stagePalettes(stage, stageName)`, v2 list since calm R1) | setting | yes | yes | yes |
 | `cadence` | check-in rhythm | setting | yes | yes | yes |
 | `quietHours` | reminder time of day | setting | yes | yes | yes |
 | `quickMode` | quick or full check-in | setting | yes | yes | yes |
@@ -190,6 +191,33 @@ out of the file itself.
 `src/lib/record.js` is authoritative: its pinned lists are guarded by `record.test.mjs` ("key lists
 are the ones App.jsx used before L3"), which also checks that every key has a validation rule, a
 setter and a value in App.jsx. A slice that adds a key updates this table in the same commit.
+
+### 4.1 Condition modules (calm R1)
+
+A condition module adds a condition's symptoms, signals, cycle wording, pattern questions, Ask topics and Report
+sections to the one life-stage experience she already has; it never replaces the stage (exactly one experience per
+user). `src/lib/modules.js` is the registry: pure, imports only `engine.js`, `constants.js` and `pots.js`, never
+`record.js` (record.js imports it for `RULES.modules`), no storage, network or React.
+
+- `MODULES` = `{ pots, pcos }`, each `{ id, name, short, stages, what, symptoms, signals, cycle, askTopics,
+  reportSections, patternQuestions, evidence }`; `MODULE_IDS`, `MODULE_PHASES` (cycle, ttc, preg, peri, meno).
+- On/off: `isModuleOn(record, id)`, `setModuleOn(record, id, on, opts)` (returns a new record, input unchanged; the same
+  reference when nothing changes), `modulesFor(stage, stageName)` or `modulesFor(phaseId)`, `modulePhase(stage,
+  stageName)`, `cleanModules(raw)`, `sourcesOf(module, srcIds)`, `longCycleCount(lens, days = 35)`, `MODULE_FRAMING`.
+- POTS: the existing add-on stays the single source of truth. `isModuleOn(r, "pots")` reads `r.pots.on`;
+  `setModuleOn(r, "pots", on)` calls `lib/pots.js` `turnOn` / `turnOff` (turning off keeps the POTS log). No POTS code moved.
+- PCOS (offered in My Cycle, Trying to conceive, Perimenopause): data only in R1, no screen yet (R2 onboarding and the
+  "+" sheet, R4 Body logger, R6 patterns, R7 You → Modules). Symptom ids already in the check-in libraries are reused
+  (`shared: true`: acn, eng, blo, mood, fog, hda, crm, cra) so existing logs count; new ids: hls (hair loss), hgr
+  (excess hair growth), pel (pelvic pain), sug (high-sugar day marker). Signals: crash, cra, waist, fglu (mg/dL |
+  mmol/L), hba1c (% | mmol/mol), acan (note). Lab values are hers, typed with unit and date, never interpreted.
+- Sourcing: every medical sentence carries `src` ids into `evidence` (Teede et al. 2023 international guideline,
+  Rotterdam 2003/2004, NICE CKS) and is listed in docs/CLINICIAN-REVIEW.md, awaiting sign-off; `modules.test.mjs`
+  enforces both, and bans diagnosis, treatment, score and streak wording.
+- Persisted key `modules` (table above): record class, in backups, restored literally, adopted by other tabs. Nothing
+  about modules is ever sent anywhere.
+- The next module (hair loss) is a new `MODULES` entry plus its copy in CLINICIAN-REVIEW.md; the comment at the top of
+  modules.js shows the shape. No engine change.
 
 ## 5. Shapes
 

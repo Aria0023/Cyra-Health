@@ -899,30 +899,43 @@ postpartum items — never "Weeks any". Trimester headers are `.rsec.tri` with a
 
 ## 8. VISUAL DESIGN
 
-### 8.1 Stage palettes (UI chrome — calm, high-contrast)
-`PALETTES` in `src/lib/constants.js` is the normative list: three palettes per stage (nine in all), the first of each
-stage being its default, offered as a user setting (the palette sheet). Each entry carries the seven UI tokens for light
-and a `dark` object with the same seven (decision D9, L2). `ORGS` themes carry the same shape (ORGS.cyra dresses the
-splash and registration; ORGS.bloom is not selectable). Values, light / dark:
+### 8.1 Stage palettes (UI chrome — calm, high-contrast; design system v2 since calm R1)
+`PALETTES` in `src/lib/constants.js` is the normative list: three palettes per stage (nine in all), offered as a user
+setting (the palette sheet). Each entry carries the seven UI tokens for light and a `dark` object with the same seven
+(decision D9, L2). `ORGS` themes carry the same shape (ORGS.cyra dresses the splash and registration; ORGS.bloom is not
+selectable and keeps its old values).
+
+**v2 (calm R1, plan §2 and §6; §6 wins on colour).** One warm, airy off-white paper and white cards in light, one deep
+navy-charcoal paper and raised navy cards in dark, shared by every stage; ONE muted, pastel-leaning accent per stage on
+`--primary`, with a quiet companion hue on `--accent`. The pastel itself is carried by tints (`color-mix` of the primary
+into the card, the `--tint-*` domain tokens) and the paper's wash; the token values are the AA-valid tones of each hue.
+Stage accents: My Cycle and Trying to conceive = periwinkle/sky, Perimenopause = lavender, Pregnancy = rose,
+Menopause & beyond = soft teal. Menopause shares the `peri` stage id, so `stagePalettes(stage, stageName)`
+(constants.js) returns the peri list teal-first when `stageName === MENO_NAME` ("Menopause"); `palIdx[stage]` counts
+into that ordered list (App.jsx stagePal, RegisterScreen's swatches and the registration preview, PaletteSheet).
 
 ```
-                       paper              card               ink                soft               line               primary            accent
-peri.teal (default)    #E4EBE7 / #121815  #FFFFFF / #1C221F  #17241F / #E2ECE8  #4E625B / #97B0A7  #6E8A7F / #627D72  #2C6A61 / #7BC4B8  #5A6A9E / #9EB0E9
-peri.dusk              #E5EAEF / #13161A  #FFFFFF / #1D2125  #16212B / #E3EAF1  #4D5F6E / #9AACBB  #73889F / #67788A  #3A5F80 / #8BBAE4  #607C69 / #9EBBA7
-peri.lav               #EAE6F0 / #17141C  #FFFFFF / #221F27  #1E1A2A / #EAE8F1  #5A5270 / #ABA6BA  #897EA8 / #787289  #5B4E85 / #B7A9EC  #6A7B5C / #A7BA99
-preg.rose (default)    #EFE2E1 / #1D1313  #FFFFFF / #281D1D  #241A1D / #F1E6E9  #6B585B / #BBA2A6  #9A7B79 / #8A6E6C  #2F736E / #75C5BE  #B8505E / #EB989F
-preg.sage              #EDE7DD / #1A150E  #FFFFFF / #252017  #1F2620 / #E4ECE5  #5C6459 / #A2AD9E  #908373 / #837360  #4F7355 / #95C19B  #A06836 / #E0A472
-preg.coral             #E6EBEF / #13171A  #FFFFFF / #1C2125  #152029 / #E3EBF1  #4F6070 / #9BACBC  #73889F / #67788A  #37627E / #87BCE0  #CA4B2A / #EB9C87
-periods.blue (default) #E3E9F0 / #12161C  #FFFFFF / #1C2127  #141E29 / #E4EAF1  #4E6070 / #9AACBB  #70859D / #67788A  #33567D / #8BB8EB  #B9513C / #EB9B89
-periods.plum           #EFE5EC / #1B1319  #FFFFFF / #261D24  #231825 / #EDE7EE  #5F4E5C / #B5A3B2  #967E91 / #836F7F  #6B3F63 / #D99ECD  #BF5729 / #E99D80
-periods.mint           #E3EDE8 / #101814  #FFFFFF / #1A231F  #15241E / #E2ECE8  #4C6259 / #98B0A6  #698C7D / #637D71  #2F6B5C / #7EC5B1  #B65B42 / #EA9C86
-ORGS.cyra              #EDE4DC / #1B150E  #FFFFFF / #261F18  #241A28 / #EDE7EF  #5B4E63 / #B0A4B7  #927F6F / #857261  #7A2F4E / #E69BB5  #AB6229 / #E4A274
-ORGS.bloom             #F2F5F1 / #141713  #FBFDFA / #1E221D  #26332E / #E2ECE8  #5F6E67 / #9AAFA5  #DCE3DD / #6F7971  #2F5D50 / #8AC2B0  #C89A5B / #D8A96A
+shared neutrals         paper              card               ink                soft               line
+every v2 palette        #FAF7F4 / #131520  #FFFFFF / #1C1F2D  #1E2132 / #E9EAF3  #585C72 / #A5A9C0  #8A8DA3 / #6D7290
+
+                        primary            accent              (light / dark)
+periods.periwinkle (1)  #4A5DB0 / #A7B5F4  #B04B72 / #F0A0BE   My Cycle and Trying to conceive default
+periods.sky             #2A6694 / #8EC3EC  #A8552F / #F2AE8A
+periods.lilac           #7150A6 / #C6AEF2  #4F7A5C / #A6CDB0
+peri.lavender (1)       #6B52A8 / #C2AEF2  #3D6E9E / #9CC2EC   Perimenopause default
+peri.seafoam            #297070 / #86D2C9  #7150A6 / #C6AEF2   Menopause & beyond default (stagePalettes puts it first)
+peri.dusk               #3E5F8C / #9DBBE6  #A84E6E / #EFA3BE
+preg.rose (1)           #A3456A / #F2A5C0  #6550A0 / #C2B0F0   Pregnancy default
+preg.blush              #9C4A5A / #EFAAB6  #297070 / #86D2C9
+preg.apricot            #9C4D2C / #F2B08E  #2A6694 / #8EC3EC
+ORGS.cyra               #5B54A6 / #B9B3F2  #A8486E / #F0A3C0   (paper, card, ink, soft, line: the shared neutrals)
+ORGS.bloom              #2F5D50 / #8AC2B0  #C89A5B / #D8A96A   (unchanged, not selectable)
 ```
-**Dark design rule.** Paper is the darkest surface and card is one step lighter (cards lift by lightness, not by
-shadow); primary and accent are light tones of the same hue, so each stage stays recognisable (teal and lavender, dusty
-blue and sage, rose, sand, coral, plum, mint) and filled controls carry `--on-primary` text (the dark paper), never
-white. `paletteFor(p, scheme)` (lib/appearance.js) picks the seven tokens for the scheme on screen.
+A stored `palIdx` keeps its number; it now points into the v2 list (no migration: the shape and range are unchanged).
+**Dark design rule.** Paper is the darkest surface and card one step lighter (cards lift by lightness and a 1px
+`--edge` line, not by shadow); primary and accent are light tones of the same hue, so each stage stays recognisable, and
+filled controls carry `--on-primary` text (the dark paper), never white. `paletteFor(p, scheme)` (lib/appearance.js)
+picks the seven tokens for the scheme on screen.
 
 ### 8.2 Data ramps (saturated — deliberately independent of chrome)
 ```
@@ -971,9 +984,19 @@ count as words. Every dot also carries a 0.8px ink hairline on Patterns for edge
 period band. No colour anywhere in the app is the only carrier of a meaning.
 
 ### 8.3 Contrast requirements
-Light: white cards on tinted paper; dark: cards one step lighter than a near-black paper of the same hue. Borders
-1.5px in a visibly different tone; subtle shadow lift in light (deeper shadows in dark, where the lightness step does
-the lifting); near-black ink in light, near-white ink in dark. Pale-on-pale fails — this was a real defect once.
+Light: white cards on warm off-white paper; dark: raised navy cards one step lighter than the navy-charcoal paper.
+Containers (cards, sheets, the report and shelf cards) carry a decorative 1px `--edge` hairline and a soft shadow in
+light (`--sh-card`), and the 1px `--edge` line in dark; interactive controls (chips, pills, segments, disclosures,
+inputs) keep a `--line` boundary at 3:1 or more on paper and card (1px since calm R1; inputs keep 1.5px). Near-black
+ink in light, near-white ink in dark. Pale-on-pale fails — this was a real defect once.
+
+**v2 minima (calm R1; every v2 palette and ORGS.cyra; lib/appearance.test.mjs).** Light: ink 15.9:1 on card (14.9:1 on
+paper); soft 6.59:1 on card, 6.17:1 on paper, 5.76:1 on every domain tint; line 3.27:1 on card, 3.06:1 on paper;
+primary 5.76:1 on card, 5.40:1 on paper, 4.60:1 on its own 16% tint; accent 4.92:1 on card, 4.61:1 on paper;
+--primary-text 6.51:1 on paper and 6.07:1 on the tints; white on a filled primary 5.76:1; the primary as an icon on a
+tint 5.03:1. Dark: ink 13.7:1 on card (15.2:1 on paper); soft 7.04:1 on card, 7.82:1 on paper, 6.17:1 on the tints;
+line 3.48:1 on card, 3.86:1 on paper; primary 8.23:1 on card, 9.14:1 on paper, 5.90:1 on its 16% tint; accent 8.16:1 on
+card; --primary-text 10.1:1 on paper and 7.98:1 on the tints; the dark paper on a filled primary 9.14:1.
 
 **Dark minima (L2, all 11 dark themes, WCAG, color-mix computed as an sRGB mix; lib/appearance.test.mjs).** Ink 13.3:1
 on card (14.9:1 on paper); soft 6.8:1 on card and 5.65:1 on the 10% primary / 10% accent / 5% ink tints; line 3.53:1 on
@@ -999,7 +1022,8 @@ type      --fs-xs 11px (section labels)  --fs-sm 12.5px (secondary)  --fs-md 13.
           body line-height 1.5; display numbers/headings 1.15; labels, pills and legends 1.2–1.35
           floor: nothing below 10.5px except .c-wklab (9px, a two-letter week mark inside a calendar cell)
 grid      --gap 8px (between cards and between pills)   --stack 12px (between sections)
-radii     --r-card 13px (cards, CTA)   --r-inner 11px (controls inside a card)   --r-pill 999px
+radii     --r-card 20px (cards, sheets)   --r-inner 14px (controls inside a card)   --r-tile 16px (quick tiles)
+          --r-btn 16px (.cta)   --r-pill 999px   (v2, calm R1; were 13 / 11)
 motion    --t-fast 100ms  --t-base 200ms  --t-slow 300ms
           --ease-std cubic-bezier(.2,0,0,1)  --ease-in cubic-bezier(.05,.7,.1,1)  --ease-out cubic-bezier(.3,0,.8,.15)
 colour    --primary-text  color-mix(primary 82%, ink): the tint for small primary-coloured text on paper
@@ -1042,18 +1066,27 @@ and scrollbars follow). The tokens that are not part of a palette, light and dar
 --mark-edge       rgba(0,0,0,.35)             rgba(255,255,255,.55)
 --cell-edge       rgba(0,0,0,.14)             rgba(255,255,255,.16)
 --toast-dot       var(--accent)               color-mix(in srgb, var(--accent) 60%, var(--paper))
---sh-card         0 1px 2px rgba(0,0,0,.04)   0 1px 2px rgba(0,0,0,.3)
---sh-opt          0 1px 2px rgba(0,0,0,.05)   0 1px 2px rgba(0,0,0,.3)
---sh-meter        0 1px 3px rgba(0,0,0,.06)   0 1px 3px rgba(0,0,0,.35)
---sh-sheet        0 2px 8px rgba(0,0,0,.07)   0 4px 16px rgba(0,0,0,.5)
+--sh-card         0 1px 2px rgba(30,33,50,.04), 0 10px 28px -12px rgba(30,33,50,.14)   0 1px 2px rgba(0,0,0,.3)
+--sh-opt          0 1px 2px rgba(30,33,50,.05)   0 1px 2px rgba(0,0,0,.3)
+--sh-meter        0 1px 3px rgba(30,33,50,.06)   0 1px 3px rgba(0,0,0,.35)
+--sh-sheet        0 -2px 6px rgba(30,33,50,.04), 0 18px 48px -12px rgba(30,33,50,.22)   0 4px 16px rgba(0,0,0,.5)
 --sh-thumb        0 1px 2px rgba(0,0,0,.2)    0 1px 2px rgba(0,0,0,.6)
 --sh-toast        0 4px 14px rgba(0,0,0,.18)  0 4px 16px rgba(0,0,0,.55)
+--edge            #ECE7E3                     #2C3044            (v2: container hairline, decorative)
+--wash-a/-b/-c    rgba(150,120,230,.06) rgba(100,165,235,.06) rgba(240,130,175,.06)   dark .07 / .06 / .05
+--tint-mind       #EAF1FB                     #1F2A40            (pale blue)
+--tint-body       #F5EDF8                     #2A2339            (pale lavender-pink)
+--tint-patterns   #FDF0E6                     #30261F            (pale peach)
+--tint-you        #F2F0ED                     #262836            (neutral)
+--sh-lift         0 2px 6px rgba(30,33,50,.06), 0 14px 32px -10px rgba(30,33,50,.24)   0 2px 6px rgba(0,0,0,.35), 0 14px 32px -10px rgba(0,0,0,.6)
+--scrim           rgba(30,33,50,.34)          rgba(0,0,0,.58)    (the sheet backdrop)
 ```
 `--on-primary` is the text on a filled primary (.cta, `.seg .mc.on`, `.takebtn.on` and its knob, the done milestone
 dots, `.ppill.now`, `.route.primary`, `.orgbtn.on`, `.topbtn.on`, the `.scorepill` fallback), `--on-bad` the text on
 `.cta.stopbtn`, `--on-ink` the toast text. **Rule:** no colour literal (hex, rgb(), rgba(), white, black) in styles.js
 outside the `@media print` block, and none in JSX; a new colour is a token with a light and a dark value
-(lib/appearance.test.mjs scans for one). The light values are the literals the stylesheet used before L2, unchanged.
+(lib/appearance.test.mjs scans for one). The light values were the pre-L2 literals until calm R1, which changed the
+four shadows and added the v2 rows (the test pins the v2 set).
 
 **Print stays light.** `beforeprint` and `matchMedia("print")` set `printing` with `flushSync`, so the page the browser
 snapshots already wears the light palette; `afterprint` (or the media query ending) flips it back. A browser that sends
@@ -1063,8 +1096,8 @@ reaches (some share-sheet prints) falls back to a monochrome rule inside `@media
 forces white paper and card, black ink and primary, grey soft/line/accent and the light SCHEME_TOKENS, all `!important`.
 
 **Document outside the column.** index.html carries `<meta name="color-scheme" content="light dark">`, two theme-color
-metas (`#EDE4DC` for `(prefers-color-scheme: light)`, `#1B150E` for dark: ORGS.cyra's light and dark paper, which the
-splash wears) and `--doc-bg` (the same two values) as the html/body/#root background, so there is no white flash before
+metas (`#FAF7F4` for `(prefers-color-scheme: light)`, `#131520` for dark: ORGS.cyra's light and dark paper, which the
+splash wears; the web manifest's theme and background colour follow the light one since calm R1) and `--doc-bg` (the same two values) as the html/body/#root background, so there is no white flash before
 the app runs. Once it runs, `applyDocumentScheme(document, { scheme, paper })` (a layout effect in App.jsx, the only
 runtime writer of theme-color) sets `documentElement.style.colorScheme`, `--doc-bg` and every theme-color meta to the
 paper on screen, so the page beside the 430px column and the browser chrome match the stage paper in both schemes.
@@ -1168,6 +1201,61 @@ light, the dark paper on near-white ink in dark), a `--toast-dot` before the tex
 the Settings/palette sheets, which get their own glyphs), so the accent stays a chrome anchor and never reads as data.
 
 ---
+
+
+### 8.5 Design system v2 (calm R1)
+The look the calm redesign (R1–R10) builds on. Everything is tokens on `.cy` (src/styles.js) and SCHEME_TOKENS /
+PALETTES (src/lib/constants.js), so existing screens changed look without code changes; new screens use the
+components below (src/components/ui/, re-exported from `index.js`). A gallery of every component in every stage
+accent, light and dark, lives at `#/dev/ui` (src/dev/DevGallery.jsx) in builds whose VITE_FEATURES names `devGallery`
+(or `all`); without the flag the route and its code are not in the bundle (`__CYRA_DEV_GALLERY__`, vite.config.js).
+
+**Paper.** `.cy` paints `--paper` with a faint pastel wash across the top 340px (lavender → sky → pink, `--wash-a/b/c`,
+6% or less) fading into the paper. **Cards.** `--card`, `--r-card` 20px, 1px `--edge`, `--sh-card` (soft in light, a
+plain line in dark). **Type.** Fraunces (bundled) for card titles, big figures and the greeting; Karla for UI. The
+`.eyebrow` is 11px small caps in `--primary-text` with .14em tracking. **Motion** (all off under reduced motion via the
+global rule): ring arcs draw in (`cy-ring`, 900ms), sheets rise (`cy-sheet-rise`, 240ms), tiles and the "+" dip on press,
+TwoBar bars grow (`cy-grow`).
+
+**Domain tints** (`data-tint="mind" | "body" | "patterns" | "you"` sets `--tintc`): Mind pale blue, Body pale
+lavender-pink, Patterns pale peach, You neutral. Used on card headers (a gradient from the tint into the card), icon
+badges and quick-tile icons.
+
+**Components** (props; every one tokens-only, 44px targets, focus-visible ring):
+- `Card({ title, eyebrow, badge, icon, tint, action, hero, level = 3, as = "section", id, className })`: the v2 card;
+  a section named by its title (aria-labelledby); `badge` sits at the end of the eyebrow row (e.g. a Chip); `icon` adds
+  an `IBadge`. Classes `.v2card`, `.v2card.hero`, `.v2card-head`, `.v2card-eyerow`, `.v2card-title`, `.v2card-action`.
+- `IBadge({ icon, tint, size = 36 })`: `.ibadge`, a pastel circle with the icon in `--primary-text`; decorative.
+- `QuickTile({ icon, label, note, onClick, pressed, tint, disabled })`: `.qtile` (84px tall, `--r-tile`), line icon
+  in a pastel badge over the label; `pressed` true/false makes it a toggle (aria-pressed); grid `.qtiles` (4 columns).
+- `StepRail({ steps: [{ label, sub, state: "done" | "current" | "todo" }], label })`: `ol.steprail[role=list]`,
+  ticked / ringed / dashed circles joined by a dotted line; states said in words ("done", "next") for screen readers;
+  `aria-current="step"` on the current one. No completeness bar, untouched steps are neutral.
+- `Ring({ value 0–1, title, center, sub, word, size = 132, stroke = 10, tone = "primary" | "accent" | "soft", blob })`:
+  SVG ring; the accessible name is words only ("Cycle: Day 12, Follicular", "Body: At your usual"); never a number out
+  of 100. `blob` draws a soft pastel shape behind it. `.ringrow` lays three side by side.
+- `TwoBar({ a, b, diff, diffLabel = "difference", family })`: two labelled bars with day counts and values plus the
+  serif difference figure; bars take the FAMILIES colour `var(--fam-<family>)` (the comparison bar the same family at
+  42% into the card), never a UI palette colour; a figcaption carries the full text summary.
+- `Chip({ variant, children })`: `.vchip.v-<variant>`; `logged` "Logged" (tick; children may extend it), `supported`
+  "Supported pattern", `still` "Still showing up", `notenough` "Not enough information", `pro` "Pro". `CHIP_WORDS`.
+- `NavPill({ tabs, current, onSelect, onPlus, plusLabel = "Log something", plusExpanded, label = "Sections", panelId,
+  fixed = true })`: the floating bottom bar; a tablist of five tabs (roving tabindex, ←/→/Home/End) with the filled
+  "+" outside the tablist, centred over the middle gap (2 tabs | + | 3 tabs, each side half the width); safe-area aware.
+  Not wired into the app in R1 (R2 does).
+- `Sheet({ title, onClose, id, closeLabel = "Close" })`: bottom sheet, `role="dialog"` `aria-modal`, named by its h2;
+  focus to the heading on open, Tab trapped, Escape / Close / backdrop close, focus restored on close. Render only
+  while open.
+- `Blob({ variant })` and `EmptyNote({ children = EMPTY_LINE })`: the illustrated moments (inline SVG in the stage
+  colours, decorative) and the calm empty state, "A few more logs will show clearer associations."
+- Icons added to `Icon` PATHS: home, body, mind, patterns, plus, smile, pulse, move, pill, note, sun, arrow-right,
+  calendar, breath.
+
+**Soft ramp** (data viz, separate from the UI): `SOFT_RAMP.light` #A39BE4 #857AD6 #675CC2 #4B42A4, `SOFT_RAMP.dark`
+#5E56B0 #7A70D0 #988FE4 #B8B1F4, one periwinkle hue, ordinal; `vizVars` delivers `--soft-1..4`; `.softbars` uses it.
+Validator (`validate_palette.js --ordinal`): light on #FFFFFF and #FAF7F4 all checks pass (light end 2.51:1, hue spread
+6°), dark on #1C1F2D all pass (light end 2.68:1, hue spread 4°). FAMILIES, RAMPS and RAMPS_DARK are unchanged and still
+pass on the new dark cards (unit tests).
 
 ## 9. BACKEND (separate service, optional for v1)
 
@@ -1655,6 +1743,12 @@ Apple stays first.
       toggle; registration is Stage → Device → Cycle | Pregnancy (skipped for Menopause & beyond) → Consent, 13 taps /
       7 screens from the splash to a saved first check-in (was 20 / 11); the optional answers moved to Settings → About
       you; the due date drives the pregnancy week; the install hint waits for the first saved check-in (§4.1, §4.2, A14.11).
+- [x] Design system v2 and the condition-module registry (calm R1): warm off-white / navy-charcoal paper with a faint
+      pastel wash, 20px cards with a soft shadow (light) or 1px line (dark), one pastel-leaning AA accent per stage
+      (periwinkle, lavender, rose, soft teal for Menopause), domain tints, v2 components in src/components/ui/ and the
+      `#/dev/ui` gallery behind the `devGallery` dev flag (§8.1, §8.3, §8.4, §8.5); src/lib/modules.js with POTS (wrapping
+      the add-on's own switch) and PCOS (data only, every medical sentence sourced and listed in docs/CLINICIAN-REVIEW.md),
+      persisted `modules` key in the record and in backups (ARCHITECTURE "Condition modules").
 - [ ] Native biometric unlock (Face ID / fingerprint) through a Capacitor plugin — later work; the phone build offers
       the PIN only (D4).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the

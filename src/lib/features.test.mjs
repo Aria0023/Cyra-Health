@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { FEATURE_NAMES, DEFAULT_FEATURES, FEATURE_MODULE, FEATURES, parseFeatures, unknownFeatures, feature, remindersInBuild } from "./features.js";
+import { FEATURE_NAMES, DEFAULT_FEATURES, FEATURE_MODULE, FEATURES, parseFeatures, unknownFeatures, feature, remindersInBuild, DEV_FLAG_NAMES, DEV_FLAGS, parseDevFlags } from "./features.js";
 
 const DEFAULTS = { wearables: false, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: false };
 const only = (...on) => Object.fromEntries(FEATURE_NAMES.map((n) => [n, on.includes(n)]));
@@ -68,4 +68,18 @@ test("features: the production backend mirrors the default build (D2)", () => {
   assert.deepEqual(want, ["ai", "push"]);
   assert.ok(!prod.modules.includes("backup"), "the backup module is not mounted in production");
   for (const m of Object.values(FEATURE_MODULE)) assert.ok(dev.modules.includes(m), `app-dev.json lists ${m}`);
+});
+
+test("dev flags (calm R1): devGallery is off by default, on when named or with all, and never changes the product flags", () => {
+  assert.deepEqual([...DEV_FLAG_NAMES], ["devGallery"]);
+  assert.ok(Object.isFrozen(DEV_FLAG_NAMES) && Object.isFrozen(DEV_FLAGS));
+  assert.deepEqual(DEV_FLAGS, { devGallery: false }, "the unit-test run has no VITE_FEATURES");
+  for (const raw of [undefined, null, "", "ai", "none", "devgalleryx"]) assert.equal(parseDevFlags(raw).devGallery, false, String(raw));
+  for (const raw of ["devGallery", "DEVGALLERY", "ai, devGallery", "all"]) assert.equal(parseDevFlags(raw).devGallery, true, raw);
+  // A list of only dev words keeps the shipping defaults; with product words it is the usual replacing list.
+  assert.deepEqual(parseFeatures("devGallery"), { ...DEFAULT_FEATURES });
+  assert.deepEqual(parseFeatures(" devGallery , "), { ...DEFAULT_FEATURES });
+  assert.deepEqual(parseFeatures("counts,devGallery"), only("counts"));
+  assert.deepEqual(unknownFeatures("devGallery,bogus"), ["bogus"]);
+  assert.ok(!FEATURE_NAMES.includes("devGallery"), "not a product feature: no backend module");
 });

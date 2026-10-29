@@ -28,10 +28,20 @@ export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts:
 const words = (raw) => String(raw).split(",").map((w) => w.trim()).filter(Boolean);
 const known = (w) => FEATURE_NAMES.find((n) => n.toLowerCase() === w.toLowerCase());
 
-/** raw VITE_FEATURES → a fresh plain object with all six flags. */
+/* Developer-only flags (calm R1). They live in the same VITE_FEATURES list but are not product features: they
+   offer nothing to her, map to no backend module and never change which product features a build offers. A list
+   made only of dev words therefore keeps the shipping defaults ("devGallery" = the defaults plus the gallery).
+     devGallery → the design-system gallery at #/dev/ui (src/dev/DevGallery.jsx); default off. "all" turns it on,
+                  so the harness builds (VITE_FEATURES=all) carry it. vite.config.js inlines it as
+                  __CYRA_DEV_GALLERY__, so a build without it leaves the gallery code out of the bundle entirely. */
+export const DEV_FLAG_NAMES = Object.freeze(["devGallery"]);
+const devWord = (w) => DEV_FLAG_NAMES.some((n) => n.toLowerCase() === w.toLowerCase());
+
+/** raw VITE_FEATURES → a fresh plain object with all six flags (dev words are ignored here). */
 export function parseFeatures(raw) {
   if (raw == null || !String(raw).trim()) return { ...DEFAULT_FEATURES };
-  const list = words(raw);
+  const list = words(raw).filter((w) => !devWord(w));
+  if (!list.length) return { ...DEFAULT_FEATURES };
   const all = list.some((w) => w.toLowerCase() === "all");
   const out = Object.fromEntries(FEATURE_NAMES.map((n) => [n, all]));
   if (!all) for (const w of list) { const n = known(w); if (n) out[n] = true; }
@@ -41,11 +51,21 @@ export function parseFeatures(raw) {
 /** The words in raw that are neither a feature name nor "all" / "none". */
 export function unknownFeatures(raw) {
   if (raw == null) return [];
-  return words(raw).filter((w) => !known(w) && !/^(all|none)$/i.test(w));
+  return words(raw).filter((w) => !known(w) && !devWord(w) && !/^(all|none)$/i.test(w));
+}
+
+/** raw VITE_FEATURES → { devGallery } (each dev flag on when named or with "all"; "none" names none). */
+export function parseDevFlags(raw) {
+  const list = raw == null ? [] : words(raw);
+  const all = list.some((w) => w.toLowerCase() === "all");
+  return Object.fromEntries(DEV_FLAG_NAMES.map((n) => [n, all || list.some((w) => w.toLowerCase() === n.toLowerCase())]));
 }
 
 /** This build's flags (frozen). */
 export const FEATURES = Object.freeze(parseFeatures(import.meta.env?.VITE_FEATURES));
+
+/** This build's developer flags (frozen). */
+export const DEV_FLAGS = Object.freeze(parseDevFlags(import.meta.env?.VITE_FEATURES));
 
 /** true when this build offers `name`. */
 export const feature = (name) => FEATURES[name] === true;

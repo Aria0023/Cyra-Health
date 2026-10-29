@@ -13,7 +13,7 @@ export const css = `
    L2: every status and surface colour (--good, --bad, --on-primary, --knob, the --sh-* shadows, …) is a token from
    SCHEME_TOKENS in lib/constants.js, its light value here and its dark value in the rule below. No colour literal
    appears in this stylesheet outside the print block (lib/appearance.test.mjs scans for one). ---- */
-.cy { --fs-xs:11px; --fs-sm:12.5px; --fs-md:13.5px; --fs-lg:15.5px; --fs-num:23px; --fs-title:26px; --r-card:13px; --r-inner:11px; --r-pill:999px; --gap:8px; --stack:12px; --t-fast:100ms; --t-base:200ms; --t-slow:300ms; --ease-std:cubic-bezier(.2,0,0,1); --ease-in:cubic-bezier(.05,.7,.1,1); --ease-out:cubic-bezier(.3,0,.8,.15); --primary-text:color-mix(in srgb, var(--primary) 82%, var(--ink)); --accent-text:color-mix(in srgb, var(--accent) 82%, var(--ink)); ${tokenDecls(SCHEME_TOKENS.light)}; --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); background:var(--paper); color:var(--ink); font-family:'Karla Variable','Karla',sans-serif; line-height:1.5; min-height:100dvh; max-width:430px; margin:0 auto; padding:18px 16px 48px; box-sizing:border-box; color-scheme:light; }
+.cy { --fs-xs:11px; --fs-sm:12.5px; --fs-md:13.5px; --fs-lg:15.5px; --fs-num:23px; --fs-title:26px; --r-card:20px; --r-inner:14px; --r-tile:16px; --r-btn:16px; --r-pill:999px; --gap:8px; --stack:12px; --t-fast:100ms; --t-base:200ms; --t-slow:300ms; --ease-std:cubic-bezier(.2,0,0,1); --ease-in:cubic-bezier(.05,.7,.1,1); --ease-out:cubic-bezier(.3,0,.8,.15); --primary-text:color-mix(in srgb, var(--primary) 82%, var(--ink)); --accent-text:color-mix(in srgb, var(--accent) 82%, var(--ink)); ${tokenDecls(SCHEME_TOKENS.light)}; --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); background:linear-gradient(180deg, transparent 0, var(--paper) 340px) no-repeat, linear-gradient(105deg, var(--wash-a), var(--wash-b) 52%, var(--wash-c)) no-repeat, var(--paper); background-size:100% 340px, 100% 340px, auto; color:var(--ink); font-family:'Karla Variable','Karla',sans-serif; line-height:1.5; min-height:100dvh; max-width:430px; margin:0 auto; padding:18px 16px 48px; box-sizing:border-box; color-scheme:light; }
 /* Dark (L2, spec §8.4): App.jsx resolves Appearance to data-scheme on .cy; the palette and data-viz variables arrive inline. */
 .cy[data-scheme="dark"] { color-scheme:dark; ${tokenDecls(SCHEME_TOKENS.dark)} }
 /* html is above .cy, so the one html-level rule (scroll padding under the POTS stop bar) gets the same inset tokens. */
@@ -31,7 +31,7 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .orgbtn { border:none; background:none; border-radius:999px; padding:5px 12px; font:700 11.5px 'Karla Variable','Karla'; color:var(--soft); cursor:pointer; }
 .orgbtn.on { background:var(--primary); color:var(--on-primary); }
 .topnav { display:flex; gap:4px; margin-bottom:12px; }
-.topbtn { flex:1; border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:8px 1px; font:700 11px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
+.topbtn { flex:1; border:1px solid var(--line); background:var(--card); border-radius:999px; padding:8px 1px; font:700 11px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
 .topbtn.on { background:var(--primary); border-color:var(--primary); color:var(--on-primary); }
 .stagebar { display:flex; gap:7px; margin-bottom:14px; }
 .stagesel { flex:1; display:flex; flex-direction:column; gap:1px; align-items:flex-start; border:1px solid var(--line); background:var(--card); border-radius:12px; padding:9px 11px; cursor:pointer; font-family:'Karla Variable','Karla'; }
@@ -58,7 +58,7 @@ html { scroll-padding-top:60px; }
 .disp { font-family:'Fraunces Variable','Fraunces',serif; font-weight:440; font-size:var(--fs-title); line-height:1.14; margin:0 0 8px; }
 .hint { font-size:var(--fs-md); line-height:1.55; color:var(--soft); margin:0 0 16px; }
 .chips { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:16px; }
-.chip { border:1.5px solid var(--line); background:var(--card); box-shadow:var(--sh-card); border-radius:13px; padding:11px; text-align:left; cursor:pointer; display:flex; flex-direction:column; gap:5px; font-size:13.5px; color:var(--ink); }
+.chip { border:1px solid var(--line); background:var(--card); box-shadow:var(--sh-card); border-radius:var(--r-card); padding:11px; text-align:left; cursor:pointer; display:flex; flex-direction:column; gap:5px; font-size:13.5px; color:var(--ink); }
 .dots { font-size:10.5px; letter-spacing:3px; color:var(--soft); }
 /* Family colour on the data-bearing part only: a chip's dots take its symptom family's colour (--fc, FAMILIES) once it
    has a value, and pop 120ms on each change (keyed remount; none under reduced motion). Borders and backgrounds stay on the palette. */
@@ -68,13 +68,13 @@ html { scroll-padding-top:60px; }
 .chip.sev-2 { border-color:var(--accent); background:color-mix(in srgb, var(--accent) 16%, var(--card)); }
 .chip.sev-3 { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 14%, var(--card)); font-weight:700; }
 .row { display:flex; gap:var(--gap); margin-bottom:16px; }
-.pill { flex:1; border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:9px 4px; font:500 13px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
+.pill { flex:1; border:1px solid var(--line); background:var(--card); border-radius:999px; padding:9px 4px; font:500 13px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
 .pill-on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary); font-weight:700; }
-.cta { width:100%; border:none; border-radius:13px; background:var(--primary); color:var(--on-primary); font:700 14px 'Karla Variable','Karla'; padding:14px; cursor:pointer; }
+.cta { width:100%; border:none; border-radius:var(--r-btn); box-shadow:0 6px 16px -8px var(--primary); background:var(--primary); color:var(--on-primary); font:700 14px 'Karla Variable','Karla'; padding:14px; cursor:pointer; }
 .cta:disabled { opacity:.6; }
 /* Patterns charts (components/PatternCharts.jsx): data colours come from FAMILIES in lib/constants.js, never the UI palette. */
 .backbar { margin:4px 0 2px; } .backbar .linkbtn { font-size:14px; }
-.pchart { background:var(--card); border:1.5px solid var(--line); border-radius:var(--r-card); box-shadow:var(--sh-card); padding:12px 12px 10px; margin-bottom:var(--gap); }
+.pchart { background:var(--card); border:1px solid var(--edge); border-radius:var(--r-card); box-shadow:var(--sh-card); padding:12px 12px 10px; margin-bottom:var(--gap); }
 .psvg:focus:not(:focus-visible) { outline:none; }
 .psvg { display:block; width:100%; height:auto; overflow:visible; touch-action:pan-y; cursor:crosshair; }
 .psvg text { font-family:'Karla Variable','Karla',sans-serif; }
@@ -95,17 +95,17 @@ html { scroll-padding-top:60px; }
 .pcallout { display:flex; gap:12px; align-items:baseline; border-top:1px solid var(--line); margin-top:10px; padding-top:9px; }
 .pcallout b { font-family:'Fraunces Variable','Fraunces',serif; font-size:24px; font-weight:600; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .pcallout p { margin:0; font-size:var(--fs-md); }
-.card { background:var(--card); border:1.5px solid var(--line); box-shadow:var(--sh-card); border-radius:var(--r-card); padding:12px 16px; display:flex; gap:13px; align-items:baseline; margin-bottom:var(--gap); }
+.card { background:var(--card); border:1px solid var(--edge); box-shadow:var(--sh-card); border-radius:var(--r-card); padding:12px 16px; display:flex; gap:13px; align-items:baseline; margin-bottom:var(--gap); }
 .num { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:var(--fs-num); color:var(--primary); min-width:56px; flex-shrink:0; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .card p { margin:0; font-size:var(--fs-md); line-height:1.5; }
 .icard { margin-bottom:var(--gap); box-shadow:var(--sh-card); border-radius:var(--r-card); }
 .icard .card { margin-bottom:0; box-shadow:none; border-radius:var(--r-card) var(--r-card) 0 0; }
-.advice { display:flex; gap:9px; align-items:flex-start; background:color-mix(in srgb, var(--primary) 10%, var(--card)); border:1.5px solid var(--line); border-top:none; border-radius:0 0 13px 13px; padding:10px 15px; }
-.advice-alone { border-top:1.5px solid var(--line); border-radius:13px; margin-top:10px; }
+.advice { display:flex; gap:9px; align-items:flex-start; background:color-mix(in srgb, var(--primary) 10%, var(--card)); border:1px solid var(--edge); border-top:none; border-radius:0 0 var(--r-card) var(--r-card); padding:10px 15px; }
+.advice-alone { border-top:1px solid var(--edge); border-radius:var(--r-card); margin-top:10px; }
 .uchip { flex-shrink:0; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; border-radius:999px; padding:3px 9px; }
 .u-now { background:var(--bad-chip); color:var(--bad); } .u-visit { background:color-mix(in srgb, var(--primary) 16%, var(--card)); color:var(--primary-text); } .u-self { background:color-mix(in srgb, var(--good) 13%, var(--card)); color:var(--good); }
 .atext { font-size:var(--fs-sm); line-height:1.5; }
-.rep { background:var(--card); border:1.5px solid var(--line); box-shadow:var(--sh-card); border-radius:13px; padding:15px; margin-bottom:12px; }
+.rep { background:var(--card); border:1px solid var(--edge); box-shadow:var(--sh-card); border-radius:var(--r-card); padding:15px; margin-bottom:12px; }
 .rtitle { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:17px; margin-bottom:10px; }
 .rmeta { display:block; font-size:11.5px; font-weight:400; color:var(--soft); margin-top:2px; font-family:'Karla Variable','Karla'; }
 .rtab { width:100%; border-collapse:collapse; font-size:12.5px; }
@@ -115,7 +115,7 @@ html { scroll-padding-top:60px; }
 .routes { display:flex; gap:8px; }
 .route { flex:1; display:flex; flex-direction:column; gap:2px; border:1px solid var(--primary); background:var(--card); color:var(--primary); border-radius:12px; padding:11px 8px; font:700 12px 'Karla Variable','Karla'; cursor:pointer; }
 .route span { font-weight:500; font-size:11.5px; color:var(--soft); }
-.shelfc { background:var(--card); border:1.5px solid var(--line); box-shadow:var(--sh-card); border-radius:var(--r-card); padding:14px; margin-bottom:var(--gap); }
+.shelfc { background:var(--card); border:1px solid var(--edge); box-shadow:var(--sh-card); border-radius:var(--r-card); padding:14px; margin-bottom:var(--gap); }
 .shead { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
 .ppill { display:inline-flex; align-items:center; gap:3px; font-size:10.5px; font-weight:700; text-transform:uppercase; border:1px solid var(--line); border-radius:999px; padding:2px 8px; color:var(--soft); }
 .sname { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:15.5px; margin-bottom:3px; }
@@ -137,21 +137,21 @@ html { scroll-padding-top:60px; }
 .sfoot .sadd { min-height:36px; font-size:12px; text-decoration:none; }
 .shelf-empty { margin-top:-4px; }
 .sbtn { border:1px solid var(--primary); background:none; color:var(--primary); border-radius:999px; padding:7px 14px; font:700 12px 'Karla Variable','Karla'; cursor:pointer; }
-.loglines { background:var(--card); border:1.5px solid var(--line); border-radius:13px; padding:12px; font-family:ui-monospace,monospace; font-size:11px; line-height:1.7; }
+.loglines { background:var(--card); border:1px solid var(--edge); border-radius:var(--r-card); padding:12px; font-family:ui-monospace,monospace; font-size:11px; line-height:1.7; }
 .logline.money { color:var(--good); font-weight:700; } .logline.bad { color:var(--bad); font-weight:700; }
 .swatches { display:flex; gap:6px; margin-top:8px; }
 .swatch { width:22px; height:22px; border-radius:6px; border:1px solid var(--line); }
-.phasecard { display:flex; gap:14px; align-items:center; background:var(--card); border:1.5px solid var(--line); box-shadow:var(--sh-card); border-radius:13px; padding:13px 15px; margin-bottom:14px; }
+.phasecard { display:flex; gap:14px; align-items:center; background:var(--card); border:1px solid var(--edge); box-shadow:var(--sh-card); border-radius:var(--r-card); padding:13px 15px; margin-bottom:14px; }
 .phaseday { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:21px; color:var(--primary); white-space:nowrap; }
 .phaseinfo { display:flex; flex-direction:column; gap:2px; font-size:13px; }
 .phaseinfo span { color:var(--soft); font-size:12.5px; line-height:1.45; }
-.readcard { background:color-mix(in srgb, var(--primary) 10%, var(--card)); border:1.5px solid color-mix(in srgb, var(--primary) 25%, var(--line)); border-radius:13px; padding:14px; margin-top:14px; }
+.readcard { background:color-mix(in srgb, var(--primary) 10%, var(--card)); border:1.5px solid color-mix(in srgb, var(--primary) 25%, var(--line)); border-radius:var(--r-card); padding:14px; margin-top:14px; }
 /* Today's read sits directly under the phase card (as the pregnancy read does): tighter, hint clamped to two lines. */
 .readcard.compact { padding:10px 14px; margin-top:0; }
 .readcard.compact .hint { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
 .calgrid { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin-bottom:10px; }
 .calhead { text-align:center; font-size:11px; letter-spacing:.04em; font-weight:700; color:var(--soft); padding:2px 0; }
-.calcell { position:relative; aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:600; border-radius:10px; background:var(--card); border:1.5px solid var(--line); color:var(--ink); cursor:pointer; }
+.calcell { position:relative; aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:12.5px; font-weight:600; border-radius:10px; background:var(--card); border:1px solid var(--line); color:var(--ink); cursor:pointer; }
 /* Calendar (spec §5.1): fill = day score (inline, from the ramp), border = cycle state, so the legend swatches below are a
    literal copy of the cell styling. Month navigation sits around the h1; the selected day's card follows the grid. */
 .calnav { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px; }
@@ -192,7 +192,7 @@ html { scroll-padding-top:60px; }
 .bodypanel.more .cycwhy { flex-basis:100%; margin:0 0 2px; font-size:var(--fs-sm); color:var(--soft); line-height:1.45; }
 .statechip.flag { display:inline-block; margin-right:6px; padding:3px 9px; border-style:solid; border-color:color-mix(in srgb, var(--accent) 70%, var(--line)); color:var(--accent-text); }
 .bodypanel.more .cycmore { margin:6px 0 0; color:var(--soft); }
-.pregband { display:flex; gap:14px; align-items:center; background:var(--card); border:1.5px solid var(--line); box-shadow:var(--sh-card); border-radius:13px; padding:14px 15px; margin-bottom:8px; }
+.pregband { display:flex; gap:14px; align-items:center; background:var(--card); border:1px solid var(--edge); box-shadow:var(--sh-card); border-radius:var(--r-card); padding:14px 15px; margin-bottom:8px; }
 .pregweek { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:22px; color:var(--primary); white-space:nowrap; }
 .pregmeta { display:flex; flex-direction:column; gap:2px; font-size:13px; }
 .pregmeta span { color:var(--soft); font-size:12.5px; }
@@ -201,20 +201,20 @@ html { scroll-padding-top:60px; }
 .kickrow { display:flex; gap:10px; align-items:stretch; margin-bottom:12px; }
 .kickcard .kickrow { margin-bottom:0; } .kickcard .section-lab { margin-top:0; }
 .cta.cta-kick { background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary); border:1.5px solid var(--primary); }
-.kickcount { display:flex; flex-direction:column; align-items:center; justify-content:center; background:var(--card); border:1px solid var(--line); border-radius:13px; padding:6px 16px; }
+.kickcount { display:flex; flex-direction:column; align-items:center; justify-content:center; background:var(--card); border:1px solid var(--line); border-radius:var(--r-card); padding:6px 16px; }
 .kickcount b { font-family:'Fraunces Variable','Fraunces',serif; font-size:20px; color:var(--primary); } .kickcount span { font-size:10.5px; color:var(--soft); }
-.inp { width:100%; border:1.5px solid var(--line); background:var(--card); border-radius:11px; padding:11px 13px; font:500 13.5px 'Karla Variable','Karla'; color:var(--ink); margin-bottom:9px; }
+.inp { width:100%; border:1px solid var(--line); background:var(--card); border-radius:11px; padding:11px 13px; font:500 13.5px 'Karla Variable','Karla'; color:var(--ink); margin-bottom:9px; }
 .splash { padding-top:32px; text-align:left; }
 .splashmark { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:44px; }
 .splashmark span { color:var(--primary); }
 .splashtag { font-size:12px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--primary); margin-top:2px; }
-.ghostbtn { width:100%; border:1px solid var(--primary); background:none; color:var(--primary); border-radius:13px; font:700 14px 'Karla Variable','Karla'; padding:13px; margin-top:10px; cursor:pointer; }
-.consentcard { background:var(--card); border:1.5px solid var(--line); border-radius:13px; padding:14px; font-size:13px; margin-bottom:12px; }
-.consentopt { display:flex; gap:11px; width:100%; text-align:left; border:1.5px solid var(--line); background:var(--card); border-radius:13px; padding:13px; font:400 var(--fs-sm) 'Karla Variable','Karla'; color:var(--ink); line-height:1.5; cursor:pointer; }
+.ghostbtn { width:100%; border:1px solid var(--primary); background:none; color:var(--primary); border-radius:var(--r-card); font:700 14px 'Karla Variable','Karla'; padding:13px; margin-top:10px; cursor:pointer; }
+.consentcard { background:var(--card); border:1px solid var(--edge); border-radius:var(--r-card); padding:14px; font-size:13px; margin-bottom:12px; }
+.consentopt { display:flex; gap:11px; width:100%; text-align:left; border:1px solid var(--line); background:var(--card); border-radius:var(--r-card); padding:13px; font:400 var(--fs-sm) 'Karla Variable','Karla'; color:var(--ink); line-height:1.5; cursor:pointer; }
 .consentopt.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 7%, var(--card)); }
 .ckbox { flex-shrink:0; width:22px; height:22px; border:2px solid var(--primary); border-radius:7px; display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--primary); }
-.acctchip { font-size:11px; font-weight:700; color:var(--ink); border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:6px 10px; margin-right:0; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.stagechip { border:1.5px solid var(--line); background:var(--card); color:var(--primary-text); border-radius:999px; padding:6px 10px; font:700 11px 'Karla Variable','Karla'; cursor:pointer; }
+.acctchip { font-size:11px; font-weight:700; color:var(--ink); border:1px solid var(--line); background:var(--card); border-radius:999px; padding:6px 10px; margin-right:0; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.stagechip { border:1px solid var(--line); background:var(--card); color:var(--primary-text); border-radius:999px; padding:6px 10px; font:700 11px 'Karla Variable','Karla'; cursor:pointer; }
 .stagechip.icon { width:44px; height:44px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
 .stagechip[aria-expanded="true"] { background:color-mix(in srgb, var(--primary) 12%, var(--card)); border-color:var(--primary); }
 /* The "{stage} · change" link reads as a link, not a fourth chip. */
@@ -231,7 +231,7 @@ html { scroll-padding-top:60px; }
 .obwrap { padding-top:14px; }
 .obq { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:20px; margin:6px 0 14px; }
 .obopts { display:grid; gap:var(--gap); margin-bottom:18px; }
-.obopt { border:1.5px solid var(--line); background:var(--card); box-shadow:var(--sh-opt); border-radius:13px; padding:14px; text-align:left; font:500 14.5px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
+.obopt { border:1px solid var(--line); background:var(--card); box-shadow:var(--sh-opt); border-radius:var(--r-card); padding:14px; text-align:left; font:500 14.5px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
 .obdots { display:flex; gap:6px; margin-bottom:16px; }
 .obdots span { width:8px; height:8px; border-radius:50%; background:var(--line); }
 .obdots span.on { background:var(--primary); }
@@ -251,8 +251,8 @@ html { scroll-padding-top:60px; }
 .flegend, .callegend, .gradlegend, .meterends, .scaleends, .nextsub, .greetsub, .rtab, .potsrtab, .loglines, .ptick { line-height:1.3; }
 .scalehead, .shead, .sfoot, .fhead, .medinfo, .pregmeta, .phaseinfo, .palmeta, .rcov-text, .recaprow, .nextrow, .kickcount, .streak { line-height:1.35; }
 .rsec { margin:12px 0 6px; } .sbrand { margin:0; }
-.disclosure { width:100%; display:flex; justify-content:space-between; align-items:center; border:1.5px solid var(--line); background:var(--card); border-radius:13px; padding:12px 16px; font:700 var(--fs-md) 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; margin:14px 0 0; }
-.bodypanel { border:1.5px solid var(--line); border-top:none; border-radius:0 0 13px 13px; background:var(--card); padding:4px 16px 14px; }
+.disclosure { width:100%; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--line); background:var(--card); border-radius:var(--r-card); padding:12px 16px; font:700 var(--fs-md) 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; margin:14px 0 0; }
+.bodypanel { border:1px solid var(--line); border-top:none; border-radius:0 0 var(--r-card) var(--r-card); background:var(--card); padding:4px 16px 14px; }
 .disclosure.more { margin:8px 0 0; min-height:44px; padding:10px 13px; border-radius:var(--r-inner); background:transparent; font-size:var(--fs-sm); text-align:left; gap:10px; }
 .disclosure.more[aria-expanded="true"] { border-radius:var(--r-inner) var(--r-inner) 0 0; }
 .bodypanel.more { border-radius:0 0 var(--r-inner) var(--r-inner); background:transparent; padding:8px 13px 10px; font-size:var(--fs-sm); line-height:1.55; color:var(--ink); }
@@ -263,7 +263,7 @@ html { scroll-padding-top:60px; }
 .mscard .disclosure.more, .pulse .disclosure.more, .pchart .disclosure.more, .card + .morewrap .disclosure.more { border:none; border-top:1px solid var(--line); border-radius:0; background:none; padding:8px 0; margin-top:8px; color:var(--primary-text); justify-content:space-between; }
 .mscard .bodypanel.more, .pulse .bodypanel.more, .pchart .bodypanel.more { border:none; padding:4px 0 6px; }
 .wrapchips { display:flex; flex-wrap:wrap; gap:7px; }
-.minichip { border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:9px 14px; font:500 12.5px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
+.minichip { border:1px solid var(--line); background:var(--card); border-radius:999px; padding:9px 14px; font:500 12.5px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
 .minichip.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary); font-weight:700; }
 .scalerow { margin-bottom:8px; }
 .scalehead { display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:-4px; }
@@ -308,8 +308,8 @@ html { scroll-padding-top:60px; }
 .c-per-mark.f-med { width:9px; border-radius:var(--r-pill); } .c-per-mark.f-heavy { width:13px; border-radius:var(--r-pill); }
 .d-permark { background:var(--primary); border-radius:50%; }
 .scorepill { float:none; font-size:11px; font-weight:700; color:var(--on-primary); border-radius:999px; padding:3px 9px; white-space:nowrap; }
-.palsheet { background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:14px; margin-bottom:14px; box-shadow:var(--sh-sheet); }
-.palopt { display:flex; align-items:center; gap:11px; width:100%; text-align:left; border:1.5px solid var(--line); background:var(--card); border-radius:12px; padding:10px 12px; margin-bottom:8px; cursor:pointer; }
+.palsheet { background:var(--card); border:1px solid var(--edge); border-radius:var(--r-card); padding:14px; margin-bottom:14px; box-shadow:var(--sh-sheet); }
+.palopt { display:flex; align-items:center; gap:11px; width:100%; text-align:left; border:1px solid var(--line); background:var(--card); border-radius:12px; padding:10px 12px; margin-bottom:8px; cursor:pointer; }
 .palopt.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 8%, var(--card)); }
 .palswatches { display:flex; gap:4px; flex-shrink:0; }
 .palswatches i { width:19px; height:19px; border-radius:6px; display:block; }
@@ -323,7 +323,7 @@ html { scroll-padding-top:60px; }
 .labErr { color:var(--bad); }
 .need { color:var(--bad); font-weight:700; }
 .mcrow { display:flex; flex-wrap:wrap; gap:var(--gap); }
-.mc { border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:9px 15px; font:500 13px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
+.mc { border:1px solid var(--line); background:var(--card); border-radius:999px; padding:9px 15px; font:500 13px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
 .mc.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary); font-weight:700; }
 .err .mc, .err .stagecard { border-color:var(--err-line); }
 /* ---- control states (spec §8.4): rest / pressed / hover (pointer only) / focus-visible / disabled. Pressed = a 100ms
@@ -340,7 +340,7 @@ html { scroll-padding-top:60px; }
 .mc.danger:active, .mc.danger.on { background:var(--bad-bg); border-color:var(--bad); color:var(--bad); }
 /* Joined control: 2-5 mutually exclusive answers or views share one border (buttons keep .mc/.on and aria-pressed;
    standalone .mc pills stay for multi-select). Labels wrap to two lines rather than truncate. */
-.seg { display:flex; flex-wrap:nowrap; width:100%; background:var(--card); border:1.5px solid var(--line); border-radius:var(--r-pill); padding:3px; gap:0; box-sizing:border-box; }
+.seg { display:flex; flex-wrap:nowrap; width:100%; background:var(--card); border:1px solid var(--line); border-radius:var(--r-pill); padding:3px; gap:0; box-sizing:border-box; }
 .seg .mc { flex:1 1 0; min-width:0; border:none; background:none; border-radius:var(--r-pill); padding:7px 4px; font-weight:700; font-size:12px; line-height:1.2; color:var(--soft); min-height:44px; text-align:center; white-space:normal; overflow-wrap:anywhere; }
 .seg .mc.on { background:var(--primary); color:var(--on-primary); }
 .seg .mc:active { background:color-mix(in srgb, var(--primary) 12%, var(--card)); } .seg .mc.on:active { background:var(--primary); }
@@ -364,14 +364,14 @@ html { scroll-padding-top:60px; }
 .inpErr { border-color:var(--bad) !important; background:var(--bad-bg) !important; }
 .errhint { font-size:var(--fs-sm); color:var(--bad); line-height:1.5; margin:14px 0 0; background:var(--bad-bg); border:1.5px solid var(--err-edge); border-radius:var(--r-inner); padding:11px 13px; }
 .regcards { display:grid; gap:var(--gap); }
-.stagecard { display:flex; flex-direction:column; align-items:flex-start; gap:2px; border:1.5px solid var(--line); background:var(--card); border-radius:13px; padding:13px 15px; cursor:pointer; text-align:left; }
+.stagecard { display:flex; flex-direction:column; align-items:flex-start; gap:2px; border:1px solid var(--line); background:var(--card); border-radius:var(--r-card); padding:13px 15px; cursor:pointer; text-align:left; }
 .stagecard.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 8%, var(--card)); }
 .stagecard b { font-family:'Fraunces Variable','Fraunces',serif; font-size:16px; color:var(--ink); } .stagecard.on b { color:var(--primary); }
 .stagecard span { font-size:var(--fs-sm); color:var(--soft); }
 .nav { display:flex; gap:10px; margin-top:20px; }
-.back { border:1.5px solid var(--line); background:var(--card); color:var(--ink); border-radius:13px; padding:14px 20px; font:700 14px 'Karla Variable','Karla'; cursor:pointer; }
+.back { border:1px solid var(--line); background:var(--card); color:var(--ink); border-radius:var(--r-card); padding:14px 20px; font:700 14px 'Karla Variable','Karla'; cursor:pointer; }
 .nav .cta { flex:1; }
-.plaincard { background:var(--card); border:1.5px solid var(--line); border-radius:var(--r-card); padding:14px 16px; margin-bottom:var(--gap); box-shadow:var(--sh-card); }
+.plaincard { background:var(--card); border:1px solid var(--edge); border-radius:var(--r-card); padding:14px 16px; margin-bottom:var(--gap); box-shadow:var(--sh-card); }
 .plain { font-size:14px; line-height:1.6; margin:0 0 10px; }
 .plain:last-child { margin-bottom:0; }
 .script { font-size:14px; line-height:1.6; margin:0 0 12px; padding-left:12px; border-left:3px solid var(--primary); color:var(--ink); }
@@ -379,13 +379,13 @@ html { scroll-padding-top:60px; }
 .homehead { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
 .greet { font-family:'Fraunces Variable','Fraunces',serif; font-weight:440; font-size:var(--fs-title); line-height:1.1; margin:0; }
 .greetsub { font-size:13px; color:var(--soft); margin-top:4px; }
-.streak { display:flex; flex-direction:column; align-items:center; background:var(--card); border:1.5px solid var(--line); border-radius:13px; padding:8px 14px; min-width:70px; }
+.streak { display:flex; flex-direction:column; align-items:center; background:var(--card); border:1px solid var(--edge); border-radius:var(--r-card); padding:8px 14px; min-width:70px; }
 .streak b { font-family:'Fraunces Variable','Fraunces',serif; font-size:22px; color:var(--primary); line-height:1; } .streak span { font-size:10.5px; color:var(--soft); margin-top:2px; }
 .nextrow { display:flex; gap:12px; align-items:flex-start; padding:10px 0; border-top:1.5px solid var(--line); }
 .nextrow:first-child { border-top:none; }
 .nextdot { flex-shrink:0; width:9px; height:9px; border-radius:50%; background:var(--accent); margin-top:5px; }
 .nexttext { font-size:var(--fs-md); } .nextsub { font-size:12px; color:var(--soft); margin-top:2px; } .nextsub.link { color:var(--primary-text); font-weight:700; }
-.pulse { background:color-mix(in srgb, var(--primary) 9%, var(--card)); border:1.5px solid color-mix(in srgb, var(--primary) 25%, var(--line)); border-radius:13px; padding:12px 16px; }
+.pulse { background:color-mix(in srgb, var(--primary) 9%, var(--card)); border:1.5px solid color-mix(in srgb, var(--primary) 25%, var(--line)); border-radius:var(--r-card); padding:12px 16px; }
 .pulserow { display:flex; gap:12px; align-items:baseline; padding:6px 0; }
 .pulserow b { font-family:'Fraunces Variable','Fraunces',serif; font-size:22px; color:var(--primary); min-width:72px; } .pulserow span { font-size:var(--fs-md); }
 .recaprow { display:flex; justify-content:space-between; padding:9px 0; border-top:1.5px solid var(--line); font-size:var(--fs-md); }
@@ -395,7 +395,7 @@ html { scroll-padding-top:60px; }
 .medrow { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 0; border-top:1.5px solid var(--line); }
 .medinfo { display:flex; flex-direction:column; gap:2px; } .medinfo b { font-size:14px; } .medinfo span { font-size:var(--fs-sm); color:var(--soft); }
 .medeff { color:var(--primary-text) !important; font-weight:700; } .medeff.muted { color:var(--soft) !important; font-weight:500; }
-.takebtn { flex-shrink:0; border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:8px 13px; font:700 12px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
+.takebtn { flex-shrink:0; border:1px solid var(--line); background:var(--card); border-radius:999px; padding:8px 13px; font:700 12px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
 .takebtn.on { border-color:var(--primary); background:var(--primary); color:var(--on-primary); }
 .takebtn[aria-pressed] { position:relative; padding:8px 13px 8px 34px; }
 .takebtn[aria-pressed]::before { content:''; position:absolute; left:11px; top:50%; width:16px; height:9px; transform:translateY(-50%); border-radius:999px; background:var(--line); }
@@ -406,7 +406,7 @@ html { scroll-padding-top:60px; }
 .orline { display:flex; align-items:center; gap:10px; margin:14px 0 10px; font-size:11.5px; color:var(--soft); text-transform:uppercase; letter-spacing:.07em; }
 .orline::before, .orline::after { content:""; flex:1; height:1.5px; background:var(--line); }
 .social { display:grid; gap:var(--gap); }
-.socialbtn { min-height:44px; display:flex; align-items:center; justify-content:center; gap:9px; border:1.5px solid var(--line); background:var(--card); border-radius:13px; padding:12px; font:700 14px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
+.socialbtn { min-height:44px; display:flex; align-items:center; justify-content:center; gap:9px; border:1px solid var(--line); background:var(--card); border-radius:var(--r-card); padding:12px; font:700 14px 'Karla Variable','Karla'; color:var(--ink); cursor:pointer; }
 .socialbtn:disabled { opacity:.6; }
 .socialdot { width:12px; height:12px; border-radius:50%; }
 /* ---- UI O1: onboarding. Splash motif + promise rows; step 1 providers 3-up (Apple leftmost, inline marks); the stage
@@ -503,7 +503,7 @@ html { scroll-padding-top:60px; }
 .pline-draw { stroke-dasharray:1; stroke-dashoffset:1; animation:cy-draw 600ms var(--ease-in) forwards; }
 .pdots-in { animation:cy-fade-rise 300ms var(--ease-in) 450ms both; }
 .pnums { margin:0; padding-left:18px; } .pchart .morewrap { margin:0; } .pchart .pline + .morewrap { margin-top:4px; }
-.aline { margin:0; padding:0 15px 10px; background:color-mix(in srgb, var(--primary) 10%, var(--card)); border:1.5px solid var(--line); border-top:none; border-radius:0 0 var(--r-card) var(--r-card); }
+.aline { margin:0; padding:0 15px 10px; background:color-mix(in srgb, var(--primary) 10%, var(--card)); border:1px solid var(--edge); border-top:none; border-radius:0 0 var(--r-card) var(--r-card); }
 .aline .linkbtn { font-size:var(--fs-sm); } .advice-mid { border-radius:0; }
 .pchart-soon .pline { margin:8px 0 0; }
 .pulse.quiet { background:var(--card); border-color:var(--line); padding:10px 14px; }
@@ -565,7 +565,7 @@ button[aria-disabled="true"] { cursor:default; }
 .askstarters { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin:-5px -16px 12px; padding:5px 16px 6px; }
 .askstarters::-webkit-scrollbar { display:none; }
 .askintro .askstarters { margin:-5px -14px 4px; padding:5px 14px 6px; }
-.askstarter { flex-shrink:0; border:1.5px solid var(--line); background:var(--card); border-radius:999px; padding:11px 14px; font:500 13px 'Karla Variable','Karla'; color:var(--primary-text); min-height:44px; cursor:pointer; transition:transform var(--t-fast) var(--ease-std), background-color var(--t-fast), border-color var(--t-fast); }
+.askstarter { flex-shrink:0; border:1px solid var(--line); background:var(--card); border-radius:999px; padding:11px 14px; font:500 13px 'Karla Variable','Karla'; color:var(--primary-text); min-height:44px; cursor:pointer; transition:transform var(--t-fast) var(--ease-std), background-color var(--t-fast), border-color var(--t-fast); }
 .askstarter:active { transform:scale(.97); border-color:var(--primary); background:color-mix(in srgb, var(--primary) 10%, var(--card)); }
 @media (hover:hover) { .askstarter:hover { border-color:var(--primary); } }
 label.section-lab { display:block; margin:12px 0 6px; }
@@ -624,7 +624,7 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .potsrtab { font-size:11.5px; }
 .potsrtab caption { text-align:left; font-weight:700; font-size:12.5px; color:var(--ink); padding:6px 0 4px; }
 .potsrtab th, .potsrtab td { padding-right:8px; vertical-align:top; white-space:pre-line; color:var(--ink); }
-.rcover { background:var(--card); border:1.5px solid var(--line); box-shadow:var(--sh-card); border-radius:13px; padding:13px 15px 12px; margin-bottom:8px; }
+.rcover { background:var(--card); border:1px solid var(--edge); box-shadow:var(--sh-card); border-radius:var(--r-card); padding:13px 15px 12px; margin-bottom:8px; }
 .rcov-top { display:flex; gap:12px; align-items:baseline; }
 .rcov-num { font-size:30px; min-width:0; } .rcov-num small { font-size:16px; font-weight:600; color:var(--soft); margin-left:1px; }
 .rcov-text { display:flex; flex-direction:column; gap:1px; font-size:13.5px; } .rcov-text span { font-size:12px; color:var(--soft); }
@@ -714,7 +714,7 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .flowrow:first-child { border-top:none; padding-top:2px; }
 .flowhead { display:flex; justify-content:space-between; align-items:center; gap:10px; }
 .flowhead b { font-size:14px; color:var(--ink); line-height:1.3; }
-.flowstate { flex-shrink:0; font:700 11px 'Karla Variable','Karla'; line-height:1.2; border:1.5px solid var(--line); border-radius:var(--r-pill); padding:4px 10px; color:var(--soft); background:var(--card); }
+.flowstate { flex-shrink:0; font:700 11px 'Karla Variable','Karla'; line-height:1.2; border:1px solid var(--line); border-radius:var(--r-pill); padding:4px 10px; color:var(--soft); background:var(--card); }
 .flowstate.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary-text); }
 .flowstate.you { border-color:color-mix(in srgb, var(--accent) 55%, var(--line)); color:var(--accent-text); }
 .flowstate.na { border-style:dashed; }
@@ -728,7 +728,7 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .lockstatus { min-height:1.5em; margin:0 0 10px; font-size:var(--fs-md); color:var(--soft); }
 .lockstatus.bad { color:var(--bad); font-weight:600; }
 .keypad { display:grid; grid-template-columns:repeat(3, 1fr); gap:var(--gap) 14px; max-width:276px; margin:0 auto 10px; }
-.key { min-height:56px; min-width:44px; display:inline-flex; align-items:center; justify-content:center; border:1.5px solid var(--line); background:var(--card); border-radius:var(--r-pill); font:500 22px 'Fraunces Variable','Fraunces',serif; color:var(--ink); cursor:pointer; }
+.key { min-height:56px; min-width:44px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--line); background:var(--card); border-radius:var(--r-pill); font:500 22px 'Fraunces Variable','Fraunces',serif; color:var(--ink); cursor:pointer; }
 .key.del { border-color:transparent; background:none; color:var(--primary-text); }
 .key:disabled { color:var(--soft); border-style:dashed; cursor:default; }
 .lockforgot { display:flex; margin:14px auto 0; min-height:44px; }
@@ -764,8 +764,8 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
    and mini page swatch are drawn in that palette while the rest of the sheet stays in the current one. ---- */
 .sheethead { position:sticky; top:0; z-index:2; display:flex; justify-content:space-between; align-items:center; gap:10px; background:var(--card); margin:-14px -14px 10px; padding:12px 14px; border-bottom:1.5px solid var(--line); border-radius:14px 14px 0 0; }
 .sheettitle { font:600 20px 'Fraunces Variable','Fraunces',serif; margin:0; color:var(--ink); line-height:1.15; }
-.sheetclose { display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; padding:0; border:1.5px solid var(--line); border-radius:var(--r-pill); background:var(--card); color:var(--primary-text); cursor:pointer; }
-.setgroup { padding:10px 0 2px; border-top:1.5px solid var(--line); }
+.sheetclose { display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; padding:0; border:1px solid var(--line); border-radius:var(--r-pill); background:var(--card); color:var(--primary-text); cursor:pointer; }
+.setgroup { padding:10px 0 2px; border-top:1px solid var(--edge); }
 .sheethead + .setgroup { border-top:none; padding-top:0; }
 .palsheet .medinfo span { font-size:13px; line-height:1.45; }
 .palsheet .rfoot { font-size:12.5px; margin-top:8px; }
@@ -783,7 +783,7 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .palopt { border-color:var(--line); }
 .palopt.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 8%, var(--card)); }
 .palopt b, .palcheck { color:var(--primary); }
-.palmini { margin-left:auto; width:34px; height:22px; flex-shrink:0; border-radius:6px; background:var(--paper-mini); border:1.5px solid var(--line); position:relative; }
+.palmini { margin-left:auto; width:34px; height:22px; flex-shrink:0; border-radius:6px; background:var(--paper-mini); border:1px solid var(--line); position:relative; }
 .palmini::after { content:''; position:absolute; left:5px; right:5px; bottom:4px; height:5px; border-radius:3px; background:var(--primary); }
 /* ---- UI PT1: POTS. The Home card's two compact meters (fluids = palette primary, sodium = the accent: chrome, not
    data colours), the one-tap usual drink row, the page's head row and joined section control, the Full/Simple switch,
@@ -811,14 +811,14 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .pots .reportline { margin-top:8px; font-size:var(--fs-sm); color:var(--soft); } .pots .reportline .linkbtn { font-size:var(--fs-sm); }
 .stepline { display:flex; align-items:center; gap:8px; margin-bottom:4px; } .stepline .stepno { margin:0; }
 .stepline .prog { margin:0; gap:4px; } .stepline .prog span { flex:none; width:6px; height:6px; border-radius:50%; }
-.pots .linkbtn.helpnow { display:flex; align-items:center; gap:8px; width:100%; text-decoration:none; border:1.5px solid var(--line); border-radius:var(--r-card); padding:10px 13px; margin-top:14px; min-height:44px; color:var(--ink); background:var(--card); font-size:var(--fs-md); text-align:left; }
+.pots .linkbtn.helpnow { display:flex; align-items:center; gap:8px; width:100%; text-decoration:none; border:1px solid var(--line); border-radius:var(--r-card); padding:10px 13px; margin-top:14px; min-height:44px; color:var(--ink); background:var(--card); font-size:var(--fs-md); text-align:left; }
 .pots .linkbtn.helpnow::before { content:''; flex-shrink:0; width:8px; height:8px; border-radius:50%; background:var(--bad); }
 .pots .linkbtn.helpnow .chev { margin-left:auto; color:var(--soft); }
 /* ---- L1 (spec A14.1): the waiting-update row in the header and Home's install tip ---- */
 .mast > .updrow { flex:1 1 100%; display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:6px 0 0; padding:0 4px 0 12px; border:1px solid var(--line); border-radius:var(--r-pill); background:var(--card); font-size:var(--fs-sm); color:var(--soft); }
 .updrow .linkbtn { min-height:44px; padding:0 8px; font-size:var(--fs-sm); }
 /* gap 6px, 10px left padding and a slightly narrower Install keep the sentence to two lines at 390px, so the tip adds ≤ 64px to Home. */
-.installtip { display:flex; align-items:center; gap:6px; margin:10px 0 0; padding:4px 4px 4px 10px; border:1.5px solid var(--line); border-radius:var(--r-card); background:var(--card); }
+.installtip { display:flex; align-items:center; gap:6px; margin:10px 0 0; padding:4px 4px 4px 10px; border:1px solid var(--line); border-radius:var(--r-card); background:var(--card); }
 .installtip p { flex:1; min-width:0; margin:0; font-size:var(--fs-md); line-height:1.35; color:var(--ink); }
 .installtip .tipico { flex:0 0 auto; color:var(--accent-text); }
 .installtip .takebtn { flex-shrink:0; padding:8px 11px; }
@@ -833,7 +833,7 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .disclosure.more.symmore { margin:-6px 0 12px; }
 .disclosure.more.symmore[aria-expanded="true"] { border-radius:var(--r-inner); }
 .chips.morechips { margin:8px 0 16px; }
-.symsheet { background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:14px; margin:0 0 16px; box-shadow:var(--sh-sheet); animation:cy-fade-rise var(--t-base) var(--ease-in); }
+.symsheet { background:var(--card); border:1px solid var(--edge); border-radius:var(--r-card); padding:14px; margin:0 0 16px; box-shadow:var(--sh-sheet); animation:cy-fade-rise var(--t-base) var(--ease-in); }
 .symsheet .sheethead { position:static; }
 .symsheet .section-lab::before { display:none; }
 .symsheet .section-lab { margin:14px 0 2px; }
@@ -890,4 +890,127 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .card.findcard .fdot { width:8px; height:8px; margin-right:6px; vertical-align:1px; }
 .findhow { padding:4px 14px 8px; } .findhow .bodypanel p { margin:0 0 8px; }
 .findlist { margin:0 0 8px; padding-left:17px; } .findlist li { margin:3px 0; }
+/* ---- design system v2 (calm R1, spec §8.5): cards, icon badges, quick tiles, step rails, rings, two-bar comparisons,
+   chips, the nav pill, the bottom sheet, blobs and the empty note. Colours are tokens only (--tint-* domain pastels,
+   --edge hairline, --sh-lift); data marks take FAMILIES (--fam-*) or the soft ramp (--soft-1..4), never the palette. ---- */
+.cy [data-tint="mind"] { --tintc:var(--tint-mind); } .cy [data-tint="body"] { --tintc:var(--tint-body); }
+.cy [data-tint="patterns"] { --tintc:var(--tint-patterns); } .cy [data-tint="you"] { --tintc:var(--tint-you); }
+.eyebrow { margin:0 0 3px; font:700 var(--fs-xs) 'Karla Variable','Karla',sans-serif; letter-spacing:.14em; text-transform:uppercase; color:var(--primary-text); line-height:1.2; }
+.serif { font-family:'Fraunces Variable','Fraunces',serif; }
+.v2card { position:relative; background:var(--card); border:1px solid var(--edge); border-radius:var(--r-card); box-shadow:var(--sh-card); padding:16px; margin-bottom:var(--stack); }
+.v2card[data-tint] { background:linear-gradient(180deg, var(--tintc) 0, var(--card) 92px) var(--card); }
+.v2card.hero { padding:20px 18px; }
+.v2card-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+.v2card-head:only-child { margin-bottom:0; }
+.v2card-titles { flex:1; min-width:0; }
+.v2card-eyerow { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; } .v2card-eyerow .eyebrow { margin:0; }
+.v2card-title { margin:0; font-family:'Fraunces Variable','Fraunces',serif; font-weight:560; font-size:18px; line-height:1.25; letter-spacing:-.005em; color:var(--ink); }
+.v2card.hero .v2card-title { font-size:22px; }
+.v2card-action { flex-shrink:0; }
+.v2card p { font-size:var(--fs-md); line-height:1.5; }
+.ibadge { --ib:36px; flex-shrink:0; width:var(--ib); height:var(--ib); border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:color-mix(in srgb, var(--primary) 14%, var(--card)); color:var(--primary-text); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--primary) 10%, transparent); }
+.ibadge[data-tint] { background:var(--tintc); }
+.v2card[data-tint] .ibadge { background:var(--card); }
+/* Quick-log tiles: a soft card-coloured tile (its label names it, so the hairline is decorative), a pastel badge. */
+.qtiles { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:var(--gap); margin-bottom:var(--stack); }
+.qtile { min-height:84px; min-width:44px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:10px 4px; border:1px solid var(--edge); background:var(--card); border-radius:var(--r-tile); box-shadow:var(--sh-card); font:700 12.5px 'Karla Variable','Karla',sans-serif; color:var(--ink); cursor:pointer; transition:transform var(--t-fast) var(--ease-std), background-color var(--t-base), border-color var(--t-base); }
+.qtile:active { transform:scale(.96); }
+.qtile-ico { width:38px; height:38px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:var(--tintc, color-mix(in srgb, var(--primary) 13%, var(--card))); color:var(--primary-text); }
+.qtile-lab { line-height:1.2; text-align:center; }
+.qtile-note { font-size:var(--fs-xs); font-weight:600; color:var(--soft); line-height:1.2; }
+.qtile[aria-pressed="true"] { background:color-mix(in srgb, var(--primary) 12%, var(--card)); border-color:var(--primary); }
+.qtile[aria-pressed="true"] .qtile-ico { background:var(--primary); color:var(--on-primary); }
+/* Step rails: circles joined by a dotted line; done = filled with a tick, current = accent ring, todo = neutral. */
+.steprail { list-style:none; margin:0; padding:0; display:flex; }
+.steprail .step { position:relative; flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; text-align:center; gap:3px; }
+.steprail .step + .step::before { content:''; position:absolute; top:15px; right:calc(50% + 20px); left:calc(-50% + 20px); border-top:2px dotted var(--line); }
+.steprail .step.done + .step::before { border-top-style:solid; border-color:color-mix(in srgb, var(--primary) 55%, var(--card)); }
+.stepdot { width:32px; height:32px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font:700 13px 'Karla Variable','Karla',sans-serif; border:1.5px dashed var(--line); color:var(--soft); background:var(--card); }
+.step.done .stepdot { border:none; background:var(--primary); color:var(--on-primary); }
+.step.current .stepdot { border:2px solid var(--primary); color:var(--primary-text); background:color-mix(in srgb, var(--primary) 12%, var(--card)); box-shadow:0 0 0 4px color-mix(in srgb, var(--primary) 12%, transparent); }
+.steplab { font-weight:700; font-size:var(--fs-sm); color:var(--ink); line-height:1.25; margin-top:3px; }
+.step.current .steplab { color:var(--primary-text); }
+.stepsub { font-size:var(--fs-xs); color:var(--soft); line-height:1.3; }
+/* Rings: track in the stage tint, arc in the stage colour; the arc draws in once (off under reduced motion). */
+.ringrow { display:flex; justify-content:space-around; align-items:flex-start; gap:var(--gap); }
+.ring { margin:0; display:flex; flex-direction:column; align-items:center; gap:6px; flex:0 1 var(--ring); min-width:0; }
+.ringwrap { position:relative; width:100%; max-width:var(--ring); aspect-ratio:1; display:grid; place-items:center; container-type:inline-size; }
+.ringsvg { position:relative; display:block; overflow:visible; grid-area:1 / 1; width:100%; height:100%; }
+.ringtrack { stroke:color-mix(in srgb, var(--primary) 14%, var(--card)); }
+.ringarc { stroke:var(--primary); animation:cy-ring 900ms var(--ease-std) both; }
+.ring.tone-accent .ringtrack { stroke:color-mix(in srgb, var(--accent) 14%, var(--card)); } .ring.tone-accent .ringarc { stroke:var(--accent); }
+.ring.tone-soft .ringtrack { stroke:color-mix(in srgb, var(--ink) 8%, var(--card)); } .ring.tone-soft .ringarc { stroke:var(--soft); }
+.ringmid { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; pointer-events:none; }
+.ringmid b { font-family:'Fraunces Variable','Fraunces',serif; font-weight:560; font-size:calc(var(--ring) * .2); font-size:20cqw; line-height:1.05; color:var(--ink); font-variant-numeric:tabular-nums; }
+.ringmid span { font-size:var(--fs-sm); color:var(--soft); margin-top:2px; }
+.ring figcaption { display:flex; flex-direction:column; align-items:center; gap:1px; text-align:center; }
+.ringtitle { font:700 var(--fs-xs) 'Karla Variable','Karla',sans-serif; letter-spacing:.12em; text-transform:uppercase; color:var(--primary-text); }
+.ring.tone-accent .ringtitle { color:var(--accent-text); }
+.ringword { font-size:var(--fs-sm); color:var(--ink); }
+.ringblob { position:absolute; width:128%; height:128%; left:-14%; top:-14%; }
+@keyframes cy-ring { from { stroke-dashoffset:var(--ring-c); } to { stroke-dashoffset:var(--ring-off); } }
+/* Blobs (illustrated moments): the stage colours mixed thinly into the card. */
+.blob { display:block; overflow:visible; pointer-events:none; }
+.blob-a { fill:color-mix(in srgb, var(--primary) 13%, transparent); }
+.blob-b { fill:color-mix(in srgb, var(--accent) 11%, transparent); }
+.emptynote { position:relative; display:flex; align-items:center; gap:12px; padding:6px 2px; }
+.emptynote .emptyblob { width:64px; height:58px; flex-shrink:0; }
+.emptynote p { margin:0; font-size:var(--fs-md); color:var(--soft); line-height:1.5; }
+/* Two-bar comparison (pattern cards): data colours only. */
+.twobar { margin:0; display:flex; align-items:center; gap:14px; }
+.twobar-diff { flex-shrink:0; display:flex; flex-direction:column; min-width:78px; }
+.twobar-diff b { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:28px; line-height:1.05; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.twobar-diff span { font-size:var(--fs-xs); color:var(--soft); margin-top:2px; }
+.twobar-bars { flex:1; min-width:0; display:flex; flex-direction:column; gap:10px; }
+.twobar-lab { display:flex; justify-content:space-between; gap:8px; font-size:var(--fs-xs); color:var(--soft); margin-bottom:4px; }
+.twobar-lab b { color:var(--ink); font-weight:700; }
+.twobar-track { height:8px; border-radius:var(--r-pill); background:color-mix(in srgb, var(--ink) 7%, var(--card)); overflow:hidden; }
+.twobar-track i { display:block; height:100%; border-radius:var(--r-pill); background:var(--fc); transform-origin:left; animation:cy-grow 600ms var(--ease-std) both; }
+.twobar-row.other .twobar-track i { background:color-mix(in srgb, var(--fc) 42%, var(--card)); }
+/* Soft-ramp bars and sparklines (the dev gallery and later charts). */
+.softbars { display:flex; align-items:flex-end; gap:5px; height:56px; }
+.softbars i { flex:1; border-radius:6px 6px 3px 3px; background:var(--soft-2); }
+.softbars i.s1 { background:var(--soft-1); } .softbars i.s3 { background:var(--soft-3); } .softbars i.s4 { background:var(--soft-4); }
+/* Status chips: words, never grades. */
+.vchip { display:inline-flex; align-items:center; gap:4px; font:700 11px 'Karla Variable','Karla',sans-serif; line-height:1.2; border-radius:var(--r-pill); padding:4px 10px; white-space:nowrap; }
+.vchip.v-logged { background:color-mix(in srgb, var(--good) 13%, var(--card)); color:var(--good); }
+.vchip.v-supported { background:color-mix(in srgb, var(--primary) 16%, var(--card)); color:var(--primary-text); }
+.vchip.v-still { background:var(--ev-mixed-bg); color:var(--ev-mixed-ink); }
+.vchip.v-notenough { background:color-mix(in srgb, var(--ink) 5%, var(--card)); color:var(--soft); box-shadow:inset 0 0 0 1px var(--edge); }
+.vchip.v-pro { background:color-mix(in srgb, var(--accent) 16%, var(--card)); color:var(--accent-text); }
+/* The nav pill: a floating bar of five tabs with a filled "+" centred over the middle gap. */
+.navpill { z-index:6; }
+.navpill.fixed { position:fixed; left:0; right:0; bottom:0; padding:0 12px calc(10px + var(--sa-b)); max-width:430px; margin:0 auto; pointer-events:none; }
+.navpill-bar { position:relative; pointer-events:auto; background:color-mix(in srgb, var(--card) 94%, transparent); backdrop-filter:saturate(150%) blur(10px); -webkit-backdrop-filter:saturate(150%) blur(10px); border:1px solid var(--edge); border-radius:var(--r-pill); box-shadow:var(--sh-lift); padding:5px; }
+.navpill-tabs { display:grid; align-items:stretch; grid-template-columns:var(--np-cols); }
+.navtab { min-height:54px; min-width:44px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; border:none; background:none; border-radius:var(--r-pill); padding:4px 2px; font:600 11px 'Karla Variable','Karla',sans-serif; color:var(--soft); cursor:pointer; transition:background-color var(--t-base), color var(--t-base); }
+.navtab span { line-height:1.1; white-space:nowrap; }
+.navtab.on { background:color-mix(in srgb, var(--primary) 13%, var(--card)); color:var(--primary-text); font-weight:800; }
+.navtab:focus-visible { outline-offset:-3px; border-radius:var(--r-pill); }
+.navplus { position:absolute; top:50%; left:50%; width:56px; height:56px; transform:translate(-50%, -50%); border:none; border-radius:50%; background:var(--primary); color:var(--on-primary); display:inline-flex; align-items:center; justify-content:center; box-shadow:0 8px 20px -6px var(--primary), 0 0 0 4px var(--card); cursor:pointer; transition:transform var(--t-fast) var(--ease-std); }
+.navplus:active { transform:translate(-50%, -50%) scale(.94); }
+.navplus:focus-visible { outline-offset:4px; border-radius:50%; }
+@media (max-width:359px) { .navpill.fixed { padding-left:6px; padding-right:6px; } .navpill-bar { padding:3px; } .navpill-tabs { grid-template-columns:var(--np-narrow); } .navplus { width:50px; height:50px; left:calc(3px + (100% - 58px) * 0.4 + 26px); } }
+/* The bottom sheet. */
+.v2sheet-wrap { position:fixed; inset:0; z-index:8; display:flex; align-items:flex-end; justify-content:center; }
+.v2sheet-back { position:absolute; inset:0; background:var(--scrim); animation:cy-fade var(--t-base) var(--ease-std) both; }
+.v2sheet { position:relative; width:100%; max-width:430px; max-height:88dvh; overflow:auto; background:var(--card); border-radius:26px 26px 0 0; box-shadow:var(--sh-sheet); padding:8px 18px calc(20px + var(--sa-b)); animation:cy-sheet-rise 240ms var(--ease-in) both; }
+.v2sheet-grip { display:block; width:40px; height:5px; border-radius:var(--r-pill); background:color-mix(in srgb, var(--ink) 16%, var(--card)); margin:2px auto 8px; }
+.v2sheet-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+.v2sheet-title { margin:0; font-family:'Fraunces Variable','Fraunces',serif; font-weight:560; font-size:20px; line-height:1.25; color:var(--ink); }
+.v2sheet-close { flex-shrink:0; width:44px; height:44px; border-radius:50%; border:1px solid var(--line); background:var(--card); color:var(--ink); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+@keyframes cy-sheet-rise { from { transform:translateY(40px); opacity:.4; } }
+@keyframes cy-fade { from { opacity:0; } }
+/* The dev gallery (#/dev/ui, VITE_FEATURES devGallery only). */
+.devgallery { padding-bottom:104px; }
+.dgcontrols { margin:0 0 var(--stack); } .dgcontrols .lab { margin-top:6px; } .dgcontrols .seg { margin-bottom:6px; }
+.dgrings { padding:18px 10px 14px; }
+.dgcount { font-size:var(--fs-xs); font-weight:700; color:var(--soft); }
+.dgfoot { display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding-top:10px; border-top:1px solid var(--edge); font-size:var(--fs-xs); color:var(--soft); }
+.dgfoot .linkbtn { min-height:44px; gap:4px; text-decoration:none; font-size:var(--fs-sm); }
+.dgchips { display:flex; flex-wrap:wrap; gap:6px; }
+.dgbadges { display:flex; flex-wrap:wrap; gap:14px; }
+.dgbadge { display:inline-flex; flex-direction:column; align-items:center; gap:4px; font-size:var(--fs-xs); color:var(--soft); }
+.dgserif { font-family:'Fraunces Variable','Fraunces',serif; font-size:22px; font-weight:500; margin:0 0 6px; }
+.dglog { grid-template-columns:repeat(4, minmax(0, 1fr)); }
 `;
