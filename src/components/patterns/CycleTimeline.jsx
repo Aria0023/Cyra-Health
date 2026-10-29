@@ -1,4 +1,5 @@
 import { fmt } from "../../lib/engine.js";
+import { t } from "../../lib/i18n.js";
 
 /* The Patterns hero (calm R6): the last cycles as bars of their actual lengths, newest first, the running one on top.
    Each bar shows the logged period days (strongest ramp step), a textbook fertile-window estimate on 21–35-day cycles
@@ -20,8 +21,8 @@ export default function CycleTimeline({ model }) {
             <li key={r.start} className={`tlrow${r.current ? " now" : ""}${r.long ? " long" : ""}`}>
               <span className="sr-only">{say}{r.labels.length ? ` ${r.labels.join(". ")}.` : ""}</span>
               <div className="tlhead" aria-hidden="true">
-                <span className="tldate">{r.current ? "Now" : fmt(r.start)}</span>
-                <span className="tllen">{r.current ? <>Day <b>{r.len}</b></> : <><b>{r.len}</b> days</>}</span>
+                <span className="tldate">{r.current ? t("timeline.now") : fmt(r.start)}</span>
+                <span className="tllen">{r.current ? <>{t("timeline.day")} <b>{r.len}</b></> : <><b>{r.len}</b> {t("timeline.days")}</>}</span>
               </div>
               <div className="tltrack" aria-hidden="true">
                 {r.current && r.expected > r.len && <i className="tlexp" style={{ width: pct(r.expected) }} />}
@@ -36,10 +37,10 @@ export default function CycleTimeline({ model }) {
         })}
       </ul>
       <div className="tlkey" aria-hidden="true">
-        <span><i className="k-per" />Period</span>
-        {hasFert && <span><i className="k-fert" />Likely fertile days (an estimate)</span>}
-        <span><i className="k-cyc" />Cycle</span>
-        {model.rows.some((r) => r.current && r.expected > r.len) && <span><i className="k-exp" />Still running</span>}
+        <span><i className="k-per" />{t("timeline.period")}</span>
+        {hasFert && <span><i className="k-fert" />{t("timeline.likelyFertileDaysAnEstimate")}</span>}
+        <span><i className="k-cyc" />{t("timeline.cycle")}</span>
+        {model.rows.some((r) => r.current && r.expected > r.len) && <span><i className="k-exp" />{t("timeline.stillRunning")}</span>}
       </div>
       {model.sentence && <p className="tlsent">{model.sentence}</p>}
     </div>

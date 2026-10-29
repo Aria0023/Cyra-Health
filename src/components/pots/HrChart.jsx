@@ -1,5 +1,6 @@
 import { rampVar } from "../../lib/constants.js";
 import { tickAt } from "../../lib/potsReport.js";
+import { fmtDate } from "../../lib/i18n.js";
 
 /* Stand-test charts (design 4.8.6, 5.8). Inline SVG, role="img", with an aria-label that holds
    the whole series, so the chart never carries meaning a screen reader can't get. Data colour
@@ -64,7 +65,7 @@ export function TrendChart({ rows, thr, methodLabel }) {
   const vals = [...rows.map((r) => r.rise), thr, 0];
   const lo = Math.floor(Math.min(...vals) / 10) * 10, hi = Math.ceil((Math.max(...vals) + 6) / 10) * 10;
   const x = (i) => (rows.length === 1 ? (L + W - R) / 2 : L + (i / (rows.length - 1)) * (W - L - R)), y = (v) => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
-  const day = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const day = (iso) => fmtDate(iso, { month: "short", day: "numeric" });
   // As in HrChart: a value label goes below its dot when the threshold line would cross it.
   const labelY = (v) => { const ty = y(v) - 9, ry = y(thr); return ry < ty - 11 || ry > ty + 3 ? ty : y(v) + 17; };
   const tick = rows.length <= 6 ? () => true : tickAt(rows.length, (W - L - R) / (rows.length - 1), 34, Math.ceil(rows.length / 6));

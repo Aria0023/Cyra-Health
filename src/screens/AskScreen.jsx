@@ -5,6 +5,7 @@ import Details, { AiFacts } from "../components/Details.jsx";
 import { STARTERS } from "../lib/askStarters.js";
 import { copyText } from "../lib/clipboard.js";
 import { reduceMotion } from "../lib/motion.js";
+import { t } from "../lib/i18n.js";
 
 /* Ask: free-text question → plain-language evidence answer with named source,
    one question to bring to the doctor, and urgent-flag routing. Cyra's written
@@ -62,58 +63,58 @@ export default function AskScreen({ org, stage, askQ, setAskQ, runAsk, askBusy, 
   const onKey = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !askBusy) { e.preventDefault(); runAsk(); } };
   return (
     <Wrap className={embedded ? "askpart" : undefined} id={embedded ? "ask" : undefined} aria-labelledby={embedded ? "ask-h" : undefined}>
-      {embedded ? <h2 className="journeyh askh" id="ask-h"><span className="ibadge" data-tint="mind" aria-hidden="true"><Icon name="sparkle" size={18} /></span>Ask {org.name}</h2> : <h1 className="disp">Ask {org.name}</h1>}
-      <p className="hint">Plain-language answers from Cyra's written evidence library, built from the guidelines your doctor reads.{aiAvailable && " If you turn on Cyra's AI below, any answer it writes is labelled."}</p>
+      {embedded ? <h2 className="journeyh askh" id="ask-h"><span className="ibadge" data-tint="mind" aria-hidden="true"><Icon name="sparkle" size={18} /></span>{t("ask.ask", { name: org.name })}</h2> : <h1 className="disp">{t("ask.ask", { name: org.name })}</h1>}
+      <p className="hint">{t("ask.plainLanguageAnswersFromCyras")}{aiAvailable && t("ask.ifYouTurnOnCyras")}</p>
       <div className={askOut ? "askstart" : "askstart askintro"}>
-        <p className="section-lab">Try asking</p>
+        <p className="section-lab">{t("ask.tryAsking")}</p>
         {startRow}
       </div>
-      <label htmlFor="ask-q" className="section-lab">Your question</label>
-      <textarea id="ask-q" className="inp" rows={3} maxLength={500} style={{ resize: "none", fontFamily: "inherit" }} placeholder={stage === "preg" ? "e.g. Is it safe to exercise in the second trimester?" : stage === "periods" ? "e.g. Why are my cramps worse some months?" : "e.g. Does hormone therapy raise cancer risk?"} value={askQ} onChange={(e) => setAskQ(e.target.value)} onKeyDown={onKey} />
-      {askQ.length > 400 && <p className="rfoot askcount" aria-live="polite">{askQ.length} / 500 characters</p>}
+      <label htmlFor="ask-q" className="section-lab">{t("ask.yourQuestion")}</label>
+      <textarea id="ask-q" className="inp" rows={3} maxLength={500} style={{ resize: "none", fontFamily: "inherit" }} placeholder={stage === "preg" ? t("ask.eGIsItSafe") : stage === "periods" ? t("ask.eGWhyAreMy") : t("ask.eGDoesHormoneTherapy")} value={askQ} onChange={(e) => setAskQ(e.target.value)} onKeyDown={onKey} />
+      {askQ.length > 400 && <p className="rfoot askcount" aria-live="polite">{t("ask.500Characters", { length: askQ.length })}</p>}
       {aiAvailable && (
         <>
           <button role="checkbox" aria-checked={!!askAI} aria-describedby="ask-ai-disclosure" className={`consentopt ${askAI ? "on" : ""}`} style={{ marginBottom: 6 }} onClick={() => setAskAI(!askAI)}>
             <span className="ckbox" aria-hidden="true">{askAI ? "✓" : ""}</span>
-            <span><b>Also ask Cyra's AI when the library has no answer</b></span>
+            <span><b>{t("ask.alsoAskCyrasAiWhen")}</b></span>
           </button>
           <p className="rfoot" id="ask-ai-disclosure" style={{ margin: "0 0 4px" }}>{AI_DISCLOSURE}</p>
-          <Details label="Exactly what's sent"><AiFacts /></Details>
+          <Details label={t("ask.exactlyWhatsSent")}><AiFacts /></Details>
         </>
       )}
-      <button className="cta" onClick={runAsk} disabled={askBusy}>{askBusy ? <><span className="askspin" aria-hidden="true" />Asking Cyra's AI…</> : "Ask"}</button>
+      <button className="cta" onClick={runAsk} disabled={askBusy}>{askBusy ? <><span className="askspin" aria-hidden="true" />{t("ask.askingCyrasAi")}</> : t("ask.ask2")}</button>
       <section className="askout" aria-live="polite" aria-atomic="true" tabIndex={-1} ref={outRef}>
-        {askBusy && <p className="rfoot" role="status">Asking Cyra's AI…</p>}
+        {askBusy && <p className="rfoot" role="status">{t("ask.askingCyrasAi")}</p>}
         {askOut && (
           <div className={`card askcard ${askOut.urgent ? "askurgent" : ""}`} key={askOut.question + askOut.source}>
             <div className="asksrc">
               {badge && <span className={`uchip ${badge[1]}`}>{badge[0]}</span>}
               {askOut.question && <span className="asksrc-q">{askOut.question}</span>}
             </div>
-            {askOut.urgent && <div style={{ marginBottom: 10 }}><Advice urgency="today">This sounds like something to get checked promptly — please contact your provider or urgent care rather than waiting.</Advice></div>}
-            {paragraphs.map((t, i) => <p key={i} className="asktext">{t}</p>)}
+            {askOut.urgent && <div style={{ marginBottom: 10 }}><Advice urgency="today">{t("ask.thisSoundsLikeSomethingTo")}</Advice></div>}
+            {paragraphs.map((tv, i) => <p key={i} className="asktext">{tv}</p>)}
             {evidence.length > 0 && (
-              <p className="askev"><span className="askev-lab">Evidence base: </span>{evidence.map((e, i) => <span key={i} className="askev-i">{e}{i < evidence.length - 1 ? "; " : ""}</span>)}</p>
+              <p className="askev"><span className="askev-lab">{t("ask.evidenceBase")} </span>{evidence.map((e, i) => <span key={i} className="askev-i">{e}{i < evidence.length - 1 ? "; " : ""}</span>)}</p>
             )}
             {askOut.ask_your_doctor && (
               <div className="askvisit">
-                <Advice urgency="visit">Worth asking: "{askOut.ask_your_doctor}"</Advice>
-                <button type="button" className="linkbtn askcopy" onClick={() => copyText(askOut.ask_your_doctor, "Question copied", ping)}>Copy question</button>
+                <Advice urgency="visit">{t("ask.worthAsking", { ask_your_doctor: askOut.ask_your_doctor })}</Advice>
+                <button type="button" className="linkbtn askcopy" onClick={() => copyText(askOut.ask_your_doctor, "Question copied", ping)}>{t("ask.copyQuestion")}</button>
               </div>
             )}
             {unmatched && (
               <div className="askagain">
-                <p className="section-lab">The library can answer</p>
+                <p className="section-lab">{t("ask.theLibraryCanAnswer")}</p>
                 {startRow}
               </div>
             )}
             {askOut.offerAI && (
               <>
-                <p className="rfoot" style={{ marginTop: 10 }}>Cyra's AI can try questions the library can't answer. To use it, tick "Also ask Cyra's AI when the library has no answer" above and ask again.</p>
+                <p className="rfoot" style={{ marginTop: 10 }}>{t("ask.cyrasAiCanTryQuestions")}</p>
                 {aiAvailable && !askAI && (
                   <>
                     {/* One tap does both: it turns the visible, persisted opt-in on and sends this one question. The override is needed because runAsk would otherwise read the saved choice from before this render and return the unmatched card again. */}
-                    <button type="button" className="ghostbtn" onClick={() => { setAskAI(true); runAsk(askOut.question, { ai: true }); }}>Ask Cyra's AI about this</button>
+                    <button type="button" className="ghostbtn" onClick={() => { setAskAI(true); runAsk(askOut.question, { ai: true }); }}>{t("ask.askCyrasAiAboutThis")}</button>
                     <p className="rfoot">{AI_DISCLOSURE}</p>
                   </>
                 )}
@@ -121,14 +122,14 @@ export default function AskScreen({ org, stage, askQ, setAskQ, runAsk, askBusy, 
             )}
             <footer className="askfoot">
               {sourceLine && <p className="rfoot">{sourceLine}</p>}
-              <p className="rfoot">Plain-language education, not medical advice or diagnosis.</p>
+              <p className="rfoot">{t("ask.plainLanguageEducationNotMedical")}</p>
             </footer>
           </div>
         )}
       </section>
       <p className="rfoot" style={{ marginTop: 14 }}>{aiAvailable
-        ? "Questions the library answers stay on this device. If you turn on Cyra's AI, only questions the library can't answer are sent, and never with your name or account."
-        : "Questions are answered on this device from Cyra's written library and aren't sent anywhere."}</p>
+        ? t("ask.questionsTheLibraryAnswersStay")
+        : t("ask.questionsAreAnsweredOnThis")}</p>
     </Wrap>
   );
 }

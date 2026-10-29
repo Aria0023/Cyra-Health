@@ -23,6 +23,7 @@ import { SessionEdit } from "./MoveSession.jsx";
 import { fmtN } from "./HrChart.jsx";
 import { hm, ampm, dayLabel, addDays, SEV_WORD, intakeText, symLabel, medName, useAnnounce, potsUnsaved } from "./ui.js";
 import { FEATURES } from "../../lib/features.js";
+import { fmtDate } from "../../lib/i18n.js";
 import { potsTodayFoot, potsTodayFootUnsaved, potsTodayFoot2 } from "../../lib/disclosures.js";
 
 /* POTS → Today (design 4.2, Full view) and Simple view (4.3). Every tap commits at once
@@ -241,7 +242,7 @@ export default function PotsToday({ pots, setPots, day: dayIn, todayIso, setDay,
   const lastTest = [...(pots.tests || [])].reverse().find((t) => t.status !== "running") || null;
   const lastLine = (() => {
     if (!lastTest) return "No tests yet";
-    const r = resultFor(pots, lastTest, stage), when = new Date(`${lastTest.date}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const r = resultFor(pots, lastTest, stage), when = fmtDate(lastTest.date, { month: "short", day: "numeric" });
     const what = r.hrStatus !== "insufficient" && r.peakRise > 0 ? `heart rate rose ${fmtN(r.peakRise)}` : riseText(lastTest, r);
     return `Last test: ${when} · ${what}`;
   })();

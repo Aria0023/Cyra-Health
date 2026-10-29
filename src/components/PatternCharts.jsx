@@ -3,6 +3,7 @@ import { dayScore, isPeriodDay, isRoughNight, fmt, localDay, sevDots } from "../
 import { FAMILIES, SYM_FAMILY, famVar } from "../lib/constants.js";
 import Details from "./Details.jsx";
 import { usualOf, bandOf, BAND, BAND_WORDS, bandCounts, bandWords, bandTrend } from "../lib/patterns.js";
+import { fmtDate } from "../lib/i18n.js";
 
 /* "Your patterns" card (Home and the Patterns tab; cycle and perimenopause/menopause stages).
    One card, two views behind a switch:
@@ -29,7 +30,7 @@ const NONE = "var(--line)";
 const DOT_EDGE = "color-mix(in srgb, var(--ink) 35%, transparent)";
 const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return localDay(d); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T12:00:00") - new Date(a + "T12:00:00")) / 86400000);
-const wkday = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
+const wkday = (iso) => fmtDate(iso, { weekday: "short" });
 const mean = (w) => w.reduce((a, d) => a + d.score, 0) / w.length;
 
 /* The family of the day's strongest symptom (ties go to the first symptom in the stage's list);

@@ -289,6 +289,29 @@ same two choices. Restoring reuses the file restore (`applyRestore`), so the sam
 **Backend:** `GET /api/backup/account/meta`, `GET|PUT|DELETE /api/backup/account` (backend/README.md); `backup` stays out
 of `config/app.json` until the owner adds a persistent disk and enables it.
 
+### 3.5h Language support and the last calm pass (calm R10, `lib/i18n.js`, `src/locales/`)
+- **Strings.** Every user-visible string of the five tabs, the "+" sheet, onboarding, the practices and the AI sheets
+  goes through `t(key, vars)`; English is the source catalogue (`src/locales/en.js` = data copy flattened from its
+  modules + `en-ui.js`, the screens' strings with their exact text). A key missing from a catalogue falls back to
+  English, then to the key itself. `{name}` placeholders; plural entries `{ one, other, … }` chosen with
+  `Intl.PluralRules` for `vars.count`. Copy that lives with its data is localised at render (`localPractice`,
+  `stepCopy`, `localTabs`, `localItems` in `src/locales/index.js`). Sentences computed inside lib modules (home.js,
+  patterns.js, experiments.js, the disclosure builders) are still English-only text in those modules: a second
+  language would move them next.
+- **Locale.** `detectLocale(navigator.languages)` picks the best registered catalogue; her saved choice (`uiLocale`, a
+  device preference, never in a backup) wins when that catalogue exists. `<html lang>` and `dir` follow it. Dates and
+  numbers go through `fmtDate` / `fmtNumber` (Intl with the catalogue's tag; English formats as en-US, the text the
+  app always showed). New CSS uses logical properties (`margin-inline`, `margin-inline-start`).
+- **Language picker.** You → Language shows only when two or more catalogues ship (`pickerShown()`); this build ships
+  English only, so it is hidden. A second language = `src/locales/<code>.js` with every English key + one
+  `addCatalogue` line; i18n.test.mjs checks every literal key used in src exists in English.
+- **You, compacted.** Each card is a title row, one summary line and its primary control; explanations sit behind a
+  Details ("How this works", "What each one adds", "Rhythm, time and style", "Your answers", "See N options for your
+  stage"). The privacy card leads with three short facts (days logged and last backup, what is on right now, the lock)
+  and the backup / restore / delete actions. Every moved sentence: PRIVACY-AUDIT "Calm R10". About 40% shorter at 390px.
+- **Toasts** never cover what they confirm: with a bottom sheet open the toast shows at the top of the screen.
+- **Tone.** The check-in meter, the calendar day pill and the connection card speak in words, never a number out of 100.
+
 ### 3.6 Her symptom list (symPrefs, local-first L6)
 ```js
 symPrefs: { periods?: { order, hidden, added }, peri?: { order, hidden, added }, preg?: { order, hidden } }
@@ -2039,6 +2062,9 @@ Apple stays first.
       Cyra's server (opaque blob, email hash, token hash), automatic back-ups, sign in and restore on a new device, "The
       backup is newer" choice, sign out, delete account; Pro only, behind the `cloudBackup` flag, `backup` not mounted in
       production (§3.5g). Before enabling: a persistent disk (`DATA_DIR`) and a server-side Pro receipt check.
+- [x] Language support plumbing (calm R10): `t()` with an English catalogue, locale detection, `<html lang>`/`dir`, Intl
+      dates and numbers, the You → Language picker (hidden until a second complete catalogue ships) (§3.5h).
+- [ ] A second language: translate every key of `src/locales/en.js` and the sentences still computed in lib modules.
 - [ ] Native biometric unlock (Face ID / fingerprint) through a Capacitor plugin — later work; the phone build offers
       the PIN only (D4).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the

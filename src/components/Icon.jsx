@@ -32,6 +32,7 @@ const PATHS = {
   trash: "M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6",
   download: "M12 3v12M7 10l5 5 5-5M5 21h14",
   moon: "M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z",
+  globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c2.5 2.5 3.8 5.6 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.6-3.8-9S9.5 5.5 12 3z",
   "arrow-up": "M12 19V5M5 12l7-7 7 7",
   "arrow-down": "M12 5v14M19 12l-7 7-7-7",
   teststrip: "M9 2h6v20H9zM11 7h2M11 11h2", // an ovulation test strip with its control and test lines (L7)

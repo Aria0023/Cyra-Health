@@ -13,6 +13,7 @@ import { TrendChart, fmtN } from "./HrChart.jsx";
 import { Choice } from "./StandSafety.jsx";
 import { resultFor, riseText, methodWord } from "./StandResult.jsx";
 import { SEV_WORD, naText } from "./ui.js";
+import { fmtDate } from "../../lib/i18n.js";
 
 /* POTS → Patterns (design 5.5): what her own log shows, worked out on this device by
    lib/potsPatterns.js at render and never stored. Windows: Today, 7 days, 30 days (default) and,
@@ -25,9 +26,9 @@ import { SEV_WORD, naText } from "./ui.js";
      only, never in your report". The report runs the same engine without them.
    - Cycle groups come from logged period starts only (no predicted ovulation), and only in My
      Cycle, Trying to Conceive and Perimenopause. Pregnancy and Menopause have no cycle card. */
-const short = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+const short = (iso) => fmtDate(iso, { weekday: "short", month: "short", day: "numeric" });
 /** "Mon 5", kept on one line: the 7-day table's Day column (the week never repeats a weekday). */
-const weekDay = (iso) => { const d = new Date(`${iso}T12:00:00`); return `${d.toLocaleDateString("en-US", { weekday: "short" })}\u00a0${d.getDate()}`; };
+const weekDay = (iso) => { const d = new Date(`${iso}T12:00:00`); return `${fmtDate(d, { weekday: "short" })}\u00a0${d.getDate()}`; };
 const lc1 = (s) => (s ? s[0].toLowerCase() + s.slice(1) : s);
 /** The device a watch or ring reading came from, as the card tag names it. */
 const wearName = (src) => (src === "healthkit" ? (platform() === "android" ? "watch" : "Apple Watch") : src === "oura" ? "ring" : "wearable");

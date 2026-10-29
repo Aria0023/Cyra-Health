@@ -1,4 +1,5 @@
 import { QUICK_Q } from "../lib/constants.js";
+import { t } from "../lib/i18n.js";
 
 /* Quick check-in: three stage-specific questions, done in ~10 seconds. Each question is a labelled
    group whose four answers form one joined .seg control (the answers read as answers to that
@@ -8,7 +9,7 @@ import { QUICK_Q } from "../lib/constants.js";
 export default function QuickCheckin({ stage, draft, setDraft, onMore }) {
   return (
     <div className="plaincard" style={{ marginBottom: 14 }}>
-      <div className="shead"><span className="sbrand">Quick check-in</span><button type="button" className="linkbtn" onClick={onMore}>more detail</button></div>
+      <div className="shead"><span className="sbrand">{t("quick.quickCheckIn")}</span><button type="button" className="linkbtn" onClick={onMore}>{t("quick.moreDetail")}</button></div>
       {(QUICK_Q[stage] || QUICK_Q.peri).map((q, i) => {
         const key = ["q1", "q2", "q3"][i];
         const qid = `quick-${key}`;

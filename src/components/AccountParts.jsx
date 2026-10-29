@@ -6,6 +6,7 @@ import { passphraseLength } from "../lib/backup.js";
 import { isEmail, ACCOUNT_COPY as C } from "../lib/account.js";
 import { ACCOUNT_LINES, accountLine } from "../lib/about.js";
 import { relDay } from "../lib/engine.js";
+import { t } from "../lib/i18n.js";
 
 /* The optional account (calm R9): You → Account and its two sheets. Shown only in a build that offers it (lib/cloudBackup.js
    ACCOUNTS_HERE: the cloudBackup flag and a server); otherwise YouScreen keeps R7's "No account needed" card unchanged.
@@ -57,7 +58,7 @@ export function AccountCard({ a, person }) {
     return (
       <Card id="you-account" tint="you" icon="user" eyebrow={C.eyebrow} title={C.guestTitle} level={2} className="youaccount acctcard" badge={a.can ? null : <Chip variant="pro" />}>
         {a.can && <AcctArt />}
-        <p>{C.guestLine}{person && !person.anon && String(person.name || "").trim() ? " Your name stays with it." : ""}</p>
+        <p>{C.guestLine}{person && !person.anon && String(person.name || "").trim() ? t("account.yourNameStaysWithIt") : ""}</p>
         <p className="hint">{C.guestMore}</p>
         {a.can ? (
           <div className="acctacts">
@@ -67,7 +68,7 @@ export function AccountCard({ a, person }) {
         ) : (
           <div className="acctacts">
             <p className="hint acctpro">{C.proLine}</p>
-            <button type="button" className="ghostbtn" aria-haspopup="dialog" onClick={a.onPro}>See what Pro adds</button>
+            <button type="button" className="ghostbtn" aria-haspopup="dialog" onClick={a.onPro}>{t("account.seeWhatProAdds")}</button>
           </div>
         )}
         <p className="rfoot">{ACCOUNT_LINES.moreAccount}</p>
@@ -136,7 +137,7 @@ export function AccountSheet({ mode, onClose, onSubmit, onUse, onKeep, choice = 
   };
   const pick = async (fn) => { setBusy(true); setErr(""); try { await fn(); } catch (e) { setErr(e.message || "Couldn't do that just now"); } finally { setBusy(false); } };
   return (
-    <Sheet id="acct-sheet" title={create ? C.createTitle : C.signInTitle} onClose={onClose} closeLabel={create ? "Close create an account" : "Close sign in"} className="acctsheet">
+    <Sheet id="acct-sheet" title={create ? C.createTitle : C.signInTitle} onClose={onClose} closeLabel={create ? t("account.closeCreateAnAccount") : t("account.closeSignIn")} className="acctsheet">
       {choice ? (
         <>
           <AccountChoice id="acct-local" head={C.localHead} body={C.localBody} busy={busy} onUse={() => pick(onUse)} onKeep={() => pick(onKeep)} onCancel={onClose} />
@@ -148,13 +149,13 @@ export function AccountSheet({ mode, onClose, onSubmit, onUse, onKeep, choice = 
           {create && (
             <div className="acctholds">
               <p className="section-lab" id="acct-holds">{C.holdsLab}</p>
-              <ul className="rlist" aria-labelledby="acct-holds">{C.holds.map((t) => <li key={t}>{t}</li>)}</ul>
+              <ul className="rlist" aria-labelledby="acct-holds">{C.holds.map((tv) => <li key={tv}>{tv}</li>)}</ul>
             </div>
           )}
           <p className="acctlost" id="acct-lost"><Icon name="lock" size={16} />{C.lost}</p>
-          <label className="flab"><span>{C.emailLab}</span><input className="inp" type="email" inputMode="email" autoComplete="username" aria-label="Account email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-          <label className="flab"><span>{C.passLab}</span><input className="inp" type="password" placeholder="Passphrase (8+ characters)" aria-label="Account passphrase" aria-describedby="acct-lost" {...noSave} value={pass} onChange={(e) => setPass(e.target.value)} /></label>
-          {create && <label className="flab"><span>{C.pass2Lab}</span><input className="inp" type="password" placeholder="Repeat passphrase" aria-label="Repeat account passphrase" {...noSave} value={pass2} onChange={(e) => setPass2(e.target.value)} /></label>}
+          <label className="flab"><span>{C.emailLab}</span><input className="inp" type="email" inputMode="email" autoComplete="username" aria-label={t("account.accountEmail")} value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+          <label className="flab"><span>{C.passLab}</span><input className="inp" type="password" placeholder={t("account.passphrase8Characters")} aria-label={t("account.accountPassphrase")} aria-describedby="acct-lost" {...noSave} value={pass} onChange={(e) => setPass(e.target.value)} /></label>
+          {create && <label className="flab"><span>{C.pass2Lab}</span><input className="inp" type="password" placeholder={t("account.repeatPassphrase")} aria-label={t("account.repeatAccountPassphrase")} {...noSave} value={pass2} onChange={(e) => setPass2(e.target.value)} /></label>}
           {create && (
             <button type="button" role="checkbox" aria-checked={agree} className={`consentopt ${agree ? "on" : ""}`} onClick={() => setAgree((v) => !v)}>
               <span className="ckbox" aria-hidden="true">{agree ? "✓" : ""}</span>

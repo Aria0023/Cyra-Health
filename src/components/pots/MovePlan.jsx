@@ -9,6 +9,7 @@ import Details from "../Details.jsx";
 import { Choice } from "./StandSafety.jsx";
 import { SessionLog } from "./MoveSession.jsx";
 import { numOf, numProps, useAnnounce } from "./ui.js";
+import { fmtDate } from "../../lib/i18n.js";
 
 /* POTS → Move (design 4.10, spec A13.3; lib/potsMove.js). Cyra's own graded plan that starts
    lying down, in Cyra's words; not any clinic's program and not a prescription.
@@ -27,7 +28,7 @@ import { numOf, numProps, useAnnounce } from "./ui.js";
      D9), and the heart-rate range her clinician gave in her own words. Cyra suggests none.
    - "Start a session" opens the guided timer (MoveSession.jsx, the running takeover); "Log a
      session I did" records one without it. No streaks; rest days are part of the plan. */
-const short = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const short = (iso) => fmtDate(iso, { month: "short", day: "numeric" });
 
 /** Sessions per week over the last 8 weeks (fill ramp().mid), with the next days rated worse or
     crashed. Every value is in the aria-label. */

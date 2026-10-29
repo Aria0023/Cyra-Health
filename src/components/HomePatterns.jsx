@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Card } from "./ui/index.js";
 import { weekTrend, sparkPoints, cycleBuckets } from "../lib/home.js";
 import { famVar, SYM_FAMILY } from "../lib/constants.js";
+import { t } from "../lib/i18n.js";
 
 /* Home v2 (calm R3): the compact, word-based patterns preview. Day by day: a soft sparkline of her 7-day trend (higher =
    lighter days; no axis, no numbers) and one sentence against her usual. By cycle (once two period starts are logged):
@@ -49,14 +50,14 @@ export default function HomePatterns({ days, ids, labels, starts = [], curLen = 
   if (logged < 3) return null;
   const vmax = cyc ? Math.max(...cyc.bars.map((b) => b.v ?? 0)) : 0, vmin = cyc ? Math.min(...cyc.bars.filter((b) => b.v != null).map((b) => b.v)) : 0;
   return (
-    <Card className="homepatterns" title="Your patterns" eyebrow="Last 60 days" icon="patterns" tint="patterns" level={2}
-      action={onMore && <button type="button" className="linkbtn hpmore" onClick={onMore}>More in Patterns<span aria-hidden="true">&nbsp;→</span></button>}>
+    <Card className="homepatterns" title={t("homePatterns.yourPatterns")} eyebrow={t("homePatterns.last60Days")} icon="patterns" tint="patterns" level={2}
+      action={onMore && <button type="button" className="linkbtn hpmore" onClick={onMore}>{t("homePatterns.moreInPatterns")}<span aria-hidden="true">&nbsp;→</span></button>}>
       {(
         <>
           {canCycle && (
-            <div className="mcrow pswitch seg hpswitch" role="group" aria-label="Chart view">
-              <button type="button" className={`mc ${!cycleView ? "on" : ""}`} aria-pressed={!cycleView} onClick={() => setView("days")}>Day by day</button>
-              <button type="button" className={`mc ${cycleView ? "on" : ""}`} aria-pressed={cycleView} onClick={() => setView("cycle")}>By cycle</button>
+            <div className="mcrow pswitch seg hpswitch" role="group" aria-label={t("homePatterns.chartView")}>
+              <button type="button" className={`mc ${!cycleView ? "on" : ""}`} aria-pressed={!cycleView} onClick={() => setView("days")}>{t("homePatterns.dayByDay")}</button>
+              <button type="button" className={`mc ${cycleView ? "on" : ""}`} aria-pressed={cycleView} onClick={() => setView("cycle")}>{t("homePatterns.byCycle")}</button>
             </div>
           )}
           {cycleView ? (
@@ -72,7 +73,7 @@ export default function HomePatterns({ days, ids, labels, starts = [], curLen = 
               <figcaption>
                 <p className="hpsentence">{cyc.sentence}</p>
                 <ul className="sr-only">{cyc.bars.map((b) => <li key={b.id}>{b.label}: {rank(b)}</li>)}</ul>
-                <p className="hplegend"><i className="hpkey bar" aria-hidden="true" />Taller bars, lighter days · phases from your own cycle lengths</p>
+                <p className="hplegend"><i className="hpkey bar" aria-hidden="true" />{t("homePatterns.tallerBarsLighterDaysPhases")}</p>
               </figcaption>
             </figure>
           ) : (
@@ -96,16 +97,16 @@ export default function HomePatterns({ days, ids, labels, starts = [], curLen = 
                 <span className="hpdot" aria-hidden="true" style={{ left: `${(path.last[0] / W) * 100}%`, top: `${(path.last[1] / H) * 100}%` }} />
                 </div>
               )}
-              <div className="hpends" aria-hidden="true"><span>8 weeks ago</span><span>Today</span></div>
+              <div className="hpends" aria-hidden="true"><span>{t("homePatterns.8WeeksAgo")}</span><span>{t("homePatterns.today")}</span></div>
               <figcaption>
                 <p className="hpsentence">{trend.sentence}</p>
-                <p className="hplegend"><i className="hpkey" aria-hidden="true" />Your 7-day trend · higher means lighter days</p>
+                <p className="hplegend"><i className="hpkey" aria-hidden="true" />{t("homePatterns.your7DayTrendHigher")}</p>
               </figcaption>
             </figure>
           )}
           {top.length > 0 && (
             <div className="hplately">
-              <span className="hplab">Showing up most lately</span>
+              <span className="hplab">{t("homePatterns.showingUpMostLately")}</span>
               <ul>{top.map((r) => <li key={r.id}><i className="fdot" aria-hidden="true" style={{ background: famVar(SYM_FAMILY[r.id] || "body") }} />{r.label}</li>)}</ul>
             </div>
           )}

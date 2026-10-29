@@ -1,11 +1,26 @@
 # Cyra Health
 
-One companion for every phase — cycle, pregnancy, perimenopause, menopause.
-Tracks in 30 seconds a day, finds patterns, and turns them into plain-language
-guidance and a doctor-ready summary. The health log is stored only on the device. Opt-in
-features (weekly counts, Ask Cyra's AI, Oura and Fitbit/Garmin/Whoop) send only what their
-in-app disclosure says; the full list, including sign-in and web reminders, is under
-Privacy below.
+A calm, low-pressure companion for women's health: a cycle and symptom tracker that finds patterns in her own
+log and turns them into plain-language notes and a doctor-ready PDF. One life-stage experience at a time — My
+Cycle, Trying to conceive, Pregnancy, Perimenopause, Menopause & beyond — with optional condition modules (PCOS,
+POTS; hair loss is the next slot). Guest first: no account to start, and the health log stays on the device.
+Guidance only, never diagnosis or medical advice.
+
+**What's in the app**
+- Five tabs and a "+" log sheet: **Home** (cycle day in a ring, Today's small step, Quick log tiles, Body and Mind
+  progress, your patterns), **Body** (fast log, calendar, cycles, PCOS signals and lab values she types in),
+  **Mind** (mood check-in, 2–5 minute practices with their evidence and sources, journal and Ask Cyra), **Patterns**
+  (cycle timeline, Body and Mind rings in words, pattern cards, the weekly review with one optional experiment,
+  the Report and PDF) and **You** (stage, privacy and your data, modules, plan, reminders, appearance, Cyra's AI,
+  account, support & care, about).
+- Tone rules: no streaks, scores, grades or failure language; empty states say "A few more logs will show clearer
+  associations"; practices are "wellbeing support, not treatment".
+- Free core forever (logging, calendar, cycles, patterns, weekly review, the basic PDF). Pro (store purchase, not
+  wired to a store yet) adds the full practice library and Cyra's AI write-up and chat; see docs/MONETIZATION.md.
+- Language support: every screen string goes through `t()` (src/lib/i18n.js) with an English catalogue
+  (src/locales/en.js). Dates and numbers are formatted with Intl, `<html lang>`/`dir` follow the language. Only
+  English ships, so the You → Language picker stays hidden until a second complete catalogue is added.
+- Light and dark mode, installable (PWA, opens offline), and iPhone / Android shells (Capacitor).
 
 ## Privacy
 The health log (check-ins, journal, appointments, medications, the answers given at
@@ -41,6 +56,11 @@ reminders, so it makes no request at launch). Each item names its flag:
   typed question go to Cyra's server, with no life stage, name or log. The server forwards
   the text as typed to Anthropic, which keeps it under its own terms (a server without an
   Anthropic key answers from the same library instead).
+- **Cyra's weekly write-up and chat** (`ai`, Pro, both off until she turns them on in You → Cyra's AI): each
+  send first opens "What Cyra will send", which shows the exact request body. It holds the question (chat) and a
+  pseudonymized summary of her last 8 weeks (counts, averages, cycle-day buckets; no dates, notes, name, email,
+  ZIP or free text); lab values only if she ticks "Include lab values". Nothing goes until she taps Send. Cyra's
+  server forwards it to Anthropic and keeps none of it (docs/PRIVACY-AUDIT.md "Calm R8" lists the fields).
 - **Oura** (`wearables`; connected only after a disclosure and Continue): the device keeps the Oura
   tokens. While connecting, the server holds them in memory for at most 5 minutes until the
   device collects them (Cyra's server asks Oura to revoke tokens nobody collects, also when a
@@ -102,12 +122,22 @@ a build that had it keeps its data, which this build doesn't show or contact).
 
 ## Run
     npm install
-    npm run dev          # http://localhost:5173
-    npm run backend      # http://localhost:3000 (optional business layer)
+    npm run dev                      # the app at http://localhost:5173
+    npm run build                    # production build into dist/ (the splash shows BUILD 2026.10.07-D)
+    cd backend && npm install && npm start    # the backend at http://localhost:3000 (optional)
 
-`VITE_FEATURES=all npm run dev` (with `VITE_API_BASE=http://localhost:3000` and `npm run backend`,
-which mounts every module in development) shows every optional feature locally. Unset, the app
-offers the shipping defaults: Ask Cyra's AI and web reminders (`.env.example`, docs/ARCHITECTURE.md §10).
+`VITE_FEATURES=all VITE_API_BASE=http://localhost:3000 npm run dev` (with the backend running; in development it
+mounts every module) shows every optional feature locally. Unset, the app offers the shipping defaults: Ask
+Cyra's AI and web reminders (`.env.example`, docs/ARCHITECTURE.md §10). `VITE_DEMO_SEED=true` starts with 75 days
+of illustrative history (demo builds only). `VITE_FEATURES=devGallery` adds the design-system gallery at `#/dev/ui`.
+
+## Tests
+    npm run test:unit                # unit tests for everything in src/lib (node --test)
+    cd backend && npm run smoke:all  # backend smoke tests: ai, oauth, integrations, pulse, push, backup, account, prod
+
+The end-to-end suites (Playwright against built copies of the app: native shell, web, feature flags, POTS, AI,
+account) live outside the repo with the release tooling; every release runs them with an axe accessibility audit
+in light and dark.
 
 ## Deploy
 Static site on Render: build `npm install && npm run build`, publish `dist`.
@@ -121,17 +151,37 @@ sets `Cache-Control: no-cache` for `/`, `/index.html`, `/sw.js` and `/manifest.w
 browsers revalidate them; hashed `/assets/*` keep the host default.
 
 ## Phone apps (iOS / Android)
-    VITE_API_BASE=https://cyra-backend.onrender.com npm run cap:ios       # Xcode
-    VITE_API_BASE=https://cyra-backend.onrender.com npm run cap:android   # Android Studio
+    VITE_API_BASE=https://cyra-backend.onrender.com npm run cap:ios       # builds, syncs and opens Xcode
+    VITE_API_BASE=https://cyra-backend.onrender.com npm run cap:android   # builds, syncs and opens Android Studio
+    npm run cap:sync                                                      # build + copy into both shells
 
-Step-by-step guide (signing, HealthKit, Health Connect, the `cyrahealth://` return
-link, server settings, and what has and hasn't been verified): `docs/NATIVE.md`.
+The shells are in `ios/` and `android/` (Capacitor; `capacitor.config.json`). Step-by-step guide (signing,
+HealthKit, Health Connect, the `cyrahealth://` return link, server settings, and what has and hasn't been
+verified): `docs/NATIVE.md`.
+
+## Render environment variables
+Paste values under each service's **Environment** tab in Render (never commit them; `.env.example` is the
+template with a note on each). Names only:
+
+- **Backend (web service `cyra-backend`)**: `ANTHROPIC_API_KEY` (Cyra's AI; without it the AI features say
+  they aren't set up and Ask answers from the library), `AI_MODEL` (optional), `CORS_ORIGIN`, `RETURN_ORIGINS`
+  (optional), `NODE_ENV` (set by render.yaml), `APP_RETURN_SCHEMES`, `ADMIN_KEY`, `AUTH_SECRET`,
+  `PUBLIC_BASE_URL`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (web reminders), `DATA_DIR`
+  (a persistent disk; needed before turning on accounts / cloud backup). Only when sign-in or wearables are
+  turned on: `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`, `GOOGLE_CLIENT_ID`,
+  `GOOGLE_CLIENT_SECRET`, `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`, `OURA_CLIENT_ID`, `OURA_CLIENT_SECRET`,
+  `TERRA_API_KEY`, `TERRA_DEV_ID`, `TERRA_SIGNING_SECRET`. `ANTHROPIC_BASE_URL` is for tests only; leave it unset.
+- **Static app (static site `cyra-health`, build time, public)**: `VITE_API_BASE` (set by render.yaml),
+  `VITE_FEATURES` (unset = shipping defaults), `VITE_TERMS_URL`, `VITE_PRIVACY_URL`. `VITE_DEMO_WEARABLES` and
+  `VITE_DEMO_SEED` are for demo builds only; leave them unset in production.
 
 ## Docs
 - `docs/CYRA-BUILD-SPEC.md` — complete product + technical spec (normative)
 - `docs/ARCHITECTURE.md` — local-first architecture: where the record is stored, its keys and version, derived data, flags and plan hooks
 - `docs/MONETIZATION.md` — the free core, paid extension points (none active) and the privacy rules any paid feature must follow
 - `docs/NATIVE.md` — building and running the iPhone and Android apps
+- `docs/PRIVACY-AUDIT.md` — every privacy sentence in the app and why it is true, slice by slice
+- `docs/EVIDENCE.md`, `docs/CLINICIAN-REVIEW.md` — the sources behind practices and PCOS copy, and what awaits clinician sign-off
 - `docs/Cyra-Legal-Documents.docx` — privacy policy, terms, research consent (drafts)
 - `CLAUDE.md` — working instructions for Claude Code
 - `backend/README.md` — backend architecture and endpoints

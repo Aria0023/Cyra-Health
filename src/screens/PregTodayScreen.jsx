@@ -8,6 +8,7 @@ import Advice from "../components/Advice.jsx";
 import Icon from "../components/Icon.jsx";
 import SymptomSheet from "../components/SymptomSheet.jsx";
 import DayNote from "../components/DayNote.jsx";
+import { t } from "../lib/i18n.js";
 
 /* Pregnancy — Today: week + trimester + progress to 40, weekly read, pregnancy
    symptoms, scales, body signals, kick counter, red-flag swelling advice. Opens on what is
@@ -31,7 +32,7 @@ export default function PregTodayScreen({ onPots = null, pregWeek, trimester, sc
     const label = GSYM[id];
     const sev = draft[id] || 0;
     return (
-      <button key={id} aria-pressed={sev > 0} aria-label={`${(symMap[id] || label)}, severity ${sev} of 3`} className={`chip sev-${sev}`} style={{ "--fc": famColor(id) }} onClick={() => setDraft((d) => ({ ...d, [id]: ((d[id] || 0) + 1) % 4 }))}>
+      <button key={id} aria-pressed={sev > 0} aria-label={t("pregBody.severityOf3", { v0: symMap[id] || label, sev })} className={`chip sev-${sev}`} style={{ "--fc": famColor(id) }} onClick={() => setDraft((d) => ({ ...d, [id]: ((d[id] || 0) + 1) % 4 }))}>
         <span>{label}</span><span key={sev} className="dots" aria-hidden="true" data-tick={sev || undefined}>{sevDots(sev)}</span>
       </button>
     );
@@ -39,32 +40,32 @@ export default function PregTodayScreen({ onPots = null, pregWeek, trimester, sc
   return (
     <main>
       <div className="pregband">
-        <div className="pregweek">Week {pregWeek}</div>
-        <div className="pregmeta"><b>Second trimester</b><span>Baby is about the size of a papaya. 18 weeks to go.</span></div>
+        <div className="pregweek">{t("pregBody.week", { pregWeek })}</div>
+        <div className="pregmeta"><b>{t("pregBody.secondTrimester")}</b><span>{t("pregBody.babyIsAboutTheSize")}</span></div>
       </div>
       <div className="pregbar"><div className="pregfill" style={{ width: `${(pregWeek / 40) * 100}%` }} /></div>
 
       <div className="readcard">
-        <div className="rsec" style={{ margin: "0 0 4px" }}>This week's read</div>
+        <div className="rsec" style={{ margin: "0 0 4px" }}>{t("pregBody.thisWeeksRead")}</div>
         <div className="sname">{PREG_TIPS[trimester][0]}</div>
         <p className="hint" style={{ margin: "4px 0 0" }}>{PREG_TIPS[trimester][1]}</p>
       </div>
 
       {editDate && (
         <div className="card editbar" style={{ display: "block", margin: "16px 0 12px" }}>
-          <p><b>Editing {fmt(editDate)}</b> — changes save to that day. <button className="linkbtn" onClick={() => onEndEdit()}>Back to today</button></p>
+          <p><b>{t("pregBody.editing", { v0: fmt(editDate) })}</b> {t("pregBody.changesSaveToThatDay")} <button className="linkbtn" onClick={() => onEndEdit()}>{t("pregBody.backToToday")}</button></p>
         </div>
       )}
-      <h1 className="disp" style={{ marginTop: 16 }}>{editDate ? `Fixing up ${fmt(editDate)}` : "How's today going?"}</h1>
-      {!yesterdayLogged && !editDate && anyLogged && onEditDay && <button type="button" className="linkbtn yday" onClick={() => onEditDay(yesterdayIso)}>Yesterday not logged · add it</button>}
+      <h1 className="disp" style={{ marginTop: 16 }}>{editDate ? t("pregBody.fixingUp", { v0: fmt(editDate) }) : t("pregBody.howsTodayGoing")}</h1>
+      {!yesterdayLogged && !editDate && anyLogged && onEditDay && <button type="button" className="linkbtn yday" onClick={() => onEditDay(yesterdayIso)}>{t("pregBody.yesterdayNotLoggedAddIt")}</button>}
       {logTop}
-      {logTop && <h2 className="checkhead">{editDate ? `Check-in for ${fmt(editDate)}` : "Today's check-in"}</h2>}
-      <p className="hint">Tap a symptom once for mild, up to 3× for strong.</p>
+      {logTop && <h2 className="checkhead">{editDate ? t("pregBody.checkInFor", { v0: fmt(editDate) }) : t("pregBody.todaysCheckIn")}</h2>}
+      <p className="hint">{t("pregBody.tapASymptomOnceFor")}</p>
       {scoreMeter}
-      {savedToday && !editDate && <p className="savedline"><Icon name="check" size={14} /> Logged today — any change here updates it.</p>}
+      {savedToday && !editDate && <p className="savedline"><Icon name="check" size={14} /> {t("pregBody.loggedTodayAnyChangeHere")}</p>}
       <div className="chiphead">
-        <p className="section-lab" id="sym-lab">Symptoms</p>
-        <button type="button" ref={editRef} className="linkbtn" aria-label="Edit symptoms" aria-expanded={symEdit} aria-controls="sym-sheet" onClick={() => setSymEdit((v) => !v)}>Edit</button>
+        <p className="section-lab" id="sym-lab">{t("pregBody.symptoms")}</p>
+        <button type="button" ref={editRef} className="linkbtn" aria-label={t("pregBody.editSymptoms")} aria-expanded={symEdit} aria-controls="sym-sheet" onClick={() => setSymEdit((v) => !v)}>{t("pregBody.edit")}</button>
       </div>
       {symEdit ? (
         <SymptomSheet stage="preg" symPrefs={symPrefs} setSymPrefs={setSymPrefs} days={[]} onClose={() => { setSymEdit(false); editRef.current?.focus(); }} />
@@ -74,9 +75,9 @@ export default function PregTodayScreen({ onPots = null, pregWeek, trimester, sc
           {more.length > 0 && (
             <>
               <button type="button" className="disclosure more symmore" aria-expanded={moreOpen} aria-controls="sym-more" onClick={() => setMoreOpen((v) => !v)}>
-                <span>More symptoms<span className="dsub"> · {more.length}</span></span><Icon name="chevron" className="chev" />
+                <span>{t("pregBody.moreSymptoms")}<span className="dsub"> · {more.length}</span></span><Icon name="chevron" className="chev" />
               </button>
-              <div id="sym-more" hidden={!moreOpen}>{moreOpen && <div className="chips morechips" role="group" aria-label="More symptoms">{more.map(chip)}</div>}</div>
+              <div id="sym-more" hidden={!moreOpen}>{moreOpen && <div className="chips morechips" role="group" aria-label={t("pregBody.moreSymptoms")}>{more.map(chip)}</div>}</div>
             </>
           )}
         </>
@@ -85,18 +86,18 @@ export default function PregTodayScreen({ onPots = null, pregWeek, trimester, sc
       {bodySection}
       {/* The kick counter is a tool, not the day's primary action: tinted and outlined inside its own card, so "Save today" is the one filled CTA. */}
       <div className="plaincard kickcard">
-        <p className="section-lab">Kick counter</p>
+        <p className="section-lab">{t("pregBody.kickCounter")}</p>
         <div className="kickrow">
-          <button className="cta cta-kick" style={{ flex: 1 }} onClick={onKick}>Kick! <Icon name="foot" /></button>
-          <div className="kickcount" aria-live="polite"><b>{kicks}</b><span>{editDate ? "kicks that day" : "kicks today"}</span></div>
+          <button className="cta cta-kick" style={{ flex: 1 }} onClick={onKick}>{t("pregBody.kick")} <Icon name="foot" /></button>
+          <div className="kickcount" aria-live="polite"><b>{kicks}</b><span>{editDate ? t("pregBody.kicksThatDay") : t("pregBody.kicksToday")}</span></div>
         </div>
       </div>
       {draft.swl >= 2 ? (
-        <Advice urgency="now" alone>Sudden or severe swelling — especially with headaches or vision changes — is a call-your-provider-today signal, not a wait-and-see one.</Advice>
+        <Advice urgency="now" alone>{t("pregBody.suddenOrSevereSwellingEspecially")}</Advice>
       ) : (
-        <Advice urgency="self" alone>Logging daily builds the record your provider actually uses at each visit — and the kick pattern matters more than any single count.</Advice>
+        <Advice urgency="self" alone>{t("pregBody.loggingDailyBuildsTheRecord")}</Advice>
       )}
-      <DayNote key={editDate || "today"} value={dayNote} onChange={setDayNote} label={editDate ? `Note for ${fmt(editDate)}` : "Note for today"} />
+      <DayNote key={editDate || "today"} value={dayNote} onChange={setDayNote} label={editDate ? t("pregBody.noteFor", { v0: fmt(editDate) }) : t("pregBody.noteForToday")} />
       <div className="stopbar savebar"><button className="cta" onClick={() => {
         const target = editDate || todayIso;
         // Her day note (D7), trimmed and only when there is one; contribute() below never gets it.
@@ -106,16 +107,16 @@ export default function PregTodayScreen({ onPots = null, pregWeek, trimester, sc
         ping(editDate ? `${fmt(target)} updated` : "Saved to your pregnancy journal — see Calendar");
         contribute({ sym: draft, kicks }, target);
         if (editDate) onEndEdit(entry, target); else setDayNote(note);
-      }}>{editDate ? `Save changes to ${fmt(editDate)}` : "Save today"}</button></div>
-      {onPots && !editDate && <button className="linkbtn potslink" style={{ marginTop: 10 }} onClick={onPots}>Log POTS symptoms and drinks →</button>}
+      }}>{editDate ? t("pregBody.saveChangesTo", { v0: fmt(editDate) }) : t("pregBody.saveToday")}</button></div>
+      {onPots && !editDate && <button className="linkbtn potslink" style={{ marginTop: 10 }} onClick={onPots}>{t("pregBody.logPotsSymptomsAndDrinks")}</button>}
       {research && !editDate && (
         <>
-          <p className="rfoot">Sharing weekly counts is on: which of {flagWords("preg")} today's check-in logged, plus your life stage group, go to Cyra's server on a later day, with no dates or values.</p>
-          <Details label="Exactly what's sent">
+          <p className="rfoot">{t("pregBody.sharingWeeklyCountsIsOn")} {flagWords("preg")} {t("pregBody.todaysCheckInLoggedPlus")}</p>
+          <Details label={t("pregBody.exactlyWhatsSent")}>
             <ul>
-              <li>The check-in counts as it stands when you last save it.</li>
-              <li>Sent at most once a day. Like any request, it carries your device's internet address.</li>
-              <li>You can turn this off in <Icon name="sliders" size={12} className="labico" />Settings.</li>
+              <li>{t("pregBody.theCheckInCountsAs")}</li>
+              <li>{t("pregBody.sentAtMostOnceA")}</li>
+              <li>{t("pregBody.youCanTurnThisOff")} <Icon name="sliders" size={12} className="labico" />{t("pregBody.settings")}</li>
             </ul>
           </Details>
         </>

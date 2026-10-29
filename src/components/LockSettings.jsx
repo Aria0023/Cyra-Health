@@ -9,12 +9,12 @@ import { LOCK_COPY as T, AFTER_CHOICES, validPin, weakPin, fmtWait } from "../li
    All of it goes through App.jsx's lock API (`lock` prop): every write lands in the device-only slot
    (lib/storage.js), never in the record or a backup. The PIN fields ask password managers not to keep them; a typed
    PIN lives only in this form's state and is cleared on every way out. Wrong current PINs count toward the same
-   back-off as the lock screen (lock.verify). The honest note under the row says what the lock is not: encryption.
+   back-off as the lock screen (lock.verify). Calm R10: `compact` (You page) moves the honest note into the Details. The honest note under the row says what the lock is not: encryption.
    No button here is named Done, Restore, Encrypted backup, Delete everything, Keep my data or Connect, and no row
    text contains the strings the suites use to find other Settings rows (privacyFlows.test.mjs). */
 const PIN_FIELD = { className: "inp", type: "password", inputMode: "numeric", pattern: "[0-9]*", maxLength: 6, ...noSave };
 
-export default function LockSettings({ lock, potsOn = false }) {
+export default function LockSettings({ lock, potsOn = false, compact = false }) {
   const { cfg, passkeyOk = false, native = false, lastBackupAt = null } = lock;
   const on = !!cfg && !cfg.unreadable;
   const [panel, setPanel] = useState(null); // null | "set" | "change" | "off" | "passkey"
@@ -90,8 +90,9 @@ export default function LockSettings({ lock, potsOn = false }) {
           ? <button type="button" className="takebtn" onClick={() => lock.lockNow()}>{T.lockNow}</button>
           : <button type="button" ref={setBtn} className="takebtn" aria-expanded={panel === "set"} aria-controls="lock-panel" onClick={() => open("set", setBtn)}>{T.setPin}</button>}
       </div>
-      <p className="rfoot">{native ? T.notePhone : T.noteWeb}</p>
+      {!compact && <p className="rfoot">{native ? T.notePhone : T.noteWeb}</p>}
       <Details label="Details" describedBy="set-lock">
+        {compact && <p className="rfoot">{native ? T.notePhone : T.noteWeb}</p>}
         <ul>
           {T.facts.map((t) => <li key={t}>{t}</li>)}
           {potsOn && <li>{T.factPots}</li>}

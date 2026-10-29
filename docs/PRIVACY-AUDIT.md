@@ -1568,3 +1568,63 @@ sent. Files ("Cyra's servers don't receive them") and the AI summary's "never ho
 end-to-end-encrypted backup and the email hash (an identifier) for builds with `cloudBackup`; the default build's answers
 are unchanged. **Before production:** a persistent disk for `DATA_DIR`, and a server-side check of the Pro purchase (today
 the entitlement is checked only in the app; no store is connected).
+
+## Calm R10 (language support, the You page compacted, a last calm pass) — one device preference, no new request, nothing new leaves the device
+
+No request, dependency, font or external asset was added. New persisted key `uiLocale` (null = follow this device's
+language, or a catalogue code): a device preference like `appearance` (DEVICE_PREFS: in RECORD for this browser's tabs,
+NOT_IN_BACKUP, a restore keeps this device's value). It is never sent anywhere. Only English ships, so the You → Language
+card that would set it is not shown (lib/i18n.js `pickerShown()` is false with one catalogue).
+
+**Where the words live now.** Every user-visible string of the five tabs, the log sheet, onboarding, the practices and
+the AI sheets moved behind `t()` (src/lib/i18n.js) with its exact English text in src/locales/en-ui.js (screen strings)
+or flattened from its data module in src/locales/en.js (tab and log names, onboarding steps, practices, mood words,
+`AI_COPY`). The text on screen is byte-for-byte what it was; the disclosure builders (lib/disclosures.js,
+privacyFlows.js, account.js, lock.js, about.js) are unchanged and still called directly. The automated suites read the
+rendered text, so they check the same sentences as before.
+
+**Moved on the You page only (word for word; the Settings sheet keeps its full layout and is unchanged).** Each moved
+sentence sits behind a Details that stays in the page while closed (Details.jsx renders the panel `hidden`):
+- Privacy card → "How this works": "Your log is yours. Below is everything Cyra can send, and the tools to back it up,
+  lock it and delete it."; the storage sentence ("Your check-ins, notes and history are stored …") with the store copy
+  line (including the account exception where the build has accounts); the offline-copy sentence; the whole "What can
+  leave this device" list with every row, state, note and Details. The backup / restore / delete buttons and their
+  panels stay visible, unchanged.
+- App lock: the honest note (`LOCK_COPY.noteWeb` / `notePhone`: what the lock does and that it is not encryption)
+  moved into the lock's own "Details", first.
+- Modules → "What each one adds": each module's "what it adds" line (p#mod-<id>-adds, still the switch's
+  description), the fertility-signs privacy line, and "{MODULE_FRAMING} Your module switches stay on this device, and go
+  into an encrypted backup only if you save one." The switches stay visible.
+- Plan → "How this works": the free-keeps line, "There's nothing to buy in this version." (or the test-build note) and
+  the store line.
+- Check-ins → "Rhythm, time and style": the rhythm, nudge and style controls; and, only where reminders can't work in
+  this build, the Reminders row ("Reminders aren't available in this version of Cyra." / "This browser can't show
+  reminders.") with "One reminder at most. Missed days are never scolded — your patterns work fine with gaps." Where
+  reminders can work, the Reminders row, its "Exactly what's kept" and that sentence stay visible.
+- Cyra's AI: "Off until you turn it on. It is the same choice as on Ask Cyra in Mind → Journey." moved into "Exactly
+  what's sent"; `AI_COPY.offLine` moved into "Exactly what the summary holds". The consent checkbox, its disclosure
+  (`AI_DISCLOSURE`, its aria-describedby) and the Pro switches with their lines stay visible.
+- About you: "All optional, and you can change them anytime." stays visible; "They stay on this device and leave it
+  only inside an encrypted backup you choose to save — and your age band and ZIP never go into one." moved into "Your
+  answers", above the answers.
+- Account (build without accounts): unchanged (both lines stay visible; the card is already short).
+- Support & care: "Options for your stage, with the ones that fit what you've logged first. That matching runs on your
+  device, and partners never see your data." stays visible; "Every label below is the honest state of the evidence,
+  including when something is comfort rather than treatment.", the legend and every option moved into "See N options
+  for your stage" (the best-fitting option first). The standalone Care page is unchanged.
+
+**New sentences, each literally true in every build configuration:**
+- Privacy facts (You only): "N days logged · last backup …" (the existing line); "Every feature that can send something
+  is off right now." when no row of "What can leave this device" is On, else "Turned on now: <row names>. Each one says
+  exactly what it sends." (computed from the same rows, settingsParts.jsx `privacyFacts`); "App lock is on." / "App lock
+  is off. You can set a PIN below." (only where the lock exists, from the same lock state the lock row shows).
+- Check-ins summary: "Rhythm: <rhythm> · nudge <time> · quick check-in, 3 taps." (the nudge part only where reminders
+  can work and a rhythm schedules something). Words only, no claim about data.
+- Language card (not shown in this build): "Cyra follows this device's language when it has it. Your choice stays on
+  this device and isn't part of a backup." True: `uiLocale` is a device preference left out of backups.
+- Tone, not privacy: the check-in meter says "Tap below — this fills in as you go" and "heavier / lighter" instead of a
+  number out of 100; the calendar day pill shows the day's words without "· 73"; the connection card shows its word
+  ("Steady connection today") instead of a 0–100 number and says "Cyra puts into words how connected today felt".
+
+**Toasts.** While a bottom sheet is open the confirmation toast shows at the top of the screen, above the sheet, so it
+never covers what it confirms (e.g. "Added on this device" after a PCOS lab value). Same sentences.

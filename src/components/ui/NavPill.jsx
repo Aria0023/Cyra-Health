@@ -26,14 +26,14 @@ export default function NavPill({ tabs, current, onSelect, onPlus, plusLabel = "
     <nav className={`navpill${fixed ? " fixed" : ""}`} aria-label={label}>
       <div className="navpill-bar">
         <div className="navpill-tabs" role="tablist" aria-label={label} style={{ "--np-cols": cols, "--np-narrow": narrow }}>
-          {tabs.map((t, i) => {
-            const on = t.id === current;
+          {tabs.map((tv, i) => {
+            const on = tv.id === current;
             return (
-              <button key={t.id} ref={(el) => { refs.current[i] = el; }} type="button" role="tab" className={`navtab${on ? " on" : ""}`} aria-selected={on} tabIndex={on ? 0 : -1}
-                aria-controls={panelId ? panelId(t.id) : undefined} style={i === split ? { gridColumn: split + 2 } : undefined}
-                onClick={() => onSelect?.(t.id)} onKeyDown={(e) => onKey(e, i)}>
-                <Icon name={t.icon} size={22} />
-                <span>{t.label}</span>
+              <button key={tv.id} ref={(el) => { refs.current[i] = el; }} type="button" role="tab" className={`navtab${on ? " on" : ""}`} aria-selected={on} tabIndex={on ? 0 : -1}
+                aria-controls={panelId ? panelId(tv.id) : undefined} style={i === split ? { gridColumn: split + 2 } : undefined}
+                onClick={() => onSelect?.(tv.id)} onKeyDown={(e) => onKey(e, i)}>
+                <Icon name={tv.icon} size={22} />
+                <span>{tv.label}</span>
               </button>
             );
           })}

@@ -4,6 +4,7 @@ import Icon from "../components/Icon.jsx";
 import { PRENATAL, prenatalWhen } from "../lib/constants.js";
 import { roadmapAdvice, trimesterOf } from "../lib/engine.js";
 import { reduceMotion } from "../lib/motion.js";
+import { t } from "../lib/i18n.js";
 
 /* Pregnancy — Milestones: the evidence-based low-risk prenatal schedule (spec §7, PRENATAL in lib/constants.js),
    each item status-tagged against the current week. UI M1: "you are here" — the derived Next-visit sentence sits
@@ -25,21 +26,21 @@ export default function MilestonesScreen({ pregWeek, onPlan }) {
   return (
     <main>
       <div className="roadhead">
-        <h1 className="disp">Your care roadmap</h1>
-        {here && <button type="button" className="linkbtn" onClick={jump}>Jump to this week</button>}
+        <h1 className="disp">{t("roadmap.yourCareRoadmap")}</h1>
+        {here && <button type="button" className="linkbtn" onClick={jump}>{t("roadmap.jumpToThisWeek")}</button>}
       </div>
-      <div className="pregbar road" role="img" aria-label={`Week ${pregWeek} of 40`}><div className="pregfill" style={{ width: `${Math.min(100, (pregWeek / 40) * 100)}%` }} /></div>
-      <p className="hint">The standard low-risk prenatal schedule (ACOG-style), set against your week {pregWeek}. Your provider's plan always wins.</p>
+      <div className="pregbar road" role="img" aria-label={t("roadmap.weekOf40", { pregWeek })}><div className="pregfill" style={{ width: `${Math.min(100, (pregWeek / 40) * 100)}%` }} /></div>
+      <p className="hint">{t("roadmap.theStandardLowRiskPrenatal", { pregWeek })}</p>
       <Advice urgency="visit" alone>{roadmapAdvice(pregWeek)}</Advice>
       <div className="card" style={{ display: "block", marginTop: 10 }}>
-        <p className="rsec" style={{ margin: "0 0 4px" }}>Visit rhythm</p>
-        <p style={{ fontSize: 12.5, lineHeight: 1.6 }}>Every 4 weeks until 28 · every 2 weeks from 28–36 · weekly from 36. Every visit: blood pressure, urine check, fundal height, and baby's heartbeat — BP is how preeclampsia gets caught early.</p>
+        <p className="rsec" style={{ margin: "0 0 4px" }}>{t("roadmap.visitRhythm")}</p>
+        <p style={{ fontSize: 12.5, lineHeight: 1.6 }}>{t("roadmap.every4WeeksUntil28")}</p>
       </div>
       {PRENATAL.map((g) => {
         const doneN = g.items.filter((m) => pregWeek > m.to).length;
         return (
           <div key={g.tri}>
-            <p className={`rsec tri ${g.tri === curTri ? "now" : ""}`}><span>{g.tri}</span><span className="tricount">{doneN} of {g.items.length} done</span></p>
+            <p className={`rsec tri ${g.tri === curTri ? "now" : ""}`}><span>{g.tri}</span><span className="tricount">{t("roadmap.ofDone", { doneN, length: g.items.length })}</span></p>
             {g.items.map((m) => {
               const done = pregWeek > m.to;
               const now = pregWeek >= m.from && pregWeek <= m.to;
@@ -49,17 +50,17 @@ export default function MilestonesScreen({ pregWeek, onPlan }) {
               return (
                 <div className={`shelfc ${done ? "done" : ""} ${isHere ? "now" : ""}`} key={m.label} ref={isHere ? hereRef : undefined}>
                   <div className="shead"><span className="sbrand">{prenatalWhen(m)}</span>
-                    <span className={`ppill ${state}`}>{done ? <>done <Icon name="check" size={10} /></> : now ? "in window" : soon ? "coming up" : "later"}</span></div>
+                    <span className={`ppill ${state}`}>{done ? <>{t("roadmap.done")} <Icon name="check" size={10} /></> : now ? t("roadmap.inWindow") : soon ? t("roadmap.comingUp") : t("roadmap.later")}</span></div>
                   <div className="sname">{m.label}</div>
                   <p className="hint" style={{ margin: 0 }}>{m.note}</p>
-                  {(now || soon) && onPlan && <button type="button" className="linkbtn plan" style={{ marginTop: 6 }} onClick={() => onPlan(m.label, prenatalWhen(m))}>Add to appointments</button>}
+                  {(now || soon) && onPlan && <button type="button" className="linkbtn plan" style={{ marginTop: 6 }} onClick={() => onPlan(m.label, prenatalWhen(m))}>{t("roadmap.addToAppointments")}</button>}
                 </div>
               );
             })}
           </div>
         );
       })}
-      <p className="rfoot">Educational schedule, not medical advice. Twins, chronic conditions, or prior complications all change it — your provider sets your actual plan.</p>
+      <p className="rfoot">{t("roadmap.educationalScheduleNotMedicalAdvice")}</p>
     </main>
   );
 }

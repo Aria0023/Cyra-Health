@@ -4,6 +4,7 @@ import { localDay, isPeriodDay, sevDots, fmt, fmtRange } from "../lib/engine.js"
 import { cleanNote } from "../lib/daylog.js";
 import Icon from "../components/Icon.jsx";
 import { cleanFert, fertParts } from "../lib/fertility.js";
+import { t, fmtDate } from "../lib/i18n.js";
 
 /* Cycle & Peri — Calendar: any month, one at a time (‹ › move, "Back to this month" returns;
    the month resets when the tab is re-entered because the tab panel remounts). Fill = day
@@ -22,15 +23,15 @@ import { cleanFert, fertParts } from "../lib/fertility.js";
    and the day card lists that day's signs. They never change pred. */
 const FLOW_MARK = { light: "f-light", med: "f-med", heavy: "f-heavy", flood: "f-heavy" };
 const FLOW_WORDS = { light: ", light flow", med: ", medium flow", heavy: ", heavy flow", flood: ", flooding" };
-const longDay = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-const shortDay = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+const longDay = (iso) => fmtDate(iso, { weekday: "long", month: "long", day: "numeric" });
+const shortDay = (iso) => fmtDate(iso, { weekday: "short", month: "short", day: "numeric" });
 
 export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCycles = null, stage, isMeno = false, days, symIds, symMap, dayScore, scoreColor, scoreInk, scoreLabel, todayIso, selDay, setSelDay, onEdit, fertOn = false, tempUnit = "C" }) {
   const [mo, setMo] = useState(0);
   const now = new Date();
   const first = new Date(now.getFullYear(), now.getMonth() + mo, 1);
   const dim = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
-  const monthTitle = first.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const monthTitle = fmtDate(first, { month: "long", year: "numeric" });
   const firstRun = days.length === 0;
   const cells = [];
   for (let i = 0; i < first.getDay(); i++) cells.push(<div key={"e" + i} />);
@@ -61,14 +62,14 @@ export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCyc
   }
   return (
     <main className="calpage">
-      <section className="v2card calcard" data-tint="body" aria-label="Month">
+      <section className="v2card calcard" data-tint="body" aria-label={t("cal.month")}>
       <div className="calnav">
-        <button type="button" className="sbtn" aria-label="Previous month" onClick={() => setMo((m) => m - 1)}>‹</button>
+        <button type="button" className="sbtn" aria-label={t("cal.previousMonth")} onClick={() => setMo((m) => m - 1)}>‹</button>
         <h1 className="disp" aria-live="polite">{monthTitle}</h1>
-        <button type="button" className="sbtn" aria-label="Next month" onClick={() => setMo((m) => m + 1)}>›</button>
+        <button type="button" className="sbtn" aria-label={t("cal.nextMonth")} onClick={() => setMo((m) => m + 1)}>›</button>
       </div>
-      {mo !== 0 && <button type="button" className="linkbtn backmonth" onClick={() => setMo(0)}>Back to this month</button>}
-      <p className="hint">{isMeno ? "Logged days and any bleeding you note. After menopause, Cyra doesn't predict periods." : "Logged periods, predictions, and the estimated fertile window — with honest uncertainty."}</p>
+      {mo !== 0 && <button type="button" className="linkbtn backmonth" onClick={() => setMo(0)}>{t("cal.backToThisMonth")}</button>}
+      <p className="hint">{isMeno ? t("cal.loggedDaysAndAnyBleeding") : t("cal.loggedPeriodsPredictionsAndThe")}</p>
       <div className="calgrid" role="group" aria-label={monthTitle}>
         {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => <div key={d} className="calhead" aria-hidden="true">{d}</div>)}
         {cells}
@@ -78,54 +79,54 @@ export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCyc
         const esc = e ? dayScore(e, symIds) : null;
         const loggedSyms = e ? symIds.filter((id) => (e.sym[id] || 0) > 0).sort((a, b) => e.sym[b] - e.sym[a]) : [];
         return (
-          <div className="card daycard" role="region" aria-label="Selected day">
+          <div className="card daycard" role="region" aria-label={t("cal.selectedDay")}>
             <div className="dayhead">
               <b>{shortDay(selDay)}</b>
-              {esc != null && <span className="scorepill" style={{ background: scoreColor(esc), color: scoreInk(esc) }}>{scoreLabel(esc)} · {Math.round(esc * 100)}</span>}
+              {esc != null && <span className="scorepill" style={{ background: scoreColor(esc), color: scoreInk(esc) }}>{scoreLabel(esc)}</span>}
             </div>
             {e ? (
               <>
                 {loggedSyms.length ? (
                   <ul className="pday-s">
-                    {loggedSyms.map((id) => <li key={id} style={{ "--fc": famColor(id) }}>{symMap[id]} <span className="sevd" aria-label={`${e.sym[id]} of 3`}>{sevDots(e.sym[id])}</span></li>)}
+                    {loggedSyms.map((id) => <li key={id} style={{ "--fc": famColor(id) }}>{symMap[id]} <span className="sevd" aria-label={t("cal.of3", { v0: e.sym[id] })}>{sevDots(e.sym[id])}</span></li>)}
                   </ul>
-                ) : <p className="dayline">No symptoms</p>}
-                <p className="dayline">{isPeriodDay(e) ? "Period · " : ""}Sleep: {e.sleepQ}</p>
-                {fertOn && fertParts(e, tempUnit).length > 0 && <p className="dayline fertline">{`Fertility signs: ${fertParts(e, tempUnit).join(" · ")}`}</p>}
-                {cleanNote(e.note) && <p className="dayline noteline"><b>Note:</b> {cleanNote(e.note)}</p>}
+                ) : <p className="dayline">{t("cal.noSymptoms")}</p>}
+                <p className="dayline">{isPeriodDay(e) ? t("cal.period") : ""}{t("cal.sleep")} {e.sleepQ}</p>
+                {fertOn && fertParts(e, tempUnit).length > 0 && <p className="dayline fertline">{t("cal.fertilitySigns", { v0: fertParts(e, tempUnit).join(" · ") })}</p>}
+                {cleanNote(e.note) && <p className="dayline noteline"><b>{t("cal.note")}</b> {cleanNote(e.note)}</p>}
               </>
             ) : (
-              <p className="hint" style={{ margin: "6px 0 0" }}>Nothing logged this day.</p>
+              <p className="hint" style={{ margin: "6px 0 0" }}>{t("cal.nothingLoggedThisDay")}</p>
             )}
             <div className="sfoot" style={{ marginTop: 10 }}>
-              {e ? <button type="button" className="sbtn" onClick={() => { onEdit(selDay); setSelDay(null); }}>Edit this day</button>
-                : selDay <= todayIso ? <button type="button" className="sbtn" onClick={() => { onEdit(selDay); setSelDay(null); }}>Log this day</button>
-                : <span className="hint" style={{ margin: 0 }}>That day hasn't happened yet.</span>}
-              <button type="button" className="sbtn" onClick={() => setSelDay(null)}>Close</button>
+              {e ? <button type="button" className="sbtn" onClick={() => { onEdit(selDay); setSelDay(null); }}>{t("cal.editThisDay")}</button>
+                : selDay <= todayIso ? <button type="button" className="sbtn" onClick={() => { onEdit(selDay); setSelDay(null); }}>{t("cal.logThisDay")}</button>
+                : <span className="hint" style={{ margin: 0 }}>{t("cal.thatDayHasntHappenedYet")}</span>}
+              <button type="button" className="sbtn" onClick={() => setSelDay(null)}>{t("cal.close")}</button>
             </div>
           </div>
         );
       })()}
       <div className="callegend">
-        {!isMeno && <><span><i className="dot d-pred" /> predicted</span><span><i className="dot d-fert" /> fertile (est.)</span></>}<span><i className="dot d-permark" /> period</span><span><i className="d-sym" /> symptoms</span>
-        {fertOn && <><span><Icon name="drop" size={11} className="d-ficon fm-ew" />egg-white</span><span><Icon name="teststrip" size={11} className="d-ficon" />positive test</span></>}
+        {!isMeno && <><span><i className="dot d-pred" /> {t("cal.predicted")}</span><span><i className="dot d-fert" /> {t("cal.fertileEst")}</span></>}<span><i className="dot d-permark" /> {t("cal.period2")}</span><span><i className="d-sym" /> {t("cal.symptoms")}</span>
+        {fertOn && <><span><Icon name="drop" size={11} className="d-ficon fm-ew" />{t("cal.eggWhite")}</span><span><Icon name="teststrip" size={11} className="d-ficon" />{t("cal.positiveTest")}</span></>}
       </div>
       <div className="gradlegend">
-        <span>rough day</span>
+        <span>{t("cal.heavierDay")}</span>
         <span className="gradbar" style={{ background: `linear-gradient(90deg, ${scoreColor(0)}, ${scoreColor(0.5)}, ${scoreColor(1)})` }} />
-        <span>great day</span>
+        <span>{t("cal.lighterDay")}</span>
       </div>
       </section>
-      <p className="hint calhint">{firstRun ? (isMeno ? "Tap today to log your first day. What you log appears here as you go." : "Tap today to log your first day. Periods, predictions and the fertile window appear here as you go.") : "Tap any day to see or edit what you logged."}</p>
+      <p className="hint calhint">{firstRun ? (isMeno ? t("cal.tapTodayToLogYour") : t("cal.tapTodayToLogYour2")) : t("cal.tapAnyDayToSee")}</p>
       {pred ? (
-        <div className="card calpredcard"><div className="num">±{pred.half}d<span className="rmeta">confidence</span></div><p>{predictionText(pred)}</p></div>
+        <div className="card calpredcard"><div className="num">{t("cal.d", { half: pred.half })}<span className="rmeta">{t("cal.confidence")}</span></div><p>{predictionText(pred)}</p></div>
       ) : (
         <div className="card"><div className="num">—</div><p>{whyText(predWhy, stage)}</p></div>
       )}
       {/* The cycles list moved to Body → Cycles (calm R4); this link takes her there. */}
       {!isMeno && onCycles && cyc?.rows.length > 0 && (
         <button type="button" className="disclosure cyclink" onClick={onCycles}>
-          <span>Your cycles{cyc.pending ? <span className="dsub"> · {cyc.pending} {cyc.pending === 1 ? "looks" : "look"} unusual</span> : null}</span><Icon name="arrow-right" className="chev" />
+          <span>{t("cal.yourCycles")}{cyc.pending ? <span className="dsub"> · {cyc.pending} {cyc.pending === 1 ? t("cal.looks") : t("cal.look")} {t("cal.unusual")}</span> : null}</span><Icon name="arrow-right" className="chev" />
         </button>
       )}
     </main>

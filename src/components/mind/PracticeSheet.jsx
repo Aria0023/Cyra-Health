@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Sheet } from "../ui/index.js";
 import Icon from "../Icon.jsx";
 import BreathOrb from "./BreathOrb.jsx";
-import { practiceAt, practiceSeconds, sourcesOf, STRENGTH, needLabel } from "../../lib/mind.js";
+import { practiceAt, practiceSeconds, sourcesOf } from "../../lib/mind.js";
+import { t } from "../../lib/i18n.js";
 
 /* One practice (calm R5): the guided run and what the evidence says, in one sheet. The orb (BreathOrb) leads; under it
    the phase word or the step, a timer, then Start → Pause / Resume and Stop. At the end she can say whether it helped
@@ -59,52 +60,53 @@ export default function PracticeSheet({ practice: p, need = null, fav = false, o
   const live = status === "running" || status === "paused";
   const orbPhase = !live ? (status === "done" ? "out" : "idle") : p.kind === "breath" ? at.phase : "step";
   const left = live ? total - Math.floor(elapsed / 1000) : status === "done" ? 0 : total;
-  const word = !live ? (status === "done" ? "Done" : `${p.min} min`) : p.kind === "breath" ? at.word : `Step ${at.idx + 1} of ${p.steps.length}`;
-  const announce = status === "running" ? (p.kind === "breath" ? at.word : at.text) : status === "paused" ? "Paused" : status === "done" ? "Done." : "";
+  const phaseWord = at.phase ? t(`phase.${at.phase}`) : at.word;
+  const word = !live ? (status === "done" ? t("practiceSheet.done") : t("unit.min", { count: p.min })) : p.kind === "breath" ? phaseWord : t("practiceSheet.stepOf", { n: at.idx + 1, total: p.steps.length });
+  const announce = status === "running" ? (p.kind === "breath" ? phaseWord : at.text) : status === "paused" ? t("practiceSheet.paused") : status === "done" ? t("practiceSheet.doneDot") : "";
   const srcs = sourcesOf(p);
   return (
-    <Sheet id="practice-sheet" title={p.title} onClose={() => (live ? finish(false) : onClose?.())} closeLabel="Close practice" className="practicesheet">
-      <p className="eyebrow psh-eye">{need ? `${needLabel(need)} · ` : ""}{p.min} minutes</p>
+    <Sheet id="practice-sheet" title={p.title} onClose={() => (live ? finish(false) : onClose?.())} closeLabel={t("practiceSheet.closePractice")} className="practicesheet">
+      <p className="eyebrow psh-eye">{t("practiceSheet.minutes", { v0: need ? `${t(`need.${need}`)} · ` : "", min: p.min })}</p>
       <div className="psh-stage">
         <BreathOrb phase={orbPhase} dur={live ? (status === "paused" ? 0.4 : at.dur) : 1.2} progress={total ? Math.min(1, elapsed / 1000 / total) : 0}>
           <span className="orb-word serif">{word}</span>
           {live && p.kind === "breath" && <span className="orb-count" aria-hidden="true">{at.left}</span>}
-          {status === "paused" && <span className="orb-paused">Paused</span>}
+          {status === "paused" && <span className="orb-paused">{t("practiceSheet.paused")}</span>}
         </BreathOrb>
       </div>
       <p className="sr-only" aria-live="polite" aria-atomic="true">{announce}</p>
-      {p.kind === "steps" && <p className={`psh-step serif${live ? "" : " idle"}`}>{live ? at.text : status === "done" ? "Take a moment before you go on." : p.short}</p>}
-      {p.kind === "breath" && !live && <p className="psh-step idle">{status === "done" ? "Take a moment before you go on." : p.short}</p>}
-      <p className="psh-timer" role="timer" aria-label={`Time left ${mmss(left)}`}>{mmss(left)}</p>
+      {p.kind === "steps" && <p className={`psh-step serif${live ? "" : " idle"}`}>{live ? at.text : status === "done" ? t("practiceSheet.takeAMomentBeforeYou") : p.short}</p>}
+      {p.kind === "breath" && !live && <p className="psh-step idle">{status === "done" ? t("practiceSheet.takeAMomentBeforeYou") : p.short}</p>}
+      <p className="psh-timer" role="timer" aria-label={t("practiceSheet.timeLeft", { v0: mmss(left) })}>{mmss(left)}</p>
       {status !== "done" ? (
         <div className="psh-ctrls">
           {/* One button that changes its job, so focus stays on it from Start to Pause to Resume. */}
           <button type="button" className="cta psh-go" onClick={status === "ready" ? start : status === "running" ? pause : resume}>
-            <Icon name={status === "running" ? "pause" : "play"} size={16} />{status === "ready" ? "Start" : status === "running" ? "Pause" : "Resume"}
+            <Icon name={status === "running" ? "pause" : "play"} size={16} />{status === "ready" ? t("practiceSheet.start") : status === "running" ? t("practiceSheet.pause") : t("practiceSheet.resume")}
           </button>
-          {live && <button type="button" className="ghostbtn psh-stop" onClick={() => finish(false)}><Icon name="stop" size={14} />Stop</button>}
+          {live && <button type="button" className="ghostbtn psh-stop" onClick={() => finish(false)}><Icon name="stop" size={14} />{t("practiceSheet.stop")}</button>}
         </div>
       ) : (
         <div className="psh-done" role="group" aria-labelledby="psh-help">
-          <h3 id="psh-help" ref={helpRef} tabIndex={-1} className="psh-help serif">Did that help?</h3>
+          <h3 id="psh-help" ref={helpRef} tabIndex={-1} className="psh-help serif">{t("practiceSheet.didThatHelp")}</h3>
           <div className="psh-helpbtns">
-            <button type="button" className={`mc ${helped === "yes" ? "on" : ""}`} aria-pressed={helped === "yes"} onClick={() => answer("yes")}>It helped</button>
-            <button type="button" className={`mc ${helped === "no" ? "on" : ""}`} aria-pressed={helped === "no"} onClick={() => answer("no")}>Not this time</button>
+            <button type="button" className={`mc ${helped === "yes" ? "on" : ""}`} aria-pressed={helped === "yes"} onClick={() => answer("yes")}>{t("practiceSheet.itHelped")}</button>
+            <button type="button" className={`mc ${helped === "no" ? "on" : ""}`} aria-pressed={helped === "no"} onClick={() => answer("no")}>{t("practiceSheet.notThisTime")}</button>
           </div>
-          <p className="hint psh-helpnote">Your answer stays on this device. Cyra suggests what helps you more often.</p>
-          <button type="button" className="ghostbtn psh-again" onClick={start}>Again</button>
+          <p className="hint psh-helpnote">{t("practiceSheet.yourAnswerStaysOnThis")}</p>
+          <button type="button" className="ghostbtn psh-again" onClick={start}>{t("practiceSheet.again")}</button>
         </div>
       )}
       {p.caution && <p className="psh-caution"><Icon name="heart" size={14} />{p.caution}</p>}
       <div className="psh-tools">
-        <button type="button" className={`psh-tool${fav ? " on" : ""}`} aria-pressed={fav} onClick={onFav}><Icon name="star" size={16} />Favourite</button>
-        {buzz && <button type="button" className={`psh-tool${haptics ? " on" : ""}`} aria-pressed={haptics} onClick={onHaptics}><Icon name="pulse" size={16} />Gentle vibration</button>}
+        <button type="button" className={`psh-tool${fav ? " on" : ""}`} aria-pressed={fav} onClick={onFav}><Icon name="star" size={16} />{t("practiceSheet.favourite")}</button>
+        {buzz && <button type="button" className={`psh-tool${haptics ? " on" : ""}`} aria-pressed={haptics} onClick={onHaptics}><Icon name="pulse" size={16} />{t("practiceSheet.gentleVibration")}</button>}
       </div>
       <section className="psh-ev" aria-labelledby="psh-ev-t">
-        <div className="psh-evhead"><h3 id="psh-ev-t" className="psh-evtitle">What the evidence says</h3><span className={`psh-strength s-${p.strength}`}>{STRENGTH[p.strength]}</span></div>
+        <div className="psh-evhead"><h3 id="psh-ev-t" className="psh-evtitle">{t("practiceSheet.whatTheEvidenceSays")}</h3><span className={`psh-strength s-${p.strength}`}>{t(`strength.${p.strength}`)}</span></div>
         <p className="psh-evtext">{p.evidence}</p>
         {srcs.length > 0 && (
-          <ul className="psh-srcs" aria-label="Sources">
+          <ul className="psh-srcs" aria-label={t("practiceSheet.sources")}>
             {srcs.map((s) => <li key={s.title}><b>{s.title}.</b> {s.body} {s.year}.</li>)}
           </ul>
         )}

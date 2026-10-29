@@ -154,6 +154,8 @@ import BodyLog from "./components/BodyLog.jsx";
 import { SleepSheet, MoveSheet, MedsSheet, WeightSheet, PcosSheet, fmtDay as shortDay } from "./components/BodySheets.jsx";
 import { cleanBodyLog, cleanLabs, cleanBodyPrefs, unitsOf, bodyDay, setSleepH, addMove, removeMove, togglePcos, setWeight, addLab, removeLab, moveTotals, logRows, periodDayOf, hoursText } from "./lib/bodylog.js";
 import { NavPill } from "./components/ui/index.js";
+import { localTabs, localItems, localPractice } from "./locales/index.js";
+import { cleanLocale, setLocale, resolveLocale, applyDocumentLocale, getLocale, pickerShown, availableLocales } from "./lib/i18n.js";
 import { TABS, viewsOf, tabOf, viewForTab, parseRoute, logItemsFor, segmentOf } from "./lib/routes.js";
 import AskScreen from "./screens/AskScreen.jsx";
 import MindTodayScreen from "./screens/MindTodayScreen.jsx";
@@ -181,6 +183,7 @@ import MovePlan from "./components/pots/MovePlan.jsx";
 import { SessionRunner } from "./components/pots/MoveSession.jsx";
 import PotsReport from "./components/pots/PotsReport.jsx";
 import PotsPatterns from "./components/pots/PotsPatterns.jsx";
+import { fmtDate } from "./lib/i18n.js";
 
 /* Stage card -> life-stage experience (spec §4.3): REG_STAGE now lives in lib/onboarding.js (L11), the one routing and
    step map. finishReg routes with it; RegisterScreen colours each card's swatch and the chrome preview (regPal) from
@@ -325,6 +328,7 @@ export default function CyraDemo() {
   /* Appearance (L2, spec §8.4): her choice (persisted, a DEVICE_PREFS key), the device's own light/dark
      setting (matchMedia, followed live) and whether a print is under way (always light). */
   const [appearance, setAppearance] = useState(DEFAULT_APPEARANCE);
+  const [uiLocale, setUiLocale] = useState(null); // calm R10: null = follow this device's language (lib/i18n.js)
   const [systemDark, setSystemDark] = useState(() => typeof matchMedia === "function" && matchMedia(SYSTEM_DARK_QUERY).matches);
   const [printing, setPrinting] = useState(false);
   const scheme = resolveScheme(appearance, systemDark, printing);
@@ -484,7 +488,7 @@ export default function CyraDemo() {
   const tri = trimesterOf(pregWeek); // "first" | "second" | "third", for the Home greeting and week bar
   const trimester = tri === "first" ? 1 : tri === "second" ? 2 : 3;
   const dueDay = dueIso ? new Date(dueIso + "T12:00:00") : new Date(Date.now() + (40 - pregWeek) * 7 * 86400000);
-  const dueDate = dueDay.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+  const dueDate = fmtDate(dueDay, { month: "long", day: "numeric" });
   const toastTimer = useRef(null);
   /* A toast stays long enough to be read: 2.6s for a short one, then 1s + 35ms per character (a 70-character
      sentence shows for 3.5s, 180 characters for 7.3s), capped at 8s: the web-live suite waits 10s for a toast
@@ -1246,8 +1250,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1514,6 +1518,11 @@ export default function CyraDemo() {
   // While locked the page wears the base theme (no stage colour in the theme-color meta or the page background).
   const lockT = paletteFor(org.theme, scheme);
   useLayoutEffect(() => { applyDocumentScheme(document, { scheme, paper: locked ? lockT.paper : t.paper }); }, [scheme, t.paper, locked, lockT.paper]);
+  /* Calm R10: the UI language. Her saved choice (uiLocale, a device preference) when this build has that catalogue,
+     else the device's best match; set before the children render, and <html lang>/dir follow it. */
+  const uiLang = resolveLocale(uiLocale, typeof navigator !== "undefined" ? navigator.languages || [navigator.language] : []);
+  if (getLocale() !== uiLang) setLocale(uiLang);
+  useLayoutEffect(() => { applyDocumentLocale(document, uiLang); }, [uiLang]);
   useEffect(() => { if (!showSettings) setSettingsFocus(null); }, [showSettings]);
 
   /* Phone: a backup copy, appointment PDF (cyra-summary-*.pdf), POTS report or POTS spreadsheet an interrupted share left in the
@@ -1595,7 +1604,7 @@ export default function CyraDemo() {
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
-    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount };
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, uiLocale, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount };
     if (account) setCloudAccount(account);
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
@@ -2397,7 +2406,7 @@ export default function CyraDemo() {
     ? { id: "pots", name: m.name, short: m.short, on: potsTab }
     : { id: m.id, name: m.name, short: m.short, on: isModuleOn({ modules }, m.id), onToggle: () => { const on = !isModuleOn({ modules }, m.id); setModules((cur) => setModuleOn({ modules: cur }, m.id, on, { day: todayIso }).modules); ping(on ? `${m.name} module on` : `${m.name} module off. What you logged is kept`); } }));
   const segViews = viewsOf(curNavTab, navOpts);
-  const navLabel = TABS.find((t) => t.id === curNavTab)?.label || "Home";
+  const navLabel = localTabs(TABS).find((x) => x.id === curNavTab)?.label || "Home";
   /* The "+" log sheet (calm R2): each item opens the view that holds its logger and puts focus on it (pendingFocus,
      tried in order). Quick mode's card becomes the full form for this visit (the same "more detail"), so symptom chips
      and the 0–10 mood scale are on screen. Items without a logger here are not offered: Period in pregnancy, Sleep
@@ -2430,7 +2439,7 @@ export default function CyraDemo() {
       actions={stage === "preg"
         ? [{ id: "symptoms", label: "Log symptoms", icon: "pulse", tint: "body" }, { id: "sleep", label: "Sleep", icon: "moon", tint: "mind" }, { id: "move", label: "Move", icon: "move", tint: "body" }, { id: "meds", label: "Meds", icon: "pill", tint: "patterns" }].map((a) => ({ ...a, onClick: () => goLogger(a.id) }))
         : [{ id: "symptoms", label: "Log symptoms", icon: "pulse", tint: "body" }, { id: "flow", label: "Period", icon: "drop", tint: "body" }, fertOn ? { id: "fert", label: "Fertility signs", icon: "teststrip", tint: "mind" } : { id: "move", label: "Move", icon: "move", tint: "body" }, { id: "meds", label: "Meds", icon: "pill", tint: "patterns" }].map((a) => ({ ...a, onClick: () => goLogger(a.id) }))}
-      strip={Array.from({ length: 7 }, (_, i) => { const iso = addDays(todayIso, i - 6); const d = new Date(iso + "T12:00:00"); return { iso, wd: d.toLocaleDateString("en-US", { weekday: "narrow" }), dn: d.getDate(), long: d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }), today: iso === todayIso, sel: iso === logDay, logged: !!entryOn(iso) || !!bodyLog[iso] || Object.values(medLog[iso] || {}).some(Boolean) }; })}
+      strip={Array.from({ length: 7 }, (_, i) => { const iso = addDays(todayIso, i - 6); const d = new Date(iso + "T12:00:00"); return { iso, wd: fmtDate(d, { weekday: "narrow" }), dn: d.getDate(), long: fmtDate(d, { weekday: "long", month: "long", day: "numeric" }), today: iso === todayIso, sel: iso === logDay, logged: !!entryOn(iso) || !!bodyLog[iso] || Object.values(medLog[iso] || {}).some(Boolean) }; })}
       onPickDay={(iso) => { if (iso === logDay) return; if (iso === todayIso) endEdit(); else startEdit(iso); }}
       title={logDay === todayIso ? "Today's log" : `Log for ${fmt(logDay)}`}
       rows={logRows({ moodDay: moodLog[logDay] || null, preg: stage === "preg", entry: logEntry, day: bodyDay(bodyLog, logDay), medDay: medLog[logDay] || null, meds, pcosOn: pcosHere, weightOn: bodyPrefs.weightOn, symLabel: (id) => (stage === "preg" ? GSYM[id] : symMap[id] || ALL_SYM[id] || id), periodDay: stage === "preg" ? 0 : periodDayOf(days, logDay, isPeriodDay) })}
@@ -2582,18 +2591,18 @@ export default function CyraDemo() {
       onMood={(v) => { firstMood(moodLog); setMoodLog((l) => setMoodDay(l, todayIso, { mood: v })); }}
       onTag={(id) => { firstMood(moodLog); setMoodLog((l) => toggleFeeling(l, todayIso, id)); }}
       onLevel={(k, v) => { firstMood(moodLog); setMoodLog((l) => setMoodDay(l, todayIso, { [k]: v })); }}
-      next={nextPractice({ day: moodToday, hour: new Date().getHours(), log: practiceLog, canFull })} onOpen={openPractice} onMore={() => showView("practices", { head: true })}
-      runs={runsOn(practiceLog, todayIso).map((r) => ({ ...r, title: practiceOf(r.p)?.title || r.p }))}
+      next={(() => { const n = nextPractice({ day: moodToday, hour: new Date().getHours(), log: practiceLog, canFull }); return n ? { ...n, practice: localPractice(n.practice) } : n; })()} onOpen={openPractice} onMore={() => showView("practices", { head: true })}
+      runs={runsOn(practiceLog, todayIso).map((r) => ({ ...r, title: localPractice(practiceOf(r.p))?.title || r.p }))}
       onHelped={(rid, v) => setPracticeLog((l) => setHelped(l, rid, l.find((r) => r.id === rid)?.helped === v ? null : v))} />
   );
   const youView = (
     <YouScreen acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={canFull} onPro={() => setProOpen(true)}
-      ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line}
+      ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
       account={ACCOUNTS_HERE ? { can: ACCOUNTS.available(), acct: cloudAccount.acct, sync: cloudSync, todayIso, onCreate: () => setAcctSheet("create"), onSignIn: () => setAcctSheet("signin"), onBackup: () => backupToCloud(), onSignOut: signOut, onDelete: deleteAccount, onUseBackup: resolveUseBackup, onKeepDevice: resolveKeepDevice, onPro: () => setProOpen(true) } : null}
       care={stage === "preg" ? null : <CareScreen embedded shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Cyra will compare your days before and after"); }} />} />
   );
-  const practicesView = () => <PracticesScreen canFull={canFull} favs={practiceFavs} onOpen={openPractice} onPro={() => setProOpen(true)} featured={{ practice: practiceOf("slow"), need: "calm" }} />;
+  const practicesView = () => <PracticesScreen canFull={canFull} favs={practiceFavs} onOpen={openPractice} onPro={() => setProOpen(true)} featured={{ practice: localPractice(practiceOf("slow")), need: "calm" }} />;
   const journeyView = () => {
     const stripNow = moodStrip(moodLog, [], todayIso, 35);
     const connDays = Object.keys(connLog || {}).sort();
@@ -2608,7 +2617,7 @@ export default function CyraDemo() {
     );
   };
   const practiceSheet = practiceOpen && practiceOf(practiceOpen.id) ? (
-    <PracticeSheet key={practiceOpen.id} practice={practiceOf(practiceOpen.id)} need={practiceOpen.need}
+    <PracticeSheet key={practiceOpen.id} practice={localPractice(practiceOf(practiceOpen.id))} need={practiceOpen.need}
       fav={practiceFavs.includes(practiceOpen.id)} onFav={() => { const on = !practiceFavs.includes(practiceOpen.id); setPracticeFavs((f) => toggleFav(f, practiceOpen.id)); ping(on ? "Added to your favourites" : "Removed from your favourites"); }}
       haptics={practiceHaptics} onHaptics={() => setPracticeHaptics((h) => !h)} buzz={buzz}
       onRun={({ sec, done }) => { const rid = `r${Date.now().toString(36)}`; setPracticeLog((l) => addRun(l, { id: rid, p: practiceOpen.id, day: todayIso, sec, done })); return rid; }}
@@ -2685,8 +2694,8 @@ export default function CyraDemo() {
         )}
         </div>
       </div>
-      <NavPill tabs={TABS} current={curNavTab} onSelect={selectTab} onPlus={() => { setShowPal(false); setLogOpen(true); }} plusExpanded={logOpen} panelId={(id) => `panel-${id}`} />
-      {logOpen && <LogSheet items={logItems} onPick={pickLog} onClose={() => setLogOpen(false)} />}
+      <NavPill tabs={localTabs(TABS)} current={curNavTab} onSelect={selectTab} onPlus={() => { setShowPal(false); setLogOpen(true); }} plusExpanded={logOpen} panelId={(id) => `panel-${id}`} />
+      {logOpen && <LogSheet items={localItems(logItems)} onPick={pickLog} onClose={() => setLogOpen(false)} />}
       {bodySheetView}
       {practiceSheet}
       {proOpen && <ProSheet unlocked={canFull} ai={offer.any} cloud={ACCOUNTS_HERE} onClose={() => setProOpen(false)} />}

@@ -4,6 +4,7 @@ import Icon from "../components/Icon.jsx";
 import { BUILD_STAMP } from "../lib/about.js";
 import { splashAccountLine } from "../lib/disclosures.js";
 import { ACCOUNT_COPY } from "../lib/account.js";
+import { t } from "../lib/i18n.js";
 
 /* Phase 1: splash. Wordmark, tagline, value proposition, the privacy promise, "Get started", and a way back
    in from an encrypted backup. UI O1: a ring motif in the stage-neutral palette and the three promises as icon
@@ -24,27 +25,27 @@ export default function SplashScreen({ onStart, onImport, initialRestore = false
         <circle cx="62" cy="30" r="22" fill="var(--accent)" fillOpacity=".18" />
         <circle cx="46" cy="42" r="18" fill="var(--primary)" fillOpacity=".08" />
       </svg>
-      <div className="splashmark">Cyra<span>.</span></div>
-      <div className="splashtag">One companion for every phase</div>
-      <h1 className="disp" style={{ marginTop: 16 }}>Periods, pregnancy,
-        <br />the transition — and
-        <br />finally being heard.</h1>
+      <div className="splashmark">{t("splash.cyra")}<span>.</span></div>
+      <div className="splashtag">{t("splash.oneCompanionForEveryPhase")}</div>
+      <h1 className="disp" style={{ marginTop: 16 }}>{t("splash.periodsPregnancy")}
+        <br />{t("splash.theTransitionAnd")}
+        <br />{t("splash.finallyBeingHeard")}</h1>
       <ul className="splashwhy">
-        <li><Icon name="clock" size={18} />Track in 30 seconds a day.</li>
-        <li><Icon name="chart" size={18} />See your real patterns.</li>
-        <li><Icon name="clipboard" size={18} />Walk into appointments with evidence — cycles, symptoms, PCOS signals.</li>
+        <li><Icon name="clock" size={18} />{t("splash.trackIn30SecondsA")}</li>
+        <li><Icon name="chart" size={18} />{t("splash.seeYourRealPatterns")}</li>
+        <li><Icon name="clipboard" size={18} />{t("splash.walkIntoAppointmentsWithEvidence")}</li>
       </ul>
-      <h2 className="section-lab splashpromise-h" id="splash-promise">Your privacy, plainly</h2>
+      <h2 className="section-lab splashpromise-h" id="splash-promise">{t("splash.yourPrivacyPlainly")}</h2>
       <ul className="splashpromise" aria-labelledby="splash-promise">
-        <li><Icon name="lock" size={16} />Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that tells you exactly what it sends.</li>
+        <li><Icon name="lock" size={16} />{t("splash.yourHealthLogLivesOn")}</li>
         <li><Icon name="user" size={16} />{splashAccountLine(accounts)}</li>
-        <li><Icon name="book" size={16} />Guidance, never a diagnosis. For anything medical, talk with your clinician.</li>
+        <li><Icon name="book" size={16} />{t("splash.guidanceNeverADiagnosisFor")}</li>
       </ul>
-      <button className="cta" onClick={onStart}>Get started</button>
-      <button type="button" className="ghostbtn quiet splashrestore" aria-expanded={restore} aria-controls="splash-restore" onClick={() => setRestore((v) => !v)}>Restore from an encrypted backup</button>
+      <button className="cta" onClick={onStart}>{t("splash.getStarted")}</button>
+      <button type="button" className="ghostbtn quiet splashrestore" aria-expanded={restore} aria-controls="splash-restore" onClick={() => setRestore((v) => !v)}>{t("splash.restoreFromAnEncryptedBackup")}</button>
       <div id="splash-restore" hidden={!restore}>{restore && <RestoreForm onImport={onImport} compact />}</div>
       {onSignIn && <button type="button" className="ghostbtn quiet splashacct" aria-haspopup="dialog" onClick={onSignIn}>{ACCOUNT_COPY.signInSplash}</button>}
-      <p className="rfoot" style={{ textAlign: "center" }}>Free to use<br /><b>{BUILD_STAMP}</b></p>
+      <p className="rfoot" style={{ textAlign: "center" }}>{t("splash.freeToUse")}<br /><b>{BUILD_STAMP}</b></p>
     </main>
   );
 }

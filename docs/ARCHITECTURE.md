@@ -204,6 +204,7 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `aiWeekly` | the last weekly write-up, `{ writeup, ask, day }`, cleared when the write-up is turned off (calm R8) | device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
 | `cloudAccount` | the optional account this device is signed in to, `{ rev, acct }` (email, lookup, write token, backup key and salt, version, times, checksum; never the passphrase) (calm R9) | device-only | **no** (NOT_IN_BACKUP; never in a file or the account backup) | no (this device's kept) | through the autosave merge (highest `rev` wins) |
 | `appearance` | System / Light / Dark | device preference (DEVICE_PREFS) | **no** (NOT_IN_BACKUP) | never (this device's kept) | yes (same browser, same device) |
+| `uiLocale` | her language choice, null = follow this device (calm R10; the picker shows only with two or more catalogues) | device preference (DEVICE_PREFS) | **no** (NOT_IN_BACKUP) | never (this device's kept) | yes (same browser, same device) |
 | `reminders` | the switch, this browser's push addresses, a version | bookkeeping | `{ enabled }` only | on the phone only (the web keeps this browser's switch) | own merge (`rev`, the `reminders` message) |
 
 "In the backup file" means inside the encrypted envelope (`lib/backup.js`, PBKDF2-SHA256 600,000

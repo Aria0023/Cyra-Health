@@ -121,7 +121,7 @@ export function WipeConfirm({ onWipe, keepsWeekNote = false, onCancel, panelId =
   );
 }
 
-export default function DataControls({ driver, onExport, onImport, onWipe, ping, keepsWeekNote = false, daysLogged = 0, lastBackupAt = null, todayIso, offlineCopy = false, legacyWear = false, onHandoff = null, hideLab = false, children = null }) {
+export default function DataControls({ driver, onExport, onImport, onWipe, ping, keepsWeekNote = false, daysLogged = 0, lastBackupAt = null, todayIso, offlineCopy = false, legacyWear = false, onHandoff = null, hideLab = false, children = null, compact = false, facts = [], howLead = null }) {
   const [mode, setMode] = useState(null); // null | "export" | "import" | "wipe"
   const [pass, setPass] = useState("");
   const [pass2, setPass2] = useState("");
@@ -148,19 +148,8 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
       ping(phone ? "Backup handed to the app you chose — check it arrived. Keep the passphrase somewhere safe; Cyra can't recover it." : "Backup file created — check your downloads. Keep the passphrase somewhere safe; Cyra can't recover it.");
     } catch (e) { setErr(e.message || "Couldn't create the backup"); } finally { clearPass(); setBusy(false); }
   };
-  return (
+  const panels = (
     <>
-      <p className={hideLab ? "section-lab sr-only" : "section-lab"} id="set-privacy" style={hideLab ? undefined : { margin: "0 0 6px" }}><Icon name="shield" className="labico" />Privacy &amp; your data</p>
-      <p className="datastat"><b>{daysLogged === 1 ? "1 day logged" : `${daysLogged} days logged`}</b><span aria-hidden="true">·</span><span>last backup {lastBackupAt && todayIso ? relDay(lastBackupAt, todayIso) : (daysLogged >= 7 ? "never — worth doing once" : "never")}</span></p>
-      <p className="hint" style={{ margin: "0 0 8px" }}>{where ? `Your check-ins, notes and history are stored ${where}.` : "Checking where your check-ins, notes and history are stored…"} {storeCopyLine(ACCOUNTS_HERE)}</p>
-      {offlineCopy && <p className="rfoot" style={{ margin: "0 0 8px" }}>This browser also keeps a copy of Cyra's own app files, so Cyra opens without a connection. That copy holds none of your check-ins, notes or settings.</p>}
-      {children}
-      <p className="section-lab" id="set-data" style={{ margin: "12px 0 6px" }}><Icon name="file" className="labico" />Backup, restore or delete</p>
-      <div className="mcrow" role="group" aria-labelledby="set-data">
-        <button className={`mc ${mode === "export" ? "on" : ""}`} aria-expanded={mode === "export"} aria-controls="data-export-panel" onClick={() => switchTo("export")}>Encrypted backup</button>
-        <button className={`mc ${mode === "import" ? "on" : ""}`} aria-expanded={mode === "import"} aria-controls="data-import-panel" onClick={() => switchTo("import")}>Restore</button>
-        <button className={`mc danger ${mode === "wipe" ? "on" : ""}`} aria-expanded={mode === "wipe"} aria-controls="data-wipe-panel" onClick={() => switchTo("wipe")}>Delete everything</button>
-      </div>
       {mode === "export" && (
         <div className="plaincard" id="data-export-panel" style={{ marginTop: 10 }}>
           <p className="lab" style={{ margin: "0 0 6px" }}>Lock the backup with a passphrase</p>
@@ -180,6 +169,53 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
       )}
       {mode === "import" && <div id="data-import-panel"><RestoreForm onImport={onImport} onDone={() => setMode(null)} compact onPick={onHandoff} /></div>}
       {mode === "wipe" && <WipeConfirm onWipe={onWipe} keepsWeekNote={keepsWeekNote} legacyWear={legacyWear} offlineCopy={offlineCopy} onCancel={() => setMode(null)} />}
+    </>
+  );
+  const statLine = <><b>{daysLogged === 1 ? "1 day logged" : `${daysLogged} days logged`}</b><span aria-hidden="true">·</span><span>last backup {lastBackupAt && todayIso ? relDay(lastBackupAt, todayIso) : (daysLogged >= 7 ? "never — worth doing once" : "never")}</span></>;
+  const whereLine = <p className="hint" style={{ margin: "0 0 8px" }}>{where ? `Your check-ins, notes and history are stored ${where}.` : "Checking where your check-ins, notes and history are stored…"} {storeCopyLine(ACCOUNTS_HERE)}</p>;
+  const offlineLine = offlineCopy && <p className="rfoot" style={{ margin: "0 0 8px" }}>This browser also keeps a copy of Cyra's own app files, so Cyra opens without a connection. That copy holds none of your check-ins, notes or settings.</p>;
+  /* Calm R10 (You page): `compact` leads with three short facts (days logged and the last backup, what can leave the
+     device right now, the lock) and the actions; where the record lives and the full "What can leave this device"
+     list sit behind "How this works" (still in the page while closed). The Settings sheet keeps the full layout. */
+  const lab = <p className={hideLab ? "section-lab sr-only" : "section-lab"} id="set-privacy" style={hideLab ? undefined : { margin: "0 0 6px" }}><Icon name="shield" className="labico" />Privacy &amp; your data</p>;
+  const actions = (
+    <>
+      <p className={compact ? "section-lab sr-only" : "section-lab"} id="set-data" style={compact ? undefined : { margin: "12px 0 6px" }}><Icon name="file" className="labico" />Backup, restore or delete</p>
+      <div className="mcrow" role="group" aria-labelledby="set-data">
+        <button className={`mc ${mode === "export" ? "on" : ""}`} aria-expanded={mode === "export"} aria-controls="data-export-panel" onClick={() => switchTo("export")}>Encrypted backup</button>
+        <button className={`mc ${mode === "import" ? "on" : ""}`} aria-expanded={mode === "import"} aria-controls="data-import-panel" onClick={() => switchTo("import")}>Restore</button>
+        <button className={`mc danger ${mode === "wipe" ? "on" : ""}`} aria-expanded={mode === "wipe"} aria-controls="data-wipe-panel" onClick={() => switchTo("wipe")}>Delete everything</button>
+      </div>
+    </>
+  );
+  if (compact) {
+    return (
+      <>
+        {lab}
+        <ul className="privfacts" role="list">
+          <li data-fact="days"><Icon name="calendar" size={16} /><span className="privstat">{statLine}</span></li>
+          {facts.map((f) => <li key={f.id} data-fact={f.id}><Icon name={f.icon} size={16} /><span>{f.text}</span></li>)}
+        </ul>
+        {actions}
+        {panels}
+        <Details label="How this works">
+          {howLead && <p className="hint">{howLead}</p>}
+          {whereLine}
+          {offlineLine}
+          {children}
+        </Details>
+      </>
+    );
+  }
+  return (
+    <>
+      {lab}
+      <p className="datastat">{statLine}</p>
+      {whereLine}
+      {offlineLine}
+      {children}
+      {actions}
+      {panels}
     </>
   );
 }

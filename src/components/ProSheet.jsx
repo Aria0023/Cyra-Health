@@ -1,5 +1,6 @@
 import { Sheet } from "./ui/index.js";
 import Icon from "./Icon.jsx";
+import { t } from "../lib/i18n.js";
 
 /* "See what Pro adds" (calm R5, plan §7 "Premium (Pro)"). One calm sheet, opened only when she taps a Pro chip's
    "See what Pro adds": never on its own, never blocking anything free. Calm R8: every line under "What Pro adds" is
@@ -20,17 +21,17 @@ export const PRO_CLOUD = Object.freeze(["shield", "An encrypted backup to Cyra's
 export const proAddsFor = (ai, cloud = false) => [...PRO_ADDS, ...(ai ? [PRO_AI] : []), ...(cloud ? [PRO_CLOUD] : [])];
 export default function ProSheet({ onClose, unlocked = false, ai = false, cloud = false }) {
   return (
-    <Sheet id="pro-sheet" title="What Pro adds" onClose={onClose} closeLabel="Close what Pro adds" className="prosheet">
-      <ul className="prolist" aria-label="What Pro adds in this version">
-        {proAddsFor(ai, cloud).map(([icon, t, d]) => (
-          <li key={t}><span className="prolist-ico" aria-hidden="true"><Icon name={icon} size={16} /></span><span><b>{t}</b><span className="prolist-d">{d}</span></span></li>
+    <Sheet id="pro-sheet" title={t("pro.whatProAdds")} onClose={onClose} closeLabel={t("pro.closeWhatProAdds")} className="prosheet">
+      <ul className="prolist" aria-label={t("pro.whatProAddsInThis")}>
+        {proAddsFor(ai, cloud).map(([icon, tv, d]) => (
+          <li key={tv}><span className="prolist-ico" aria-hidden="true"><Icon name={icon} size={16} /></span><span><b>{tv}</b><span className="prolist-d">{d}</span></span></li>
         ))}
       </ul>
-      <p className="section-lab proplanned-lab" id="pro-planned">Planned for Pro, not in this version yet</p>
-      <ul className="proplanned" aria-labelledby="pro-planned">{PRO_PLANNED.map((t) => <li key={t}>{t}</li>)}</ul>
+      <p className="section-lab proplanned-lab" id="pro-planned">{t("pro.plannedForProNotIn")}</p>
+      <ul className="proplanned" aria-labelledby="pro-planned">{PRO_PLANNED.map((tv) => <li key={tv}>{tv}</li>)}</ul>
       <p className="profree">{FREE_KEEPS}</p>
-      <p className="hint pronote">{unlocked ? "This is a test build: Pro's parts are unlocked here for checking. Nothing is bought." : "Pro is coming to the app stores. There's nothing to buy in this version."}</p>
-      <button type="button" className="cta" onClick={onClose}>Done</button>
+      <p className="hint pronote">{unlocked ? t("pro.thisIsATestBuild") : t("pro.proIsComingToThe")}</p>
+      <button type="button" className="cta" onClick={onClose}>{t("pro.done")}</button>
     </Sheet>
   );
 }

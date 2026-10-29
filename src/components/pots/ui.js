@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { POTS_SYM, POTS_TRIG, POTS_MED_LIB } from "../../lib/potsConstants.js";
 import { localDay, mlToOz, fmtSodium, NA_PER_G_SALT, OZ_ML } from "../../lib/pots.js";
+import { fmtDate } from "../../lib/i18n.js";
 
 /** "08:05" -> "8:05" (the medicine rows and plan). */
 export const hm = (t) => (typeof t === "string" ? t.replace(/^0(\d)/, "$1") : "");
@@ -14,7 +15,7 @@ export const ampm = (t) => {
   return `${((h + 11) % 12) + 1}:${t.slice(3)} ${h < 12 ? "am" : "pm"}`;
 };
 /** "Sat, Oct 10". */
-export const dayLabel = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+export const dayLabel = (iso) => fmtDate(iso, { weekday: "short", month: "short", day: "numeric" });
 /** `iso` moved by `n` calendar days, as a local day key. */
 export const addDays = (iso, n) => { const [y, m, d] = iso.split("-").map(Number); return localDay(new Date(y, m - 1, d + n)); };
 /** The first sentence of a safety text (what urgentLive announces). */

@@ -10,6 +10,7 @@ import { PatternCard, PatternSheet } from "../components/patterns/PatternCard.js
 import WeeklyReview from "../components/patterns/WeeklyReview.jsx";
 import { NOT_ADVICE, CARDS_SHOWN, EMPTY_LINE } from "../lib/patterns.js";
 import { MODULES, sourcesOf } from "../lib/modules.js";
+import { t } from "../lib/i18n.js";
 
 /* Patterns (calm R6, spec §3.5d; HealthMaxxing's "Balance"). Where she feels seen: honest associations from her own
    log, never verdicts, grades or scores.
@@ -39,30 +40,30 @@ export default function PatternsScreen({
     <main className="patternspage">
       <div className="pathead">
         <svg className="patblob" viewBox="0 0 200 120" aria-hidden="true" focusable="false"><path d="M30 70C20 30 70 6 112 18s82 28 70 66-70 40-104 30S38 96 30 70z" /></svg>
-        <p className="eyebrow">Patterns</p>
-        <h1 className="disp">What your log is showing</h1>
+        <p className="eyebrow">{t("patterns.patterns")}</p>
+        <h1 className="disp">{t("patterns.whatYourLogIsShowing")}</h1>
         <div className="patacts">
           <button type="button" className="patact" onClick={onHistory}><Icon name="calendar" size={16} />{historyLabel}</button>
-          <button type="button" className="patact" aria-haspopup="dialog" onClick={() => setShare(true)}><Icon name="share" size={16} />Share</button>
+          <button type="button" className="patact" aria-haspopup="dialog" onClick={() => setShare(true)}><Icon name="share" size={16} />{t("patterns.share")}</button>
         </div>
       </div>
 
       {/* ---- the hero: the cycle timeline ---- */}
       {!isMeno && (
-        <Card hero className="tlcard" tint="patterns" icon="calendar" level={2} eyebrow={timeline ? `Your last ${timeline.rows.length} ${timeline.rows.length === 1 ? "cycle" : "cycles"}` : "Cycles"} title="Your cycle timeline">
-          {timeline ? <CycleTimeline model={timeline} /> : <EmptyNote>Your timeline starts after you log your first period.</EmptyNote>}
+        <Card hero className="tlcard" tint="patterns" icon="calendar" level={2} eyebrow={timeline ? t("patterns.yourLast", { length: timeline.rows.length, v1: timeline.rows.length === 1 ? "cycle" : "cycles" }) : t("patterns.cycles")} title={t("patterns.yourCycleTimeline")}>
+          {timeline ? <CycleTimeline model={timeline} /> : <EmptyNote>{t("patterns.yourTimelineStartsAfterYou")}</EmptyNote>}
         </Card>
       )}
 
       {/* ---- Body and Mind around the cycle ring, in words ---- */}
       {rings && (
-        <Card className="ringscard" tint="patterns" icon="patterns" level={2} eyebrow="This week" title="Body and Mind">
+        <Card className="ringscard" tint="patterns" icon="patterns" level={2} eyebrow={t("patterns.thisWeek")} title={t("patterns.bodyAndMind")}>
           <div className="ringrow patrings">
-            <Ring title="Body" value={rings.body.value} word={rings.body.word} size={92} stroke={8} tone="primary" />
+            <Ring title={t("patterns.body")} value={rings.body.value} word={rings.body.word} size={92} stroke={8} tone="primary" />
             <Ring title={rings.hero.title} value={rings.hero.value} center={rings.hero.center} sub={rings.hero.sub} size={128} stroke={10} blob />
-            <Ring title="Mind" value={rings.mind.value} word={rings.mind.word} size={92} stroke={8} tone="accent" />
+            <Ring title={t("patterns.mind")} value={rings.mind.value} word={rings.mind.word} size={92} stroke={8} tone="accent" />
           </div>
-          <Details label="What's driving this">
+          <Details label={t("patterns.whatsDrivingThis")}>
             <ul className="ringins">{rings.inputs.map((l) => <li key={l}>{l}</li>)}</ul>
           </Details>
         </Card>
@@ -73,13 +74,13 @@ export default function PatternsScreen({
       {/* ---- What you're learning ---- */}
       <section className="learn" aria-labelledby="learn-h">
         <div className="learnhead">
-          <h2 id="learn-h" className="sechead">What you're learning</h2>
+          <h2 id="learn-h" className="sechead">{t("patterns.whatYoureLearning")}</h2>
           <p className="notadvice">{NOT_ADVICE}</p>
         </div>
         {cards.length ? shown.map((c) => <PatternCard key={c.key} c={c} onView={setView} />) : <EmptyNote>{EMPTY_LINE}</EmptyNote>}
         {cards.length > CARDS_SHOWN && (
           <button type="button" className="ghostbtn viewall" aria-expanded={all} onClick={() => setAll((v) => !v)}>
-            {all ? "Show fewer patterns" : `View all patterns (${cards.length})`}
+            {all ? t("patterns.showFewerPatterns") : t("patterns.viewAllPatterns", { length: cards.length })}
           </button>
         )}
       </section>
@@ -89,10 +90,10 @@ export default function PatternsScreen({
       {weekly && !weekly.week.shows && review}
 
       {/* ---- day by day: lighter / usual / heavier against her usual ---- */}
-      <Card className="daycard" tint="patterns" icon="patterns" level={2} eyebrow="Day by day" title="Your last 60 days">
+      <Card className="daycard" tint="patterns" icon="patterns" level={2} eyebrow={t("patterns.dayByDay")} title={t("patterns.yourLast60Days")}>
         {logged < 3 ? (
           <ChartSoon logged={logged}>
-            <p className="pline"><button type="button" className="linkbtn" onClick={() => onGo("today")}>Log today's check-in →</button></p>
+            <p className="pline"><button type="button" className="linkbtn" onClick={() => onGo("today")}>{t("patterns.logTodaysCheckIn")}</button></p>
           </ChartSoon>
         ) : <PatternsCard days={days} ids={symIds} labels={symMap} starts={starts} sorted={ins.sorted} todayIso={todayIso} popIso={popIso} allowCycle={!isMeno} scale={scoreScale} />}
       </Card>
@@ -101,29 +102,29 @@ export default function PatternsScreen({
 
       {logged >= 3 && checked.length > 0 && (
         <div className="plaincard findhow">
-          <Details label="How Cyra finds these">
-            <p className="plain">Cyra compares days in your own log. A link means two things showed up together in your log, not that one causes the other.</p>
-            <p className="plain">A card says "Supported pattern" with at least 5 days on each side, 4 days with the symptom in all, and a clear gap: at least 1.3 times as often, and at least 2 more days in every 10. A smaller gap the same way is "Still showing up"; fewer days than that is "Not enough information".</p>
-            <p className="plain">Sleep links compare days after a rough night (Rough night under Last night, or Sleep disruption logged as moderate or strong) with days after a night you marked Slept well, over the last 60 days.</p>
-            {!isMeno && <p className="plain">Cycle days count from each logged period start, across your last 4 cycles, up to cycle day 45. A cluster shows only with two period starts, the symptom on 6 days or more, 4 of them inside the 4 days named and from two different cycles, and those days at least twice as likely as your other cycle days.</p>}
+          <Details label={t("patterns.howCyraFindsThese")}>
+            <p className="plain">{t("patterns.cyraComparesDaysInYour")}</p>
+            <p className="plain">{t("patterns.aCardSaysSupportedPattern")}</p>
+            <p className="plain">{t("patterns.sleepLinksCompareDaysAfter")}</p>
+            {!isMeno && <p className="plain">{t("patterns.cycleDaysCountFromEach")}</p>}
             <ul className="findlist">{checked.map((l) => <li key={l}>{l}</li>)}</ul>
-            <p className="plain">Worked out on this device whenever Cyra shows them. Cyra doesn't save them or send them anywhere; they leave this device only in a report you choose to share.</p>
+            <p className="plain">{t("patterns.workedOutOnThisDevice")}</p>
           </Details>
         </div>
       )}
       {/* POTS tools: their patterns live in POTS tools only (never in insights() or this screen). */}
-      {potsOn && <p className="hint" style={{ marginTop: 16 }}>Your POTS patterns live in POTS tools. {onPots && <button type="button" className="linkbtn" onClick={onPots}>Go to POTS tools →</button>}</p>}
+      {potsOn && <p className="hint" style={{ marginTop: 16 }}>{t("patterns.yourPotsPatternsLiveIn")} {onPots && <button type="button" className="linkbtn" onClick={onPots}>{t("patterns.goToPotsTools")}</button>}</p>}
 
       {view && (
         <PatternSheet c={view} sources={srcFor(view)} onClose={() => setView(null)} askQ={view.detail.askId ? INSIGHT_STARTERS[view.detail.askId] || null : null}
           onReport={() => { setView(null); onReport(false); }} onAsk={(q) => { setView(null); onAsk(q); }} />
       )}
       {share && (
-        <Sheet id="share-sheet" title="Share" onClose={() => setShare(false)} closeLabel="Close share" className="sharesheet">
-          <p className="bsheet-sub">Made on this device. Nothing is sent until you choose where it goes.</p>
+        <Sheet id="share-sheet" title={t("patterns.share")} onClose={() => setShare(false)} closeLabel={t("patterns.closeShare")} className="sharesheet">
+          <p className="bsheet-sub">{t("patterns.madeOnThisDeviceNothing")}</p>
           <ul className="sharelist">
-            <li><button type="button" className="sharerow" onClick={() => { setShare(false); onReport(true); }}><Icon name="note" size={18} /><span><b>Appointment PDF</b><span>A one-page summary to hand over or send ahead</span></span></button></li>
-            <li><button type="button" className="sharerow" onClick={() => { setShare(false); onReport(false); }}><Icon name="share" size={18} /><span><b>Report</b><span>What to tell your doctor: read it, print it or add it to an email</span></span></button></li>
+            <li><button type="button" className="sharerow" onClick={() => { setShare(false); onReport(true); }}><Icon name="note" size={18} /><span><b>{t("patterns.appointmentPdf")}</b><span>{t("patterns.aOnePageSummaryTo")}</span></span></button></li>
+            <li><button type="button" className="sharerow" onClick={() => { setShare(false); onReport(false); }}><Icon name="share" size={18} /><span><b>{t("patterns.report")}</b><span>{t("patterns.whatToTellYourDoctor")}</span></span></button></li>
           </ul>
         </Sheet>
       )}

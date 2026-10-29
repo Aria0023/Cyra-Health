@@ -146,26 +146,38 @@ export function AppearanceBody({ appearance, onAppearance, hideLab = false }) {
 }
 
 /** About you: the optional answers, one collapsed Details per topic. */
-export function AboutBody({ regAnswers, onAnswer, stage, stageName, todayIso, hideLab = false }) {
+export function AboutBody({ regAnswers, onAnswer, stage, stageName, todayIso, hideLab = false, compact = false }) {
+  const answers = <AboutYou answers={regAnswers} onAnswer={onAnswer || (() => {})} stage={stage} stageName={stageName} todayIso={todayIso} />;
   return (
     <>
       <Lab id="set-about" icon="user" hide={hideLab} style={{ margin: "0 0 6px" }}>About you</Lab>
       <div role="group" aria-labelledby="set-about">
-        <p className="hint" style={{ margin: "0 0 8px" }}>All optional, and you can change them anytime. They stay on this device and leave it only inside an encrypted backup you choose to save — and your age band and ZIP never go into one.</p>
-        <AboutYou answers={regAnswers} onAnswer={onAnswer || (() => {})} stage={stage} stageName={stageName} todayIso={todayIso} />
+        {compact
+          ? <p className="hint" style={{ margin: "0 0 8px" }}>All optional, and you can change them anytime.</p>
+          : <p className="hint" style={{ margin: "0 0 8px" }}>All optional, and you can change them anytime. They stay on this device and leave it only inside an encrypted backup you choose to save — and your age band and ZIP never go into one.</p>}
+        {compact ? <Details label="Your answers"><p className="hint" style={{ margin: "0 0 8px" }}>They stay on this device and leave it only inside an encrypted backup you choose to save — and your age band and ZIP never go into one.</p>{answers}</Details> : answers}
       </div>
     </>
   );
 }
 
 /** Privacy & your data: where the record lives, "What can leave this device", backup / restore / delete, then the app lock. */
-export function PrivacyBody({ storageDriver, onExport, onImport, onWipe, ping, keepsWeekNote, daysLogged, lastBackupAt, todayIso, offlineCopy, legacyWear, onHandoff, flows, flowCtx, lock, potsOn, hideLab = false }) {
+/** Calm R10: the You page's three short facts besides "N days logged · last backup": what is on right now among the
+    flows this build can use (the same rows "What can leave this device" lists) and whether the app lock is on. */
+export function privacyFacts(flows = [], lock = null) {
+  const on = flows.filter((r) => r.state === "on").map((r) => r.name);
+  const out = [{ id: "flows", icon: "share", text: on.length ? `Turned on now: ${on.join(", ")}. Each one says exactly what it sends.` : "Every feature that can send something is off right now." }];
+  if (lock) out.push({ id: "lock", icon: "lock", text: lock.cfg && !lock.cfg.unreadable ? "App lock is on." : "App lock is off. You can set a PIN below." });
+  return out;
+}
+
+export function PrivacyBody({ storageDriver, onExport, onImport, onWipe, ping, keepsWeekNote, daysLogged, lastBackupAt, todayIso, offlineCopy, legacyWear, onHandoff, flows, flowCtx, lock, potsOn, hideLab = false, compact = false }) {
   return (
     <>
-      <DataControls driver={storageDriver} onExport={onExport} onImport={onImport} onWipe={onWipe} ping={ping} keepsWeekNote={keepsWeekNote} daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} offlineCopy={offlineCopy} legacyWear={legacyWear} onHandoff={onHandoff} hideLab={hideLab}>
+      <DataControls driver={storageDriver} onExport={onExport} onImport={onImport} onWipe={onWipe} ping={ping} keepsWeekNote={keepsWeekNote} daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} offlineCopy={offlineCopy} legacyWear={legacyWear} onHandoff={onHandoff} hideLab={hideLab} compact={compact} facts={compact ? privacyFacts(flows, lock) : []} howLead={compact ? "Your log is yours. Below is everything Cyra can send, and the tools to back it up, lock it and delete it." : null}>
         <PrivacyFlows rows={flows} {...flowCtx} />
       </DataControls>
-      {lock && <LockSettings lock={lock} potsOn={potsOn} />}
+      {lock && <LockSettings lock={lock} potsOn={potsOn} compact={compact} />}
     </>
   );
 }

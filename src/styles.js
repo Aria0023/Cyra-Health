@@ -1588,4 +1588,27 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .acctform .consentopt { margin:8px 0 4px; }
 .acctform .cta { margin-top:10px; }
 .splashacct { margin-top:2px; }
+/* ---- calm R10: You compaction, toasts above open sheets, logical properties where touched ---- */
+.privfacts { list-style:none; margin:0 0 12px; padding:0; display:grid; gap:8px; }
+.privfacts li { display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border-radius:var(--r-inner); background:color-mix(in srgb, var(--tint-mind) 70%, var(--card)); font-size:var(--fs-sm); line-height:1.45; color:var(--ink); }
+.privfacts li svg { flex:none; margin-top:1px; color:var(--primary-text); }
+.privfacts .privstat span[aria-hidden] { margin-inline:6px; color:var(--soft); }
+.modaddslist { list-style:none; margin:0 0 8px; padding:0; display:grid; gap:8px; font-size:var(--fs-sm); line-height:1.5; } .modaddslist b { display:block; }
+.youpage .modaddslist .modadds { margin:0; }
+.youprivacy .mcrow { margin-bottom:4px; }
+.modmore { margin-inline-start:52px; } .modmore .morewrap { margin-top:4px; } .modmore .modadds { margin:0 !important; }
+.youpage .modnote { margin:0; display:block; margin-top:6px; color:var(--soft); }
+.yousum { margin:0 0 4px; }
+.youpage .youreminders { margin-top:10px; padding-top:0; border-top:none; }
+.youpage .v2card > .morewrap { margin-top:6px; }
+.youpage .carepart .morewrap { margin-top:4px; }
+.youpage .carepart .bodypanel .shelfc { margin-top:10px; }
+.cy.cy.cy:has(.v2sheet-wrap) .toast { bottom:auto; top:calc(12px + var(--sa-t)); transform:translate(-50%, -8px); }
+.cy.cy.cy:has(.v2sheet-wrap) .toast.show { transform:translate(-50%, 0); }
+.num.numword { font-size:30px; letter-spacing:-.01em; }
+.youpage .carepart { position:relative; background:linear-gradient(180deg, var(--tint-you) 0, var(--card) 92px) var(--card); border:1px solid var(--edge); border-radius:var(--r-card); box-shadow:var(--sh-card); padding:16px; margin:0 0 var(--stack); }
+.youpage .carepart > h2.disp { font-size:18px; margin:0 0 6px; }
+.cy[data-scheme=dark] .bodyblob, .cy[data-scheme=dark] .mindblob, .cy[data-scheme=dark] .journey .mindblob, .cy[data-scheme=dark] .patblob { fill:color-mix(in srgb, var(--primary) 9%, transparent); }
+.journey .askpart { background:linear-gradient(180deg, var(--tint-mind) 0, var(--card) 92px) var(--card); border:1px solid var(--edge); border-radius:var(--r-card); box-shadow:var(--sh-card); padding:16px; margin-top:0; }
+.cyclespage > .eyebrow { margin:4px 0 2px; }
 `;

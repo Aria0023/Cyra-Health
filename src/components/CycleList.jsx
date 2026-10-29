@@ -1,11 +1,12 @@
 import { fmt } from "../lib/engine.js";
+import { fmtDate } from "../lib/i18n.js";
 
 /* "Your cycles" (Calendar, L5; spec §5.1): the running cycle and up to 12 earlier ones, newest first, from
    lib/engine.js cycleSummary(). Each row is start · length · a decorative bar · her "Don't use" switch; the text
    carries the length, so the bar is aria-hidden. Cyra may point out a cycle that looks unusual (the "Unusual" chip and
    a suggestion), but only her tap leaves one out of predictions (onUse(start, exclude) → App.jsx setCycleUse →
    engine toggleExclude). Leaving a cycle out changes predictions only: the Report and the insights count every cycle. */
-const longDay = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+const longDay = (iso) => fmtDate(iso, { weekday: "long", month: "long", day: "numeric" });
 const pct = (n, scale) => `${Math.round(Math.min(1, n / scale) * 1000) / 10}%`;
 
 export default function CycleList({ cyc, peri = false, onUse }) {

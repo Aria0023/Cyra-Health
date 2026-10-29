@@ -11,6 +11,7 @@
 import { fmt, fmtRange, basisLine, periodHead, addDays } from "./engine.js";
 import { LOG_ITEMS } from "./routes.js";
 import { MODULES, longCycleCount } from "./modules.js";
+import { fmtDate } from "./i18n.js";
 
 export const EMPTY_LINE = "A few more logs will show clearer associations.";
 const daysBetween = (a, b) => Math.round((Date.parse(b + "T12:00:00Z") - Date.parse(a + "T12:00:00Z")) / 86400000);
@@ -21,7 +22,7 @@ const clamp01 = (v) => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
     kind: "preg" | "cycle" | "long" | "meno" | "calm" | "start". value is how far through (never shown as a number). */
 export function heroModel({ stage, isMeno = false, pred = null, predWhy = null, pregWeek = 0, tri = "", dueDate = "", lastPeriodIso = null, todayIso, pcosOn = false }) {
   const today = new Date(todayIso + "T12:00:00");
-  const calm = { center: String(today.getDate()), sub: today.toLocaleDateString("en-US", { month: "long" }) };
+  const calm = { center: String(today.getDate()), sub: fmtDate(today, { month: "long" }) };
   if (stage === "preg") {
     const left = Math.max(0, 40 - pregWeek);
     return { kind: "preg", value: clamp01(pregWeek / 40), center: `Week ${pregWeek}`, sub: tri ? `${tri} trimester` : "", line: dueDate ? `Due ${dueDate}` : "Your due date", note: left > 0 ? `About ${left} week${left === 1 ? "" : "s"} to go` : "Any day now", tone: "primary", action: null };
@@ -204,7 +205,7 @@ export function pcosCycleCand({ on = false, lens = [] } = {}) {
 }
 
 /* The date eyebrow: "Thursday, October 29". */
-export const dateEyebrow = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+export const dateEyebrow = (iso) => fmtDate(iso, { weekday: "long", month: "long", day: "numeric" });
 export const greeting = (hour) => (hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening");
 /* The last bleeding day on record (menopause hero): newest entry with period true or a flow other than spotting. */
 export const lastPeriodDay = (sorted) => { for (let i = sorted.length - 1; i >= 0; i--) { const e = sorted[i]; if (e && (e.period || (e.flow && e.flow !== "spot"))) return e.date; } return null; };

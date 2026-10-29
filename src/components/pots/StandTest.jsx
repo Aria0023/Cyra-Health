@@ -11,6 +11,7 @@ import { TrendChart, fmtN } from "./HrChart.jsx";
 import { TiltForm, TiltList } from "./TiltNotes.jsx";
 import VitalsForm from "./VitalsForm.jsx";
 import { numOf, numProps, addDays, useAnnounce, useKbLift } from "./ui.js";
+import { fmtDate } from "../../lib/i18n.js";
 
 /* The guided standing test (design 4.8; spec A13.4).
 
@@ -55,7 +56,7 @@ const R = THRESH.range;
 const bad = (v, [lo, hi]) => v != null && (v < lo || v > hi);
 const mmss = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const mmssUp = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
-const shortDay = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const shortDay = (iso) => fmtDate(iso, { month: "short", day: "numeric" });
 const byMin = (a, b) => a.min - b.min;
 const isRunning = (ph) => ph === "rest" || ph === "stand" || ph === "up";
 

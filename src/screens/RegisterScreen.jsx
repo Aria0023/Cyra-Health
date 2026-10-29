@@ -17,6 +17,8 @@ import { serverSees, consentDeleteFact, consentDetails, consentBackupFact } from
 import Details, { WebReminderFacts } from "../components/Details.jsx";
 import { ChipRow } from "../components/AnswerChips.jsx";
 import Icon from "../components/Icon.jsx";
+import { t } from "../lib/i18n.js";
+import { stepCopy } from "../locales/index.js";
 
 /* Phase 2: registration (L11, spec §4.2) — phase-first, 4 steps (3 for Menopause & beyond), routed by
    lib/onboarding.js regSteps(stage): Stage → Device → Cycle (My Cycle, Trying to conceive, Perimenopause) |
@@ -50,7 +52,7 @@ const FACT_ICONS = ["lock", "share", "heart", "clipboard", "trash", "file"];
 export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTouched, setRegTouched, cadence, setCadence, socialBusy, startSocial, finishReg, onBackToSplash, scheme = "light" }) {
   const steps = regSteps(reg.stage);
   const key = steps[Math.min(regStep, steps.length - 1)];
-  const rs = STEP_COPY[key];
+  const rs = stepCopy(key, STEP_COPY[key]);
   const uid = useId();
   const labId = (k) => `${uid}-${k}`;
   const [dir, setDir] = useState("fwd"); // which way the step slides in
@@ -92,7 +94,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
   const go = (n, d) => { setDir(d); setRegStep(n); };
   const advance = () => {
     if (miss.length) {
-      setRegTouched((t) => ({ ...t, [key]: true }));
+      setRegTouched((tv) => ({ ...tv, [key]: true }));
       // The first marked field comes into view; the summary line below announces itself (role=alert).
       setTimeout(() => document.querySelector(".labErr, .inpErr, .err")?.scrollIntoView({ block: "center", behavior: reduceMotion() ? "auto" : "smooth" }), 0);
       return;
@@ -103,9 +105,9 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
 
   return (
     <main className="obwrap">
-      <span className="mark">Cyra<span className="sub">Health</span></span>
-      <div className="prog" role="progressbar" aria-label="Set-up progress" aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={regStep + 1} style={{ marginTop: 14 }}>{steps.map((k, i) => <span key={k} className={i <= regStep ? "on" : ""} />)}</div>
-      <div className="stepno">Step {regStep + 1} of {steps.length} · {rs.short}</div>
+      <span className="mark">{t("onb.cyra")}<span className="sub">{t("onb.health")}</span></span>
+      <div className="prog" role="progressbar" aria-label={t("onb.setUpProgress")} aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={regStep + 1} style={{ marginTop: 14 }}>{steps.map((k, i) => <span key={k} className={i <= regStep ? "on" : ""} />)}</div>
+      <div className="stepno">{t("onb.stepOf", { v0: regStep + 1, length: steps.length, short: rs.short })}</div>
       <div className={`regstep ${dir}`} key={regStep}>
       <h1 className="disp" tabIndex={-1} ref={headRef}>{rs.title}</h1>
       <p className="hint">{rs.sub}</p>
@@ -126,10 +128,10 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
           Yes or "I suspect it" turns the PCOS module on at finishReg (lib/onboarding.js pcosModuleFrom). */}
       {key === "pcos" && (
         <>
-          <div role="group" aria-label="Living with PCOS? (optional)" className="pcosopts">
-            {PCOS_ANSWERS.map(([id, l]) => (
+          <div role="group" aria-label={t("onb.livingWithPcosOptional")} className="pcosopts">
+            {PCOS_ANSWERS.map(([id]) => (
               <button key={id} type="button" aria-pressed={reg.pcos === id} className={`mc pcosopt ${reg.pcos === id ? "on" : ""}`} onClick={() => rup("pcos", reg.pcos === id ? null : id)}>
-                {reg.pcos === id && <Icon name="check" size={16} />}{l}
+                {reg.pcos === id && <Icon name="check" size={16} />}{t(`onb.pcos.${id}`)}
               </button>
             ))}
           </div>
@@ -144,33 +146,33 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
         <>
           {!reg.anon && (
             <>
-              <input className="inp" placeholder="First name (optional)" aria-label="First name (optional)" autoComplete="off" value={reg.name} onChange={(e) => rup("name", e.target.value)} />
-              <input className="inp" placeholder="Email (optional)" aria-label="Email (optional, kept only on this device and in backups you save)" type="email" autoComplete="off" value={reg.email} onChange={(e) => rup("email", e.target.value)} />
-              <p className="rfoot inphelp">Kept only on this device and in backups you save.</p>
+              <input className="inp" placeholder={t("onb.firstNameOptional")} aria-label={t("onb.firstNameOptional")} autoComplete="off" value={reg.name} onChange={(e) => rup("name", e.target.value)} />
+              <input className="inp" placeholder={t("onb.emailOptional")} aria-label={t("onb.emailOptionalKeptOnlyOn")} type="email" autoComplete="off" value={reg.email} onChange={(e) => rup("email", e.target.value)} />
+              <p className="rfoot inphelp">{t("onb.keptOnlyOnThisDevice")}</p>
             </>
           )}
-          <button className="ghostbtn quiet" aria-pressed={!!reg.anon} onClick={toggleAnon}>{reg.anon ? "✓ Anonymous Mode on" : "Continue in Anonymous Mode instead"}</button>
+          <button className="ghostbtn quiet" aria-pressed={!!reg.anon} onClick={toggleAnon}>{reg.anon ? t("onb.anonymousModeOn") : t("onb.continueInAnonymousModeInstead")}</button>
           {!reg.anon && FEATURES.signin && (
             <>
-              <div className="orline"><span>or fill in your name and email from</span></div>
+              <div className="orline"><span>{t("onb.orFillInYourName")}</span></div>
               <div className="social">
                 {[["apple", "Apple"], ["google", "Google"], ["facebook", "Facebook"]].map(([id, label]) => (
                   <button key={id} className="socialbtn" disabled={!!socialBusy} onClick={() => startSocial(id, label)}>
-                    <Icon name={id} size={18} />{socialBusy === id ? "Connecting…" : label}
+                    <Icon name={id} size={18} />{socialBusy === id ? t("onb.connecting") : label}
                   </button>
                 ))}
               </div>
-              <p className="rfoot">Apple, Google or Facebook will know you're setting up Cyra. None of your health data goes to them, and Cyra's server erases what they send within 5 minutes.</p>
+              <p className="rfoot">{t("onb.appleGoogleOrFacebookWill")}</p>
             </>
           )}
-          <Details label="What Cyra's server sees">
-            <ul>{serverSees(FEATURES, hasServer(), ACCOUNTS_HERE).map((t) => <li key={t}>{t}</li>)}</ul>
+          <Details label={t("onb.whatCyrasServerSees")}>
+            <ul>{serverSees(FEATURES, hasServer(), ACCOUNTS_HERE).map((tv) => <li key={tv}>{tv}</li>)}</ul>
           </Details>
           {!reg.anon && FEATURES.signin && (
-            <Details label="Exactly what's shared">
-              <p>They send Cyra's server sign-in tokens, your name, email and an account ID (Google also sends basic profile details, such as a profile-photo link).</p>
-              <p>Only your name, plus your email from Apple or Google when it's verified, comes to this device. Facebook fills in your name only.</p>
-              <p>With Apple, the server then sends Apple's token straight back to Apple, asking it to end Cyra's access to your Apple ID. The server discards the tokens at once, erases the rest within 5 minutes and keeps no account record. Apple lets you hide your email.</p>
+            <Details label={t("onb.exactlyWhatsShared")}>
+              <p>{t("onb.theySendCyrasServerSign")}</p>
+              <p>{t("onb.onlyYourNamePlusYour")}</p>
+              <p>{t("onb.withAppleTheServerThen")}</p>
             </Details>
           )}
         </>
@@ -178,24 +180,24 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
 
       {key === "cycle" && (
         <>
-          <ChipRow id={labId("cycleLen")} label="Typical cycle length" options={CYCLE_LENS} value={reg.cycleLen} onPick={(v) => rup("cycleLen", v)} bad={bad("cycleLen")} />
-          <p className="lab">First day of your last period (optional)</p>
-          <input className="inp" type="date" aria-label="First day of your last period" value={reg.lastPeriod} onChange={(e) => rup("lastPeriod", e.target.value)} />
+          <ChipRow id={labId("cycleLen")} label={t("onb.typicalCycleLength")} options={CYCLE_LENS} value={reg.cycleLen} onPick={(v) => rup("cycleLen", v)} bad={bad("cycleLen")} />
+          <p className="lab">{t("onb.firstDayOfYourLast")}</p>
+          <input className="inp" type="date" aria-label={t("onb.firstDayOfYourLast2")} value={reg.lastPeriod} onChange={(e) => rup("lastPeriod", e.target.value)} />
         </>
       )}
 
       {key === "pregnancy" && (
         <>
-          <p className="lab" id={labId("due")}>When is your baby due? (optional)</p>
+          <p className="lab" id={labId("due")}>{t("onb.whenIsYourBabyDue")}</p>
           <input className="inp" type="date" aria-labelledby={labId("due")} min={b.min} max={b.max} value={reg.dueDate} onChange={(e) => rup("dueDate", e.target.value)} />
-          <p className="rfoot">Not sure yet? Leave it blank — you can add it anytime in Settings → About you.</p>
+          <p className="rfoot">{t("onb.notSureYetLeaveIt")}</p>
         </>
       )}
 
       {key === "consent" && (
         <>
           <div className="consentcard">
-            <b>What Cyra does with your data:</b>
+            <b>{t("onb.whatCyraDoesWithYour")}</b>
             <ul className="rlist icons" style={{ marginTop: 6 }}>
               {[
                 "Your health log is stored on this device, and your patterns are worked out here.",
@@ -206,8 +208,8 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
                 consentBackupFact(ACCOUNTS_HERE),
               ].map((txt, i) => <li key={i}><Icon name={FACT_ICONS[i]} className="labico" />{txt}</li>)}
             </ul>
-            <Details label="The details">
-              <ul>{consentDetails(FEATURES, isNativeBuild).map((t) => <li key={t}>{t}</li>)}</ul>
+            <Details label={t("onb.theDetails")}>
+              <ul>{consentDetails(FEATURES, isNativeBuild).map((tv) => <li key={tv}>{tv}</li>)}</ul>
             </Details>
           </div>
           {consentRows.map(([k, t2, d]) => [
@@ -215,26 +217,26 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
               <span className="ckbox">{reg[k] ? "✓" : ""}</span>
               <span><b>{t2}</b><br />{d}</span>
             </button>,
-            k === "notifOptin" && webReminders && <Details key={`${k}-more`} label="Exactly what's kept"><WebReminderFacts /></Details>,
+            k === "notifOptin" && webReminders && <Details key={`${k}-more`} label={t("onb.exactlyWhatsKept")}><WebReminderFacts /></Details>,
             k === "notifOptin" && rhythmHere && reg.notifOptin && (
               <div key={`${k}-rhythm`} className="cadwrap" id={labId("cadwrap")}>
-                <p className="lab" id={labId("cadence")}>How often should Cyra check in?</p>
+                <p className="lab" id={labId("cadence")}>{t("onb.howOftenShouldCyraCheck")}</p>
                 <div className="regcards cadgrid" role="group" aria-labelledby={labId("cadence")} style={{ marginBottom: 14 }}>
                   {CADENCE.map((cd) => (
                     <button key={cd.id} aria-pressed={cadence === cd.id} className={`stagecard ${cadence === cd.id ? "on" : ""}`} onClick={() => setCadence(cd.id)}><b>{cd.label}</b><span>{cd.desc}</span></button>
                   ))}
                 </div>
-                <p className="rfoot" style={{ marginBottom: 14 }}>You can change this anytime in Settings. Cyra sends one reminder at most, never a second nudge, and never guilts you for a missed day — gaps are fine, your patterns still work.</p>
+                <p className="rfoot" style={{ marginBottom: 14 }}>{t("onb.youCanChangeThisAnytime")}</p>
               </div>
             ),
             k === "research" && (
-              <Details key={`${k}-more`} label="Exactly what's sent">
+              <Details key={`${k}-more`} label={t("onb.exactlyWhatsSent")}>
                 <ul>
-                  <li>The symptoms that count, by life stage: {allFlagGroups()}. A quick check-in adds only sleep and flow flags.</li>
-                  <li>Sent at most once a day, and never on the day you log them.</li>
-                  <li>"Once a week" is counted on this device: deleting the app or clearing this browser's data resets it.</li>
-                  <li>No dates, values, name or account. Like any request, it carries your device's internet address and app or browser type.</li>
-                  <li>They're added to the weekly "You're not alone" counts. Turn this off anytime in Settings.</li>
+                  <li>{t("onb.theSymptomsThatCountBy", { v0: allFlagGroups() })}</li>
+                  <li>{t("onb.sentAtMostOnceA")}</li>
+                  <li>{t("onb.onceAWeekIsCounted")}</li>
+                  <li>{t("onb.noDatesValuesNameOr")}</li>
+                  <li>{t("onb.theyreAddedToTheWeekly")}</li>
                 </ul>
               </Details>
             ),
@@ -242,29 +244,29 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
           {/* The documents sit next to the box, never inside it: opening one doesn't tick it. */}
           {POLICY_LINKS_READY ? (
             <p className="rfoot" style={{ margin: "-4px 0 9px", display: "flex", flexWrap: "wrap", alignItems: "center" }}>
-              <PolicyLink url={TERMS_URL}>Read the Terms</PolicyLink>
+              <PolicyLink url={TERMS_URL}>{t("onb.readTheTerms")}</PolicyLink>
               <span aria-hidden="true">·</span>
-              <PolicyLink url={PRIVACY_URL}>Read the Privacy Policy</PolicyLink>
+              <PolicyLink url={PRIVACY_URL}>{t("onb.readThePrivacyPolicy")}</PolicyLink>
             </p>
           ) : TERMS_URL || PRIVACY_URL ? (
             <p className="rfoot" style={{ margin: "-4px 0 9px", display: "flex", flexWrap: "wrap", alignItems: "center" }}>
-              {TERMS_URL ? <PolicyLink url={TERMS_URL}>Read the Terms</PolicyLink> : <PolicyLink url={PRIVACY_URL}>Read the Privacy Policy</PolicyLink>}
-              <span>Cyra's {TERMS_URL ? "Privacy Policy" : "Terms"} isn't published yet; a later version of Cyra will link it here. Until then, the box above covers only what this screen says.</span>
+              {TERMS_URL ? <PolicyLink url={TERMS_URL}>{t("onb.readTheTerms")}</PolicyLink> : <PolicyLink url={PRIVACY_URL}>{t("onb.readThePrivacyPolicy")}</PolicyLink>}
+              <span>{t("onb.cyras")} {TERMS_URL ? t("onb.privacyPolicy") : t("onb.terms")} {t("onb.isntPublishedYetALater")}</span>
             </p>
           ) : (
-            <p className="rfoot" style={{ margin: "0 0 9px" }}>Cyra's Terms and Privacy Policy aren't published yet; a later version of Cyra will link them here. Until then, the box above covers only what this screen says.</p>
+            <p className="rfoot" style={{ margin: "0 0 9px" }}>{t("onb.cyrasTermsAndPrivacyPolicy")}</p>
           )}
         </>
       )}
 
       {regTouched[key] && miss.length > 0 && (
-        <p className="errhint" role="alert">A few fields still need a tap — they're marked in red above.</p>
+        <p className="errhint" role="alert">{t("onb.aFewFieldsStillNeed")}</p>
       )}
       </div>
 
       <div className="nav">
-        <button className="back" onClick={back}>Back</button>
-        <button className="cta" onClick={advance}>{regStep < steps.length - 1 ? "Continue" : (miss.length ? "Complete required fields" : "Enter Cyra")}</button>
+        <button className="back" onClick={back}>{t("onb.back")}</button>
+        <button className="cta" onClick={advance}>{regStep < steps.length - 1 ? t("onb.continue") : (miss.length ? t("onb.completeRequiredFields") : t("onb.enterCyra"))}</button>
       </div>
     </main>
   );
