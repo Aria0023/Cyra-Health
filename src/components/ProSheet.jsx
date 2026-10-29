@@ -15,12 +15,14 @@ export const PRO_ADDS = Object.freeze([
 export const PRO_AI = Object.freeze(["note", "A weekly write-up and chat about your log, only if you turn them on", "Written by Cyra's AI from a summary of your log with no dates, notes or anything that names you. Each shows exactly what it would send before anything is sent."]);
 export const PRO_PLANNED = Object.freeze(["Your own experiments, beyond the starter ones", "Medicine and supplement reminders", "A richer PDF with trends and the write-up"]);
 export const FREE_KEEPS = "Free stays free: logging, the calendar, cycles, every pattern Cyra finds, your weekly review, a core set of practices and the basic doctor-ready PDF.";
-export const proAddsFor = (ai) => (ai ? [...PRO_ADDS, PRO_AI] : [...PRO_ADDS]);
-export default function ProSheet({ onClose, unlocked = false, ai = false }) {
+/** Calm R9: only in a build that offers the optional account (lib/cloudBackup.js ACCOUNTS_HERE). */
+export const PRO_CLOUD = Object.freeze(["shield", "An encrypted backup to Cyra's server, if you make an account", "Bring your log back on a new phone or browser with your email and passphrase. It's encrypted on your device first; Cyra can't read it."]);
+export const proAddsFor = (ai, cloud = false) => [...PRO_ADDS, ...(ai ? [PRO_AI] : []), ...(cloud ? [PRO_CLOUD] : [])];
+export default function ProSheet({ onClose, unlocked = false, ai = false, cloud = false }) {
   return (
     <Sheet id="pro-sheet" title="What Pro adds" onClose={onClose} closeLabel="Close what Pro adds" className="prosheet">
       <ul className="prolist" aria-label="What Pro adds in this version">
-        {proAddsFor(ai).map(([icon, t, d]) => (
+        {proAddsFor(ai, cloud).map(([icon, t, d]) => (
           <li key={t}><span className="prolist-ico" aria-hidden="true"><Icon name={icon} size={16} /></span><span><b>{t}</b><span className="prolist-d">{d}</span></span></li>
         ))}
       </ul>

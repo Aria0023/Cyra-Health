@@ -1,3 +1,4 @@
+import { ACCOUNTS_HERE } from "../../lib/cloudBackup.js";
 import { useEffect, useRef, useState } from "react";
 import { POTS_RELATED } from "../../lib/potsConstants.js";
 import {
@@ -33,9 +34,9 @@ import { potsTodayFoot, potsTodayFootUnsaved, potsTodayFoot2 } from "../../lib/d
    (urgentLive) for safety cards that appear because of an answer she just picked. */
 /* The footers name weekly counts only in builds with counts (lib/features.js); with every flag on they
    are the pre-L4 text exactly (lib/disclosures.js, disclosures.test.mjs). */
-export const TODAY_FOOT = potsTodayFoot(FEATURES);
+export const TODAY_FOOT = potsTodayFoot(FEATURES, ACCOUNTS_HERE);
 /** The footer while the record isn't being saved (lib/storage.js driver, ui.js potsUnsaved). */
-export const TODAY_FOOT_UNSAVED = potsTodayFootUnsaved(FEATURES);
+export const TODAY_FOOT_UNSAVED = potsTodayFootUnsaved(FEATURES, ACCOUNTS_HERE);
 /** Under the footer, after setup (PotsScreen's top hint is then one sentence): the two sentences
     that used to sit in that hint, verbatim. */
 export const TODAY_FOOT_2 = potsTodayFoot2(FEATURES);

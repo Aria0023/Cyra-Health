@@ -2,6 +2,8 @@ import { useState } from "react";
 import { RestoreForm } from "../components/DataControls.jsx";
 import Icon from "../components/Icon.jsx";
 import { BUILD_STAMP } from "../lib/about.js";
+import { splashAccountLine } from "../lib/disclosures.js";
+import { ACCOUNT_COPY } from "../lib/account.js";
 
 /* Phase 1: splash. Wordmark, tagline, value proposition, the privacy promise, "Get started", and a way back
    in from an encrypted backup. UI O1: a ring motif in the stage-neutral palette and the three promises as icon
@@ -10,7 +12,10 @@ import { BUILD_STAMP } from "../lib/about.js";
    needed; guidance, never a diagnosis), directly above the button. The restore link is now a 44px toggle
    (.ghostbtn.quiet, aria-expanded / aria-controls) with a constant label. initialRestore (L10): App.jsx opens the
    restore form straight away after a forgotten-PIN restore that deleted the record but couldn't write the backup. */
-export default function SplashScreen({ onStart, onImport, initialRestore = false }) {
+/* Calm R9: in a build that offers the optional account (`accounts`), the second promise says so (still "No account
+   needed": guest is the default and nothing asks her to sign in), and with Pro (`onSignIn`) one quiet "Sign in to restore
+   from your account" button sits under the file restore. */
+export default function SplashScreen({ onStart, onImport, initialRestore = false, accounts = false, onSignIn = null }) {
   const [restore, setRestore] = useState(initialRestore);
   return (
     <main className="splash">
@@ -32,12 +37,13 @@ export default function SplashScreen({ onStart, onImport, initialRestore = false
       <h2 className="section-lab splashpromise-h" id="splash-promise">Your privacy, plainly</h2>
       <ul className="splashpromise" aria-labelledby="splash-promise">
         <li><Icon name="lock" size={16} />Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that tells you exactly what it sends.</li>
-        <li><Icon name="user" size={16} />No account needed. There's no Cyra account to make, and your name and email are optional.</li>
+        <li><Icon name="user" size={16} />{splashAccountLine(accounts)}</li>
         <li><Icon name="book" size={16} />Guidance, never a diagnosis. For anything medical, talk with your clinician.</li>
       </ul>
       <button className="cta" onClick={onStart}>Get started</button>
       <button type="button" className="ghostbtn quiet splashrestore" aria-expanded={restore} aria-controls="splash-restore" onClick={() => setRestore((v) => !v)}>Restore from an encrypted backup</button>
       <div id="splash-restore" hidden={!restore}>{restore && <RestoreForm onImport={onImport} compact />}</div>
+      {onSignIn && <button type="button" className="ghostbtn quiet splashacct" aria-haspopup="dialog" onClick={onSignIn}>{ACCOUNT_COPY.signInSplash}</button>}
       <p className="rfoot" style={{ textAlign: "center" }}>Free to use<br /><b>{BUILD_STAMP}</b></p>
     </main>
   );

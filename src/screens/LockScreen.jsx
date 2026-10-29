@@ -1,3 +1,4 @@
+import { ACCOUNTS_HERE } from "../lib/cloudBackup.js";
 import { useEffect, useRef, useState } from "react";
 import Icon from "../components/Icon.jsx";
 import { WipeConfirm, noSave } from "../components/DataControls.jsx";
@@ -107,7 +108,7 @@ export default function LockScreen({ cfg = null, unreadable = false, passkeyOk =
       <h1 id="lock-title" className="disp" tabIndex={-1} ref={titleRef}>{T.title}</h1>
       {view === "forgot" ? (
         <>
-          <p className="plain" style={{ textAlign: "left" }}><b>{T.forgotHead}</b>{T.forgotBody}</p>
+          <p className="plain" style={{ textAlign: "left" }}><b>{T.forgotHead}</b>{ACCOUNTS_HERE ? T.forgotBodyAccount : T.forgotBody}</p>
           {forgotLinks}
           <button type="button" className="linkbtn lockforgot" onClick={backToPin}>{T.back}</button>
         </>

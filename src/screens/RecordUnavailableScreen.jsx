@@ -1,3 +1,4 @@
+import { ACCOUNTS_HERE } from "../lib/cloudBackup.js";
 import { useState } from "react";
 import Details from "../components/Details.jsx";
 import { FEATURES } from "../lib/features.js";
@@ -32,7 +33,7 @@ export default function RecordUnavailableScreen({ platform, locked, onRetry, onS
       {!confirm && <button className="ghostbtn" onClick={() => setConfirm(true)}>It still won't open</button>}
       {confirm && (
         <div className="plaincard" style={{ marginTop: 10 }}>
-          <p className="plain"><b>Start over on this phone?</b>{startOverText(FEATURES)}</p>
+          <p className="plain"><b>Start over on this phone?</b>{startOverText(FEATURES, ACCOUNTS_HERE)}</p>
           {FEATURES.wearables && <Details label="If you connected a wearable">
             <ul>
               <li>If you connected Fitbit, Garmin or Whoop, new readings keep arriving at Cyra's server (held in memory up to 7 days, then deleted) until you remove access for Cyra or Terra, the service Cyra connects through, in that account. Terra keeps what it already collected under its own policy.</li>

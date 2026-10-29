@@ -1450,3 +1450,121 @@ signs are not in the summary); `potsNeverSent` ("none of it is sent to Cyra's se
 summary); the journal's "Your journal stays on this device."; Connection's "Private, on this device."; Ask's sentences
 (Ask still sends only `{question}`). The PCOS lab sentence "Cyra keeps them on this device and does not interpret them." stays
 true: lab values leave only when she ticks "Include lab values", and the system prompt forbids interpreting a lab value.
+
+
+## Calm R9 (guest → optional account: an encrypted backup on Cyra's server) — one device-only key, no change in the default build
+
+**Default production build: nothing changes.** The account exists only where the build has the `cloudBackup` flag AND a
+server (`ACCOUNTS_HERE`, `src/lib/cloudBackup.js`). The shipping build (`VITE_FEATURES` unset, no `VITE_API_BASE` on Render)
+has neither: You keeps R7's "No account needed" card word for word, the splash keeps "No account needed. There's no Cyra
+account to make, and your name and email are optional.", every sentence below keeps its pre-R9 text, and no account
+request can be made (`lf/l4/flags-e2e.mjs`: no account UI, zero requests). Production backend config
+(`backend/config/app.json`) still does not list `backup` (`smoke:account` asserts it). Every builder that changed takes an
+explicit `accounts` argument defaulting to false, so every pre-R9 pin (disclosures.test.mjs PRE) is unchanged.
+
+**What Cyra's server stores per account (and nothing else):** a row `{ id, kind: "account", emailHash, tokenHash, version,
+size, createdAt, updatedAt, expiresAt }` and the file `<dir>/<id>.bin`.
+- `id`: 128 random bits made by the server, never sent to the app.
+- `emailHash`: the app's SHA-256 of `"cyra-account-lookup/v1\n"` + her normalised email (`lib/account.js lookupFor`). The
+  email itself never leaves the device. Like any unsalted hash of an email, someone who already knows her email could
+  check whether it has an account by hashing it; the API itself never says (below).
+- `tokenHash`: SHA-256 of the write token. The token is made on the device: PBKDF2-SHA256 (600,000 rounds, salted with a
+  hash of the email) of the passphrase, then HMAC-SHA256 of a fixed label. It is not the backup key and can't open the
+  backup; guessing the passphrase from it costs the same 600,000 rounds per guess as attacking the backup itself.
+- the bytes: the `cyra-backup` envelope, AES-256-GCM under a key PBKDF2 derives from her passphrase and the envelope's own
+  random salt (`lib/backup.js backupKey / encryptWithKey`), exactly the format of a backup file. The plaintext is
+  `backupCopy(snapshot())`, the same as a backup file: no ZIP, no age band, no push addresses, no device preferences, no AI
+  chat or write-up, and no `cloudAccount` (record.test.mjs, account-e2e).
+- `version`, `size` and three times (created, last written, expiry = 365 days after the last write, `accountTtlDays`).
+Never the email, the passphrase, the plaintext or the key (`smoke:account` greps the disk and the logs for the email, the
+passphrase, the token, the lookup, a note marker and the ciphertext; calm/r9/account-e2e does the same against the real
+development server). The module logs nothing about a request beyond what L4 recorded. Wrong-passphrase back-off: at most
+10 refused tries per email hash in 15 minutes, held **in memory only**, keyed by the email hash (never an address).
+**No enumeration:** one email with another passphrase is another account, so a wrong passphrase and an unknown email
+answer the same 404. **No mail provider, no magic link, no new secret:** the account is email + passphrase only, and the
+app never sends the email anywhere, so Cyra cannot email her.
+
+**What this device keeps:** new record key `cloudAccount` `{ rev, acct }` — DEVICE_ONLY and NOT_IN_BACKUP (never in a
+backup file and never in the account backup; a restore keeps this device's value; other tabs take the highest `rev`). `acct`
+is null for a guest, otherwise her email (shown as "Signed in as …"), the email hash and write token, the backup key and its
+salt (so this device can back up after each change without asking for the passphrase), the server version it last wrote or
+restored, when, and an 8-digit checksum of that content. **Never the passphrase.** Sign out sets `acct` to null; Delete
+everything removes the record with it. The lock (L10) still doesn't encrypt what's stored, so anyone who can open this
+device's record can also use this key; they could already read the record itself.
+
+**When anything is sent:** only after she submits Create (one `PUT`), Sign in (one `GET`), taps Back up now, a choice,
+or Delete account (`DELETE`); and while she is signed in, an automatic `PUT` 8 seconds after a saved change to what a
+backup holds (none for a device-only change) and once at launch (only `GET …/meta` when nothing changed since the last
+back-up). Sign out sends nothing. Every request carries only `x-cyra-account` (the email hash), `authorization: Bearer
+<write token>`, `x-cyra-base` (on a PUT) and the encrypted bytes, plus what any request shows (address, app or browser type).
+
+**Sentences that changed, only in a build that offers the account (each literally true there):**
+1. Splash, promise 2 (`splashAccountLine`): "No account needed. An account is optional and only keeps an encrypted backup,
+   and your name and email are optional too." (Guest is the default; nothing asks her to sign in.)
+2. Registration "What Cyra's server sees", third bullet (`serverSees(f, server, accounts)`): "Cyra's servers keep no
+   profile of you in either mode: no age, health history or check-ins. If you later make the optional account, they keep
+   only your encrypted backup, which they can't read, and a one-way hash of your email." (replaces "keep no account and no
+   profile").
+3. Consent card, backup fact (`consentBackupFact`): the L4 sentence about the file, unchanged, plus "The optional account
+   keeps the same kind of encrypted backup on Cyra's server; Cyra can't read it or recover that passphrase either."
+4. Privacy & your data, storage line (`storeCopyLine`): "Cyra's servers keep no readable copy: only your encrypted account
+   backup, if you make one." (replaces "Cyra's servers don't keep a copy.").
+5. Delete everything (`wipeConfirm(f, native, accounts)`): "… Cyra's servers keep no readable copy of your log. An
+   encrypted account backup, if you made one, stays on Cyra's server until you delete the account or it expires; otherwise
+   your log can't be recovered unless you saved a backup." (Delete everything does not delete the account's backup: that
+   is You → Account → Delete account. It is said here so "goes for good" isn't read as covering it.)
+6. Start over on the phone (`startOverText(f, accounts)`): "Cyra keeps no readable copy of your record on its servers, so
+   the only way back is an encrypted backup you saved or your account's encrypted backup — you can restore a saved one on
+   the next screen."
+7. POTS Today footers (`potsTodayFoot`, `potsTodayFootUnsaved` ×2) and "Exactly what's kept" (`potsNeverSent`): the
+   existing sentence plus ", except locked inside your encrypted account backup, if you make one". The POTS log is part of
+   the record, so it is inside the account backup, encrypted.
+8. Lock screen, Forgot PIN (`LOCK_COPY.forgotBodyAccount`): "There's no back door, and your account can't reset it either.
+   …" (replaces "There's no account and no back door.").
+9. Privacy dashboard: the "Cloud backup" row now appears (flag + server + Pro), Off for a guest, On while signed in, line
+   "While you're signed in to your account: your log, encrypted on this device first, after each change. Cyra's server
+   can't read it and never gets your email or passphrase."; Details: what the server keeps (as above), "A lost passphrase
+   can't be recovered, and nobody can open the backup without it.", where to manage it. "Other connections" now counts
+   cloudBackup as a server flow (the "Any request to Cyra's server shows your device's internet address…" line).
+10. You → Account footer (`ACCOUNT_LINES.moreAccount`): "Cyra keeps no profile of you. Your name and email, if you gave
+    them, stay on this device and go into an encrypted backup only if you save one or make an account; your account itself
+    never holds your email, only a one-way hash of it."
+
+**New sentences (lib/account.js ACCOUNT_COPY, ProSheet PRO_CLOUD), all true in the builds that show them:** the guest
+lines ("You're using Cyra as a guest. Your log lives on this device.", "An account is optional. It keeps an encrypted copy of
+your log on Cyra's server, so you can bring it back on a new phone or browser. Cyra can't read it.", "An encrypted backup to
+Cyra's server comes with Pro."); the create sheet ("Your account is your email and a passphrase only you know. Both are
+turned into keys on this device; Cyra's server never sees either." — the server sees only derived keys; the four "What
+Cyra's server keeps" items above; "If you lose your passphrase, nobody can recover it or your backup — not Cyra, and not
+you. Write it down somewhere safe."; "While you're signed in, this device keeps a key made from your passphrase (not the
+passphrase) so it can back up after each change. Signing out removes it."); the signed-in card ("Cyra backs up a few
+seconds after each change while you're signed in, encrypted on this device first.", statuses, the delete confirm "Your
+encrypted backup is deleted from Cyra's server now. Your log stays on this device."); the choices ("The backup is newer",
+"This device already has a log", "Replaces this device's log with the backup." / "Replaces the backup with this device's
+log."); errors ("No backup matches that email and passphrase. Check both — a lost passphrase can't be recovered.", offline /
+busy / full / gone); toasts (created, backed up, restored, signed in, "Signed out. Your log stays on this device, and your
+encrypted backup stays on Cyra's server.", "Account deleted. Your log is still on this device."); the Pro sheet line "An
+encrypted backup to Cyra's server, if you make an account — Bring your log back on a new phone or browser with your email
+and passphrase. It's encrypted on your device first; Cyra can't read it."
+
+**L4's four sentences (the ones to rewrite when cloud backup became reachable):** (1) "Encrypted on this device with your
+passphrase before it becomes a file. Cyra's servers never receive the file or the passphrase. …" — kept: it describes the
+file backup, which still never reaches a server, and the account uses a different upload. (2) the consent fact — kept and
+extended (item 3). (3) "Cyra's servers don't keep a copy." — rewritten (item 4). (4) the Delete everything confirm —
+rewritten (item 5). L4's proposed `cloudBackupRef` recovery code is replaced by email + passphrase, so no code is shown and
+the device key is `cloudAccount`.
+
+**Sentences reviewed and left as they are in accounts builds:** "… stays on this device" / "Your journal stays on this
+device" / "Kept on this device" and the like say where the data lives and remains; since L3 they have coexisted with
+encrypted backups she chooses to make (a file that may go to Drive or iCloud), and the account is one more encrypted backup
+she chooses to make, so they stay true in the same sense. Sentences that say something goes into an encrypted backup "only
+if you save one" (modules, About you, onboarding answers) stay true: making an account is saving an encrypted backup.
+"Cyra never saves this passphrase, on this device or on its servers" (backup file details) stays true: the account keeps a
+derived key, never a passphrase. The splash's first promise ("Nothing about your health leaves it unless you turn on a
+feature that tells you exactly what it sends") stays true: the create sheet lists what the server keeps before anything is
+sent. Files ("Cyra's servers don't receive them") and the AI summary's "never holds … your POTS log" stay true.
+
+**Store disclosures (owner action before an accounts build ships):** the App Store / Play data-safety answers must add the
+end-to-end-encrypted backup and the email hash (an identifier) for builds with `cloudBackup`; the default build's answers
+are unchanged. **Before production:** a persistent disk for `DATA_DIR`, and a server-side check of the Pro purchase (today
+the entitlement is checked only in the app; no store is connected).

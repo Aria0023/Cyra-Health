@@ -11,8 +11,11 @@ authoritative description of the record; this document explains it. The normativ
   sent to a server (CLAUDE.md, hard rules). The optional server features she turns on send only
   what their in-app disclosure says, never the record; the full list is the README's Privacy
   section and the header comment of `src/App.jsx`.
-- **No account.** Nothing needs a sign-up, a password or an email. Social sign-in is optional and
-  only pre-fills the name and email fields on this device.
+- **No account needed.** Nothing needs a sign-up, a password or an email; guest is the default. Social
+  sign-in is optional and only pre-fills the name and email fields on this device. Calm R9: a build with
+  the `cloudBackup` flag and a server also offers an optional account (Pro) whose only purpose is an
+  encrypted backup on Cyra's server (§10.5a); the server never receives her email, passphrase or log in
+  readable form.
 - **Works offline.** The record is read and written locally; the installed web app opens without a
   connection (spec A14.1).
 - **A minimal, optional server.** A build without `VITE_API_BASE` makes no request to Cyra's server
@@ -199,6 +202,7 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `aiPrefs` | her switches for Cyra's weekly write-up and chat and "Include lab values", `{ weekly, chat, labs }`, all false by default (calm R8) | consent, device-only | yes | no (this device's kept) | no |
 | `aiChat` | the chat about her log, `[{ role: me\|cyra, text, kind?, ask? }]` (≤ 40), cleared when chat is turned off (calm R8) | device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
 | `aiWeekly` | the last weekly write-up, `{ writeup, ask, day }`, cleared when the write-up is turned off (calm R8) | device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
+| `cloudAccount` | the optional account this device is signed in to, `{ rev, acct }` (email, lookup, write token, backup key and salt, version, times, checksum; never the passphrase) (calm R9) | device-only | **no** (NOT_IN_BACKUP; never in a file or the account backup) | no (this device's kept) | through the autosave merge (highest `rev` wins) |
 | `appearance` | System / Light / Dark | device preference (DEVICE_PREFS) | **no** (NOT_IN_BACKUP) | never (this device's kept) | yes (same browser, same device) |
 | `reminders` | the switch, this browser's push addresses, a version | bookkeeping | `{ enabled }` only | on the phone only (the web keeps this browser's switch) | own merge (`rev`, the `reminders` message) |
 
@@ -420,7 +424,7 @@ leaves no trace in the UI and makes no request.
 | `counts` | "You're not alone" on Home (one read per launch), "Share anonymous weekly counts" (consent and Settings) | `pulse` | weekly totals only: `{week, stage, event, count}` | off |
 | `ai` | "Also ask Cyra's AI when the library has no answer" on Ask | `ai` | nothing (it forwards the question to Anthropic) | on |
 | `webReminders` | check-in reminders in a browser (rhythm, nudge and Reminders in Settings, "Remind me" on the consent step); phones always have reminders | `push` | the browser's push address and keys, reminder days, time, time zone, the last day one was sent | on |
-| `cloudBackup` | nothing yet (scaffold, §10.5) | `backup` | opaque encrypted blobs and a hash of each write token, 90 days after the last write | off |
+| `cloudBackup` | the optional account (You → Account, the splash's "Sign in to restore from your account"; Pro) §10.5a | `backup` | per account: one opaque encrypted blob, a hash of her email, a hash of the write token, a version and timestamps; 365 days after the last write | off |
 | `signin` | the Apple / Google / Facebook prefill on step 1 (Apple first) | `oauth` | the provider's name and email in memory for at most 5 minutes | off |
 
 `signin` is a sixth flag beside the five D2 names: D2 makes production push + ai, so the oauth module
@@ -484,6 +488,31 @@ when the record still holds a real connection.
   `DEVICE_ONLY`, never in a backup; not added yet); persistent storage for the module instead of
   Render's instance disk, which is wiped on every deploy; and, in the same commit, the four privacy
   sentences that say Cyra never receives the backup file (docs/PRIVACY-AUDIT.md, L4 section).
+
+### 10.5a The optional account (calm R9)
+
+- **What she keeps:** an email and a passphrase. Both are turned into keys on her device
+  (`src/lib/account.js`): `lookupFor(email)` = SHA-256 of a tagged, normalised email (the server's
+  `emailHash`); `tokenFor(email, passphrase)` = HMAC-SHA256 under PBKDF2-SHA256 (600,000 rounds, salted
+  with a hash of the email) of a fixed label (the server keeps only its SHA-256). The backup itself is
+  the usual `cyra-backup` envelope (`src/lib/backup.js`), encrypted with a key from the same PBKDF2 over
+  the envelope's own random salt (`backupKey` / `encryptWithKey`; `openBackup` on sign-in), so the
+  write token can't open it. No email is ever sent: there is no mail provider and no magic link.
+- **What the server stores per account:** `{ id (random, never sent), kind: "account", emailHash,
+  tokenHash, version, size, createdAt, updatedAt, expiresAt }` and `<dir>/<id>.bin`, the encrypted
+  bytes as received. Deleted 365 days after the last write (`accountTtlDays`), at once on Delete account.
+- **What this device keeps:** record key `cloudAccount` `{ rev, acct }` (DEVICE_ONLY and NOT_IN_BACKUP;
+  §4): her email, the lookup and write token, the backup key and salt (never the passphrase), the
+  version it last wrote or restored, when, and a short checksum of that content. Sign out sets
+  `acct` to null; Delete everything removes it with the record.
+- **Sync:** last write wins with a check. Each `PUT` names the version she last had
+  (`x-cyra-base`); a newer server version answers 409 and You → Account shows "The backup is newer"
+  with "Use the backup" / "Keep this device's log". Automatic back-ups run 8 s after a saved change to
+  what a backup holds (never for a device-only change) and once at launch (only `GET …/meta` when
+  nothing changed). Across a browser's tabs the highest `rev` wins.
+- **Gates:** the `cloudBackup` flag and a server (`ACCOUNTS_HERE` in `src/lib/cloudBackup.js`: without
+  them no account UI exists), then `plan.can("cloudBackup")` (Pro, or proDev for QA). Production keeps
+  `backup` out of `config/app.json` until the owner enables it with a persistent disk (`DATA_DIR`).
 
 ### 10.6 Plan hooks
 

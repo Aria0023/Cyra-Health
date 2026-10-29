@@ -14,7 +14,8 @@
     "smoke:push": "node scripts/push-smoke.js",
     "smoke:prod": "node scripts/prod-smoke.js",
     "smoke:backup": "node scripts/backup-smoke.js",
-    "smoke:all": "npm run smoke:ai && npm run smoke:oauth && npm run smoke:integrations && npm run smoke:pulse && npm run smoke:push && npm run smoke:backup && npm run smoke:prod",
+    "smoke:account": "node scripts/account-smoke.js",
+    "smoke:all": "npm run smoke:ai && npm run smoke:oauth && npm run smoke:integrations && npm run smoke:pulse && npm run smoke:push && npm run smoke:backup && npm run smoke:account && npm run smoke:prod",
     "vapid": "node -e \"const k=require('web-push').generateVAPIDKeys();console.log('VAPID_PUBLIC_KEY='+k.publicKey);console.log('VAPID_PRIVATE_KEY='+k.privateKey)\""
   },
   "keywords": [],

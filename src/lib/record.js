@@ -19,6 +19,7 @@ import { cleanBodyLog, cleanLabs, cleanBodyPrefs } from "./bodylog.js";
 import { cleanMoodLog, cleanPracticeLog, cleanPracticeFavs } from "./mind.js";
 import { cleanExperiments } from "./experiments.js";
 import { cleanAiPrefs, cleanAiChat, cleanAiWeekly } from "./aiFeatures.js";
+import { cleanCloudAccount } from "./account.js";
 
 /* ======================= shapes (documentation only) =======================
    Class tags: [record] the health record and settings (in the backup file, applied by a restore,
@@ -60,6 +61,7 @@ import { cleanAiPrefs, cleanAiChat, cleanAiWeekly } from "./aiFeatures.js";
  * @property {{weekly: boolean, chat: boolean, labs: boolean}} aiPrefs [device-only] calm R8: her switches for Cyra's weekly write-up and chat (Pro) and "Include lab values".
  * @property {Array<{role: "me"|"cyra", text: string, kind?: "urgent", ask?: string}>} aiChat [device-only, not-in-backup] calm R8: the chat about her log, on this device only.
  * @property {{writeup: string, ask: string|null, day: string|null}|null} aiWeekly [device-only, not-in-backup] calm R8: the last weekly write-up, on this device only.
+ * @property {{rev: number, acct: null|{email: string, lookup: string, token: string, salt: string, key: string, version: number|null, at: string|null, since: string|null}}} cloudAccount [device-only, not-in-backup] calm R9: the optional account this device is signed in to (lib/account.js); holds the backup key, so it never goes into any backup.
  * @property {RegAnswers|null} regAnswers [record] registration and About you answers (in the backup file without zip and age).
  * @property {StoredReminders} reminders [record] reminder switch plus this browser's push addresses (the file keeps only enabled).
  * @property {Array<{key: string}|{ref: string}>} terraOff [device-only] unconfirmed Fitbit / Garmin / Whoop disconnects.
@@ -239,9 +241,13 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    aiPrefs, aiChat, aiWeekly (calm R8, lib/aiFeatures.js): her switches for Cyra's weekly write-up and chat (device-only
    consents, like askAI: in the backup file but never applied by a restore), the chat and the last write-up (device-only and
    never in a backup file: they stay on this device). Turning a feature off clears its kept text.
+   cloudAccount (calm R9, lib/account.js) is the optional account this device is signed in to: { rev, acct }, acct null for
+   a guest. It holds the backup key and write token, so it is device-only AND never in any backup (file or account); a
+   restore keeps this device's value; Delete everything removes it with the record (the account's encrypted backup stays
+   on Cyra's server until she deletes the account or it expires).
    exportLog (L9) is this month's count of appointment PDFs, { month: "YYYY-MM", n }, written only while plan.js sets a
    monthly limit (none today, so it stays null): device-only and never in a backup file. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly"]);
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -249,7 +255,7 @@ export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "ca
    is whether this browser's Home install tip should stay away (null | "dismissed" |
    "installed", lib/pwa.js), also left out of the backup file; exportLog is this device's count of
    appointment PDFs this month (L9), null while exports are unlimited, also left out of the file. */
-export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly"]);
+export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount"]);
 /* A display preference of this device (L2): appearance ("system" | "light" | "dark", lib/appearance.js).
    It is saved with the record and followed by every open tab of this browser (so it stays in RECORD,
    they are all the same device), but it is never in a backup file and never taken from one:
@@ -262,7 +268,7 @@ export const RECORD = Object.freeze(PERSISTED.filter((k) => !DEVICE_ONLY.include
    lastBackupAt (this device's own note of when it last backed up), installHint (whether this
    device's install tip is hidden), exportLog (this device's PDF count this month, L9) and appearance
    (this device's light/dark choice). */
-export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", ...DEVICE_PREFS]);
+export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", ...DEVICE_PREFS]);
 
 /** The record as it goes into an encrypted backup file, as a new object (the input is not
     changed): every saved key, except that regAnswers loses zip and age (neither is used after
@@ -458,6 +464,7 @@ export const RULES = Object.freeze({
   aiPrefs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanAiPrefs(v)) ? [] : [`${p}: expected { weekly, chat, labs } (true or false), got ${show(v)}`]),
   aiChat: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanAiChat(v)) ? [] : [`${p}: expected a list of { role: me|cyra, text } (at most 40), got ${show(v)}`]),
   aiWeekly: (v, p) => (v === null || JSON.stringify(v) === JSON.stringify(cleanAiWeekly(v)) ? [] : [`${p}: expected null or { writeup, ask, day }, got ${show(v)}`]),
+  cloudAccount: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanCloudAccount(v)) ? [] : [`${p}: expected { rev, acct } (lib/account.js), got ${show(v)}`]),
   regAnswers: (v, p) => {
     if (v === null) return [];
     if (!isObj(v)) return [`${p}: expected an object or null, got ${show(v)}`];

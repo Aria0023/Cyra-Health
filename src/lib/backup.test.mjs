@@ -162,7 +162,7 @@ test("backup: cloud transport (opened in a test) sends only the envelope as octe
   await assert.rejects(t.remove({ id: ID, token: TOKEN }), { message: "network", network: true }, "network errors pass through as apiFetch throws them");
 });
 
-test("backup: the configured cloud instance is gated by the plan and the flag, and nothing imports it", () => {
+test("backup: the configured cloud instance is gated by the plan and the flag", () => {
   const src = readFileSync(new URL("./cloudBackup.js", import.meta.url), "utf8");
   assert.match(src, /cloudTransport\(\{ request: apiFetch, enabled: hasServer\(\), gate: \(\) => FEATURES\.cloudBackup && can\("cloudBackup"\) \}\)/);
 });

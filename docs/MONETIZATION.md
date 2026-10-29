@@ -53,7 +53,8 @@ A feature that ships free stays free.
 - The privacy controls (local-first L10): the privacy dashboard ("What can leave this device"), the app lock (PIN,
   passkey on the web, lock-after), encrypted backup / restore and Delete everything are free core and are never
   gated through `plan.js`. The dashboard shows no cloud-backup row and no upgrade wording while
-  `plan.cloudBackup` is false (D2 / D3).
+  `plan.cloudBackup` is false (D2 / D3). Calm R9: the file backup stays free core; only the optional account's
+  backup on Cyra's server is Pro.
 - Palettes, light and dark mode, and the installable web app that opens offline.
 - Symptom favourites per stage (order, "More symptoms", symptoms added from the other stage's list) and day notes,
   both part of the fast daily log (brief must-have 1). They are never behind `plan.can()`;
@@ -64,8 +65,8 @@ A feature that ships free stays free.
   clusters in her own log, Home's insight — worked out on the device, free core, never gated in plan.js.
 
 Calm R8: `lib/plan.js` gains `PRO_PLAN` (what a store purchase unlocks: the full practices library, `aiPatternReports` for
-Cyra's weekly write-up and `aiChat` for the chat about her log; the basic PDF stays free and unlimited; `cloudBackup` stays
-false) and `planFor(devFlags, owned)`. `lib/purchase.js` is the store adapter interface (`storeFor`, `buyPro`,
+Cyra's weekly write-up and `aiChat` for the chat about her log; the basic PDF stays free and unlimited; `cloudBackup` stayed
+false until calm R9, which makes it part of Pro) and `planFor(devFlags, owned)`. `lib/purchase.js` is the store adapter interface (`storeFor`, `buyPro`,
 `restorePurchases`, `proOwned`): on iOS and Android it is a stub that says "The app store isn't connected in this build,
 so Pro can't be bought or restored here yet."; on the web there is no store ("Pro will be sold in the iPhone and Android
 apps. There's nothing to buy on the web."). Nothing is ever owned, so shipping builds stay Free; only `proDev` opens Pro.
@@ -89,7 +90,7 @@ tests.
 | `aiPatternReports` | `false` | Cyra's weekly write-up (Pro) | calm R8: Patterns → "Cyra's write-up", only with the ai flag, a server, this entitlement and her switch; the exact summary is previewed before every send | R8 |
 | `aiChat` | `false` | chat with Cyra's AI about her log (Pro) | calm R8: Mind → Journey → "Chat about your log", same gates, each message previewed | R8 |
 | `extraCustomisation` | `false` | extras beyond the free favourites and palettes, such as custom symptoms or themes | none yet; the favourites sheet (L6) is free core and never calls `plan.can` | L6 |
-| `cloudBackup` | `false` | end-to-end-encrypted cloud backup and multi-device sync, the first paid server feature | scaffolded in L4, still off with no UI: the backend module `backup` (opaque encrypted blobs, never decrypted; listed in `config/app-dev.json`, not mounted in production), `cloudTransport` in `src/lib/backup.js` (fail-closed) and its configured instance `src/lib/cloudBackup.js` (imported by nothing). Three gates: `plan.can("cloudBackup")`, the build's `cloudBackup` flag (`VITE_FEATURES`), and the module listed in `backend/config/app.json`. Turning it on is a paid-tier decision plus the privacy-copy changes recorded in `docs/PRIVACY-AUDIT.md` (L4) | L4 |
+| `cloudBackup` | `false` | the optional account's end-to-end-encrypted backup on Cyra's server (sign in on a new device and restore; automatic back-ups after changes), the first paid server feature (D3) | calm R9: `true` in `PRO_PLAN` and `DEV_PRO_PLAN` (QA), `false` on the free plan. You → Account and the splash's "Sign in to restore from your account" exist only with the build's `cloudBackup` flag and a server (`ACCOUNTS_HERE`); without Pro the card says "An encrypted backup to Cyra's server comes with Pro." with "See what Pro adds", and the Pro sheet lists it. The server (`backup` module, not mounted in production) stores an opaque blob, a hash of her email and a hash of a write token derived from her passphrase on the device. The entitlement is checked in the app only; a server-side receipt check is needed once a store can sell Pro | R9 |
 
 ## 4. How a feature is gated
 

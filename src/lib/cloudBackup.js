@@ -1,20 +1,23 @@
-/* The configured encrypted cloud backup (owner decision D3; local-first L4): the cloud transport from
-   lib/backup.js, wired to Cyra's server through lib/api.js and behind three gates, all closed today:
-     1. plan.can("cloudBackup") — the entitlement (lib/plan.js); false on the free plan, the only plan;
-     2. FEATURES.cloudBackup — the build flag (lib/features.js, VITE_FEATURES); off by default;
-     3. the backend's backup module listed in backend/config/app.json — not listed in production.
-   It also needs a server at all (hasServer()). While any gate is closed every call rejects with
-   code CLOUD_OFF before any request.
-
-   Deliberately imported by NOTHING in this slice: there is no screen and no caller, so this file is
-   tree-shaken out of every bundle. The first slice allowed to import it is the one that ships the
-   cloud-backup UI, and that same commit must change the privacy sentences docs/PRIVACY-AUDIT.md lists
-   under "Local-first L4" (the ones that say Cyra never receives the backup file), add the device-only
-   key that keeps the backup's id and write token (proposed: cloudBackupRef, DEVICE_ONLY, never in a
-   backup), and give the backup module persistent storage (docs/ARCHITECTURE.md). */
+/* The configured encrypted cloud backup (owner decision D3; local-first L4 scaffold; calm R9 the optional account).
+   Three gates, all closed in the default production build:
+     1. FEATURES.cloudBackup — the build flag (lib/features.js, VITE_FEATURES); off by default;
+     2. a server — hasServer() (VITE_API_BASE), and the backend's backup module listed in its config
+        (config/app-dev.json lists it; config/app.json, production, does not);
+     3. plan.can("cloudBackup") — the entitlement (lib/plan.js): Pro (and the proDev QA unlock), never the free plan.
+   ACCOUNTS_HERE (gates 1 and 2) decides whether the account UI exists at all; while it is false nothing in the app
+   mentions an account beyond "No account needed", and no account request is ever made. The transports themselves are
+   fail-closed: every call rejects with code CLOUD_OFF before any request unless all three gates are open (the plan is
+   passed in by App.jsx, which knows planFor()).
+   cloudBackup (the L4 id + token transport) stays exported for the scaffold's tests; the app uses cloudAccounts. */
 import { apiFetch, hasServer } from "./api.js";
 import { FEATURES } from "./features.js";
-import { can } from "./plan.js";
+import { can, PLAN } from "./plan.js";
 import { cloudTransport } from "./backup.js";
+import { accountTransport } from "./account.js";
+import { accountsInBuild } from "./disclosures.js";
 
+/** This build offers the optional account (the cloudBackup flag and a server). */
+export const ACCOUNTS_HERE = accountsInBuild(FEATURES, hasServer());
 export const cloudBackup = cloudTransport({ request: apiFetch, enabled: hasServer(), gate: () => FEATURES.cloudBackup && can("cloudBackup") });
+/** The account transport for a plan (lib/plan.js planFor()). */
+export const cloudAccountsFor = (plan = PLAN) => accountTransport({ request: apiFetch, enabled: ACCOUNTS_HERE, gate: () => FEATURES.cloudBackup && can("cloudBackup", plan) });

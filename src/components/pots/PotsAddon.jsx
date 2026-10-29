@@ -1,3 +1,4 @@
+import { ACCOUNTS_HERE } from "../../lib/cloudBackup.js";
 import { useEffect, useRef, useState } from "react";
 import { POTS_LOCKED_COPY, POTS_ERASE } from "../../lib/potsConstants.js";
 import { isLockedPots } from "../../lib/pots.js";
@@ -72,7 +73,7 @@ export default function PotsAddon({ pots, stageName, onOn, onOff, storageDriver 
         <ul>
           <li>Works alongside {stageName || "your life stage"}. It doesn't change your life stage.</li>
           <li>{KEPT[potsUnsaved(storageDriver) || "saved"]}</li>
-          <li>{potsNeverSent(FEATURES)}</li>
+          <li>{potsNeverSent(FEATURES, ACCOUNTS_HERE)}</li>
           <li>A report or spreadsheet you make is an ordinary file, not locked with a passphrase. It goes only where you save or send it.</li>
           <li>Turning POTS tools off hides the tab and keeps what you logged, unless you choose to erase it.</li>
         </ul>

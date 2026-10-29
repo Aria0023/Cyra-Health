@@ -32,9 +32,10 @@ import { flushSync } from "react-dom";
    - [signin] Apple / Google / Facebook prefill of the name and email on step 1 (startSocial below);
    - only when she starts it: the encrypted backup file (lib/backup.js's file transport: a
      download, or the phone's share sheet), the doctor-summary email draft (mailto) and the
-     copied summary text (ReportScreen). The encrypted backup goes only where she saves it:
-     backup.js's cloud transport is unreachable in every build (its configured instance is
-     imported by nothing, and plan.can("cloudBackup") is false);
+     copied summary text (ReportScreen). The encrypted backup file goes only where she saves it;
+   - [cloudBackup] (calm R9; with a server and Pro) only if she makes the optional account: her record, encrypted on this
+     device (backupCopy(snapshot()) under the account's key), to /api/backup/account with a hash of her email and a write
+     token derived from her passphrase (lib/account.js); never the email, the passphrase or the key;
    - user-started file exports (the appointment PDF from the Report, cyra-summary-{date}.pdf, and
      the POTS report PDF/CSV, lib/files.js): a web download, or the
      phone share sheet via a plaintext file in the app cache that is deleted after sharing and
@@ -75,7 +76,10 @@ import { storage } from "./lib/storage.js";
 import { PERSISTED, DEVICE_ONLY, DEVICE_PREFS, NOT_IN_BACKUP, RECORD, RECORD_VERSION, migrate, backupCopy, entryFor, phaseOf } from "./lib/record.js";
 import { trackedIds, cleanSymPrefs, cleanNote } from "./lib/daylog.js";
 import { periodSummary, patternFindings, homePick, recapFrom } from "./lib/insights.js";
-import { encryptBackup, decryptBackup, fileTransport, backupFileName } from "./lib/backup.js";
+import { encryptBackup, decryptBackup, fileTransport, backupFileName, backupKey, encryptWithKey, openBackup, decryptWithKey } from "./lib/backup.js";
+import { ACCOUNTS_HERE, cloudAccountsFor } from "./lib/cloudBackup.js";
+import { ACCOUNT_ERRORS, credentialsFor, cleanCloudAccount, mergeCloudAccount, nextCloudAccount, normEmail, contentSum, NO_ACCOUNT, ACCOUNT_COPY } from "./lib/account.js";
+import { AccountSheet } from "./components/AccountParts.jsx";
 import { FEATURES, DEV_FLAGS, feature, remindersInBuild } from "./lib/features.js";
 import { fertPrivacyLine, deleteAlso } from "./lib/disclosures.js";
 import { cleanLock, hashPin, checkPin, newLock, afterFail, afterSuccess, awayMs, shouldLock, passkeyAvailable, createPasskey, verifyPasskey, forgotPinRecord, GRACE_MS, LOCK_COPY } from "./lib/lock.js";
@@ -102,6 +106,10 @@ const backupFile = fileTransport({ isNative, Filesystem, Directory, Encoding, Sh
 const NO_ROWS = Object.freeze([]);
 /* The plan (lib/plan.js): Pro only from a store purchase (lib/purchase.js: none in this version) or the proDev QA flag. */
 const PLAN_NOW = planFor(DEV_FLAGS, proOwned());
+/* The optional account (calm R9, lib/account.js): its transport for this plan. Fail-closed: without the cloudBackup flag,
+   a server and Pro (plan.can("cloudBackup")) every call is refused before any request. */
+const ACCOUNTS = cloudAccountsFor(PLAN_NOW);
+const CLOUD_DEBOUNCE_MS = 8000; // the automatic back-up waits this long after the last saved change
 const recordSig = (o) => JSON.stringify(RECORD.map((k) => o?.[k] ?? null));
 const ZERO_SCALES = { fatigue: 0, pain: 0, moodq: 0, stress: 0 };
 /* Push addresses Cyra's server still has to forget (every one is retried until confirmed). */
@@ -358,6 +366,12 @@ export default function CyraDemo() {
   const [practiceHaptics, setPracticeHaptics] = useState(false);
   const [practiceOpen, setPracticeOpen] = useState(null); // { id, need } | null
   const [proOpen, setProOpen] = useState(false);
+  /* The optional account (calm R9): cloudAccount { rev, acct } is device-only and never in any backup (it holds the
+     backup key and write token; lib/account.js). cloudSync, acctSheet and acctChoice are UI only. */
+  const [cloudAccount, setCloudAccount] = useState(NO_ACCOUNT);
+  const [cloudSync, setCloudSync] = useState({ state: "idle", conflict: null, error: null });
+  const [acctSheet, setAcctSheet] = useState(null); // "create" | "signin" | null
+  const [acctChoice, setAcctChoice] = useState(null); // { saved, acct } while a sign-in waits for "Use the backup / Keep this device's log"
   /* Patterns (calm R6, lib/experiments.js): the weekly review's experiment — the one running, the week whose offer she
      skipped and the ones she finished (record key, in backups). */
   const [experiments, setExperiments] = useState(() => cleanExperiments(null));
@@ -1232,8 +1246,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1348,6 +1362,9 @@ export default function CyraDemo() {
         // A POTS tap made here while storage.load() was pending is already in state but not in
         // this snapshot: rebase it onto the merge (3-way, this snapshot as the base) instead of
         // overwriting it; the autosave that tap scheduled then saves it.
+        // The account (calm R9): another tab's newer sign-in, sign-out or back-up wins (higher rev), so a stale tab can't undo it.
+        const ca = mergeCloudAccount(out.cloudAccount, latest?.cloudAccount);
+        if (ca.rev !== cleanCloudAccount(out.cloudAccount).rev) { out = { ...out, cloudAccount: ca }; setCloudAccount(ca); }
         const pm = mergePots(latest && latest.v === RECORD_VERSION ? latest.pots : undefined, out.pots, potsBase.current);
         if (!samePots(pm, out.pots)) { const mine = out.pots; out = { ...out, pots: pm }; setPots((cur) => (cur === mine ? pm : mergePots(pm, cur, mine))); }
       }
@@ -1358,6 +1375,7 @@ export default function CyraDemo() {
         // writes its older copy back over this one (adoptRecord).
         const sig = isNative() ? null : recordSig(out);
         if (sig && sig !== lastSig.current) { lastSig.current = sig; try { channel.current?.postMessage({ type: "record" }); } catch { /* single tab */ } }
+        cloudAfterSave(out);
       }, () => { setStorageDriver(storage.driver()); ping("Couldn't save to this device — storage may be full or blocked"); });
       lastSave.current = p;
       return p;
@@ -1528,12 +1546,17 @@ export default function CyraDemo() {
   // Reads and checks a backup file (shared by the Settings / splash restore and the lock screen's forgotten-PIN restore).
   const readBackup = async (file, passphrase) => {
     const env = await backupFile.load(file);
-    const saved = migrate(await decryptBackup(env, passphrase));
+    return checkSaved(await decryptBackup(env, passphrase));
+  };
+  const checkSaved = (state) => {
+    const saved = migrate(state);
     if (!saved || saved.v !== RECORD_VERSION || !saved.stage) throw new Error("That backup is empty or from a different version");
     return saved;
   };
-  const importBackup = async (file, passphrase) => {
-    const saved = await readBackup(file, passphrase);
+  const importBackup = async (file, passphrase) => applyRestore(await readBackup(file, passphrase));
+  /* A checked backup record → this device (the file restore, and calm R9's restore from the account, which passes the
+     signed-in `account` state: this device then keeps that instead of its own cloudAccount). */
+  const applyRestore = async (saved, { account = null } = {}) => {
     /* Oura / Terra connections in the backup may have been ended since it was made. One whose
        Terra disconnect this device is already asking for is left out; the others come back
        unconfirmed (pending + restored): they don't count as connected until a Sync gets
@@ -1572,11 +1595,12 @@ export default function CyraDemo() {
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
-    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly };
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount };
+    if (account) setCloudAccount(account);
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     // The reminders clause only where Settings has a reminders row (a web build without webReminders has none).
-    const msg = !isNative() && remindersInBuild(false) && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored";
+    const msg = !isNative() && remindersInBuild(false) && saved.reminders?.enabled && !reminders.enabled ? `${account ? ACCOUNT_COPY.toastRestored : "Backup restored"}. Reminders stay off in this browser — turn them on in Settings if you want them here.` : account ? ACCOUNT_COPY.toastRestored : "Backup restored";
     ping(msg);
     if (FEATURES.wearables && wear.oura?.restored && API_BASE && !DEMO_WEARABLES) checkRestoredOura(wear.oura);
     return msg;
@@ -1586,6 +1610,158 @@ export default function CyraDemo() {
      the reload (wipe's `then`). The record is never merged into the device's current state: a backup missing keys
      would otherwise leave her current days, journal and wearable tokens in place behind a cleared lock. */
   const openForgotBackup = async (file, passphrase) => { forgotBackup.current = await readBackup(file, passphrase); };
+  /* ---------- the optional account (calm R9, lib/account.js) ----------
+     Every request here is one she asked for (create, sign in, Back up now, a choice, sign out, delete) or the automatic
+     back-up while she is signed in: CLOUD_DEBOUNCE_MS after a saved change to what a backup holds (never for a change only
+     to device-only keys), and once at launch (which is also how a newer backup from another device is noticed: the
+     server answers 409 and the Account card offers "Use the backup" / "Keep this device's log"). What goes up is the
+     same backupCopy(snapshot()) a backup file holds, encrypted on this device with the account's key (encryptWithKey). */
+  const cloudRef = useRef({}); cloudRef.current = { state: cloudAccount, sync: cloudSync, snap: snapshot };
+  const cloudTimer = useRef(null), cloudBusy = useRef(false), cloudAgain = useRef(false), cloudSig = useRef(null);
+  const cloudRestored = useRef(false); // just restored from the account: the next save records what it holds instead of uploading it again
+  const backupSig = (rec) => { const c = backupCopy({ ...rec }); delete c.savedAt; return JSON.stringify(c); };
+  const signedAcct = (st) => cleanCloudAccount(st).acct;
+  /* After each save of the record (the autosave): schedule a back-up when what a backup holds changed since the last one. */
+  const cloudAfterSave = (rec) => {
+    if (!ACCOUNTS.available() || !signedAcct(rec.cloudAccount) || wipingRef.current) return;
+    const sig = backupSig(rec);
+    if (cloudRestored.current) {
+      cloudRestored.current = false; cloudSig.current = sig;
+      setCloudAccount((c) => { const cur = cleanCloudAccount(c); return cur.acct ? nextCloudAccount(cur, { ...cur.acct, sum: contentSum(sig) }) : cur; });
+      return;
+    }
+    if (sig === cloudSig.current) return;
+    clearTimeout(cloudTimer.current);
+    cloudTimer.current = setTimeout(() => backupToCloud({ quiet: true }), CLOUD_DEBOUNCE_MS);
+  };
+  /* The latest account state: this tab's, or (web) a newer one another tab stored. */
+  const latestCloud = async () => {
+    let st = cleanCloudAccount(cloudRef.current.state);
+    if (!isNative()) { const stored = await storage.load().catch(() => null); const m = mergeCloudAccount(st, stored?.cloudAccount); if (m.rev !== st.rev) { st = m; setCloudAccount(m); } }
+    return st;
+  };
+  const noteBackedUp = (acct, version, sig) => setCloudAccount((c) => { const cur = cleanCloudAccount(c); return cur.acct && cur.acct.lookup === acct.lookup ? nextCloudAccount(cur, { ...cur.acct, version, at: new Date().toISOString(), sum: contentSum(sig) }) : cur; });
+  /** One back-up of this device's record. base: the server version it replaces (default: the one this device last had). */
+  const backupToCloud = async ({ base = null, quiet = false } = {}) => {
+    clearTimeout(cloudTimer.current);
+    if (wipingRef.current || !ACCOUNTS.available()) return false;
+    if (cloudBusy.current) { cloudAgain.current = true; return false; }
+    cloudBusy.current = true;
+    let ok = false;
+    try {
+      const acct = signedAcct(await latestCloud());
+      if (!acct || (quiet && cloudRef.current.sync.conflict)) return false;
+      setCloudSync((x) => ({ ...x, state: "busy" }));
+      const snap = backupCopy(cloudRef.current.snap());
+      const sig = backupSig(snap);
+      const env = await encryptWithKey(snap, acct);
+      const r = await ACCOUNTS.save(env, acct, base ?? acct.version ?? "any");
+      cloudSig.current = sig;
+      noteBackedUp(acct, r.version, sig);
+      setCloudSync({ state: "idle", conflict: null, error: null });
+      if (!quiet) ping(ACCOUNT_COPY.toastBacked);
+      ok = true;
+    } catch (e) {
+      if (e.code === "CONFLICT") setCloudSync({ state: "idle", conflict: { version: e.version, updatedAt: e.updatedAt }, error: null });
+      else if (e.code === "GONE") setCloudSync((x) => ({ ...x, state: "gone", error: e.message }));
+      else setCloudSync((x) => ({ ...x, state: e.code === "OFFLINE" ? "offline" : "failed", error: e.code === "OFFLINE" ? null : e.message || null }));
+      if (!quiet && e.code !== "CONFLICT") ping(e.message || ACCOUNT_COPY.failed);
+    } finally {
+      cloudBusy.current = false;
+      if (cloudAgain.current) { cloudAgain.current = false; clearTimeout(cloudTimer.current); cloudTimer.current = setTimeout(() => backupToCloud({ quiet: true }), CLOUD_DEBOUNCE_MS); }
+    }
+    return ok;
+  };
+  const hasLocalLog = () => phase === "app" && !!stage && (days.length > 0 || Object.keys(pregLog || {}).length > 0 || (Array.isArray(journal) && journal.length > 0));
+  const createAccount = async (email, pass) => {
+    const cred = await credentialsFor(email, pass);
+    const k = await backupKey(pass);
+    const snap = backupCopy(snapshot());
+    let r;
+    try { r = await ACCOUNTS.save(await encryptWithKey(snap, k), cred, "new"); }
+    catch (e) { if (e.code === "CONFLICT") throw new Error(ACCOUNT_COPY.exists); throw e; }
+    const now = new Date().toISOString();
+    cloudSig.current = backupSig(snap);
+    setCloudAccount((c) => nextCloudAccount(c, { email: normEmail(email), ...cred, salt: k.salt, key: k.key, version: r.version, at: now, since: now, sum: contentSum(cloudSig.current) }));
+    setCloudSync({ state: "idle", conflict: null, error: null });
+    setAcctSheet(null);
+    ping(ACCOUNT_COPY.toastCreated);
+  };
+  /* Sign in: fetch the account's backup and open it here with her passphrase. A device that already has a log asks
+     which one to keep (the sheet shows the choice); otherwise the backup is restored straight away. */
+  const signIn = async (email, pass) => {
+    const cred = await credentialsFor(email, pass);
+    const got = await ACCOUNTS.load(cred);
+    const { state, salt, key } = await openBackup(got.envelope, pass);
+    const saved = checkSaved(state);
+    const now = new Date().toISOString();
+    const acct = { email: normEmail(email), ...cred, salt, key, version: got.version, at: now, since: now };
+    if (hasLocalLog()) { setAcctChoice({ saved, acct }); return { choice: true }; }
+    await adoptAccountBackup(saved, acct);
+    return null;
+  };
+  const adoptAccountBackup = async (saved, acct) => {
+    const account = nextCloudAccount(cloudRef.current.state, acct);
+    cloudSig.current = null; cloudRestored.current = true;
+    setAcctChoice(null); setAcctSheet(null);
+    setCloudSync({ state: "idle", conflict: null, error: null });
+    const fromSplash = phase === "splash";
+    await applyRestore(saved, { account });
+    if (fromSplash) clearStaleLock(); // as the splash's file restore does
+  };
+  const keepDeviceLog = async (acct) => {
+    setCloudAccount((c) => nextCloudAccount(c, acct));
+    cloudRef.current.state = nextCloudAccount(cloudRef.current.state, acct);
+    setAcctChoice(null); setAcctSheet(null);
+    await backupToCloud({ base: "any" });
+    ping(ACCOUNT_COPY.toastSignedIn);
+  };
+  /* "The backup is newer": use it (fetch, open with the key this device keeps, restore) or keep this device's log. */
+  const resolveUseBackup = async () => {
+    const acct = signedAcct(await latestCloud());
+    if (!acct) return;
+    try {
+      const got = await ACCOUNTS.load(acct);
+      const saved = checkSaved(await decryptWithKey(got.envelope, acct));
+      await adoptAccountBackup(saved, { ...acct, version: got.version, at: new Date().toISOString() });
+    } catch (e) { ping(e.message || ACCOUNT_COPY.failed); throw e; }
+  };
+  const resolveKeepDevice = () => backupToCloud({ base: "any" });
+  const signOut = async () => {
+    clearTimeout(cloudTimer.current); cloudSig.current = null;
+    setCloudAccount((c) => nextCloudAccount(c, null));
+    setCloudSync({ state: "idle", conflict: null, error: null });
+    ping(ACCOUNT_COPY.toastSignedOut);
+  };
+  const deleteAccount = async () => {
+    const acct = signedAcct(await latestCloud());
+    if (!acct) return;
+    try { await ACCOUNTS.remove(acct); }
+    catch (e) { if (e.code !== "GONE") { ping(e.message); throw e; } } // already gone: the account is deleted either way
+    clearTimeout(cloudTimer.current); cloudSig.current = null;
+    setCloudAccount((c) => nextCloudAccount(c, null));
+    setCloudSync({ state: "idle", conflict: null, error: null });
+    ping(ACCOUNT_COPY.toastDeleted);
+  };
+  // Signed in: one back-up at launch (it also notices a newer backup), and again when a connection comes back.
+  useEffect(() => {
+    const acct = signedAcct(cloudAccount);
+    if (!hydrated || phase !== "app" || !ACCOUNTS.available() || !acct || cloudRestored.current) return;
+    const sig = backupSig(snapshot());
+    if (acct.sum && acct.sum === contentSum(sig) && acct.version) {
+      // Nothing new here since the last back-up: only ask whether the account's backup changed elsewhere.
+      cloudSig.current = sig;
+      ACCOUNTS.meta(acct).then((m) => { if (m.version !== acct.version) setCloudSync({ state: "idle", conflict: { version: m.version, updatedAt: m.updatedAt }, error: null }); },
+        (e) => setCloudSync((x) => (e.code === "NO_ACCOUNT" ? { ...x, state: "gone", error: ACCOUNT_ERRORS.GONE } : { ...x, state: e.code === "OFFLINE" ? "offline" : "failed", error: e.code === "OFFLINE" ? null : e.message || null })));
+    } else backupToCloud({ quiet: true });
+  }, [hydrated, phase]); // eslint-disable-line
+  useEffect(() => {
+    if (!ACCOUNTS.available()) return undefined;
+    const back = () => { if (signedAcct(cloudRef.current.state) && cloudRef.current.sync.state === "offline") backupToCloud({ quiet: true }); };
+    window.addEventListener("online", back);
+    return () => window.removeEventListener("online", back);
+  }, []); // eslint-disable-line
+
   const onForgotRestore = (opts = {}) => {
     const saved = forgotBackup.current;
     return wipe(wearSources, { ...opts, pushKnown: knownPush(),
@@ -2023,7 +2199,7 @@ export default function CyraDemo() {
 
   /* The privacy dashboard's rows (L10, lib/privacyFlows.js): each flow this build can use, with its live state from the
      flags, the plan, the server setting, the platform and her settings. */
-  const flows = useMemo(() => flowRows({ native: isNative(), server: hasServer(), flags: { wearables: feature("wearables"), counts: feature("counts"), ai: feature("ai"), webReminders: feature("webReminders"), cloudBackup: feature("cloudBackup"), signin: feature("signin") }, planCloud: can("cloudBackup"), reminderSupport: reminderSupport(), reminders, research, askAI, aiPlan: { weekly: can("aiPatternReports", PLAN_NOW), chat: can("aiChat", PLAN_NOW) }, aiPrefs, wearLive: Object.entries(wearSources).filter(([k, v]) => VIA_SERVER.has(k) && v && !v.demo).length, terraOff: terraOff.length, demoWear: DEMO_WEARABLES }), [reminders, research, askAI, aiPrefs, wearSources, terraOff]); // eslint-disable-line
+  const flows = useMemo(() => flowRows({ native: isNative(), server: hasServer(), flags: { wearables: feature("wearables"), counts: feature("counts"), ai: feature("ai"), webReminders: feature("webReminders"), cloudBackup: feature("cloudBackup"), signin: feature("signin") }, planCloud: can("cloudBackup", PLAN_NOW), cloudOn: !!cloudAccount.acct, reminderSupport: reminderSupport(), reminders, research, askAI, aiPlan: { weekly: can("aiPatternReports", PLAN_NOW), chat: can("aiChat", PLAN_NOW) }, aiPrefs, wearLive: Object.entries(wearSources).filter(([k, v]) => VIA_SERVER.has(k) && v && !v.demo).length, terraOff: terraOff.length, demoWear: DEMO_WEARABLES }), [reminders, research, askAI, aiPrefs, wearSources, terraOff, cloudAccount]); // eslint-disable-line
 
   if (!hydrated) {
     // Start over runs the same clean-up as Delete everything, minus the wearable disconnects:
@@ -2051,10 +2227,18 @@ export default function CyraDemo() {
     );
   }
 
+  /* The account's sheets (calm R9): on the splash (sign in to restore) and on You. */
+  const acctSheetView = acctSheet && ACCOUNTS.available() && (
+    <AccountSheet mode={acctSheet} choice={acctChoice} onClose={() => { setAcctSheet(null); setAcctChoice(null); }}
+      onSubmit={acctSheet === "create" ? createAccount : signIn}
+      onUse={() => adoptAccountBackup(acctChoice.saved, acctChoice.acct)} onKeep={() => keepDeviceLog(acctChoice.acct)} />
+  );
   if (phase === "splash") {
     return (
       <Shell {...shell} toast={toast}>
-        <SplashScreen onStart={() => setPhase("register")} onImport={async (f, p) => { await importBackup(f, p); clearStaleLock(); }} initialRestore={initialRestore} />
+        <SplashScreen onStart={() => setPhase("register")} onImport={async (f, p) => { await importBackup(f, p); clearStaleLock(); }} initialRestore={initialRestore}
+          accounts={ACCOUNTS_HERE} onSignIn={ACCOUNTS.available() ? () => setAcctSheet("signin") : null} />
+        {acctSheetView}
       </Shell>
     );
   }
@@ -2406,6 +2590,7 @@ export default function CyraDemo() {
     <YouScreen acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={canFull} onPro={() => setProOpen(true)}
       ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line}
+      account={ACCOUNTS_HERE ? { can: ACCOUNTS.available(), acct: cloudAccount.acct, sync: cloudSync, todayIso, onCreate: () => setAcctSheet("create"), onSignIn: () => setAcctSheet("signin"), onBackup: () => backupToCloud(), onSignOut: signOut, onDelete: deleteAccount, onUseBackup: resolveUseBackup, onKeepDevice: resolveKeepDevice, onPro: () => setProOpen(true) } : null}
       care={stage === "preg" ? null : <CareScreen embedded shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Cyra will compare your days before and after"); }} />} />
   );
   const practicesView = () => <PracticesScreen canFull={canFull} favs={practiceFavs} onOpen={openPractice} onPro={() => setProOpen(true)} featured={{ practice: practiceOf("slow"), need: "calm" }} />;
@@ -2504,7 +2689,8 @@ export default function CyraDemo() {
       {logOpen && <LogSheet items={logItems} onPick={pickLog} onClose={() => setLogOpen(false)} />}
       {bodySheetView}
       {practiceSheet}
-      {proOpen && <ProSheet unlocked={canFull} ai={offer.any} onClose={() => setProOpen(false)} />}
+      {proOpen && <ProSheet unlocked={canFull} ai={offer.any} cloud={ACCOUNTS_HERE} onClose={() => setProOpen(false)} />}
+      {acctSheetView}
       {aiSendOpen && <AiSendSheet kind={aiSendOpen.kind} body={aiSendOpen.body} lines={aiSendOpen.lines} busy={!!aiBusy} onSend={sendAi} onClose={() => setAiSendOpen(null)} />}
     </Shell>
   );

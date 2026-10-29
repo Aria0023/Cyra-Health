@@ -107,7 +107,7 @@ test("calm R5: fullPractices is Pro only; the proDev dev flag picks DEV_PRO_PLAN
   assert.equal(planFor({ proDev: true }), DEV_PRO_PLAN);
   assert.ok(Object.isFrozen(DEV_PRO_PLAN));
   assert.equal(can("fullPractices", DEV_PRO_PLAN), true);
-  assert.equal(can("cloudBackup", DEV_PRO_PLAN), false, "cloud backup needs its build flag and a server too");
+  assert.equal(can("cloudBackup", DEV_PRO_PLAN), true, "calm R9: the QA unlock covers the account (it still needs the flag and a server: lib/cloudBackup.js)");
   assert.equal(DEV_PRO_PLAN.pdfExportsPerMonth, null, "the basic PDF stays free and unlimited");
 });
 
@@ -123,6 +123,7 @@ test("calm R8: PRO_PLAN from an owned purchase; proDev wins; aiChat fails closed
     for (const f of ["aiChat", "aiPatternReports", "fullPractices"]) assert.equal(can(f, p), true, `${p.tier} ${f}`);
     assert.equal(can("pdfExport", p), true, "the basic PDF stays free");
     assert.equal(p.pdfExportsPerMonth, null);
-    assert.equal(can("cloudBackup", p), false);
+    assert.equal(can("cloudBackup", p), true, "calm R9: the encrypted account backup is part of Pro");
   }
+  assert.equal(can("cloudBackup", planFor({}, false)), false, "never on the free plan");
 });

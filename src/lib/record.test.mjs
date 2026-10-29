@@ -32,7 +32,7 @@ const DEFAULTS = () => ({
   pots: freshEmpty(), lastBackupAt: null, installHint: null, appearance: "system", cycleFlags: {}, symPrefs: {}, fertSigns: { on: null, unit: null }, exportLog: null, modules: {}, homeTiles: null, homeStepSkip: null,
   bodyLog: {}, labs: [], bodyPrefs: { weightOn: false, weightUnit: null, glucoseUnit: null, hba1cUnit: null, waistUnit: null },
   moodLog: {}, practiceLog: [], practiceFavs: [], practiceHaptics: false, experiments: { active: null, skip: null, past: [] },
-  aiPrefs: { weekly: false, chat: false, labs: false }, aiChat: [], aiWeekly: null,
+  aiPrefs: { weekly: false, chat: false, labs: false }, aiChat: [], aiWeekly: null, cloudAccount: { rev: 0, acct: null },
 });
 const appRecord = (over = {}) => {
   const d = { ...DEFAULTS(), ...over };
@@ -108,10 +108,10 @@ test("migrate: a missing, throwing or non-advancing step returns the input (all 
 
 test("key lists are the ones App.jsx used before L3 (pinned)", () => {
   // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags, L6 symPrefs and L7 fertSigns (record keys: in RECORD and in backups); calm R1 appended modules (record, in backups); calm R3 appended homeTiles (record, in backups) and homeStepSkip (device-only, not in backups); calm R4 appended bodyLog, labs and bodyPrefs (record, in backups); calm R5 appended moodLog, practiceLog, practiceFavs (record, in backups) and practiceHaptics (device-only, not in backups); calm R6 appended experiments (record, in backups); calm R8 appended aiPrefs (device-only consent, in the file, never applied), aiChat and aiWeekly (device-only, not in backups).
-  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly"]);
-  assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly"]);
+  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount"]);
+  assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount"]);
   assert.deepEqual([...DEVICE_PREFS], ["appearance"]);
-  assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "appearance"]);
+  assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "appearance"]);
   assert.deepEqual([...RECORD], PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders"));
   for (const k of NOT_IN_BACKUP) { assert.ok(PERSISTED.includes(k), `${k} persisted`); assert.ok(DEVICE_ONLY.includes(k) || DEVICE_PREFS.includes(k), `${k} device-only or a device pref`); }
   for (const k of DEVICE_ONLY) assert.ok(PERSISTED.includes(k), `${k} persisted`);
@@ -149,6 +149,7 @@ test("backupCopy matches the transform exportBackup used before L3", () => {
     delete snap.homeStepSkip; // calm R3: this device's "Not today" for Home's small step never travels
     delete snap.practiceHaptics; // calm R5: this phone's vibration choice never travels
     delete snap.aiChat; delete snap.aiWeekly; // calm R8: the AI chat and write-up stay on this device
+    delete snap.cloudAccount; // calm R9: the account's keys never go into a backup
     for (const k of ["appearance"]) delete snap[k];
     return snap;
   };
@@ -436,7 +437,7 @@ test("daysLogged", () => {
 
 // record.js may import only these pure leaf modules. A later slice may add one (L6 './daylog.js',
 // L7 './fertility.js'); none of them may import record.js back.
-const RECORD_IMPORTS = ["./engine.js", "./constants.js", "./daylog.js", "./fertility.js", "./modules.js", "./home.js", "./bodylog.js", "./mind.js", "./experiments.js", "./aiFeatures.js"];
+const RECORD_IMPORTS = ["./engine.js", "./constants.js", "./daylog.js", "./fertility.js", "./modules.js", "./home.js", "./bodylog.js", "./mind.js", "./experiments.js", "./aiFeatures.js", "./account.js"];
 const importsOf = (code) => [...code.matchAll(/^\s*import\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]);
 
 test("layering and no I/O", () => {
@@ -452,7 +453,8 @@ test("layering and no I/O", () => {
   assert.match(storage, /import \{ migrate \} from "\.\/record\.js";/);
   assert.equal(storage.split("migrate(").length - 1, 2, "storage.js calls migrate( on both load paths");
   const app = read("App.jsx");
-  assert.ok(app.includes("migrate(await decryptBackup"), "importBackup runs the decrypted backup through migrate");
+  // calm R9: the file restore and the account restore share checkSaved(), which runs migrate()
+  assert.ok(app.includes("checkSaved(await decryptBackup") && app.includes("const saved = migrate(state);"), "importBackup runs the decrypted backup through migrate");
   assert.ok(app.includes("backupCopy(snapshot())"), "exportBackup uses backupCopy");
   assert.equal(read("screens/TodayScreen.jsx").split("upsertDay(").length - 1, 2, "TodayScreen saves through upsertDay");
 });

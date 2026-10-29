@@ -15,6 +15,7 @@ import { FREE_KEEPS } from "../components/ProSheet.jsx";
 import { AI_DISCLOSURE } from "./AskScreen.jsx";
 import { AI_COPY } from "../lib/aiFeatures.js";
 import { FLOW_COPY } from "../lib/privacyFlows.js";
+import { AccountCard } from "../components/AccountParts.jsx";
 
 /* You (calm R7, spec "You tab"): one calm scrolling page of v2 Cards. It is where she controls her data, so the
    privacy dashboard is the first thing under her stage. Top to bottom:
@@ -27,7 +28,9 @@ import { FLOW_COPY } from "../lib/privacyFlows.js";
      version has no store connected and says so (nothing is checked or sent); no price, no nagging;
    - Check-ins, Reminders, (weekly counts where the build has them), Appearance, (Install), Cyra's AI, About you:
      the same controls, ids and sentences the Settings sheet has (components/settingsParts.jsx);
-   - Account (none until R9: it says so), Support & care (the care shelf), About & legal (not a medical device, links, build).
+   - Account: R7's "No account needed" card, unchanged, in a build without the optional account; calm R9: where the
+     build offers it (`account`, lib/cloudBackup.js ACCOUNTS_HERE) the AccountCard (guest by default; create, sign in,
+     back up now, sign out, delete, and the "backup is newer" choice); Support & care (the care shelf), About & legal (not a medical device, links, build).
    - Cyra's AI (calm R8): with Pro, the ai flag and a server, the weekly write-up and chat switches (off by default) and
      "Include lab values"; without Pro, one line and "See what Pro adds". The switches send nothing themselves.
    A Language card is not shown until the picker exists (R10). Nothing on this page sends anything anywhere. */
@@ -41,7 +44,7 @@ const StageArt = () => (
     <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
   </svg>
 );
-export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null }) {
+export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, account = null }) {
   const offer = ai.offer || { any: false, weekly: false, chat: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
@@ -168,10 +171,12 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
         <AboutBody hideLab regAnswers={sp.regAnswers} onAnswer={sp.onAnswer} stage={sp.stage} stageName={sp.stageName} todayIso={sp.todayIso} />
       </Card>
 
-      <Card id="you-account" tint="you" icon="user" eyebrow="Account" title="No account needed" level={2} className="youaccount">
-        <p>{accountLine(acct)}</p>
-        <p className="rfoot">{ACCOUNT_LINES.more}</p>
-      </Card>
+      {account ? <AccountCard a={account} person={acct} /> : (
+        <Card id="you-account" tint="you" icon="user" eyebrow="Account" title="No account needed" level={2} className="youaccount">
+          <p>{accountLine(acct)}</p>
+          <p className="rfoot">{ACCOUNT_LINES.more}</p>
+        </Card>
+      )}
 
       {care}
 

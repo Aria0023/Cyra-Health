@@ -260,6 +260,7 @@ export const LOCK_COPY = Object.freeze({
   useBio: "Use fingerprint, face or screen lock", forgot: "Forgot your PIN?", back: "Back to the PIN",
   unreadable: "Cyra couldn't read its lock settings on this device.", tryAgain: "Try again",
   forgotHead: "Cyra can't reset your PIN.", forgotBody: " There's no account and no back door. You can restore an encrypted backup, which replaces everything on this device and turns the lock off, or erase Cyra's record on this device.",
+  forgotBodyAccount: " There's no back door, and your account can't reset it either. You can restore an encrypted backup, which replaces everything on this device and turns the lock off, or erase Cyra's record on this device.",
   restoreBtn: "Restore from a backup", eraseBtn: "Erase this device's record",
   restoreLab: "Restore from an encrypted backup", fileLab: "Backup file", passLab: "Passphrase", passField: "Backup passphrase", openBackup: "Open my backup", unlocking: "Unlocking…",
   restoreFoot: "Opened on this device with your passphrase. Nothing changes until you confirm on the next step.",

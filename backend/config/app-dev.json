@@ -43,6 +43,9 @@
     "maxBytes": 4194304,
     "ttlDays": 90,
     "maxRows": 10000,
-    "maxTotalBytes": 1073741824
+    "maxTotalBytes": 1073741824,
+    "accountTtlDays": 365,
+    "perAccount": 3,
+    "failsPerAccount": 10
   }
 }

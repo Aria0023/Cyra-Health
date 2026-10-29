@@ -38,7 +38,8 @@ export function flowRows(c = {}) {
   else if (f.wearables && c.server) rows.push({ id: "wearables", name: FLOW_COPY.names.wearables, state: (c.wearLive || 0) + (c.terraOff || 0) > 0 ? "on" : "off", note: (c.terraOff || 0) > 0 ? "terraOff" : null });
   else rows.push({ id: "wearables", name: FLOW_COPY.names.wearables, state: "na", note: null });
   rows.push({ id: "files", name: FLOW_COPY.names.files, state: "you", note: null });
-  rows.push({ id: "cloud", name: FLOW_COPY.names.cloud, state: f.cloudBackup && c.planCloud ? "off" : "na", note: null });
+  // Calm R9: the optional account's encrypted backup — needs the flag, a server and the plan; "on" while signed in here.
+  rows.push({ id: "cloud", name: FLOW_COPY.names.cloud, state: f.cloudBackup && c.server && c.planCloud ? (c.cloudOn === true ? "on" : "off") : "na", note: null });
   return rows;
 }
 
@@ -47,7 +48,7 @@ export function flowRows(c = {}) {
 export function otherConnections({ native = false, server = false, flags = {} } = {}) {
   const out = [];
   if (!native) out.push("web");
-  const anyServer = (!native && !!flags.webReminders) || !!flags.counts || !!flags.ai || !!flags.wearables || !!flags.signin;
+  const anyServer = (!native && !!flags.webReminders) || !!flags.counts || !!flags.ai || !!flags.wearables || !!flags.signin || !!flags.cloudBackup;
   if (server && anyServer) out.push("server");
   if (server && flags.signin) out.push("signin");
   return out;
@@ -67,6 +68,7 @@ export const FLOW_COPY = Object.freeze({
     aiChat: "Each message you send: your question, your last few chat messages and the same summary. You see exactly what will be sent first. It goes through Cyra's server to Anthropic, which keeps it for a limited time.",
     wearables: "This device sends its Oura sign-in, or its Fitbit, Garmin or Whoop connection key, to Cyra's server, which brings your readings back without saving them to disk. Terra, which connects Fitbit, Garmin and Whoop, keeps its own copy.",
     files: "They go only where you save or send them. Cyra's servers don't receive them.",
+    cloud: "While you're signed in to your account: your log, encrypted on this device first, after each change. Cyra's server can't read it and never gets your email or passphrase.",
   }),
   notes: Object.freeze({
     pending: "Cyra's server hasn't confirmed it erased this browser's reminder address yet. Cyra keeps asking while it's open and each time you open it.",
@@ -83,6 +85,9 @@ export const FLOW_COPY = Object.freeze({
     summaryNever: "It never holds a date, a note, your journal, anything you typed elsewhere, your name, email, ZIP or age band, fertility signs, weight, your POTS log or wearable readings. Cyra's server keeps none of it.",
     aiTwoWhere: "Turn it on or off in You → Cyra's AI. Turning it off clears what it kept on this device.",
     wearWhere: "Connect or disconnect under Wearables on Home.",
+    cloudHolds: "Cyra's server keeps your encrypted backup, a one-way hash of your email, a hash of a key made from your passphrase, and when the backup was last changed and its size. It's deleted a year after the last back-up.",
+    cloudLost: "A lost passphrase can't be recovered, and nobody can open the backup without it.",
+    cloudWhere: "Create an account, sign in or out, or delete it in You → Account. Signing out keeps your log on this device; deleting the account deletes the backup from Cyra's server.",
     backupLocked: "An encrypted backup is locked with your passphrase on this device before it becomes a file. Without the passphrase it can't be opened.",
     summary: "The doctor summary on the Report tab goes only where you take it: a draft in your email app, your clipboard, the share sheet or a printout. Those apps may keep a copy under their own terms.",
   }),

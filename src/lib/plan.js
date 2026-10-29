@@ -37,11 +37,13 @@
 export const FREE_PLAN = Object.freeze({ tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false, fullPractices: false, aiChat: false });
 /** The plan this build runs on unless a dev unlock applies (planFor). */
 export const PLAN = FREE_PLAN;
-/** The dev/QA unlock (dev flag proDev): Pro's in-app parts on, with the free plan's PDF rule. cloudBackup stays false
-    (it also needs the build's cloudBackup flag and a server; R9). */
-export const DEV_PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro-dev", aiPatternReports: true, extraCustomisation: true, fullPractices: true, aiChat: true });
-/** What a Pro purchase unlocks (calm R8). The basic PDF stays free and unlimited; cloudBackup stays false (R9). */
-export const PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro", aiPatternReports: true, extraCustomisation: true, fullPractices: true, aiChat: true });
+/** The dev/QA unlock (dev flag proDev): Pro's in-app parts on, with the free plan's PDF rule. cloudBackup on too (calm R9;
+    it still needs the build's cloudBackup flag and a server, so QA tests the account against a local backend). */
+export const DEV_PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro-dev", aiPatternReports: true, extraCustomisation: true, fullPractices: true, aiChat: true, cloudBackup: true });
+/** What a Pro purchase unlocks (calm R8). The basic PDF stays free and unlimited. Calm R9: cloudBackup (the optional
+    account's encrypted backup, the first paid server feature: docs/MONETIZATION.md D3) is part of Pro; it also needs the
+    build's cloudBackup flag and a server with the backup module (lib/cloudBackup.js). */
+export const PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro", aiPatternReports: true, extraCustomisation: true, fullPractices: true, aiChat: true, cloudBackup: true });
 /** The plan for this build's dev flags ({ proDev }) and whether a store purchase of Pro is owned (`owned`, from
     lib/purchase.js; only a real true counts): DEV_PRO_PLAN when proDev is on, PRO_PLAN when owned, else PLAN. */
 export const planFor = (devFlags = {}, owned = false) => (devFlags && devFlags.proDev === true ? DEV_PRO_PLAN : owned === true ? PRO_PLAN : PLAN);

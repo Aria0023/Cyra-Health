@@ -1,3 +1,4 @@
+import { ACCOUNTS_HERE } from "../lib/cloudBackup.js";
 import { useState } from "react";
 import { passphraseLength } from "../lib/backup.js";
 import { isNative } from "../lib/native.js";
@@ -5,7 +6,7 @@ import { relDay } from "../lib/engine.js";
 import Details from "./Details.jsx";
 import Icon from "./Icon.jsx";
 import { FEATURES } from "../lib/features.js";
-import { restoreFoot, restoreChanges, wipeConfirm, wipeMore, LEGACY_WEAR_LINE } from "../lib/disclosures.js";
+import { restoreFoot, restoreChanges, wipeConfirm, wipeMore, storeCopyLine, LEGACY_WEAR_LINE } from "../lib/disclosures.js";
 
 /* Privacy & your data (L10; "Your data" before): where the record lives, the live "What can leave this device"
    dashboard (rendered by SettingsSheet as `children`, components/PrivacyFlows.jsx), encrypted backup out/in,
@@ -104,7 +105,7 @@ export function WipeConfirm({ onWipe, keepsWeekNote = false, onCancel, panelId =
   }
   return (
     <div className="plaincard" id={panelId} style={{ marginTop: 10 }}>
-      <p className="plain">{intro ?? <><b>Delete everything on this device?</b>{wipeConfirm(FEATURES, native)}</>}</p>
+      <p className="plain">{intro ?? <><b>Delete everything on this device?</b>{wipeConfirm(FEATURES, native, ACCOUNTS_HERE)}</>}</p>
       {legacyWear && <p className="rfoot" style={{ marginTop: 0 }}>{LEGACY_WEAR_LINE}</p>}
       <Details label="More about deleting">
         <ul>
@@ -151,7 +152,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
     <>
       <p className={hideLab ? "section-lab sr-only" : "section-lab"} id="set-privacy" style={hideLab ? undefined : { margin: "0 0 6px" }}><Icon name="shield" className="labico" />Privacy &amp; your data</p>
       <p className="datastat"><b>{daysLogged === 1 ? "1 day logged" : `${daysLogged} days logged`}</b><span aria-hidden="true">·</span><span>last backup {lastBackupAt && todayIso ? relDay(lastBackupAt, todayIso) : (daysLogged >= 7 ? "never — worth doing once" : "never")}</span></p>
-      <p className="hint" style={{ margin: "0 0 8px" }}>{where ? `Your check-ins, notes and history are stored ${where}.` : "Checking where your check-ins, notes and history are stored…"} Cyra's servers don't keep a copy.</p>
+      <p className="hint" style={{ margin: "0 0 8px" }}>{where ? `Your check-ins, notes and history are stored ${where}.` : "Checking where your check-ins, notes and history are stored…"} {storeCopyLine(ACCOUNTS_HERE)}</p>
       {offlineCopy && <p className="rfoot" style={{ margin: "0 0 8px" }}>This browser also keeps a copy of Cyra's own app files, so Cyra opens without a connection. That copy holds none of your check-ins, notes or settings.</p>}
       {children}
       <p className="section-lab" id="set-data" style={{ margin: "12px 0 6px" }}><Icon name="file" className="labico" />Backup, restore or delete</p>

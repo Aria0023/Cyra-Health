@@ -1550,4 +1550,42 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .aisend-acts .cta, .aisend-acts .ghostbtn { flex:1; margin:0; min-height:48px; }
 .proplanned-lab { margin:14px 0 4px; }
 .proplanned { margin:0 0 12px; padding-left:18px; font-size:var(--fs-sm); line-height:1.6; color:var(--soft); }
+/* ---------- calm R9: the optional account (You → Account, its sheets, the splash sign-in) ---------- */
+.acctcard { position:relative; overflow:hidden; }
+.acctart { position:absolute; right:-6px; top:8px; width:120px; height:60px; pointer-events:none; }
+.acctart-blob { fill:var(--primary); opacity:.10; }
+.acctart-arc { fill:none; stroke:var(--accent); stroke-width:3; stroke-linecap:round; opacity:.55; stroke-dasharray:90; stroke-dashoffset:90; animation:cy-acct-arc .9s var(--ease-std) .1s forwards; }
+.acctart-dot { fill:var(--primary); opacity:.7; }
+@keyframes cy-acct-arc { to { stroke-dashoffset:0; } }
+.acctwho { margin:0 0 4px; position:relative; overflow-wrap:anywhere; }
+.acctstatus { display:inline-flex; align-items:center; gap:6px; margin:0 0 8px !important; padding:4px 10px; border-radius:var(--r-pill); background:var(--tint-you); font-size:var(--fs-sm); color:var(--ink); }
+.acctstatus::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--good); }
+.acctstatus.busy::before { background:var(--primary); animation:cy-fade 1.2s ease-in-out infinite alternate; }
+.acctstatus.failed::before, .acctstatus.offline::before, .acctstatus.gone::before { background:var(--soft); }
+.acctacts { display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px; margin:6px 0 4px; }
+.acctacts .ghostbtn, .acctacts .cta { margin:0; width:auto; flex:1 1 auto; min-width:150px; }
+.acctacts .linkbtn, .linkbtn.acctdel { min-height:44px; padding:0; }
+.linkbtn.danger { color:var(--bad); }
+.acctpro { margin:0 !important; flex-basis:100%; }
+.acctdelcard { margin:6px 0 8px; }
+.cta.danger { background:var(--bad); color:var(--on-bad); }
+.acctchoice { margin:8px 0; padding:14px; border-radius:var(--r-inner); border:1px solid var(--edge); background:linear-gradient(160deg, var(--tint-patterns), var(--card) 70%); animation:cy-fade .3s var(--ease-std); }
+.acctchoice-h { display:flex; align-items:center; gap:8px; margin:0 0 4px !important; font:600 17px 'Fraunces Variable','Fraunces',serif; color:var(--ink); }
+.acctchoice-h svg { color:var(--primary-text); }
+.acctchoice-opts { display:grid; gap:8px; margin-top:10px; }
+.acctopt { display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%; min-height:56px; text-align:left; padding:11px 14px; border-radius:var(--r-inner); border:1px solid var(--line); background:var(--card); color:var(--ink); font:400 var(--fs-sm) 'Karla Variable','Karla',sans-serif; cursor:pointer; }
+.acctopt b { font-size:var(--fs-md); }
+.acctopt span { color:var(--soft); }
+.acctopt:active { transform:scale(.98); }
+.acctcancel { margin-top:6px; min-height:44px; }
+.acctform { display:flex; flex-direction:column; gap:2px; }
+.acctlead { margin:0 0 10px; }
+.acctholds { margin:0 0 10px; padding:12px 14px; border-radius:var(--r-inner); background:var(--tint-mind); }
+.acctholds .section-lab { margin:0 0 4px; }
+.acctholds .rlist { margin:0; font-size:var(--fs-sm); line-height:1.55; }
+.acctlost { display:flex; gap:8px; align-items:flex-start; margin:0 0 10px; padding:11px 13px; border-radius:var(--r-inner); border:1px solid var(--err-edge); background:var(--bad-bg); color:var(--ink); font-size:var(--fs-sm); line-height:1.5; }
+.acctlost svg { flex:none; margin-top:2px; color:var(--bad); }
+.acctform .consentopt { margin:8px 0 4px; }
+.acctform .cta { margin-top:10px; }
+.splashacct { margin-top:2px; }
 `;

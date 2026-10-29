@@ -1,3 +1,4 @@
+import { ACCOUNTS_HERE } from "../lib/cloudBackup.js";
 import { useEffect, useId, useRef, useState } from "react";
 import { CADENCE, stagePalettes } from "../lib/constants.js";
 import { hasServer } from "../lib/api.js";
@@ -12,7 +13,7 @@ import { REG_STAGE, STAGE_LABELS, STAGE_CARDS, STEP_COPY, CYCLE_LENS, PCOS_ANSWE
 import { MODULE_FRAMING } from "../lib/modules.js";
 import { IBadge } from "../components/ui/index.js";
 import { FEATURES, remindersInBuild } from "../lib/features.js";
-import { serverSees, consentDeleteFact, consentDetails } from "../lib/disclosures.js";
+import { serverSees, consentDeleteFact, consentDetails, consentBackupFact } from "../lib/disclosures.js";
 import Details, { WebReminderFacts } from "../components/Details.jsx";
 import { ChipRow } from "../components/AnswerChips.jsx";
 import Icon from "../components/Icon.jsx";
@@ -163,7 +164,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
             </>
           )}
           <Details label="What Cyra's server sees">
-            <ul>{serverSees(FEATURES, hasServer()).map((t) => <li key={t}>{t}</li>)}</ul>
+            <ul>{serverSees(FEATURES, hasServer(), ACCOUNTS_HERE).map((t) => <li key={t}>{t}</li>)}</ul>
           </Details>
           {!reg.anon && FEATURES.signin && (
             <Details label="Exactly what's shared">
@@ -202,7 +203,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
                 "Never sold. Care partners get nothing from Cyra about you.",
                 "Doctor sharing happens only when you send it or save a file yourself.",
                 consentDeleteFact(FEATURES, isNativeBuild),
-                "A backup is a file you keep, locked with a passphrase only you know. Cyra never receives the file or the passphrase, so we can't read it or recover a lost passphrase.",
+                consentBackupFact(ACCOUNTS_HERE),
               ].map((txt, i) => <li key={i}><Icon name={FACT_ICONS[i]} className="labico" />{txt}</li>)}
             </ul>
             <Details label="The details">

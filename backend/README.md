@@ -28,7 +28,7 @@ can't silently fall back to a demo key.
     node server.js                 # development: every module -> http://localhost:3000
     node scripts/smoke.js          # referral demo end to end (in a second terminal)
     BASE=http://127.0.0.1:3290 node scripts/smoke.js   # against another port
-    npm run smoke:all              # ai, oauth, integrations, pulse, push, backup and the production guard
+    npm run smoke:all              # ai, oauth, integrations, pulse, push, backup, account and the production guard
 
 Production on Render: set these in Render → cyra-backend → Environment (names
 as in `.env.example`; never commit values): `ADMIN_KEY`, `AUTH_SECRET`
@@ -82,7 +82,7 @@ build whose `VITE_FEATURES` offers it):
          oura:  GET /start  GET /callback  POST /exchange  POST /refresh  POST /pull  POST /revoke
          terra: POST /session  GET /done  POST /webhook  POST /inbox  POST /disconnect  POST /disconnect-legacy
     pulse (counts):        GET  /api/pulse              POST /api/pulse/tally
-    backup (cloudBackup):  POST /api/backup   PUT|GET|DELETE /api/backup/:id   (see "Encrypted backup module")
+    backup (cloudBackup):  POST /api/backup   PUT|GET|DELETE /api/backup/:id   GET /api/backup/account/meta   PUT|GET|DELETE /api/backup/account   (see "Encrypted backup module")
 
 Development only (not mounted with `NODE_ENV=production`):
 
@@ -357,10 +357,29 @@ passphrase derives. The server never parses, inspects, decrypts or logs a body.
   start) deletes expired blobs and row-less files over an hour old.
 - **Logging.** Only the mount line, "body refused (<error type>)" and "storage error (<code>)": never a
   body, token, id or address.
-- **Before production:** persistent storage (Render's instance disk is wiped on every deploy), the
-  app's cloud-backup screen with its recovery code, and the privacy copy changes listed in
-  `docs/PRIVACY-AUDIT.md` (L4), all in the same change that lists `backup` in `config/app.json`.
-  `npm run smoke:backup` tests all of the above.
+- **Accounts (calm R9).** The app's optional account (email + a passphrase she keeps) uses
+  `/api/backup/account`: `GET /meta` → `{ version, updatedAt, expiresAt, size }`, `GET` → the exact
+  bytes (`x-cyra-version`, `x-cyra-updated` headers), `PUT` with `x-cyra-base: new | <version> | any`
+  (201 new, 200 replaced, **409** `{ version, updatedAt }` when the backup isn't the version she last
+  had: the app then asks "Use the backup" / "Keep this device's log") and `DELETE` (row and file gone at
+  once). Each request names the account with two values the app derives **on the device**
+  (`src/lib/account.js`): `x-cyra-account`, the SHA-256 hash of her normalised email (never the email),
+  and `authorization: Bearer <write token>` (PBKDF2-SHA256 600,000 rounds of the passphrase, then an
+  HMAC; never the passphrase, and a different key from the one that encrypts the backup). The row is
+  exactly `{ id, kind: "account", emailHash, tokenHash, version, size, createdAt, updatedAt, expiresAt }`
+  with a random id that never leaves the server. One email with another passphrase is another account,
+  so a wrong passphrase and an unknown email answer the same 404 (no way to learn whether an email has
+  an account). Limits: the same size, row, total and rate limits, `perAccount` 3 accounts per email hash
+  (507), `failsPerAccount` 10 refused tries per email hash in 15 minutes (then 429; held in memory only,
+  keyed by the hash), and `accountTtlDays` 365 after the last write (a read doesn't extend it). The id
+  routes never reach an account blob. There is no email delivery: no mail provider, no magic link, no
+  new secret. `npm run smoke:account` tests all of it with the app's own key derivation and encryption.
+- **Before production:** persistent storage (Render's instance disk is wiped on every deploy: attach a
+  disk and point `DATA_DIR` at it), a server-side check of the Pro purchase once a store is connected
+  (today the entitlement is checked in the app only; lib/purchase.js has no store), and the owner's
+  decision to list `backup` in `config/app.json` and build the static site with `cloudBackup` in
+  `VITE_FEATURES`. The app's account screens and the privacy copy (docs/PRIVACY-AUDIT.md, Calm R9) are
+  in place. `npm run smoke:backup` and `npm run smoke:account` test all of the above.
 
 ## Development-only modules
 - **Agent (`src/modules/agent/`)** — task + shared tool registry + pluggable

@@ -263,6 +263,32 @@ a red-flag question on the device with the emergency line without sending it, an
 server has no key ("AI isn't set up on this server yet, so nothing was sent to Anthropic."). **Backend:** `POST
 /api/ai/weekly`, `POST /api/ai/chat`, `GET /api/ai/status` (§10).
 
+### 3.5g The optional account: an encrypted backup on Cyra's server (calm R9, `lib/account.js`, `lib/cloudBackup.js`, `components/AccountParts.jsx`)
+**Guest stays the default.** Nothing asks her to sign in; the splash keeps "No account needed". The account exists only in
+a build with the `cloudBackup` flag AND a server (`ACCOUNTS_HERE`); the default production build has neither, shows R7's
+"No account needed" card unchanged and makes no account request. It is Pro (`plan.can("cloudBackup")`; proDev for QA):
+without Pro the card says "An encrypted backup to Cyra's server comes with Pro." with "See what Pro adds".
+**Account = email + a passphrase she keeps**, both turned into keys on the device: `lookupFor(email)` (SHA-256 of the
+tagged, normalised email) and `tokenFor(email, passphrase)` (HMAC under PBKDF2-SHA256 600,000 rounds); the backup is the
+usual `cyra-backup` envelope under `backupKey(passphrase)` (same PBKDF2 over the envelope's random salt; AES-256-GCM). No
+email is ever sent (no mail provider, no magic link). **The server stores per account** `{ id (random), kind, emailHash,
+tokenHash, version, size, createdAt, updatedAt, expiresAt }` and the encrypted bytes; never the email, the passphrase, the
+plaintext or the key. A lost passphrase can't be recovered, and the copy says so plainly.
+**You → Account** (`#you-account.acctcard`): guest — "No account needed", "You're using Cyra as a guest. Your log lives on
+this device.", "Create an account" (sheet `#acct-sheet`: what Cyra's server keeps, the lost-passphrase warning, email,
+passphrase twice, "I understand a lost passphrase can't be recovered", "Create account and back up") and "Sign in";
+signed in — "Your account", "Signed in as …", the back-up status ("Backed up today", "Backing up…", "Waiting for a
+connection to back up.", "Couldn't back up just now…"), "Back up now", "Sign out" (keeps the log here and the backup on
+the server), "Delete account" (confirm; deletes the blob on the server now; the log stays here). The splash adds a quiet
+"Sign in to restore from your account" under the file restore. **Sync:** an automatic back-up 8 s after a saved change to
+what a backup holds (never for device-only keys), and at launch (only a version check when nothing changed); each upload
+names the version this device last had, and a newer backup (409) shows "The backup is newer" with "Use the backup" /
+"Keep this device's log"; signing in on a device that already has a log shows "This device already has a log" with the
+same two choices. Restoring reuses the file restore (`applyRestore`), so the same keys are kept or replaced.
+**Device key** `cloudAccount` `{ rev, acct }`: DEVICE_ONLY and NOT_IN_BACKUP (holds the keys; never the passphrase).
+**Backend:** `GET /api/backup/account/meta`, `GET|PUT|DELETE /api/backup/account` (backend/README.md); `backup` stays out
+of `config/app.json` until the owner adds a persistent disk and enables it.
+
 ### 3.6 Her symptom list (symPrefs, local-first L6)
 ```js
 symPrefs: { periods?: { order, hidden, added }, peri?: { order, hidden, added }, preg?: { order, hidden } }
@@ -304,7 +330,9 @@ with evidence — cycles, symptoms, PCOS signals." — the PCOS clause since cal
 "Your privacy, plainly" labels `ul.splashpromise` (three `li`, one 16px `Icon` each; `p.splashpriv` is gone):
 1. lock — "Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that
    tells you exactly what it sends." (unchanged sentence; it appears nowhere else in onboarding)
-2. user — "No account needed. There's no Cyra account to make, and your name and email are optional."
+2. user — "No account needed. There's no Cyra account to make, and your name and email are optional." (calm R9: in a build
+   that offers the optional account, "No account needed. An account is optional and only keeps an encrypted backup, and
+   your name and email are optional too.", `splashAccountLine`)
 3. book — "Guidance, never a diagnosis. For anything medical, talk with your clinician."
 Then `button.cta` "Get started", then `button.ghostbtn.quiet.splashrestore` "Restore from an encrypted backup" (a 44px
 toggle with a constant label; `aria-expanded` carries the state, `aria-controls="splash-restore"`, and `initialRestore`
@@ -2007,6 +2035,10 @@ Apple stays first.
       (`lib/aiSummary.js`, adversarial tests), shown verbatim before every send; Patterns → "Cyra's write-up" and Mind →
       Journey → "Chat about your log", both Pro and off by default; `/api/ai/weekly`, `/api/ai/chat`, `/api/ai/status` on
       the backend proxy (key server-side, nothing logged or stored, size caps, rate limit, red flags never forwarded) (§3.5f).
+- [x] Guest → optional account (calm R9): email + passphrase turned into keys on the device, an encrypted backup on
+      Cyra's server (opaque blob, email hash, token hash), automatic back-ups, sign in and restore on a new device, "The
+      backup is newer" choice, sign out, delete account; Pro only, behind the `cloudBackup` flag, `backup` not mounted in
+      production (§3.5g). Before enabling: a persistent disk (`DATA_DIR`) and a server-side Pro receipt check.
 - [ ] Native biometric unlock (Face ID / fingerprint) through a Capacitor plugin — later work; the phone build offers
       the PIN only (D4).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the

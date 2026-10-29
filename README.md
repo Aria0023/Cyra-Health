@@ -81,9 +81,12 @@ reminders, so it makes no request at launch). Each item names its flag:
 Never sent by Cyra: Apple Health and Health Connect readings (read on the phone; they leave
 it only inside an encrypted backup the person exports herself). The **encrypted backup** is a
 file the person saves herself (a download on the web, the share sheet on the phone),
-encrypted with her passphrase; Cyra never receives it (the encrypted cloud backup is only a
-scaffold that no build can reach: `cloudBackup` flag off, plan gate closed, backend module not
-mounted; docs/ARCHITECTURE.md §10.5). Fonts are bundled, and there is no
+encrypted with her passphrase; Cyra never receives it. [cloudBackup] A build with the
+`cloudBackup` flag and a server also offers an optional account (Pro; calm R9): her record,
+encrypted on her device, is kept on Cyra's server under a hash of her email and a hash of a
+write token derived from her passphrase; never the email, the passphrase or the key
+(docs/ARCHITECTURE.md §10.5a). The default build has no such flag and production doesn't
+mount the module. Fonts are bundled, and there is no
 analytics, advertising or tracking code. **Delete everything** asks Cyra's server to remove
 the reminder subscription and, in a build with wearables, disconnect Oura and Terra (collecting
 Terra's waiting readings first), and deletes the record on the device only after the server has confirmed every step:

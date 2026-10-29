@@ -37,7 +37,8 @@ app.use((req, res, next) => {
     res.set("access-control-allow-origin", origins.includes("*") ? "*" : origin);
     res.set("vary", "origin");
     res.set("access-control-allow-methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS"); // PUT: the backup module's replace
-    res.set("access-control-allow-headers", "content-type, authorization, x-admin-key, x-cyra-signature");
+    res.set("access-control-allow-headers", "content-type, authorization, x-admin-key, x-cyra-signature, x-cyra-account, x-cyra-base"); // x-cyra-*: the backup module's accounts (calm R9)
+    res.set("access-control-expose-headers", "x-cyra-version, x-cyra-updated");
     res.set("access-control-max-age", "600");
   }
   if (req.method === "OPTIONS") return res.sendStatus(204);

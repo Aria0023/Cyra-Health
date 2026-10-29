@@ -7,8 +7,17 @@
    dangling sentence or an empty list (disclosures.test.mjs).
    Rule for later slices: a new sentence that names a flagged feature is added here as a builder (or
    a constant) with its tests, never as a flag condition inlined in a screen's copy.
-   Pure: imports only remindersInBuild from ./features.js (itself import-free), so Node can load it. */
+   Pure: imports only remindersInBuild from ./features.js (itself import-free), so Node can load it.
+   Calm R9 (the optional account): a build that offers an account (accountsInBuild: the cloudBackup flag AND a server)
+   lets her keep an encrypted copy of her record on Cyra's server. Every sentence that says Cyra's server never gets,
+   keeps or receives her log takes an explicit `accounts` argument (default false, so every pre-R9 call and pin is
+   unchanged) and, when it is true, names that one exception: the encrypted account backup she makes herself. */
 import { remindersInBuild } from "./features.js";
+
+/** Whether this build offers the optional account (encrypted backup to Cyra's server): the cloudBackup flag and a server. */
+export const accountsInBuild = (f, server) => !!(f && f.cloudBackup) && !!server;
+/** The exception clause the server sentences carry in an accounts build. */
+export const ACCOUNT_EXCEPT = "except locked inside your encrypted account backup, if you make one";
 
 /** 'a', 'a and b', 'a, b and c'. */
 export const andList = (a) => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`);
@@ -22,11 +31,13 @@ export const deleteAlso = (f, native) => on([remindersInBuild(native, f) && "tur
 /* ---------- registration, step 1: "What Cyra's server sees" ---------- */
 /** The bullets. With no server (VITE_API_BASE unset) no optional choice can reach one, so only the
     three that hold in every build remain. */
-export function serverSees(f, server = true) {
+export function serverSees(f, server = true, accounts = false) {
   const out = [
     "An encrypted backup keeps your name, email and other sign-up answers, except your ZIP and age band.",
     "Anonymous Mode skips your name and email entirely.",
-    "Cyra's servers keep no account and no profile of you in either mode: no age, health history or check-ins.",
+    accounts && server
+      ? "Cyra's servers keep no profile of you in either mode: no age, health history or check-ins. If you later make the optional account, they keep only your encrypted backup, which they can't read, and a one-way hash of your email."
+      : "Cyra's servers keep no account and no profile of you in either mode: no age, health history or check-ins.",
   ];
   if (!server) return out;
   const n = [f.counts, f.ai, f.webReminders, f.wearables, f.signin].filter(Boolean).length;
@@ -97,10 +108,16 @@ export function restoreChanges(f) {
 }
 
 /** After "<b>Delete everything on this device?</b>" (so it starts with a space). */
-export function wipeConfirm(f, native) {
+export function wipeConfirm(f, native, accounts = false) {
   const also = deleteAlso(f, native);
-  return ` Every check-in, POTS log, note, appointment and setting goes for good.${also ? ` This also ${also}.` : ""} Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.`;
+  const tail = accounts
+    ? " Cyra's servers keep no readable copy of your log. An encrypted account backup, if you made one, stays on Cyra's server until you delete the account or it expires; otherwise your log can't be recovered unless you saved a backup."
+    : " Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.";
+  return ` Every check-in, POTS log, note, appointment and setting goes for good.${also ? ` This also ${also}.` : ""}${tail}`;
 }
+
+/** The storage line's last sentence in Privacy & your data. */
+export const storeCopyLine = (accounts = false) => (accounts ? "Cyra's servers keep no readable copy: only your encrypted account backup, if you make one." : "Cyra's servers don't keep a copy.");
 
 /** "More about deleting" (DataControls appends its offline-copy and this-week items after these). */
 export function wipeMore(f, native) {
@@ -125,21 +142,34 @@ export const LEGACY_WEAR_LINE = "Cyra can't end a wearable connection from this 
 export const intakeHint = (f) => `Four quick taps. Your answers shape the whole app — one experience, built for where you are. Your answers stay on this device.${f.counts ? " (If you share weekly counts, your life stage is part of what's shared.)" : ""}`;
 
 /** After "<b>Start over on this phone?</b>" (phone only, so reminders always exist). */
-export const startOverText = (f) => ` This deletes this phone's record for good and turns off reminders${f.wearables ? ", but doesn't disconnect wearables" : ""}. Cyra keeps no copy of your record on its servers, so the only way back is an encrypted backup you saved — you can restore one on the next screen.`;
+export const startOverText = (f, accounts = false) => ` This deletes this phone's record for good and turns off reminders${f.wearables ? ", but doesn't disconnect wearables" : ""}. ${accounts
+  ? "Cyra keeps no readable copy of your record on its servers, so the only way back is an encrypted backup you saved or your account's encrypted backup — you can restore a saved one on the next screen."
+  : "Cyra keeps no copy of your record on its servers, so the only way back is an encrypted backup you saved — you can restore one on the next screen."}`;
 
 /* ---------- POTS tools (the components keep their exported names, computed from these) ---------- */
-const potsEnd = (f) => (f.counts ? ", and it isn't part of weekly counts." : ".");
-export const potsTodayFoot = (f) => `Saved on this device as you tap. Cyra's server never gets your POTS log${potsEnd(f)}`;
-export const potsTodayFootUnsaved = (f) => ({
-  memory: `Not being saved: Cyra couldn't open this browser's storage, so what you log here is lost when you close Cyra. Cyra's server never gets your POTS log${potsEnd(f)}`,
-  stale: `Cyra couldn't confirm your latest taps were saved on this device; they may be lost when you close Cyra. Cyra's server never gets your POTS log${potsEnd(f)}`,
+const potsEnd = (f, accounts) => `${accounts ? `, ${ACCOUNT_EXCEPT}` : ""}${f.counts ? ", and it isn't part of weekly counts." : "."}`;
+export const potsTodayFoot = (f, accounts = false) => `Saved on this device as you tap. Cyra's server never gets your POTS log${potsEnd(f, accounts)}`;
+export const potsTodayFootUnsaved = (f, accounts = false) => ({
+  memory: `Not being saved: Cyra couldn't open this browser's storage, so what you log here is lost when you close Cyra. Cyra's server never gets your POTS log${potsEnd(f, accounts)}`,
+  stale: `Cyra couldn't confirm your latest taps were saved on this device; they may be lost when you close Cyra. Cyra's server never gets your POTS log${potsEnd(f, accounts)}`,
 });
 export const potsTodayFoot2 = (f) => `${f.counts ? "Never part of weekly counts. " : ""}Cyra can't diagnose POTS; only a clinician can.`;
 export const potsHintTail = (f) => `${f.counts ? "Never part of weekly counts. " : ""}Cyra can't diagnose POTS; only a clinician can, and good notes make that visit faster.`;
-export const potsNeverSent = (f) => (f.counts && f.ai ? "None of it is part of weekly counts, and none of it is sent to Cyra's server or Cyra's AI."
-  : f.counts ? "None of it is part of weekly counts, and none of it is sent to Cyra's server."
-  : f.ai ? "None of it is sent to Cyra's server or Cyra's AI."
-  : "None of it is sent to Cyra's server.");
+export const potsNeverSent = (f, accounts = false) => {
+  const s = f.counts && f.ai ? "None of it is part of weekly counts, and none of it is sent to Cyra's server or Cyra's AI."
+    : f.counts ? "None of it is part of weekly counts, and none of it is sent to Cyra's server."
+    : f.ai ? "None of it is sent to Cyra's server or Cyra's AI."
+    : "None of it is sent to Cyra's server.";
+  return accounts ? `${s.slice(0, -1)}, ${ACCOUNT_EXCEPT}.` : s;
+};
+
+/* ---------- the splash, the lock screen and the registration consent card (calm R9) ---------- */
+/** The splash promise's second item. */
+export const splashAccountLine = (accounts = false) => (accounts
+  ? "No account needed. An account is optional and only keeps an encrypted backup, and your name and email are optional too."
+  : "No account needed. There's no Cyra account to make, and your name and email are optional.");
+/** The consent card's backup fact. */
+export const consentBackupFact = (accounts = false) => `A backup is a file you keep, locked with a passphrase only you know. Cyra never receives the file or the passphrase, so we can't read it or recover a lost passphrase.${accounts ? " The optional account keeps the same kind of encrypted backup on Cyra's server; Cyra can't read it or recover that passphrase either." : ""}`;
 /** The report's watch/ring sentence: only where a watch, ring or health app can be connected at all. */
 export const potsFixedLine = (f) => (f.wearables ? "Readings Cyra gets from a connected watch, ring or health app aren't included in this report or spreadsheet. Heart rates and blood pressures you type in yourself are, even if you read them off a watch." : null);
 export const potsRemindersLine = (f, native) => (remindersInBuild(native, f)

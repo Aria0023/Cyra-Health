@@ -30,6 +30,8 @@ export const ACCOUNT_LINES = Object.freeze({
   none: "No account. Your log lives on this device.",
   named: "No account. Your log lives on this device, and your name stays with it.",
   more: "Cyra keeps no account or profile of you. Your name and email, if you gave them, stay on this device and go into an encrypted backup only if you save one.",
+  // calm R9: a build that offers the optional account (the AccountCard's footer instead of `more`)
+  moreAccount: "Cyra keeps no profile of you. Your name and email, if you gave them, stay on this device and go into an encrypted backup only if you save one or make an account; your account itself never holds your email, only a one-way hash of it.",
 });
 export const NOT_MEDICAL = "Cyra is not a medical device. It shows patterns from what you log and plain-language information. It does not diagnose, treat or replace your clinician.";
 export const AI_OFF_LINE = "Questions are answered on this device from Cyra's written library and aren't sent anywhere.";

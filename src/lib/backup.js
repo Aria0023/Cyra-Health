@@ -16,7 +16,8 @@
    cloud backup (owner decision D3): it is fail-closed by default (unavailable unless it is given a
    request function, enabled AND its gate says yes), refuses anything that isn't an envelope before
    any request, and is wired up in ./cloudBackup.js behind plan.can("cloudBackup") and the
-   cloudBackup build flag, both off; nothing imports that file yet, so no build can reach it.
+   cloudBackup build flag, both off by default. Calm R9: the optional account (./account.js accountTransport, the
+   same fail-closed rules) is what the app uses; it moves envelopes made by encryptWithKey below.
    This module has NO imports: the POTS suites load it straight from Node, so its I/O (Capacitor
    plugins, the DOM, apiFetch) is passed in. */
 const subtle = globalThis.crypto.subtle;
@@ -51,6 +52,57 @@ export async function decryptBackup(envelope, passphrase) {
   const key = await deriveKey(String(passphrase || ""), unb64(envelope.salt), envelope.iter || ITERATIONS);
   try {
     const pt = await subtle.decrypt({ name: "AES-GCM", iv: unb64(envelope.iv) }, key, unb64(envelope.ct));
+    return JSON.parse(dec.decode(pt));
+  } catch {
+    throw new Error("Wrong passphrase, or the file is damaged");
+  }
+}
+
+/* Calm R9 (the optional account): the same envelope, made with a key derived ONCE from her passphrase, so a signed-in
+   device can back up after each change without asking for the passphrase again. backupKey() runs the same PBKDF2
+   (600,000 rounds, SHA-256) over a salt and returns the raw 256-bit AES-GCM key; encryptWithKey() then makes an envelope
+   that decryptBackup(envelope, passphrase) opens exactly like any other (same format, salt, iteration count; a fresh
+   random IV each time). openBackup() decrypts with the passphrase and hands back the key for later backups. The key is
+   never sent anywhere: the caller keeps it on this device (App.jsx cloudAccount, device-only, never in a backup file). */
+const rawKeyOf = async (passphrase, salt, iterations) => {
+  const base = await subtle.importKey("raw", enc.encode(String(passphrase).normalize("NFKC")), "PBKDF2", false, ["deriveBits"]);
+  return new Uint8Array(await subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations }, base, 256));
+};
+const aesKey = (raw) => subtle.importKey("raw", raw, { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+
+/** passphrase (+ an envelope's salt, base64) → { salt, key } (both base64). Without a salt a new random one is made. */
+export async function backupKey(passphrase, saltB64 = null) {
+  if (!isLongEnough(passphrase)) throw new Error("Use a passphrase of at least 8 characters");
+  const salt = saltB64 ? unb64(saltB64) : crypto.getRandomValues(new Uint8Array(16));
+  return { salt: b64(salt), key: b64(await rawKeyOf(passphrase, salt, ITERATIONS)) };
+}
+
+/** state + { salt, key } from backupKey → an envelope decryptBackup(envelope, passphrase) opens. */
+export async function encryptWithKey(state, { salt, key }) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await subtle.encrypt({ name: "AES-GCM", iv }, await aesKey(unb64(key)), enc.encode(JSON.stringify(state)));
+  return { format: "cyra-backup", v: 1, kdf: "PBKDF2-SHA256", iter: ITERATIONS, cipher: "AES-256-GCM", salt, iv: b64(iv), ct: b64(ct) };
+}
+
+/** envelope + passphrase → { state, salt, key } (the key for encryptWithKey). Same errors as decryptBackup. */
+export async function openBackup(envelope, passphrase) {
+  if (!isEnvelope(envelope)) throw new Error("That file isn't a Cyra backup");
+  const raw = await rawKeyOf(String(passphrase || ""), unb64(envelope.salt), envelope.iter || ITERATIONS);
+  try {
+    const pt = await subtle.decrypt({ name: "AES-GCM", iv: unb64(envelope.iv) }, await aesKey(raw), unb64(envelope.ct));
+    return { state: JSON.parse(dec.decode(pt)), salt: envelope.salt, key: b64(raw) };
+  } catch {
+    throw new Error("Wrong passphrase, or the file is damaged");
+  }
+}
+
+/** envelope + { salt, key } → state, for an envelope made under the same key (an account's backups all share its salt).
+    Throws "Wrong passphrase, or the file is damaged" when the salt differs or the key doesn't open it. */
+export async function decryptWithKey(envelope, { salt, key }) {
+  if (!isEnvelope(envelope)) throw new Error("That file isn't a Cyra backup");
+  try {
+    if (envelope.salt !== salt || (envelope.iter || ITERATIONS) !== ITERATIONS) throw new Error("other key");
+    const pt = await subtle.decrypt({ name: "AES-GCM", iv: unb64(envelope.iv) }, await aesKey(unb64(key)), unb64(envelope.ct));
     return JSON.parse(dec.decode(pt));
   } catch {
     throw new Error("Wrong passphrase, or the file is damaged");

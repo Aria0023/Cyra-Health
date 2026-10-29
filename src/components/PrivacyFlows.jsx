@@ -18,6 +18,7 @@ function RowDetails({ id, native, stage }) {
   if (id === "ai") return <><AiFacts /><p>{C.details.aiWhere}</p></>;
   if (id === "aiWeekly" || id === "aiChat") return <ul><li>{C.details.summaryFields}</li><li>{C.details.summaryNever}</li><li>{C.details.aiTwoWhere}</li></ul>;
   if (id === "wearables") return <><WearableFacts native={native} /><p>{WEAR_RESTORE_LINE}</p><p>{C.details.wearWhere}</p></>;
+  if (id === "cloud") return <ul><li>{C.details.cloudHolds}</li><li>{C.details.cloudLost}</li><li>{C.details.cloudWhere}</li></ul>;
   if (id === "files") return (
     <ul>
       <li>{C.details.backupLocked}</li>
