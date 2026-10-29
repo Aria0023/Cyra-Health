@@ -291,3 +291,22 @@ clinician, not a diagnosis or medical advice."; their advice text is the L8 copy
 - Text: Adds cervical mucus, ovulation tests and basal temperature to your log, marked on your Calendar.
 - Sources: describes the fertility-signs group (lib/fertility.js FERT_COPY.settingCycle, shortened); no clinical claim.
 - Status: Awaiting clinician sign-off
+
+## Cyra's AI write-up and chat (calm R8)
+### ai.system.frame
+- Where: backend/src/modules/ai/tasks.js AI_FRAME (the system prompt for the weekly write-up and the chat)
+- Text: describes associations in her own data she could raise with her clinician; never diagnose, never name or adjust a treatment, medicine, supplement or dose, never tell her to start or stop anything; never interpret a lab value (normal, high, low, worrying); never grade, score or rate her; say plainly when there is too little data; plain warm language; for an emergency or red-flag question, no discussion of the data, the emergency line instead.
+- Sources: the existing Ask GUARDRAILS and red-flag list (askLibrary.js / tasks.js RED_FLAGS); no new clinical claim.
+- Status: Awaiting clinician sign-off
+
+### ai.emergency
+- Where: chat, a red-flag question (on the device: AI_COPY.urgentLocal; on the server: EMERGENCY_ANSWER)
+- Text: What you're describing needs care now, not an app. Please call your local emergency number (911 in the US) or go to urgent care. If you are thinking about harming yourself, call or text 988 (US) or your local crisis line. (The device version ends "Nothing was sent."; the server's "You are not overreacting by asking.")
+- Sources: the same routing as Ask's existing urgent answer (askLibrary.js URGENT).
+- Status: Awaiting clinician sign-off
+
+### ai.notadvice
+- Where: Patterns → Cyra's write-up, Mind → Journey → Chat about your log
+- Text: Associations to raise with your clinician, not a diagnosis or medical advice. / Written by Cyra's AI (Claude, made by Anthropic) from your summary.
+- Sources: MODULE_FRAMING (R2), unchanged wording.
+- Status: Awaiting clinician sign-off

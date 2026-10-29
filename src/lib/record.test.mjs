@@ -32,6 +32,7 @@ const DEFAULTS = () => ({
   pots: freshEmpty(), lastBackupAt: null, installHint: null, appearance: "system", cycleFlags: {}, symPrefs: {}, fertSigns: { on: null, unit: null }, exportLog: null, modules: {}, homeTiles: null, homeStepSkip: null,
   bodyLog: {}, labs: [], bodyPrefs: { weightOn: false, weightUnit: null, glucoseUnit: null, hba1cUnit: null, waistUnit: null },
   moodLog: {}, practiceLog: [], practiceFavs: [], practiceHaptics: false, experiments: { active: null, skip: null, past: [] },
+  aiPrefs: { weekly: false, chat: false, labs: false }, aiChat: [], aiWeekly: null,
 });
 const appRecord = (over = {}) => {
   const d = { ...DEFAULTS(), ...over };
@@ -106,11 +107,11 @@ test("migrate: a missing, throwing or non-advancing step returns the input (all 
 /* ---------- keys ---------- */
 
 test("key lists are the ones App.jsx used before L3 (pinned)", () => {
-  // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags, L6 symPrefs and L7 fertSigns (record keys: in RECORD and in backups); calm R1 appended modules (record, in backups); calm R3 appended homeTiles (record, in backups) and homeStepSkip (device-only, not in backups); calm R4 appended bodyLog, labs and bodyPrefs (record, in backups); calm R5 appended moodLog, practiceLog, practiceFavs (record, in backups) and practiceHaptics (device-only, not in backups); calm R6 appended experiments (record, in backups).
-  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments"]);
-  assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics"]);
+  // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags, L6 symPrefs and L7 fertSigns (record keys: in RECORD and in backups); calm R1 appended modules (record, in backups); calm R3 appended homeTiles (record, in backups) and homeStepSkip (device-only, not in backups); calm R4 appended bodyLog, labs and bodyPrefs (record, in backups); calm R5 appended moodLog, practiceLog, practiceFavs (record, in backups) and practiceHaptics (device-only, not in backups); calm R6 appended experiments (record, in backups); calm R8 appended aiPrefs (device-only consent, in the file, never applied), aiChat and aiWeekly (device-only, not in backups).
+  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly"]);
+  assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly"]);
   assert.deepEqual([...DEVICE_PREFS], ["appearance"]);
-  assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "appearance"]);
+  assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "appearance"]);
   assert.deepEqual([...RECORD], PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders"));
   for (const k of NOT_IN_BACKUP) { assert.ok(PERSISTED.includes(k), `${k} persisted`); assert.ok(DEVICE_ONLY.includes(k) || DEVICE_PREFS.includes(k), `${k} device-only or a device pref`); }
   for (const k of DEVICE_ONLY) assert.ok(PERSISTED.includes(k), `${k} persisted`);
@@ -147,6 +148,7 @@ test("backupCopy matches the transform exportBackup used before L3", () => {
     delete snap.exportLog; // L9: this device's PDF count this month never travels
     delete snap.homeStepSkip; // calm R3: this device's "Not today" for Home's small step never travels
     delete snap.practiceHaptics; // calm R5: this phone's vibration choice never travels
+    delete snap.aiChat; delete snap.aiWeekly; // calm R8: the AI chat and write-up stay on this device
     for (const k of ["appearance"]) delete snap[k];
     return snap;
   };
@@ -434,7 +436,7 @@ test("daysLogged", () => {
 
 // record.js may import only these pure leaf modules. A later slice may add one (L6 './daylog.js',
 // L7 './fertility.js'); none of them may import record.js back.
-const RECORD_IMPORTS = ["./engine.js", "./constants.js", "./daylog.js", "./fertility.js", "./modules.js", "./home.js", "./bodylog.js", "./mind.js", "./experiments.js"];
+const RECORD_IMPORTS = ["./engine.js", "./constants.js", "./daylog.js", "./fertility.js", "./modules.js", "./home.js", "./bodylog.js", "./mind.js", "./experiments.js", "./aiFeatures.js"];
 const importsOf = (code) => [...code.matchAll(/^\s*import\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]);
 
 test("layering and no I/O", () => {

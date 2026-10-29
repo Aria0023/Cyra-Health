@@ -1,4 +1,4 @@
-import { Card, Chip } from "../components/ui/index.js";
+import { Card, Chip, Switch } from "../components/ui/index.js";
 import Icon from "../components/Icon.jsx";
 import ModuleRow from "../components/ModuleRow.jsx";
 import PotsAddon from "../components/pots/PotsAddon.jsx";
@@ -13,6 +13,8 @@ import { TERMS_URL, PRIVACY_URL, openExternal } from "../lib/links.js";
 import { BUILD_STAMP, MODULE_ADDS, PLAN_COPY, ACCOUNT_LINES, NOT_MEDICAL, AI_OFF_LINE, accountLine } from "../lib/about.js";
 import { FREE_KEEPS } from "../components/ProSheet.jsx";
 import { AI_DISCLOSURE } from "./AskScreen.jsx";
+import { AI_COPY } from "../lib/aiFeatures.js";
+import { FLOW_COPY } from "../lib/privacyFlows.js";
 
 /* You (calm R7, spec "You tab"): one calm scrolling page of v2 Cards. It is where she controls her data, so the
    privacy dashboard is the first thing under her stage. Top to bottom:
@@ -21,10 +23,13 @@ import { AI_DISCLOSURE } from "./AskScreen.jsx";
    - Modules: PCOS, POTS (and fertility signs where the stage offers them), each a real switch with a one-line
      "what it adds". The PCOS switch is this card's only PCOS control; POTS also has its row in the header's Settings
      sheet (Add-ons), which App.jsx closes whenever the You tab is open, so one switch is ever on screen;
-   - Plan: Cyra Free, and a "See what Pro adds" sheet. Nothing to buy until the store wiring (R8); no nagging;
+   - Plan: Cyra Free, and a "See what Pro adds" sheet. Calm R8: "Restore purchases" asks lib/purchase.js, which in this
+     version has no store connected and says so (nothing is checked or sent); no price, no nagging;
    - Check-ins, Reminders, (weekly counts where the build has them), Appearance, (Install), Cyra's AI, About you:
      the same controls, ids and sentences the Settings sheet has (components/settingsParts.jsx);
    - Account (none until R9: it says so), Support & care (the care shelf), About & legal (not a medical device, links, build).
+   - Cyra's AI (calm R8): with Pro, the ai flag and a server, the weekly write-up and chat switches (off by default) and
+     "Include lab values"; without Pro, one line and "See what Pro adds". The switches send nothing themselves.
    A Language card is not shown until the picker exists (R10). Nothing on this page sends anything anywhere. */
 /* A quiet illustration for the stage card: soft rings and a blob in the stage accent (tokens only, decorative). */
 const StageArt = () => (
@@ -36,7 +41,9 @@ const StageArt = () => (
     <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
   </svg>
 );
-export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null }) {
+export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null }) {
+  const offer = ai.offer || { any: false, weekly: false, chat: false };
+  const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
   const { remindersHere } = reminderModel({ reminders: sp.reminders, reminderSupport: sp.reminderSupport, cadence: sp.cadence });
   const anyModule = modules.length > 0 || !!fertRow;
@@ -76,8 +83,12 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
       <Card id="you-plan" tint="patterns" icon="sparkle" eyebrow={PLAN_COPY.eyebrow} title={planUnlocked ? PLAN_COPY.test : PLAN_COPY.free} level={2} className="youplan" badge={<Chip variant="pro" />}>
         <p>{PLAN_COPY.body}</p>
         <p className="hint youfree">{FREE_KEEPS}</p>
-        <button type="button" className="ghostbtn youprobtn" aria-haspopup="dialog" onClick={onPro}>{PLAN_COPY.see}</button>
+        <div className="youplanacts">
+          <button type="button" className="ghostbtn youprobtn" aria-haspopup="dialog" onClick={onPro}>{PLAN_COPY.see}</button>
+          {onRestore && <button type="button" className="linkbtn yourestore" aria-describedby="you-store-line" onClick={onRestore}>{PLAN_COPY.restore}</button>}
+        </div>
         <p className="rfoot">{planUnlocked ? PLAN_COPY.testNote : PLAN_COPY.none}</p>
+        {storeLine && <p className="rfoot" id="you-store-line">{storeLine}</p>}
       </Card>
 
       <Card id="you-checkins" tint="you" icon="lightning" eyebrow="Settings" title={remindersHere ? "Check-ins and reminders" : "Check-ins"} level={2} className="youset" tabIndex={-1}>
@@ -111,6 +122,42 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
             <p className="rfoot" id="you-ai-disclosure">{AI_DISCLOSURE}</p>
             <Details label="Exactly what's sent"><AiFacts /></Details>
             <p className="rfoot">Off until you turn it on. It is the same choice as on Ask Cyra in Mind → Journey.</p>
+            {offer.any && (offer.weekly || offer.chat ? (
+              <div className="youaipro">
+                <p className="section-lab youaipro-lab"><Chip variant="pro" /> Your log, with Cyra's AI</p>
+                <ul className="modlist aiswitches">
+                  {offer.weekly && (
+                    <li className="modrow airow" data-ai="weekly">
+                      <div className="modrow-main"><div className="modinfo"><b id="ai-weekly-n">{AI_COPY.weeklyName}</b><span className="hint">{AI_COPY.weeklyShort}</span></div>
+                        <Switch checked={prefs.weekly} onChange={(v) => ai.setPref("weekly", v)} labelledBy="ai-weekly-n" describedBy="ai-weekly-d" /></div>
+                      <p className="modadds" id="ai-weekly-d">{AI_COPY.weeklyAdds}</p>
+                    </li>
+                  )}
+                  {offer.chat && (
+                    <li className="modrow airow" data-ai="chat">
+                      <div className="modrow-main"><div className="modinfo"><b id="ai-chat-n">{AI_COPY.chatName}</b><span className="hint">{AI_COPY.chatShort}</span></div>
+                        <Switch checked={prefs.chat} onChange={(v) => ai.setPref("chat", v)} labelledBy="ai-chat-n" describedBy="ai-chat-d" /></div>
+                      <p className="modadds" id="ai-chat-d">{AI_COPY.chatAdds}</p>
+                    </li>
+                  )}
+                </ul>
+                {(prefs.weekly || prefs.chat) && (
+                  <button type="button" role="checkbox" aria-checked={!!prefs.labs} aria-describedby="ai-labs-d" className={`consentopt ${prefs.labs ? "on" : ""}`} onClick={() => ai.setPref("labs", !prefs.labs)}>
+                    <span className="ckbox" aria-hidden="true">{prefs.labs ? "✓" : ""}</span>
+                    <span><b>{AI_COPY.labsName}</b></span>
+                  </button>
+                )}
+                {(prefs.weekly || prefs.chat) && <p className="rfoot" id="ai-labs-d">{AI_COPY.labsHint}</p>}
+                <Details label="Exactly what the summary holds"><ul><li>{FLOW_COPY.details.summaryFields}</li><li>{FLOW_COPY.details.summaryNever}</li></ul></Details>
+                <p className="rfoot">{AI_COPY.offLine}</p>
+              </div>
+            ) : (
+              <div className="youaipro locked">
+                <p className="section-lab youaipro-lab"><Chip variant="pro" /> Your log, with Cyra's AI</p>
+                <p className="hint">{AI_COPY.locked}</p>
+                <button type="button" className="ghostbtn" aria-haspopup="dialog" onClick={onPro}>{PLAN_COPY.see}</button>
+              </div>
+            ))}
           </>
         ) : (
           <p>{AI_OFF_LINE}</p>

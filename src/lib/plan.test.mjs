@@ -5,16 +5,16 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { FREE_PLAN, PLAN, PLAN_FEATURES, DEV_PRO_PLAN, planFor, can, monthKey, exportsUsed, exportsLeft, noteExport } from "./plan.js";
+import { FREE_PLAN, PLAN, PLAN_FEATURES, DEV_PRO_PLAN, PRO_PLAN, planFor, can, monthKey, exportsUsed, exportsLeft, noteExport } from "./plan.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`\\])\/\/[^\n]*/g, "$1");
 
 test("FREE_PLAN is the D1 entitlements object", () => {
-  assert.deepEqual(FREE_PLAN, { tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false, fullPractices: false });
+  assert.deepEqual(FREE_PLAN, { tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false, fullPractices: false, aiChat: false });
   assert.ok(Object.isFrozen(FREE_PLAN));
   assert.equal(PLAN, FREE_PLAN);
-  assert.deepEqual([...PLAN_FEATURES], ["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup", "fullPractices"]);
+  assert.deepEqual([...PLAN_FEATURES], ["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup", "fullPractices", "aiChat"]);
   assert.ok(Object.isFrozen(PLAN_FEATURES));
 });
 
@@ -109,4 +109,20 @@ test("calm R5: fullPractices is Pro only; the proDev dev flag picks DEV_PRO_PLAN
   assert.equal(can("fullPractices", DEV_PRO_PLAN), true);
   assert.equal(can("cloudBackup", DEV_PRO_PLAN), false, "cloud backup needs its build flag and a server too");
   assert.equal(DEV_PRO_PLAN.pdfExportsPerMonth, null, "the basic PDF stays free and unlimited");
+});
+
+test("calm R8: PRO_PLAN from an owned purchase; proDev wins; aiChat fails closed", () => {
+  assert.equal(can("aiChat"), false);
+  assert.equal(can("aiChat", { ...FREE_PLAN, aiChat: 1 }), false);
+  assert.equal(planFor({}, true), PRO_PLAN);
+  assert.equal(planFor({}, "true"), PLAN, "only a real true counts as owned");
+  assert.equal(planFor({ proDev: true }, true), DEV_PRO_PLAN);
+  assert.equal(planFor({ proDev: true }, false), DEV_PRO_PLAN);
+  assert.ok(Object.isFrozen(PRO_PLAN));
+  for (const p of [PRO_PLAN, DEV_PRO_PLAN]) {
+    for (const f of ["aiChat", "aiPatternReports", "fullPractices"]) assert.equal(can(f, p), true, `${p.tier} ${f}`);
+    assert.equal(can("pdfExport", p), true, "the basic PDF stays free");
+    assert.equal(p.pdfExportsPerMonth, null);
+    assert.equal(can("cloudBackup", p), false);
+  }
 });

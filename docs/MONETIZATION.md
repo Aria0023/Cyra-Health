@@ -63,6 +63,21 @@ A feature that ships free stays free.
 - Plain-language summaries and simple links (local-first L8): "This week / This month", sleep links and cycle-day
   clusters in her own log, Home's insight — worked out on the device, free core, never gated in plan.js.
 
+Calm R8: `lib/plan.js` gains `PRO_PLAN` (what a store purchase unlocks: the full practices library, `aiPatternReports` for
+Cyra's weekly write-up and `aiChat` for the chat about her log; the basic PDF stays free and unlimited; `cloudBackup` stays
+false) and `planFor(devFlags, owned)`. `lib/purchase.js` is the store adapter interface (`storeFor`, `buyPro`,
+`restorePurchases`, `proOwned`): on iOS and Android it is a stub that says "The app store isn't connected in this build,
+so Pro can't be bought or restored here yet."; on the web there is no store ("Pro will be sold in the iPhone and Android
+apps. There's nothing to buy on the web."). Nothing is ever owned, so shipping builds stay Free; only `proDev` opens Pro.
+The Plan card adds "Restore purchases", which answers at once and sends nothing. No price appears anywhere ("Pro is
+coming to the app stores" in the sheet) until a real store product exists. The Pro sheet now lists only what this build
+opens for Pro (the full practices library, and the AI write-up and chat where the build has Cyra's AI and a server); the
+planned items (your own experiments, medicine and supplement reminders, a richer PDF) are listed apart as "Planned for Pro,
+not in this version yet". **Pattern cards stay free** (decided in R8): plan §7's Pro list does not include them and basic
+pattern insights are free core, so the sheet's old "Every pattern" line was removed and "every pattern Cyra finds" joined
+the free-forever sentence. The AI write-up and chat follow §6: off by default, her switch, the exact payload shown before
+every send, a pseudonymized summary only (docs/PRIVACY-AUDIT.md "Calm R8").
+
 ## 3. Paid extension points (none active)
 
 Every entitlement below is off or unlimited in this build. Nothing reads them yet except the unit
@@ -71,7 +86,8 @@ tests.
 | Entitlement | Free value | What a paid tier could add | Hook | Slice |
 |---|---|---|---|---|
 | `pdfExportsPerMonth` | `null` (unlimited) | richer or unlimited exports, if a free limit is ever set | `plan.exportsLeft` / `plan.noteExport` at the Report's Download PDF | L9 |
-| `aiPatternReports` | `false` | an advanced pattern report, with consent for each report | reserved and unbuilt; nothing calls it while false; no UI. The free on-device summaries and links (L8) never call it. Building it would need explicit consent for each report, a minimal pseudonymised summary and the exact disclosure of what is sent | L8 |
+| `aiPatternReports` | `false` | Cyra's weekly write-up (Pro) | calm R8: Patterns → "Cyra's write-up", only with the ai flag, a server, this entitlement and her switch; the exact summary is previewed before every send | R8 |
+| `aiChat` | `false` | chat with Cyra's AI about her log (Pro) | calm R8: Mind → Journey → "Chat about your log", same gates, each message previewed | R8 |
 | `extraCustomisation` | `false` | extras beyond the free favourites and palettes, such as custom symptoms or themes | none yet; the favourites sheet (L6) is free core and never calls `plan.can` | L6 |
 | `cloudBackup` | `false` | end-to-end-encrypted cloud backup and multi-device sync, the first paid server feature | scaffolded in L4, still off with no UI: the backend module `backup` (opaque encrypted blobs, never decrypted; listed in `config/app-dev.json`, not mounted in production), `cloudTransport` in `src/lib/backup.js` (fail-closed) and its configured instance `src/lib/cloudBackup.js` (imported by nothing). Three gates: `plan.can("cloudBackup")`, the build's `cloudBackup` flag (`VITE_FEATURES`), and the module listed in `backend/config/app.json`. Turning it on is a paid-tier decision plus the privacy-copy changes recorded in `docs/PRIVACY-AUDIT.md` (L4) | L4 |
 

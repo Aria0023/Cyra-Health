@@ -55,6 +55,13 @@ app.use("/api/integrations/terra/webhook", express.json({ limit: "5mb", verify: 
   console.warn(`[cyra] terra webhook: ${String(err.type || "bad body").slice(0, 40)}`);
   res.status(err.status === 413 ? 413 : 400).json({ error: "body could not be read" });
 });
+// Cyra's AI (calm R8): its own parser with a 32 kB cap, and a parse failure answered without Express's default
+// handler, which would log part of the body (a summary or a question). Only the error type is logged.
+app.use("/api/ai", express.json({ limit: "32kb" }), (err, req, res, next) => {
+  if (!err) return next();
+  console.warn(`[cyra] ai: ${String(err.type || "bad body").slice(0, 40)}`);
+  res.status(err.status === 413 ? 413 : 400).json({ error: "body could not be read" });
+});
 // Both ignore application/octet-stream bodies, so the backup module's own raw parser gets those bytes untouched.
 app.use(express.json({ verify: keepRaw }));
 app.use(express.urlencoded({ extended: false })); // Apple Sign-In posts its callback as a form

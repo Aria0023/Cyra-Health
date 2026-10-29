@@ -3,10 +3,13 @@
 // structured-output response — so the SDK path is exercised end to end without a real
 // key. Checks: only `ask` is mounted (welcome/route/insight → 404), the stage is optional
 // and the question is the only user content forwarded, one attempt with no retry, and a
-// slow API answered by the fallback inside the time limit. Usage: node scripts/ai-smoke.js
+// slow API answered by the fallback inside the time limit. Calm R8: weekly and chat (status, 503 without a key,
+// summary re-check, size caps, red flags never forwarded, multi-turn shape, nothing logged). Usage: node scripts/ai-smoke.js
 import http from "http";
 import fs from "fs";
 import { spawn } from "child_process";
+import { checkSummary as serverCheck, EMERGENCY_ANSWER } from "../src/modules/ai/tasks.js";
+import { buildSummary, SUMMARY_VOCAB, chatBody, weeklyBody } from "../../src/lib/aiSummary.js";
 
 const j = (r) => r.json();
 const post = (base, path, body) => fetch(`${base}${path}`, { method: "POST", headers: { "content-type": "application/json", origin: "https://app.example" }, body: JSON.stringify(body) });
@@ -33,6 +36,11 @@ const cfg = JSON.parse(fs.readFileSync("config/app-dev.json")); cfg.ai = { ...cf
 const start = (port, env) => spawn("node", ["server.js"], { env: { ...process.env, PORT: String(port), NODE_ENV: "", ...env }, stdio: ["ignore", "ignore", "inherit"] });
 const rules = start(3101, { ANTHROPIC_API_KEY: "" });
 const live = start(3102, { ANTHROPIC_API_KEY: "sk-ant-test", ANTHROPIC_BASE_URL: "http://127.0.0.1:3999", CORS_ORIGIN: "https://app.example" });
+// calm R8: a server whose every output line is captured, to prove no summary or question is ever logged
+let logged = "";
+const watched = spawn("node", ["server.js"], { env: { ...process.env, PORT: "3110", NODE_ENV: "", ANTHROPIC_API_KEY: "sk-ant-test", ANTHROPIC_BASE_URL: "http://127.0.0.1:3999" }, stdio: ["ignore", "pipe", "pipe"] });
+watched.stdout.on("data", (c) => (logged += c)); watched.stderr.on("data", (c) => (logged += c));
+const rules2 = start(3111, { ANTHROPIC_API_KEY: "" }); // calm R8: no key, not yet rate-limited
 const quick = start(3109, { ANTHROPIC_API_KEY: "sk-ant-test", ANTHROPIC_BASE_URL: "http://127.0.0.1:3999", CYRA_CONFIG: "config/app.ai-test.json" });
 try {
   await waitFor("http://127.0.0.1:3101/health"); await waitFor("http://127.0.0.1:3102/health"); await waitFor("http://127.0.0.1:3109/health");
@@ -86,5 +94,72 @@ try {
   assert(bad.headers.get("access-control-allow-origin") === null, "cors: other origins get no header");
   let limited = 0; for (let i = 0; i < 25; i++) if ((await post(R, "/api/ai/ask", { question: "Does exercise help sleep?" })).status === 429) limited++;
   assert(limited > 0, `rate limit: 429 after 20/min per address (${limited} of 25 refused)`);
-} finally { rules.kill(); live.kill(); quick.kill(); mock.close(); fs.rmSync("config/app.ai-test.json", { force: true }); }
+
+  /* ---------------- calm R8: weekly write-up and chat ---------------- */
+  await waitFor("http://127.0.0.1:3110/health"); await waitFor("http://127.0.0.1:3111/health");
+  const W = "http://127.0.0.1:3110", R2 = "http://127.0.0.1:3111";
+  const days = []; for (let i = 60; i >= 0; i--) { const d = new Date(Date.UTC(2026, 9, 29 - i)).toISOString().slice(0, 10); days.push({ date: d, period: i % 29 < 4, sym: { crm: i % 29 < 4 ? 2 : 0, blo: i % 3 ? 0 : 1 }, note: "LEAKNOTE Maya" }); }
+  const summary = buildSummary({ stage: "periods", stageName: "My Cycle", entries: days, todayIso: "2026-10-29", pcosOn: true, includeLabs: true, labs: [{ id: "a", kind: "fglu", value: 97, unit: "mg/dL", date: "2026-10-01" }] });
+  // every label the app may send passes the server's own check
+  const badLabels = [...SUMMARY_VOCAB].filter((t) => serverCheck({ kind: "cyra-summary", symptoms: [{ name: t, days: 1 }] }).length);
+  assert(badLabels.length === 0, `server check accepts every label of the app's fixed lists (${badLabels.join(" | ") || "all"})`);
+  assert(serverCheck(summary).length === 0, "server check accepts a real summary");
+
+  // status
+  let st = await j(await fetch(`${R2}/api/ai/status`)); assert(st.ready === false, "status: no key → ready false");
+  st = await j(await fetch(`${W}/api/ai/status`)); assert(st.ready === true, "status: key set → ready true");
+
+  // no key: 503, nothing forwarded, no rules text pretending to be AI
+  before = seen.length;
+  s = await post(R2, "/api/ai/weekly", weeklyBody(summary)); assert(s.status === 503 && (await j(s)).error === "ai-not-configured", "weekly without a key → 503 ai-not-configured");
+  s = await post(R2, "/api/ai/chat", chatBody({ summary, question: "Why is day 3 hard?" })); assert(s.status === 503, "chat without a key → 503");
+  assert(seen.length === before, "no key: nothing reached Anthropic");
+
+  // weekly through the SDK path
+  before = seen.length;
+  r = await j(await post(W, "/api/ai/weekly", { ...weeklyBody(summary), name: "LEAKNAME", email: "leak@example.com" }));
+  assert(r.provider === "claude-opus-5-5" && r.writeup === "mock writeup" && r.ask_your_doctor === "mock ask_your_doctor", "weekly: cleaned structured output");
+  let q = seen[seen.length - 1];
+  let sent = JSON.stringify(q.body);
+  assert(seen.length - before === 1, "weekly: one request upstream");
+  assert(!/LEAK|leak@|2026-|Maya/.test(sent), "weekly: no extra field, note, name or date forwarded");
+  assert(sent.includes(JSON.stringify(JSON.stringify(summary)).slice(1, -1)), "weekly: the summary is forwarded exactly as sent");
+  assert(/associations/.test(q.body.system) && /Never diagnose/.test(q.body.system) && /Never grade/.test(q.body.system) && /Never interpret a lab value/.test(q.body.system) && /911/.test(q.body.system) && /180 words/.test(JSON.stringify(q.body.messages)), "weekly: system prompt frames associations, no diagnosis or grades, emergency line; ≤ 180 words");
+  assert(q.headers["x-api-key"] === "sk-ant-test", "weekly: the key is added by the server");
+
+  // rejected summaries never go upstream
+  before = seen.length;
+  for (const [label, body] of [["a date inside", { summary: { ...summary, lifeStage: "2026-10-01" } }], ["an email inside", { summary: { ...summary, symptoms: [{ name: "a@b.co", days: 1 }] } }], ["a free-text field", { summary: { ...summary, note: "hello" } }], ["a long text", { summary: { ...summary, lifeStage: "x".repeat(80) } }], ["no summary", {}]]) {
+    s = await post(W, "/api/ai/weekly", body); assert(s.status === 400, `weekly: ${label} → 400`);
+  }
+  s = await post(W, "/api/ai/chat", { summary: { ...summary, symptoms: Array.from({ length: 12 }, () => ({ name: "Cramps", days: 1, byCycleDay: { cd1to5: 1 } })) }, question: "x".repeat(400), history: Array.from({ length: 6 }, () => ({ role: "user", text: "y".repeat(1200) })) });
+  assert(s.status === 200 || s.status === 400, "chat: a large but valid body is handled");
+  s = await fetch(`${W}/api/ai/chat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ summary, question: "q", pad: "z".repeat(20000) }) });
+  assert(s.status === 413, `size cap: a body over 16 kB → 413 (${s.status})`);
+  s = await fetch(`${W}/api/ai/chat`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ summary, question: "q", pad: "z".repeat(40000) }) });
+  assert(s.status === 413, `parser cap: a body over 32 kB → 413 (${s.status})`);
+  s = await fetch(`${W}/api/ai/chat`, { method: "POST", headers: { "content-type": "application/json" }, body: '{"question":"LEAKBROKEN my cramps", "summary": ' });
+  assert(s.status === 400, "a body that isn't JSON → 400");
+  assert(seen.length - before <= 1, "rejected bodies never reach Anthropic");
+
+  // chat: history as alternating turns, then her summary and question
+  before = seen.length;
+  const hist = [{ role: "cyra", text: "earlier answer" }, { role: "me", text: "LEAKQ1 first question" }, { role: "cyra", text: "first answer" }];
+  r = await j(await post(W, "/api/ai/chat", chatBody({ summary, question: "LEAKQ2 Why are cramps worse on day 2?", history: hist })));
+  assert(r.provider === "claude-opus-5-5" && r.answer === "mock answer" && r.urgent === false, "chat: cleaned structured output");
+  q = seen[seen.length - 1];
+  const roles = q.body.messages.map((m) => m.role).join(",");
+  assert(roles === "user,assistant,user", `chat: history starts with her turn and alternates (${roles})`);
+  assert(q.body.messages[2].content.includes("LEAKQ2 Why are cramps worse on day 2?") && q.body.messages[2].content.includes('"kind":"cyra-summary"'), "chat: the last turn carries the summary and her question");
+  // red flag: answered by the server, never sent
+  before = seen.length;
+  r = await j(await post(W, "/api/ai/chat", chatBody({ summary, question: "I have chest pain and feel faint" })));
+  assert(r.provider === "safety" && r.urgent === true && r.answer === EMERGENCY_ANSWER && seen.length === before, "chat: a red-flag question gets the emergency line and is not forwarded");
+  mode = "fail"; r = await post(W, "/api/ai/weekly", weeklyBody(summary)); mode = "ok";
+  assert(r.status === 502, "weekly: an API error → 502, no invented text");
+
+  // nothing she sent is in the server's output
+  await new Promise((res) => setTimeout(res, 300));
+  assert(!/LEAK|cyra-summary|Cramps|cramps|chest pain|Maya/.test(logged), `logs carry no summary, question or body (${logged.split("\n").filter((l) => /ai/.test(l)).join(" / ").slice(0, 200)})`);
+} finally { watched.kill(); rules2.kill(); rules.kill(); live.kill(); quick.kill(); mock.close(); fs.rmSync("config/app.ai-test.json", { force: true }); }
 console.log(process.exitCode ? "AI SMOKE: FAILURES" : "AI SMOKE: all passed");

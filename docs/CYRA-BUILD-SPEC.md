@@ -237,6 +237,32 @@ Settings keeps its sheet (header sliders button, every tab but You) with unchang
 the Check-ins card into view), so every id exists once on screen. The Settings sheet's POTS row stays because ~20 suites
 drive it; a later slice can retire the sheet and update them together.
 
+### 3.5f Pro, Cyra's weekly write-up and chat (calm R8, `lib/plan.js`, `lib/purchase.js`, `lib/aiSummary.js`, `lib/aiFeatures.js`)
+Three new device-only keys: `aiPrefs` `{ weekly, chat, labs }` (consents, in the backup file but never applied, like
+`askAI`), `aiChat` and `aiWeekly` (never in a backup file). **Plan:** `planFor(DEV_FLAGS, proOwned())`; no store is
+connected in this version (`lib/purchase.js` says so on phones; the web has none), so Pro opens only under the `proDev` QA
+flag. The Plan card gains "Restore purchases" (an honest toast, nothing sent). The Pro sheet lists only what the build
+opens for Pro, plus "Planned for Pro, not in this version yet"; pattern cards and the basic PDF stay free.
+**Gates** for the two AI features: the `ai` flag, a server, the plan and her switch in You → Cyra's AI (both off by
+default; "Include lab values" appears once either is on). **The summary** (`buildSummary`): life stage label, weeks (8),
+days logged, recent cycle lengths in days and today's cycle day (not in pregnancy or menopause), logged days per cycle-day
+bucket (1–5, 6–12, 13–19, 20–28, 29+), the top 8 symptoms by library label with days, moderate-or-strong days and per-bucket
+days, sleep (nights with hours, average hours, rough nights), movement (sessions and minutes per week), mood (check-ins,
+days per mood word, low-energy and foggy days, top 5 feeling tags), PCOS signal chips by label with days (PCOS module on),
+lab values (latest per kind, rounded, no date; only when ticked) and the experiment (title, days ticked, target, running
+or finished). Never a date, note, journal or other typed text, name, email, ZIP, age band, due date, lab date, weight,
+fertility sign, POTS log or wearable reading; `checkSummary` (key allowlist, fixed-vocabulary texts, numbers 0–1000, no
+date/email/ZIP shapes) must pass before anything is shown or sent. **"What Cyra will send"** (`#ai-send-sheet`) opens before
+every send, with the body in plain words and exactly as sent (pretty JSON of the posted object), Send / Cancel.
+**Patterns → "Cyra's write-up"** (`#ai-writeup`, Pro chip): checks `GET /api/ai/status` once, then "Prepare a write-up";
+the result shows "Sent: your summary", "Written by Cyra's AI (Claude, made by Anthropic) from your summary." and the
+not-medical-advice line. **Mind → Journey → "Chat about your log"** (`#ai-chat`, only while chat is on, so Journey keeps one
+textarea otherwise): each message previews `{ summary, question, history }` (her last 6 messages), shows "Sent: your
+question + your summary" after, keeps the conversation on this device ("Clear chat"; turning chat off clears it), answers
+a red-flag question on the device with the emergency line without sending it, and says when she is offline or when the
+server has no key ("AI isn't set up on this server yet, so nothing was sent to Anthropic."). **Backend:** `POST
+/api/ai/weekly`, `POST /api/ai/chat`, `GET /api/ai/status` (§10).
+
 ### 3.6 Her symptom list (symPrefs, local-first L6)
 ```js
 symPrefs: { periods?: { order, hidden, added }, peri?: { order, hidden, added }, preg?: { order, hidden } }
@@ -1549,6 +1575,17 @@ the textarea's text) and an optional one-call override of the saved AI choice, a
 
 ---
 
+
+**Calm R8: weekly write-up and chat.** Two more mounted tasks on the same proxy (backend/src/modules/ai/tasks.js), both
+without a rules fallback: `weekly` `{ summary }` → `{ writeup (≤ 180 words), ask_your_doctor }` and `chat`
+`{ summary, question, history? }` → `{ answer, ask_your_doctor, urgent }`. The system prompt frames every answer as
+associations in her own data to raise with a clinician; never diagnosis, treatment, dosing, grades or scores; never an
+interpretation of a lab value; plain warm language; and for an emergency or red-flag question the emergency line instead
+(the server answers a red-flag chat question itself, before anything is forwarded). `GET /api/ai/status` → `{ ready }`.
+Without `ANTHROPIC_API_KEY` both POSTs answer 503 `ai-not-configured`; an API error is 502 `no-answer`. Bodies: 32 kB at the
+parser (its errors are answered without logging the body), 16 kB per route, the summary re-checked (`checkSummary`), the
+history capped at 6 messages of 1200 characters, the question at 500. Same per-address rate limit as Ask. Smoke-tested in
+backend/scripts/ai-smoke.js against a mock upstream (no real key).
 ## 11. COPY & TONE
 
 - Plain language at roughly an 8th-grade reading level. Translate numbers into speech.
@@ -1965,6 +2002,11 @@ Apple stays first.
 - [x] You (calm R7): the privacy dashboard first under her stage, real switches for PCOS, POTS and fertility signs each
       with a one-line "what it adds", a quiet Plan card (nothing to buy yet), check-ins and reminders, appearance, the AI
       consent, About you, Account, Support & care, and About & legal on one page (§3.5e).
+- [x] Pro wiring and Cyra's AI write-up and chat (calm R8): `PRO_PLAN`, the store adapter stub with "Restore purchases",
+      the proDev QA unlock; a pseudonymized summary proved free of dates, notes, free text and identity
+      (`lib/aiSummary.js`, adversarial tests), shown verbatim before every send; Patterns → "Cyra's write-up" and Mind →
+      Journey → "Chat about your log", both Pro and off by default; `/api/ai/weekly`, `/api/ai/chat`, `/api/ai/status` on
+      the backend proxy (key server-side, nothing logged or stored, size caps, rate limit, red flags never forwarded) (§3.5f).
 - [ ] Native biometric unlock (Face ID / fingerprint) through a Capacitor plugin — later work; the phone build offers
       the PIN only (D4).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the

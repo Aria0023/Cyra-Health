@@ -3,7 +3,10 @@
    entitlement check over the network. Calm R5 (plan §7 "Premium (Pro)", which replaces D1's "never show upgrade UI"):
    gated parts carry a one-line "Pro" chip and a "See what Pro adds" sheet, never an interruption; fullPractices gates
    the practices beyond the free core set (lib/mind.js FREE_PRACTICES). DEV_PRO_PLAN is the dev/QA unlock, chosen by
-   planFor() only when the build's VITE_FEATURES names the dev flag proDev (or "all"); R8 adds real purchases. This file imports nothing, stores nothing
+   planFor() only when the build's VITE_FEATURES names the dev flag proDev (or "all"). Calm R8: PRO_PLAN is what a store
+   purchase unlocks (lib/purchase.js reports whether one is owned; in this version no store is connected, so nothing is
+   ever owned and only proDev opens Pro). aiPatternReports gates Cyra's weekly write-up and aiChat the chat about her
+   log (both also need the build's ai flag, a server and her own switch in You). This file imports nothing, stores nothing
    and sends nothing. pdfExportsPerMonth null means unlimited, and while it is null noteExport()
    returns null, so no count of her exports is kept. See docs/MONETIZATION.md.
 
@@ -21,6 +24,7 @@
  * @property {boolean} extraCustomisation customisation beyond the free favourites and palettes.
  * @property {boolean} cloudBackup end-to-end-encrypted cloud backup and sync.
  * @property {boolean} fullPractices the whole Mind practices library (calm R5); the free plan has the core set.
+ * @property {boolean} aiChat chat with Cyra's AI about her log (calm R8; previewed summary, her switch).
  */
 /**
  * How many PDF files were made in a month. Recorded only while a limit is configured.
@@ -30,15 +34,18 @@
  */
 
 /** @type {Readonly<Plan>} */
-export const FREE_PLAN = Object.freeze({ tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false, fullPractices: false });
+export const FREE_PLAN = Object.freeze({ tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false, fullPractices: false, aiChat: false });
 /** The plan this build runs on unless a dev unlock applies (planFor). */
 export const PLAN = FREE_PLAN;
 /** The dev/QA unlock (dev flag proDev): Pro's in-app parts on, with the free plan's PDF rule. cloudBackup stays false
     (it also needs the build's cloudBackup flag and a server; R9). */
-export const DEV_PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro-dev", aiPatternReports: true, extraCustomisation: true, fullPractices: true });
-/** The plan for this build's dev flags ({ proDev }): DEV_PRO_PLAN when proDev is on, else PLAN. */
-export const planFor = (devFlags = {}) => (devFlags && devFlags.proDev === true ? DEV_PRO_PLAN : PLAN);
-export const PLAN_FEATURES = Object.freeze(["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup", "fullPractices"]);
+export const DEV_PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro-dev", aiPatternReports: true, extraCustomisation: true, fullPractices: true, aiChat: true });
+/** What a Pro purchase unlocks (calm R8). The basic PDF stays free and unlimited; cloudBackup stays false (R9). */
+export const PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro", aiPatternReports: true, extraCustomisation: true, fullPractices: true, aiChat: true });
+/** The plan for this build's dev flags ({ proDev }) and whether a store purchase of Pro is owned (`owned`, from
+    lib/purchase.js; only a real true counts): DEV_PRO_PLAN when proDev is on, PRO_PLAN when owned, else PLAN. */
+export const planFor = (devFlags = {}, owned = false) => (devFlags && devFlags.proDev === true ? DEV_PRO_PLAN : owned === true ? PRO_PLAN : PLAN);
+export const PLAN_FEATURES = Object.freeze(["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup", "fullPractices", "aiChat"]);
 
 /** Whether `feature` is available on `plan`. The PDF export is free core (off only when a plan
     allows 0); the paid extensions need an explicit true; anything else is false (fails closed).
@@ -49,7 +56,8 @@ export function can(feature, plan = PLAN) {
     case "aiPatternReports":
     case "extraCustomisation":
     case "cloudBackup":
-    case "fullPractices": return plan[feature] === true;
+    case "fullPractices":
+    case "aiChat": return plan[feature] === true;
     default: return false;
   }
 }

@@ -4,18 +4,20 @@
    settings, all passed in by App.jsx. Nothing here reads storage or the network. A flow this build cannot use
    gets state "na" and is not rendered at all (decisions D2 and D3: a feature that is off leaves no trace). */
 
-export const FLOW_IDS = Object.freeze(["reminders", "counts", "ai", "wearables", "files", "cloud"]);
+export const FLOW_IDS = Object.freeze(["reminders", "counts", "ai", "aiWeekly", "aiChat", "wearables", "files", "cloud"]);
 
 /**
  * @typedef {Object} FlowRow
- * @property {"reminders"|"counts"|"ai"|"wearables"|"files"|"cloud"} id
+ * @property {"reminders"|"counts"|"ai"|"aiWeekly"|"aiChat"|"wearables"|"files"|"cloud"} id
  * @property {string} name
  * @property {"on"|"off"|"you"|"na"} state on: sending as configured; off: available, not sending; you: only when she makes one; na: not in this build.
  * @property {null|"pending"|"unsupported"|"terraOff"|"demo"} note
  */
 
 /** Rows in FLOW_IDS order. c = { native, server, flags:{wearables,counts,ai,webReminders,cloudBackup,signin}, planCloud,
-    reminderSupport, reminders:{enabled,status,pending}, research, askAI, wearLive, terraOff, demoWear }. */
+    reminderSupport, reminders:{enabled,status,pending}, research, askAI, aiPlan:{weekly,chat}, aiPrefs:{weekly,chat}, wearLive, terraOff, demoWear }.
+    Calm R8: aiWeekly and aiChat (Cyra's weekly write-up and chat) exist only with the ai flag, a server and a plan that
+    includes them (aiPlan, from lib/plan.js); "on" while her switch is on (each send still waits for her Send). */
 export function flowRows(c = {}) {
   const f = c.flags || {};
   const rem = c.reminders || {};
@@ -29,6 +31,9 @@ export function flowRows(c = {}) {
   } else rows.push({ id: "reminders", name: FLOW_COPY.names.remindersWeb, state: "na", note: null });
   rows.push({ id: "counts", name: FLOW_COPY.names.counts, state: f.counts && c.server ? (c.research ? "on" : "off") : "na", note: null });
   rows.push({ id: "ai", name: FLOW_COPY.names.ai, state: f.ai && c.server ? (c.askAI ? "on" : "off") : "na", note: null });
+  const ap = c.aiPlan || {}, apr = c.aiPrefs || {};
+  rows.push({ id: "aiWeekly", name: FLOW_COPY.names.aiWeekly, state: f.ai && c.server && ap.weekly === true ? (apr.weekly === true ? "on" : "off") : "na", note: null });
+  rows.push({ id: "aiChat", name: FLOW_COPY.names.aiChat, state: f.ai && c.server && ap.chat === true ? (apr.chat === true ? "on" : "off") : "na", note: null });
   if (f.wearables && c.demoWear) rows.push({ id: "wearables", name: FLOW_COPY.names.wearables, state: "off", note: "demo" });
   else if (f.wearables && c.server) rows.push({ id: "wearables", name: FLOW_COPY.names.wearables, state: (c.wearLive || 0) + (c.terraOff || 0) > 0 ? "on" : "off", note: (c.terraOff || 0) > 0 ? "terraOff" : null });
   else rows.push({ id: "wearables", name: FLOW_COPY.names.wearables, state: "na", note: null });
@@ -52,12 +57,14 @@ export const FLOW_COPY = Object.freeze({
   label: "What can leave this device",
   intro: "What this version of Cyra can send, and when. Nothing about your health leaves this device unless a row below says On, or you take it out yourself as a backup, file or summary.",
   states: Object.freeze({ on: "On", off: "Off", you: "When you make one" }),
-  names: Object.freeze({ remindersWeb: "Browser reminders", remindersPhone: "Reminders", counts: "Weekly counts", ai: "Ask Cyra's AI", wearables: "Wearable connections", files: "Backups and files you make", cloud: "Cloud backup" }),
+  names: Object.freeze({ remindersWeb: "Browser reminders", remindersPhone: "Reminders", counts: "Weekly counts", ai: "Ask Cyra's AI", aiWeekly: "Cyra's weekly write-up", aiChat: "Chat about your log", wearables: "Wearable connections", files: "Backups and files you make", cloud: "Cloud backup" }),
   lines: Object.freeze({
     remindersWeb: "This browser's push address, and the days, time and time zone you chose, go to Cyra's server. Nothing about your health.",
     remindersPhone: "Your phone shows them itself. Nothing is sent.",
     counts: "Your life-stage group and yes/no flags for a few symptoms, each at most once a week. No dates, values or name.",
     ai: "Only a question you type, and only when Cyra's written library can't answer it. It goes through Cyra's server to Anthropic, which keeps it for a limited time.",
+    aiWeekly: "When you ask for one: a summary of your last 8 weeks (counts, averages and cycle lengths; no dates, notes or anything that names you). You see exactly what will be sent first. It goes through Cyra's server to Anthropic, which keeps it for a limited time.",
+    aiChat: "Each message you send: your question, your last few chat messages and the same summary. You see exactly what will be sent first. It goes through Cyra's server to Anthropic, which keeps it for a limited time.",
     wearables: "This device sends its Oura sign-in, or its Fitbit, Garmin or Whoop connection key, to Cyra's server, which brings your readings back without saving them to disk. Terra, which connects Fitbit, Garmin and Whoop, keeps its own copy.",
     files: "They go only where you save or send them. Cyra's servers don't receive them.",
   }),
@@ -72,6 +79,9 @@ export const FLOW_COPY = Object.freeze({
     phoneReminders2: "The reminder only says \"Time for your 30-second check-in.\"",
     countsRead: "Whether or not you share, Cyra loads last week's totals once each time it opens. That request carries nothing about you except, like any request, your device's internet address and app or browser type.",
     aiWhere: "Turn it on or off on the Ask tab.",
+    summaryFields: "The summary holds your life stage; how many days you checked in; your recent cycle lengths and today's cycle day; how many days each logged symptom came up, by cycle day; sleep hours and rough nights; movement per week; mood check-ins and feeling tags as counts; PCOS signals as counts if the PCOS module is on; your experiment's ticked days; and, only if you tick \"Include lab values\", your latest lab values rounded and without dates.",
+    summaryNever: "It never holds a date, a note, your journal, anything you typed elsewhere, your name, email, ZIP or age band, fertility signs, weight, your POTS log or wearable readings. Cyra's server keeps none of it.",
+    aiTwoWhere: "Turn it on or off in You → Cyra's AI. Turning it off clears what it kept on this device.",
     wearWhere: "Connect or disconnect under Wearables on Home.",
     backupLocked: "An encrypted backup is locked with your passphrase on this device before it becomes a file. Without the passphrase it can't be opened.",
     summary: "The doctor summary on the Report tab goes only where you take it: a draft in your email app, your clipboard, the share sheet or a printout. Those apps may keep a copy under their own terms.",

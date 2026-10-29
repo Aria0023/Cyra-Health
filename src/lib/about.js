@@ -3,7 +3,8 @@
    - MODULE_ADDS: the one-line "what it adds" under each module switch on You. Each sentence names only what that
      module does in this build (PCOS: the signals sheet, the long-cycle count, the pattern questions; POTS: the tools
      the POTS page has; fertility signs: the Today group). Listed in docs/CLINICIAN-REVIEW.md.
-   - PLAN_COPY: the Plan card. Free is the whole app today; Pro is described, never sold here (R8 wires the stores).
+   - PLAN_COPY: the Plan card. Free is the whole app today; Pro is described, never sold here. Calm R8: "Restore purchases"
+     asks lib/purchase.js, which has no store connected in this version and says so; "nothing to buy" stays true.
    - ACCOUNT_LINES / NOT_MEDICAL / AI_OFF_LINE: sentences that must stay literally true of the build. */
 export const BUILD_STAMP = "BUILD 2026.10.07-D";
 
@@ -22,6 +23,7 @@ export const PLAN_COPY = Object.freeze({
   see: "See what Pro adds",
   none: "There's nothing to buy in this version.",
   testNote: "This is a test build: Pro's parts are unlocked here for checking. Nothing is bought.",
+  restore: "Restore purchases",
 });
 
 export const ACCOUNT_LINES = Object.freeze({

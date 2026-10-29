@@ -9,8 +9,9 @@ import { moodLabel, rowWords, MOODS } from "../lib/mind.js";
    exactly as before). Everything here stays on this device except what Ask's own sentences say.
 
    Props: rows (lib/mind.js moodByCycle), enough (bool: ≥ STRIP_MIN check-ins), sentence, journal { iso: text },
-   jDraft, setJDraft, onJournal(text), fmt(iso), conn { line } | null, onConnect(), ask (the embedded Ask section). */
-export default function JourneyScreen({ rows = [], enough = false, sentence, journal = {}, jDraft = "", setJDraft, onJournal, fmt = (x) => x, conn = null, onConnect, ask }) {
+   jDraft, setJDraft, onJournal(text), fmt(iso), conn { line } | null, onConnect(), ask (the embedded Ask section),
+   chat (calm R8: Cyra's chat about her log, only for Pro with her switch on; it shows what it sends before every send). */
+export default function JourneyScreen({ rows = [], enough = false, sentence, journal = {}, jDraft = "", setJDraft, onJournal, fmt = (x) => x, conn = null, onConnect, ask, chat = null }) {
   const [writing, setWriting] = useState(false);
   const entries = Object.keys(journal).sort().reverse().slice(0, 3);
   const cycled = rows.length > 0 && rows[0].key !== "recent";
@@ -62,6 +63,8 @@ export default function JourneyScreen({ rows = [], enough = false, sentence, jou
           <button type="button" className="ghostbtn connopen" onClick={onConnect}>Open Connection<Icon name="arrow-right" size={15} /></button>
         </Card>
       )}
+
+      {chat}
 
       {ask}
     </main>

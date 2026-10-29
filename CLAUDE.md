@@ -4,7 +4,7 @@ Read `docs/CYRA-BUILD-SPEC.md` completely before changing anything. It is the
 normative spec; `src/App.jsx` is the working reference implementation.
 
 ## Hard rules (no exceptions)
-- Health data never goes to a server. On-device storage only; optional backup must be
+- Health data never goes to a server, except the opt-in, previewed AI summary. On-device storage only; optional backup must be
   encrypted with a user-held key.
 - No API key in client code. All Anthropic calls go through the backend proxy.
 - Never weaken any privacy claim in the UI. Every claim must be literally true of the build.

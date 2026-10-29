@@ -1324,3 +1324,129 @@ anywhere." (Ask's existing sentence).
 No privacy sentence was removed or weakened. The Settings sheet's POTS row still exists (one switch per screen); the You page
 renders the same component as a module row.
 
+
+## Calm R8 (Pro, Cyra's weekly write-up and chat) — the one opt-in, previewed AI summary; three device-only keys
+
+**The rule change, owner-approved (plan §7).** CLAUDE.md hard rule 1 now reads "Health data never goes to a server, except
+the opt-in, previewed AI summary." Nothing else was relaxed: the record, notes, journal, fertility signs, POTS log, weight,
+wearable readings and registration answers still never leave the device except as files she makes herself. The splash
+sentence "Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that tells
+you exactly what it sends." stays literally true: both features are off until she turns them on, and each shows exactly what
+it sends before every send.
+
+**When anything is sent.** Only when all of these hold: the build has the `ai` flag and a server (`VITE_API_BASE`); the plan
+includes the feature (`can("aiPatternReports")` for the write-up, `can("aiChat")` for the chat; Pro only from a store
+purchase, which this version cannot make, or the `proDev` QA flag, off in shipping builds); her switch in You → Cyra's AI is
+on (both off by default, `aiPrefs`); and she tapped **Send** in "What Cyra will send", which opens before every send and
+shows the request body in plain words and exactly as sent. Cancel sends nothing. Turning a switch on sends nothing. Before
+the first send of a session, the open card asks `GET /api/ai/status` (no body, nothing about her; like any request it carries
+the device's internet address and app or browser type) so it can say "AI isn't set up on this server yet". A red-flag chat
+question is answered on the device with the emergency line and never sent.
+
+**Measured** (calm/r8/ai-e2e.mjs and lf/l4/flags-e2e.mjs, fake backend logging every request): a Pro build with both switches
+off made zero requests from the splash through every tab; turning a switch on made none; the write-up card made one GET
+/api/ai/status; Send made exactly one POST whose raw body equals the previewed JSON byte for byte (compacted); Cancel made
+none; a second chat message opened the sheet again; a red-flag question, the offline state and a server without a key made
+no POST. The default build (no Pro) and a no-server build made zero requests and show no switch.
+
+**The payload, field by field** (`src/lib/aiSummary.js` `buildSummary`; `checkSummary` must pass before it is shown or sent:
+every key on an allowlist, every text value from Cyra's fixed lists, every number finite and 0–1000, nothing date-, email-
+or ZIP-shaped).
+- `POST /api/ai/weekly` body: `{ summary }`.
+- `POST /api/ai/chat` body: `{ summary, question, history }` — `question`: what she typed, trimmed, at most 500 characters
+  (free text: it carries whatever she types, as Ask's does); `history`: her last at most 6 chat messages from this device as
+  `{ role: "user" | "assistant", text }` (at most 1200 characters each; no time stamps; a question answered on the device and
+  emergency replies are left out).
+- `summary.kind` "cyra-summary", `summary.version` 1 — fixed.
+- `summary.lifeStage` — one of My Cycle, Trying to conceive, Pregnancy, Perimenopause, Menopause.
+- `summary.weeks` — 8 (the window, in weeks; no date).
+- `summary.daysLogged` — how many days in those 8 weeks have a check-in.
+- `summary.cycles.lengthsInDays` — up to 6 recent finished cycle lengths, whole days (every counted cycle, D5); `cycles.currentCycleDay`
+  — today's cycle day or null; `cycles.longerThan35Days` — a count, only with the PCOS module on. Not in pregnancy or menopause.
+- `summary.daysLoggedByCycleDay.{cd1to5, cd6to12, cd13to19, cd20to28, cd29plus}` — check-in days per cycle-day bucket.
+- `summary.symptoms[]` — at most 8: `name` (the library label, e.g. "Cramps"; an id no library names is dropped), `days`,
+  `moderateOrStrongDays`, `byCycleDay.{bucket}` (days per bucket, when there are cycles).
+- `summary.sleep.{nightsWithHours, averageHours, roughNights}` — from the hours she logged and the check-in's "Last night".
+- `summary.movement.{sessionsPerWeek, minutesPerWeek}` — averages over the 8 weeks (no activity names).
+- `summary.mood.{checkIns, days.{veryLow, low, okay, good, veryGood}, lowEnergyDays, foggyDays, feelings[] {name, days}}` —
+  counts; feelings are the fixed tags (top 5).
+- `summary.pcosSignals[] {name, days}` — PCOS chips by label, only with the PCOS module on.
+- `summary.labs[] {name, value, unit}` — only when she ticks "Include lab values": the latest fasting glucose, HbA1c and waist
+  values, rounded (mg/dL, mmol/mol, cm, in to whole numbers; mmol/L and % to one decimal), never their dates.
+- `summary.experiment {name, daysDone, target, status}` — the running or last finished starter experiment (fixed title).
+**Never in it** (adversarial unit tests in src/lib/aiSummary.test.mjs and the e2e put each of these into the record): any
+date or weekday, the day note, the journal, Connect, appointments, medicine names, any other text she typed, her name,
+email, ZIP, age band, due date or any registration answer, lab dates, weight, cervical mucus / ovulation tests / basal
+temperature (D6), the POTS log, wearable readings, the account. The builder is never given `acct` or `regAnswers`.
+
+**Cyra's server** (`backend/src/modules/ai`): forwards the body to Anthropic with the key from its own environment
+(`ANTHROPIC_API_KEY`; the app holds no key), keeps nothing, and logs only an error's kind (smoke-tested: none of a summary,
+question or malformed body appears in its output). It re-checks the summary and refuses anything else (400), caps bodies
+(413), rate-limits per address (in memory, salted hash), and answers a red-flag question itself without forwarding it.
+Without a key it answers 503 and the app says "AI isn't set up on this server yet, so nothing was sent to Anthropic."
+Anthropic keeps requests for a limited time under its own terms (the same sentence as Ask's).
+
+**New record keys.** `aiPrefs` `{ weekly, chat, labs }` — DEVICE_ONLY (a consent given on this device, like `askAI`: in the
+backup file, never applied by a restore). `aiChat` and `aiWeekly` — DEVICE_ONLY and NOT_IN_BACKUP: the chat and the last
+write-up stay on this device, are cleared by turning the feature off or by "Clear chat", and go with Delete everything.
+
+**Privacy dashboard.** Two new rows, shown only where the build, server and plan offer them (state "na" otherwise, so the
+intro "Nothing about your health leaves this device unless a row below says On…" stays true in every configuration):
+"Cyra's weekly write-up" — "When you ask for one: a summary of your last 8 weeks (counts, averages and cycle lengths; no
+dates, notes or anything that names you). You see exactly what will be sent first. It goes through Cyra's server to
+Anthropic, which keeps it for a limited time." and "Chat about your log" — "Each message you send: your question, your last
+few chat messages and the same summary. You see exactly what will be sent first. It goes through Cyra's server to
+Anthropic, which keeps it for a limited time." Details: the summary-fields sentence, "It never holds a date, a note, your
+journal, anything you typed elsewhere, your name, email, ZIP or age band, fertility signs, weight, your POTS log or wearable
+readings. Cyra's server keeps none of it." and "Turn it on or off in You → Cyra's AI. Turning it off clears what it kept on
+this device." The "Ask Cyra's AI" row ("Only a question you type…") still describes Ask alone, which still sends only `{question}`.
+
+**New sentences (lib/aiFeatures.js AI_COPY, ProSheet, about.js, purchase.js), each true in every configuration:**
+- You → Cyra's AI (Pro, ai flag, server): "Weekly write-up" / "A short write-up of your last 8 weeks, on Patterns" / "When you
+  ask for one, Cyra sends a summary of your last 8 weeks: counts, averages and cycle lengths, with no dates, notes or anything
+  that names you. It goes through Cyra's server to Anthropic, maker of the Claude AI, which keeps it for a limited time. You
+  see exactly what will be sent first, every time." · "Chat about your log" / "Questions about your own patterns, in Mind →
+  Journey" / "Each message sends your question, your last few chat messages and the same summary, the same way. You see
+  exactly what will be sent first, every time. Your chat history stays on this device." · "Include lab values" / "Adds the
+  latest fasting glucose, HbA1c and waist values you typed, rounded and without their dates." · "Both are off until you turn
+  them on. Cyra's server passes a request on and keeps nothing. Turning one off clears what it kept on this device." ·
+  Details "Exactly what the summary holds" (the two dashboard sentences). Without Pro: "Pro adds a weekly write-up and a
+  chat about your own log, written by Cyra's AI from a summary you see before it's sent. Both stay off until you turn them
+  on." Without the ai flag or a server none of this renders (the card keeps "Questions are answered on this device…").
+- "What Cyra will send": "Exactly the text below goes through Cyra's server to Anthropic, maker of the Claude AI, which keeps
+  it for a limited time. Cyra's server keeps nothing. Nothing else from your log is sent." (the sheet is the body: the JSON
+  shown is `JSON.stringify(body, null, 2)` of the object posted; the request carries, like any request, the device's
+  internet address and app or browser type, already stated under "Other connections Cyra makes").
+- Cards: "A short write-up of what stands out in your last 8 weeks, from a summary you see before it's sent." · "Ask about
+  your own patterns. Each message shows you exactly what it sends first." · "Sent: your summary" · "Sent: your question +
+  your summary" · "Written by Cyra's AI (Claude, made by Anthropic) from your summary." · "Associations to raise with your
+  clinician, not a diagnosis or medical advice." · "Kept on this device only." · "AI isn't set up on this server yet, so
+  nothing was sent to Anthropic." · "You're offline. This needs a connection; nothing was sent." · "Too many requests in a
+  minute. Nothing went to Anthropic; try again shortly." (429 is answered before forwarding) · "No answer came back from
+  Cyra's AI. Nothing is kept on Cyra's server; try again later." · the on-device emergency answer ending "Nothing was sent."
+- Toasts: "Weekly write-up on. Nothing is sent until you tap Send." / "Chat on. Nothing is sent until you tap Send." /
+  "Weekly write-up off. The write-up on this device was cleared." / "Chat off. Its messages on this device were cleared." /
+  "Chat cleared from this device" / "Lab values will be included in what you preview" / "Lab values left out".
+- Plan and purchases: "Restore purchases" → "There's nothing to restore: Pro isn't sold in this version. Nothing was checked
+  or sent." (web) / "Restoring purchases needs the app store, which isn't connected in this build. Nothing was checked or
+  sent." (phone); under the card "Pro will be sold in the iPhone and Android apps. There's nothing to buy on the web." / "The
+  app store isn't connected in this build, so Pro can't be bought or restored here yet." "There's nothing to buy in this
+  version." stays (still true). No price anywhere.
+- Pro sheet: "What Pro adds" now lists only the full practices library and, where the build has Cyra's AI and a server, "A
+  weekly write-up and chat about your log, only if you turn them on" / "Written by Cyra's AI from a summary of your log with
+  no dates, notes or anything that names you. Each shows exactly what it would send before anything is sent." Removed
+  because they were not true of the build: "Every pattern" (patterns stay free), "Your own experiments" and "Medicine and
+  supplement reminders"; the latter two and "A richer PDF with trends and the write-up" are listed under "Planned for Pro,
+  not in this version yet". The free line became "Free stays free: logging, the calendar, cycles, every pattern Cyra finds,
+  your weekly review, a core set of practices and the basic doctor-ready PDF."
+
+**Re-checked, unchanged and still literally true in both flag configurations** (default `ai,webReminders` without Pro, and
+`all` with proDev): the splash promise; the registration "What Cyra's server sees" bullets ("Cyra's servers keep no account
+and no profile of you… no age, health history or check-ins" — the server keeps nothing); the consent card details ("A feature
+that sends something: Cyra's AI. It tells you what it sends before you turn it on."; in `all`, the list); the Delete
+everything lines ("Questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms" — true, and
+a summary sent stays the same way, which the AI rows and sheet say); `fertPrivacyLine` ("Never sent to Cyra's AI": fertility
+signs are not in the summary); `potsNeverSent` ("none of it is sent to Cyra's server or Cyra's AI": the POTS log is not in the
+summary); the journal's "Your journal stays on this device."; Connection's "Private, on this device."; Ask's sentences
+(Ask still sends only `{question}`). The PCOS lab sentence "Cyra keeps them on this device and does not interpret them." stays
+true: lab values leave only when she ticks "Include lab values", and the system prompt forbids interpreting a lab value.

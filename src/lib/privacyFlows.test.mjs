@@ -19,13 +19,13 @@ const states = (rows) => rows.map((r) => `${r.id}:${r.state}${r.note ? "+" + r.n
 test("privacyFlows: web, no server, a custom flag set → only files is available", () => {
   const rows = flowRows({ ...base, server: false, flags: { wearables: false, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: false } });
   assert.deepEqual(rows.map((r) => r.id), [...FLOW_IDS], "FLOW_IDS order");
-  assert.equal(states(rows), "reminders:na counts:na ai:na wearables:na files:you cloud:na");
+  assert.equal(states(rows), "reminders:na counts:na ai:na aiWeekly:na aiChat:na wearables:na files:you cloud:na");
   assert.equal(byId(rows).reminders.name, "Browser reminders");
 });
 
 test("privacyFlows: web, server, all flags, everything off → off rows; then on", () => {
   let r = byId(flowRows(base));
-  assert.equal(states(flowRows(base)), "reminders:off counts:off ai:off wearables:off files:you cloud:na");
+  assert.equal(states(flowRows(base)), "reminders:off counts:off ai:off aiWeekly:na aiChat:na wearables:off files:you cloud:na");
   r = byId(flowRows({ ...base, reminders: { enabled: true, status: "on", pending: [] }, research: true, askAI: true, wearLive: 1 }));
   for (const id of ["reminders", "counts", "ai", "wearables"]) assert.equal(r[id].state, "on", id);
   assert.equal(r.files.state, "you"); assert.equal(r.cloud.state, "na");
@@ -112,4 +112,15 @@ test("privacyFlows: the files row renders disclosures' filesSentence, which the 
   assert.ok(pf.includes("filesSentence(FEATURES)"), "PrivacyFlows renders filesSentence(FEATURES), never a literal");
   assert.ok(pf.includes("WEAR_RESTORE_LINE"));
   assert.ok(!/Files you make yourself/.test(pf) && !/Files you make yourself/.test(JSON.stringify(FLOW_COPY)), "no static copy of the files sentence");
+});
+
+test("calm R8: the write-up and chat rows need the ai flag, a server and the plan; on only with her switch", () => {
+  const pro = { weekly: true, chat: true };
+  assert.equal(states(flowRows({ ...base, aiPlan: pro })).includes("aiWeekly:off aiChat:off"), true);
+  assert.equal(states(flowRows({ ...base, aiPlan: pro, aiPrefs: { weekly: true, chat: false } })).includes("aiWeekly:on aiChat:off"), true);
+  assert.equal(states(flowRows({ ...base, aiPlan: { weekly: "yes" }, aiPrefs: { weekly: true, chat: true } })).includes("aiWeekly:na aiChat:na"), true, "only a real true plan");
+  assert.equal(states(flowRows({ ...base, server: false, aiPlan: pro, aiPrefs: pro })).includes("aiWeekly:na aiChat:na"), true, "no server");
+  assert.equal(states(flowRows({ ...base, flags: { ...ALL, ai: false }, aiPlan: pro, aiPrefs: pro })).includes("aiWeekly:na aiChat:na"), true, "no ai flag");
+  for (const k of ["aiWeekly", "aiChat"]) { assert.ok(FLOW_COPY.names[k] && FLOW_COPY.lines[k], k); assert.match(FLOW_COPY.lines[k], /exactly what will be sent first/); }
+  assert.match(FLOW_COPY.details.summaryNever, /never holds a date, a note/);
 });

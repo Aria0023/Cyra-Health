@@ -2,25 +2,30 @@ import { Sheet } from "./ui/index.js";
 import Icon from "./Icon.jsx";
 
 /* "See what Pro adds" (calm R5, plan §7 "Premium (Pro)"). One calm sheet, opened only when she taps a Pro chip's
-   "See what Pro adds": never on its own, never blocking anything free. There is nothing to buy in this version
-   (R8 wires store purchases), so it says so plainly. `unlocked` is true in a dev/QA build (VITE_FEATURES proDev),
-   where the Pro parts are already open for testing. R7's Plan card in You opens the same sheet. */
+   "See what Pro adds": never on its own, never blocking anything free. Calm R8: every line under "What Pro adds" is
+   something this build really opens for Pro (lib/plan.js): the full practices library, and, only in a build that has
+   Cyra's AI and a server (`ai`), the weekly write-up and the chat, each previewed before every send. What is planned
+   but not built is listed apart, as planned. Patterns are not gated: every pattern card stays free (plan §7's Pro list
+   doesn't include them, and basic insights are free core), and so does the basic doctor-ready PDF. There is nothing to
+   buy in this version (lib/purchase.js: no store is connected), so it says so plainly. `unlocked` is true in a dev/QA
+   build (VITE_FEATURES proDev), where the Pro parts are already open for testing. R7's Plan card opens the same sheet. */
 export const PRO_ADDS = Object.freeze([
   ["mind", "The full practices library", "Every guided practice, not only the core set."],
-  ["patterns", "Every pattern", "All the associations Cyra finds in your log, not only the first."],
-  ["sparkle", "Your own experiments", "Design small experiments of your own beyond the starter ones."],
-  ["pill", "Medicine and supplement reminders", "Reminders for what you take, listed in your PDF too."],
-  ["note", "A weekly write-up and chat, only if you turn them on", "Each shows exactly what it would send before anything is sent."],
 ]);
-export const FREE_KEEPS = "Free stays free: logging, the calendar, cycles, your weekly review, a core set of practices and the basic doctor-ready PDF.";
-export default function ProSheet({ onClose, unlocked = false }) {
+export const PRO_AI = Object.freeze(["note", "A weekly write-up and chat about your log, only if you turn them on", "Written by Cyra's AI from a summary of your log with no dates, notes or anything that names you. Each shows exactly what it would send before anything is sent."]);
+export const PRO_PLANNED = Object.freeze(["Your own experiments, beyond the starter ones", "Medicine and supplement reminders", "A richer PDF with trends and the write-up"]);
+export const FREE_KEEPS = "Free stays free: logging, the calendar, cycles, every pattern Cyra finds, your weekly review, a core set of practices and the basic doctor-ready PDF.";
+export const proAddsFor = (ai) => (ai ? [...PRO_ADDS, PRO_AI] : [...PRO_ADDS]);
+export default function ProSheet({ onClose, unlocked = false, ai = false }) {
   return (
     <Sheet id="pro-sheet" title="What Pro adds" onClose={onClose} closeLabel="Close what Pro adds" className="prosheet">
-      <ul className="prolist">
-        {PRO_ADDS.map(([icon, t, d]) => (
+      <ul className="prolist" aria-label="What Pro adds in this version">
+        {proAddsFor(ai).map(([icon, t, d]) => (
           <li key={t}><span className="prolist-ico" aria-hidden="true"><Icon name={icon} size={16} /></span><span><b>{t}</b><span className="prolist-d">{d}</span></span></li>
         ))}
       </ul>
+      <p className="section-lab proplanned-lab" id="pro-planned">Planned for Pro, not in this version yet</p>
+      <ul className="proplanned" aria-labelledby="pro-planned">{PRO_PLANNED.map((t) => <li key={t}>{t}</li>)}</ul>
       <p className="profree">{FREE_KEEPS}</p>
       <p className="hint pronote">{unlocked ? "This is a test build: Pro's parts are unlocked here for checking. Nothing is bought." : "Pro is coming to the app stores. There's nothing to buy in this version."}</p>
       <button type="button" className="cta" onClick={onClose}>Done</button>

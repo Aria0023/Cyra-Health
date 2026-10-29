@@ -1,4 +1,4 @@
-// AI tasks. Only `ask` is mounted (see TASKS at the bottom); welcome, route and
+// AI tasks. `ask`, `weekly` and `chat` are mounted (see TASKS at the bottom); welcome, route and
 // insight stay below for reference but are not served — the app builds its welcome
 // and routes life stages on the device.
 // Each task declares: what input it accepts (an allowlist — nothing else is read),
@@ -128,7 +128,70 @@ const insight = {
   },
 };
 
+/* ---------- weekly and chat (calm R8): the pseudonymized summary ----------
+   Both are Pro features she turns on herself; the app shows her this exact body before every send. What they accept:
+   `summary` — the app's src/lib/aiSummary.js object: counts, averages, cycle lengths and labels from Cyra's fixed lists,
+   never a date, note, name, email, ZIP, age band or lab date. The server re-checks its shape (checkSummary below) and
+   refuses anything else with 400 rather than forwarding it. `question` (chat): what she typed, trimmed to 500
+   characters. `history` (chat): at most 6 earlier messages of this chat from her device, { role: user|assistant, text }.
+   Unknown fields are dropped. Nothing is stored or logged: the body exists only for the length of the request.
+   There is no rules fallback for these two: without a key the route answers 503 and the app says AI isn't set up. */
+const SUMMARY_TOP = new Set(["kind", "version", "lifeStage", "weeks", "daysLogged", "cycles", "daysLoggedByCycleDay", "symptoms", "sleep", "movement", "mood", "pcosSignals", "labs", "experiment"]);
+const SAFE_TEXT = /^[A-Za-z0-9 ,.'()/%+\u2013-]{1,60}$/;
+const DATE_LIKE = /\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4}/;
+/** [] when `s` looks like an aiSummary object: plain keys, short label texts, finite numbers 0–1000, depth ≤ 4, ≤ 8000 bytes. */
+export function checkSummary(s) {
+  const out = [];
+  if (!s || typeof s !== "object" || Array.isArray(s)) return ["summary must be an object"];
+  if (s.kind !== "cyra-summary") out.push("summary.kind must be cyra-summary");
+  for (const k of Object.keys(s)) if (!SUMMARY_TOP.has(k)) out.push(`summary.${String(k).slice(0, 24)} is not accepted`);
+  const walk = (v, depth) => {
+    if (depth > 4) { out.push("summary is nested too deeply"); return; }
+    if (v === null) return;
+    if (Array.isArray(v)) { if (v.length > 12) out.push("summary list too long"); for (const x of v) walk(x, depth + 1); return; }
+    if (typeof v === "object") { for (const [k, x] of Object.entries(v)) { if (!/^[A-Za-z0-9]{1,24}$/.test(k)) out.push("summary key not accepted"); walk(x, depth + 1); } return; }
+    if (typeof v === "string") { if (!SAFE_TEXT.test(v) || DATE_LIKE.test(v) || /@/.test(v)) out.push("summary text not accepted"); return; }
+    if (typeof v === "number") { if (!Number.isFinite(v) || v < 0 || v > 1000) out.push("summary number out of range"); return; }
+    out.push("summary value not accepted");
+  };
+  walk(s, 0);
+  let n = 0; try { n = JSON.stringify(s).length; } catch { out.push("summary is not JSON"); }
+  if (n > 8000) out.push("summary too large");
+  return [...new Set(out)].slice(0, 5);
+}
+const AI_FRAME = `You write for Cyra, a calm women's-health app. You are given a pseudonymized summary of one person's own logs: counts, averages, cycle lengths and labels, with no dates and nothing that identifies her.
+Hard rules: describe associations in her own data that she could raise with her clinician. Never diagnose, never name or adjust a treatment, medicine, supplement or dose, never tell her to start or stop anything. Never interpret a lab value: do not say whether a number is normal, high, low or worrying; you may only note that she logged it and suggest she reviews it with her clinician. Never grade, score or rate her, her week or her logging; no streaks, no "good job", no "you failed", no numbers out of 100. Say plainly when there is too little data ("a few more logs will show clearer associations"). Plain, warm language at about an 8th-grade reading level. If anything in the question describes a medical emergency or a red-flag symptom (heavy bleeding soaking a pad hourly, chest pain, trouble breathing, fainting, severe headache with vision changes, reduced fetal movement, thoughts of self-harm), do not discuss the data: say it needs care now and give the emergency line: call your local emergency number (911 in the US), or for thoughts of self-harm call or text 988 (US) or your local crisis line. Respond only with the JSON object requested.`;
+export const EMERGENCY_ANSWER = "What you're describing needs care now, not an app. Please call your local emergency number (911 in the US) or go to urgent care. If you are thinking about harming yourself, call or text 988 (US) or your local crisis line. You are not overreacting by asking.";
+const words = (t, max) => { const w = String(t || "").trim().split(/\s+/).filter(Boolean); return w.length > max ? `${w.slice(0, max).join(" ")}…` : w.join(" "); };
+const weekly = {
+  effort: "low", maxTokens: 4000,
+  validate: (b) => { const p = checkSummary(b.summary); if (p.length) return { error: p.join("; ") }; return { value: { summary: b.summary } }; },
+  system: AI_FRAME,
+  prompt: (v) => `Her summary (JSON): ${JSON.stringify(v.summary)}\nWrite her weekly write-up: at most 180 words, two or three short paragraphs, about what stands out in these counts (patterns across cycle days, sleep, movement, mood, any experiment), framed as associations, not causes. Return writeup (the text, at most 180 words) and ask_your_doctor (one specific question she could bring to her clinician).`,
+  schema: { type: "object", properties: { writeup: { type: "string" }, ask_your_doctor: { type: "string" } }, required: ["writeup", "ask_your_doctor"], additionalProperties: false },
+  clean: (o) => ({ writeup: words(o.writeup, 180), ask_your_doctor: str(o.ask_your_doctor, 300) || null }),
+};
+const chat = {
+  effort: "low", maxTokens: 4000,
+  validate: (b) => {
+    const p = checkSummary(b.summary); if (p.length) return { error: p.join("; ") };
+    const question = str(b.question, 500); if (question.length < 2) return { error: "question is required" };
+    const history = (Array.isArray(b.history) ? b.history : []).filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.text === "string" && m.text.trim()).slice(-6).map((m) => ({ role: m.role, text: str(m.text, 1200) }));
+    return { value: { summary: b.summary, question, history } };
+  },
+  system: AI_FRAME,
+  // Earlier turns as alternating messages (the first must be hers), then her summary and the new question.
+  messages: (v) => {
+    const h = [...v.history]; while (h.length && h[0].role !== "user") h.shift();
+    return [...h.map((m) => ({ role: m.role, content: m.text })), { role: "user", content: `Her summary (JSON): ${JSON.stringify(v.summary)}\nHer question: "${v.question}"\nAnswer in at most 150 words, grounded in the summary where it helps. Return answer, ask_your_doctor (one question for her clinician, or an empty string) and urgent (true only for a red-flag or crisis question).` }];
+  },
+  schema: { type: "object", properties: { answer: { type: "string" }, ask_your_doctor: { type: "string" }, urgent: { type: "boolean" } }, required: ["answer", "ask_your_doctor", "urgent"], additionalProperties: false },
+  clean: (o) => ({ answer: o.urgent ? EMERGENCY_ANSWER : words(o.answer, 170), ask_your_doctor: o.urgent ? null : str(o.ask_your_doctor, 300) || null, urgent: !!o.urgent }),
+  // A red-flag question is answered here, before anything is sent to Anthropic.
+  preflight: (v) => (RED_FLAGS.test(v.question) ? { answer: EMERGENCY_ANSWER, ask_your_doctor: null, urgent: true } : null),
+};
+
 // Mounted tasks. welcome, route and insight are kept above for reference only: the
-// app does not call them and the router does not serve them.
-export const TASKS = { ask };
+// app does not call them and the router does not serve them. weekly and chat need a key (no fallback).
+export const TASKS = { ask, weekly, chat };
 export const UNMOUNTED_TASKS = { welcome, route, insight };

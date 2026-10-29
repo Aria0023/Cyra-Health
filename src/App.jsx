@@ -70,7 +70,7 @@ import { DEFAULT_APPEARANCE, SYSTEM_DARK_QUERY, cleanAppearance, resolveScheme, 
 import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
 import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource, drainTerra, mergeRows, disconnectHelp } from "./lib/wearables.js";
 import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue, pruneQueue, mergeQueues, localDay, weekKey } from "./lib/pulse.js";
-import { answerLocally } from "./lib/askLibrary.js";
+import { answerLocally, RED_FLAGS } from "./lib/askLibrary.js";
 import { storage } from "./lib/storage.js";
 import { PERSISTED, DEVICE_ONLY, DEVICE_PREFS, NOT_IN_BACKUP, RECORD, RECORD_VERSION, migrate, backupCopy, entryFor, phaseOf } from "./lib/record.js";
 import { trackedIds, cleanSymPrefs, cleanNote } from "./lib/daylog.js";
@@ -100,6 +100,8 @@ const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
 const backupFile = fileTransport({ isNative, Filesystem, Directory, Encoding, Share });
 // A stable empty list for what a build without a feature passes down (PotsPatterns' memo doesn't recompute).
 const NO_ROWS = Object.freeze([]);
+/* The plan (lib/plan.js): Pro only from a store purchase (lib/purchase.js: none in this version) or the proDev QA flag. */
+const PLAN_NOW = planFor(DEV_FLAGS, proOwned());
 const recordSig = (o) => JSON.stringify(RECORD.map((k) => o?.[k] ?? null));
 const ZERO_SCALES = { fatigue: 0, pain: 0, moodq: 0, stress: 0 };
 /* Push addresses Cyra's server still has to forget (every one is retried until confirmed). */
@@ -151,6 +153,11 @@ import PracticesScreen from "./screens/PracticesScreen.jsx";
 import JourneyScreen from "./screens/JourneyScreen.jsx";
 import PracticeSheet from "./components/mind/PracticeSheet.jsx";
 import ProSheet from "./components/ProSheet.jsx";
+import { AiSendSheet, WriteUpCard, ChatCard } from "./components/ai/AiParts.jsx";
+import { buildSummary, checkSummary, summaryLines, weeklyBody, chatBody } from "./lib/aiSummary.js";
+import { cleanAiPrefs, cleanAiChat, cleanAiWeekly, aiOffer, AI_COPY } from "./lib/aiFeatures.js";
+import { aiStatus, aiSend } from "./lib/aiClient.js";
+import { storeFor, restorePurchases, proOwned } from "./lib/purchase.js";
 import ConnectScreen from "./screens/ConnectScreen.jsx";
 import PregTodayScreen from "./screens/PregTodayScreen.jsx";
 import PregCalendarScreen from "./screens/PregCalendarScreen.jsx";
@@ -233,6 +240,22 @@ export default function CyraDemo() {
   const [pulseLastSend, setPulseLastSend] = useState(null); // local day this browser / app install last sent a tally: at most one a day
   const [pulseRev, setPulseRev] = useState(0); // version of the sharing state above, so a stale tab can't roll it back
   const [askAI, setAskAI] = useState(false); // "Also ask Cyra's AI when the library has no answer" — off until she turns it on
+  /* Cyra's weekly write-up and chat (calm R8, lib/aiFeatures.js, lib/aiSummary.js): her two switches and "Include lab
+     values" (device-only consents, both off by default), the chat and the last write-up (device-only, never in a backup).
+     aiState (the server check), aiSendOpen (the "What Cyra will send" sheet), aiBusy, aiNote and online are UI only. */
+  const [aiPrefs, setAiPrefs] = useState(() => cleanAiPrefs(null));
+  const [aiChat, setAiChat] = useState([]);
+  const [aiWeekly, setAiWeekly] = useState(null);
+  const [aiState, setAiState] = useState(null); // null | "checking" | "ready" | "unset" | "offline" | "error"
+  const [aiSendOpen, setAiSendOpen] = useState(null); // { kind: "weekly" | "chat", body, lines, then? } | null
+  const [aiBusy, setAiBusy] = useState(null); // "weekly" | "chat" | null
+  const [aiNote, setAiNote] = useState({ weekly: null, chat: null });
+  const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine !== false);
+  useEffect(() => {
+    const on = () => setOnline(true), off = () => setOnline(false);
+    window.addEventListener("online", on); window.addEventListener("offline", off);
+    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
+  }, []);
   const [lastBackupAt, setLastBackupAt] = useState(null); // local day this device last made an encrypted backup (device-only, never in the file)
   /* The app lock (L10, decision D4; lib/lock.js). lockCfg is this device's app lock, read from its own device-only slot
      (lib/storage.js) after the record; never in the record, the autosave, other tabs' adoption or a backup. It is
@@ -1209,8 +1232,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1549,7 +1572,7 @@ export default function CyraDemo() {
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
-    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, exportLog, homeStepSkip, practiceHaptics };
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly };
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     // The reminders clause only where Settings has a reminders row (a web build without webReminders has none).
@@ -2000,7 +2023,7 @@ export default function CyraDemo() {
 
   /* The privacy dashboard's rows (L10, lib/privacyFlows.js): each flow this build can use, with its live state from the
      flags, the plan, the server setting, the platform and her settings. */
-  const flows = useMemo(() => flowRows({ native: isNative(), server: hasServer(), flags: { wearables: feature("wearables"), counts: feature("counts"), ai: feature("ai"), webReminders: feature("webReminders"), cloudBackup: feature("cloudBackup"), signin: feature("signin") }, planCloud: can("cloudBackup"), reminderSupport: reminderSupport(), reminders, research, askAI, wearLive: Object.entries(wearSources).filter(([k, v]) => VIA_SERVER.has(k) && v && !v.demo).length, terraOff: terraOff.length, demoWear: DEMO_WEARABLES }), [reminders, research, askAI, wearSources, terraOff]); // eslint-disable-line
+  const flows = useMemo(() => flowRows({ native: isNative(), server: hasServer(), flags: { wearables: feature("wearables"), counts: feature("counts"), ai: feature("ai"), webReminders: feature("webReminders"), cloudBackup: feature("cloudBackup"), signin: feature("signin") }, planCloud: can("cloudBackup"), reminderSupport: reminderSupport(), reminders, research, askAI, aiPlan: { weekly: can("aiPatternReports", PLAN_NOW), chat: can("aiChat", PLAN_NOW) }, aiPrefs, wearLive: Object.entries(wearSources).filter(([k, v]) => VIA_SERVER.has(k) && v && !v.demo).length, terraOff: terraOff.length, demoWear: DEMO_WEARABLES }), [reminders, research, askAI, aiPrefs, wearSources, terraOff]); // eslint-disable-line
 
   if (!hydrated) {
     // Start over runs the same clean-up as Delete everything, minus the wearable disconnects:
@@ -2266,8 +2289,65 @@ export default function CyraDemo() {
     else if (id === "meds" || id === "move" || id === "pcos") openSheet(id);
   };
   /* ---------- Mind (calm R5, lib/mind.js): Today (check-in, next practice, which one helped), Practices, Journey ---------- */
-  const plan = planFor(DEV_FLAGS);
+  const plan = PLAN_NOW;
   const canFull = can("fullPractices", plan);
+  /* ---------- Cyra's weekly write-up and chat (calm R8) ----------
+     Offered only with the ai flag, a server and Pro (aiOffer); each runs only while her switch is on. The summary is
+     built on this device (lib/aiSummary.js), proved by checkSummary, shown verbatim in "What Cyra will send", and
+     posted as that same object only when she taps Send. A red-flag chat question is answered here and never sent. */
+  const offer = aiOffer({ flag: FEATURES.ai, server: hasServer(), canWeekly: can("aiPatternReports", plan), canChat: can("aiChat", plan) });
+  const checkAi = () => {
+    if (!online) { setAiState("offline"); return; }
+    if (aiState === "ready" || aiState === "checking" || aiState === "unset") return;
+    setAiState("checking");
+    aiStatus().then(setAiState);
+  };
+  const summaryNow = () => buildSummary({
+    stage, stageName, entries: stage === "preg" ? Object.entries(pregLog || {}).map(([date, e]) => ({ ...e, date })) : ins.sorted,
+    bodyLog, moodLog, labs, includeLabs: aiPrefs.labs, pcosOn: pcosHere, experiments, todayIso,
+  });
+  const setAiPref = (k, on) => {
+    setAiPrefs((p) => ({ ...p, [k]: on }));
+    if (!on && k === "chat") { setAiChat([]); setAiNote((n) => ({ ...n, chat: null })); }
+    if (!on && k === "weekly") { setAiWeekly(null); setAiNote((n) => ({ ...n, weekly: null })); }
+    if (k === "labs") ping(on ? "Lab values will be included in what you preview" : "Lab values left out");
+    else ping(on ? `${k === "chat" ? "Chat" : "Weekly write-up"} on. Nothing is sent until you tap Send.` : `${k === "chat" ? "Chat off. Its messages on this device were cleared." : "Weekly write-up off. The write-up on this device was cleared."}`);
+  };
+  const prepareAi = (kind, question = "", then = null) => {
+    setAiNote((n) => ({ ...n, [kind]: null }));
+    if (kind === "chat" && RED_FLAGS.test(question)) {
+      setAiChat((c) => cleanAiChat([...c, { role: "me", text: question, kind: "local" }, { role: "cyra", text: AI_COPY.urgentLocal, kind: "urgent" }]));
+      then?.();
+      return;
+    }
+    const s = summaryNow();
+    if (checkSummary(s).length) { setAiNote((n) => ({ ...n, [kind]: AI_COPY.refused })); return; }
+    setAiSendOpen({ kind, body: kind === "chat" ? chatBody({ summary: s, question, history: aiChat }) : weeklyBody(s), lines: summaryLines(s), then });
+  };
+  const sendAi = async () => {
+    const o = aiSendOpen;
+    if (!o || aiBusy || !aiPrefs[o.kind] || !offer[o.kind] || checkSummary(o.body.summary).length) return;
+    setAiSendOpen(null); setAiBusy(o.kind);
+    const r = await aiSend(o.kind, o.body);
+    setAiBusy(null);
+    if (!r.ok) {
+      if (r.why === "unset") setAiState("unset");
+      setAiNote((n) => ({ ...n, [o.kind]: r.why === "unset" ? AI_COPY.notSetUp : r.why === "busy" ? AI_COPY.tooMany : AI_COPY.noAnswer }));
+      return;
+    }
+    const d = r.data || {};
+    if (o.kind === "weekly") {
+      if (typeof d.writeup !== "string" || !d.writeup.trim()) { setAiNote((n) => ({ ...n, weekly: AI_COPY.noAnswer })); return; }
+      setAiWeekly(cleanAiWeekly({ writeup: d.writeup, ask: d.ask_your_doctor || null, day: todayIso }));
+      focusSel(["#ai-writeup .aiout"]);
+    } else {
+      if (typeof d.answer !== "string" || !d.answer.trim()) { setAiNote((n) => ({ ...n, chat: AI_COPY.noAnswer })); return; }
+      setAiChat((c) => cleanAiChat([...c, { role: "me", text: o.body.question }, { role: "cyra", text: d.answer, ...(d.urgent ? { kind: "urgent" } : {}), ...(d.ask_your_doctor ? { ask: d.ask_your_doctor } : {}) }]));
+      o.then?.();
+    }
+  };
+  const store = storeFor({ platform: isNative() ? platform() : "web" });
+  const onRestore = async () => { const r = await restorePurchases(store); ping(r.line); };
   const buzz = !isNative() ? null : hasPlugin("Haptics") ? () => { Haptics.impact({ style: "LIGHT" }).catch(() => {}); } : typeof navigator !== "undefined" && typeof navigator.vibrate === "function" ? () => { try { navigator.vibrate(30); } catch { /* no vibration here */ } } : null;
   const moodToday = moodLog[todayIso] || {};
   const firstMood = (log) => { if (!Object.keys(log[todayIso] || {}).length) ping("Check-in saved on this device"); };
@@ -2304,6 +2384,7 @@ export default function CyraDemo() {
         onStart={(id) => { setExperiments((s) => startExperiment(s, id, todayIso)); ping("Experiment started. Tick the days you do it on Home."); focusSel([".wrexp"]); }}
         onSkip={() => { setExperiments((s) => skipWeek(s, wk.key)); ping("Skipped for this week"); focusSel([".wrexp"]); }}
         onPractice={(id) => openPractice(id)} onPro={() => setProOpen(true)}
+        aiWriteUp={offer.weekly && aiPrefs.weekly ? <WriteUpCard status={online ? aiState : "offline"} last={aiWeekly} busy={aiBusy === "weekly"} note={aiNote.weekly} onCheck={checkAi} onPrepare={() => prepareAi("weekly")} /> : null}
         historyLabel={isMeno ? "Calendar" : "History"}
         onHistory={() => showView(isMeno ? "cal" : "cycles")}
         onReport={(pdf) => { pendingFocus.current = pdf ? ["button.route.primary", ".viewpanel main h1"] : [".viewpanel main h1"]; showView("report", { head: true }); }} />
@@ -2324,7 +2405,7 @@ export default function CyraDemo() {
   const youView = (
     <YouScreen acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={canFull} onPro={() => setProOpen(true)}
-      ai={{ available: aiAvailable, on: askAI, set: setAskAI }}
+      ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line}
       care={stage === "preg" ? null : <CareScreen embedded shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Cyra will compare your days before and after"); }} />} />
   );
   const practicesView = () => <PracticesScreen canFull={canFull} favs={practiceFavs} onOpen={openPractice} onPro={() => setProOpen(true)} featured={{ practice: practiceOf("slow"), need: "calm" }} />;
@@ -2337,6 +2418,7 @@ export default function CyraDemo() {
       onJournal={(t) => { const more = !!journal[todayIso]; setJournal((j) => ({ ...j, [todayIso]: j[todayIso] ? `${j[todayIso]}\n\n${t}` : t })); setJDraft(""); ping(more ? "Added to today's journal" : "Saved to your journal"); }}
       conn={{ line: connDays.length ? `Last logged ${fmt(connDays[connDays.length - 1])}. Private, on this device.` : "How connected you feel, not just sex. Private, on this device." }}
       onConnect={() => showView("connect", { head: true })}
+      chat={offer.chat && aiPrefs.chat ? <ChatCard status={aiState} online={online} chat={aiChat} busy={aiBusy === "chat"} note={aiNote.chat} onCheck={checkAi} onPrepare={(q, clear) => prepareAi("chat", q, clear)} onClear={() => { setAiChat([]); ping("Chat cleared from this device"); }} /> : null}
       ask={<AskScreen embedded org={org} stage={stage} askQ={askQ} setAskQ={setAskQ} runAsk={runAsk} askBusy={askBusy} askOut={askOut} askAI={askAI} setAskAI={setAskAI} aiAvailable={aiAvailable} potsOn={potsTab && potsOk} ping={ping} />} />
     );
   };
@@ -2422,7 +2504,8 @@ export default function CyraDemo() {
       {logOpen && <LogSheet items={logItems} onPick={pickLog} onClose={() => setLogOpen(false)} />}
       {bodySheetView}
       {practiceSheet}
-      {proOpen && <ProSheet unlocked={canFull} onClose={() => setProOpen(false)} />}
+      {proOpen && <ProSheet unlocked={canFull} ai={offer.any} onClose={() => setProOpen(false)} />}
+      {aiSendOpen && <AiSendSheet kind={aiSendOpen.kind} body={aiSendOpen.body} lines={aiSendOpen.lines} busy={!!aiBusy} onSend={sendAi} onClose={() => setAiSendOpen(null)} />}
     </Shell>
   );
 }

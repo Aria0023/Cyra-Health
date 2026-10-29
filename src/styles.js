@@ -1500,4 +1500,54 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .youaccount p { margin:0 0 6px; }
 .youlegal-card p { margin:0 0 8px; }
 .youpage .carepart { margin-top:6px; } .youpage .sbtn { min-height:44px; }
+/* ---- calm R8: Pro, Cyra's write-up and chat, "What Cyra will send" ---- */
+.youplanacts { display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px; margin-top:4px; }
+.youplanacts .youprobtn { margin:0; }
+.yourestore.linkbtn { min-height:44px; padding:0; }
+.youaipro { margin-top:16px; padding:14px; border-radius:var(--r-inner); background:linear-gradient(160deg, var(--tint-mind), color-mix(in srgb, var(--tint-patterns) 55%, var(--card))); }
+.youaipro-lab { display:flex; align-items:center; gap:8px; margin:0 0 6px; }
+.youaipro .modadds { margin:8px 0 0; font-size:var(--fs-sm); line-height:1.5; color:var(--ink); }
+.youaipro .modrow { border-top-color:color-mix(in srgb, var(--ink) 10%, transparent); }
+.youaipro .consentopt { margin:10px 0 4px; }
+.youaipro.locked .ghostbtn { margin-top:6px; }
+.aicard { position:relative; overflow:hidden; }
+.aicard > *:not(.aiart) { position:relative; z-index:1; }
+.aiart { position:absolute; right:-18px; bottom:-14px; width:150px; height:100px; z-index:0; pointer-events:none; opacity:.8; }
+.aiart-blob { fill:color-mix(in srgb, var(--primary) 11%, transparent); }
+.aiart-spark { fill:var(--accent); opacity:.55; }
+.aiout { margin:2px 0 10px; } .aiout:focus { outline:none; } .aiout:focus-visible { outline:2px solid var(--primary); outline-offset:3px; border-radius:6px; }
+.aitext { margin:0 0 10px; font-size:var(--fs-md); line-height:1.6; color:var(--ink); }
+.aichips { margin:8px 0 4px; }
+.aisent { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:var(--r-pill); background:color-mix(in srgb, var(--primary) 10%, var(--card)); color:var(--primary-text); font:700 var(--fs-xs)/1.4 'Karla Variable','Karla'; }
+.ainote { margin:8px 0; padding:10px 12px; border-radius:var(--r-inner); background:color-mix(in srgb, var(--tint-patterns) 70%, var(--card)); font-size:var(--fs-sm); line-height:1.5; color:var(--ink); }
+.aigo { margin-top:6px; }
+.ailist { list-style:none; margin:10px 0 12px; padding:0; display:flex; flex-direction:column; gap:10px; max-height:420px; overflow-y:auto; }
+.aiempty { font-size:var(--fs-sm); color:var(--soft); padding:6px 0; }
+.aimsg { max-width:88%; padding:10px 13px; border-radius:16px; font-size:var(--fs-md); line-height:1.5; animation:cy-ai-in var(--t-base) var(--ease-std); }
+.aimsg p { margin:0 0 6px; } .aimsg p:last-of-type { margin-bottom:0; }
+.aimsg.me { align-self:flex-end; background:color-mix(in srgb, var(--primary) 13%, var(--card)); border-bottom-right-radius:6px; color:var(--ink); }
+.aimsg.cyra { align-self:flex-start; background:var(--tint-mind); border-bottom-left-radius:6px; color:var(--ink); }
+.aimsg.urgent { background:var(--bad-bg); color:var(--ink); box-shadow:inset 3px 0 0 var(--bad); }
+.aimsg .aisent { margin-top:6px; }
+.aiask { font-size:var(--fs-sm); color:var(--soft); }
+.aiwait { color:var(--soft); }
+.aiq { width:100%; resize:none; font-family:inherit; margin-bottom:8px; }
+.aiclear.linkbtn { min-height:44px; padding:0 4px; }
+@keyframes cy-ai-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion: reduce) { .aimsg { animation:none; } }
+.aisend-lead { display:flex; gap:8px; align-items:flex-start; margin:0 0 12px; font-size:var(--fs-sm); line-height:1.5; color:var(--ink); }
+.aisend-lead svg { flex-shrink:0; margin-top:2px; color:var(--primary-text); }
+.aisend-sec { margin:0 0 12px; }
+.aisend-sec .section-lab { margin:0 0 6px; }
+.aisend-plain { margin:0; display:flex; flex-direction:column; gap:6px; }
+.aisend-row { display:grid; grid-template-columns:minmax(96px, 38%) 1fr; gap:8px; padding:6px 0; border-top:1px solid var(--edge); font-size:var(--fs-sm); line-height:1.45; }
+.aisend-row:first-child { border-top:none; }
+.aisend-row dt { color:var(--soft); font-weight:700; } .aisend-row dd { margin:0; color:var(--ink); overflow-wrap:anywhere; }
+.aisend-q dd { font-weight:700; }
+.aisend-json { margin:0; max-height:38vh; overflow:auto; padding:12px; border-radius:var(--r-inner); background:color-mix(in srgb, var(--ink) 5%, var(--card)); border:1px solid var(--edge); font:12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color:var(--ink); white-space:pre-wrap; overflow-wrap:anywhere; }
+.aisend-json:focus-visible { outline:2px solid var(--primary); outline-offset:2px; }
+.aisend-acts { display:flex; gap:8px; position:sticky; bottom:0; padding-top:8px; background:var(--card); }
+.aisend-acts .cta, .aisend-acts .ghostbtn { flex:1; margin:0; min-height:48px; }
+.proplanned-lab { margin:14px 0 4px; }
+.proplanned { margin:0 0 12px; padding-left:18px; font-size:var(--fs-sm); line-height:1.6; color:var(--soft); }
 `;

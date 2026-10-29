@@ -196,6 +196,9 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `practiceFavs` | her favourite practices (calm R5) | record (setting) | yes | yes (literally) | yes |
 | `practiceHaptics` | this phone vibrates gently during a practice (calm R5) | device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
 | `experiments` | the weekly review's optional experiment: the one running with the days she ticked, the week whose offer she skipped, the ones she finished (calm R6) | health log | yes | yes (literally) | yes |
+| `aiPrefs` | her switches for Cyra's weekly write-up and chat and "Include lab values", `{ weekly, chat, labs }`, all false by default (calm R8) | consent, device-only | yes | no (this device's kept) | no |
+| `aiChat` | the chat about her log, `[{ role: me\|cyra, text, kind?, ask? }]` (≤ 40), cleared when chat is turned off (calm R8) | device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
+| `aiWeekly` | the last weekly write-up, `{ writeup, ask, day }`, cleared when the write-up is turned off (calm R8) | device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
 | `appearance` | System / Light / Dark | device preference (DEVICE_PREFS) | **no** (NOT_IN_BACKUP) | never (this device's kept) | yes (same browser, same device) |
 | `reminders` | the switch, this browser's push addresses, a version | bookkeeping | `{ enabled }` only | on the phone only (the web keeps this browser's switch) | own merge (`rev`, the `reminders` message) |
 
@@ -493,6 +496,17 @@ A feature that is optional on the server side or paid passes three gates, in thi
 A screen never compares tier names; it asks `can(feature)`, which says no to anything it doesn't
 know. The free core, the paid extension points and the rules any paid feature must follow are in
 `docs/MONETIZATION.md`.
+
+### 10.6a Cyra's AI write-up and chat (calm R8)
+Four gates, in order: the build's `ai` flag, a server (`VITE_API_BASE`), the plan (`can("aiPatternReports")` /
+`can("aiChat")`; Pro only from `lib/purchase.js`, which owns nothing in this version, or the `proDev` QA flag) and her own
+switch in You → Cyra's AI (`aiPrefs`, off by default). `lib/aiSummary.js` builds the pseudonymized summary on the device
+(counts and fixed labels only; `checkSummary` proves it), `components/ai/AiParts.jsx` shows it in "What Cyra will send"
+before every send, and `lib/aiClient.js` posts that same object to `POST /api/ai/weekly` `{ summary }` or
+`POST /api/ai/chat` `{ summary, question, history }`. `GET /api/ai/status` → `{ ready }` lets the app say "AI isn't set up
+on this server yet" without sending anything about her. The backend (`backend/src/modules/ai`) re-checks the summary,
+caps bodies (32 kB parser, 16 kB route), rate-limits, answers red-flag chat questions itself, keeps nothing and logs
+only error kinds; the API key lives only in its environment (`ANTHROPIC_API_KEY`).
 
 ### 10.7 Harness note
 
