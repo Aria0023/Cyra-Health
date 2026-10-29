@@ -44,6 +44,8 @@ Pure lib    engine.js  ←  record.js, pots.js (+ potsPatterns, potsReport, pots
             the option lists, ANSWER_BLANK, pruneForStage, pregWeekFrom / dueDateBounds; calm R2: the PCOS step,
             PCOS_ANSWERS, pcosModuleFrom)
             routes.js imports nothing (calm R2: the five tabs, the views each hosts, deep links, the log sheet's items)
+            home.js ← engine.js, routes.js, modules.js (calm R3: Home's hero model, Quick log tiles, step rails, small
+            step, week trend / by-cycle phases, PCOS cycle-length insight; pure, record.js imports it for RULES.homeTiles)
   ↓
 I/O lib     storage.js, backup.js, files.js, native.js, api.js
             (pulse.js, notifications.js and wearables.js call api.js; backup.js imports nothing,
@@ -56,7 +58,7 @@ Dependency rules (unit-tested where a test can see them):
 
 - `engine.js` is the lowest pure layer. `record.js` and `pots.js` may import it; it never imports
   them (`record.test.mjs` "layering and no I/O").
-- `record.js` imports only `./engine.js`, `./constants.js` and `./daylog.js` (L6; the allowed list lives in
+- `record.js` imports only `./engine.js`, `./constants.js` and `./daylog.js` (L6; later `./fertility.js`, `./modules.js` and, calm R3, `./home.js`; the allowed list lives in
   `record.test.mjs`; a later pure leaf module may be added to it, and none of them may import
   `record.js` back). `daylog.js` imports only `./constants.js`. `plan.js` and `features.js` import nothing; `disclosures.js` imports only
   `features.js`; `backup.js` imports nothing (the POTS suites load it straight from Node).
@@ -162,6 +164,7 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `symPrefs` | her symptom list per stage id, `{ periods?, peri?, preg? }` × `{ order, hidden, added }` (L6, spec §3.6) | record (a setting) | yes | yes, literally (`cleanSymPrefs`; a backup without it brings back Cyra's order) | yes (sanitised by `cleanSymPrefs`) |
 | `fertSigns` | fertility signs switch and temperature unit, `{ on: true\|false\|null, unit: "C"\|"F"\|null }` (L7, spec A14.7); `on` null = the stage default | record (a setting, no health data) | yes | yes, literally (`restoredFertPrefs`; a backup without it resets `on` to null and keeps this device's unit) | yes (sanitised by `cleanFertPrefs`) |
 | `modules` | condition modules switched on, `{ pcos?: { on, since } }` (calm R1, `lib/modules.js`); POTS is not here (it stays in `pots`) | record (a setting, no health data) | yes | yes, literally (`cleanModules`; a backup without it turns PCOS off) | yes (sanitised by `cleanModules`) |
+| `homeTiles` | Home's Quick log tiles, null or 2–4 tile ids (calm R3, `lib/home.js`, spec §3.5a) | record (a setting, no health data) | yes | yes, literally (`cleanHomeTiles`; a backup without it brings back the default tiles) | yes (sanitised by `cleanHomeTiles`) |
 | `palIdx` | palette per stage (an index into `stagePalettes(stage, stageName)`, v2 list since calm R1) | setting | yes | yes | yes |
 | `cadence` | check-in rhythm | setting | yes | yes | yes |
 | `quietHours` | reminder time of day | setting | yes | yes | yes |
@@ -182,6 +185,7 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `lastBackupAt` | day this device last made a backup | bookkeeping, device-only | **no** (NOT_IN_BACKUP) | no | no |
 | `installHint` | whether this browser's install tip stays away | device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no (RECORD excludes it; each save merges the stored value one way: installed > dismissed > null) |
 | `exportLog` | appointment PDFs made this month, `{ month, n }`; null unless plan.js sets a monthly limit (none today, so it stays null) | bookkeeping, device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
+| `homeStepSkip` | the day she said "Not today" to Home's small step, `{ day, id }` (calm R3) | bookkeeping, device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
 | `appearance` | System / Light / Dark | device preference (DEVICE_PREFS) | **no** (NOT_IN_BACKUP) | never (this device's kept) | yes (same browser, same device) |
 | `reminders` | the switch, this browser's push addresses, a version | bookkeeping | `{ enabled }` only | on the phone only (the web keeps this browser's switch) | own merge (`rev`, the `reminders` message) |
 

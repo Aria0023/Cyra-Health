@@ -89,3 +89,27 @@ The unit test `modules.test.mjs` fails if a medical sentence in the module is mi
   irregular-cycle feature; (2) should the high-sugar day marker carry any caution about food anxiety or disordered
   eating; (3) confirm the NICE CKS revision date.
 - Status: Awaiting clinician sign-off
+
+## Home: Today's small step (calm R3; src/lib/home.js `STEPS`)
+
+One optional, rule-based suggestion on Home, with a "Why" line. Only the steps that say what a practice or signal does
+are listed (the others are logging prompts). `home.test.mjs` fails if a sourced step's Why line is missing here.
+
+### home.step.breathe
+- Where: Home → Today's small step, after a rough night is logged today
+- Text: After a rough night, slow breathing (around six breaths a minute) is linked with feeling calmer in small studies. Wellbeing support, not treatment.
+- Sources: How Breath-Control Can Change Your Life: A Systematic Review on Psycho-Physiological Correlates of Slow Breathing (Zaccaro A, Piarulli A, Laurino M, et al. Frontiers in Human Neuroscience 12:353, 2018); also in docs/EVIDENCE.md
+- Reviewer question: is "in for about 4, out for about 6, for two minutes" acceptable as a generic instruction (no breath holds)?
+- Status: Awaiting clinician sign-off
+
+### home.step.pcos
+- Where: Home → Today's small step, PCOS module on and no PCOS symptom logged today
+- Text: Energy crashes after meals and cravings are among the signals the PCOS module keeps next to your cycles, to show your clinician. Associations, not a diagnosis.
+- Sources: Recommendations from the 2023 International Evidence-based Guideline for the Assessment and Management of Polycystic Ovary Syndrome (2023)
+- Status: Awaiting clinician sign-off
+
+### home.insight.pcos-cycle-length
+- Where: Home → Today's insight (PCOS module on, two or more counted cycles)
+- Text: In your log, {n} of your last {m} cycles ran over 35 days. / In your log, none of your last {m} cycles ran over 35 days. (Shown with MODULE_FRAMING under the insight.)
+- Sources: the 35-day threshold of the 2023 international PCOS guideline (see pcos.cycle.definition)
+- Status: Awaiting clinician sign-off

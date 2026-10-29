@@ -4,30 +4,28 @@ import { isNative } from "../lib/native.js";
 import Advice from "../components/Advice.jsx";
 import Details, { WearableFacts } from "../components/Details.jsx";
 import Icon from "../components/Icon.jsx";
-import { dominantFamily, ChartSoon } from "../components/PatternCharts.jsx";
+import { dominantFamily } from "../components/PatternCharts.jsx";
 import { famVar } from "../lib/constants.js";
 import { reduceMotion } from "../lib/motion.js";
 import { InstallTip } from "../components/Pwa.jsx";
 import { FEATURES } from "../lib/features.js";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Card, QuickTile, StepRail, Ring, Chip, EmptyNote, Sheet } from "../components/ui/index.js";
+import { dateEyebrow, greeting, TILES_MIN, TILES_MAX } from "../lib/home.js";
+import { MODULE_FRAMING } from "../lib/modules.js";
 
-/* Home (default tab): greeting + streak, check-in CTA, today's top insight, the patterns card,
-   wearable cards, milestones, coming up, pulse, and a grid of collapsible sections (month vs
-   last month, Wearables, What I'm trying, Appointments, Journal) whose open panels sit under
-   the grid. Feature flags (local-first L4, lib/features.js): the pulse ("You're not alone") shows
-   only in builds with counts (App.jsx passes pulse = null otherwise); the wearable cards, the
-   Wearables door and its panel only in builds with wearables (without it the grid has 4 doors,
-   2 × 2). With POTS tools on, a "POTS today" card (potsCard, built in App.jsx) sits under the
-   check-in button. On the web, once 3 days are logged and while this browser can install Cyra,
-   one dismissible install tip (installTip, components/Pwa.jsx; spec A14.1) sits after that card
-   and before "Today's insight"; it is not a section label or card, so Home's labels don't move.
-   L7 (fertility signs, Trying to conceive only): no new section or card. When today's entry has a fertility sign,
-   App.jsx passes fertRead (lib/fertility.js) and the same today line shows it instead of its usual text; Coming up's
-   first row can be the estimated fertile window (built in App.jsx nextUp, ending "An estimate, not contraception").
-   L8: Today's insight is App.jsx's homePick (lib/insights.js): the strongest new finding in her log (one that qualifies
-   today but didn't 7 days ago), else a daily rotation through the three strongest, the perimenopause variability
-   marker first. It is always one .card.insight with a two-line text ("In your log" wording, never causal); the
-   "Month vs last month" recap uses the same 30-calendar-day numbers as Patterns "This month". No markup change. */
+/* Home v2 (calm R3, spec §5 Home). Top to bottom: the date eyebrow and her greeting; the hero, a large cycle-day ring
+   over a soft stage-coloured shape (lib/home.js heroModel: "Day 23" in the serif, the phase under it, then the
+   prediction line with its uncertainty range; pregnancy shows the week, menopause the days since the last period or a
+   calm "No period tracking needed"), the check-in button and today's line (words only, never a score); the POTS card
+   and install tip when they apply; Quick log (2–4 tiles she can choose, each with a "Logged" chip once today has that
+   entry); Today's small step (one optional suggestion, a Why disclosure, "Not today"); the Body and Mind step rails;
+   Today's insight (one, with the not-medical-advice line); the word-based patterns preview (components/HomePatterns.jsx,
+   no numbers out of 100); milestones (no counts); Coming up; the community pulse (builds with counts); and the grid of
+   collapsible sections (Month vs last month, Wearables, What I'm trying, Appointments, Journal) with their panels.
+   Tone (plan §7): no streaks, grades, completeness counts or bars; the empty state is "A few more logs will show
+   clearer associations." Harness-kept: "POTS today" is the first p.section-lab, "Today's insight" a later one, .todayline,
+   .nextrow (the TTC fertile window leads Coming up), .dgrid > .disclosure doors and their panels. */
 /* A trial without enough logged days on both sides of its start date (App.jsx medEffects):
    how many more it needs, or, when the days left can't get there, that it can't be compared. */
 const plural = (n) => `${n} logged day${n === 1 ? "" : "s"}`;
@@ -59,12 +57,12 @@ const DISCLOSE = {
   },
 };
 const SLEPT = { good: "well", fair: "so-so", poor: "poorly" };
-/* The seven-dot sketch that stands in for the chart before 3 check-ins: --line and --soft only, no data. */
 const delta = (a, b, goodUp = true) => { const d = b - a; if (d === 0) return <span className="flat">unchanged</span>; const good = goodUp ? d > 0 : d < 0; return <span className={good ? "up" : "down"}>{d > 0 ? "+" : ""}{d}</span>; };
 
 export default function HomeScreen({
-  acct, stage, stageName, pregWeek, tri = "second", dueDate = "", pred, loggedLast14, loggedTotal = 0, streakLine, goTab, entryOn, todayIso, homeInsight, patternsCard = null, wearInsights, milestones, justReached = null, nextUp, pulse,
-  todayEntry = null, scoreIds = [], scoreLabels = {}, dayScore = null,
+  acct, stage, stageName, goTab, todayIso, homeInsight, patternsCard = null, wearInsights, milestones, justReached = null, nextUp, pulse,
+  todayEntry = null, scoreIds = [], scoreLabels = {},
+  hero, tiles = [], onTile, tilePicker = null, step = null, onStep, onSkipStep, bodyRail = [], mindRail = [],
   recap, showRecap, setShowRecap,
   showWear, setShowWear, wearSources, terraOffCount = 0, connectWear, disconnectWear, wearConfirm, setWearConfirm, wearBusy, wearData, wAvg,
   showMeds, setShowMeds, meds, medLog, medEffects, setMedLog, newMed, setNewMed, setMeds, ping,
@@ -77,24 +75,31 @@ export default function HomeScreen({
   const hour = new Date().getHours();
   const connectedCount = Object.values(wearSources).filter((w) => w && !w.pending).length;
   const allDemo = wearData.length > 0 && wearData.every((r) => r.demo);
-  const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  // Today's line under the CTA once today is logged: score, sleep, the two strongest symptoms, in words.
+  const [picking, setPicking] = useState(false);
+  // Today's line under the hero once today is logged: sleep and the two strongest symptoms, in words (no score).
   const todayLine = (() => {
     if (!todayEntry) return null;
-    const score = dayScore ? Math.round(dayScore(todayEntry, scoreIds) * 100) : null;
     const syms = scoreIds.filter((k) => (todayEntry.sym?.[k] || 0) > 0).sort((a, b) => todayEntry.sym[b] - todayEntry.sym[a]);
     const fam = dominantFamily(todayEntry, scoreIds);
-    const parts = ["Today", ...(score != null ? [`score ${score}`] : []), ...(todayEntry.sleepQ ? [`slept ${SLEPT[todayEntry.sleepQ] || todayEntry.sleepQ}`] : [])];
+    const parts = ["Today", ...(todayEntry.sleepQ ? [`slept ${SLEPT[todayEntry.sleepQ] || todayEntry.sleepQ}`] : [])];
     if (syms.length) parts.push(`${syms.slice(0, 2).map((k) => scoreLabels[k] || k).join(", ")}${syms.length > 2 ? ` +${syms.length - 2}` : ""}`);
+    else parts.push("no symptoms logged");
     return { text: fertRead || parts.join(" · "), color: fam ? famVar(fam) : "var(--line)" };
   })();
-  // Pregnancy week bar: three trimester segments (weeks 1–12, 13–27, 28–40), the elapsed part filled.
-  const wkSegs = [[0, 12], [12, 27], [27, 40]].map(([a, b]) => Math.max(0, Math.min(1, (pregWeek - a) / (b - a))));
-  // The stepper rail shows reached dots first (contiguous from the left); the list under "All milestones" keeps the spec order.
+  // Milestones: the reached ones first on the dot rail; the list under "All milestones" keeps the spec order.
   const rail = [...milestones.filter((m) => m.done), ...milestones.filter((m) => !m.done)];
   const nextMs = milestones.find((m) => !m.done && m.progress != null) || milestones.find((m) => !m.done);
+  // The hero already says when the next period (or the due date) is; the TTC fertile window sits in the hero under it
+  // (one row, so fertility signs never add a section); Coming up keeps visits.
+  const heroRows = nextUp.filter((n) => n.k === "fertile");
+  const comingUp = nextUp.filter((n) => !["period", "late", "due", "fertile"].includes(n.k));
+  const nextRow = (n) => (
+    <div className="nextrow" key={n.k} role={n.action ? "button" : undefined} tabIndex={n.action ? 0 : undefined} onKeyDown={n.action ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); n.action(); } } : undefined} onClick={n.action || undefined} style={n.action ? { cursor: "pointer" } : {}}>
+      <span className="nextdot" /><div><div className="nexttext">{n.text}</div><div className={`nextsub ${n.action ? "link" : ""}`}>{n.sub}</div></div>
+    </div>
+  );
   const wd = (iso) => (iso === todayIso ? "today" : daysUntil(iso) > -7 ? new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" }) : fmt(iso));
-  const ctaRef = useRef(null); // the check-in button: where focus goes when the install tip closes
+  const ctaRef = useRef(null); // the Quick log heading: where focus goes when the install tip closes
   // A section opened from the grid scrolls its panel into view (the panels sit under the grid, so an
   // open one can start below the fold). Not on first render, and only for the flag that just turned on.
   const wasOpen = useRef(null);
@@ -110,47 +115,91 @@ export default function HomeScreen({
   }, [showRecap, showWear, showMeds, showAppts, showJournal]);
 
   return (
-    <main>
-      <div className="homehead">
-        <div>
-          <h1 className="greet">{greet}{acct.name ? `, ${acct.name}` : ""}.</h1>
-          <div className="greetsub">{stage === "preg" ? `Week ${pregWeek} · ${tri} trimester` : pred ? `Day ${pred.cycleDay} · ${pred.phase} phase` : stageName}</div>
+    <main className="homev2">
+      {/* ---- Hero: the date, her greeting, and the cycle-day ring (pregnancy: the week; menopause: days since the last
+          period or the calm "no period tracking needed" state) with the prediction line and its uncertainty. ---- */}
+      <div className="homehero" data-kind={hero.kind} data-len={String(hero.center).length > 7 ? "long" : String(hero.center).length > 6 ? "mid" : undefined}>
+        <p className="eyebrow homedate">{dateEyebrow(todayIso)}</p>
+        <h1 className="greet">{greeting(hour)}{acct.name ? `, ${acct.name}` : ""}.</h1>
+        <div className="herofig">
+          <svg className="heroblob" viewBox="0 0 320 260" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet">
+            <path className="heroblob-a" d="M150 22c38-6 82 6 106 36s26 74 6 108-58 62-102 66-86-14-106-48S34 106 56 74s56-46 94-52z" />
+            <path className="heroblob-b" d="M234 34c26 4 50 24 54 50s-10 50-32 60-50 4-62-16-12-46 0-66 18-32 40-28z" />
+            <path className="heroblob-b" d="M70 176c16-2 32 8 36 24s-4 32-20 36-34-4-38-20 6-38 22-40z" opacity=".8" />
+            <circle className="heroblob-c" cx="268" cy="196" r="9" />
+            <circle className="heroblob-c" cx="44" cy="74" r="6" />
+          </svg>
+          <Ring value={hero.value} center={hero.center} sub={hero.sub} size={176} stroke={13} tone={hero.tone} className="heroring" />
         </div>
-        {loggedLast14 === 0
-          ? <div className="streak"><b>Day 1</b><span>let's start</span></div>
-          : <div className={`streak ${loggedLast14 >= 7 ? "warm" : ""}`}><b>{loggedLast14}</b><span>of 14 days</span></div>}
+        {hero.action ? (
+          <button type="button" className="heroline" onClick={() => goTab(hero.action)}>
+            <span className="heroline-ico" aria-hidden="true"><Icon name="calendar" size={16} /></span>
+            <span className="heroline-txt"><b>{hero.line}</b><span>{hero.note}</span></span>
+            <Icon name="arrow-right" size={16} className="heroline-go" />
+          </button>
+        ) : (
+          <p className="heroline still">
+            <span className="heroline-ico" aria-hidden="true"><Icon name={stage === "preg" ? "heart" : "sun"} size={16} /></span>
+            <span className="heroline-txt"><b>{hero.line}</b><span>{hero.note}</span></span>
+          </p>
+        )}
+        {heroRows.length > 0 && <div className="plaincard herorows">{heroRows.map(nextRow)}</div>}
+        {todayLine && <button type="button" className="todayline" onClick={() => goTab("today")}><i className="fdot" aria-hidden="true" style={{ background: todayLine.color }} />{todayLine.text}</button>}
       </div>
-      {stage === "preg" && (
-        <div className="wkbar" role="img" aria-label={`Week ${pregWeek} of 40, ${tri} trimester`}>
-          <div className="wktrack">{wkSegs.map((f, i) => <i key={i} className="wkseg"><b style={{ width: `${f * 100}%` }} />{f > 0 && f < 1 && <u style={{ left: `${f * 100}%` }} />}{f === 1 && i === 2 && <u style={{ left: "100%" }} />}</i>)}</div>
-          <div className="wkticks"><span>T1</span><span>T2</span><span>T3<em>Due {dueDate}</em></span></div>
-        </div>
-      )}
-      <p className="hint" style={{ marginTop: -6 }}>{streakLine}</p>
 
-      <button ref={ctaRef} className={`cta ${entryOn(todayIso) ? "done" : ""}`} onClick={() => goTab("today")}>{entryOn(todayIso) ? "Update today's check-in" : "Check in — about 30 seconds"}</button>
-      {todayLine && <button type="button" className="todayline" onClick={() => goTab("today")}><i className="fdot" aria-hidden="true" style={{ background: todayLine.color }} />{todayLine.text}</button>}
       {/* POTS add-on (App.jsx): the "POTS today" card while it's on, or the one-time offer card. Never replaces Today's insight. */}
       {potsCard}
       {/* The install tip (web only, spec A14.1): hiding it hands focus back to the check-in button. */}
       {installTip && <InstallTip tip={installTip} returnFocusRef={ctaRef} />}
 
-      <p className="section-lab">Today's insight</p>
-      <div className="card insight"><div className="num">{homeInsight.num}</div><p>{homeInsight.fam && <i className="fdot" aria-hidden="true" style={{ background: famVar(homeInsight.fam) }} />}{homeInsight.text}</p></div>
+      {/* ---- Quick log: 2–4 tiles (her choice, You can change them here); each opens its logger. ---- */}
+      <section className="quicklog" aria-labelledby="quicklog-t">
+        <div className="qlhead">
+          <h2 id="quicklog-t" className="v2card-title" ref={ctaRef} tabIndex={-1}>Quick log</h2>
+          {tilePicker && <button type="button" className="qlpick" aria-label="Choose your Quick log tiles" aria-haspopup="dialog" aria-expanded={picking} onClick={() => setPicking(true)}><Icon name="sliders" size={18} /></button>}
+        </div>
+        <div className="qtiles homeqtiles" style={{ "--qcols": tiles.length }}>
+          {tiles.map((t) => <QuickTile key={t.id} icon={t.icon} label={t.label} tint={t.tint} note={t.logged ? <Chip variant="logged" /> : null} onClick={() => onTile(t.id)} />)}
+        </div>
+      </section>
 
-      {/* The patterns card (components/PatternCharts.jsx), the same card the Patterns tab opens with;
-          before 3 check-ins, a grey sketch that counts the gap (no chart classes, no family colours). */}
-      {patternsCard ? (
-        <>
-          <p className="section-lab">Your patterns · last 60 days</p>
-          {patternsCard}
-        </>
-      ) : stage !== "preg" && (
-        <>
-          <p className="section-lab">Your patterns</p>
-          <ChartSoon logged={loggedTotal} />
-        </>
+      {/* ---- Today's small step: one optional suggestion from her log and stage, a Why line, and "Not today". ---- */}
+      {step && (
+        <Card className="stepcard" eyebrow="Today's small step" title={step.title} icon={step.id === "breathe" ? "breath" : "sparkle"} tint="patterns" level={2}>
+          <p className="stepbody">{step.body}</p>
+          <div className="stepacts">
+            {step.action && <button type="button" className="stepgo" onClick={() => onStep(step.action)}>{step.action.label}</button>}
+            <button type="button" className="stepskip" onClick={onSkipStep}>Not today</button>
+          </div>
+          <Details label="Why">
+            <p>{step.why}</p>
+            {step.src && <p className="stepsrc">Source: {step.src.title}. {step.src.body} {step.src.year}.</p>}
+          </Details>
+        </Card>
       )}
+
+      {/* ---- Body and Mind: dotted step rails, a tick for what is logged today; untouched steps stay neutral. ---- */}
+      <div className="railcards">
+        <section className="v2card railcard" data-tint="body" aria-labelledby="rail-body-t">
+          <h2 id="rail-body-t" className="railtitle">Body</h2>
+          <StepRail steps={bodyRail} label="Body today" />
+        </section>
+        <section className="v2card railcard" data-tint="mind" aria-labelledby="rail-mind-t">
+          <h2 id="rail-mind-t" className="railtitle">Mind</h2>
+          <StepRail steps={mindRail} label="Mind today" />
+        </section>
+      </div>
+
+      <section className="v2card insightcard" aria-labelledby="insight-t">
+        <p className="section-lab" id="insight-t">Today's insight</p>
+        {homeInsight.empty
+          ? <EmptyNote>{homeInsight.text}</EmptyNote>
+          : <div className="card insight"><div className="num">{homeInsight.num}</div><p>{homeInsight.fam && <i className="fdot" aria-hidden="true" style={{ background: famVar(homeInsight.fam) }} />}{homeInsight.text}</p></div>}
+        {!homeInsight.empty && stage !== "preg" && <p className="insightnote">{MODULE_FRAMING}</p>}
+      </section>
+
+      {/* The compact, word-based patterns preview (components/HomePatterns.jsx); the full chart is in Patterns. */}
+      {patternsCard}
 
       {wearInsights.length > 0 && (
         <>
@@ -164,15 +213,14 @@ export default function HomeScreen({
         </>
       )}
 
-      {/* Milestones: a row of progress dots and the next one named; the full timeline sits under
-          "All milestones" (hidden until opened, so it isn't read twice). */}
-      <p className="section-lab">Milestones · {milestones.filter((m) => m.done).length} of {milestones.length} reached</p>
+      {/* Milestones: a row of dots and the next one named; the full timeline sits under "All milestones". No counts. */}
+      <p className="section-lab">Milestones</p>
       <div className="plaincard mscard">
         <ol className="msteps" aria-hidden="true">
           {rail.map((m, i) => <li className={`mstep ${m.done ? "done" : ""} ${justReached && m.label === justReached.label ? "new" : ""}`} key={i}><span className="msdot">{m.done ? "✓" : ""}</span></li>)}
         </ol>
         {nextMs
-          ? <p className="msnext"><b>Next up: </b>{nextMs.label}{nextMs.progress != null && <span className="msbar" aria-hidden="true"><i style={{ width: `${nextMs.progress * 100}%` }} /></span>}</p>
+          ? <p className="msnext"><b>Next up: </b>{nextMs.label}</p>
           : <p className="msnext"><b>Every milestone reached.</b></p>}
         <Details label="All milestones">
           <ol className="mstrip" aria-label="Milestones">
@@ -180,25 +228,22 @@ export default function HomeScreen({
               <li className={`ms ${m.done ? "done" : ""}`} key={i}>
                 <span className="msdot" aria-hidden="true">{m.done ? "✓" : ""}</span>
                 <span className="mslabel"><span className="sr-only">{m.done ? "Reached: " : "Not yet: "}</span>{m.label}</span>
-                {m.progress != null && !m.done && <span className="msbar"><i style={{ width: `${m.progress * 100}%` }} /></span>}
               </li>
             ))}
           </ol>
         </Details>
       </div>
 
-      {nextUp.length > 0 && (
+      {comingUp.length > 0 && (
         <>
           <p className="section-lab">Coming up</p>
           <div className="plaincard" style={{ padding: "6px 16px" }}>
-            {nextUp.map((n) => (
-              <div className="nextrow" key={n.k} role={n.action ? "button" : undefined} tabIndex={n.action ? 0 : undefined} onKeyDown={n.action ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); n.action(); } } : undefined} onClick={n.action || undefined} style={n.action ? { cursor: "pointer" } : {}}>
-                <span className="nextdot" /><div><div className="nexttext">{n.text}</div><div className={`nextsub ${n.action ? "link" : ""}`}>{n.sub}</div></div>
-              </div>
-            ))}
+            {comingUp.map(nextRow)}
           </div>
         </>
       )}
+
+      {picking && tilePicker && <TilePicker {...tilePicker} onClose={() => setPicking(false)} />}
 
       {pulse && (<>
       <p className="section-lab">You're not alone <span className="seclite">· last week, from people who share counts</span></p>
@@ -227,11 +272,12 @@ export default function HomeScreen({
       {(() => {
         // Each door carries its status after the base label (the base label stays the first text node).
         const scoreDelta = recap ? recap.score[1] - recap.score[0] : null;
+        const felt = scoreDelta == null ? null : Math.abs(scoreDelta) < 3 ? "about the same" : scoreDelta > 0 ? "lighter" : "heavier";
         const lastMed = meds[meds.length - 1];
         const lastJ = Object.keys(journal).sort().pop();
         const apptIn = upcoming[0] ? daysUntil(upcoming[0].date) : null;
         const sections = [
-          { id: "recap", label: "Month vs last month", status: recap ? (scoreDelta ? `${scoreDelta > 0 ? "+" : "−"}${Math.abs(scoreDelta)}` : "unchanged") : "soon", open: showRecap, set: setShowRecap },
+          { id: "recap", label: "Month vs last month", status: recap ? felt : "soon", open: showRecap, set: setShowRecap },
           FEATURES.wearables && { id: "wear", label: "Wearables", status: connectedCount ? `${connectedCount} connected` : "optional", open: showWear, set: setShowWear },
           { id: "meds", label: "What I'm trying", status: lastMed ? `${lastMed.name}, day ${Math.max(1, 1 - daysUntil(lastMed.started))}` : "", open: showMeds, set: setShowMeds },
           { id: "appts", label: "Appointments", status: upcoming[0] ? `${upcoming[0].who || "visit"} ${apptIn === 0 ? "today" : `in ${apptIn} day${apptIn === 1 ? "" : "s"}`}` : "", open: showAppts, set: setShowAppts },
@@ -253,13 +299,13 @@ export default function HomeScreen({
           <p className="ptitle">Your month vs last month</p>
           {recap ? (
             <>
-                  <div className="recaprow"><span>Average day score</span><b>{recap.score[0]} → {recap.score[1]} {delta(recap.score[0], recap.score[1])}</b></div>
+                  <p className="recapfelt">{(() => { const d = recap.score[1] - recap.score[0]; return Math.abs(d) < 3 ? "This month felt about the same as last month." : `This month felt ${Math.abs(d) >= 8 ? "" : "a little "}${d > 0 ? "lighter" : "heavier"} than last month.`; })()}</p>
                   <div className="recaprow"><span>Calm days</span><b>{recap.calm[0]} → {recap.calm[1]} {delta(recap.calm[0], recap.calm[1])}</b></div>
                   <div className="recaprow"><span>Rough nights</span><b>{recap.poor[0]} → {recap.poor[1]} {delta(recap.poor[0], recap.poor[1], false)}</b></div>
                   {recap.top && <div className="recaprow"><span>{recap.top.label} days</span><b>{recap.top.prev} → {recap.top.now} {delta(recap.top.prev, recap.top.now, false)}</b></div>}
                   <p className="rfoot">Progress isn't always a straight line — a harder month is information, not failure.</p>
             </>
-          ) : <p className="plain" style={{ marginTop: 6 }}>Your first monthly recap arrives once there are two months to compare. Keep going.</p>}
+          ) : <EmptyNote>Your first monthly recap arrives once there are two months to compare.</EmptyNote>}
         </div>
       )}
 
@@ -318,7 +364,7 @@ export default function HomeScreen({
             return (
               <div className="medrow" key={m.id}>
                 <div className="medinfo"><b>{m.name}</b><span>{m.kind === "rx" ? "Prescription" : m.kind === "supp" ? "Supplement" : "Habit"} · since {fmt(m.started)}</span>
-                  {eff?.ready ? <span className="medeff">Day score {eff.before} → {eff.after} since starting</span> : <span className="medeff muted">{eff ? trialWait(eff) : ""}</span>}
+                  {eff?.ready ? <span className="medeff">{Math.abs(eff.after - eff.before) < 3 ? "Your days have felt about the same since starting" : `Your days have felt ${eff.after > eff.before ? "lighter" : "heavier"} since starting`}</span> : <span className="medeff muted">{eff ? trialWait(eff) : ""}</span>}
                 </div>
                 <button aria-pressed={takenToday} className={`takebtn ${takenToday ? "on" : ""}`} onClick={() => setMedLog((l) => ({ ...l, [todayIso]: { ...(l[todayIso] || {}), [m.id]: !takenToday } }))}>{takenToday ? "✓ Taken" : "Taken today?"}</button>
               </div>
@@ -378,5 +424,34 @@ export default function HomeScreen({
         </div>
       )}
     </main>
+  );
+}
+
+/* Home's Quick log picker (calm R3): pick 2–4 tiles from what this stage can log; the order is the order picked.
+   "Put back Cyra's tiles" clears her choice (null = the default set). Saved in the record (homeTiles) and in backups. */
+function TilePicker({ choices, chosen, custom, set, onClose }) {
+  const toggle = (id) => {
+    const on = chosen.includes(id);
+    if (on && chosen.length <= TILES_MIN) return;
+    if (!on && chosen.length >= TILES_MAX) return;
+    set(on ? chosen.filter((x) => x !== id) : [...chosen, id]);
+  };
+  return (
+    <Sheet id="tile-sheet" title="Your Quick log" onClose={onClose} closeLabel="Close Quick log choices">
+      <p className="hint tilehint" id="tile-hint">Pick {TILES_MIN} to {TILES_MAX}. They show on Home in the order you pick them.</p>
+      <div className="tilepick" role="group" aria-label="Quick log tiles" aria-describedby="tile-hint">
+        {choices.map((t) => {
+          const on = chosen.includes(t.id);
+          const stuck = on ? chosen.length <= TILES_MIN : chosen.length >= TILES_MAX;
+          return (
+            <button key={t.id} type="button" className={`mc tileopt ${on ? "on" : ""}`} aria-pressed={on} aria-disabled={stuck || undefined} onClick={() => toggle(t.id)}>
+              <span className="tileopt-ico" data-tint={t.tint} aria-hidden="true"><Icon name={t.icon} size={16} /></span>{t.label}
+            </button>
+          );
+        })}
+      </div>
+      {custom && <button type="button" className="linkbtn tilereset" onClick={() => { document.getElementById("tile-sheet-t")?.focus(); set(null); }}>Put back Cyra's tiles</button>}
+      <button type="button" className="cta tiledone" onClick={onClose}>Done</button>
+    </Sheet>
   );
 }

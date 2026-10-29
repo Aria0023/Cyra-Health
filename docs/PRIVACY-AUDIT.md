@@ -1135,3 +1135,28 @@ question only, the POTS report uses no registration answer. "Yes, diagnosed" or 
 data. …") is now the "Care & support" section of the You page (CareScreen `embedded`); the "<stage> · change" button
 moved from the header to You. Toasts added: "PCOS module on", "PCOS module off. What you logged is kept" (the switch
 never deletes a log).
+
+## Calm R3 (Home v2) — two new record keys (one in backups, one device-only), no new privacy sentence, nothing new leaves the device
+
+No request, dependency, font or external asset was added. Everything Home v2 computes (the hero ring, the Logged chips,
+the step rails, Today's small step, the week trend and the by-cycle phases, the PCOS cycle-length insight) is worked out
+on this device from the record by pure functions in `src/lib/home.js` (its unit test checks it imports no storage,
+network, plan or React module).
+
+**New record key `homeTiles`** (null | 2–4 tile ids from `TILE_CATALOG`, e.g. ["symptoms","sleep","mood","period"]):
+her Quick log choice. Class: record (settings, no health data). In RECORD (shared with other open tabs), **in encrypted
+backups**, restored literally (a backup without it brings back Cyra's default tiles), erased by Delete everything. Read by
+no network path. RULES.homeTiles flags anything cleanHomeTiles would change.
+
+**New key `homeStepSkip`** (null | { day: YYYY-MM-DD, id }): the day she tapped "Not today" on Today's small step.
+DEVICE_ONLY and in NOT_IN_BACKUP: never in a backup file, never handed to another tab, kept across a restore. Read by
+no network path.
+
+**Sentences:** no privacy sentence was added, moved or reworded. New non-privacy copy: the small steps (lib/home.js
+STEPS; the breathing and PCOS "Why" lines are in docs/CLINICIAN-REVIEW.md and the breathing source in docs/EVIDENCE.md),
+"Associations to raise with your clinician, not a diagnosis or medical advice." under Today's insight (MODULE_FRAMING,
+already registered in R1), the Quick log picker hint "Pick 2 to 4. They show on Home in the order you pick them.", and
+the toast "Okay, not today". The question step says appointments are kept "with your appointments" — the existing
+on-device `appts` key. Removed from Home: the "N of 14 days" badge and its streak line, the "N of 3" first-insight
+countdown, the day score in today's line, the 0–100 patterns chart (still in Patterns until R6), "Average day score" in
+Month vs last month (now a sentence in words) and "Day score a → b" in What I'm trying (now words).

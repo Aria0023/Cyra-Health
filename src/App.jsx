@@ -82,6 +82,7 @@ import { cleanLock, hashPin, checkPin, newLock, afterFail, afterSuccess, awayMs,
 import { flowRows } from "./lib/privacyFlows.js";
 import { fertShown, isTTC, cleanFertPrefs, restoredFertPrefs, defaultTempUnit, FERT_FORM_EMPTY, fertFormFrom, fertFormKey, fertTouched, fertRead, fertWindow, fertSummary, fertSummaryLines, bbtShiftSentence, fertEmailLine, cleanFert, FERT_COPY } from "./lib/fertility.js";
 import { cleanModules, setModuleOn, isModuleOn, modulesFor } from "./lib/modules.js";
+import { cleanHomeTiles, homeTiles as tilesFor, pcosCycleCand, lastPeriodDay, heroModel, TILE_CATALOG, tileLogged, bodySteps, mindSteps, smallStep, PCOS_SIGNAL_IDS, EMPTY_LINE } from "./lib/home.js";
 import { visitModel, paperForLocale } from "./lib/visitReport.js";
 import { PLAN, can, exportsLeft, noteExport } from "./lib/plan.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
@@ -126,7 +127,8 @@ import RecordUnavailableScreen from "./screens/RecordUnavailableScreen.jsx";
 import RegisterScreen from "./screens/RegisterScreen.jsx";
 import IntakeScreen from "./screens/IntakeScreen.jsx";
 import HomeScreen from "./screens/HomeScreen.jsx";
-import { PatternsCard, windowDays } from "./components/PatternCharts.jsx";
+import { windowDays } from "./components/PatternCharts.jsx";
+import HomePatterns from "./components/HomePatterns.jsx";
 import TodayScreen from "./screens/TodayScreen.jsx";
 import CalendarScreen from "./screens/CalendarScreen.jsx";
 import PatternsScreen from "./screens/PatternsScreen.jsx";
@@ -301,6 +303,11 @@ export default function CyraDemo() {
   /* Condition modules (calm R1, lib/modules.js): { pcos?: { on, since } }, part of the record and of backups, never sent
      anywhere. POTS stays in `pots` (isModuleOn reads pots.on). No screen reads it yet: R2/R4/R7 surface PCOS. */
   const [modules, setModules] = useState({});
+  /* Home v2 (calm R3, lib/home.js): homeTiles = her Quick log tiles (null = Cyra's default set; 2–4 ids), part of the
+     record and of backups (no health data). homeStepSkip = { day, id } when she said "Not today" to the small step:
+     this device only, never in a backup file. */
+  const [homeTiles, setHomeTiles] = useState(null);
+  const [homeStepSkip, setHomeStepSkip] = useState(null);
   const [exportLog, setExportLog] = useState(null); // { month: "YYYY-MM", n }: appointment PDFs made this month. Written only while plan.js sets a monthly limit (none today), so the shipping app keeps no count; device-only, never in a backup file.
   const [fert, setFert] = useState(FERT_FORM_EMPTY);
   const fertOn = fertShown(stage, stageName, fertSigns.on);
@@ -782,9 +789,6 @@ export default function CyraDemo() {
   };
   // A bleeding flow picked while editing a day marks it a period day (the switch can undo it).
   const pickFlow = (v) => { setFlow(v); if (editDate && v && v !== "spot") setEditPeriod(true); };
-  const isoDaysAgo = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return localDay(d); };
-  const loggedLast14 = Array.from({ length: 14 }, (_, i) => isoDaysAgo(i)).filter((iso) => !!entryOn(iso)).length;
-  const streakLine = loggedLast14 >= 10 ? "That's a real record now." : loggedLast14 >= 5 ? "Patterns are starting to show." : "Every entry counts — nothing to catch up on.";
 
   /* Pulse ("You're not alone"): last closed week's anonymous counts, read ONCE per launch
      with no stage in the request; this device picks its own stage's numbers locally, so
@@ -1110,27 +1114,30 @@ export default function CyraDemo() {
   /* The peri variability marker counts every cycle (D5); when she left some out of predictions it says so (L5). One named
      expression so a later insight can carry the same sentence. */
   const countsEveryCycle = cyc.excludedCount > 0 ? ` This counts every cycle, including ${cyc.excludedCount === 1 ? "the one" : `the ${cyc.excludedCount}`} you left out of predictions.` : "";
+  const pcosHere = stage !== "preg" && modulesFor(stage, stageName).some((m) => m.id === "pcos") && isModuleOn({ modules }, "pcos");
+  const pcosCand = pcosHere && !isMeno ? pcosCycleCand({ on: true, lens: ins.lens }) : null;
   const homeInsight = (() => {
     if (stage === "preg") {
       const next = PRENATAL.flatMap((g) => g.items).find((m) => m.from >= pregWeek && m.from <= 42); // from the same schedule Milestones draws (UI M1)
       return { num: `Wk ${pregWeek}`, text: next ? `Next up on your care roadmap: ${next.label} around week ${next.from}.` : "You're in the home stretch — weekly visits from here." };
     }
     // Honest first run: before 3 check-ins the card counts the gap and names what unlocks it.
-    if (days.length < 3) {
-      const n = ins.sorted.length, left = 3 - n;
-      return { num: `${n} of 3`, text: n === 0 ? "Log a few days and your first insight appears here." : `${left} more check-in${left === 1 ? "" : "s"} and your first insight appears here.` };
-    }
+    // calm R3: no countdown to a first insight; the calm empty state instead.
+    if (days.length < 3) return { empty: true, text: EMPTY_LINE };
     /* L8: the strongest new finding (one that qualifies today but didn't 7 days ago), else a daily rotation through the
        three strongest (lib/insights.js homePick). The perimenopause variability marker ranks first (tier 0). */
     const cands = [
       ...(stage === "peri" && ins.variability != null && ins.variability >= 7 ? [{ key: "var", tier: 0, strength: ins.variability, num: `${ins.variability}d`, homeText: `Your cycles are varying by ${ins.variability} days — the clearest marker of the transition. Worth raising at your next visit.${countsEveryCycle}`, fam: null }] : []),
       ...(found ? [...found.sleep, ...found.cycle] : []),
+      // calm R3: the PCOS module's cycle-length question joins the pool once two cycles are counted (lib/home.js).
+      ...(pcosCand ? [pcosCand] : []),
     ];
-    const pick = homePick(cands, keysBefore, todayIso);
+    // It rotates with the others rather than always leading as "new" (its answer changes only when a cycle ends).
+    const pick = homePick(cands, pcosCand ? new Set([...keysBefore, pcosCand.key]) : keysBefore, todayIso);
     if (pick) return { num: pick.homeNum || pick.num, text: pick.homeText, fam: pick.fam };
     const top = ins.counts.find((x) => x.days > 0);
     if (top) return { num: `${top.days} days`, text: `${top.label} showed up most this month — ${top.days} of 30 days.`, fam: SYM_FAMILY[top.id] || "body" };
-    return { num: "—", text: "Log a few days and your first insight appears here." };
+    return { empty: true, text: EMPTY_LINE };
   })();
 
   const upcoming = appts.filter((a) => a.date >= todayIso).sort((a, b) => a.date.localeCompare(b.date));
@@ -1168,8 +1175,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1495,13 +1502,15 @@ export default function CyraDemo() {
     const restoredFert = restoredFertPrefs(saved.fertSigns, fertSigns);
     // Condition modules are restored literally too (calm R1): a backup without them turns every module (but POTS, restored above) off.
     const restoredModules = cleanModules(saved.modules);
-    applySaved({ ...saved, pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
+    // Home's Quick log tiles are restored literally (calm R3): a backup without them brings back Cyra's default tiles.
+    const restoredTiles = cleanHomeTiles(saved.homeTiles);
+    applySaved({ ...saved, pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
     potsBase.current = restoredPots; setPotsHomeLast(null);
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
-    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, exportLog };
-    await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, exportLog, homeStepSkip };
+    await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     // The reminders clause only where Settings has a reminders row (a web build without webReminders has none).
     const msg = !isNative() && remindersInBuild(false) && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored";
@@ -2036,18 +2045,32 @@ export default function CyraDemo() {
   /* Home: the patterns card (the same card the Patterns tab opens with, compact: fewer symptom
      rows, no hint, day card once a day is tapped), once 3 days are logged. */
   const sixty = stage === "preg" ? null : windowDays(ins.sorted, symIds, todayIso, 60, scoreScale);
-  const patternsCard = sixty && sixty.filter((d) => d.e).length >= 3
-    ? <PatternsCard days={sixty} ids={symIds} labels={symMap} starts={isMeno ? [] : ins.starts} sorted={ins.sorted} todayIso={todayIso} maxRows={3} compact popIso={justSaved} onMore={() => goTab("patterns")} scale={scoreScale} />
-    : null;
+  // calm R3: Home's preview is word-based (no 0–100 axis); the full chart stays in Patterns.
+  const patternsCard = sixty ? <HomePatterns days={sixty} ids={symIds} labels={symMap} starts={isMeno ? [] : ins.starts} curLen={pred?.center || 28} onMore={() => goTab("patterns")} /> : null;
   /* POTS tools open as a page under the current tab (potsOpen): the tab bar stays, with the
      current tab still selected, and a Back button at the top of the page returns to it. */
   const potsPage = potsOpen && potsTab;
   const pregIs = (id) => !potsPage && pregTab === id;
   const appIs = (id) => !potsPage && appTab === id;
+  /* Home v2 (calm R3): the loggers this stage has (the "+" sheet's list) plus PCOS signals while the module is on; her
+     Quick log tiles (homeTiles, 2–4) drawn from them; what today already holds, for the tiles' "Logged" chips and rails. */
+  const logItems = logItemsFor({ period: stage !== "preg", sleep: stage !== "preg", move: !!(potsTab && potsOk) });
+  const tileAvail = [...logItems.map((i) => i.id), ...(pcosHere ? ["pcos"] : [])];
+  const homeTileIds = tilesFor(homeTiles, tileAvail);
+  const todayEntryNow = entryOn(todayIso) || null;
+  const tileCtx = { entry: todayEntryNow, medDay: medLog[todayIso] || null, moveCount: potsTab && potsOk ? (pots?.days?.[todayIso]?.move || []).length : 0, pcosIds: PCOS_SIGNAL_IDS };
   const homeView = (
     <HomeScreen
-      acct={acct} stage={stage} stageName={stageName} pregWeek={pregWeek} tri={tri} dueDate={dueDate} pred={pred} loggedLast14={loggedLast14} loggedTotal={stage === "preg" ? Object.keys(pregLog).length : ins.sorted.length} streakLine={streakLine} goTab={goTab} entryOn={entryOn} todayIso={todayIso} homeInsight={homeInsight} patternsCard={patternsCard} wearInsights={wearInsights} milestones={milestones} justReached={justReached} nextUp={nextUp} pulse={FEATURES.counts ? pulse : null}
-      todayEntry={entryOn(todayIso) || null} scoreIds={stage === "preg" ? Object.keys(GSYM) : symIds} scoreLabels={stage === "preg" ? GSYM : symMap} dayScore={scoreDay}
+      acct={acct} stage={stage} stageName={stageName} goTab={goTab}
+      hero={heroModel({ stage, isMeno, pred, predWhy, pregWeek, tri, dueDate, lastPeriodIso: isMeno ? lastPeriodDay(ins.sorted) : null, todayIso, pcosOn: pcosHere })}
+      tiles={homeTileIds.map((id) => ({ ...TILE_CATALOG.find((t) => t.id === id), logged: tileLogged(id, tileCtx) }))} onTile={(id) => pickLog(id)}
+      tilePicker={{ choices: TILE_CATALOG.filter((t) => tileAvail.includes(t.id)), chosen: homeTileIds, custom: homeTiles != null, set: (ids) => setHomeTiles(ids == null ? null : cleanHomeTiles(ids)) }}
+      step={smallStep({ stage, entry: todayEntryNow, pcosOn: pcosHere, todayIso, skip: homeStepSkip })}
+      onStep={(a) => { if (a.log) pickLog(a.log); else if (a.go) goTab(a.go); else if (a.open === "appts") setShowAppts(true); }}
+      onSkipStep={() => { const st = smallStep({ stage, entry: todayEntryNow, pcosOn: pcosHere, todayIso }); setHomeStepSkip({ day: todayIso, id: st ? st.id : "" }); ping("Okay, not today"); }}
+      bodyRail={bodySteps({ entry: todayEntryNow, moveCount: tileCtx.moveCount, preg: stage === "preg" })}
+      mindRail={mindSteps({ moodDone: tileLogged("mood", tileCtx), readReady: !!todayEntryNow && !homeInsight.empty })} todayIso={todayIso} homeInsight={homeInsight} patternsCard={patternsCard} wearInsights={wearInsights} milestones={milestones} justReached={justReached} nextUp={nextUp} pulse={FEATURES.counts ? pulse : null}
+      todayEntry={todayEntryNow} scoreIds={stage === "preg" ? Object.keys(GSYM) : symIds} scoreLabels={stage === "preg" ? GSYM : symMap}
       recap={recap} showRecap={showRecap} setShowRecap={setShowRecap}
       showWear={showWear} setShowWear={setShowWear} wearSources={wearSources} terraOffCount={terraOff.length} connectWear={connectWear} disconnectWear={disconnectWear} wearConfirm={wearConfirm} setWearConfirm={setWearConfirm} wearBusy={wearBusy} wearData={wearData} wAvg={wAvg}
       showMeds={showMeds} setShowMeds={setShowMeds} meds={meds} medLog={medLog} medEffects={medEffects} setMedLog={setMedLog} newMed={newMed} setNewMed={setNewMed} setMeds={setMeds} ping={ping}
@@ -2126,12 +2149,11 @@ export default function CyraDemo() {
      tried in order). Quick mode's card becomes the full form for this visit (the same "more detail"), so symptom chips
      and the 0–10 mood scale are on screen. Items without a logger here are not offered: Period in pregnancy, Sleep
      in pregnancy (its form has no sleep row), Move without the POTS movement plan. */
-  const logItems = logItemsFor({ period: stage !== "preg", sleep: stage !== "preg", move: !!(potsTab && potsOk) });
   const fullForm = () => { if (quickMode && !expanded && !editDate && stage !== "preg") { setDraft((d) => foldQuick(d, stage)); setExpanded(true); } };
   const pickLog = (id) => {
     setLogOpen(false);
     const at = (view, sel) => { pendingFocus.current = sel; showView(view, { head: true }); };
-    if (id === "symptoms") { fullForm(); at("today", ['.chips[role="group"] button.chip', ".viewpanel main h1"]); }
+    if (id === "symptoms" || id === "pcos") { fullForm(); at("today", ['.chips[role="group"] button.chip', ".viewpanel main h1"]); }
     else if (id === "period") { setShowBody(true); at("today", ["#bodypanel button", ".viewpanel main h1"]); }
     else if (id === "sleep") { if (stage === "peri") fullForm(); at("today", [".viewpanel button.pill[aria-pressed]", ".viewpanel main h1"]); } // peri's quick card asks sleep itself and hides the pill row
     else if (id === "mood") { fullForm(); at("today", ['input.slider[aria-label^="Mood,"]', ".viewpanel main h1"]); }

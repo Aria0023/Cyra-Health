@@ -14,6 +14,7 @@ import { PALETTES, CADENCE, FLOW, DISCHARGE, ODOR, BODYODOR, RELATIONSHIP, INTIM
 import { cleanSymPrefs, NOTE_MAX } from "./daylog.js";
 import { cleanFert, cleanFertPrefs } from "./fertility.js";
 import { cleanModules } from "./modules.js";
+import { cleanHomeTiles } from "./home.js";
 
 /* ======================= shapes (documentation only) =======================
    Class tags: [record] the health record and settings (in the backup file, applied by a restore,
@@ -208,9 +209,13 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    fertSigns (L7) is the fertility signs switch and temperature unit: record, in backups (no health data).
    modules (calm R1) is which condition modules are on ({ pcos: { on, since } }; lib/modules.js): record, in backups,
    restored literally. POTS keeps its own `pots` key; modules.js reads it from there.
+   homeTiles (calm R3) is her Quick log choice on Home: null (Cyra's default tiles) or 2–4 tile ids (lib/home.js):
+   record, in backups (no health data).
+   homeStepSkip (calm R3) is the day she said "Not today" to Home's small step, { day, id } | null: device-only, never
+   in a backup file (a dismissal on one device says nothing about another day elsewhere).
    exportLog (L9) is this month's count of appointment PDFs, { month: "YYYY-MM", n }, written only while plan.js sets a
    monthly limit (none today, so it stays null): device-only and never in a backup file. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules"]);
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -218,7 +223,7 @@ export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "ca
    is whether this browser's Home install tip should stay away (null | "dismissed" |
    "installed", lib/pwa.js), also left out of the backup file; exportLog is this device's count of
    appointment PDFs this month (L9), null while exports are unlimited, also left out of the file. */
-export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog"]);
+export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip"]);
 /* A display preference of this device (L2): appearance ("system" | "light" | "dark", lib/appearance.js).
    It is saved with the record and followed by every open tab of this browser (so it stays in RECORD,
    they are all the same device), but it is never in a backup file and never taken from one:
@@ -231,7 +236,7 @@ export const RECORD = Object.freeze(PERSISTED.filter((k) => !DEVICE_ONLY.include
    lastBackupAt (this device's own note of when it last backed up), installHint (whether this
    device's install tip is hidden), exportLog (this device's PDF count this month, L9) and appearance
    (this device's light/dark choice). */
-export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", ...DEVICE_PREFS]);
+export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", ...DEVICE_PREFS]);
 
 /** The record as it goes into an encrypted backup file, as a new object (the input is not
     changed): every saved key, except that regAnswers loses zip and age (neither is used after
@@ -455,6 +460,10 @@ export const RULES = Object.freeze({
   exportLog: (v, p) => (v === null || (isObj(v) && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && isCount(v.n)) ? [] : [`${p}: expected null or { month: YYYY-MM, n: a whole number ≥ 0 }, got ${show(v)}`]),
   // Condition modules (calm R1): a problem whenever cleanModules would change anything.
   modules: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanModules(v)) ? [] : [`${p}: expected { <module id>: { on: true|false, since: YYYY-MM-DD|null } } (POTS lives in pots), got ${show(v)}`]),
+  // Home's Quick log tiles (calm R3): null, or what cleanHomeTiles keeps unchanged (2–4 distinct tile ids).
+  homeTiles: (v, p) => (v === null || JSON.stringify(v) === JSON.stringify(cleanHomeTiles(v)) ? [] : [`${p}: expected null or 2–4 distinct Home tile ids, got ${show(v)}`]),
+  // Home's small step "Not today" (calm R3): null or { day: YYYY-MM-DD, id: text }.
+  homeStepSkip: (v, p) => (v === null || (isObj(v) && isIso(v.day) && typeof v.id === "string") ? [] : [`${p}: expected null or { day: YYYY-MM-DD, id }, got ${show(v)}`]),
   symPrefs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanSymPrefs(v)) ? [] : [`${p}: expected { periods|peri|preg: { order, hidden, added } } (lists of symptom ids, at most 40 each, no empty stages), got ${show(v)}`]),
 });
 

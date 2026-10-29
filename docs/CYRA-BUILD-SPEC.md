@@ -128,6 +128,15 @@ key (in PERSISTED, not DEVICE_ONLY): saved with the record, adopted by her other
 saves, restored literally (a backup without the key clears it) and deleted by Delete everything. No RECORD_VERSION bump:
 missing means `{}`. Predictions read it; the clinical markers (§6.2 variability, the Report's cycle lengths) never do.
 
+### 3.5a Home choices (calm R3)
+```js
+homeTiles: null | ["symptoms", "sleep", "mood", "period"]   // 2–4 ids from lib/home.js TILE_CATALOG, her order; null = Cyra's default
+homeStepSkip: null | { day: "2026-10-29", id: "breathe" }   // "Not today" on Today's small step
+```
+`homeTiles` is a record key (RECORD, in backups, restored literally, `cleanHomeTiles` on load/adopt/restore; RULES flag
+anything it would change). `homeStepSkip` is DEVICE_ONLY and in NOT_IN_BACKUP (never in a backup file, kept across a
+restore). Neither holds health data; no network path reads either.
+
 ### 3.6 Her symptom list (symPrefs, local-first L6)
 ```js
 symPrefs: { periods?: { order, hidden, added }, peri?: { order, hidden, added }, preg?: { order, hidden } }
@@ -1482,6 +1491,49 @@ The reference implementation `App.jsx` contains all of the following. Treat the
 code as the source of truth for exact behavior; this addendum explains intent.
 
 ## A1. Home screen (default tab after registration)
+**Home v2 (calm R3; normative where it differs from the older text below, which is kept for history).** `main.homev2`,
+top to bottom (pure logic in src/lib/home.js, unit-tested):
+1. *Hero* (`.homehero[data-kind]`, no card): the date eyebrow ("Thursday, October 29"), the greeting h1 `.greet`
+   ("Good morning, Maya."), then a 176px `Ring` (`.heroring`) over a soft stage-coloured blob (`.heroblob`, inline SVG,
+   primary/accent mixed thinly, a slow drift that stops under reduced motion) with a card-coloured centre. `heroModel`:
+   cycle stages "Day {n}" + "{phase} phase", value = cycle day ÷ her expected length; pregnancy "Week {n}" + "{tri}
+   trimester", value week ÷ 40; menopause "{n}" + "days since your last period" (within 12 months) or the calm state
+   (today's date in the ring, "No period tracking needed"); a gap Cyra won't predict across "Day {n}" + "No period on record
+   for {n} days"; nothing logged "Log a period start to see your cycle day". Under it one `.heroline` (a button to the
+   Calendar when there is a cycle; a plain line otherwise): the prediction with its range ("Next period likely Oct 30 –
+   Nov 6", or L5's "any day now" / "later than your usual range") over its basis line, or "Your cycles vary, so the range
+   is wide on purpose." with the PCOS module on, or "Cycles vary for you — the range is wide on purpose." for a wide range.
+   Trying to conceive with fertility signs shown: the estimated fertile window follows as one compact `.nextrow` in
+   the hero (`.herorows`; L7's text, "An estimate, not contraception · Calendar →"), so signs add one row, not a section.
+   Then `.todayline` (words only: "Today · slept well · cramps, bloating"; the TTC fertility read replaces it). The
+   "N of 14 days" badge, its streak line and the check-in button are gone from Home (the tiles and the "+" log instead).
+2. POTS card ("POTS today", still the first `p.section-lab`) and the install tip, when they apply (focus returns to the
+   Quick log heading).
+3. *Quick log*: h2 "Quick log" + a 44px "Choose your Quick log tiles" button (sheet `#tile-sheet` "Your Quick log": pick 2–4,
+   order = pick order, "Put back Cyra's tiles", Done). 2–4 `QuickTile`s (default Symptoms · Sleep · Mood · Move, topped
+   up from what the stage can log: Period when there is no Move logger; pregnancy Symptoms · Mood · Meds · Note); "PCOS
+   signals" is an option while the PCOS module is on (opens the symptom logger). Each tile opens its logger through the
+   "+" sheet's routing and shows a "Logged" `Chip` once today has that entry (`tileLogged`).
+4. *Today's small step* (`.stepcard`, `smallStep`): nothing logged today → "Log how your energy is"; a rough night →
+   "A 2-minute breathing practice" (sourced, "Wellbeing support, not treatment."); PCOS on → "Notice your energy after
+   meals"; pregnancy → "Note one question for your next visit"; no note → "Add one line about today"; else "Look back at
+   your week". An action button, "Not today" (hides it for the day; `homeStepSkip`) and a "Why" disclosure with the source.
+5. *Body / Mind rails* (`.railcard[data-tint]`, `StepRail`): Body Sleep · Movement · Symptoms (pregnancy Movement ·
+   Symptoms), Mind Check-in · Today's read. Ticks for what today holds; the next step is "current"; Movement is optional
+   and never marked next; untouched steps are neutral.
+6. *Today's insight* (`.insightcard`, label kept as `p.section-lab`): one finding (L8 `homePick`, plus the PCOS
+   cycle-length question once two cycles are counted) with "Associations to raise with your clinician, not a diagnosis or
+   medical advice." under it; fewer than 3 check-ins → `EmptyNote` "A few more logs will show clearer associations."
+7. *Your patterns* (`HomePatterns`, from 3 logged days): "Day by day" = a soft-ramp sparkline of the 7-day trend (no
+   axis, higher = lighter days) and `weekTrend`'s sentence ("This week felt a little heavier than your usual."); "By
+   cycle" (two period starts) = four soft bars Period · Follicular · Ovulation · Luteal placed from her own cycle lengths
+   (`cycleBuckets`), "Lighter days tend to fall in the luteal phase; heavier ones around your period."; then "Showing up
+   most lately" with family dots. No number out of 100 anywhere on Home.
+8. Milestones (label "Milestones", no "N of M reached", no progress bar), Coming up (appointments; the period, due-date and
+   fertile-window rows now live in the hero), the pulse, and the grid of doors with their panels (unchanged labels; Month vs
+   last month says the month "felt lighter / heavier / about the same", What I'm trying says "Your days have felt …
+   since starting" instead of a day score).
+
 **Header row (`.mast`, one row at 390px in all three stages and with POTS on, <= 54px).** Wordmark (`.mark` 22px Fraunces
 with the `.sub` tag) · name chip `.acctchip` (ellipsised past 110px, full text in `title`) · two 44px round icon chips
 (`.stagechip.icon`: palette, then Check-in settings; primary-tinted while `aria-expanded="true"`) · the "{stage} · change"
@@ -1797,6 +1849,9 @@ Apple stays first.
       segmented sub-views, deep links for the new and old routes (src/lib/routes.js, §5 "Navigation"), the You page
       (stage change, Settings, Modules with the PCOS switch, Care), and the optional "Living with PCOS?" registration step
       (§4.2; `regAnswers.pcos`, Yes / I suspect it → PCOS module on). Every harness walks through lf/nav.mjs.
+- [x] Home v2 (calm R3): cycle-day hero ring with the prediction range, Quick log tiles she can choose (`homeTiles`),
+      Today's small step with Why and "Not today" (`homeStepSkip`), Body / Mind step rails, one insight with the
+      not-medical-advice line, a word-based patterns preview; no streaks, scores or completeness counts on Home (A1).
 - [ ] Native biometric unlock (Face ID / fingerprint) through a Capacitor plugin — later work; the phone build offers
       the PIN only (D4).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the
