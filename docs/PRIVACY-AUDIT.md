@@ -1101,3 +1101,37 @@ switches live in the URL hash only.
 
 **Colour-only changes with a privacy surface.** None. The theme-color metas, `--doc-bg` and the web manifest colours
 changed to the v2 paper (#FAF7F4 / #131520); they carry no data.
+
+## Calm R2 (five tabs, the log sheet, PCOS in onboarding) — one new answer inside `regAnswers`, three new privacy sentences, nothing new leaves the device
+
+No request, dependency, font or external asset was added. Navigation state (the selected tab and view, the last view per
+tab, the open log sheet) is UI state only: never persisted, never sent. Deep links (`#/body/calendar`, `#/report`, …) are
+read from the location hash on this device and the hash is cleared after use; a fragment never reaches a server.
+
+**New answer `regAnswers.pcos`** ("yes" | "suspect" | "no" | "unsaid" | null, registration's optional "Living with
+PCOS?" step; lib/onboarding.js). Not a new record key: it lives inside `regAnswers` (class: health log), so it goes where
+the other answers go — the on-device record, **encrypted backups** (regAnswers is backed up without `zip` and `age`;
+`pcos` is kept), restored with the rest of regAnswers, erased by Delete everything. Kept only for My Cycle, Trying to
+conceive and Perimenopause (`pruneForStage` empties it for the other stages). No network path reads regAnswers: weekly
+counts send the life-stage group and symptom flags, web reminders send the rhythm, time and time zone, Ask sends the
+question only, the POTS report uses no registration answer. "Yes, diagnosed" or "I suspect it" turns the PCOS module on
+(the R1 `modules` key, unchanged handling: on the device and in backups, never sent).
+
+**Sentences added (all true in the shipping and the all-flags builds):**
+- Registration, PCOS step hint (`STEP_COPY.pcos.sub`): "Optional. A yes adds PCOS symptoms, signals and cycle wording to
+  your log; you can change it anytime in You. Your answer stays on this device, and goes into an encrypted backup only if
+  you save one." — true as above (same wording pattern as the Cycle and Pregnancy steps).
+- You → Modules footer: "Associations to raise with your clinician, not a diagnosis or medical advice. Your module
+  switches stay on this device, and go into an encrypted backup only if you save one." — the `modules` key and `pots.on`
+  are record keys in backups and are read by no network path.
+- You → Settings card: "Privacy & your data: what leaves this device, encrypted backup, app lock, delete everything" — a
+  list of what the Settings sheet's Privacy & your data group (L10) holds, present in every build.
+- You → stage card: "Cyra is shaped around one stage at a time. Changing it keeps everything you've logged." — the stage
+  change (intake) keeps the record (spec §6 "continuous data").
+- "+" log sheet hint: "One tap opens the right place. Nothing is saved until you save it there." — the sheet only routes;
+  every item opens an existing logger whose own Save / Add writes the record.
+
+**Sentences moved, wording unchanged:** the Care shelf ("That matching runs on your device, and partners never see your
+data. …") is now the "Care & support" section of the You page (CareScreen `embedded`); the "<stage> · change" button
+moved from the header to You. Toasts added: "PCOS module on", "PCOS module off. What you logged is kept" (the switch
+never deletes a log).

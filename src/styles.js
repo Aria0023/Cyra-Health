@@ -38,23 +38,21 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .stagesel b { font-size:13px; color:var(--ink); } .stagesel span { font-size:10.5px; color:var(--soft); }
 .stagesel.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 8%, var(--card)); }
 .stagesel.on b { color:var(--primary-text); }
-/* ---- section bar (spec §5): the nav is the sticky, translucent wrap (.tabswrap); the strip inside scrolls sideways with
-   proximity snapping and tells the wrap which edges it is against (data-start / data-end), which fade the overflow cue out.
-   Sticky needs no overflow-clipping ancestor: .cy has none. html scroll-padding keeps anchored scrolls below the bar. ---- */
-.tabswrap { position:sticky; top:0; z-index:4; margin:0 -16px 16px; padding:var(--sa-t) 16px 0; background:color-mix(in srgb, var(--paper) 86%, transparent); backdrop-filter:saturate(160%) blur(12px); -webkit-backdrop-filter:saturate(160%) blur(12px); }
-.tabswrap::before, .tabswrap::after { content:''; position:absolute; top:0; bottom:2px; width:36px; pointer-events:none; transition:opacity var(--t-fast); }
-.tabswrap::after { right:16px; background:linear-gradient(90deg, transparent, var(--paper)); }
-.tabswrap::before { left:16px; background:linear-gradient(270deg, transparent, var(--paper)); opacity:0; }
-.tabswrap[data-end="1"]::after { opacity:0; }
-.tabswrap[data-start="1"]::before { opacity:1; }
-html { scroll-padding-top:60px; }
-.tabs { display:flex; gap:4px; border-bottom:2px solid var(--line); margin-bottom:0; padding-right:28px; overflow-x:auto; scroll-snap-type:x proximity; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
-.tabs::-webkit-scrollbar { display:none; }
-.tab { flex-shrink:0; scroll-snap-align:start; }
-.tab { background:none; border:none; border-bottom:3px solid transparent; padding:7px 8px 9px; font:700 13px 'Karla Variable','Karla'; color:var(--soft); cursor:pointer; transition:color var(--t-fast), border-color var(--t-fast); }
-.tab-on { color:var(--primary-text); border-bottom-color:var(--primary); }
-/* The screen under the bar is the tabpanel; it fades in on a tab change (keyed remount, so once per switch). */
-.tabpanel { animation:cy-fade-rise var(--t-base) var(--ease-in); }
+/* ---- navigation (calm R2, spec §3): the five-tab nav pill (styles under "The nav pill" below) is fixed at the bottom,
+   so the page keeps room for it, the sticky save bar stops just above it and the toast rises over it. A tab that hosts
+   several views shows them as a pill segmented control (.subnav .seg) at the top of its panel; the view under it fades
+   in on a switch (keyed remount, once per switch; off under reduced motion). ---- */
+html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b)); }
+.cy:has(.navpill.fixed) { padding-bottom:calc(104px + var(--sa-b)); }
+.cy:has(.navpill.fixed) .stopbar { bottom:calc(76px + var(--sa-b)); }
+.cy:has(.navpill.fixed) .stopbar.savebar { padding-bottom:10px; border-radius:var(--r-card) var(--r-card) 0 0; }
+.cy:has(.navpill.fixed) .toast { bottom:calc(92px + var(--sa-b)); }
+.cy:has(.navpill.fixed):has(.stopbar) .toast { bottom:calc(158px + var(--sa-b)); }
+.subnav { margin:2px 0 16px; }
+.subseg { box-shadow:var(--sh-opt); border-color:var(--edge); }
+.subseg .mc { font-size:var(--fs-sm); }
+.subseg .mc.on { box-shadow:0 4px 12px -6px var(--primary); }
+.viewpanel { animation:cy-fade-rise var(--t-base) var(--ease-in); }
 .disp { font-family:'Fraunces Variable','Fraunces',serif; font-weight:440; font-size:var(--fs-title); line-height:1.14; margin:0 0 8px; }
 .hint { font-size:var(--fs-md); line-height:1.55; color:var(--soft); margin:0 0 16px; }
 .chips { display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:16px; }
@@ -177,9 +175,9 @@ html { scroll-padding-top:60px; }
 .d-period { background:var(--primary); } .d-pred { background:var(--card); border:1.5px dashed var(--primary); } .d-fert { background:var(--card); border:2px solid var(--accent); }
 .d-wk { background:var(--card); border:2px solid var(--accent); border-radius:3px; }
 /* Your cycles (Calendar, L5): start · length · decorative bar · Don't use switch; the text carries the length. */
-.bodypanel.more .cyclist { list-style:none; margin:8px 0 0; padding:0; }
-.bodypanel.more .cycrow { display:flex; align-items:center; flex-wrap:wrap; gap:4px var(--gap); margin:0; padding:6px 0; border-top:1px solid var(--line); }
-.bodypanel.more .cycrow:first-child { border-top:none; }
+.bodypanel.more .cyclist, .cyclespage .cyclist { list-style:none; margin:8px 0 0; padding:0; }
+.bodypanel.more .cycrow, .cyclespage .cycrow { display:flex; align-items:center; flex-wrap:wrap; gap:4px var(--gap); margin:0; padding:6px 0; border-top:1px solid var(--line); }
+.bodypanel.more .cycrow:first-child, .cyclespage .cycrow:first-child { border-top:none; }
 .cycstart { min-width:46px; font-weight:700; font-variant-numeric:tabular-nums; }
 .cyclen { min-width:56px; white-space:nowrap; font-variant-numeric:tabular-nums; }
 .cycrow.now .cyclen { min-width:0; color:var(--soft); }
@@ -189,7 +187,7 @@ html { scroll-padding-top:60px; }
 .cycrow.out .cycstart, .cycrow.out .cyclen { color:var(--soft); }
 .cycrow.out .cycbar i { background:color-mix(in srgb, var(--soft) 45%, var(--card)); }
 .cycuse { flex-shrink:0; }
-.bodypanel.more .cycwhy { flex-basis:100%; margin:0 0 2px; font-size:var(--fs-sm); color:var(--soft); line-height:1.45; }
+.bodypanel.more .cycwhy, .cyclespage .cycwhy { flex-basis:100%; margin:0 0 2px; font-size:var(--fs-sm); color:var(--soft); line-height:1.45; }
 .statechip.flag { display:inline-block; margin-right:6px; padding:3px 9px; border-style:solid; border-color:color-mix(in srgb, var(--accent) 70%, var(--line)); color:var(--accent-text); }
 .bodypanel.more .cycmore { margin:6px 0 0; color:var(--soft); }
 .pregband { display:flex; gap:14px; align-items:center; background:var(--card); border:1px solid var(--edge); box-shadow:var(--sh-card); border-radius:var(--r-card); padding:14px 15px; margin-bottom:8px; }
@@ -358,7 +356,7 @@ html { scroll-padding-top:60px; }
 .linkbtn.backquick { display:flex; margin:-4px 0 6px; }
 .stopbar.savebar { z-index:3; margin:12px -16px 0; padding:10px 16px calc(10px + var(--sa-b)); background:color-mix(in srgb, var(--paper) 88%, transparent); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); border-top:1px solid var(--line); }
 .savebar .cta { margin:0; }
-.editbar { position:sticky; top:60px; z-index:2; background:color-mix(in srgb, var(--accent) 16%, var(--card)); border-color:var(--accent); }
+.editbar { position:sticky; top:calc(8px + var(--sa-t)); z-index:2; background:color-mix(in srgb, var(--accent) 16%, var(--card)); border-color:var(--accent); }
 /* The day just saved pops once on the patterns card (set by the save handler only; cleared after 1.2 s). */
 .dot-new { transform-box:fill-box; transform-origin:center; animation:cy-pop 600ms var(--ease-std); }
 .inpErr { border-color:var(--bad) !important; background:var(--bad-bg) !important; }
@@ -734,7 +732,7 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .lockforgot { display:flex; margin:14px auto 0; min-height:44px; }
 .lockscreen .plaincard, .lockscreen .mcrow { text-align:left; }
 @media print {
-  .mast, nav[aria-label="Sections"], .tabswrap, .routes, .pdfcard, .rappt .linkbtn, .rcov-today .linkbtn, .sadd, .scopy, .toast, .disclosure, .savebar, .report .cta, .rlong { display:none !important; }
+  .mast, nav[aria-label="Sections"], .navpill, .subnav, .v2sheet-wrap, .tabswrap, .routes, .pdfcard, .rappt .linkbtn, .rcov-today .linkbtn, .sadd, .scopy, .toast, .disclosure, .savebar, .report .cta, .rlong { display:none !important; }
   .bodypanel { display:block !important; border-radius:0; }
   .rappt { min-height:0; margin:0 0 6px; } .rappt:not(:has(b)), .rcov-today { display:none !important; }
   .cy { padding:0; max-width:none; background:#FFF; color:#000; }
@@ -756,7 +754,7 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
    transitions only inside that window: outside it (launch, adopt) a scheme change lands in one frame.
    FAMILIES / RAMPS inline colours (chart dots, severity marks) are not in this list by design: data never animates. */
 .cy.repaint { transition:background var(--t-slow); }
-.cy.repaint .card, .cy.repaint .plaincard, .cy.repaint .cta, .cy.repaint .tab-on, .cy.repaint .mc.on, .cy.repaint .stagecard.on, .cy.repaint .pulse, .cy.repaint .meter, .cy.repaint .disclosure, .cy.repaint .pchart, .cy.repaint .streak, .cy.repaint .readcard { transition-property:background-color, border-color, color; transition-duration:var(--t-slow); }
+.cy.repaint .card, .cy.repaint .plaincard, .cy.repaint .cta, .cy.repaint .navtab.on, .cy.repaint .navplus, .cy.repaint .mc.on, .cy.repaint .stagecard.on, .cy.repaint .pulse, .cy.repaint .meter, .cy.repaint .disclosure, .cy.repaint .pchart, .cy.repaint .streak, .cy.repaint .readcard { transition-property:background-color, border-color, color; transition-duration:var(--t-slow); }
 /* ---- UI S1: Settings and palette sheets. A sticky title bar with a Close button (Done stays at the bottom), three
    groups separated by a rule, labels with a glyph, a nudge row that says when its time isn't used (tinted, never
    dimmed by opacity: the filled pill would fall under 4.5:1), a data status strip, visible field labels, and palette
@@ -1001,6 +999,34 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .v2sheet-close { flex-shrink:0; width:44px; height:44px; border-radius:50%; border:1px solid var(--line); background:var(--card); color:var(--ink); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
 @keyframes cy-sheet-rise { from { transform:translateY(40px); opacity:.4; } }
 @keyframes cy-fade { from { opacity:0; } }
+/* The "+" log sheet (calm R2): seven quick-log tiles in a 4-up grid (4 + 3, or 4 + 4 with Move). */
+.logsheet-hint { margin:0 0 12px; }
+.logtiles { margin-bottom:4px; }
+.logtiles .qtile { animation:cy-fade-rise var(--t-base) var(--ease-in) both; }
+.logtiles .qtile:nth-child(n+5) { animation-delay:40ms; }
+/* Registration's "Living with PCOS?" step (calm R2): four answers 2-up, then the module's framing on a pastel note. */
+.pcosopts { display:grid; grid-template-columns:1fr 1fr; gap:var(--gap); margin:6px 0 14px; }
+.pcosopts .mc.pcosopt { min-height:56px; margin:0; display:inline-flex; align-items:center; justify-content:center; gap:6px; border-radius:var(--r-tile); font-weight:700; text-align:center; }
+.pcosnote { display:flex; gap:12px; align-items:center; padding:14px; border-radius:var(--r-card); border:1px solid var(--edge); background:linear-gradient(135deg, var(--tint-body), var(--card) 80%); }
+.pcosnote p { margin:0; font-size:var(--fs-md); line-height:1.5; color:var(--ink); }
+/* You (calm R2): one scrolling page — her name in the serif, the stage hero, settings, modules, support & care. */
+.youpage { position:relative; }
+.youpage > .eyebrow { margin-top:4px; }
+.youname { margin:0 0 14px; }
+.youstage .hint { margin:0 0 6px; }
+.youstage .stagechip.quiet { min-height:44px; padding:6px 0; font-size:var(--fs-md); }
+.youlist { list-style:none; margin:0 0 4px; padding:0; display:grid; gap:8px; }
+.youlist li { display:flex; gap:10px; align-items:flex-start; font-size:var(--fs-md); line-height:1.45; color:var(--ink); }
+.youlist svg { flex-shrink:0; margin-top:2px; color:var(--primary-text); }
+.youopen { margin-top:12px; }
+.modlist { list-style:none; margin:0; padding:0; }
+.modrow { display:flex; align-items:center; gap:12px; padding:10px 0; border-top:1px solid var(--edge); }
+.modrow:first-child { border-top:none; padding-top:2px; }
+.modinfo { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; } .modinfo b { font-size:14px; } .modinfo span { font-size:var(--fs-sm); color:var(--soft); }
+.modrow .takebtn { flex-shrink:0; }
+.carepart { margin-top:22px; padding-top:4px; }
+.carepart > .disp { font-size:22px; }
+.cyclespage > p { font-size:var(--fs-md); line-height:1.5; color:var(--soft); }
 /* The dev gallery (#/dev/ui, VITE_FEATURES devGallery only). */
 .devgallery { padding-bottom:104px; }
 .dgcontrols { margin:0 0 var(--stack); } .dgcontrols .lab { margin-top:6px; } .dgcontrols .seg { margin-bottom:6px; }

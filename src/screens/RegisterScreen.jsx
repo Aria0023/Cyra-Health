@@ -8,7 +8,9 @@ import { allFlagGroups } from "../lib/pulse.js";
 import { reduceMotion } from "../lib/motion.js";
 import { paletteFor } from "../lib/appearance.js";
 import { localDay } from "../lib/engine.js";
-import { REG_STAGE, STAGE_LABELS, STAGE_CARDS, STEP_COPY, CYCLE_LENS, regSteps, missingFor, dueDateBounds } from "../lib/onboarding.js";
+import { REG_STAGE, STAGE_LABELS, STAGE_CARDS, STEP_COPY, CYCLE_LENS, PCOS_ANSWERS, regSteps, missingFor, dueDateBounds } from "../lib/onboarding.js";
+import { MODULE_FRAMING } from "../lib/modules.js";
+import { IBadge } from "../components/ui/index.js";
 import { FEATURES, remindersInBuild } from "../lib/features.js";
 import { serverSees, consentDeleteFact, consentDetails } from "../lib/disclosures.js";
 import Details, { WebReminderFacts } from "../components/Details.jsx";
@@ -117,6 +119,24 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
             </button>
           ))}
         </div>
+      )}
+
+      {/* Calm R2: "Living with PCOS?" — optional (Continue works with nothing picked); a second tap clears the answer.
+          Yes or "I suspect it" turns the PCOS module on at finishReg (lib/onboarding.js pcosModuleFrom). */}
+      {key === "pcos" && (
+        <>
+          <div role="group" aria-label="Living with PCOS? (optional)" className="pcosopts">
+            {PCOS_ANSWERS.map(([id, l]) => (
+              <button key={id} type="button" aria-pressed={reg.pcos === id} className={`mc pcosopt ${reg.pcos === id ? "on" : ""}`} onClick={() => rup("pcos", reg.pcos === id ? null : id)}>
+                {reg.pcos === id && <Icon name="check" size={16} />}{l}
+              </button>
+            ))}
+          </div>
+          <div className="pcosnote">
+            <IBadge icon="sparkle" tint="body" size={34} />
+            <p>{MODULE_FRAMING}</p>
+          </div>
+        </>
       )}
 
       {key === "account" && (

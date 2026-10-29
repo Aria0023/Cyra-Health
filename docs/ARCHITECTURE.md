@@ -41,7 +41,9 @@ Pure lib    engine.js  ←  record.js, pots.js (+ potsPatterns, potsReport, pots
             disclosures.js imports only features.js;  privacyFlows.js stands alone (L10);
             lock.js ← record.js (L10: PIN hashing, back-off, WebAuthn checks; no api/native/storage/features import)
             onboarding.js imports nothing (L11: the one registration routing and step map — REG_STAGE moved out of App.jsx —
-            the option lists, ANSWER_BLANK, pruneForStage, pregWeekFrom / dueDateBounds)
+            the option lists, ANSWER_BLANK, pruneForStage, pregWeekFrom / dueDateBounds; calm R2: the PCOS step,
+            PCOS_ANSWERS, pcosModuleFrom)
+            routes.js imports nothing (calm R2: the five tabs, the views each hosts, deep links, the log sheet's items)
   ↓
 I/O lib     storage.js, backup.js, files.js, native.js, api.js
             (pulse.js, notifications.js and wearables.js call api.js; backup.js imports nothing,
@@ -154,7 +156,7 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `appts` | appointments | health log | yes | yes | yes |
 | `wearData` | daily wearable readings | health log | yes | yes | yes |
 | `kickTally` | today's kicks between taps | health log | yes | yes | yes |
-| `regAnswers` | registration and Settings → About you answers; `dueDate` ("" or YYYY-MM-DD, L11) drives the pregnancy week | health log | yes, without `zip` and `age` (`dueDate` is kept) | yes | yes |
+| `regAnswers` | registration and Settings → About you answers; `dueDate` ("" or YYYY-MM-DD, L11) drives the pregnancy week; `pcos` (calm R2: "yes" / "suspect" / "no" / "unsaid" / null) | health log | yes, without `zip` and `age` (`dueDate` is kept) | yes | yes |
 | `pots` | the POTS add-on | health log | yes | yes, literally, with a new epoch (a backup without one clears the POTS log; a newer build's locked log stays untouched) | yes, 3-way merged (`mergePots`, epochs) |
 | `cycleFlags` | cycles she left out of predictions, `{ [startIso]: { exclude: true } }` (L5, spec §3.5) | health record (her choice) | yes | yes, literally (`cleanCycleFlags`; a backup without it clears it) | yes (sanitised by `cleanCycleFlags`) |
 | `symPrefs` | her symptom list per stage id, `{ periods?, peri?, preg? }` × `{ order, hidden, added }` (L6, spec §3.6) | record (a setting) | yes | yes, literally (`cleanSymPrefs`; a backup without it brings back Cyra's order) | yes (sanitised by `cleanSymPrefs`) |
@@ -206,8 +208,9 @@ user). `src/lib/modules.js` is the registry: pure, imports only `engine.js`, `co
   stageName)`, `cleanModules(raw)`, `sourcesOf(module, srcIds)`, `longCycleCount(lens, days = 35)`, `MODULE_FRAMING`.
 - POTS: the existing add-on stays the single source of truth. `isModuleOn(r, "pots")` reads `r.pots.on`;
   `setModuleOn(r, "pots", on)` calls `lib/pots.js` `turnOn` / `turnOff` (turning off keeps the POTS log). No POTS code moved.
-- PCOS (offered in My Cycle, Trying to conceive, Perimenopause): data only in R1, no screen yet (R2 onboarding and the
-  "+" sheet, R4 Body logger, R6 patterns, R7 You → Modules). Symptom ids already in the check-in libraries are reused
+- PCOS (offered in My Cycle, Trying to conceive, Perimenopause): data only in R1. Since R2 registration asks "Living
+  with PCOS?" (Yes / I suspect it → `setModuleOn(…, "pcos", true)` in finishReg) and You → Modules has its switch; R4
+  adds the Body logger and the "+" sheet's "PCOS signals", R6 patterns, R7 the full Modules list. Symptom ids already in the check-in libraries are reused
   (`shared: true`: acn, eng, blo, mood, fog, hda, crm, cra) so existing logs count; new ids: hls (hair loss), hgr
   (excess hair growth), pel (pelvic pain), sug (high-sugar day marker). Signals: crash, cra, waist, fglu (mg/dL |
   mmol/L), hba1c (% | mmol/mol), acan (note). Lab values are hers, typed with unit and date, never interpreted.
@@ -218,6 +221,16 @@ user). `src/lib/modules.js` is the registry: pure, imports only `engine.js`, `co
   about modules is ever sent anywhere.
 - The next module (hair loss) is a new `MODULES` entry plus its copy in CLINICIAN-REVIEW.md; the comment at the top of
   modules.js shows the shape. No engine change.
+
+### 4.2 Navigation (calm R2)
+
+`src/lib/routes.js` (pure, imports nothing) is the navigation model: `TABS` (Home · Body · Mind · Patterns · You),
+`viewsOf(tab, { preg, meno })` (each tab's views and segment labels), `tabOf(view, opts)`, `viewForTab(tab, lastByTab,
+opts)`, `parseRoute(hash, opts)` (new `#/<tab>[/<segment>]` links and the old tab names → `{ tab, view, section? }`),
+`routeOf(view, opts)`, `LOG_ITEMS` / `logItemsFor(has)`. App.jsx keeps one view id (`appTab` / `pregTab`, the ids every
+screen already routes with) and derives the selected tab from it; `NavPill`, the segmented `nav.subnav`, the `LogSheet`
+and the You page (`screens/YouScreen.jsx`, with `CareScreen embedded`) render from that. Nothing in navigation is
+persisted or sent; deep-link hashes are cleared after use.
 
 ## 5. Shapes
 

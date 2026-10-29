@@ -154,8 +154,9 @@ import { cleanModules } from "./modules.js";
  * @property {number} rev version, so every open tab agrees on the switch.
  */
 /** @typedef {{name: string, email: string, anon: boolean}} Account */
-/** @typedef {{stage: string|null, cycleLen?: string|null, cycleReg?: string|null, lastPeriod?: string, dueDate?: string, age?: string|null, zip?: string, preg?: string|null, births?: string|null, contra?: string|null, conditions?: string[], familyHx?: string[], meds?: string|null, goals?: string[], sleep?: string|null, activity?: string|null, name?: string, email?: string, anon?: boolean, notifOptin?: boolean, research?: boolean, terms?: boolean}} RegAnswers
- *  Registration answers plus Settings → About you (L11). dueDate: "" or YYYY-MM-DD (Pregnant only; drives the week). name and email are absent in Anonymous Mode. */
+/** @typedef {{stage: string|null, pcos?: "yes"|"suspect"|"no"|"unsaid"|null, cycleLen?: string|null, cycleReg?: string|null, lastPeriod?: string, dueDate?: string, age?: string|null, zip?: string, preg?: string|null, births?: string|null, contra?: string|null, conditions?: string[], familyHx?: string[], meds?: string|null, goals?: string[], sleep?: string|null, activity?: string|null, name?: string, email?: string, anon?: boolean, notifOptin?: boolean, research?: boolean, terms?: boolean}} RegAnswers
+ *  Registration answers plus Settings → About you (L11). dueDate: "" or YYYY-MM-DD (Pregnant only; drives the week). name and email are absent in Anonymous Mode.
+ *  pcos (calm R2): the optional "Living with PCOS?" answer (My Cycle, Trying to conceive, Perimenopause), null when not picked. */
 /** @typedef {{id: number|string, name: string, kind: string, started: string}} Med What I'm trying: started is YYYY-MM-DD. */
 /** @typedef {{id?: number|string, date: string, who: string, note: string}} Appt */
 /** @typedef {{closeness?: number, desire?: number, friction?: number, load?: number, intimacy?: string|null, after?: string|null}} ConnEntry scales 0–10; intimacy an INTIMACY id, after an AFTER id. */
@@ -425,8 +426,10 @@ export const RULES = Object.freeze({
   regAnswers: (v, p) => {
     if (v === null) return [];
     if (!isObj(v)) return [`${p}: expected an object or null, got ${show(v)}`];
-    // dueDate (L11): absent (older records), "" or a YYYY-MM-DD day.
-    return v.dueDate === undefined || v.dueDate === "" || isIso(v.dueDate) ? [] : [`${p}.dueDate: expected "" or YYYY-MM-DD, got ${show(v.dueDate)}`];
+    // dueDate (L11): absent (older records), "" or a YYYY-MM-DD day. pcos (calm R2): absent, null or one of the four answers.
+    const out = v.dueDate === undefined || v.dueDate === "" || isIso(v.dueDate) ? [] : [`${p}.dueDate: expected "" or YYYY-MM-DD, got ${show(v.dueDate)}`];
+    if (!(v.pcos === undefined || v.pcos === null || ["yes", "suspect", "no", "unsaid"].includes(v.pcos))) out.push(`${p}.pcos: expected null, "yes", "suspect", "no" or "unsaid", got ${show(v.pcos)}`);
+    return out;
   },
   reminders: (v, p) => {
     if (!isObj(v)) return [`${p}: expected { enabled, endpoint, pending, rev }, got ${show(v)}`];

@@ -94,7 +94,7 @@ SCALES = [ {id:"fatigue", low:"Energized", high:"Wiped out"},
 ```js
 { // asked during onboarding (L11, §4.2): stage, cycleLen, lastPeriod (cycle stages), dueDate (Pregnant),
   // name, email, anon (Device step), notifOptin, research, terms (Consent step)
-  name, email, anon:bool, stage, cycleLen, lastPeriod, dueDate, notifOptin, research, terms,
+  name, email, anon:bool, stage, pcos, cycleLen, lastPeriod, dueDate, notifOptin, research, terms,
   // asked only in Settings → About you (optional, all empty after onboarding):
   age, zip, cycleReg, preg, births, contra, conditions:[], familyHx:[], meds, goals:[], sleep, activity }
 ```
@@ -102,6 +102,11 @@ There is no password and no email opt-in. `name` and `email` are deleted in Anon
 YYYY-MM-DD (`record.js` RULES) and drives the pregnancy week (`pregWeekFrom`, lib/onboarding.js); without one the week
 stays at the fixed 22 every build has shown. `src/lib/onboarding.js` holds the option lists, `ANSWER_BLANK` (every answer
 key empty, no identity key) and `pruneForStage` (answers typed on a step that left her flow are not saved).
+`pcos` (calm R2) is the optional "Living with PCOS?" answer — `"yes"` (Yes, diagnosed), `"suspect"` (I suspect it), `"no"`,
+`"unsaid"` (Prefer not to say) or `null` when she picked nothing; kept only for My Cycle, Trying to conceive and
+Perimenopause (`pruneForStage` empties it otherwise; `record.js` RULES check it). On this device and in encrypted backups
+like every other answer; read by no network path. `"yes"` or `"suspect"` turns the PCOS module on at registration
+(`pcosModuleFrom`, record key `modules`); You → Modules turns it off again.
 **Never collect:** SSN, government ID, insurance/policy numbers, payment cards,
 full street address (ZIP only), or medical records. This boundary is deliberate —
 collecting identifiers alongside health data changes the legal posture of the product.
@@ -149,7 +154,7 @@ Delete everything. No RECORD_VERSION bump: missing means `{}`.
 ## 4. APPLICATION FLOW (state machine)
 
 ```
-phase: "splash" -> "register" (3–4 steps) -> "app"
+phase: "splash" -> "register" (3–5 steps) -> "app"
 ```
 
 ### 4.1 Splash
@@ -158,7 +163,7 @@ Wordmark, tagline "One companion for every phase", value proposition, "Get start
 **UI O1.** Above the wordmark an aria-hidden ring motif (`.splashmotif`: three overlapping circles in --primary 14%,
 --accent 18% and --primary 8%, so it takes the stage palette after a restore). The value proposition is three icon rows
 (`ul.splashwhy`: clock "Track in 30 seconds a day.", chart "See your real patterns.", clipboard "Walk into appointments
-with evidence."). The build stamp text is unchanged; `.rfoot b` is demoted to 11px / weight 500.
+with evidence — cycles, symptoms, PCOS signals." — the PCOS clause since calm R2). The build stamp text is unchanged; `.rfoot b` is demoted to 11px / weight 500.
 
 **L11: the promise, stated once, before any personal question.** Under the value rows an `h2.section-lab#splash-promise`
 "Your privacy, plainly" labels `ul.splashpromise` (three `li`, one 16px `Icon` each; `p.splashpriv` is gone):
@@ -172,16 +177,17 @@ from L10 seeds it open) over `div#splash-restore` (hidden while closed; the comp
 `p.rfoot` "Free to use" + the build stamp (the "guidance, never diagnosis" clause moved into the list). "Get started" and
 the toggle both sit inside the first 844px at 390 wide (`.splash` padding-top 32px, h1 margin-top 16px).
 
-### 4.2 Registration — phase-first, 3–4 steps (L11)
+### 4.2 Registration — phase-first, 3–5 steps (L11; the optional PCOS step since calm R2)
 Routed by `regSteps(stage)` in `src/lib/onboarding.js` (the one step map; `REG_STAGE`, `STAGE_LABELS`, `STAGE_CARDS`,
 `STEP_COPY`, `missingFor`, `socialReturnStep` live there too):
 | # | Step | Fields | Required |
 |---|------|--------|----------|
 | 1 | Stage | 5 cards (see 4.3) — "Where are you right now?" | yes |
+| 2 | PCOS (My Cycle, Trying to conceive, Perimenopause; calm R2) — "Living with PCOS?" | Yes, diagnosed · I suspect it · No · Prefer not to say (a second tap clears) | nothing |
 | 2 | Device | name (opt), email (opt), **Anonymous Mode toggle**, providers (signin builds) | nothing |
 | 3 | Cycle (My Cycle, Trying to conceive, Perimenopause) — "Your cycle history" | typical length, last period (opt) | length |
 | 3 | Pregnancy (Pregnant) — "Your pregnancy" | due date (opt; min today−14, max today+280) | nothing |
-| — | (Menopause & beyond skips step 3: 3 steps in all) | | |
+| — | (the step numbers shift by one after the PCOS step: cycle stages have 5 steps, Pregnant 4, Menopause & beyond 3) | | |
 | 4 | Consent | reminders opt-in (+ the rhythm grid while ticked), weekly counts opt-in, **terms** | terms |
 
 **About you (Settings).** Age band, ZIP, regularity, reproductive history, health background, goals, sleep and activity
@@ -246,9 +252,46 @@ A header chip shows the current stage with a "change" affordance that re-runs in
 
 ---
 
+**PCOS step (calm R2).** `regSteps` puts `"pcos"` after `"stage"` for My Cycle, Trying to conceive and Perimenopause
+(before a stage is picked the step line reads "Step 1 of 5"). The four answers are `.mc.pcosopt` buttons (aria-pressed) in a
+2-up `role=group` "Living with PCOS? (optional)", followed by a `.pcosnote` with the module framing
+(`MODULE_FRAMING`). `STEP_COPY.pcos.sub`: "Optional. A yes adds PCOS symptoms, signals and cycle wording to your log; you
+can change it anytime in You. Your answer stays on this device, and goes into an encrypted backup only if you save one."
+Continue works with nothing picked. Yes or "I suspect it" turns the PCOS module on in finishReg
+(`pcosModuleFrom(stage, answer)`); "No", "Prefer not to say" and nothing leave it off. A native sign-in now returns to step
+4 for the cycle stages (`socialReturnStep` = the index after Device).
+
 ## 5. SCREENS BY STAGE
 
-**Section bar (both stage families).** `nav[aria-label="Sections"]` is the sticky wrap (`.tabswrap`: top 0 under the
+**Navigation (calm R2, replaces the section bar below).** Five tabs in every stage — **Home · Body · Mind · Patterns ·
+You** — in the bottom nav pill (`NavPill`, `nav[aria-label="Sections"]` > `[role=tablist]` > five `button[role=tab].navtab`,
+centred filled "+" `button.navplus` "Log something" outside the tablist, `aria-haspopup="dialog"`, `aria-expanded`). Keyboard:
+roving tabindex, ArrowLeft / ArrowRight / Home / End move focus, Enter, Space or a tap selects (manual activation). A tab
+switch from the nav closes the POTS page, scrolls to the top and moves focus to the view's `h1` (tabIndex -1 added). The
+view model (`src/lib/routes.js`): the old screen ids stay the views (`appTab` / `pregTab`), and each belongs to one tab:
+| Tab | Views (segment labels) | was |
+|-----|------------------------|-----|
+| Home | Home | Home |
+| Body | Logs · Calendar · Cycles (no Cycles in menopause) | Today, Calendar, the "Your cycles" list; POTS tools open as a page from Home / Logs as before |
+| Mind | Today · Journey (Practices joins in R5) | Connect (Today), Ask (Journey) |
+| Patterns | Patterns · Report | Patterns, Report |
+| You | one page | the "<stage> · change" button, a Settings card (opens the same Settings sheet), Modules (PCOS switch; POTS state → Settings → Add-ons), Care (embedded "Care & support") |
+Pregnancy: Body = Logs · Calendar, Patterns = the care roadmap (Milestones), You without Modules or Care. A tab with several
+views shows them as a pill segmented control `nav.subnav[aria-label="<Tab> views"] .seg` (buttons, aria-pressed; focus stays
+on the segment; it stays above a POTS page opened from that view, and a tap on a segment closes that page); the view under it (`.viewpanel`, keyed) fades in once. A tab remembers the view she last had open in it.
+The header keeps the wordmark, the name chip, the palette button and the "Check-in settings" button (the Settings sheet is
+unchanged). Fixed nav: `.cy` keeps 104px at the bottom, the sticky save bar sits above the pill, the toast rises over it.
+**Deep links:** `#/<tab>[/<segment>]` (e.g. `#/body/calendar`, `#/patterns/report`, `#/mind/journey`) and the old names
+(`#/today`, `#/calendar`, `#/cycles`, `#/report`, `#/connect`, `#/ask`, `#/care` → You's "Support & care",
+`#/milestones`, `#/settings` → You) open their view once she is in the app; the hash is then cleared (a reload opens Home).
+`#restored`, `#oauth=…` and `#/dev/ui` are not routes. **"+" log sheet** (`LogSheet`, a v2 `Sheet` `#log-sheet`, focus trap,
+Escape, focus back on "+"): Symptoms · Period · Sleep · Mood · Move · Meds · Note as quick-log tiles, one tap each into the
+existing logger with focus on its first control — Symptoms and Mood open the full check-in form (the quick card's "more
+detail") at the chips / the 0–10 Mood scale, Period opens Body signals, Sleep the "Last night" pills, Note the day note,
+Meds Home's "What I'm trying", Move the POTS movement plan. Offered only where the logger exists: no Period or Sleep in
+pregnancy, Move only with POTS tools on. ("PCOS signals" joins with its logger in R4.)
+
+**Section bar (both stage families; superseded by calm R2 above — kept for history).** `nav[aria-label="Sections"]` is the sticky wrap (`.tabswrap`: top 0 under the
 safe-area inset, paper at 86% with a saturate/blur backdrop so content scrolls under it legibly) around the one scrolling
 strip `.tabs[role=tablist]`. Tab names, order, `role=tab`, `aria-selected` and the `tab` / `tab-on` classes are fixed
 (harness surface). Overflow is advertised: the strip reports which edges it is against (`data-start` / `data-end` on the
@@ -1240,9 +1283,9 @@ badges and quick-tile icons.
 - `Chip({ variant, children })`: `.vchip.v-<variant>`; `logged` "Logged" (tick; children may extend it), `supported`
   "Supported pattern", `still` "Still showing up", `notenough` "Not enough information", `pro` "Pro". `CHIP_WORDS`.
 - `NavPill({ tabs, current, onSelect, onPlus, plusLabel = "Log something", plusExpanded, label = "Sections", panelId,
-  fixed = true })`: the floating bottom bar; a tablist of five tabs (roving tabindex, ←/→/Home/End) with the filled
-  "+" outside the tablist, centred over the middle gap (2 tabs | + | 3 tabs, each side half the width); safe-area aware.
-  Not wired into the app in R1 (R2 does).
+  fixed = true, plusRef })`: the floating bottom bar; a tablist of five tabs (roving tabindex: ←/→/Home/End move focus,
+  Enter / Space / tap select — manual activation since R2) with the filled "+" outside the tablist, centred over the middle
+  gap (2 tabs | + | 3 tabs, each side half the width); safe-area aware. The app's only top-level nav since calm R2 (§5).
 - `Sheet({ title, onClose, id, closeLabel = "Close" })`: bottom sheet, `role="dialog"` `aria-modal`, named by its h2;
   focus to the heading on open, Tab trapped, Escape / Close / backdrop close, focus restored on close. Render only
   while open.
@@ -1749,6 +1792,11 @@ Apple stays first.
       `#/dev/ui` gallery behind the `devGallery` dev flag (§8.1, §8.3, §8.4, §8.5); src/lib/modules.js with POTS (wrapping
       the add-on's own switch) and PCOS (data only, every medical sentence sourced and listed in docs/CLINICIAN-REVIEW.md),
       persisted `modules` key in the record and in backups (ARCHITECTURE "Condition modules").
+- [x] Five tabs, the log sheet and PCOS in onboarding (calm R2): Home · Body · Mind · Patterns · You in the bottom nav
+      pill with the centred "+" log sheet (Symptoms · Period · Sleep · Mood · Move · Meds · Note into the existing loggers),
+      segmented sub-views, deep links for the new and old routes (src/lib/routes.js, §5 "Navigation"), the You page
+      (stage change, Settings, Modules with the PCOS switch, Care), and the optional "Living with PCOS?" registration step
+      (§4.2; `regAnswers.pcos`, Yes / I suspect it → PCOS module on). Every harness walks through lf/nav.mjs.
 - [ ] Native biometric unlock (Face ID / fingerprint) through a Capacitor plugin — later work; the phone build offers
       the PIN only (D4).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the

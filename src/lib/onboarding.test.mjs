@@ -2,12 +2,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { REG_STAGE, STAGE_LABELS, STAGE_CARDS, ANSWER_BLANK, regSteps, missingFor, socialReturnStep, toggleMulti, pruneForStage, sanitizeZip, pregWeekFrom, dueDateBounds } from "./onboarding.js";
+import { REG_STAGE, STAGE_LABELS, STAGE_CARDS, ANSWER_BLANK, PCOS_ANSWERS, PCOS_STAGES, STEP_COPY, cleanPcosAnswer, pcosModuleFrom, regSteps, missingFor, socialReturnStep, toggleMulti, pruneForStage, sanitizeZip, pregWeekFrom, dueDateBounds } from "./onboarding.js";
 import { PHASES } from "./record.js";
 
-const CYCLE = ["stage", "account", "cycle", "consent"];
+const CYCLE = ["stage", "pcos", "account", "cycle", "consent"];
 
-test("regSteps: cycle stages and null get Cycle, Pregnant gets Pregnancy, Menopause & beyond skips the third step", () => {
+test("regSteps: cycle stages and null get PCOS (optional) and Cycle, Pregnant gets Pregnancy, Menopause & beyond skips the third step", () => {
   for (const l of [null, "My Cycle", "Trying to conceive", "Perimenopause"]) assert.deepEqual(regSteps(l), CYCLE);
   assert.deepEqual(regSteps("Pregnant"), ["stage", "account", "pregnancy", "consent"]);
   assert.deepEqual(regSteps("Menopause & beyond"), ["stage", "account", "consent"]);
@@ -25,8 +25,9 @@ test("missingFor: stage needs a stage, cycle only a length, consent the box, the
   assert.deepEqual(missingFor("cycle", undefined), ["cycleLen"]);
 });
 
-test("socialReturnStep: 2 for every stage (the step after Device), 0 with no stage", () => {
-  for (const l of Object.keys(REG_STAGE)) assert.equal(socialReturnStep(l), 2);
+test("socialReturnStep: the step after Device for every stage (3 with the PCOS step, else 2), 0 with no stage", () => {
+  for (const l of Object.keys(REG_STAGE)) assert.equal(socialReturnStep(l), PCOS_STAGES.includes(l) ? 3 : 2);
+  for (const l of Object.keys(REG_STAGE)) assert.equal(regSteps(l)[socialReturnStep(l) - 1], "account");
   assert.equal(socialReturnStep(null), 0);
   assert.equal(socialReturnStep(undefined), 0);
 });
@@ -54,6 +55,36 @@ test("pruneForStage: answers from a step outside her flow are emptied; nothing e
     const c = pruneForStage({ ...base, stage: s });
     assert.equal(c.dueDate, ""); assert.equal(c.cycleLen, "24–31 days"); assert.equal(c.lastPeriod, "2026-10-01");
   }
+});
+
+test("PCOS step (calm R2): optional, only for My Cycle / Trying to conceive / Perimenopause, four answers", () => {
+  assert.deepEqual(PCOS_ANSWERS.map(([, l]) => l), ["Yes, diagnosed", "I suspect it", "No", "Prefer not to say"]);
+  assert.deepEqual(PCOS_STAGES, ["My Cycle", "Trying to conceive", "Perimenopause"]);
+  assert.equal(STEP_COPY.pcos.title, "Living with PCOS?");
+  for (const l of PCOS_STAGES) assert.equal(regSteps(l)[1], "pcos");
+  for (const l of ["Pregnant", "Menopause & beyond"]) assert.equal(regSteps(l).includes("pcos"), false);
+  // Continue works with nothing picked.
+  assert.deepEqual(missingFor("pcos", { pcos: null }), []);
+  assert.deepEqual(missingFor("pcos", {}), []);
+});
+
+test("pcosModuleFrom: Yes or I suspect it turn the module on, only in the stages that asked", () => {
+  for (const l of PCOS_STAGES) {
+    assert.equal(pcosModuleFrom(l, "yes"), true);
+    assert.equal(pcosModuleFrom(l, "suspect"), true);
+    for (const a of ["no", "unsaid", null, undefined, "", "YES"]) assert.equal(pcosModuleFrom(l, a), false);
+  }
+  for (const l of ["Pregnant", "Menopause & beyond", null]) assert.equal(pcosModuleFrom(l, "yes"), false);
+});
+
+test("cleanPcosAnswer and pruneForStage keep regAnswers.pcos only where the step was asked", () => {
+  for (const [id] of PCOS_ANSWERS) assert.equal(cleanPcosAnswer(id), id);
+  for (const bad of [null, undefined, "", "maybe", 1, {}]) assert.equal(cleanPcosAnswer(bad), null);
+  assert.equal(pruneForStage({ stage: "My Cycle", pcos: "suspect" }).pcos, "suspect");
+  assert.equal(pruneForStage({ stage: "Perimenopause", pcos: "bogus" }).pcos, null);
+  assert.equal(pruneForStage({ stage: "Trying to conceive" }).pcos, null);
+  assert.equal(pruneForStage({ stage: "Pregnant", pcos: "yes" }).pcos, null);
+  assert.equal(pruneForStage({ stage: "Menopause & beyond", pcos: "yes" }).pcos, null);
 });
 
 test("sanitizeZip: strips punctuation, keeps postcodes, cuts at 10", () => {
@@ -106,7 +137,8 @@ test("REG_STAGE and STAGE_LABELS: the five cards, each a known stage, matching r
 test("ANSWER_BLANK carries no identity and includes dueDate", () => {
   for (const k of ["name", "email", "anon"]) assert.equal(k in ANSWER_BLANK, false);
   assert.equal(ANSWER_BLANK.dueDate, "");
-  assert.deepEqual(Object.keys(ANSWER_BLANK), ["age", "zip", "stage", "cycleLen", "cycleReg", "lastPeriod", "dueDate", "preg", "births", "contra", "conditions", "familyHx", "meds", "goals", "sleep", "activity"]);
+  assert.equal(ANSWER_BLANK.pcos, null);
+  assert.deepEqual(Object.keys(ANSWER_BLANK), ["age", "zip", "stage", "pcos", "cycleLen", "cycleReg", "lastPeriod", "dueDate", "preg", "births", "contra", "conditions", "familyHx", "meds", "goals", "sleep", "activity"]);
 });
 
 test("onboarding.js makes no network call, touches no browser storage and imports nothing impure", () => {

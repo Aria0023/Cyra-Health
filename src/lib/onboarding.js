@@ -2,8 +2,8 @@
    registration steps and Settings → About you share. Pure: no React, Capacitor, api, storage or features
    import, no network and no browser storage. Every answer here is kept only on the device (App.jsx regAnswers,
    which goes into encrypted backups without zip and age); nothing in this module sends anything anywhere.
-   Registration is phase-first and short: Stage → Device → Cycle (cycle stages) | Pregnancy (Pregnant) | nothing
-   (Menopause & beyond) → Consent. The remaining answers (age band, ZIP, regularity, reproductive history, health
+   Registration is phase-first and short: Stage → (PCOS, optional: My Cycle, Trying to conceive, Perimenopause; calm R2)
+   → Device → Cycle (cycle stages) | Pregnancy (Pregnant) | nothing (Menopause & beyond) → Consent. The remaining answers (age band, ZIP, regularity, reproductive history, health
    background, goals, sleep, activity) are optional and live in Settings → About you (components/AboutYou.jsx). */
 
 /* Stage card -> life-stage experience (spec §4.3). App.jsx finishReg routes with it; RegisterScreen colours each card's
@@ -29,21 +29,40 @@ export const ACTIVITY = ["Low", "Moderate", "High"];
 
 /* Every regAnswers answer key at its empty value. No name, email or anon key: a Settings → About you edit spreads
    this under the saved answers, so it can never put identity back into an Anonymous Mode record. */
-export const ANSWER_BLANK = Object.freeze({ age: null, zip: "", stage: null, cycleLen: null, cycleReg: null, lastPeriod: "", dueDate: "", preg: null, births: null, contra: null, conditions: [], familyHx: [], meds: null, goals: [], sleep: null, activity: null });
+export const ANSWER_BLANK = Object.freeze({ age: null, zip: "", stage: null, pcos: null, cycleLen: null, cycleReg: null, lastPeriod: "", dueDate: "", preg: null, births: null, contra: null, conditions: [], familyHx: [], meds: null, goals: [], sleep: null, activity: null });
+
+/* "Living with PCOS?" (calm R2): one optional step after Stage for the stages the PCOS module serves. Nothing is
+   required; Yes or "I suspect it" turns the PCOS module on (lib/modules.js), which she can turn off in You → Modules.
+   The answer is kept as regAnswers.pcos (one of these ids, or null when she picked nothing). */
+export const PCOS_ANSWERS = [["yes", "Yes, diagnosed"], ["suspect", "I suspect it"], ["no", "No"], ["unsaid", "Prefer not to say"]];
+const PCOS_IDS = new Set(PCOS_ANSWERS.map(([id]) => id));
+/* The stage cards whose flow has the PCOS step (the stages modules.js offers PCOS in). */
+export const PCOS_STAGES = ["My Cycle", "Trying to conceive", "Perimenopause"];
 
 export const STEP_COPY = {
   stage: { short: "Stage", title: "Where are you right now?", sub: "This shapes your entire experience. You can change it anytime." },
+  pcos: { short: "PCOS", title: "Living with PCOS?", sub: "Optional. A yes adds PCOS symptoms, signals and cycle wording to your log; you can change it anytime in You. Your answer stays on this device, and goes into an encrypted backup only if you save one." },
   account: { short: "Device", title: "Set up Cyra on this device", sub: "There's no Cyra account. Your name, email and answers are saved on this device. Lose the device or clear the browser and you lose them, unless you saved an encrypted backup, which keeps most of them." },
   cycle: { short: "Cycle", title: "Your cycle history", sub: "So predictions can start from day one. These answers stay on this device, and go into an encrypted backup only if you save one." },
   pregnancy: { short: "Pregnancy", title: "Your pregnancy", sub: "So your week and your care roadmap start in the right place. Your due date stays on this device, and goes into an encrypted backup only if you save one." },
   consent: { short: "Consent", title: "Your data and your choices", sub: "What Cyra does with your data today — and choices you can change later in Settings." },
 };
 
-/** The steps for a stage card label (null before she picks one): 4 for the cycle stages and Pregnant, 3 for Menopause & beyond. */
+/** The steps for a stage card label (null before she picks one): 5 for the cycle stages (with the optional PCOS step),
+    4 for Pregnant, 3 for Menopause & beyond. Before a stage is picked the cycle flow is shown (the most common). */
 export function regSteps(stageLabel) {
   if (stageLabel === "Pregnant") return ["stage", "account", "pregnancy", "consent"];
   if (stageLabel === "Menopause & beyond") return ["stage", "account", "consent"];
-  return ["stage", "account", "cycle", "consent"];
+  return ["stage", "pcos", "account", "cycle", "consent"];
+}
+
+/** A PCOS answer as kept: one of the PCOS_ANSWERS ids, or null. */
+export const cleanPcosAnswer = (v) => (PCOS_IDS.has(v) ? v : null);
+
+/** Whether a registration turns the PCOS module on: only "Yes, diagnosed" or "I suspect it", only for a stage whose
+    flow asked. "No", "Prefer not to say" and nothing picked leave it off. */
+export function pcosModuleFrom(stageLabel, answer) {
+  return PCOS_STAGES.includes(stageLabel) && (answer === "yes" || answer === "suspect");
 }
 
 /** The required answers a step still lacks. Only the stage, a typical cycle length and the consent box are ever required. */
@@ -75,6 +94,7 @@ export function toggleMulti(list, v) {
 export function pruneForStage(answers) {
   const a = { ...(answers || {}) };
   if (a.stage !== "Pregnant") a.dueDate = "";
+  a.pcos = PCOS_STAGES.includes(a.stage) ? cleanPcosAnswer(a.pcos) : null;
   if (a.stage === "Pregnant" || a.stage === "Menopause & beyond") { a.cycleLen = null; a.lastPeriod = ""; }
   return a;
 }

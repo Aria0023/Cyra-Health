@@ -81,14 +81,14 @@ import { fertPrivacyLine, deleteAlso } from "./lib/disclosures.js";
 import { cleanLock, hashPin, checkPin, newLock, afterFail, afterSuccess, awayMs, shouldLock, passkeyAvailable, createPasskey, verifyPasskey, forgotPinRecord, GRACE_MS, LOCK_COPY } from "./lib/lock.js";
 import { flowRows } from "./lib/privacyFlows.js";
 import { fertShown, isTTC, cleanFertPrefs, restoredFertPrefs, defaultTempUnit, FERT_FORM_EMPTY, fertFormFrom, fertFormKey, fertTouched, fertRead, fertWindow, fertSummary, fertSummaryLines, bbtShiftSentence, fertEmailLine, cleanFert, FERT_COPY } from "./lib/fertility.js";
-import { cleanModules } from "./lib/modules.js";
+import { cleanModules, setModuleOn, isModuleOn, modulesFor } from "./lib/modules.js";
 import { visitModel, paperForLocale } from "./lib/visitReport.js";
 import { PLAN, can, exportsLeft, noteExport } from "./lib/plan.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
 import { isNative, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pots/ui.js";
-import { REG_STAGE, STAGE_LABELS, ANSWER_BLANK, pruneForStage, socialReturnStep, pregWeekFrom } from "./lib/onboarding.js";
+import { REG_STAGE, STAGE_LABELS, ANSWER_BLANK, pruneForStage, socialReturnStep, pregWeekFrom, pcosModuleFrom } from "./lib/onboarding.js";
 import { registerWorker, whenActive, hasShellCache, checkForUpdate, applyUpdate, clearShellCaches, displayStandalone, currentInstallMode, listenForInstall, promptInstall, cleanInstallHint, mergeInstallHint, showInstallHint, offersInstall } from "./lib/pwa.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
@@ -97,30 +97,6 @@ const backupFile = fileTransport({ isNative, Filesystem, Directory, Encoding, Sh
 // A stable empty list for what a build without a feature passes down (PotsPatterns' memo doesn't recompute).
 const NO_ROWS = Object.freeze([]);
 const recordSig = (o) => JSON.stringify(RECORD.map((k) => o?.[k] ?? null));
-// The tab bar scrolls sideways. Chromium doesn't scroll a partly hidden tab into view when the
-// keyboard focuses it, so a focused tab (and its ring) could sit half off the edge. Only keyboard
-// focus counts, and only the tab bar moves (sideways): scrollIntoView would also scroll the page,
-// and a tab that kept focus after a tap gets focus again when she comes back to the app.
-const tabIntoView = (e) => {
-  const t = e.currentTarget, bar = t.parentElement;
-  if (!bar || !t.matches?.(":focus-visible")) return;
-  const tr = t.getBoundingClientRect(), br = bar.getBoundingClientRect();
-  if (tr.left < br.left) bar.scrollLeft -= br.left - tr.left;
-  else if (tr.right > br.right) bar.scrollLeft += tr.right - br.right;
-};
-/* APG tabs keyboard: only the selected tab is in the Tab order (roving tabindex); Left/Right/Home/End
-   move focus among the tabs without selecting (activation stays on click, Enter or Space). */
-const tabKeys = (e) => {
-  const keys = { ArrowRight: 1, ArrowLeft: -1, Home: 0, End: 0 };
-  if (!(e.key in keys)) return;
-  const tabs = [...(e.currentTarget.parentElement?.querySelectorAll('[role="tab"]') || [])];
-  if (!tabs.length) return;
-  const i = tabs.indexOf(e.currentTarget);
-  const next = e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : (i + keys[e.key] + tabs.length) % tabs.length;
-  e.preventDefault(); tabs[next].focus();
-};
-/* The tab strip advertises its overflow: data-start / data-end on the sticky wrap drive the two edge fades. */
-const tabEdges = (bar) => ({ start: bar.scrollLeft > 4, end: bar.scrollLeft + bar.clientWidth >= bar.scrollWidth - 4 });
 const ZERO_SCALES = { fatigue: 0, pain: 0, moodq: 0, stress: 0 };
 /* Push addresses Cyra's server still has to forget (every one is retried until confirmed). */
 const cleanPending = (v) => (Array.isArray(v) ? [...new Set(v.filter((e) => typeof e === "string" && /^https:\/\//.test(e) && e.length <= 2048))].slice(0, 100) : []);
@@ -156,6 +132,11 @@ import CalendarScreen from "./screens/CalendarScreen.jsx";
 import PatternsScreen from "./screens/PatternsScreen.jsx";
 import ReportScreen from "./screens/ReportScreen.jsx";
 import CareScreen from "./screens/CareScreen.jsx";
+import YouScreen from "./screens/YouScreen.jsx";
+import CyclesScreen from "./screens/CyclesScreen.jsx";
+import LogSheet from "./components/LogSheet.jsx";
+import { NavPill } from "./components/ui/index.js";
+import { TABS, viewsOf, tabOf, viewForTab, parseRoute, logItemsFor } from "./lib/routes.js";
 import AskScreen from "./screens/AskScreen.jsx";
 import ConnectScreen from "./screens/ConnectScreen.jsx";
 import PregTodayScreen from "./screens/PregTodayScreen.jsx";
@@ -224,7 +205,7 @@ export default function CyraDemo() {
   // optional and are kept nowhere, not even on this device, in Anonymous Mode.
   const [reg, setReg] = useState({
     name: "", email: "", anon: false, age: null, zip: "",
-    stage: null, cycleLen: null, cycleReg: null, lastPeriod: "", dueDate: "",
+    stage: null, pcos: null, cycleLen: null, cycleReg: null, lastPeriod: "", dueDate: "",
     preg: null, births: null, contra: null,
     conditions: [], familyHx: [], meds: null,
     goals: [], sleep: null, activity: null,
@@ -291,7 +272,11 @@ export default function CyraDemo() {
   const [editDate, setEditDate] = useState(null);
   const [editPeriod, setEditPeriod] = useState(false);
   const [toast, setToast] = useState("");
-  const [tabEdge, setTabEdge] = useState({ start: false, end: false }); // which edges of the tab strip are scrolled against
+  /* Navigation (calm R2, lib/routes.js): appTab / pregTab hold the view; the five tabs and their segments derive from it.
+     logOpen: the "+" log sheet (UI only). youSection: a part of the You page to bring into view ("care" from an old
+     #/care link). */
+  const [logOpen, setLogOpen] = useState(false);
+  const [youSection, setYouSection] = useState(null);
   const [repaint, setRepaint] = useState(false); // true for --t-slow after a palette change: chrome colours crossfade together
   /* Appearance (L2, spec §8.4): her choice (persisted, a DEVICE_PREFS key), the device's own light/dark
      setting (matchMedia, followed live) and whether a print is under way (always light). */
@@ -624,21 +609,70 @@ export default function CyraDemo() {
   };
   const curTab = stage === "preg" ? pregTab : appTab;
   useEffect(() => { if (editDate && curTab !== "today") endEdit(); }, [curTab]); // eslint-disable-line -- leaving Today ends an edit
-  // The selected tab is always fully inside the strip (a Home card can select Report, which starts off-screen).
-  useEffect(() => { document.querySelector(".tab-on")?.scrollIntoView?.({ inline: "nearest", block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" }); }, [appTab, pregTab, locked]);
-  const measureTabs = (bar) => { if (!bar) return; const e = tabEdges(bar); setTabEdge((c) => (c.start === e.start && c.end === e.end ? c : e)); };
-  useEffect(() => { // once on mount (and whenever the strip appears) plus on resize; scrolling the strip reports itself
-    const bar = document.querySelector(".tabs"); measureTabs(bar);
-    const onResize = () => measureTabs(document.querySelector(".tabs"));
-    window.addEventListener("resize", onResize); return () => window.removeEventListener("resize", onResize);
-  }, [stage, locked]);
+  /* ---------- navigation (calm R2) ----------
+     One view at a time (appTab / pregTab, unchanged ids), shown under one of five tabs (lib/routes.js). A tab remembers
+     the view she last had open in it. Switching from the nav (or a segment, or the log sheet) closes the POTS page;
+     a tab switch then moves focus to the new view's heading (its h1) and the page to the top. */
+  const navOpts = { preg: stage === "preg", meno: isMeno };
+  const curNavTab = tabOf(curTab, navOpts) || "home";
+  const lastByTab = useRef({});
+  useEffect(() => { lastByTab.current[curNavTab] = curTab; }, [curTab, curNavTab]);
+  // A view this experience doesn't have (Cycles after a change to Menopause & beyond, say) falls back to Home.
+  useEffect(() => { if (stage && !tabOf(curTab, navOpts)) goTab("home"); }, [stage, stageName, curTab]); // eslint-disable-line
+  const focusHead = useRef(false);
+  const pendingFocus = useRef(null); // selectors for the log sheet's target control, tried in order after the view renders
+  const showView = (v, { head = true } = {}) => { setPotsOpen(false); focusHead.current = head; goTab(v); };
+  const selectTab = (t) => showView(viewForTab(t, lastByTab.current, navOpts));
+  useEffect(() => {
+    if (!focusHead.current && !pendingFocus.current) return;
+    const head = focusHead.current, want = pendingFocus.current;
+    focusHead.current = false; pendingFocus.current = null;
+    // Two frames: a disclosure the log sheet opened (Body signals, What I'm trying) renders its panel first.
+    let id2 = 0;
+    const id = requestAnimationFrame(() => { id2 = requestAnimationFrame(() => {
+      // An entry { click } is a control that opens the logger itself (the day note's "Add a note" focuses its field).
+      const hit = want ? want.map((q) => (typeof q === "string" ? document.querySelector(q) : document.querySelector(q.click))).find(Boolean) : null;
+      const target = hit && want.find((q) => typeof q !== "string" && document.querySelector(q.click) === hit) ? (hit.click(), null) : hit;
+      if (hit && !target) return;
+      if (target) { target.scrollIntoView?.({ block: "center", behavior: reduceMotion() ? "auto" : "smooth" }); target.focus({ preventScroll: true }); return; }
+      if (!head) return;
+      const h = document.querySelector(".viewpanel h1");
+      if (!h) return;
+      if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1");
+      window.scrollTo({ top: 0, behavior: "auto" });
+      h.focus({ preventScroll: true });
+    }); });
+    return () => { cancelAnimationFrame(id); cancelAnimationFrame(id2); };
+  }, [appTab, pregTab, potsOpen, logOpen]); // eslint-disable-line
+  // The You page's "Support & care" section, when an old #/care link asked for it.
+  useEffect(() => {
+    if (!youSection || curTab !== "you") return;
+    const id = requestAnimationFrame(() => { const el = document.getElementById(youSection); if (el) { el.scrollIntoView?.({ block: "start" }); el.focus?.({ preventScroll: true }); } setYouSection(null); });
+    return () => cancelAnimationFrame(id);
+  }, [youSection, curTab]);
+  /* Deep links (spec §3): #/body/calendar, #/patterns/report, … and the old tab names (#/today, #/report, #/care, …)
+     open the view they name once she is in the app; the hash is then cleared, so a reload opens Home as before. Other
+     hashes (#restored, #oauth=…, #/dev/ui) are not routes and are left alone. */
+  useEffect(() => {
+    if (!stage || phase !== "app") return;
+    const apply = () => {
+      const r = parseRoute(window.location.hash, { preg: stage === "preg", meno: isMeno });
+      if (!r) return;
+      try { history.replaceState(history.state, "", window.location.pathname + window.location.search); } catch { /* keep the hash */ }
+      showView(r.view);
+      if (r.section) setYouSection(r.section);
+    };
+    apply();
+    window.addEventListener("hashchange", apply);
+    return () => window.removeEventListener("hashchange", apply);
+  }, [stage, phase, isMeno]); // eslint-disable-line
   // After an unlock, focus lands on the selected tab (an open sheet focuses its own title when it remounts).
   const wasLocked = useRef(false);
   useEffect(() => {
     if (locked) { wasLocked.current = true; return; }
     if (!wasLocked.current) return;
     wasLocked.current = false;
-    const id = requestAnimationFrame(() => { if (!showSettings && !showPal) document.querySelector(".tab-on")?.focus(); });
+    const id = requestAnimationFrame(() => { if (!showSettings && !showPal) document.querySelector(".navtab.on")?.focus(); });
     return () => cancelAnimationFrame(id);
   }, [locked]); // eslint-disable-line
   const regPalFirst = useRef(true);
@@ -1883,6 +1917,8 @@ export default function CyraDemo() {
     if (anon) { delete answers.name; delete answers.email; }
     setRegAnswers(answers);
     setFertSigns((p) => ({ ...p, on: null })); // a new registration starts fertility signs at its stage's default (L7)
+    // "Living with PCOS?" (calm R2): Yes or "I suspect it" turns the PCOS module on (on this device; You → Modules turns it off).
+    if (pcosModuleFrom(reg.stage, answers.pcos)) setModules((m) => setModuleOn({ modules: m }, "pcos", true).modules);
     // Reminders only when she ticked "Remind me"; unticked also cancels anything left over.
     applyReminders(!!reg.notifOptin);
     chooseStage(sid);
@@ -2075,6 +2111,34 @@ export default function CyraDemo() {
       </Shell>
     );
   }
+  /* You (calm R2): her stage (the "· change" button moved here from the header), Settings, modules, the care shelf. */
+  const changeStage = () => { setPots(resetPregClearance); setStage(null); setOb({ step: 0, preg: null, age: null, per: null, vms: null }); setWelcome(""); };
+  const modRows = modulesFor(stage, stageName).map((m) => (m.id === "pots"
+    ? { id: "pots", name: m.name, short: m.short, on: potsTab }
+    : { id: m.id, name: m.name, short: m.short, on: isModuleOn({ modules }, m.id), onToggle: () => { const on = !isModuleOn({ modules }, m.id); setModules((cur) => setModuleOn({ modules: cur }, m.id, on, { day: todayIso }).modules); ping(on ? `${m.name} module on` : `${m.name} module off. What you logged is kept`); } }));
+  const youView = (
+    <YouScreen acct={acct} stageName={stageName} onChangeStage={changeStage} onOpenSettings={() => { setShowPal(false); setShowSettings(true); }} modules={modRows}
+      care={stage === "preg" ? null : <CareScreen embedded shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Cyra will compare your days before and after"); }} />} />
+  );
+  const segViews = viewsOf(curNavTab, navOpts);
+  const navLabel = TABS.find((t) => t.id === curNavTab)?.label || "Home";
+  /* The "+" log sheet (calm R2): each item opens the view that holds its logger and puts focus on it (pendingFocus,
+     tried in order). Quick mode's card becomes the full form for this visit (the same "more detail"), so symptom chips
+     and the 0–10 mood scale are on screen. Items without a logger here are not offered: Period in pregnancy, Sleep
+     in pregnancy (its form has no sleep row), Move without the POTS movement plan. */
+  const logItems = logItemsFor({ period: stage !== "preg", sleep: stage !== "preg", move: !!(potsTab && potsOk) });
+  const fullForm = () => { if (quickMode && !expanded && !editDate && stage !== "preg") { setDraft((d) => foldQuick(d, stage)); setExpanded(true); } };
+  const pickLog = (id) => {
+    setLogOpen(false);
+    const at = (view, sel) => { pendingFocus.current = sel; showView(view, { head: true }); };
+    if (id === "symptoms") { fullForm(); at("today", ['.chips[role="group"] button.chip', ".viewpanel main h1"]); }
+    else if (id === "period") { setShowBody(true); at("today", ["#bodypanel button", ".viewpanel main h1"]); }
+    else if (id === "sleep") { if (stage === "peri") fullForm(); at("today", [".viewpanel button.pill[aria-pressed]", ".viewpanel main h1"]); } // peri's quick card asks sleep itself and hides the pill row
+    else if (id === "mood") { fullForm(); at("today", ['input.slider[aria-label^="Mood,"]', ".viewpanel main h1"]); }
+    else if (id === "note") { at("today", ["#day-note", { click: "button.addnote" }]); }
+    else if (id === "meds") { setShowMeds(true); at("home", ["#home-meds input.inp", "#home-meds button", ".viewpanel main h1"]); }
+    else if (id === "move") { setPotsSec("move"); setPotsFocus("move"); setPotsDate(null); setPotsOpen(true); }
+  };
   const connView = <ConnectScreen relationship={relationship} setRelationship={setRelationship} conn={conn} setConn={setConn} intimacy={intimacy} setIntimacy={setIntimacy} after={after} setAfter={setAfter} connLog={connLog} setConnLog={setConnLog} todayIso={todayIso} stage={stage} ping={ping} />;
 
   return (
@@ -2085,31 +2149,29 @@ export default function CyraDemo() {
         {/* One sheet at a time: opening either closes the other (UI S1). */}
         {stage && orgId === "cyra" && <button ref={palBtnRef} className="stagechip icon" onClick={() => { setShowSettings(false); setShowPal((s) => !s); }} aria-label="Color palette" aria-expanded={showPal} aria-controls="palette-sheet"><Icon name="palette" size={18} /></button>}
         {stage && <button ref={settingsBtnRef} className="stagechip icon" onClick={() => { setShowPal(false); setShowSettings((s) => !s); }} aria-label="Check-in settings" aria-expanded={showSettings} aria-controls="settings-sheet"><Icon name="sliders" size={18} /></button>}
-        {stage && <button className="stagechip quiet" onClick={() => { setPots(resetPregClearance); setStage(null); setOb({ step: 0, preg: null, age: null, per: null, vms: null }); setWelcome(""); }}>{stageName} · change</button>}
         {updateRow}
       </header>
 
       {/* ============ APP ============ */}
       {settingsSheet}
       {showPal && stage && orgId === "cyra" && <PaletteSheet stage={stage} stageName={stageName} palIdx={palIdx} setPalIdx={choosePalette} setShowPal={setShowPal} triggerRef={palBtnRef} scheme={scheme} />}
-      <div>
-
-        {/* ---------- PREGNANCY: its own component ---------- */}
+      {/* ============ the current view, its segments, the nav and the log sheet (calm R2) ============
+          The tabpanel is what the selected tab's aria-controls points at. Inside it: the segmented control when the tab
+          hosts several views (a nav named "<Tab> views", buttons with aria-pressed), then the view, keyed so a switch
+          remounts it (its fade-in runs once). Each view is a <main> with one h1; the panel carries no aria-labelledby
+          (axe's region rule counts a labelled non-landmark wrapper as content outside a landmark). */}
+      <div className="tabpanel" role="tabpanel" id={`panel-${curNavTab}`}>
+        {segViews.length > 1 && (
+          <nav className="subnav" aria-label={`${navLabel} views`}>
+            <div className="seg subseg">
+              {segViews.map(([id, l]) => <button key={id} type="button" className={`mc ${curTab === id ? "on" : ""}`} aria-pressed={curTab === id} onClick={() => showView(id, { head: false })}>{l}</button>)}
+            </div>
+          </nav>
+        )}
+        <div className="viewpanel" key={curTab}>
+        {potsPage && potsView}
         {stage === "preg" ? (
           <>
-            <nav aria-label="Sections" className="tabswrap" data-start={tabEdge.start ? "1" : "0"} data-end={tabEdge.end ? "1" : "0"}>
-              <div className="tabs" role="tablist" onScroll={(e) => measureTabs(e.currentTarget)}>
-                {[["home", "Home"], ["today", "Today"], ["cal", "Calendar"], ["mile", "Milestones"], ["connect", "Connect"], ["ask", "Ask"]].map(([id, l]) => (
-                  <button key={id} role="tab" id={`tab-${id}`} aria-controls={`panel-${id}`} aria-selected={pregTab === id} tabIndex={pregTab === id ? 0 : -1} className={`tab ${pregTab === id ? "tab-on" : ""}`} onClick={() => { setPotsOpen(false); setPregTab(id); }} onFocus={tabIntoView} onKeyDown={tabKeys}>{l}</button>
-                ))}
-              </div>
-            </nav>
-            {/* The screen is the tabpanel each tab's aria-controls points at; keyed so a tab change remounts it (and its
-                fade-in runs once). It carries no aria-labelledby: each screen's <main> is the landmark, and axe's region rule
-                counts a labelled non-landmark wrapper as content outside one. */}
-            <div className="tabpanel" role="tabpanel" id={`panel-${pregTab}`} key={pregTab}>
-            {potsPage && potsView}
-
             {pregIs("today") && (
               <PregTodayScreen onPots={potsTab ? () => openPots() : null} pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} anyLogged={Object.keys(pregLog).length > 0} onEditDay={startEdit} symPrefs={symPrefs} setSymPrefs={setSymPrefs} dayNote={dayNote} setDayNote={setDayNote} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={FEATURES.counts && research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
             )}
@@ -2120,37 +2182,29 @@ export default function CyraDemo() {
             {pregIs("ask") && askView}
             {pregIs("connect") && connView}
             {pregIs("home") && homeView}
-            </div>
+            {pregIs("you") && youView}
           </>
         ) : (
           <>
-            <nav aria-label="Sections" className="tabswrap" data-start={tabEdge.start ? "1" : "0"} data-end={tabEdge.end ? "1" : "0"}>
-              <div className="tabs" role="tablist" onScroll={(e) => measureTabs(e.currentTarget)}>
-                {[["home", "Home"], ["today", "Today"], ["cal", "Calendar"], ["patterns", "Patterns"], ["connect", "Connect"], ["report", "Report"], ["shelf", "Care"], ["ask", "Ask"]].map(([id, l]) => (
-                  <button key={id} role="tab" id={`tab-${id}`} aria-controls={`panel-${id}`} aria-selected={appTab === id} tabIndex={appTab === id ? 0 : -1} className={`tab ${appTab === id ? "tab-on" : ""}`} onClick={() => { setPotsOpen(false); setAppTab(id); }} onFocus={tabIntoView} onKeyDown={tabKeys}>{l}</button>
-                ))}
-              </div>
-            </nav>
-            <div className="tabpanel" role="tabpanel" id={`panel-${appTab}`} key={appTab}>
-            {potsPage && potsView}
-
             {appIs("today") && (
               <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} expanded={expanded} setExpanded={setExpanded} quickCheckin={quickCheckin} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} onEditDay={startEdit} symPrefs={symPrefs} setSymPrefs={setSymPrefs} dayNote={dayNote} setDayNote={setDayNote} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} days={days} setDays={setDays} onSaved={onSaved} ping={ping} setAppTab={setAppTab} research={FEATURES.counts && research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} fertSection={fertSection} fert={fert} tempUnit={tempUnit} fertOn={fertOn} />
             )}
             {appIs("cal") && (
               <CalendarScreen pred={pred} predWhy={predWhy} cyc={cyc} onCycleUse={setCycleUse} stage={stage} isMeno={isMeno} days={days} symIds={symIds} symMap={symMap} dayScore={scoreDay} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} fertOn={fertOn} tempUnit={tempUnit} />
             )}
+            {appIs("cycles") && <CyclesScreen cyc={cyc} stage={stage} onUse={setCycleUse} />}
             {appIs("patterns") && <PatternsScreen ins={ins} lens6={cyc.lens6} symIds={symIds} symMap={symMap} scoreScale={scoreScale} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} fert={ttc && fertOn ? { unit: tempUnit } : null} week={week} month={month} found={found} scoreColor={scoreColor} energyId={ENERGY_ID} />}
             {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} scheme={scheme} fert={ttc && fertOn ? { unit: tempUnit } : null} buildVisit={buildVisit} pdfLeft={pdfLeft} onPdfMade={onPdfMade} pdfLimit={PLAN.pdfExportsPerMonth} onHandoff={holdLock} />}
-            {appIs("shelf") && <CareScreen shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Cyra will compare your days before and after"); }} />}
             {appIs("ask") && askView}
             {appIs("connect") && connView}
             {appIs("home") && homeView}
-            </div>
+            {appIs("you") && youView}
           </>
         )}
+        </div>
       </div>
-
+      <NavPill tabs={TABS} current={curNavTab} onSelect={selectTab} onPlus={() => { setShowPal(false); setLogOpen(true); }} plusExpanded={logOpen} panelId={(id) => `panel-${id}`} />
+      {logOpen && <LogSheet items={logItems} onPick={pickLog} onClose={() => setLogOpen(false)} />}
     </Shell>
   );
 }

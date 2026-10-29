@@ -10,11 +10,15 @@ import { famColor } from "../lib/constants.js";
    matched symptom's family, --primary when the match has none (rough nights). */
 const LEGEND = [["strong", "Strong evidence"], ["mixed", "Mixed evidence"], ["comfort", "Comfort"], ["clinical", "Clinical care"]];
 
-export default function CareScreen({ shelfItems, onTry }) {
+/* Calm R2: the shelf is the "Support & care" section of the You page (embedded: a <section> with an h2 inside You's
+   <main>); the standalone page (a <main> with the h1) stays for any caller that wants it. */
+export default function CareScreen({ shelfItems, onTry, embedded = false }) {
   const firstFit = shelfItems.find((s) => s.top && s.top.days > 0) || null;
+  const Wrap = embedded ? "section" : "main";
+  const H = embedded ? "h2" : "h1";
   return (
-    <main>
-      <h1 className="disp">Care & support</h1>
+    <Wrap id={embedded ? "care" : undefined} className={embedded ? "carepart" : undefined} aria-labelledby={embedded ? "care-h" : undefined} tabIndex={embedded ? -1 : undefined}>
+      <H className="disp" id={embedded ? "care-h" : undefined}>Care & support</H>
       <p className="hint">Options for your stage, with the ones that fit what you've logged first. That matching runs on your device, and partners never see your data. Every label below is the honest state of the evidence, including when something is comfort rather than treatment.</p>
       <div className="evlegend" aria-hidden="true">{LEGEND.map(([t, l]) => <span key={t} className={`ev ev-${t}`}>{l}</span>)}</div>
       {shelfItems.length === 0 && <p className="hint shelf-empty">Nothing to show for your stage yet. Check back after the next update.</p>}
@@ -43,6 +47,6 @@ export default function CareScreen({ shelfItems, onTry }) {
           </div>
         );
       })}
-    </main>
+    </Wrap>
   );
 }

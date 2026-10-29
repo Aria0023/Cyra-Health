@@ -26,7 +26,7 @@ export default function SplashScreen({ onStart, onImport, initialRestore = false
       <ul className="splashwhy">
         <li><Icon name="clock" size={18} />Track in 30 seconds a day.</li>
         <li><Icon name="chart" size={18} />See your real patterns.</li>
-        <li><Icon name="clipboard" size={18} />Walk into appointments with evidence.</li>
+        <li><Icon name="clipboard" size={18} />Walk into appointments with evidence — cycles, symptoms, PCOS signals.</li>
       </ul>
       <h2 className="section-lab splashpromise-h" id="splash-promise">Your privacy, plainly</h2>
       <ul className="splashpromise" aria-labelledby="splash-promise">
