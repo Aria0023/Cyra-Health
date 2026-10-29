@@ -30,6 +30,7 @@ const DEFAULTS = () => ({
   stage: "peri", stageName: "Perimenopause", welcome: "", days: seed(), pregLog: {}, pulseQueue: null, pulseSent: null, pulseLastSend: null,
   pulseRev: 0, askAI: false, regAnswers: null, reminders: { enabled: false, endpoint: null, pending: [], rev: 0 }, terraOff: [], kickTally: null,
   pots: freshEmpty(), lastBackupAt: null, installHint: null, appearance: "system", cycleFlags: {}, symPrefs: {}, fertSigns: { on: null, unit: null }, exportLog: null, modules: {}, homeTiles: null, homeStepSkip: null,
+  bodyLog: {}, labs: [], bodyPrefs: { weightOn: false, weightUnit: null, glucoseUnit: null, hba1cUnit: null, waistUnit: null },
 });
 const appRecord = (over = {}) => {
   const d = { ...DEFAULTS(), ...over };
@@ -104,8 +105,8 @@ test("migrate: a missing, throwing or non-advancing step returns the input (all 
 /* ---------- keys ---------- */
 
 test("key lists are the ones App.jsx used before L3 (pinned)", () => {
-  // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags, L6 symPrefs and L7 fertSigns (record keys: in RECORD and in backups); calm R1 appended modules (record, in backups); calm R3 appended homeTiles (record, in backups) and homeStepSkip (device-only, not in backups).
-  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip"]);
+  // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags, L6 symPrefs and L7 fertSigns (record keys: in RECORD and in backups); calm R1 appended modules (record, in backups); calm R3 appended homeTiles (record, in backups) and homeStepSkip (device-only, not in backups); calm R4 appended bodyLog, labs and bodyPrefs (record, in backups).
+  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs"]);
   assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip"]);
   assert.deepEqual([...DEVICE_PREFS], ["appearance"]);
   assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "appearance"]);
@@ -194,6 +195,9 @@ test("validateRecord: an app-shaped record has no problems", () => {
     kickTally: { day: iso(0), n: 4 }, lastBackupAt: iso(3), installHint: "installed", appearance: "dark", cycleFlags: { [iso(40)]: { exclude: true }, [iso(70)]: { exclude: false, note: "later field" } },
     symPrefs: { peri: { order: ["eng", "hf"], hidden: ["itc"], added: ["crm"] }, preg: { order: [], hidden: ["brx"], added: [] } },
     fertSigns: { on: true, unit: "F" }, modules: { pcos: { on: true, since: iso(5) } }, homeTiles: ["note", "mood", "sleep"], homeStepSkip: { day: iso(0), id: "note" },
+    bodyLog: { [iso(2)]: { sleepH: 6.5, move: [{ id: "a1", type: "walk", min: 30 }], pcos: ["crash", "sug"] }, [iso(1)]: { weight: { v: 64.2, unit: "kg" } } },
+    labs: [{ id: "g1", kind: "fglu", value: 92, unit: "mg/dL", date: iso(10) }, { id: "h1", kind: "hba1c", value: 5.4, unit: "%", date: iso(40) }],
+    bodyPrefs: { weightOn: true, weightUnit: "kg", glucoseUnit: "mg/dL", hba1cUnit: null, waistUnit: "cm" },
     acct: { name: "Ada", email: "ada@example.com", anon: false }, welcome: "Your pregnancy space is ready.",
     days: [{ date: iso(1), sleepQ: "poor", period: true, scales: { fatigue: 3, pain: 2, moodq: 7, stress: 1 }, flow: "heavy", disch: "creamy", odor: "none", bodyOdor: "same", sym: { crm: 3, hda: 0, eng: 2 }, note: "Migraine after the late shift.\nTook the day slowly." }],
   });
@@ -428,7 +432,7 @@ test("daysLogged", () => {
 
 // record.js may import only these pure leaf modules. A later slice may add one (L6 './daylog.js',
 // L7 './fertility.js'); none of them may import record.js back.
-const RECORD_IMPORTS = ["./engine.js", "./constants.js", "./daylog.js", "./fertility.js", "./modules.js", "./home.js"];
+const RECORD_IMPORTS = ["./engine.js", "./constants.js", "./daylog.js", "./fertility.js", "./modules.js", "./home.js", "./bodylog.js"];
 const importsOf = (code) => [...code.matchAll(/^\s*import\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]);
 
 test("layering and no I/O", () => {
@@ -471,4 +475,16 @@ test("Home (calm R3): homeTiles is a record key in backups; homeStepSkip is devi
   for (const bad of [["mood"], ["mood", "mood"], ["x", "y"], "mood", ["a", "b", "c", "d", "e"]]) assert.equal(RULES.homeTiles(bad, "homeTiles").length, 1, JSON.stringify(bad));
   assert.deepEqual(RULES.homeStepSkip({ day: "2026-10-29", id: "note" }, "s"), []);
   assert.equal(RULES.homeStepSkip({ day: "x" }, "s").length, 1);
+});
+
+test("Body log (calm R4): bodyLog, labs and bodyPrefs are record keys in backups, checked by their clean functions", () => {
+  for (const k of ["bodyLog", "labs", "bodyPrefs"]) assert.ok(RECORD.includes(k) && !DEVICE_ONLY.includes(k) && !NOT_IN_BACKUP.includes(k), k);
+  const bl = { "2026-10-28": { sleepH: 7, move: [{ id: "x", type: "yoga", min: 20 }] } };
+  assert.deepEqual(backupCopy(appRecord({ bodyLog: bl })).bodyLog, bl);
+  assert.deepEqual(RULES.bodyLog(bl, "bodyLog"), []);
+  assert.equal(RULES.bodyLog({ "2026-10-28": { sleepH: 30 } }, "bodyLog").length, 1);
+  assert.equal(RULES.bodyLog({ "2026-10-28": {} }, "bodyLog").length, 1);
+  assert.deepEqual(RULES.labs([], "labs"), []);
+  assert.equal(RULES.labs([{ id: "a", kind: "fglu", value: 9000, unit: "mg/dL", date: "2026-10-01" }], "labs").length, 1);
+  assert.equal(RULES.bodyPrefs({ weightOn: "yes" }, "bodyPrefs").length, 1);
 });

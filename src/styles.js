@@ -1138,4 +1138,96 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .tilereset { display:flex; margin:14px auto 0; min-height:44px; font-size:var(--fs-md); }
 .tiledone { margin-top:12px; }
 @media (max-width:359px) { .homehero .greet { font-size:24px; } .herofig { height:212px; } .heroring { width:160px; } .heroring .ringmid b { font-size:34px; } .railcard { grid-template-columns:60px minmax(0, 1fr); padding-left:12px; } .railtitle { font-size:18px; } .homeqtiles .qtile-lab { font-size:11.5px; } }
+
+/* ---- calm R4: Body → Logs (the fast log), its sheets, the calendar card and the cycles page ---- */
+.bodylogs > .bodyhead { position:relative; padding:4px 0 6px; margin-bottom:6px; isolation:isolate; }
+.bodyblob { position:absolute; z-index:-1; right:-18px; top:-14px; width:190px; height:116px; fill:color-mix(in srgb, var(--accent) 9%, transparent); animation:cy-drift 16s var(--ease-std) infinite alternate; pointer-events:none; }
+.bodyeye { text-transform:uppercase; }
+.bodyhead .disp { margin:2px 0 4px; }
+.bodyhead .bodyphase { margin:0 0 4px; }
+.checkhead { margin:22px 0 6px; font:600 21px/1.25 'Fraunces Variable','Fraunces',serif; color:var(--ink); }
+.bodyacts { grid-template-columns:repeat(var(--qcols, 4), minmax(0, 1fr)); margin:8px 0 var(--stack); }
+.bodyacts .qtile { min-height:80px; }
+.logcard { padding:14px 14px 8px; background:linear-gradient(180deg, color-mix(in srgb, var(--tintc, var(--tint-body)) 85%, var(--card)) 0, var(--card) 132px); }
+.logcard-head { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.logcard-head .ibadge { background:var(--card); }
+.logcard-head .v2card-title { margin:0; }
+.daystrip { display:grid; grid-template-columns:repeat(7, minmax(44px, 1fr)); gap:4px; margin:0 0 6px; overflow-x:auto; scrollbar-width:none; padding:2px; }
+.daystrip::-webkit-scrollbar { display:none; }
+.dayb { min-height:56px; min-width:44px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; border:1px solid transparent; background:color-mix(in srgb, var(--card) 70%, transparent); border-radius:14px; cursor:pointer; color:var(--ink); padding:4px 0; transition:transform var(--t-fast) var(--ease-std), background-color var(--t-fast); }
+.dayb:active { transform:scale(.95); }
+.dayb-wd { font:700 10.5px 'Karla Variable','Karla',sans-serif; letter-spacing:.06em; color:var(--soft); text-transform:uppercase; }
+.dayb-dn { font:600 16px/1 'Fraunces Variable','Fraunces',serif; }
+.dayb-dot { width:5px; height:5px; border-radius:50%; background:transparent; }
+.dayb-dot.on { background:var(--primary); }
+.dayb.today { border-color:color-mix(in srgb, var(--primary) 45%, var(--edge)); }
+.dayb.sel { background:var(--primary); border-color:var(--primary); color:var(--on-primary); box-shadow:var(--sh-lift); }
+.dayb.sel .dayb-wd { color:var(--on-primary); } .dayb.sel .dayb-dot.on { background:var(--on-primary); }
+.logrows { list-style:none; margin:0; padding:0; }
+.logrow-li + .logrow-li { border-top:1px solid var(--edge); }
+.logrow { width:100%; min-height:56px; display:grid; grid-template-columns:34px minmax(0, 1fr) auto; align-items:center; gap:12px; padding:8px 2px; background:none; border:none; text-align:left; cursor:pointer; color:var(--ink); font:inherit; border-radius:12px; }
+.logrow:active { background:color-mix(in srgb, var(--primary) 6%, transparent); }
+.logrow-txt { display:flex; flex-direction:column; gap:1px; min-width:0; }
+.logrow-txt b { font-size:var(--fs-md); font-weight:700; }
+.logrow-val { font-size:var(--fs-sm); color:var(--soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.logrow-li.is-logged .logrow-val { color:var(--ink); }
+.logrow-li:not(.is-logged) .logrow { min-height:50px; padding:5px 2px; } .logrow-li:not(.is-logged) .logrow-val:empty, .logrow-li:not(.is-logged) .logrow-val.none { display:none; }
+.logrow-add { display:inline-flex; align-items:center; gap:3px; font:700 12px 'Karla Variable','Karla',sans-serif; color:var(--primary-text); padding:5px 10px; border-radius:var(--r-pill); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--primary) 35%, var(--edge)); }
+.medquick { display:flex; flex-wrap:wrap; gap:6px; padding:0 0 10px 46px; }
+.medtake { display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:6px 14px 6px 8px; border-radius:var(--r-pill); border:1px solid var(--line); background:var(--card); color:var(--ink); font:600 var(--fs-sm) 'Karla Variable','Karla',sans-serif; cursor:pointer; transition:transform var(--t-fast) var(--ease-std), background-color var(--t-fast); }
+.medtake:active { transform:scale(.96); }
+.medtake-tick { width:22px; height:22px; flex:none; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; box-shadow:inset 0 0 0 1.5px var(--line); }
+.medtake.on { background:color-mix(in srgb, var(--primary) 12%, var(--card)); border-color:var(--primary); }
+.medtake.on .medtake-tick { background:var(--primary); color:var(--on-primary); box-shadow:none; animation:cy-pop 160ms var(--ease-std); }
+.medtake-name { overflow-wrap:anywhere; text-align:left; }
+.addweight { margin:2px 0 6px; font-size:var(--fs-sm); }
+.sleephrs { margin:6px 0 0; font-size:var(--fs-sm); }
+.bsheet-sub { margin:0 0 12px; color:var(--soft); font-size:var(--fs-md); line-height:1.45; }
+.bsheet .lab { margin:14px 0 6px; }
+.bigval { text-align:center; margin:2px 0 10px; }
+.bigval .serif { font-size:44px; line-height:1; color:var(--primary-text); }
+.hourchips, .typechips, .minchips, .pchips { display:flex; flex-wrap:wrap; gap:8px; }
+.hourchips .mc { flex:1 1 0; min-width:52px; }
+.bsheet .mc.on:not(.seg .mc) { background:var(--primary); border-color:var(--primary); color:var(--on-primary); }
+.minchips .minchip { flex:1 1 0; min-width:54px; min-height:52px; font:700 16px 'Karla Variable','Karla',sans-serif; border-radius:16px; background:color-mix(in srgb, var(--tint-body) 70%, var(--card)); }
+.minchip small { font-size:11px; font-weight:600; color:var(--soft); }
+.stepper { display:flex; align-items:center; justify-content:center; gap:14px; margin:12px 0 0; }
+.stepper .sbtn { min-width:52px; font-size:22px; }
+.stepper .hint { margin:0; }
+.customrow { display:flex; gap:8px; align-items:stretch; margin-top:10px; }
+.customrow .inp { flex:1 1 auto; min-width:0; margin:0; }
+.customrow .sbtn { flex:none; padding:0 18px; }
+.customrow .unitseg { flex:0 0 auto; width:auto; }
+.unitseg .mc { padding:7px 12px; flex:0 0 auto; }
+.fielderr { margin:6px 0 0; color:var(--bad); font-size:var(--fs-sm); font-weight:600; }
+.sesslist { list-style:none; margin:14px 0 0; padding:0; }
+.sesslist li { display:flex; align-items:center; gap:10px; min-height:44px; border-top:1px solid var(--edge); font-size:var(--fs-md); color:var(--ink); }
+.sesslist li > span { flex:1; min-width:0; }
+.sesslist li svg { color:var(--primary-text); flex:none; }
+.sesslist .linkbtn { font-size:var(--fs-sm); }
+.medtakes { display:flex; flex-direction:column; gap:8px; }
+.medtake-row { display:flex; align-items:center; gap:8px; }
+.medtake-row .medtake { flex:1; border-radius:16px; min-height:52px; }
+.medadd { margin-top:12px; } .medadd .inp { margin:0 0 8px; } .medadd .seg { margin-bottom:8px; }
+.bsheet-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:18px; }
+.bsheet-foot .cta { flex:1; margin:0; }
+.pgroup + .pgroup { margin-top:4px; }
+.pchip { display:inline-flex; align-items:center; gap:6px; }
+.pgroup .morewrap { margin-top:8px; }
+.labbox { margin-top:16px; padding:12px 14px 14px; border-radius:var(--r-inner); background:color-mix(in srgb, var(--tint-patterns) 70%, var(--card)); box-shadow:inset 0 0 0 1px var(--edge); }
+.labbox .lab:first-child { margin-top:0; }
+.labkinds .mc { font-size:11.5px; }
+.labnote { margin:10px 0 0; }
+.srcline { font-size:var(--fs-xs); color:var(--soft); }
+/* Calendar (R4): the month in a v2 card, symptom markers under the day number. */
+.calcard { padding:12px 12px 10px; }
+.calcard .calgrid { margin-bottom:10px; } .calcard .gradlegend { margin-bottom:0; } .calcard .daycard { box-shadow:none; }
+.c-symdot { position:absolute; top:4px; right:4px; width:6px; height:6px; border-radius:50%; background:var(--fc); box-shadow:0 0 0 1.5px var(--card); }
+.callegend .d-sym { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:4px; background:var(--soft-3); vertical-align:0; }
+.calpred { display:flex; gap:12px; align-items:flex-start; }
+.calpred .num { flex:none; }
+.pcoslong { margin:0 0 var(--stack); }
+.pcoslong .bigcount { font:600 34px/1 'Fraunces Variable','Fraunces',serif; color:var(--primary-text); margin-right:8px; }
+.pcoslong p { margin:6px 0 0; }
+@media (max-width:359px) { .bodyacts .qtile-lab { font-size:11px; } .dayb-dn { font-size:14px; } .medquick { padding-left:0; } }
 `;

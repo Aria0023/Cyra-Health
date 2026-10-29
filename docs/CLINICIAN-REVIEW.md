@@ -113,3 +113,34 @@ are listed (the others are logging prompts). `home.test.mjs` fails if a sourced 
 - Text: In your log, {n} of your last {m} cycles ran over 35 days. / In your log, none of your last {m} cycles ran over 35 days. (Shown with MODULE_FRAMING under the insight.)
 - Sources: the 35-day threshold of the 2023 international PCOS guideline (see pcos.cycle.definition)
 - Status: Awaiting clinician sign-off
+
+## Body: the fast log and PCOS surfaces (calm R4; src/lib/bodylog.js, components/BodySheets.jsx, screens/CyclesScreen.jsx)
+
+No new medical claim was written in R4; registered PCOS sentences are now shown in new places, and the loggers add
+labels only. Listed so the reviewer sees each placement.
+
+### body.pcos.sheet
+- Where: Body → Logs → PCOS signals (sheet), PCOS module on
+- Shows: chips "Energy crash after meals", "Cravings", "Skin darkening (neck, armpits)" under "Insulin-resistance
+  signals"; "Hair loss", "Excess hair growth", "Pelvic pain" under "PCOS symptoms"; "High-sugar day" under "Day marker";
+  the acanthosis line (pcos.signals.acan, sourced teede2023) behind "About skin darkening"; MODULE_FRAMING at the foot.
+- Lab entry: fasting glucose (mg/dL or mmol/L), HbA1c (% or mmol/mol), waist (cm or in), each dated. A typo guard
+  rejects values outside 20–600 mg/dL, 1–33 mmol/L, 3–20 %, 9–195 mmol/mol, 40–200 cm, 16–80 in ("That looks outside
+  … Check the number?"). These are not clinical ranges and nothing is interpreted.
+- Reviewer questions: (1) is grouping these chips as "Insulin-resistance signals" acceptable lay wording; (2) are the
+  typo-guard bounds wide enough for real results; (3) the unit conversion shown when she switches units uses
+  mg/dL = mmol/L × 18 and IFCC mmol/mol = (% − 2.15) × 10.929 — acceptable?
+- Status: Awaiting clinician sign-off
+
+### body.cycles.pcos-long
+- Where: Body → Cycles, PCOS module on
+- Text: "{n} of your {m} finished cycles on record." under "Cycles longer than 35 days", with pcos.cycle.expected and,
+  behind "What counts as a long cycle", pcos.cycle.definition (sourced teede2023) and MODULE_FRAMING.
+- Status: Awaiting clinician sign-off
+
+### body.weight
+- Where: Body → Logs → Weight (only after she turns it on with "Add weight to your log (optional)")
+- Text: pcos.weight.note. Weight is never on Home and never charted.
+- Reviewer question: should the weight logger carry any wording for people with a history of disordered eating (see
+  also the high-sugar marker question above)?
+- Status: Awaiting clinician sign-off

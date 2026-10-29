@@ -36,7 +36,7 @@ import { FERT_FORM_EMPTY, fertEntryFields, FERT_COPY } from "../lib/fertility.js
    (fert, lib/fertility.js fertEntryFields) whether or not the group is shown, so a day saved while it was shown keeps
    them when edited after it's hidden; a temperature that isn't a reading stops the save. The fertility group never
    reaches contribute(): it gets { sym, sleepQ, flow } only. */
-export default function TodayScreen({ onPots = null, pred, stage, welcome, editDate, onEndEdit, setDraft, setSleepQ, scoreMeter, quickMode, expanded = false, setExpanded = () => {}, quickCheckin, savedToday = false, yesterdayIso = null, yesterdayLogged = true, onEditDay = null, symPrefs = {}, setSymPrefs = () => {}, dayNote = "", setDayNote = () => {}, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, setEditPeriod, scales, flow, disch, odor, bodyOdor, days = [], setDays, onSaved = null, ping, setAppTab, research, contribute, fertSection = null, fert = FERT_FORM_EMPTY, tempUnit = "C", fertOn = false }) {
+export default function TodayScreen({ onPots = null, pred, stage, welcome, editDate, onEndEdit, setDraft, setSleepQ, scoreMeter, quickMode, expanded = false, setExpanded = () => {}, quickCheckin, savedToday = false, yesterdayIso = null, yesterdayLogged = true, onEditDay = null, symPrefs = {}, setSymPrefs = () => {}, dayNote = "", setDayNote = () => {}, symMap, draft, sleepQ, scaleSection, bodySection, todayIso, editPeriod, setEditPeriod, scales, flow, disch, odor, bodyOdor, days = [], setDays, onSaved = null, ping, setAppTab, research, contribute, fertSection = null, fert = FERT_FORM_EMPTY, tempUnit = "C", fertOn = false, logTop = null, sleepHours = null, onSleepHours = null }) {
   // The quick card is on screen: quick mode, not an edit, not expanded for this visit. Everything that
   // depends on "which form is this" (hint, chips, the peri sleep pills, what contribute() sends) keys on it.
   const quickCard = quickMode && !editDate && !expanded;
@@ -60,33 +60,27 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
       </button>
     );
   };
+  const phaseLine = pred ? (pred.state === "later" ? `Later than your usual range, which ended ${fmt(pred.toIso)}${stage === "peri" ? " — with your spread, irregularity is data too." : "."}` : `${periodHead(pred)}.`) : null;
   return (
-    <main>
-      {pred && (
-        <div className="phasecard">
-          <div className="phaseday">Day {pred.cycleDay}</div>
-          <div className="phaseinfo">
-            <b>{pred.phase[0].toUpperCase() + pred.phase.slice(1)} phase</b>
-            <span>{pred.state === "later" ? `Later than your usual range, which ended ${fmt(pred.toIso)}${stage === "peri" ? " — with your spread, irregularity is data too." : "."}` : `${periodHead(pred)}.`}</span>
-          </div>
-        </div>
-      )}
-      {pred && (
-        <div className="readcard compact">
-          <div className="rsec" style={{ margin: "0 0 4px" }}>Today's read · {pred.phase} phase</div>
-          <div className="sname">{READS[pred.phase][0]}</div>
-          <p className="hint" style={{ margin: "4px 0 0" }}>{READS[pred.phase][1]}</p>
-        </div>
-      )}
+    <main className="bodylogs">
       {editDate && (
         <div className="card editbar" style={{ display: "block", marginBottom: 12 }}>
           <p><b>Editing {fmt(editDate)}</b> — changes save to that day. <button className="linkbtn" onClick={() => onEndEdit()}>Back to today</button></p>
         </div>
       )}
-      <h1 className="disp" style={pred ? { marginTop: 16 } : undefined}>{editDate ? `Fixing up ${fmt(editDate)}` : stage === "periods" ? "Hey — how's today?" : "How was today, honestly?"}</h1>
-      {welcome && !editDate && days.length === 0 && <p className="hint welcome-line">{welcome}</p>}
-      {/* A missed day is one tap away (the same "Fixing up <date>" flow the Calendar opens). */}
-      {!yesterdayLogged && !editDate && days.length > 0 && onEditDay && <button type="button" className="linkbtn yday" onClick={() => onEditDay(yesterdayIso)}>Yesterday not logged · add it</button>}
+      {/* Body → Logs (calm R4): the eyebrow names the cycle day and phase (the old phase card, now one line); the
+          heading stays the check-in's question; the log card (logTop: quick actions, day strip, rows) sits under it. */}
+      <div className="bodyhead">
+        <svg className="bodyblob" viewBox="0 0 200 120" aria-hidden="true" focusable="false"><path d="M18 70C10 38 46 10 92 14s96 12 98 48-40 58-92 54S26 102 18 70z" /></svg>
+        {pred ? <p className="eyebrow bodyeye">Day {pred.cycleDay} · {pred.phase} phase</p> : <p className="eyebrow bodyeye">Body</p>}
+        <h1 className="disp">{editDate ? `Fixing up ${fmt(editDate)}` : stage === "periods" ? "Hey — how's today?" : "How was today, honestly?"}</h1>
+        {phaseLine && !editDate && <p className="hint bodyphase">{phaseLine}</p>}
+        {welcome && !editDate && days.length === 0 && <p className="hint welcome-line">{welcome}</p>}
+        {/* A missed day is one tap away (the same "Fixing up <date>" flow the Calendar opens). */}
+        {!yesterdayLogged && !editDate && days.length > 0 && onEditDay && <button type="button" className="linkbtn yday" onClick={() => onEditDay(yesterdayIso)}>Yesterday not logged · add it</button>}
+      </div>
+      {logTop}
+      <h2 className="checkhead" id="checkin-h">{editDate ? `Check-in for ${fmt(editDate)}` : "Today's check-in"}</h2>
       <p className="hint">{quickCard ? "Three quick questions — about ten seconds." : "Tap what showed up (up to 3× for strong). Takes 30 seconds, promise."}</p>
       {scoreMeter}
       {/* Status in the form: today is already in the record, and this form is that entry. */}
@@ -126,6 +120,7 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
               <button key={id} aria-pressed={sleepQ === id} className={`pill ${sleepQ === id ? "pill-on" : ""}`} onClick={() => setSleepQ(id)}>{l}</button>
             ))}
           </div>
+          {onSleepHours && <button type="button" className="linkbtn sleephrs" onClick={onSleepHours}>{sleepHours != null ? `Hours slept: ${sleepHours}` : "Add hours slept"}</button>}
         </>
       )}
       {editDate && (
@@ -167,6 +162,13 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
         if (editDate) { onEndEdit(entry); setAppTab("cal"); } else { setDraft(Object.keys(fromQuick).length ? { ...sym, __q: fromQuick } : sym); setDayNote(note); setAppTab("patterns"); }
       }}>{editDate ? `Save changes to ${fmt(editDate)}` : "Save today's check-in"}</button></div>
       {onPots && !editDate && <button className="linkbtn potslink" style={{ marginTop: 10 }} onClick={onPots}>Log POTS symptoms and drinks →</button>}
+      {pred && !editDate && (
+        <div className="readcard compact">
+          <div className="rsec" style={{ margin: "0 0 4px" }}>Today's read · {pred.phase} phase</div>
+          <div className="sname">{READS[pred.phase][0]}</div>
+          <p className="hint" style={{ margin: "4px 0 0" }}>{READS[pred.phase][1]}</p>
+        </div>
+      )}
       {research && !editDate && (
         <>
           <p className="rfoot">Sharing weekly counts is on: which of {flagWords(stage)} this check-in logged, plus your life stage group, go to Cyra's server on a later day, with no dates or values.</p>

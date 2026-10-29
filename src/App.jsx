@@ -137,6 +137,9 @@ import CareScreen from "./screens/CareScreen.jsx";
 import YouScreen from "./screens/YouScreen.jsx";
 import CyclesScreen from "./screens/CyclesScreen.jsx";
 import LogSheet from "./components/LogSheet.jsx";
+import BodyLog from "./components/BodyLog.jsx";
+import { SleepSheet, MoveSheet, MedsSheet, WeightSheet, PcosSheet, fmtDay as shortDay } from "./components/BodySheets.jsx";
+import { cleanBodyLog, cleanLabs, cleanBodyPrefs, unitsOf, bodyDay, setSleepH, addMove, removeMove, togglePcos, setWeight, addLab, removeLab, moveTotals, logRows, periodDayOf, hoursText } from "./lib/bodylog.js";
 import { NavPill } from "./components/ui/index.js";
 import { TABS, viewsOf, tabOf, viewForTab, parseRoute, logItemsFor } from "./lib/routes.js";
 import AskScreen from "./screens/AskScreen.jsx";
@@ -308,6 +311,13 @@ export default function CyraDemo() {
      this device only, never in a backup file. */
   const [homeTiles, setHomeTiles] = useState(null);
   const [homeStepSkip, setHomeStepSkip] = useState(null);
+  /* The fast log's second half (calm R4, lib/bodylog.js): hours slept, movement, PCOS day chips and an optional weight
+     by day; dated values she types; her units and the weight switch. Record keys, in backups, never sent anywhere.
+     bodySheet: which logger sheet is open, { kind: "sleep"|"move"|"meds"|"pcos"|"weight", day } (UI only). */
+  const [bodyLog, setBodyLog] = useState({});
+  const [labs, setLabs] = useState([]);
+  const [bodyPrefs, setBodyPrefs] = useState(() => cleanBodyPrefs(null));
+  const [bodySheet, setBodySheet] = useState(null);
   const [exportLog, setExportLog] = useState(null); // { month: "YYYY-MM", n }: appointment PDFs made this month. Written only while plan.js sets a monthly limit (none today), so the shipping app keeps no count; device-only, never in a backup file.
   const [fert, setFert] = useState(FERT_FORM_EMPTY);
   const fertOn = fertShown(stage, stageName, fertSigns.on);
@@ -1175,8 +1185,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1504,13 +1514,15 @@ export default function CyraDemo() {
     const restoredModules = cleanModules(saved.modules);
     // Home's Quick log tiles are restored literally (calm R3): a backup without them brings back Cyra's default tiles.
     const restoredTiles = cleanHomeTiles(saved.homeTiles);
-    applySaved({ ...saved, pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
+    // The fast log's second half is restored literally (calm R4): a backup without it clears it here.
+    const restoredBody = { bodyLog: cleanBodyLog(saved.bodyLog), labs: cleanLabs(saved.labs), bodyPrefs: cleanBodyPrefs(saved.bodyPrefs) };
+    applySaved({ ...saved, pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
     potsBase.current = restoredPots; setPotsHomeLast(null);
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
     const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, exportLog, homeStepSkip };
-    await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
+    await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
     // The reminders clause only where Settings has a reminders row (a web build without webReminders has none).
     const msg = !isNative() && remindersInBuild(false) && saved.reminders?.enabled && !reminders.enabled ? "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." : "Backup restored";
@@ -2054,11 +2066,15 @@ export default function CyraDemo() {
   const appIs = (id) => !potsPage && appTab === id;
   /* Home v2 (calm R3): the loggers this stage has (the "+" sheet's list) plus PCOS signals while the module is on; her
      Quick log tiles (homeTiles, 2–4) drawn from them; what today already holds, for the tiles' "Logged" chips and rails. */
-  const logItems = logItemsFor({ period: stage !== "preg", sleep: stage !== "preg", move: !!(potsTab && potsOk) });
-  const tileAvail = [...logItems.map((i) => i.id), ...(pcosHere ? ["pcos"] : [])];
+  /* calm R4: Move is the general movement logger in every stage (a sheet); Sleep in pregnancy opens the hours sheet;
+     PCOS signals is offered while the module is on. */
+  const logItems = logItemsFor({ period: stage !== "preg", pcos: pcosHere });
+  const tileAvail = logItems.map((i) => i.id);
   const homeTileIds = tilesFor(homeTiles, tileAvail);
   const todayEntryNow = entryOn(todayIso) || null;
-  const tileCtx = { entry: todayEntryNow, medDay: medLog[todayIso] || null, moveCount: potsTab && potsOk ? (pots?.days?.[todayIso]?.move || []).length : 0, pcosIds: PCOS_SIGNAL_IDS };
+  const potsMoves = potsTab && potsOk ? (pots?.days?.[todayIso]?.move || []).length : 0;
+  const moveToday = moveTotals(bodyLog, todayIso);
+  const tileCtx = { entry: todayEntryNow, medDay: medLog[todayIso] || null, moveCount: moveToday.n + potsMoves, pcosIds: PCOS_SIGNAL_IDS, sleepH: bodyDay(bodyLog, todayIso).sleepH ?? null, pcosDay: pcosHere ? bodyDay(bodyLog, todayIso).pcos || [] : [] };
   const homeView = (
     <HomeScreen
       acct={acct} stage={stage} stageName={stageName} goTab={goTab}
@@ -2068,7 +2084,7 @@ export default function CyraDemo() {
       step={smallStep({ stage, entry: todayEntryNow, pcosOn: pcosHere, todayIso, skip: homeStepSkip })}
       onStep={(a) => { if (a.log) pickLog(a.log); else if (a.go) goTab(a.go); else if (a.open === "appts") setShowAppts(true); }}
       onSkipStep={() => { const st = smallStep({ stage, entry: todayEntryNow, pcosOn: pcosHere, todayIso }); setHomeStepSkip({ day: todayIso, id: st ? st.id : "" }); ping("Okay, not today"); }}
-      bodyRail={bodySteps({ entry: todayEntryNow, moveCount: tileCtx.moveCount, preg: stage === "preg" })}
+      bodyRail={bodySteps({ entry: todayEntryNow, moveCount: tileCtx.moveCount, moveMin: potsMoves ? 0 : moveToday.min, preg: stage === "preg", sleepH: tileCtx.sleepH })}
       mindRail={mindSteps({ moodDone: tileLogged("mood", tileCtx), readReady: !!todayEntryNow && !homeInsight.empty })} todayIso={todayIso} homeInsight={homeInsight} patternsCard={patternsCard} wearInsights={wearInsights} milestones={milestones} justReached={justReached} nextUp={nextUp} pulse={FEATURES.counts ? pulse : null}
       todayEntry={todayEntryNow} scoreIds={stage === "preg" ? Object.keys(GSYM) : symIds} scoreLabels={stage === "preg" ? GSYM : symMap}
       recap={recap} showRecap={showRecap} setShowRecap={setShowRecap}
@@ -2149,17 +2165,74 @@ export default function CyraDemo() {
      tried in order). Quick mode's card becomes the full form for this visit (the same "more detail"), so symptom chips
      and the 0–10 mood scale are on screen. Items without a logger here are not offered: Period in pregnancy, Sleep
      in pregnancy (its form has no sleep row), Move without the POTS movement plan. */
+  /* ---------- Body → Logs (calm R4, lib/bodylog.js): the day being logged (today, or the day picked on the strip, which
+     is the existing "Fixing up" edit), its rows, the quick actions and the logger sheets. ---------- */
+  const logDay = editDate || todayIso;
+  const openSheet = (kind, day = logDay) => { setLogOpen(false); setBodySheet({ kind, day }); };
+  const closeSheet = () => setBodySheet(null);
+  const focusSel = (sels) => requestAnimationFrame(() => requestAnimationFrame(() => {
+    const hit = sels.map((q) => (typeof q === "string" ? document.querySelector(q) : document.querySelector(q.click))).find(Boolean);
+    if (!hit) return;
+    if (sels.some((q) => typeof q !== "string" && document.querySelector(q.click) === hit)) { hit.click(); return; }
+    hit.scrollIntoView?.({ block: "center", behavior: reduceMotion() ? "auto" : "smooth" }); hit.focus({ preventScroll: true });
+  }));
+  const goLogger = (id) => {
+    if (id === "symptoms") { fullForm(); focusSel(['.chips[role="group"] button.chip']); }
+    else if (id === "flow") { setShowBody(true); focusSel(["#bodypanel button", "button[aria-controls=\"bodypanel\"]"]); }
+    else if (id === "fert") focusSel([".fertsigns button"]);
+    else if (id === "mood") { fullForm(); focusSel(['input.slider[aria-label^="Mood,"]']); }
+    else if (id === "note") focusSel(["#day-note", { click: "button.addnote" }]);
+    else openSheet(id);
+  };
+  const lastMoveType = (() => { const ks = Object.keys(bodyLog).filter((k) => bodyLog[k].move).sort(); const mv = ks.length ? bodyLog[ks[ks.length - 1]].move : null; return mv ? mv[mv.length - 1].type : "walk"; })();
+  const units = unitsOf(bodyPrefs, typeof navigator !== "undefined" ? navigator.language : "");
+  const logEntry = entryOn(logDay) || null;
+  const logTop = (
+    <BodyLog
+      actions={stage === "preg"
+        ? [{ id: "symptoms", label: "Log symptoms", icon: "pulse", tint: "body" }, { id: "sleep", label: "Sleep", icon: "moon", tint: "mind" }, { id: "move", label: "Move", icon: "move", tint: "body" }, { id: "meds", label: "Meds", icon: "pill", tint: "patterns" }].map((a) => ({ ...a, onClick: () => goLogger(a.id) }))
+        : [{ id: "symptoms", label: "Log symptoms", icon: "pulse", tint: "body" }, { id: "flow", label: "Period", icon: "drop", tint: "body" }, fertOn ? { id: "fert", label: "Fertility signs", icon: "teststrip", tint: "mind" } : { id: "move", label: "Move", icon: "move", tint: "body" }, { id: "meds", label: "Meds", icon: "pill", tint: "patterns" }].map((a) => ({ ...a, onClick: () => goLogger(a.id) }))}
+      strip={Array.from({ length: 7 }, (_, i) => { const iso = addDays(todayIso, i - 6); const d = new Date(iso + "T12:00:00"); return { iso, wd: d.toLocaleDateString("en-US", { weekday: "narrow" }), dn: d.getDate(), long: d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }), today: iso === todayIso, sel: iso === logDay, logged: !!entryOn(iso) || !!bodyLog[iso] || Object.values(medLog[iso] || {}).some(Boolean) }; })}
+      onPickDay={(iso) => { if (iso === logDay) return; if (iso === todayIso) endEdit(); else startEdit(iso); }}
+      title={logDay === todayIso ? "Today's log" : `Log for ${fmt(logDay)}`}
+      rows={logRows({ preg: stage === "preg", entry: logEntry, day: bodyDay(bodyLog, logDay), medDay: medLog[logDay] || null, meds, pcosOn: pcosHere, weightOn: bodyPrefs.weightOn, symLabel: (id) => (stage === "preg" ? GSYM[id] : symMap[id] || ALL_SYM[id] || id), periodDay: stage === "preg" ? 0 : periodDayOf(days, logDay, isPeriodDay) })}
+      onRow={goLogger} meds={meds} medDay={medLog[logDay] || null}
+      onToggleMed={(mid) => setMedLog((l) => ({ ...l, [logDay]: { ...(l[logDay] || {}), [mid]: !(l[logDay] || {})[mid] } }))}
+      weightOff={!bodyPrefs.weightOn} onWeightOn={() => openSheet("weight")}
+    />
+  );
+  const sheetDay = bodySheet?.day || todayIso;
+  const sheetWord = sheetDay === todayIso ? "today" : `on ${shortDay(sheetDay)}`;
+  const bodySheetView = !bodySheet ? null
+    : bodySheet.kind === "sleep" ? <SleepSheet day={sheetDay} dayWord={sheetWord} log={bodyLog} onSet={(h) => setBodyLog((l) => setSleepH(l, sheetDay, h))} onClose={closeSheet} />
+    : bodySheet.kind === "move" ? <MoveSheet day={sheetDay} dayWord={sheetWord} log={bodyLog} lastType={lastMoveType} onClose={closeSheet}
+        onAdd={(m) => { const r = addMove(bodyLog, sheetDay, m); if (r.ok) { setBodyLog(r.log); ping(`Movement added: ${m.min} min`); } else ping("That's as many as one day holds"); }}
+        onRemove={(mid) => setBodyLog((l) => removeMove(l, sheetDay, mid))} />
+    : bodySheet.kind === "meds" ? <MedsSheet day={sheetDay} dayWord={sheetWord} todayIso={todayIso} meds={meds} medDay={medLog[sheetDay] || null} onClose={closeSheet}
+        onToggle={(mid) => setMedLog((l) => ({ ...l, [sheetDay]: { ...(l[sheetDay] || {}), [mid]: !(l[sheetDay] || {})[mid] } }))}
+        onAdd={(m) => { setMeds((x) => [...x, { id: Date.now(), ...m }]); ping("Added to your list"); }}
+        onRemove={(mid) => setMeds((x) => x.filter((m) => m.id !== mid))} />
+    : bodySheet.kind === "weight" ? <WeightSheet day={sheetDay} dayWord={sheetWord} log={bodyLog} unit={units.weightUnit} on={bodyPrefs.weightOn} onClose={closeSheet}
+        onUnit={(u) => setBodyPrefs((p) => ({ ...cleanBodyPrefs(p), weightUnit: u }))}
+        onSave={(text, u) => { const r = setWeight(bodyLog, sheetDay, text, u); if (r.ok) { setBodyLog(r.log); if (String(text).trim()) setBodyPrefs((p) => ({ ...cleanBodyPrefs(p), weightOn: true })); ping(String(text).trim() ? "Weight saved on this device" : "Weight cleared"); closeSheet(); } return r; }}
+        onOff={() => { setBodyPrefs((p) => ({ ...cleanBodyPrefs(p), weightOn: false })); ping("Weight is off your log. What you saved is kept"); closeSheet(); }} />
+    : bodySheet.kind === "pcos" ? <PcosSheet day={sheetDay} dayWord={sheetWord} todayIso={todayIso} log={bodyLog} labs={labs} units={units} onClose={closeSheet}
+        onToggle={(pid) => setBodyLog((l) => togglePcos(l, sheetDay, pid))}
+        onAddLab={(x) => { const r = addLab(labs, x); if (r.ok) { setLabs(r.labs); ping("Added on this device"); } return r; }}
+        onRemoveLab={(lid) => setLabs((x) => removeLab(x, lid))}
+        onUnit={(pref, u) => setBodyPrefs((p) => ({ ...cleanBodyPrefs(p), [pref]: u }))} />
+    : null;
   const fullForm = () => { if (quickMode && !expanded && !editDate && stage !== "preg") { setDraft((d) => foldQuick(d, stage)); setExpanded(true); } };
   const pickLog = (id) => {
     setLogOpen(false);
     const at = (view, sel) => { pendingFocus.current = sel; showView(view, { head: true }); };
-    if (id === "symptoms" || id === "pcos") { fullForm(); at("today", ['.chips[role="group"] button.chip', ".viewpanel main h1"]); }
+    if (id === "symptoms") { fullForm(); at("today", ['.chips[role="group"] button.chip', ".viewpanel main h1"]); }
     else if (id === "period") { setShowBody(true); at("today", ["#bodypanel button", ".viewpanel main h1"]); }
+    else if (id === "sleep" && stage === "preg") openSheet("sleep");
     else if (id === "sleep") { if (stage === "peri") fullForm(); at("today", [".viewpanel button.pill[aria-pressed]", ".viewpanel main h1"]); } // peri's quick card asks sleep itself and hides the pill row
     else if (id === "mood") { fullForm(); at("today", ['input.slider[aria-label^="Mood,"]', ".viewpanel main h1"]); }
     else if (id === "note") { at("today", ["#day-note", { click: "button.addnote" }]); }
-    else if (id === "meds") { setShowMeds(true); at("home", ["#home-meds input.inp", "#home-meds button", ".viewpanel main h1"]); }
-    else if (id === "move") { setPotsSec("move"); setPotsFocus("move"); setPotsDate(null); setPotsOpen(true); }
+    else if (id === "meds" || id === "move" || id === "pcos") openSheet(id);
   };
   const connView = <ConnectScreen relationship={relationship} setRelationship={setRelationship} conn={conn} setConn={setConn} intimacy={intimacy} setIntimacy={setIntimacy} after={after} setAfter={setAfter} connLog={connLog} setConnLog={setConnLog} todayIso={todayIso} stage={stage} ping={ping} />;
 
@@ -2195,7 +2268,7 @@ export default function CyraDemo() {
         {stage === "preg" ? (
           <>
             {pregIs("today") && (
-              <PregTodayScreen onPots={potsTab ? () => openPots() : null} pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} anyLogged={Object.keys(pregLog).length > 0} onEditDay={startEdit} symPrefs={symPrefs} setSymPrefs={setSymPrefs} dayNote={dayNote} setDayNote={setDayNote} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={FEATURES.counts && research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} />
+              <PregTodayScreen onPots={potsTab ? () => openPots() : null} pregWeek={pregWeek} trimester={trimester} scoreMeter={scoreMeter} draft={draft} setDraft={setDraft} symMap={symMap} scaleSection={scaleSection} bodySection={bodySection} kicks={kicks} onKick={addKick} setPregLog={setPregLog} todayIso={todayIso} editDate={editDate} onEndEdit={endEdit} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} anyLogged={Object.keys(pregLog).length > 0} onEditDay={startEdit} symPrefs={symPrefs} setSymPrefs={setSymPrefs} dayNote={dayNote} setDayNote={setDayNote} scales={scales} odor={odor} bodyOdor={bodyOdor} ping={ping} research={FEATURES.counts && research} contribute={(entry, dateIso) => contribute([...eventsForDay("preg", entry), ...(entry.kicks > 0 ? ["kicks"] : [])], dateIso)} logTop={logTop} />
             )}
             {pregIs("cal") && (
               <PregCalendarScreen pregWeek={pregWeek} pregLog={pregLog} dayScore={scoreDay} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} pregSel={pregSel} setPregSel={setPregSel} onEdit={startEdit} ping={ping} />
@@ -2209,12 +2282,12 @@ export default function CyraDemo() {
         ) : (
           <>
             {appIs("today") && (
-              <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} expanded={expanded} setExpanded={setExpanded} quickCheckin={quickCheckin} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} onEditDay={startEdit} symPrefs={symPrefs} setSymPrefs={setSymPrefs} dayNote={dayNote} setDayNote={setDayNote} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} days={days} setDays={setDays} onSaved={onSaved} ping={ping} setAppTab={setAppTab} research={FEATURES.counts && research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} fertSection={fertSection} fert={fert} tempUnit={tempUnit} fertOn={fertOn} />
+              <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} expanded={expanded} setExpanded={setExpanded} quickCheckin={quickCheckin} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} onEditDay={startEdit} symPrefs={symPrefs} setSymPrefs={setSymPrefs} dayNote={dayNote} setDayNote={setDayNote} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} days={days} setDays={setDays} onSaved={onSaved} ping={ping} setAppTab={setAppTab} research={FEATURES.counts && research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} fertSection={fertSection} fert={fert} tempUnit={tempUnit} fertOn={fertOn} logTop={logTop} sleepHours={hoursText(bodyDay(bodyLog, logDay).sleepH ?? null) || null} onSleepHours={() => openSheet("sleep")} />
             )}
             {appIs("cal") && (
-              <CalendarScreen pred={pred} predWhy={predWhy} cyc={cyc} onCycleUse={setCycleUse} stage={stage} isMeno={isMeno} days={days} symIds={symIds} symMap={symMap} dayScore={scoreDay} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} fertOn={fertOn} tempUnit={tempUnit} />
+              <CalendarScreen pred={pred} predWhy={predWhy} cyc={cyc} onCycles={() => showView("cycles")} stage={stage} isMeno={isMeno} days={days} symIds={symIds} symMap={symMap} dayScore={scoreDay} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} fertOn={fertOn} tempUnit={tempUnit} />
             )}
-            {appIs("cycles") && <CyclesScreen cyc={cyc} stage={stage} onUse={setCycleUse} />}
+            {appIs("cycles") && <CyclesScreen cyc={cyc} stage={stage} onUse={setCycleUse} pcosOn={pcosHere} lens={ins.lens} />}
             {appIs("patterns") && <PatternsScreen ins={ins} lens6={cyc.lens6} symIds={symIds} symMap={symMap} scoreScale={scoreScale} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} fert={ttc && fertOn ? { unit: tempUnit } : null} week={week} month={month} found={found} scoreColor={scoreColor} energyId={ENERGY_ID} />}
             {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} scheme={scheme} fert={ttc && fertOn ? { unit: tempUnit } : null} buildVisit={buildVisit} pdfLeft={pdfLeft} onPdfMade={onPdfMade} pdfLimit={PLAN.pdfExportsPerMonth} onHandoff={holdLock} />}
             {appIs("ask") && askView}
@@ -2227,6 +2300,7 @@ export default function CyraDemo() {
       </div>
       <NavPill tabs={TABS} current={curNavTab} onSelect={selectTab} onPlus={() => { setShowPal(false); setLogOpen(true); }} plusExpanded={logOpen} panelId={(id) => `panel-${id}`} />
       {logOpen && <LogSheet items={logItems} onPick={pickLog} onClose={() => setLogOpen(false)} />}
+      {bodySheetView}
     </Shell>
   );
 }

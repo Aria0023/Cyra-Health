@@ -46,6 +46,8 @@ Pure lib    engine.js  ←  record.js, pots.js (+ potsPatterns, potsReport, pots
             routes.js imports nothing (calm R2: the five tabs, the views each hosts, deep links, the log sheet's items)
             home.js ← engine.js, routes.js, modules.js (calm R3: Home's hero model, Quick log tiles, step rails, small
             step, week trend / by-cycle phases, PCOS cycle-length insight; pure, record.js imports it for RULES.homeTiles)
+            bodylog.js ← modules.js (calm R4: the fast log's sleep hours, movement, PCOS day chips, weight, dated lab
+            values, units and the Logs card rows; pure, record.js imports it for RULES.bodyLog / labs / bodyPrefs)
   ↓
 I/O lib     storage.js, backup.js, files.js, native.js, api.js
             (pulse.js, notifications.js and wearables.js call api.js; backup.js imports nothing,
@@ -165,6 +167,9 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `fertSigns` | fertility signs switch and temperature unit, `{ on: true\|false\|null, unit: "C"\|"F"\|null }` (L7, spec A14.7); `on` null = the stage default | record (a setting, no health data) | yes | yes, literally (`restoredFertPrefs`; a backup without it resets `on` to null and keeps this device's unit) | yes (sanitised by `cleanFertPrefs`) |
 | `modules` | condition modules switched on, `{ pcos?: { on, since } }` (calm R1, `lib/modules.js`); POTS is not here (it stays in `pots`) | record (a setting, no health data) | yes | yes, literally (`cleanModules`; a backup without it turns PCOS off) | yes (sanitised by `cleanModules`) |
 | `homeTiles` | Home's Quick log tiles, null or 2–4 tile ids (calm R3, `lib/home.js`, spec §3.5a) | record (a setting, no health data) | yes | yes, literally (`cleanHomeTiles`; a backup without it brings back the default tiles) | yes (sanitised by `cleanHomeTiles`) |
+| `bodyLog` | the fast log's second half by day: hours slept, movement sessions, PCOS day chips, optional weight (calm R4, `lib/bodylog.js`, spec §3.5b) | health log | yes | yes, literally (`cleanBodyLog`; a backup without it clears it) | yes (sanitised by `cleanBodyLog`) |
+| `labs` | dated values she types from her own results (fasting glucose, HbA1c) and waist measures (calm R4) | health log | yes | yes, literally (`cleanLabs`) | yes (sanitised by `cleanLabs`) |
+| `bodyPrefs` | her units and whether weight is in her log (calm R4) | record (a setting) | yes | yes, literally (`cleanBodyPrefs`) | yes (sanitised by `cleanBodyPrefs`) |
 | `palIdx` | palette per stage (an index into `stagePalettes(stage, stageName)`, v2 list since calm R1) | setting | yes | yes | yes |
 | `cadence` | check-in rhythm | setting | yes | yes | yes |
 | `quietHours` | reminder time of day | setting | yes | yes | yes |

@@ -137,6 +137,23 @@ homeStepSkip: null | { day: "2026-10-29", id: "breathe" }   // "Not today" on To
 anything it would change). `homeStepSkip` is DEVICE_ONLY and in NOT_IN_BACKUP (never in a backup file, kept across a
 restore). Neither holds health data; no network path reads either.
 
+### 3.5b The fast log's second half (calm R4, `lib/bodylog.js`)
+```js
+bodyLog: { "2026-10-29": { sleepH: 7.5,                                   // hours slept, 0–16 in half hours
+                           move: [{ id: "m1", type: "walk", min: 30 }],   // walk | strength | yoga | cycling | swim | other, 1–600 min
+                           pcos: ["crash", "sug"],                         // PCOS module day chips (PCOS_DAY ids)
+                           weight: { v: 64.5, unit: "kg" } } }             // optional; only while bodyPrefs.weightOn
+labs: [{ id, kind: "fglu" | "hba1c" | "waist", value: 92, unit: "mg/dL", date: "2026-09-01" }]   // newest first, as typed
+bodyPrefs: { weightOn: false, weightUnit: null | "kg" | "lb", glucoseUnit: null | "mg/dL" | "mmol/L", hba1cUnit: null | "%" | "mmol/mol", waistUnit: null | "cm" | "in" }
+```
+All three are record keys (RECORD, in encrypted backups, restored literally; `cleanBodyLog` / `cleanLabs` /
+`cleanBodyPrefs` on load, adopt and restore; RULES flag anything they would change). A missing unit follows the device
+locale (`unitsFor`: en-US lb / in / mg/dL / %; en-GB, CA, AU, IE, NZ mmol/L and mmol/mol; elsewhere kg / cm). Values are
+checked only for plausibility per unit (typos), never interpreted. The check-in day entry (§3.1) is unchanged: sleep
+quality, flow, symptoms, mood scale and the day note stay there. Meds keep the existing `meds` / `medLog` keys (her list
+and taken-by-day). Weight is never on Home and never charted; nothing here is in weekly counts, Ask, AI, the doctor
+email or the PDF.
+
 ### 3.6 Her symptom list (symPrefs, local-first L6)
 ```js
 symPrefs: { periods?: { order, hidden, added }, peri?: { order, hidden, added }, preg?: { order, hidden } }
@@ -1852,6 +1869,10 @@ Apple stays first.
 - [x] Home v2 (calm R3): cycle-day hero ring with the prediction range, Quick log tiles she can choose (`homeTiles`),
       Today's small step with Why and "Not today" (`homeStepSkip`), Body / Mind step rails, one insight with the
       not-medical-advice line, a word-based patterns preview; no streaks, scores or completeness counts on Home (A1).
+- [x] Body → Logs, the fast log (calm R4): four quick actions, a week strip, the day's log as rows with Logged chips,
+      one-tap loggers in sheets (sleep hours, movement of any kind, meds taken from her list, PCOS signals and dated lab
+      values, optional weight; §3.5b), the Calendar in a v2 card with symptom markers, Cycles with the PCOS
+      longer-than-35-days count. A typical day measured at 12 taps, about 15 s at a steady 1.2 s per tap (calm/r4/accept.mjs).
 - [ ] Native biometric unlock (Face ID / fingerprint) through a Capacitor plugin — later work; the phone build offers
       the PIN only (D4).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the

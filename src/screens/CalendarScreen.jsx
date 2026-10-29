@@ -2,8 +2,6 @@ import { useState } from "react";
 import { famColor } from "../lib/constants.js";
 import { localDay, isPeriodDay, sevDots, fmt, fmtRange } from "../lib/engine.js";
 import { cleanNote } from "../lib/daylog.js";
-import Details from "../components/Details.jsx";
-import CycleList from "../components/CycleList.jsx";
 import Icon from "../components/Icon.jsx";
 import { cleanFert, fertParts } from "../lib/fertility.js";
 
@@ -17,8 +15,8 @@ import { cleanFert, fertParts } from "../lib/fertility.js";
    confidence card names the range, what it rests on (her last kept cycles, her sign-up answer or a typical
    28 days, and how many she left out) and "Estimates — not contraception."; with no prediction a card
    says why (nothing logged, irregular at sign-up, every cycle left out, a gap over 120 days, menopause).
-   "Your cycles" (a closed Details, not in menopause) lists the running cycle and up to 12 earlier ones,
-   newest first, with the Unusual suggestion and her "Don't use" switch (components/CycleList.jsx).
+   The month sits in a v2 card (calm R4); a day with symptoms carries a small dot in its strongest symptom's family colour.
+   "Your cycles" (not in menopause) is a link to Body → Cycles, where the list and her "Don't use" switch live (calm R4).
    Fertility signs (L7, D6), only while App.jsx shows them (fertOn): a day with egg-white mucus or a positive ovulation
    test gets a small drop / test-strip mark in its cell (aria-hidden; the cell's name says it too), the legend names both,
    and the day card lists that day's signs. They never change pred. */
@@ -27,7 +25,7 @@ const FLOW_WORDS = { light: ", light flow", med: ", medium flow", heavy: ", heav
 const longDay = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 const shortDay = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 
-export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCycleUse = () => {}, stage, isMeno = false, days, symIds, symMap, dayScore, scoreColor, scoreInk, scoreLabel, todayIso, selDay, setSelDay, onEdit, fertOn = false, tempUnit = "C" }) {
+export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCycles = null, stage, isMeno = false, days, symIds, symMap, dayScore, scoreColor, scoreInk, scoreLabel, todayIso, selDay, setSelDay, onEdit, fertOn = false, tempUnit = "C" }) {
   const [mo, setMo] = useState(0);
   const now = new Date();
   const first = new Date(now.getFullYear(), now.getMonth() + mo, 1);
@@ -47,6 +45,8 @@ export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCyc
     const f = fertOn ? cleanFert(entry) : {};
     const ew = f.cm === "eggwhite", pos = f.opk === "pos";
     const sc = dayScore(entry, symIds);
+    // Symptom marker (calm R4): the day's strongest logged symptom, as a dot in its family colour (data-viz colour, decorative).
+    const topSym = entry ? symIds.filter((id) => (entry.sym?.[id] || 0) > 0).sort((a, b) => entry.sym[b] - entry.sym[a])[0] : null;
     const isToday = iso === todayIso;
     const tint = sc != null ? { background: scoreColor(sc), color: scoreInk(sc), fontWeight: 700 } : {};
     const label = `${longDay(iso)}${isToday ? ", today" : ""}${logged ? `, period${flowWords}` : ""}${predP ? ", predicted period" : ""}${fert ? ", estimated fertile window" : ""}${ew ? ", egg-white mucus" : ""}${pos ? ", positive ovulation test" : ""}${sc != null ? `, ${scoreLabel(sc)}` : ""}`;
@@ -54,12 +54,14 @@ export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCyc
     cells.push(
       <button key={iso} type="button" style={tint} className={cls} aria-label={label} aria-pressed={iso === selDay} aria-current={isToday ? "date" : undefined} onClick={() => setSelDay(iso)}>
         {dnum}{logged && <span className={`c-per-mark ${FLOW_MARK[entry.flow] || "f-light"}`} />}
+        {topSym && <span className="c-symdot" aria-hidden="true" style={{ "--fc": famColor(topSym) }} />}
         {(ew || pos) && <span className="c-fmarks" aria-hidden="true">{ew && <Icon name="drop" size={10} className="fm-ew" />}{pos && <Icon name="teststrip" size={10} />}</span>}
       </button>
     );
   }
   return (
-    <main>
+    <main className="calpage">
+      <section className="v2card calcard" data-tint="body" aria-label="Month">
       <div className="calnav">
         <button type="button" className="sbtn" aria-label="Previous month" onClick={() => setMo((m) => m - 1)}>‹</button>
         <h1 className="disp" aria-live="polite">{monthTitle}</h1>
@@ -105,7 +107,7 @@ export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCyc
         );
       })()}
       <div className="callegend">
-        {!isMeno && <><span><i className="dot d-pred" /> predicted</span><span><i className="dot d-fert" /> fertile (est.)</span></>}<span><i className="dot d-permark" /> period</span>
+        {!isMeno && <><span><i className="dot d-pred" /> predicted</span><span><i className="dot d-fert" /> fertile (est.)</span></>}<span><i className="dot d-permark" /> period</span><span><i className="d-sym" /> symptoms</span>
         {fertOn && <><span><Icon name="drop" size={11} className="d-ficon fm-ew" />egg-white</span><span><Icon name="teststrip" size={11} className="d-ficon" />positive test</span></>}
       </div>
       <div className="gradlegend">
@@ -113,18 +115,18 @@ export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCyc
         <span className="gradbar" style={{ background: `linear-gradient(90deg, ${scoreColor(0)}, ${scoreColor(0.5)}, ${scoreColor(1)})` }} />
         <span>great day</span>
       </div>
+      </section>
       <p className="hint calhint">{firstRun ? (isMeno ? "Tap today to log your first day. What you log appears here as you go." : "Tap today to log your first day. Periods, predictions and the fertile window appear here as you go.") : "Tap any day to see or edit what you logged."}</p>
       {pred ? (
-        <div className="card"><div className="num">±{pred.half}d<span className="rmeta">confidence</span></div><p>{predictionText(pred)}</p></div>
+        <div className="card calpredcard"><div className="num">±{pred.half}d<span className="rmeta">confidence</span></div><p>{predictionText(pred)}</p></div>
       ) : (
         <div className="card"><div className="num">—</div><p>{whyText(predWhy, stage)}</p></div>
       )}
-      {!isMeno && cyc?.rows.length > 0 && (
-        <div className="cycwrap">
-          <Details label={<>Your cycles{cyc.pending ? <span className="dsub"> · {cyc.pending} {cyc.pending === 1 ? "looks" : "look"} unusual</span> : null}</>}>
-            <CycleList cyc={cyc} peri={stage === "peri"} onUse={onCycleUse} />
-          </Details>
-        </div>
+      {/* The cycles list moved to Body → Cycles (calm R4); this link takes her there. */}
+      {!isMeno && onCycles && cyc?.rows.length > 0 && (
+        <button type="button" className="disclosure cyclink" onClick={onCycles}>
+          <span>Your cycles{cyc.pending ? <span className="dsub"> · {cyc.pending} {cyc.pending === 1 ? "looks" : "look"} unusual</span> : null}</span><Icon name="arrow-right" className="chev" />
+        </button>
       )}
     </main>
   );
@@ -153,8 +155,8 @@ function whyText(why, stage) {
     case "unsure": return "At sign-up you said your cycles are irregular or you're not sure how long they run, so Cyra won't guess yet. Log a couple of periods (light flow or more on the Today screen) and the calendar starts estimating your next one.";
     case "excluded": return why.kept
       // An Irregular / Not sure sign-up with one cycle still in use (plan() waits for two).
-      ? "At sign-up you said your cycles are irregular or you're not sure how long they run, so Cyra waits until two cycles are in use. Only one of yours is in use now — turn another back on under “Your cycles” below, or keep logging."
-      : "Every cycle you've logged is left out of predictions, so Cyra won't guess. Turn one back on under “Your cycles” below, or keep logging.";
+      ? "At sign-up you said your cycles are irregular or you're not sure how long they run, so Cyra waits until two cycles are in use. Only one of yours is in use now — turn another back on in Body → Cycles, or keep logging."
+      : "Every cycle you've logged is left out of predictions, so Cyra won't guess. Turn one back on in Body → Cycles, or keep logging.";
     case "long": return `It's been ${why.days} days since the last period Cyra knows about, longer than it predicts across. If you had one since, tap that day to log it.${stage === "peri" ? " Long gaps are common in perimenopause." : " If you haven't and that's unexpected, it's worth mentioning to a clinician."}`;
     case "meno": return "After menopause Cyra doesn't predict periods. Any bleeding now is worth mentioning to your doctor — log it on the Today screen so it's in your record.";
     default: return "No predictions yet. Log a period day (light flow or more on the Today screen) and the calendar starts estimating your next one.";

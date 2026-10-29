@@ -92,7 +92,9 @@ export function routeOf(view, opts = {}) {
 }
 
 /* The "+" sheet: one tap each into the right logger. Each item is offered only where its logger exists in this
-   experience (App.jsx decides `has`): Move only with the POTS movement plan, Period not in pregnancy. */
+   experience (App.jsx decides `has`): Period not in pregnancy. From calm R4 Move is the general movement logger (every
+   stage; the POTS movement plan stays inside the POTS module) and "PCOS signals" is offered only while the PCOS module
+   is on (it is off unless `has.pcos` is true). */
 export const LOG_ITEMS = [
   { id: "symptoms", label: "Symptoms", icon: "pulse", tint: "body" },
   { id: "period", label: "Period", icon: "drop", tint: "body" },
@@ -101,9 +103,12 @@ export const LOG_ITEMS = [
   { id: "move", label: "Move", icon: "move", tint: "body" },
   { id: "meds", label: "Meds", icon: "pill", tint: "patterns" },
   { id: "note", label: "Note", icon: "note", tint: "you" },
+  { id: "pcos", label: "PCOS signals", icon: "sparkle", tint: "body" },
 ];
+const OFF_UNLESS_ASKED = ["pcos"];
 
-/** The log items to show, in order, given which loggers exist ({ period, move, … } booleans; a missing key = present). */
+/** The log items to show, in order, given which loggers exist ({ period, move, pcos, … } booleans; a missing key = present,
+    except pcos, which needs pcos: true). */
 export function logItemsFor(has = {}) {
-  return LOG_ITEMS.filter((i) => has[i.id] !== false);
+  return LOG_ITEMS.filter((i) => (OFF_UNLESS_ASKED.includes(i.id) ? has[i.id] === true : has[i.id] !== false));
 }

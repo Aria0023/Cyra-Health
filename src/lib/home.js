@@ -44,8 +44,8 @@ export function heroModel({ stage, isMeno = false, pred = null, predWhy = null, 
 }
 
 /* ---------------- quick log tiles ---------------- */
-/** Every tile Home can show: the "+" sheet's items plus PCOS signals (offered while the PCOS module is on). */
-export const TILE_CATALOG = Object.freeze([...LOG_ITEMS, { id: "pcos", label: "PCOS signals", icon: "sparkle", tint: "body" }].map((t) => Object.freeze({ ...t })));
+/** Every tile Home can show: the "+" sheet's items (PCOS signals among them, offered while the PCOS module is on). */
+export const TILE_CATALOG = Object.freeze(LOG_ITEMS.map((t) => Object.freeze({ ...t })));
 export const TILE_IDS = Object.freeze(TILE_CATALOG.map((t) => t.id));
 export const DEFAULT_TILES = Object.freeze(["symptoms", "sleep", "mood", "move"]);
 export const TILES_MIN = 2, TILES_MAX = 4;
@@ -70,18 +70,19 @@ export function homeTiles(saved, availableIds) {
 }
 
 const anyOn = (o) => !!o && Object.values(o).some((v) => (typeof v === "number" ? v > 0 : !!v));
-/** Whether today already has this kind of entry (the tile's "Logged" chip). ctx: { entry, medDay, moveCount, pcosIds }. */
-export function tileLogged(id, { entry = null, medDay = null, moveCount = 0, pcosIds = [] } = {}) {
+/** Whether today already has this kind of entry (the tile's "Logged" chip). ctx: { entry, medDay, moveCount, pcosIds,
+    sleepH (hours from the body log, calm R4), pcosDay (the PCOS logger's chips today) }. */
+export function tileLogged(id, { entry = null, medDay = null, moveCount = 0, pcosIds = [], sleepH = null, pcosDay = [] } = {}) {
   const sym = entry?.sym || {};
   switch (id) {
     case "symptoms": return anyOn(sym);
     case "period": return !!(entry && (entry.period || entry.flow));
-    case "sleep": return !!entry?.sleepQ;
+    case "sleep": return !!entry?.sleepQ || sleepH != null;
     case "mood": return (entry?.scales?.moodq || 0) > 0 || (sym.mood || 0) > 0;
     case "move": return moveCount > 0;
     case "meds": return anyOn(medDay);
     case "note": return !!entry?.note;
-    case "pcos": return pcosIds.some((k) => (sym[k] || 0) > 0);
+    case "pcos": return (Array.isArray(pcosDay) && pcosDay.length > 0) || pcosIds.some((k) => (sym[k] || 0) > 0);
     default: return false;
   }
 }
@@ -91,11 +92,14 @@ const SLEPT = { good: "Slept well", fair: "So-so", poor: "Rough night" };
 /** done flags → states: done, the first not-done step is "current", the rest "todo" (neutral). An optional step
     (opt[i] true, e.g. Movement) is never the one marked next. */
 export const railStates = (done, opt = []) => { let cur = false; return done.map((d, i) => (d ? "done" : cur || opt[i] ? "todo" : ((cur = true), "current"))); };
-export function bodySteps({ entry = null, moveCount = 0, preg = false } = {}) {
+/* moveCount: movement sessions today (the general Move logger plus POTS sessions); moveMin: their minutes (calm R4);
+   sleepH: hours from the body log. Pregnancy shows Sleep once hours are logged (its check-in has no sleep row). */
+export function bodySteps({ entry = null, moveCount = 0, moveMin = 0, preg = false, sleepH = null } = {}) {
   const nSym = Object.values(entry?.sym || {}).filter((v) => v > 0).length;
+  const hrs = sleepH != null ? `${Math.floor(sleepH)}${sleepH % 1 ? "½" : ""}h` : "";
   const steps = [
-    ...(preg ? [] : [{ label: "Sleep", sub: entry?.sleepQ ? SLEPT[entry.sleepQ] || "Logged" : "Last night", done: !!entry?.sleepQ }]),
-    { label: "Movement", sub: moveCount > 0 ? `${moveCount} session${moveCount === 1 ? "" : "s"}` : "Optional", done: moveCount > 0 },
+    ...(preg && sleepH == null ? [] : [{ label: "Sleep", sub: entry?.sleepQ || hrs ? [hrs, entry?.sleepQ ? SLEPT[entry.sleepQ] : ""].filter(Boolean).join(" · ") : "Last night", done: !!entry?.sleepQ || sleepH != null }]),
+    { label: "Movement", sub: moveCount > 0 ? (moveMin > 0 ? `${moveMin} min` : `${moveCount} session${moveCount === 1 ? "" : "s"}`) : "Optional", done: moveCount > 0 },
     { label: "Symptoms", sub: entry ? (nSym ? `${nSym} logged` : "None today") : "Today", done: !!entry },
   ];
   const st = railStates(steps.map((s) => s.done), steps.map((s) => s.label === "Movement"));

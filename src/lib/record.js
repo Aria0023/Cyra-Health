@@ -15,6 +15,7 @@ import { cleanSymPrefs, NOTE_MAX } from "./daylog.js";
 import { cleanFert, cleanFertPrefs } from "./fertility.js";
 import { cleanModules } from "./modules.js";
 import { cleanHomeTiles } from "./home.js";
+import { cleanBodyLog, cleanLabs, cleanBodyPrefs } from "./bodylog.js";
 
 /* ======================= shapes (documentation only) =======================
    Class tags: [record] the health record and settings (in the backup file, applied by a restore,
@@ -65,6 +66,9 @@ import { cleanHomeTiles } from "./home.js";
  * @property {ExportTally|null} exportLog [device-only] [not-in-backup] appointment PDFs made this month (L9, lib/plan.js ExportTally); null while exports are unlimited.
  * @property {SymPrefs} symPrefs [record] her symptom list per stage (L6); missing means {} (Cyra's order).
  * @property {FertSigns} fertSigns [record] fertility signs switch and unit (L7); missing means { on: null, unit: null }.
+ * @property {Object<string, {sleepH?: number, move?: Array<{id: string, type: string, min: number}>, pcos?: string[], weight?: {v: number, unit: "kg"|"lb"}}>} bodyLog [record] the fast log's second half by local day (calm R4, lib/bodylog.js).
+ * @property {Array<{id: string, kind: "fglu"|"hba1c"|"waist", value: number, unit: string, date: string}>} labs [record] values she typed from her own results, dated (calm R4); never interpreted.
+ * @property {{weightOn: boolean, weightUnit: ?string, glucoseUnit: ?string, hba1cUnit: ?string, waistUnit: ?string}} bodyPrefs [record] her units and whether weight is in her log (calm R4).
  * @property {Object<string, {on: boolean, since: (string|null)}>} modules [record] condition modules switched on or off (calm R1, lib/modules.js), POTS excepted (it stays in `pots`); missing means {} (all off).
  */
 
@@ -213,9 +217,12 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    record, in backups (no health data).
    homeStepSkip (calm R3) is the day she said "Not today" to Home's small step, { day, id } | null: device-only, never
    in a backup file (a dismissal on one device says nothing about another day elsewhere).
+   bodyLog, labs, bodyPrefs (calm R4, lib/bodylog.js) are the fast log's second half: hours slept, movement sessions, PCOS
+   day chips and an optional weight by day; dated lab values and waist measures she types; her units and the weight
+   switch. Record, in backups, restored literally (a backup without them clears them). Health data: never sent anywhere.
    exportLog (L9) is this month's count of appointment PDFs, { month: "YYYY-MM", n }, written only while plan.js sets a
    monthly limit (none today, so it stays null): device-only and never in a backup file. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip"]);
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -464,6 +471,10 @@ export const RULES = Object.freeze({
   homeTiles: (v, p) => (v === null || JSON.stringify(v) === JSON.stringify(cleanHomeTiles(v)) ? [] : [`${p}: expected null or 2–4 distinct Home tile ids, got ${show(v)}`]),
   // Home's small step "Not today" (calm R3): null or { day: YYYY-MM-DD, id: text }.
   homeStepSkip: (v, p) => (v === null || (isObj(v) && isIso(v.day) && typeof v.id === "string") ? [] : [`${p}: expected null or { day: YYYY-MM-DD, id }, got ${show(v)}`]),
+  // The fast log's second half (calm R4): a problem whenever the clean function would change anything.
+  bodyLog: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanBodyLog(v)) ? [] : [`${p}: expected { YYYY-MM-DD: { sleepH?, move?, pcos?, weight? } } in date order, no empty days, got ${show(v)}`]),
+  labs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanLabs(v)) ? [] : [`${p}: expected a list of { id, kind, value, unit, date }, newest first, values within their unit's range, got ${show(v)}`]),
+  bodyPrefs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanBodyPrefs(v)) ? [] : [`${p}: expected { weightOn, weightUnit, glucoseUnit, hba1cUnit, waistUnit }, got ${show(v)}`]),
   symPrefs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanSymPrefs(v)) ? [] : [`${p}: expected { periods|peri|preg: { order, hidden, added } } (lists of symptom ids, at most 40 each, no empty stages), got ${show(v)}`]),
 });
 

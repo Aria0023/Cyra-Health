@@ -1160,3 +1160,41 @@ the toast "Okay, not today". The question step says appointments are kept "with 
 on-device `appts` key. Removed from Home: the "N of 14 days" badge and its streak line, the "N of 3" first-insight
 countdown, the day score in today's line, the 0–100 patterns chart (still in Patterns until R6), "Average day score" in
 Month vs last month (now a sentence in words) and "Day score a → b" in What I'm trying (now words).
+
+## Calm R4 (Body: the fast log, calendar, cycles, PCOS signals) — three new record keys (all in backups), four new sentences, nothing new leaves the device
+
+No request, dependency, font or external asset was added. The new loggers write only to the on-device record; nothing
+they hold is read by weekly counts (`contribute()` still gets `{ sym, sleepQ, flow }` from the check-in only), Ask, the
+AI, the doctor email, the PDF or any network path. `src/lib/bodylog.js` is pure (no storage, network or React import).
+
+**New record key `bodyLog`** ({ [YYYY-MM-DD]: { sleepH?, move?, pcos?, weight? } }): hours slept, movement sessions,
+the PCOS module's day chips and an optional weight. Class: health log. In RECORD (shared with other open tabs), **in
+encrypted backups**, restored literally (a backup without it clears it here, so "It replaces your record here." stays
+true), erased by Delete everything. RULES.bodyLog flags anything cleanBodyLog would change.
+
+**New record key `labs`** ([{ id, kind, value, unit, date }]): fasting glucose, HbA1c and waist measures she types from
+her own results, each with its unit and date. Class: health log. In RECORD, **in encrypted backups**, restored literally,
+erased by Delete everything. Never interpreted, never sent.
+
+**New record key `bodyPrefs`** ({ weightOn, weightUnit, glucoseUnit, hba1cUnit, waistUnit }): her units and whether
+weight is in her log. Class: record (a setting, no health data). In RECORD, **in encrypted backups**, restored
+literally. The default units come from the device's language setting (`navigator.language`), read on the device only.
+
+The existing `meds` / `medLog` keys (her list, taken by day) now also have a one-tap Meds sheet and the Meds row on Body;
+their class and backup handling are unchanged.
+
+**Sentences (new, each literally true in every build configuration):**
+- PCOS signals sheet: "Cyra keeps these on this device and does not interpret them." — the values live only in `labs`
+  on the device (and in a backup file she makes, which is encrypted with her passphrase); no code path sends or
+  evaluates them.
+- Weight sheet (the R1 module copy, first shown now): "Optional. Only you see it; it is never on Home and never charted
+  unless you choose." — weight is drawn only in the Weight row and sheet on Body; no chart, Home tile, PDF or report reads
+  it; it leaves the device only inside her own encrypted backup file.
+- Toasts: "Weight saved on this device", "Added on this device" (a lab value) — both writes go to the on-device record.
+- Meds sheet: "Cyra never recommends doses or changes; those stay with you and your clinician." (the sentence already in
+  What I'm trying, shortened; not a privacy claim.)
+No privacy sentence was moved or removed. The Calendar's "Your cycles" disclosure became a link to Body → Cycles; its
+"no prediction" lines now say "in Body → Cycles" instead of "under “Your cycles” below".
+- Reworded: the "+" log sheet hint "One tap opens the right place. Nothing is saved until you save it there." (Calm R2)
+  is now "One tap opens the right place. Movement, meds and the other quick loggers save as you tap; the check-in saves
+  with its button." — the new sheets write on tap (to this device only), so the old sentence would no longer be true.

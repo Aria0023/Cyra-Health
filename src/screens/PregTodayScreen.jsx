@@ -15,7 +15,7 @@ import DayNote from "../components/DayNote.jsx";
    between taps); also the edit form for a day picked from the Calendar.
    L6: her symptom list for pregnancy (order and Hide only, lib/daylog.js; nothing is borrowed into GSYM) behind the
    same "Symptoms · Edit" row as Today, and the day note after the advice card (never handed to contribute()). */
-export default function PregTodayScreen({ onPots = null, pregWeek, trimester, scoreMeter, draft, setDraft, symMap, scaleSection, bodySection, kicks, onKick, setPregLog, todayIso, editDate, onEndEdit, savedToday = false, yesterdayIso = null, yesterdayLogged = true, anyLogged = false, onEditDay = null, symPrefs = {}, setSymPrefs = () => {}, dayNote = "", setDayNote = () => {}, scales, odor, bodyOdor, ping, research, contribute }) {
+export default function PregTodayScreen({ onPots = null, pregWeek, trimester, scoreMeter, draft, setDraft, symMap, scaleSection, bodySection, kicks, onKick, setPregLog, todayIso, editDate, onEndEdit, savedToday = false, yesterdayIso = null, yesterdayLogged = true, anyLogged = false, onEditDay = null, symPrefs = {}, setSymPrefs = () => {}, dayNote = "", setDayNote = () => {}, scales, odor, bodyOdor, ping, research, contribute, logTop = null }) {
   // UI state only, never saved: the "Your symptoms" sheet and the "More symptoms" panel.
   const [symEdit, setSymEdit] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -57,6 +57,8 @@ export default function PregTodayScreen({ onPots = null, pregWeek, trimester, sc
       )}
       <h1 className="disp" style={{ marginTop: 16 }}>{editDate ? `Fixing up ${fmt(editDate)}` : "How's today going?"}</h1>
       {!yesterdayLogged && !editDate && anyLogged && onEditDay && <button type="button" className="linkbtn yday" onClick={() => onEditDay(yesterdayIso)}>Yesterday not logged · add it</button>}
+      {logTop}
+      {logTop && <h2 className="checkhead">{editDate ? `Check-in for ${fmt(editDate)}` : "Today's check-in"}</h2>}
       <p className="hint">Tap a symptom once for mild, up to 3× for strong.</p>
       {scoreMeter}
       {savedToday && !editDate && <p className="savedline"><Icon name="check" size={14} /> Logged today — any change here updates it.</p>}
