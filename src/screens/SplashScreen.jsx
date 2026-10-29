@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { RestoreForm } from "../components/DataControls.jsx";
 import Icon from "../components/Icon.jsx";
+import { BUILD_STAMP } from "../lib/about.js";
 
 /* Phase 1: splash. Wordmark, tagline, value proposition, the privacy promise, "Get started", and a way back
    in from an encrypted backup. UI O1: a ring motif in the stage-neutral palette and the three promises as icon
@@ -37,7 +38,7 @@ export default function SplashScreen({ onStart, onImport, initialRestore = false
       <button className="cta" onClick={onStart}>Get started</button>
       <button type="button" className="ghostbtn quiet splashrestore" aria-expanded={restore} aria-controls="splash-restore" onClick={() => setRestore((v) => !v)}>Restore from an encrypted backup</button>
       <div id="splash-restore" hidden={!restore}>{restore && <RestoreForm onImport={onImport} compact />}</div>
-      <p className="rfoot" style={{ textAlign: "center" }}>Free to use<br /><b>BUILD 2026.10.07-D</b></p>
+      <p className="rfoot" style={{ textAlign: "center" }}>Free to use<br /><b>{BUILD_STAMP}</b></p>
     </main>
   );
 }

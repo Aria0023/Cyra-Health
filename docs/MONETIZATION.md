@@ -30,6 +30,10 @@ purchases and "Restore purchases"; the basic doctor-ready PDF stays free.
 Calm R6: the weekly review and its starter experiments are free core. "Your own experiment" carries the one-line Pro
 chip and opens "What Pro adds"; no custom-experiment builder exists yet (R8). Pattern cards are not gated in R6.
 
+Calm R7: You has one quiet Plan card ("Cyra Free", the free-forever sentence, a "See what Pro adds" button that opens the
+same `ProSheet`, and "There's nothing to buy in this version."). It never opens anything on its own, has no price, trial,
+countdown or upgrade button, and a dev build (proDev) says it is a test build. R8 changes its copy when purchases exist.
+
 ## 2. The free core, forever
 
 A feature that ships free stays free.

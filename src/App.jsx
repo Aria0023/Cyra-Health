@@ -686,6 +686,11 @@ export default function CyraDemo() {
     const id = requestAnimationFrame(() => { const el = document.getElementById(youSection); if (el) { el.scrollIntoView?.({ block: "start" }); el.focus?.({ preventScroll: true }); } setYouSection(null); });
     return () => cancelAnimationFrame(id);
   }, [youSection, curTab]);
+  /* Calm R7: the header's sliders button on the You tab brings the page's Check-ins card into view (the sheet is not drawn
+     there; settingsSheet above), so the old "open settings" gesture keeps working from every tab. */
+  useEffect(() => {
+    if (showSettings && stage && curNavTab === "you") { setShowSettings(false); setYouSection("you-checkins"); }
+  }, [showSettings, stage, curNavTab]);
   /* Deep links (spec §3): #/body/calendar, #/patterns/report, … and the old tab names (#/today, #/report, #/care, …)
      open the view they name once she is in the app; the hash is then cleared, so a reload opens Home as before. Other
      hashes (#restored, #oauth=…, #/dev/ui) are not routes and are left alone. */
@@ -2058,10 +2063,17 @@ export default function CyraDemo() {
   const lockApi = { cfg: lockCfg, passkeyOk, native: isNative(), lastBackupAt, verify: verifyPin, setPin, changePin, turnOff: turnOffLock, setAfter: setLockAfter, passkeyOn, passkeyOff, lockNow };
   // Settings → About you (L11): one answer at a time into regAnswers; ANSWER_BLANK carries no name, email or anon key.
   const setAnswer = (k, v) => setRegAnswers((a) => ({ ...ANSWER_BLANK, ...(a && typeof a === "object" ? a : {}), [k]: v }));
-  const settingsSheet = showSettings && <SettingsSheet regAnswers={regAnswers} onAnswer={setAnswer} daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} triggerRef={settingsBtnRef} cadence={cadence} setCadence={setCadence} quietHours={quietHours} setQuietHours={setQuietHours} quickMode={quickMode} setQuickMode={setQuickMode} setShowSettings={setShowSettings} ping={ping} storageDriver={storageDriver} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} keepsWeekNote={keepsWeekNote} reminders={reminders} reminderSupport={reminderSupport()} onReminders={(on) => applyReminders(on)} research={research} setResearch={setSharing} stage={stage} stageName={stageName} pots={pots} onPotsOn={potsOn} onPotsOff={potsOff}
-    install={offersInstall({ mode: installMode, stored: recordInIdb }) ? { mode: installMode, onInstall: () => installNow("settings") } : null} focusTo={settingsFocus} offlineCopy={offlineReady} appearance={appearance} onAppearance={chooseAppearance} legacyWear={legacyWear}
-    fertRow={stage === "periods" ? { on: fertOn, setOn: setFertOn, ttc, privacy: fertPrivacy } : null}
-    flows={flows} flowCtx={{ native: isNative(), server: hasServer(), stage }} lock={lockApi} potsOn={potsTab && potsOk} onHandoff={holdLock} />;
+  const installOffer = offersInstall({ mode: installMode, stored: recordInIdb }) ? { mode: installMode, onInstall: () => installNow("settings") } : null;
+  const fertRow = stage === "periods" ? { on: fertOn, setOn: setFertOn, ttc, privacy: fertPrivacy } : null;
+  /* Settings (calm R7): the sheet (header sliders button, every tab but You) and the You page's cards take the same props. */
+  const settingsProps = {
+    regAnswers, onAnswer: setAnswer, daysLogged, lastBackupAt, todayIso, triggerRef: settingsBtnRef, cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping,
+    storageDriver, onExport: exportBackup, onImport: importBackup, onWipe: wipeDevice, keepsWeekNote, reminders, reminderSupport: reminderSupport(), onReminders: (on) => applyReminders(on),
+    research, setResearch: setSharing, stage, stageName, pots, onPotsOn: potsOn, onPotsOff: potsOff, offlineCopy: offlineReady, appearance, onAppearance: chooseAppearance, legacyWear,
+    flows, flowCtx: { native: isNative(), server: hasServer(), stage }, lock: lockApi, potsOn: potsTab && potsOk, onHandoff: holdLock,
+  };
+  // On the You tab the same controls are cards on the page, so the sheet is not drawn there (one copy of every id on screen).
+  const settingsSheet = showSettings && !(stage && curNavTab === "you") && <SettingsSheet {...settingsProps} install={installOffer} focusTo={settingsFocus} fertRow={fertRow} />;
   if (!stage) {
     // Choosing a stage again: the saved record is still here, so Settings (and Delete
     // everything) stays one tap away.
@@ -2177,10 +2189,6 @@ export default function CyraDemo() {
   const modRows = modulesFor(stage, stageName).map((m) => (m.id === "pots"
     ? { id: "pots", name: m.name, short: m.short, on: potsTab }
     : { id: m.id, name: m.name, short: m.short, on: isModuleOn({ modules }, m.id), onToggle: () => { const on = !isModuleOn({ modules }, m.id); setModules((cur) => setModuleOn({ modules: cur }, m.id, on, { day: todayIso }).modules); ping(on ? `${m.name} module on` : `${m.name} module off. What you logged is kept`); } }));
-  const youView = (
-    <YouScreen acct={acct} stageName={stageName} onChangeStage={changeStage} onOpenSettings={() => { setShowPal(false); setShowSettings(true); }} modules={modRows}
-      care={stage === "preg" ? null : <CareScreen embedded shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Cyra will compare your days before and after"); }} />} />
-  );
   const segViews = viewsOf(curNavTab, navOpts);
   const navLabel = TABS.find((t) => t.id === curNavTab)?.label || "Home";
   /* The "+" log sheet (calm R2): each item opens the view that holds its logger and puts focus on it (pendingFocus,
@@ -2312,6 +2320,12 @@ export default function CyraDemo() {
       next={nextPractice({ day: moodToday, hour: new Date().getHours(), log: practiceLog, canFull })} onOpen={openPractice} onMore={() => showView("practices", { head: true })}
       runs={runsOn(practiceLog, todayIso).map((r) => ({ ...r, title: practiceOf(r.p)?.title || r.p }))}
       onHelped={(rid, v) => setPracticeLog((l) => setHelped(l, rid, l.find((r) => r.id === rid)?.helped === v ? null : v))} />
+  );
+  const youView = (
+    <YouScreen acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
+      pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={canFull} onPro={() => setProOpen(true)}
+      ai={{ available: aiAvailable, on: askAI, set: setAskAI }}
+      care={stage === "preg" ? null : <CareScreen embedded shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Cyra will compare your days before and after"); }} />} />
   );
   const practicesView = () => <PracticesScreen canFull={canFull} favs={practiceFavs} onOpen={openPractice} onPro={() => setProOpen(true)} featured={{ practice: practiceOf("slow"), need: "calm" }} />;
   const journeyView = () => {

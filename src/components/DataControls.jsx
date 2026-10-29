@@ -120,7 +120,7 @@ export function WipeConfirm({ onWipe, keepsWeekNote = false, onCancel, panelId =
   );
 }
 
-export default function DataControls({ driver, onExport, onImport, onWipe, ping, keepsWeekNote = false, daysLogged = 0, lastBackupAt = null, todayIso, offlineCopy = false, legacyWear = false, onHandoff = null, children = null }) {
+export default function DataControls({ driver, onExport, onImport, onWipe, ping, keepsWeekNote = false, daysLogged = 0, lastBackupAt = null, todayIso, offlineCopy = false, legacyWear = false, onHandoff = null, hideLab = false, children = null }) {
   const [mode, setMode] = useState(null); // null | "export" | "import" | "wipe"
   const [pass, setPass] = useState("");
   const [pass2, setPass2] = useState("");
@@ -149,7 +149,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
   };
   return (
     <>
-      <p className="section-lab" id="set-privacy" style={{ margin: "0 0 6px" }}><Icon name="shield" className="labico" />Privacy &amp; your data</p>
+      <p className={hideLab ? "section-lab sr-only" : "section-lab"} id="set-privacy" style={hideLab ? undefined : { margin: "0 0 6px" }}><Icon name="shield" className="labico" />Privacy &amp; your data</p>
       <p className="datastat"><b>{daysLogged === 1 ? "1 day logged" : `${daysLogged} days logged`}</b><span aria-hidden="true">·</span><span>last backup {lastBackupAt && todayIso ? relDay(lastBackupAt, todayIso) : (daysLogged >= 7 ? "never — worth doing once" : "never")}</span></p>
       <p className="hint" style={{ margin: "0 0 8px" }}>{where ? `Your check-ins, notes and history are stored ${where}.` : "Checking where your check-ins, notes and history are stored…"} Cyra's servers don't keep a copy.</p>
       {offlineCopy && <p className="rfoot" style={{ margin: "0 0 8px" }}>This browser also keeps a copy of Cyra's own app files, so Cyra opens without a connection. That copy holds none of your check-ins, notes or settings.</p>}

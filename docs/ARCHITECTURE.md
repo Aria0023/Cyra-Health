@@ -236,6 +236,12 @@ user). `src/lib/modules.js` is the registry: pure, imports only `engine.js`, `co
 - The next module (hair loss) is a new `MODULES` entry plus its copy in CLINICIAN-REVIEW.md; the comment at the top of
   modules.js shows the shape. No engine change.
 
+**You page (calm R7).** `screens/YouScreen.jsx` renders the module switches (`components/ModuleRow.jsx` + `components/ui/Switch.jsx`,
+a real `role="switch"`), the Plan card (reuses `ProSheet`) and the settings cards. The Settings controls live in
+`components/settingsParts.jsx` (`CheckinsBody`, `RemindersBody`, `CountsBody`, `AppearanceBody`, `AboutBody`, `PrivacyBody`,
+`reminderModel`), shared by the Settings sheet and the You page, which are never on screen together. `lib/about.js` holds the
+page's copy-as-data (`BUILD_STAMP`, `MODULE_ADDS`, `PLAN_COPY`, `ACCOUNT_LINES`, `NOT_MEDICAL`, `accountLine`).
+
 ### 4.2 Navigation (calm R2)
 
 `src/lib/routes.js` (pure, imports nothing) is the navigation model: `TABS` (Home · Body · Mind · Patterns · You),

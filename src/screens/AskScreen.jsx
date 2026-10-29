@@ -14,7 +14,7 @@ import { reduceMotion } from "../lib/motion.js";
    focused with its source badge up top, the evidence base one citation per line, the
    visit question copyable, and a one-tap AI route out of an unmatched answer that sets
    the same visible opt-in and shows the same disclosure. */
-const AI_DISCLOSURE = "When this is on and the library can't answer, your typed words go through Cyra's server to Anthropic, maker of the Claude AI, which keeps them for a limited time. Leave out identifying details.";
+export const AI_DISCLOSURE = "When this is on and the library can't answer, your typed words go through Cyra's server to Anthropic, maker of the Claude AI, which keeps them for a limited time. Leave out identifying details.";
 
 // The answer object the screen last landed on. Module-level on purpose: the tab panel remounts this
 // screen on every tab switch, and coming back to a standing answer must not scroll or steal focus

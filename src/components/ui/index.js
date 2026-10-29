@@ -9,3 +9,4 @@ export { default as NavPill } from "./NavPill.jsx";
 export { default as Sheet } from "./Sheet.jsx";
 export { default as Blob } from "./Blob.jsx";
 export { default as EmptyNote } from "./EmptyNote.jsx";
+export { default as Switch } from "./Switch.jsx";

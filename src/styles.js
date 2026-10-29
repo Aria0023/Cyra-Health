@@ -225,7 +225,7 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 [aria-expanded="true"] > .chev { transform:rotate(180deg); }
 .labico { width:14px; height:14px; margin-right:6px; vertical-align:-2px; color:var(--accent); }
 .section-lab::before { content:''; display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--accent); margin-right:7px; vertical-align:1px; }
-.pchart .section-lab::before, .pots .section-lab::before, .palsheet .section-lab::before { display:none; }
+.pchart .section-lab::before, .pots .section-lab::before, .palsheet .section-lab::before, .youpage .section-lab::before { display:none; }
 .obwrap { padding-top:14px; }
 .obq { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:20px; margin:6px 0 14px; }
 .obopts { display:grid; gap:var(--gap); margin-bottom:18px; }
@@ -765,11 +765,11 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .sheetclose { display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; padding:0; border:1px solid var(--line); border-radius:var(--r-pill); background:var(--card); color:var(--primary-text); cursor:pointer; }
 .setgroup { padding:10px 0 2px; border-top:1px solid var(--edge); }
 .sheethead + .setgroup { border-top:none; padding-top:0; }
-.palsheet .medinfo span { font-size:13px; line-height:1.45; }
+.palsheet .medinfo span, .youpage .medinfo span { font-size:13px; line-height:1.45; }
 .palsheet .rfoot { font-size:12.5px; margin-top:8px; }
 .palsheet .linkbtn { display:flex; width:100%; justify-content:center; min-height:44px; }
 .palsheet .ghostbtn { margin-top:10px; }
-.palsheet .section-lab .labico { color:var(--accent); }
+.palsheet .section-lab .labico, .youpage .section-lab .labico { color:var(--accent); }
 .nudgewrap.muted .seg { border-style:dashed; }
 .nudgewrap.muted .mc { color:var(--soft); }
 .nudgewrap.muted .mc.on { background:color-mix(in srgb, var(--primary) 14%, var(--card)); color:var(--primary-text); }
@@ -1020,10 +1020,7 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .youlist svg { flex-shrink:0; margin-top:2px; color:var(--primary-text); }
 .youopen { margin-top:12px; }
 .modlist { list-style:none; margin:0; padding:0; }
-.modrow { display:flex; align-items:center; gap:12px; padding:10px 0; border-top:1px solid var(--edge); }
 .modrow:first-child { border-top:none; padding-top:2px; }
-.modinfo { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; } .modinfo b { font-size:14px; } .modinfo span { font-size:var(--fs-sm); color:var(--soft); }
-.modrow .takebtn { flex-shrink:0; }
 .carepart { margin-top:22px; padding-top:4px; }
 .carepart > .disp { font-size:22px; }
 .cyclespage > p { font-size:var(--fs-md); line-height:1.5; color:var(--soft); }
@@ -1463,4 +1460,44 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .wrcustom .linkbtn { min-height:44px; }
 .stepalt { margin:6px 0 0; } .stepalt .linkbtn { min-height:44px; }
 @media (max-width:359px) { .patact { padding:0 12px; } .wracts { flex-direction:column; } .patfoot { flex-wrap:wrap; } }
+/* ---- calm R7: You (switches, module rows, the page's cards) ---- */
+.swt { display:inline-flex; align-items:center; gap:8px; flex-shrink:0; min-width:44px; min-height:44px; padding:0; border:none; background:none; cursor:pointer; color:var(--soft); font:700 12px 'Karla Variable','Karla'; }
+.swt-word { min-width:22px; text-align:right; line-height:1; } .swt.on .swt-word { color:var(--primary-text); }
+.swt-track { position:relative; display:block; width:52px; height:32px; border-radius:var(--r-pill); background:var(--line); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 8%, transparent); transition:background-color var(--t-fast) var(--ease-std); }
+.swt-knob { position:absolute; top:3px; left:3px; width:26px; height:26px; border-radius:50%; background:var(--knob); box-shadow:0 0 0 1px var(--knob-edge); transition:left var(--t-fast) var(--ease-std), transform var(--t-fast) var(--ease-std); }
+.swt.on .swt-track { background:var(--primary); } .swt.on .swt-knob { left:23px; }
+.swt:active .swt-knob { transform:scale(.94); }
+.modlist { list-style:none; margin:0; padding:0; }
+.modrow { padding:12px 0; border-top:1px solid var(--edge); }
+.modrow:first-child { border-top:none; padding-top:2px; }
+.modrow-main { display:flex; align-items:center; gap:12px; }
+.modinfo { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; } .modinfo b { font-size:15px; line-height:1.3; } .modinfo span { font-size:var(--fs-sm); color:var(--soft); line-height:1.4; }
+.youpage .modadds { margin:8px 0 0 52px; font-size:var(--fs-sm); line-height:1.5; color:var(--ink); }
+.modadds-lab { display:block; margin-bottom:2px; font:700 var(--fs-xs) 'Karla Variable','Karla'; letter-spacing:.08em; text-transform:uppercase; color:var(--primary-text); }
+.youpage .modnote { margin:6px 0 0 52px; }
+.modrow .plaincard, .modrow .morewrap { margin-left:0; margin-top:10px; }
+.youpage .rfoot { font-size:12.5px; }
+.youstage { overflow:hidden; }
+.youart { position:absolute; right:-6px; top:-4px; width:190px; height:142px; z-index:0; pointer-events:none; }
+.youart-blob { fill:color-mix(in srgb, var(--primary) 12%, transparent); }
+.youart-ring { fill:none; stroke:color-mix(in srgb, var(--accent) 38%, transparent); stroke-width:1.5; stroke-dasharray:2 5; stroke-linecap:round; } .youart-ring.r2 { stroke:color-mix(in srgb, var(--primary) 34%, transparent); stroke-dasharray:none; }
+.youart-arc { fill:none; stroke:var(--primary); stroke-width:3.5; stroke-linecap:round; opacity:.55; }
+.youart-dot { fill:var(--accent); opacity:.8; }
+.youfact { display:flex; align-items:center; gap:6px; margin:6px 0 0; font-size:var(--fs-sm); color:var(--soft); } .youfact svg { color:var(--accent-text); }
+.youreminders { margin-top:14px; padding-top:12px; border-top:1px solid var(--edge); }
+.youstage > .v2card-head, .youstage > p, .youstage > button { position:relative; z-index:1; } .youstage > .hint { max-width:78%; }
+.youprivacy { border-color:color-mix(in srgb, var(--primary) 20%, var(--edge)); }
+.youprivacy .youlead { margin:0 0 12px; }
+.youplan p { margin:0 0 8px; }
+.youplan .youfree { color:var(--soft); }
+.youplan .youprobtn { margin-top:4px; }
+.youset .setgroup, .youinstall .setgroup { border-top:none; padding:0; }
+.youset .cadgrid { margin-bottom:0; }
+.youai .consentopt { margin-bottom:8px; }
+.youlegals { display:flex; flex-wrap:wrap; gap:4px 18px; margin:0 0 4px; }
+.youpage .youlegal.linkbtn { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0; }
+.youbuild { text-align:center; margin-top:14px; }
+.youaccount p { margin:0 0 6px; }
+.youlegal-card p { margin:0 0 8px; }
+.youpage .carepart { margin-top:6px; } .youpage .sbtn { min-height:44px; }
 `;

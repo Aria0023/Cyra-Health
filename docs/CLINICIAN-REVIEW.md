@@ -272,3 +272,22 @@ clinician, not a diagnosis or medical advice."; their advice text is the L8 copy
 - Where: Patterns → What you're learning (perimenopause), detail sheet
 - Text: A spread of 7 days or more between cycles is the clinical marker of the menopause transition (STRAW staging). (moved from the L5 Patterns card, unchanged in substance)
 - Status: Awaiting clinician sign-off
+
+## You: module descriptions
+### you.module.pcos
+- Where: You → Modules → PCOS, "What it adds"
+- Text: Adds a PCOS signals log, a count of cycles longer than 35 days and pattern questions about sleep, cravings, movement and cycle length. It does not diagnose PCOS.
+- Sources: describes what the module's data does (lib/modules.js MODULES.pcos, whose sentences are registered above); no new clinical claim. The 35-day line is the module's own "cycles longer than 35 days" definition.
+- Status: Awaiting clinician sign-off
+
+### you.module.pots
+- Where: You → Modules → POTS, "What it adds"
+- Text: Adds a guided standing test, drinks and salt, symptoms, medicines, an exercise plan and a clinician report, opened from Home.
+- Sources: describes the POTS page's tools (components/pots/PotsAddon.jsx's existing sentence, reworded); no clinical claim.
+- Status: Awaiting clinician sign-off
+
+### you.module.fert
+- Where: You → Modules → Track fertility signs, "What it adds"
+- Text: Adds cervical mucus, ovulation tests and basal temperature to your log, marked on your Calendar.
+- Sources: describes the fertility-signs group (lib/fertility.js FERT_COPY.settingCycle, shortened); no clinical claim.
+- Status: Awaiting clinician sign-off

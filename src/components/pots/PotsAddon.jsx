@@ -3,6 +3,8 @@ import { POTS_LOCKED_COPY, POTS_ERASE } from "../../lib/potsConstants.js";
 import { isLockedPots } from "../../lib/pots.js";
 import Details from "../Details.jsx";
 import { potsUnsaved } from "./ui.js";
+import ModuleRow from "../ModuleRow.jsx";
+import { MODULE_ADDS } from "../../lib/about.js";
 import { FEATURES } from "../../lib/features.js";
 import { potsNeverSent } from "../../lib/disclosures.js";
 
@@ -25,7 +27,11 @@ const KEPT = {
    here, never on arrival. */
 const CARD_ID = "pots-off-card";
 
-export default function PotsAddon({ pots, stageName, onOn, onOff, storageDriver = null }) {
+/* Calm R7: `module` renders the same switch as a row of the You page's Modules card (components/ModuleRow.jsx): a real
+   role="switch" named "POTS", with the one-line "what it adds"; the turn-off card, the erase confirm, the focus moves
+   and "Exactly what's kept" are the same. Settings → Add-ons keeps its own row (the sheet and the You page are never
+   on screen together: App.jsx closes the sheet on You), so the ids below are unique on any screen. */
+export default function PotsAddon({ pots, stageName, onOn, onOff, storageDriver = null, module = false }) {
   const [ask, setAsk] = useState(null); // null | "off" (turn-off card) | "erase" (erase confirm)
   const [focusTo, setFocusTo] = useState(null); // null | "switch" | "off" | "erase"
   const switchRef = useRef(null), offRef = useRef(null), eraseRef = useRef(null);
@@ -37,6 +43,7 @@ export default function PotsAddon({ pots, stageName, onOn, onOff, storageDriver 
   const go = (next, focus) => { setAsk(next); setFocusTo(focus); };
 
   if (isLockedPots(pots)) {
+    if (module) return <ModuleRow id="pots" icon="pulse" name="POTS" short="Postural orthostatic tachycardia syndrome" locked={POTS_LOCKED_COPY} />;
     return (
       <div className="medrow" style={{ borderTop: "none", padding: "4px 0 8px" }}>
         <div className="medinfo"><b>POTS tools</b><span>{POTS_LOCKED_COPY}</span></div>
@@ -45,14 +52,7 @@ export default function PotsAddon({ pots, stageName, onOn, onOff, storageDriver 
   }
   const on = pots.on === true;
   const open = on && ask !== null;
-  return (
-    <>
-      <div className="medrow" style={{ borderTop: "none", padding: "4px 0 8px" }}>
-        <div className="medinfo"><b id="pots-addon-title">POTS tools</b><span>{on ? "On. Open it from the POTS today card on Home." : "For a racing heart, dizziness or feeling faint when you're upright, with or without a diagnosis: a standing test, drinks and salt, symptoms, medicines, an exercise plan and a clinician report, on Home."}</span></div>
-        <button ref={switchRef} className={`takebtn ${on ? "on" : ""}`} aria-pressed={on} aria-describedby="pots-addon-title"
-          aria-expanded={on ? open : undefined} aria-controls={open ? CARD_ID : undefined}
-          onClick={() => { if (on) setAsk(ask ? null : "off"); else { setAsk(null); onOn(); } }}>{on ? "✓ On" : "Turn on"}</button>
-      </div>
+  const cards = (<>
       {on && ask === "off" && (
         <div id={CARD_ID} className="plaincard" style={{ marginBottom: 10 }}>
           <p className="plain" tabIndex={-1} ref={offRef}><b>Turn off POTS tools?</b></p>
@@ -77,6 +77,22 @@ export default function PotsAddon({ pots, stageName, onOn, onOff, storageDriver 
           <li>Turning POTS tools off hides the tab and keeps what you logged, unless you choose to erase it.</li>
         </ul>
       </Details>
+  </>);
+  const toggle = () => { if (on) setAsk(ask ? null : "off"); else { setAsk(null); onOn(); } };
+  if (module) {
+    return (
+      <ModuleRow id="pots" icon="pulse" name="POTS" short="Postural orthostatic tachycardia syndrome" adds={MODULE_ADDS.pots} on={on} onToggle={toggle} controls={open ? CARD_ID : undefined} switchRef={switchRef}>{cards}</ModuleRow>
+    );
+  }
+  return (
+    <>
+      <div className="medrow" style={{ borderTop: "none", padding: "4px 0 8px" }}>
+        <div className="medinfo"><b id="pots-addon-title">POTS tools</b><span>{on ? "On. Open it from the POTS today card on Home." : "For a racing heart, dizziness or feeling faint when you're upright, with or without a diagnosis: a standing test, drinks and salt, symptoms, medicines, an exercise plan and a clinician report, on Home."}</span></div>
+        <button ref={switchRef} className={`takebtn ${on ? "on" : ""}`} aria-pressed={on} aria-describedby="pots-addon-title"
+          aria-expanded={on ? open : undefined} aria-controls={open ? CARD_ID : undefined}
+          onClick={() => { if (on) setAsk(ask ? null : "off"); else { setAsk(null); onOn(); } }}>{on ? "✓ On" : "Turn on"}</button>
+      </div>
+      {cards}
     </>
   );
 }

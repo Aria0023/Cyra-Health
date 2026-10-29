@@ -1,53 +1,140 @@
-import { Card, IBadge } from "../components/ui/index.js";
+import { Card, Chip } from "../components/ui/index.js";
 import Icon from "../components/Icon.jsx";
+import ModuleRow from "../components/ModuleRow.jsx";
+import PotsAddon from "../components/pots/PotsAddon.jsx";
+import Details, { AiFacts } from "../components/Details.jsx";
+import { InstallSettings } from "../components/Pwa.jsx";
+import { CheckinsBody, RemindersBody, CountsBody, AppearanceBody, AboutBody, PrivacyBody, reminderModel } from "../components/settingsParts.jsx";
 import { MODULE_FRAMING } from "../lib/modules.js";
+import { FEATURES } from "../lib/features.js";
+import { hasServer } from "../lib/api.js";
+import { FERT_COPY } from "../lib/fertility.js";
+import { TERMS_URL, PRIVACY_URL, openExternal } from "../lib/links.js";
+import { BUILD_STAMP, MODULE_ADDS, PLAN_COPY, ACCOUNT_LINES, NOT_MEDICAL, AI_OFF_LINE, accountLine } from "../lib/about.js";
+import { FREE_KEEPS } from "../components/ProSheet.jsx";
+import { AI_DISCLOSURE } from "./AskScreen.jsx";
 
-/* You (calm R2, spec §3): one scrolling page for her, her stage, her settings and data, her modules and the care
-   shelf. R7 rebuilds it (Plan, the privacy dashboard inline); in R2 it gathers what used to be scattered:
-   - who and which stage: the "<stage> · change" button moved here from the header (same class and words);
-   - Settings and your data: the same Settings sheet as the header's sliders button (reminders, check-in style,
-     add-ons, appearance, About you, Privacy & your data — what leaves the device, backup, lock, delete);
-   - Modules: the condition modules this stage offers (lib/modules.js). PCOS has its switch here (registration's
-     "Living with PCOS?" turns it on; record key `modules`, on this device and in backups, never sent). POTS keeps
-     its switch in Settings → Add-ons (one switch, one place), so this row says its state and opens Settings;
-   - Support & care: the care shelf (CareScreen, embedded).
-   Nothing on this page sends anything anywhere. */
-export default function YouScreen({ acct, stageName, onChangeStage, onOpenSettings, modules = [], care = null }) {
+/* You (calm R7, spec "You tab"): one calm scrolling page of v2 Cards. It is where she controls her data, so the
+   privacy dashboard is the first thing under her stage. Top to bottom:
+   - her name and stage (one life-stage experience: changing it replaces it, what she logged stays);
+   - Privacy & your data (L10): what can leave this device, an encrypted backup and restore, the app lock, delete everything;
+   - Modules: PCOS, POTS (and fertility signs where the stage offers them), each a real switch with a one-line
+     "what it adds". The PCOS switch is this card's only PCOS control; POTS also has its row in the header's Settings
+     sheet (Add-ons), which App.jsx closes whenever the You tab is open, so one switch is ever on screen;
+   - Plan: Cyra Free, and a "See what Pro adds" sheet. Nothing to buy until the store wiring (R8); no nagging;
+   - Check-ins, Reminders, (weekly counts where the build has them), Appearance, (Install), Cyra's AI, About you:
+     the same controls, ids and sentences the Settings sheet has (components/settingsParts.jsx);
+   - Account (none until R9: it says so), Support & care (the care shelf), About & legal (not a medical device, links, build).
+   A Language card is not shown until the picker exists (R10). Nothing on this page sends anything anywhere. */
+/* A quiet illustration for the stage card: soft rings and a blob in the stage accent (tokens only, decorative). */
+const StageArt = () => (
+  <svg className="youart" viewBox="0 0 200 150" aria-hidden="true" focusable="false">
+    <path className="youart-blob" d="M128 8c26-6 56 10 62 38s-8 54-32 66-54 8-72-12-18-48-2-70S110 12 128 8z" />
+    <circle className="youart-ring r1" cx="150" cy="62" r="46" />
+    <circle className="youart-ring r2" cx="150" cy="62" r="30" />
+    <circle className="youart-dot" cx="150" cy="16" r="5" />
+    <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
+  </svg>
+);
+export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null }) {
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
+  const { remindersHere } = reminderModel({ reminders: sp.reminders, reminderSupport: sp.reminderSupport, cadence: sp.cadence });
+  const anyModule = modules.length > 0 || !!fertRow;
+  const link = (url, label) => <button type="button" className="linkbtn youlegal" onClick={() => openExternal(url)}>{label}<Icon name="arrow-right" size={14} /></button>;
   return (
     <main className="youpage">
       <p className="eyebrow">You</p>
       <h1 className="disp youname">{who}</h1>
       <Card hero tint="you" icon="user" eyebrow="Your stage" title={stageName} level={2} className="youstage">
+        <StageArt />
         <p className="hint">Cyra is shaped around one stage at a time. Changing it keeps everything you've logged.</p>
         <button type="button" className="stagechip quiet" onClick={onChangeStage}>{stageName} · change</button>
+        {sp.daysLogged > 0 && <p className="youfact"><Icon name="calendar" size={14} />{sp.daysLogged === 1 ? "1 day logged" : `${sp.daysLogged} days logged`}</p>}
       </Card>
-      <Card tint="mind" icon="sliders" eyebrow="Settings and your data" title="Make Cyra yours" level={2}>
-        <ul className="youlist">
-          <li><Icon name="bell" size={16} />Check-in rhythm, reminders and check-in style</li>
-          <li><Icon name="moon" size={16} />Appearance: system, light or dark</li>
-          <li><Icon name="user" size={16} />About you: optional answers that sharpen your insights</li>
-          <li><Icon name="shield" size={16} />Privacy & your data: what leaves this device, encrypted backup, app lock, delete everything</li>
-        </ul>
-        <button type="button" className="ghostbtn youopen" onClick={onOpenSettings}>Open settings</button>
+
+      <Card id="you-privacy" tint="mind" icon="shield" eyebrow="Privacy & your data" title="You decide what leaves this device" level={2} className="youprivacy" tabIndex={-1}>
+        <p className="hint youlead">Your log is yours. Below is everything Cyra can send, and the tools to back it up, lock it and delete it.</p>
+        <PrivacyBody hideLab storageDriver={sp.storageDriver} onExport={sp.onExport} onImport={sp.onImport} onWipe={sp.onWipe} ping={sp.ping} keepsWeekNote={sp.keepsWeekNote} daysLogged={sp.daysLogged} lastBackupAt={sp.lastBackupAt} todayIso={sp.todayIso} offlineCopy={sp.offlineCopy} legacyWear={sp.legacyWear} onHandoff={sp.onHandoff} flows={sp.flows} flowCtx={sp.flowCtx} lock={sp.lock} potsOn={sp.potsOn} />
       </Card>
-      {modules.length > 0 && (
-        <Card tint="body" icon="plus-circle" eyebrow="Modules" title="Extra tracking for a condition" level={2}>
+
+      {anyModule && (
+        <Card id="you-modules" tint="body" icon="plus-circle" eyebrow="Modules" title="Extra tracking for a condition" level={2} className="youmodules">
           <ul className="modlist">
-            {modules.map((m) => (
-              <li key={m.id} className="modrow">
-                <IBadge icon={m.id === "pots" ? "pulse" : "sparkle"} tint="body" size={34} />
-                <div className="modinfo"><b id={`mod-${m.id}`}>{m.name}</b><span>{m.short}{m.note ? ` · ${m.note}` : ""}</span></div>
-                {m.onToggle
-                  ? <button type="button" className={`takebtn ${m.on ? "on" : ""}`} aria-pressed={m.on} aria-describedby={`mod-${m.id}`} onClick={m.onToggle}>{m.on ? "✓ On" : "Turn on"}</button>
-                  : <button type="button" className="takebtn" aria-describedby={`mod-${m.id}`} onClick={onOpenSettings}>{m.on ? "On · Settings" : "Off · Settings"}</button>}
-              </li>
-            ))}
+            {modules.map((m) => (m.id === "pots"
+              ? pots && <PotsAddon key="pots" module pots={pots.pots} stageName={stageName} onOn={pots.onOn} onOff={pots.onOff} storageDriver={sp.storageDriver} />
+              : <ModuleRow key={m.id} id={m.id} icon="sparkle" name={m.name} short={m.short} adds={MODULE_ADDS[m.id] || m.adds} on={m.on} onToggle={m.onToggle} />))}
+            {fertRow && (
+              <ModuleRow id="fert" icon="thermometer" name={FERT_COPY.settingTitle} short="Cervical mucus, ovulation tests, temperature" adds={MODULE_ADDS.fert} on={!!fertRow.on} onToggle={() => fertRow.setOn(!fertRow.on)}>
+                <p className="rfoot modnote">{fertRow.privacy}</p>
+              </ModuleRow>
+            )}
           </ul>
           <p className="rfoot">{MODULE_FRAMING} Your module switches stay on this device, and go into an encrypted backup only if you save one.</p>
         </Card>
       )}
+
+      <Card id="you-plan" tint="patterns" icon="sparkle" eyebrow={PLAN_COPY.eyebrow} title={planUnlocked ? PLAN_COPY.test : PLAN_COPY.free} level={2} className="youplan" badge={<Chip variant="pro" />}>
+        <p>{PLAN_COPY.body}</p>
+        <p className="hint youfree">{FREE_KEEPS}</p>
+        <button type="button" className="ghostbtn youprobtn" aria-haspopup="dialog" onClick={onPro}>{PLAN_COPY.see}</button>
+        <p className="rfoot">{planUnlocked ? PLAN_COPY.testNote : PLAN_COPY.none}</p>
+      </Card>
+
+      <Card id="you-checkins" tint="you" icon="lightning" eyebrow="Settings" title={remindersHere ? "Check-ins and reminders" : "Check-ins"} level={2} className="youset" tabIndex={-1}>
+        <CheckinsBody cadence={sp.cadence} setCadence={sp.setCadence} quietHours={sp.quietHours} setQuietHours={sp.setQuietHours} quickMode={sp.quickMode} setQuickMode={sp.setQuickMode} ping={sp.ping} reminders={sp.reminders} reminderSupport={sp.reminderSupport} />
+        {remindersHere && <div className="youreminders"><RemindersBody reminders={sp.reminders} reminderSupport={sp.reminderSupport} cadence={sp.cadence} onReminders={sp.onReminders} stage={sp.stage} /></div>}
+      </Card>
+
+      {FEATURES.counts && hasServer() && (
+        <Card id="you-counts" tint="mind" icon="people" title="Anonymous weekly counts" level={2} className="youset">
+          <CountsBody hideLab lead stage={sp.stage} research={sp.research} setResearch={sp.setResearch} />
+        </Card>
+      )}
+
+      <Card id="you-appearance" tint="body" icon="moon" title="Appearance" level={2} className="youset">
+        <AppearanceBody hideLab appearance={sp.appearance} onAppearance={sp.onAppearance} />
+      </Card>
+
+      {install && (
+        <Card id="you-install" tint="you" icon="download" title="Install Cyra" level={2} className="youset youinstall">
+          <InstallSettings install={install} />
+        </Card>
+      )}
+
+      <Card id="you-ai" tint="mind" icon="sparkle" title="Cyra's AI" level={2} className="youset youai">
+        {ai.available ? (
+          <>
+            <button type="button" role="checkbox" aria-checked={!!ai.on} aria-describedby="you-ai-disclosure" className={`consentopt ${ai.on ? "on" : ""}`} onClick={() => ai.set(!ai.on)}>
+              <span className="ckbox" aria-hidden="true">{ai.on ? "✓" : ""}</span>
+              <span><b>Also ask Cyra's AI when the library has no answer</b></span>
+            </button>
+            <p className="rfoot" id="you-ai-disclosure">{AI_DISCLOSURE}</p>
+            <Details label="Exactly what's sent"><AiFacts /></Details>
+            <p className="rfoot">Off until you turn it on. It is the same choice as on Ask Cyra in Mind → Journey.</p>
+          </>
+        ) : (
+          <p>{AI_OFF_LINE}</p>
+        )}
+      </Card>
+
+      <Card id="you-about" tint="you" icon="user" title="About you" level={2} className="youset">
+        <AboutBody hideLab regAnswers={sp.regAnswers} onAnswer={sp.onAnswer} stage={sp.stage} stageName={sp.stageName} todayIso={sp.todayIso} />
+      </Card>
+
+      <Card id="you-account" tint="you" icon="user" eyebrow="Account" title="No account needed" level={2} className="youaccount">
+        <p>{accountLine(acct)}</p>
+        <p className="rfoot">{ACCOUNT_LINES.more}</p>
+      </Card>
+
       {care}
+
+      <Card id="you-about-legal" tint="you" icon="book" eyebrow="About" title="About & legal" level={2} className="youlegal-card">
+        <p>{NOT_MEDICAL}</p>
+        {TERMS_URL || PRIVACY_URL
+          ? <div className="youlegals">{TERMS_URL && link(TERMS_URL, "Terms")}{PRIVACY_URL && link(PRIVACY_URL, "Privacy Policy")}</div>
+          : <p className="hint">Cyra's Terms and Privacy Policy aren't published yet; a later version will link them here.</p>}
+        <p className="rfoot youbuild">Free to use<br /><b>{BUILD_STAMP}</b></p>
+      </Card>
     </main>
   );
 }

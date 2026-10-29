@@ -218,6 +218,25 @@ Skip this week, and a Pro chip on "Your own experiment". A running experiment ta
 experiment · day N of 7", "I did it today" / "Untick today", Not today, and its practice as a second link). The
 "Cyra's write-up" slot (AI deep dive, R8) renders nothing in R6.
 
+### 3.5e You: privacy, modules, plan and settings on one page (calm R7, `lib/about.js`, `screens/YouScreen.jsx`)
+No new record key. You is one scrolling page of v2 Cards for the one life-stage experience she has, top to bottom: her name
+and stage ("<stage> · change" starts the stage questions again; everything she logged stays); **Privacy & your data** (the
+L10 dashboard inline: where the record lives, "What can leave this device", Encrypted backup / Restore / Delete everything,
+the app lock); **Modules** (PCOS, POTS and, in My Cycle and Trying to conceive, Fertility signs: each a real
+`role="switch"` named by the module, described by a one-line "What it adds" from `MODULE_ADDS`; the PCOS switch is the only
+PCOS control in the app; POTS's switch is the Settings → Add-ons control rendered as a module row (`PotsAddon module`, same
+turn-off and erase cards and focus moves, "Exactly what's kept")); **Plan** (Cyra Free, the free-forever sentence, "See what
+Pro adds" opening `ProSheet`, and "There's nothing to buy in this version." until R8; a dev build says it is a test build);
+**Check-ins and reminders**, **Appearance**, **Cyra's AI** (the Ask consent checkbox with the same disclosure, or the sentence
+that answers stay on the device when the build has no AI), **About you**, **Account** ("No account. Your log lives on this
+device." plus "Cyra keeps no account or profile of you…"), **Care & support** (the shelf) and **About & legal** (not a
+medical device, the Terms and Privacy links where the build has them, the build stamp from `BUILD_STAMP`). Weekly counts
+and Install get a card only where the build offers them (counts also needs a server). There is no Language card until R10.
+Settings keeps its sheet (header sliders button, every tab but You) with unchanged markup: both render the same bodies
+(`components/settingsParts.jsx`), and on the You tab the sheet is not drawn (App.jsx closes it and the sliders button brings
+the Check-ins card into view), so every id exists once on screen. The Settings sheet's POTS row stays because ~20 suites
+drive it; a later slice can retire the sheet and update them together.
+
 ### 3.6 Her symptom list (symPrefs, local-first L6)
 ```js
 symPrefs: { periods?: { order, hidden, added }, peri?: { order, hidden, added }, preg?: { order, hidden } }
@@ -1943,6 +1962,9 @@ Apple stays first.
 - [x] Patterns (calm R6): the cycle timeline, Body and Mind rings in words, pattern cards with honest "Not enough
       information", the 60-day chart in lighter / usual / heavier days (no scores), Share → Report and PDF, and the weekly
       review ending in one optional experiment that Home's small-step card follows (§3.5d).
+- [x] You (calm R7): the privacy dashboard first under her stage, real switches for PCOS, POTS and fertility signs each
+      with a one-line "what it adds", a quiet Plan card (nothing to buy yet), check-ins and reminders, appearance, the AI
+      consent, About you, Account, Support & care, and About & legal on one page (§3.5e).
 - [ ] Native biometric unlock (Face ID / fingerprint) through a Capacitor plugin — later work; the phone build offers
       the PIN only (D4).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the

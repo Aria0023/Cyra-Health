@@ -1273,3 +1273,54 @@ RULES.experiments flags anything cleanExperiments would change.
   "Unticked for today".
 No privacy sentence was removed. The L8 summary card ("This week / This month") is no longer on Patterns (its numbers
 were day scores); `periodSummary` still feeds Home's monthly recap and the PDF unchanged.
+
+## Calm R7 (You: privacy dashboard, modules, plan, settings on one page) — no new record key, no new request, nothing new leaves the device
+
+No request, dependency, font or external asset was added, and no persisted key (`modules`, `askAI`, `appearance`, the lock
+and every other key keep their class: record and in backups, or DEVICE_ONLY, exactly as before). The You tab now shows the
+controls the Settings sheet always had (`components/settingsParts.jsx`), so the sheet's markup is byte-identical (checked
+against the R6 build) and is simply not drawn while the You tab is open.
+
+**Moved, unchanged word for word (now inline on You, still in the sheet on the other tabs):** every sentence of Privacy &
+your data (where the record lives, "What can leave this device" and each flow row and Details, Encrypted backup, Restore,
+Delete everything and its confirms, the app lock), Check-in rhythm / nudge / style, Reminders and "Exactly what's kept",
+Anonymous weekly counts and "Exactly what's sent", Appearance, About you, Install. The section label "Privacy & your data" is
+visually hidden on You (the card's own title says what it is); it keeps its id. The Ask AI consent checkbox and its
+disclosure ("When this is on and the library can't answer, your typed words go through Cyra's server to Anthropic…") now
+also appear on You → Cyra's AI, the same `askAI` choice (device-only, never in a backup), only in a build whose AI is
+available; a build without it says "Questions are answered on this device from Cyra's written library and aren't sent
+anywhere." (Ask's existing sentence).
+
+**New sentences, each literally true in every build configuration:**
+- Privacy card: title "You decide what leaves this device"; "Your log is yours. Below is everything Cyra can send, and the
+  tools to back it up, lock it and delete it." Every send is a row below it that is Off until she turns it on, or a file she
+  makes herself.
+- Modules, "What it adds": PCOS "Adds a PCOS signals log, a count of cycles longer than 35 days and pattern questions about
+  sleep, cravings, movement and cycle length. It does not diagnose PCOS." / POTS "Adds a guided standing test, drinks and
+  salt, symptoms, medicines, an exercise plan and a clinician report, opened from Home." / Fertility signs "Adds cervical
+  mucus, ovulation tests and basal temperature to your log, marked on your Calendar." All three describe features that exist
+  in this build; the fertility row keeps its privacy line ("Kept on this device. Never part of weekly counts or sent to
+  Cyra's AI." from `fertPrivacyLine`, which follows the build's flags). The card footer is R2's: "Associations to raise with
+  your clinician, not a diagnosis or medical advice. Your module switches stay on this device, and go into an encrypted
+  backup only if you save one." (`modules` is a record key, in backups.)
+- Plan: "Cyra Free" / "Everything you need to log, follow your cycle and bring a clear summary to an appointment is free. Pro
+  adds more depth for anyone who wants it." / "Free stays free: logging, the calendar, cycles, your weekly review, a core set
+  of practices and the basic doctor-ready PDF." (R5's line) / "There's nothing to buy in this version." (no purchase code
+  exists) / under proDev "This is a test build: Pro's parts are unlocked here for checking. Nothing is bought." The Pro sheet
+  is unchanged and opens only when she taps "See what Pro adds".
+- Account: "No account. Your log lives on this device." (with a name: "…, and your name stays with it.") and "Cyra keeps no
+  account or profile of you. Your name and email, if you gave them, stay on this device and go into an encrypted backup only if
+  you save one." Consistent with the Device step's existing "Cyra keeps no account or profile of you" panel and with this audit's
+  account-information entry (no server account; email stays on the device and in backups she saves).
+- AI card: "Off until you turn it on. It is the same choice as on Ask Cyra in Mind → Journey." (askAI defaults to false and is
+  one state.)
+- About & legal: "Cyra is not a medical device. It shows patterns from what you log and plain-language information. It does
+  not diagnose, treat or replace your clinician." / where the build has no Terms or Privacy Policy address: "Cyra's Terms and
+  Privacy Policy aren't published yet; a later version will link them here." / "Free to use" and the build stamp (the splash
+  now reads the same `BUILD_STAMP` constant). The legal drafts in docs/legal still need attorney review before publishing.
+- "N days logged" on the stage card: counted on the device from the record, shown only on the screen.
+- Toasts: "PCOS module on", "PCOS module off. What you logged is kept" (R2's, unchanged), and POTS's existing "POTS tools on…"
+  and "POTS tools hidden…" family.
+No privacy sentence was removed or weakened. The Settings sheet's POTS row still exists (one switch per screen); the You page
+renders the same component as a module row.
+
