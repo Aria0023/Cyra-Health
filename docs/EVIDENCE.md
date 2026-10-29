@@ -115,3 +115,29 @@ from src/lib/mind.js and checked by src/lib/mind.test.mjs).
 - For whom: adults with chronic insomnia (guideline).
 - Strength: Moderate evidence.
 - Wording in the app: "Stimulus control is one of the parts of cognitive behavioural therapy for insomnia (CBT-I); the American Academy of Sleep Medicine suggests it for adults with chronic insomnia. The full multi-part CBT-I is recommended most strongly." + "Wellbeing support, not treatment."
+
+## Weekly review experiments (Patterns, calm R6; src/lib/experiments.js `EXPERIMENTS`)
+Starter experiments are free. Each is optional, runs for 7 days, and the follow-up compares the days she did it with the
+other days as an association in her own log, never a result. New sources this slice: Buffey et al. 2022 and Reynolds et
+al. 2016 (checked by title, authors, journal and year from memory of the publisher records; the PubMed connector was
+unavailable this session, so a reviewer should re-check both). The others are the Mind library's sources above.
+
+## A 10-minute walk after lunch (weekly review experiment; `walk-lunch`)
+- Suggested as: "Try a 10-minute walk after lunch on 3 days this week."
+- Source: The Acute Effects of Interrupting Prolonged Sitting Time in Adults with Standing and Light-Intensity Walking on Biomarkers of Cardiometabolic Health in Adults: A Systematic Review and Meta-analysis (Buffey AJ, Herring MP, Langley CK, Donnelly AE, Carson BP. Sports Medicine 52(8):1765–1787, 2022); Advice to walk after meals is more effective for lowering postprandial glycaemia in type 2 diabetes mellitus than advice that does not specify timing: a randomised crossover study (Reynolds AN, Mann JI, Williams S, Venn BJ. Diabetologia 59(12):2572–2578, 2016).
+- Wording in the app: "In small trials, light walking after a meal lowered the rise in blood sugar that follows it. Whether it changes energy dips or cravings for you is what your own log can show." + "Wellbeing support, not treatment."
+
+## The wind-down plan (weekly review experiment; `winddown`)
+- Suggested as: "Try the wind-down practice on 4 nights this week."
+- Source: Behavioral and psychological treatments for chronic insomnia disorder in adults: an American Academy of Sleep Medicine clinical practice guideline (Edinger JD, Arnedt JT, Bertisch SM, et al. Journal of Clinical Sleep Medicine 17(2):255–262, 2021).
+- Wording in the app: "Stimulus control (keeping bed for sleep) is one part of cognitive behavioural therapy for insomnia, which sleep medicine guidelines suggest for adults with ongoing insomnia." + "Wellbeing support, not treatment."
+
+## Three minutes of slow breathing (weekly review experiment; `breathe`)
+- Suggested as: "Try three minutes of slow breathing on 4 days this week."
+- Source: How Breath-Control Can Change Your Life: A Systematic Review on Psycho-Physiological Correlates of Slow Breathing (Zaccaro A, Piarulli A, Laurino M, et al. Frontiers in Human Neuroscience 12:353, 2018); Effect of breathwork on stress and mental health: a meta-analysis of randomised-controlled trials (Fincham GW, Strauss C, Montero-Marin J, Cavanagh K. Scientific Reports 13:432, 2023).
+- Wording in the app: "Breathing at around six breaths a minute is linked with feeling calmer, and trials of breathwork show small drops in stress. Most studies are small." + "Wellbeing support, not treatment."
+
+## A short bout of movement (weekly review experiment; `move`)
+- Suggested as: "Try 10 to 20 minutes of movement you enjoy on 3 days this week."
+- Source: The effect of a single bout of exercise on energy and fatigue states: a systematic review and meta-analysis (Loy BD, O'Connor PJ, Dishman RK. Fatigue: Biomedicine, Health & Behavior 1(4):223–242, 2013).
+- Wording in the app: "A single bout of exercise raised feelings of energy in most trials, with small, short-lived effects." + "Wellbeing support, not treatment."

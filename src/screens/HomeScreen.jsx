@@ -165,12 +165,14 @@ export default function HomeScreen({
 
       {/* ---- Today's small step: one optional suggestion from her log and stage, a Why line, and "Not today". ---- */}
       {step && (
-        <Card className="stepcard" eyebrow="Today's small step" title={step.title} icon={step.id === "breathe" ? "breath" : "sparkle"} tint="patterns" level={2}>
+        <Card className="stepcard" eyebrow={step.eyebrow || "Today's small step"} title={step.title} icon={step.id === "breathe" ? "breath" : "sparkle"} tint="patterns" level={2}>
           <p className="stepbody">{step.body}</p>
           <div className="stepacts">
             {step.action && <button type="button" className="stepgo" onClick={() => onStep(step.action)}>{step.action.label}</button>}
             <button type="button" className="stepskip" onClick={onSkipStep}>Not today</button>
           </div>
+          {/* calm R6: an experiment from the weekly review may offer its practice as a second, quieter action */}
+          {step.alt && <p className="stepalt"><button type="button" className="linkbtn" onClick={() => onStep(step.alt)}>{step.alt.label} →</button></p>}
           <Details label="Why">
             <p>{step.why}</p>
             {step.src && <p className="stepsrc">Source: {step.src.title}. {step.src.body} {step.src.year}.</p>}

@@ -17,6 +17,7 @@ import { cleanModules } from "./modules.js";
 import { cleanHomeTiles } from "./home.js";
 import { cleanBodyLog, cleanLabs, cleanBodyPrefs } from "./bodylog.js";
 import { cleanMoodLog, cleanPracticeLog, cleanPracticeFavs } from "./mind.js";
+import { cleanExperiments } from "./experiments.js";
 
 /* ======================= shapes (documentation only) =======================
    Class tags: [record] the health record and settings (in the backup file, applied by a restore,
@@ -73,6 +74,7 @@ import { cleanMoodLog, cleanPracticeLog, cleanPracticeFavs } from "./mind.js";
  * @property {Object<string, {mood?: number, tags?: string[], energy?: number, fog?: number}>} moodLog [record] the Mind check-in by local day (calm R5, lib/mind.js): a 1–5 face, feeling tags, optional energy and brain-fog levels (1–3).
  * @property {Array<{id: string, p: string, day: string, sec: number, done: boolean, helped?: "yes"|"no"}>} practiceLog [record] practices she started, oldest first, at most 400, with her "Which one helped?" answer (calm R5).
  * @property {string[]} practiceFavs [record] her favourite practices, in library order (calm R5).
+ * @property {{active: ({id: string, start: string, done: string[]}|null), skip: (string|null), past: {id: string, start: string, days: string[], target: number}[]}} experiments [record] the weekly review's small experiment (calm R6, lib/experiments.js): the one running and the days she ticked, the week whose offer she skipped, the ones she finished.
  * @property {boolean} practiceHaptics [device-only] [not-in-backup] gentle vibration at each change of a practice, on this phone (calm R5).
  * @property {Object<string, {on: boolean, since: (string|null)}>} modules [record] condition modules switched on or off (calm R1, lib/modules.js), POTS excepted (it stays in `pots`); missing means {} (all off).
  */
@@ -228,9 +230,11 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    moodLog, practiceLog, practiceFavs (calm R5, lib/mind.js) are the Mind tab: the daily mood check-in, the practices
    she ran with her "Which one helped?" answers, and her favourites. Record, in backups, restored literally. Never sent.
    practiceHaptics (calm R5) is whether this phone vibrates gently during a practice: device-only, never in a backup file.
+   experiments (calm R6, lib/experiments.js) is the weekly review's optional experiment: the one running with the days she
+   ticked, the Sunday whose offer she skipped, and the ones she finished. Record, in backups, restored literally. Never sent.
    exportLog (L9) is this month's count of appointment PDFs, { month: "YYYY-MM", n }, written only while plan.js sets a
    monthly limit (none today, so it stays null): device-only and never in a backup file. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics"]);
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -488,6 +492,7 @@ export const RULES = Object.freeze({
   practiceLog: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanPracticeLog(v)) ? [] : [`${p}: expected a list of { id, p (practice id), day, sec, done, helped? }, at most 400, got ${show(v)}`]),
   practiceFavs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanPracticeFavs(v)) ? [] : [`${p}: expected practice ids in library order, got ${show(v)}`]),
   practiceHaptics: (v, p) => (typeof v === "boolean" ? [] : [`${p}: expected true or false, got ${show(v)}`]),
+  experiments: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanExperiments(v)) ? [] : [`${p}: expected { active: { id, start, done: [days] } | null, skip: day | null, past: [{ id, start, days, target }] }, got ${show(v)}`]),
   symPrefs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanSymPrefs(v)) ? [] : [`${p}: expected { periods|peri|preg: { order, hidden, added } } (lists of symptom ids, at most 40 each, no empty stages), got ${show(v)}`]),
 });
 

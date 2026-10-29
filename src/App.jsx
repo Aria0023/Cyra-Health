@@ -84,6 +84,8 @@ import { fertShown, isTTC, cleanFertPrefs, restoredFertPrefs, defaultTempUnit, F
 import { cleanModules, setModuleOn, isModuleOn, modulesFor } from "./lib/modules.js";
 import { cleanHomeTiles, homeTiles as tilesFor, pcosCycleCand, lastPeriodDay, heroModel, TILE_CATALOG, tileLogged, bodySteps, mindSteps, smallStep, PCOS_SIGNAL_IDS, EMPTY_LINE, dateEyebrow } from "./lib/home.js";
 import { visitModel, paperForLocale } from "./lib/visitReport.js";
+import { cycleTimeline, bodyRing, mindRing, ringInputs, sleepCards, cycleCards, pcosCards, trialCards, spreadCard, topCard, rankCards, usualOf } from "./lib/patterns.js";
+import { cleanExperiments, settle, startExperiment, skipWeek, markDay, runningOn, experimentStep, reviewWeek, weekCounts, countWords, weekSignals, pickExperiment, experimentFollowUp, lastFinished, experimentOf } from "./lib/experiments.js";
 import { PLAN, can, exportsLeft, noteExport, planFor } from "./lib/plan.js";
 import { cleanMoodLog, cleanPracticeLog, cleanPracticeFavs, setMoodDay, toggleFeeling, addRun, setHelped, runsOn, toggleFav, nextPractice, practiceOf, moodByCycle, stripSentence, moodStrip, STRIP_MIN, unlocked as practiceUnlocked } from "./lib/mind.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
@@ -333,6 +335,9 @@ export default function CyraDemo() {
   const [practiceHaptics, setPracticeHaptics] = useState(false);
   const [practiceOpen, setPracticeOpen] = useState(null); // { id, need } | null
   const [proOpen, setProOpen] = useState(false);
+  /* Patterns (calm R6, lib/experiments.js): the weekly review's experiment — the one running, the week whose offer she
+     skipped and the ones she finished (record key, in backups). */
+  const [experiments, setExperiments] = useState(() => cleanExperiments(null));
   const [exportLog, setExportLog] = useState(null); // { month: "YYYY-MM", n }: appointment PDFs made this month. Written only while plan.js sets a monthly limit (none today), so the shipping app keeps no count; device-only, never in a backup file.
   const [fert, setFert] = useState(FERT_FORM_EMPTY);
   const fertOn = fertShown(stage, stageName, fertSigns.on);
@@ -405,11 +410,10 @@ export default function CyraDemo() {
   const syncDay = () => { const now = localDay(); setTodayIso((cur) => (cur === now ? cur : now)); return now; };
   const isMeno = phaseOf(stage, stageName) === "meno";
   /* Summaries and links in her log (L8, lib/insights.js): worked out here on render from the on-device record, never
-     saved or sent. week / month: the last 7 / 30 calendar days against the 7 / 30 before (Patterns' summary; month also
-     feeds Home's monthly recap, from the pregnancy log in pregnancy). found: the sleep links and cycle-day clusters
+     saved or sent. month: the last 30 calendar days against the 30 before (Home's monthly recap, from the pregnancy log
+     in pregnancy; calm R6 took the This week / This month summary off Patterns because it spoke in day scores). found: the sleep links and cycle-day clusters
      Patterns shows; keysBefore: what qualified 7 days ago, so Home's Today's insight can lead with what is new. */
   const weekAgo = addDays(todayIso, -7);
-  const week = useMemo(() => (stage === "preg" ? null : periodSummary(ins.sorted, symIds, symMap, todayIso, 7, SCORE_SCALE[stage])), [ins, stage, symIds, symMap, todayIso]);
   const month = useMemo(() => (stage === "preg"
     ? periodSummary(Object.keys(pregLog).sort().map((k) => ({ date: k, ...pregLog[k] })), Object.keys(GSYM), GSYM, todayIso, 30, SCORE_SCALE.preg)
     : periodSummary(ins.sorted, symIds, symMap, todayIso, 30, SCORE_SCALE[stage])), [ins, stage, symIds, symMap, pregLog, todayIso]);
@@ -1200,8 +1204,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1533,6 +1537,8 @@ export default function CyraDemo() {
     const restoredBody = { bodyLog: cleanBodyLog(saved.bodyLog), labs: cleanLabs(saved.labs), bodyPrefs: cleanBodyPrefs(saved.bodyPrefs) };
     // The Mind tab is restored literally too (calm R5): a backup without it clears it here.
     Object.assign(restoredBody, { moodLog: cleanMoodLog(saved.moodLog), practiceLog: cleanPracticeLog(saved.practiceLog), practiceFavs: cleanPracticeFavs(saved.practiceFavs) });
+    // So is the weekly review's experiment (calm R6).
+    restoredBody.experiments = cleanExperiments(saved.experiments);
     applySaved({ ...saved, pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
     potsBase.current = restoredPots; setPotsHomeLast(null);
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
@@ -2098,9 +2104,9 @@ export default function CyraDemo() {
       hero={heroModel({ stage, isMeno, pred, predWhy, pregWeek, tri, dueDate, lastPeriodIso: isMeno ? lastPeriodDay(ins.sorted) : null, todayIso, pcosOn: pcosHere })}
       tiles={homeTileIds.map((id) => ({ ...TILE_CATALOG.find((t) => t.id === id), logged: tileLogged(id, tileCtx) }))} onTile={(id) => pickLog(id)}
       tilePicker={{ choices: TILE_CATALOG.filter((t) => tileAvail.includes(t.id)), chosen: homeTileIds, custom: homeTiles != null, set: (ids) => setHomeTiles(ids == null ? null : cleanHomeTiles(ids)) }}
-      step={smallStep({ stage, entry: todayEntryNow, pcosOn: pcosHere, todayIso, skip: homeStepSkip })}
-      onStep={(a) => { if (a.practice) setPracticeOpen({ id: a.practice, need: null }); else if (a.log) pickLog(a.log); else if (a.go) goTab(a.go); else if (a.open === "appts") setShowAppts(true); }}
-      onSkipStep={() => { const st = smallStep({ stage, entry: todayEntryNow, pcosOn: pcosHere, todayIso }); setHomeStepSkip({ day: todayIso, id: st ? st.id : "" }); ping("Okay, not today"); }}
+      step={homeStepSkip && homeStepSkip.day === todayIso ? null : (stage !== "preg" && experimentStep(experiments, todayIso)) || smallStep({ stage, entry: todayEntryNow, pcosOn: pcosHere, todayIso, skip: homeStepSkip })}
+      onStep={(a) => { if (a.exp) { setExperiments((s) => markDay(s, todayIso, a.exp === "done")); ping(a.exp === "done" ? "Ticked for today" : "Unticked for today"); focusSel([".stepcard .stepgo"]); } else if (a.practice) setPracticeOpen({ id: a.practice, need: null }); else if (a.log) pickLog(a.log); else if (a.go) goTab(a.go); else if (a.open === "appts") setShowAppts(true); }}
+      onSkipStep={() => { const st = (stage !== "preg" && experimentStep(experiments, todayIso)) || smallStep({ stage, entry: todayEntryNow, pcosOn: pcosHere, todayIso }); setHomeStepSkip({ day: todayIso, id: st ? st.id : "" }); ping("Okay, not today"); }}
       bodyRail={bodySteps({ entry: todayEntryNow, moveCount: tileCtx.moveCount, moveMin: potsMoves ? 0 : moveToday.min, preg: stage === "preg", sleepH: tileCtx.sleepH })}
       mindRail={mindSteps({ moodDone: tileLogged("mood", tileCtx), readReady: !!todayEntryNow && !homeInsight.empty })} todayIso={todayIso} homeInsight={homeInsight} patternsCard={patternsCard} wearInsights={wearInsights} milestones={milestones} justReached={justReached} nextUp={nextUp} pulse={FEATURES.counts ? pulse : null}
       todayEntry={todayEntryNow} scoreIds={stage === "preg" ? Object.keys(GSYM) : symIds} scoreLabels={stage === "preg" ? GSYM : symMap}
@@ -2257,6 +2263,44 @@ export default function CyraDemo() {
   const buzz = !isNative() ? null : hasPlugin("Haptics") ? () => { Haptics.impact({ style: "LIGHT" }).catch(() => {}); } : typeof navigator !== "undefined" && typeof navigator.vibrate === "function" ? () => { try { navigator.vibrate(30); } catch { /* no vibration here */ } } : null;
   const moodToday = moodLog[todayIso] || {};
   const firstMood = (log) => { if (!Object.keys(log[todayIso] || {}).length) ping("Check-in saved on this device"); };
+  /* Patterns (calm R6): built only while the view shows (R5: per-view work stays lazy). */
+  const patternsView = () => {
+    const cards = rankCards([
+      stage === "peri" && !isMeno ? spreadCard({ variability: ins.variability, lens: cyc.lens6 || [] }) : null,
+      ...(found ? sleepCards(found.links) : []), ...(found ? cycleCards(found.links) : []),
+      ...(pcosHere ? pcosCards({ entries: ins.sorted, bodyLog, todayIso, lens: (cyc.lens6 || []).map((x) => x.len) }) : []),
+      ...trialCards({ meds, scoreOn, usual: usualOf(sixty || []), todayIso }),
+      stage === "periods" ? topCard(ins.counts[0]) : null,
+    ].filter(Boolean));
+    const wk = reviewWeek(todayIso);
+    const exS = settle(experiments, todayIso);
+    const running = runningOn(exS, todayIso);
+    const lf = lastFinished(exS, wk.from);
+    const weekly = {
+      week: wk,
+      counts: countWords(weekCounts({ entries: ins.sorted, moodLog, bodyLog, practiceLog, from: wk.from, to: wk.to })),
+      notes: cards.filter((c) => c.status === "supported" && c.kind !== "marker").slice(0, 2).map((c) => c.sentence),
+      running, skipped: exS.skip === wk.key,
+      offer: running ? null : pickExperiment({ signals: weekSignals({ entries: ins.sorted, moodLog, bodyLog, from: wk.from, to: wk.to }), pcosOn: pcosHere, state: exS, weekKey: wk.key, todayIso }),
+      last: lf && experimentOf(lf.id) ? { x: experimentOf(lf.id), target: lf.target, done: lf.days.length, fu: experimentFollowUp(lf, { entries: ins.sorted, moodLog, bodyLog }) } : null,
+    };
+    const body = bodyRing(sixty || []), mind = mindRing(moodLog, todayIso);
+    const hero = heroModel({ stage, isMeno, pred, predWhy, todayIso, lastPeriodIso: isMeno ? lastPeriodDay(ins.sorted) : null, pcosOn: pcosHere });
+    const cycleLine = hero.kind === "cycle" ? `${hero.center.toLowerCase()} of this cycle, counted from your last logged period start.` : hero.kind === "meno" ? `${hero.center} ${hero.sub}.` : null;
+    return (
+      <PatternsScreen ins={ins} symIds={symIds} symMap={symMap} scoreScale={scoreScale} isMeno={isMeno} todayIso={todayIso} potsOn={potsTab && potsOk} popIso={justSaved}
+        onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} fert={ttc && fertOn ? { unit: tempUnit } : null}
+        timeline={isMeno ? null : cycleTimeline({ rows: cyc.rows, current: cyc.current, sorted: ins.sorted, expected: pred ? pred.center : null, pcosOn: pcosHere, todayIso })}
+        rings={{ body, mind, hero: { title: hero.kind === "cycle" || hero.kind === "long" ? "Cycle" : hero.kind === "meno" ? "Last period" : "Today", value: hero.value, center: hero.center, sub: hero.sub }, inputs: ringInputs({ body, mind, cycle: cycleLine }) }}
+        cards={cards} checked={found ? found.checked : []} weekly={weekly}
+        onStart={(id) => { setExperiments((s) => startExperiment(s, id, todayIso)); ping("Experiment started. Tick the days you do it on Home."); focusSel([".wrexp"]); }}
+        onSkip={() => { setExperiments((s) => skipWeek(s, wk.key)); ping("Skipped for this week"); focusSel([".wrexp"]); }}
+        onPractice={(id) => openPractice(id)} onPro={() => setProOpen(true)}
+        historyLabel={isMeno ? "Calendar" : "History"}
+        onHistory={() => showView(isMeno ? "cal" : "cycles")}
+        onReport={(pdf) => { pendingFocus.current = pdf ? ["button.route.primary", ".viewpanel main h1"] : [".viewpanel main h1"]; showView("report", { head: true }); }} />
+    );
+  };
   const openPractice = (id, need = null) => { const pr = practiceOf(id); if (!pr) return; if (!practiceUnlocked(pr, canFull)) { setProOpen(true); return; } setLogOpen(false); setPracticeOpen({ id, need }); };
   /* The Mind views are built only while one of them is showing (functions, called in the render below), so the rest of
      the app (the POTS stand test's tick, say) re-renders no slower for them. */
@@ -2348,7 +2392,7 @@ export default function CyraDemo() {
               <CalendarScreen pred={pred} predWhy={predWhy} cyc={cyc} onCycles={() => showView("cycles")} stage={stage} isMeno={isMeno} days={days} symIds={symIds} symMap={symMap} dayScore={scoreDay} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} fertOn={fertOn} tempUnit={tempUnit} />
             )}
             {appIs("cycles") && <CyclesScreen cyc={cyc} stage={stage} onUse={setCycleUse} pcosOn={pcosHere} lens={ins.lens} />}
-            {appIs("patterns") && <PatternsScreen ins={ins} lens6={cyc.lens6} symIds={symIds} symMap={symMap} scoreScale={scoreScale} stage={stage} isMeno={isMeno} todayIso={todayIso} medEffects={medEffects} potsOn={potsTab && potsOk} popIso={justSaved} onGo={goTab} onAsk={(q) => { setAskQ(q); goTab("ask"); runAsk(q); }} onPots={potsTab ? () => openPots() : null} fert={ttc && fertOn ? { unit: tempUnit } : null} week={week} month={month} found={found} scoreColor={scoreColor} energyId={ENERGY_ID} />}
+            {appIs("patterns") && patternsView()}
             {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} scheme={scheme} fert={ttc && fertOn ? { unit: tempUnit } : null} buildVisit={buildVisit} pdfLeft={pdfLeft} onPdfMade={onPdfMade} pdfLimit={PLAN.pdfExportsPerMonth} onHandoff={holdLock} />}
             {appIs("mind") && mindView()}
             {appIs("practices") && practicesView()}

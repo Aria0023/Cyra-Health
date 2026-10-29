@@ -238,3 +238,37 @@ lines ("You said your head feels foggy." …) only repeat what she tapped and ar
 - Text (instructions): Tonight, go to bed only when you feel sleepy, not just tired. / Keep the bed for sleep and intimacy: no scrolling, work or worrying there. / If you can't sleep after about 20 minutes, get up and do something quiet in dim light. Go back when sleepy. / Get up at the same time tomorrow, however the night went. / Settle with a few slow breaths: in for 4, out for 6.
 - Sources: Behavioral and psychological treatments for chronic insomnia disorder in adults: an American Academy of Sleep Medicine clinical practice guideline (Edinger JD, Arnedt JT, Bertisch SM, et al. Journal of Clinical Sleep Medicine 17(2):255–262, 2021); also in docs/EVIDENCE.md
 - Status: Awaiting clinician sign-off
+
+## Patterns: weekly review experiments and pattern wording (calm R6; src/lib/experiments.js, src/lib/patterns.js)
+The experiments' "why" lines below are medical-adjacent sentences. Pattern cards only repeat counts from her log as
+associations ("Rough nights lined up with more headaches in your log.") with the line "Associations to raise with your
+clinician, not a diagnosis or medical advice."; their advice text is the L8 copy, moved unchanged into the detail sheet.
+
+### patterns.experiment.walk-lunch
+- Where: Patterns → Weekly review (one optional experiment) and Home → small-step card while it runs
+- Text: Try a 10-minute walk after lunch on 3 days this week. In small trials, light walking after a meal lowered the rise in blood sugar that follows it. Whether it changes energy dips or cravings for you is what your own log can show. Wellbeing support, not treatment.
+- Sources: The Acute Effects of Interrupting Prolonged Sitting Time in Adults with Standing and Light-Intensity Walking on Biomarkers of Cardiometabolic Health in Adults: A Systematic Review and Meta-analysis (Buffey AJ, Herring MP, Langley CK, Donnelly AE, Carson BP. Sports Medicine 52(8):1765–1787, 2022); Advice to walk after meals is more effective for lowering postprandial glycaemia in type 2 diabetes mellitus than advice that does not specify timing: a randomised crossover study (Reynolds AN, Mann JI, Williams S, Venn BJ. Diabetologia 59(12):2572–2578, 2016); also in docs/EVIDENCE.md
+- Status: Awaiting clinician sign-off
+
+### patterns.experiment.winddown
+- Where: Patterns → Weekly review (one optional experiment) and Home → small-step card while it runs
+- Text: Try the wind-down practice on 4 nights this week. Stimulus control (keeping bed for sleep) is one part of cognitive behavioural therapy for insomnia, which sleep medicine guidelines suggest for adults with ongoing insomnia. Wellbeing support, not treatment.
+- Sources: Behavioral and psychological treatments for chronic insomnia disorder in adults: an American Academy of Sleep Medicine clinical practice guideline (Edinger JD, Arnedt JT, Bertisch SM, et al. Journal of Clinical Sleep Medicine 17(2):255–262, 2021); also in docs/EVIDENCE.md
+- Status: Awaiting clinician sign-off
+
+### patterns.experiment.breathe
+- Where: Patterns → Weekly review (one optional experiment) and Home → small-step card while it runs
+- Text: Try three minutes of slow breathing on 4 days this week. Breathing at around six breaths a minute is linked with feeling calmer, and trials of breathwork show small drops in stress. Most studies are small. Wellbeing support, not treatment.
+- Sources: How Breath-Control Can Change Your Life: A Systematic Review on Psycho-Physiological Correlates of Slow Breathing (Zaccaro A, Piarulli A, Laurino M, et al. Frontiers in Human Neuroscience 12:353, 2018); Effect of breathwork on stress and mental health: a meta-analysis of randomised-controlled trials (Fincham GW, Strauss C, Montero-Marin J, Cavanagh K. Scientific Reports 13:432, 2023); also in docs/EVIDENCE.md
+- Status: Awaiting clinician sign-off
+
+### patterns.experiment.move
+- Where: Patterns → Weekly review (one optional experiment) and Home → small-step card while it runs
+- Text: Try 10 to 20 minutes of movement you enjoy on 3 days this week. A single bout of exercise raised feelings of energy in most trials, with small, short-lived effects. Wellbeing support, not treatment.
+- Sources: The effect of a single bout of exercise on energy and fatigue states: a systematic review and meta-analysis (Loy BD, O'Connor PJ, Dishman RK. Fatigue: Biomedicine, Health & Behavior 1(4):223–242, 2013); also in docs/EVIDENCE.md
+- Status: Awaiting clinician sign-off
+
+### patterns.marker.spread
+- Where: Patterns → What you're learning (perimenopause), detail sheet
+- Text: A spread of 7 days or more between cycles is the clinical marker of the menopause transition (STRAW staging). (moved from the L5 Patterns card, unchanged in substance)
+- Status: Awaiting clinician sign-off

@@ -208,7 +208,9 @@ export const NEED_STARTS_LINE = "By cycle day: Cyra needs two logged period star
     energyId when it is tracked, logged at least once and not already among them. Cycle candidates (only when
     `cycles`; menopause passes false): the 4 symptoms logged on the most days since the oldest of the last 4 starts.
     Returns { sleep: Finding[], cycle: Finding[] (qualified, strongest first), checked: string[] (one line per
-    candidate, in candidate order), cyclesUsed }. */
+    candidate, in candidate order), cyclesUsed, links } — links (calm R6): every candidate checked, qualified or not,
+    as { kind: "sleep", id, label, fam, l (engine sleepLink), advice, askId } | { kind: "cycle", id, label, fam, k
+    (cycleDayCluster), advice, askId }, in candidate order, for the Patterns cards (lib/patterns.js). */
 export function patternFindings({ sorted, ids, labels, starts, todayIso, energyId = null, cycles = true, days = 60 }) {
   const list = Array.isArray(sorted) ? sorted : [];
   const labelOf = (id) => (labels && labels[id]) || id;
@@ -221,11 +223,13 @@ export function patternFindings({ sorted, ids, labels, starts, todayIso, energyI
   const win = list.filter((e) => inRange(e, from, todayIso));
   const sleepIds = rank(win, ids.filter((id) => id !== "slp")).slice(0, 3);
   if (energyId && energyId !== "slp" && ids.includes(energyId) && !sleepIds.includes(energyId) && win.some((e) => sev(e, energyId) > 0)) sleepIds.push(energyId);
-  const checked = [], sleep = [], cycle = [];
+  const checked = [], sleep = [], cycle = [], links = [];
   for (const id of sleepIds) {
     const l = sleepLink(list, id, { from, to: todayIso });
     checked.push(sleepChecked(l, labelOf(id)));
-    if (l.ok) sleep.push(sleepFinding(l, labelOf(id), energyId));
+    const f = sleepFinding(l, labelOf(id), energyId);
+    links.push({ kind: "sleep", id, label: labelOf(id), fam: f.fam, l, advice: f.advice, askId: f.askId });
+    if (l.ok) sleep.push(f);
   }
   let cyclesUsed = 0;
   if (cycles) {
@@ -237,12 +241,13 @@ export function patternFindings({ sorted, ids, labels, starts, todayIso, energyI
       for (const id of rank(since, ids).slice(0, 4)) {
         const k = cycleDayCluster(list, st, id, { todayIso });
         checked.push(cycleChecked(k, labelOf(id)));
+        links.push({ kind: "cycle", id, label: labelOf(id), fam: SYM_FAMILY[id] || "body", k, advice: { urgency: "self", text: ADVICE_CYCLE }, askId: id });
         if (k.ok) cycle.push(cycleFinding(k, labelOf(id)));
       }
     }
   }
   const byStrength = (a, b) => b.strength - a.strength;
-  return { sleep: sleep.sort(byStrength), cycle: cycle.sort(byStrength), checked, cyclesUsed };
+  return { sleep: sleep.sort(byStrength), cycle: cycle.sort(byStrength), checked, cyclesUsed, links };
 }
 
 /** Home's Today's insight: the strongest finding that is new (not in earlierKeys, the keys that qualified 7 days ago),

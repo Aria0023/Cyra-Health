@@ -181,6 +181,43 @@ the journal (the same `journal` key as Home), the Connection card and Ask Cyra (
 Mood, Home's Mood tile and Body's Mood row (today) open the check-in; the Mood tile and the Mind rail tick from it
 (`tileLogged("mood", { moodDay })`). Home's breathing step opens Slow breathing.
 
+### 3.5d Patterns: timeline, rings, pattern cards, weekly review (calm R6, `lib/patterns.js`, `lib/experiments.js`)
+```js
+experiments: { active: { id: "winddown", start: "2026-10-26", done: ["2026-10-26"] } | null,   // 7 days from start
+               skip: "2026-10-25" | null,                                                   // the Sunday whose offer she skipped
+               past: [{ id: "move", start: "2026-10-12", days: ["2026-10-13"], target: 3 }] }  // ≤ 26, oldest first
+```
+Patterns (cycle stages; pregnancy keeps the care roadmap) has no score anywhere: no 0–100 axis, no "points", no number
+out of 100. Top: History (Body → Cycles; Calendar in menopause) and Share (a sheet: Appointment PDF → the Report's PDF
+button, Report → the Report view; L9 PDF content unchanged). The hero is the cycle timeline (`cycleTimeline`): the last
+6 cycles at their actual lengths, newest first with the running one on top (dashed run to its likely length), logged
+period days, a textbook fertile-window estimate only on 21–35-day cycles that are not unusual, and calm labels ("Left out
+of predictions", "Longer/Shorter than your usual", with PCOS on "Over 35 days" plus the PCOS expected-cycles sentence).
+Every cycle is drawn (D5). Then Body and Mind rings around the cycle ring (Home's heroModel): this week (7 days) against
+days 8–28 before, in words only (Body: At your usual / Lighter than usual / Heavier than usual; Mind, from the mood face:
+At your usual / Higher than usual / Lower than usual; "A few more logs" under 3 + 5 logged days), with "What's driving
+this" listing the inputs. "What you're learning": cards from the L8 engine (`patternFindings().links`: sleep links and
+cycle-day clusters), the PCOS module's patternQuestions (sleep under 7 h → fatigue, high-sugar days → cravings or fatigue
+the next day, 20+ minutes of movement → fewer mood swings, cycle length), "What I'm trying" (A3, counted as lighter days
+before and after) and two plain counts (perimenopause cycle spread, My Cycle's most-logged symptom). Each card: topic
+eyebrow, chip (Supported pattern / Still showing up / Not enough information), one association sentence ("Rough nights
+lined up with more headaches in your log."), the difference figure ("2.3× as often after a rough night"), TwoBar with day
+counts, "In your recent data", "View pattern" (detail sheet: question, counts in words, the L8 advice, sources, the
+not-medical-advice line, Add to visit notes / Ask about this). Thresholds (`PATTERN_RULES`, unit-tested): Not enough
+information under 5 days on either side or 4 outcome days in all; Supported at ≥ 1.3× and ≥ 0.2 apart (the L8 sleep-link
+bar); Still showing up at ≥ 1.15× and ≥ 0.1 apart. Three cards show, "View all patterns (N)" the rest; "Associations to
+raise with your clinician, not a diagnosis or medical advice." sits under the heading. The 60-day chart reads against her
+usual (the median of her logged days, ± 0.08): a soft "Usual" band with "Lighter" above and "Heavier" below, the day card
+says "A lighter / usual / heavier day for you", the headline compares the last week's lighter and heavier days with the
+first week's. Weekly review (`reviewWeek`): the last full week (Sunday–Saturday); it opens by itself Sunday through
+Tuesday and on demand ("Look back") otherwise: counts of what she logged (never grades), up to two Supported sentences,
+how last week's experiment went (done days against the other days, "One week is a small sample"), then ONE optional
+starter experiment (`pickExperiment`: PCOS signals → a 10-minute walk after lunch on 3 days; rough nights → the wind-down
+plan on 4 nights; worry or low mood → slow breathing on 4 days; else a short bout of movement on 3 days) with Start and
+Skip this week, and a Pro chip on "Your own experiment". A running experiment takes Home's small-step card ("Your
+experiment · day N of 7", "I did it today" / "Untick today", Not today, and its practice as a second link). The
+"Cyra's write-up" slot (AI deep dive, R8) renders nothing in R6.
+
 ### 3.6 Her symptom list (symPrefs, local-first L6)
 ```js
 symPrefs: { periods?: { order, hidden, added }, peri?: { order, hidden, added }, preg?: { order, hidden } }
@@ -603,7 +640,7 @@ weekly average fell by 10 or more points (`dayStats().diff <= -10`) a trend-drop
 POTS add-on on, the pointer reads "Your POTS patterns live in POTS tools." with a "Go to POTS tools →" link that opens
 the POTS page (Home's handler).
 
-**Summary first (L8).** Directly under the h1, once anything is logged in the 60 days, `div.plaincard.sumcard`
+**Summary first (L8; superseded by calm R6, §3.5d: the summary card and the trend-drop card spoke in day scores and points, so Patterns no longer shows them; the weekly review and the 60-day chart's lighter / usual / heavier words replace them, and `components/SummaryCard.jsx` was removed. `periodSummary` still feeds Home's recap and the PDF.)** Directly under the h1, once anything is logged in the 60 days, `div.plaincard.sumcard`
 (`components/SummaryCard.jsx`): a `.mcrow.seg.sumseg[role=group][aria-label="Summary period"]` with two 44px
 `button.mc[aria-pressed]` "This week" (pressed on open) / "This month" (React state only, never saved); `p.summeta`
 ("Oct 16–Oct 22 · compared with Oct 9–Oct 15", the comparison only when the earlier window has a check-in); a
@@ -1903,6 +1940,9 @@ Apple stays first.
 - [x] Mind (calm R5): Today | Practices | Journey — a mood check-in in words, eleven 2–5 minute practices each with its
       evidence and named sources (docs/EVIDENCE.md), a reduced-motion-safe breathing visual, "Which one helped?",
       favourites, a free core set with a calm Pro chip, mood across her cycle, journal, Connection and Ask (§3.5c).
+- [x] Patterns (calm R6): the cycle timeline, Body and Mind rings in words, pattern cards with honest "Not enough
+      information", the 60-day chart in lighter / usual / heavier days (no scores), Share → Report and PDF, and the weekly
+      review ending in one optional experiment that Home's small-step card follows (§3.5d).
 - [ ] Native biometric unlock (Face ID / fingerprint) through a Capacitor plugin — later work; the phone build offers
       the PIN only (D4).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the

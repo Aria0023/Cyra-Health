@@ -195,6 +195,7 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `practiceLog` | practices she ran (≤ 400) with her "Which one helped?" answer (calm R5) | health log | yes | yes (literally) | yes |
 | `practiceFavs` | her favourite practices (calm R5) | record (setting) | yes | yes (literally) | yes |
 | `practiceHaptics` | this phone vibrates gently during a practice (calm R5) | device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
+| `experiments` | the weekly review's optional experiment: the one running with the days she ticked, the week whose offer she skipped, the ones she finished (calm R6) | health log | yes | yes (literally) | yes |
 | `appearance` | System / Light / Dark | device preference (DEVICE_PREFS) | **no** (NOT_IN_BACKUP) | never (this device's kept) | yes (same browser, same device) |
 | `reminders` | the switch, this browser's push addresses, a version | bookkeeping | `{ enabled }` only | on the phone only (the web keeps this browser's switch) | own merge (`rev`, the `reminders` message) |
 

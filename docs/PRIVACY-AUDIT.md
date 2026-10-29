@@ -1246,3 +1246,30 @@ nothing; the Pro sheet then says "This is a test build: Pro's parts are unlocked
 - Toasts: "Added to your favourites", "Removed from your favourites", "Saved to your journal" / "Added to today's
   journal" (the existing Home journal toasts).
 No privacy sentence was moved or removed except Ask, which moved as a whole (above).
+
+## Calm R6 (Patterns: timeline, rings, pattern cards, weekly review, Share) — one new record key (in backups), new sentences, nothing new leaves the device
+
+No request, dependency, font or external asset was added. `src/lib/patterns.js` and `src/lib/experiments.js` are pure (no
+storage, network or React import). Everything on Patterns is worked out on render from the on-device record and is not
+saved, except her experiment choices (below). `insights.js patternFindings()` gained a `links` field (every candidate it
+checked) read only by the Patterns cards. Nothing here is read by weekly counts (`contribute()` is unchanged), Ask, the
+AI, the doctor email or the PDF; the L9 PDF content is unchanged.
+
+**New record key `experiments`** ({ active: { id, start, done: [days] } | null, skip: Sunday | null, past: [{ id, start,
+days, target }] ≤ 26 }): the weekly review's optional experiment. Class: health log (which days she did a small habit). In
+RECORD, **in encrypted backups**, restored literally (a backup without it clears it here), erased by Delete everything.
+RULES.experiments flags anything cleanExperiments would change.
+
+**Sentences (new, each literally true in every build configuration):**
+- Share sheet: "Made on this device. Nothing is sent until you choose where it goes." — the PDF is built on the device
+  (lib/visitReport.js) and leaves it only through her own download / share sheet; the Report's email and print buttons
+  open her own mail app or print dialog. No Patterns code path sends anything.
+- "How Cyra finds these" keeps its L8 sentence unchanged: "Worked out on this device whenever Cyra shows them. Cyra
+  doesn't save them or send them anywhere; they leave this device only in a report you choose to share." (moved from a
+  plain card into the same Details at the end of the page).
+- Pattern cards and sheet: "Associations to raise with your clinician, not a diagnosis or medical advice." (the module
+  framing line, not a privacy sentence) and "A link in your log is not proof that one thing causes the other."
+- Toasts: "Experiment started. Tick the days you do it on Home.", "Skipped for this week", "Ticked for today",
+  "Unticked for today".
+No privacy sentence was removed. The L8 summary card ("This week / This month") is no longer on Patterns (its numbers
+were day scores); `periodSummary` still feeds Home's monthly recap and the PDF unchanged.

@@ -27,6 +27,9 @@ never blocks anything free. `DEV_PRO_PLAN` and `planFor(DEV_FLAGS)` are the dev/
 names the dev flag `proDev` (or "all", as the harness builds do) opens the Pro parts for testing. R8 adds store
 purchases and "Restore purchases"; the basic doctor-ready PDF stays free.
 
+Calm R6: the weekly review and its starter experiments are free core. "Your own experiment" carries the one-line Pro
+chip and opens "What Pro adds"; no custom-experiment builder exists yet (R8). Pattern cards are not gated in R6.
+
 ## 2. The free core, forever
 
 A feature that ships free stays free.
