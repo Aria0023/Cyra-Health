@@ -33,8 +33,11 @@ const known = (w) => FEATURE_NAMES.find((n) => n.toLowerCase() === w.toLowerCase
    made only of dev words therefore keeps the shipping defaults ("devGallery" = the defaults plus the gallery).
      devGallery → the design-system gallery at #/dev/ui (src/dev/DevGallery.jsx); default off. "all" turns it on,
                   so the harness builds (VITE_FEATURES=all) carry it. vite.config.js inlines it as
-                  __CYRA_DEV_GALLERY__, so a build without it leaves the gallery code out of the bundle entirely. */
-export const DEV_FLAG_NAMES = Object.freeze(["devGallery"]);
+                  __CYRA_DEV_GALLERY__, so a build without it leaves the gallery code out of the bundle entirely.
+     proDev     → the dev/QA unlock of Pro (calm R5, plan §7): lib/plan.js planFor(DEV_FLAGS) returns DEV_PRO_PLAN, so the
+                  Pro-gated parts (the full practice library) can be tested before store purchases exist (R8). Default
+                  off; "all" turns it on, so the harness builds test the unlocked paths. Nothing is bought or sent. */
+export const DEV_FLAG_NAMES = Object.freeze(["devGallery", "proDev"]);
 const devWord = (w) => DEV_FLAG_NAMES.some((n) => n.toLowerCase() === w.toLowerCase());
 
 /** raw VITE_FEATURES → a fresh plain object with all six flags (dev words are ignored here). */
@@ -54,7 +57,7 @@ export function unknownFeatures(raw) {
   return words(raw).filter((w) => !known(w) && !devWord(w) && !/^(all|none)$/i.test(w));
 }
 
-/** raw VITE_FEATURES → { devGallery } (each dev flag on when named or with "all"; "none" names none). */
+/** raw VITE_FEATURES → { devGallery, proDev } (each dev flag on when named or with "all"; "none" names none). */
 export function parseDevFlags(raw) {
   const list = raw == null ? [] : words(raw);
   const all = list.some((w) => w.toLowerCase() === "all");

@@ -191,6 +191,10 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `installHint` | whether this browser's install tip stays away | device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no (RECORD excludes it; each save merges the stored value one way: installed > dismissed > null) |
 | `exportLog` | appointment PDFs made this month, `{ month, n }`; null unless plan.js sets a monthly limit (none today, so it stays null) | bookkeeping, device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
 | `homeStepSkip` | the day she said "Not today" to Home's small step, `{ day, id }` (calm R3) | bookkeeping, device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
+| `moodLog` | the Mind check-in by day: a 1–5 face, feeling tags, optional energy and brain-fog levels (calm R5) | health log | yes | yes (literally) | yes |
+| `practiceLog` | practices she ran (≤ 400) with her "Which one helped?" answer (calm R5) | health log | yes | yes (literally) | yes |
+| `practiceFavs` | her favourite practices (calm R5) | record (setting) | yes | yes (literally) | yes |
+| `practiceHaptics` | this phone vibrates gently during a practice (calm R5) | device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
 | `appearance` | System / Light / Dark | device preference (DEVICE_PREFS) | **no** (NOT_IN_BACKUP) | never (this device's kept) | yes (same browser, same device) |
 | `reminders` | the switch, this browser's push addresses, a version | bookkeeping | `{ enabled }` only | on the phone only (the web keeps this browser's switch) | own merge (`rev`, the `reminders` message) |
 

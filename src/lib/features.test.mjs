@@ -71,9 +71,12 @@ test("features: the production backend mirrors the default build (D2)", () => {
 });
 
 test("dev flags (calm R1): devGallery is off by default, on when named or with all, and never changes the product flags", () => {
-  assert.deepEqual([...DEV_FLAG_NAMES], ["devGallery"]);
+  assert.deepEqual([...DEV_FLAG_NAMES], ["devGallery", "proDev"]);
   assert.ok(Object.isFrozen(DEV_FLAG_NAMES) && Object.isFrozen(DEV_FLAGS));
-  assert.deepEqual(DEV_FLAGS, { devGallery: false }, "the unit-test run has no VITE_FEATURES");
+  assert.deepEqual(DEV_FLAGS, { devGallery: false, proDev: false }, "the unit-test run has no VITE_FEATURES");
+  for (const raw of [undefined, "", "ai", "devGallery", "none"]) assert.equal(parseDevFlags(raw).proDev, false, String(raw));
+  for (const raw of ["proDev", "PRODEV", "all", "ai,proDev"]) assert.equal(parseDevFlags(raw).proDev, true, raw);
+  assert.deepEqual(parseFeatures("proDev"), { ...DEFAULT_FEATURES }, "proDev is not a product feature");
   for (const raw of [undefined, null, "", "ai", "none", "devgalleryx"]) assert.equal(parseDevFlags(raw).devGallery, false, String(raw));
   for (const raw of ["devGallery", "DEVGALLERY", "ai, devGallery", "all"]) assert.equal(parseDevFlags(raw).devGallery, true, raw);
   // A list of only dev words keeps the shipping defaults; with product words it is the usual replacing list.

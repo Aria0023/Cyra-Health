@@ -14,23 +14,30 @@ export const TABS = [
 ];
 export const TAB_IDS = TABS.map((t) => t.id);
 
-/* Sub-views per tab: [viewId, segment label]. Mind's Practices joins in R5 (no placeholder until it exists).
+/* Sub-views per tab: [viewId, segment label]. Mind (calm R5): Today (the mood check-in, view "mind") | Practices |
+   Journey (journal, mood history, Connection and Ask: view "ask", so every Ask link keeps working).
    Cycles is left out in menopause (no cycles to list); pregnancy has no Cycles, Patterns or Report views and keeps its
    care roadmap (Milestones) under Patterns. */
 const CYCLE_VIEWS = {
   home: [["home", "Home"]],
   body: [["today", "Logs"], ["cal", "Calendar"], ["cycles", "Cycles"]],
-  mind: [["connect", "Today"], ["ask", "Journey"]],
+  mind: [["mind", "Today"], ["practices", "Practices"], ["ask", "Journey"]],
   patterns: [["patterns", "Patterns"], ["report", "Report"]],
   you: [["you", "You"]],
 };
 const PREG_VIEWS = {
   home: [["home", "Home"]],
   body: [["today", "Logs"], ["cal", "Calendar"]],
-  mind: [["connect", "Today"], ["ask", "Journey"]],
+  mind: [["mind", "Today"], ["practices", "Practices"], ["ask", "Journey"]],
   patterns: [["mile", "Roadmap"]],
   you: [["you", "You"]],
 };
+
+/* Sub-pages: views that open from inside another view and have no segment of their own. The segment of their parent
+   view stays pressed. Connection (the relationship log, view "connect") opens from a card on Journey (plan §1). */
+const SUBPAGES = { connect: { parent: "ask", slug: "connection" } };
+/** The view whose segment a view sits under: itself, or a sub-page's parent. */
+export const segmentOf = (view) => SUBPAGES[view]?.parent || view;
 
 /** The [viewId, label] list a tab hosts for this experience ({ preg, meno }). */
 export function viewsOf(tab, { preg = false, meno = false } = {}) {
@@ -40,7 +47,8 @@ export function viewsOf(tab, { preg = false, meno = false } = {}) {
 
 /** The tab a view lives under (null for an unknown view). */
 export function tabOf(view, opts = {}) {
-  for (const t of TAB_IDS) if (viewsOf(t, opts).some(([id]) => id === view)) return t;
+  const v = segmentOf(view);
+  for (const t of TAB_IDS) if (viewsOf(t, opts).some(([id]) => id === v)) return t;
   return null;
 }
 
@@ -49,14 +57,14 @@ export function viewForTab(tab, lastByTab = {}, opts = {}) {
   const views = viewsOf(tab, opts);
   if (!views.length) return null;
   const last = lastByTab?.[tab];
-  return views.some(([id]) => id === last) ? last : views[0][0];
+  return views.some(([id]) => id === segmentOf(last)) ? last : views[0][0];
 }
 
 /* Deep links: #/<tab>[/<segment>] in the new scheme, and the old tab names, which redirect to their new home
    (spec §3 R2 table). Segment words are the lower-case labels. */
 const OLD = {
   today: "today", log: "today", calendar: "cal", cal: "cal", cycles: "cycles", report: "report", connect: "connect",
-  ask: "ask", care: "you", shelf: "you", milestones: "mile", roadmap: "mile", settings: "you",
+  ask: "ask", journey: "ask", practices: "practices", journal: "ask", care: "you", shelf: "you", milestones: "mile", roadmap: "mile", settings: "you",
 };
 /* Old links that land on a part of a page: the care shelf is the "Support & care" section of You. */
 const SECTION = { care: "care", shelf: "care" };
@@ -69,6 +77,8 @@ export function parseRoute(hash, opts = {}) {
   const [, a, b] = m;
   if (TAB_IDS.includes(a)) {
     const views = viewsOf(a, opts);
+    const sub = b ? Object.keys(SUBPAGES).find((v) => SUBPAGES[v].slug === b && views.some(([id]) => id === SUBPAGES[v].parent)) : null;
+    if (sub) return { tab: a, view: sub };
     const hit = b ? views.find(([id, l]) => l.toLowerCase() === b || id === b) : null;
     if (b && !hit) return { tab: a, view: views[0][0] };
     return { tab: a, view: hit ? hit[0] : views[0][0] };
@@ -77,7 +87,7 @@ export function parseRoute(hash, opts = {}) {
   const view = OLD[a];
   const tab = tabOf(view, opts);
   if (!tab) return null; // e.g. #/report in pregnancy: there is no Report there
-  const out = { tab, view: viewsOf(tab, opts).some(([id]) => id === view) ? view : viewsOf(tab, opts)[0][0] };
+  const out = { tab, view: viewsOf(tab, opts).some(([id]) => id === segmentOf(view)) ? view : viewsOf(tab, opts)[0][0] };
   return SECTION[a] ? { ...out, section: SECTION[a] } : out;
 }
 
@@ -85,6 +95,7 @@ export function parseRoute(hash, opts = {}) {
 export function routeOf(view, opts = {}) {
   const tab = tabOf(view, opts);
   if (!tab) return "#/home";
+  if (SUBPAGES[view]) return `#/${tab}/${SUBPAGES[view].slug}`;
   const views = viewsOf(tab, opts);
   if (views.length < 2 || views[0][0] === view) return `#/${tab}`;
   const hit = views.find(([id]) => id === view);

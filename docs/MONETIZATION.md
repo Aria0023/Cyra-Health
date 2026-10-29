@@ -18,6 +18,15 @@ enforced PDF export limit (there is no paid tier to upgrade to); the limit mecha
 unit-tested with a configured number, and it defaults to unlimited. No screen shows a plan, a limit,
 a price or an upgrade prompt, and no screen imports `plan.js` yet.
 
+**Calm R5 (plan §7 "Premium (Pro)", which replaces D1's "never show upgrade UI"):** `plan.js` gains the entitlement
+`fullPractices` (false on the free plan). Mind → Practices keeps a free core set of five practices (slow breathing,
+5-4-3-2-1 grounding, one small step, a five-minute movement break, bed is for sleep: at least one for every need); the
+other six show a one-line "Pro" chip, and tapping one opens a calm "What Pro adds" sheet (`components/ProSheet.jsx`)
+that says "Pro is coming to the app stores. There's nothing to buy in this version." It never opens on its own and
+never blocks anything free. `DEV_PRO_PLAN` and `planFor(DEV_FLAGS)` are the dev/QA unlock: a build whose VITE_FEATURES
+names the dev flag `proDev` (or "all", as the harness builds do) opens the Pro parts for testing. R8 adds store
+purchases and "Restore purchases"; the basic doctor-ready PDF stays free.
+
 ## 2. The free core, forever
 
 A feature that ships free stays free.

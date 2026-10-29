@@ -1,6 +1,9 @@
 /* Entitlements (owner decision D1): the one place Cyra decides whether an optional paid feature is
-   available. There is one plan, "free", and no way to get another: no paywall, no upgrade prompt, no
-   purchase code and no entitlement check over the network. This file imports nothing, stores nothing
+   available. There is one plan on sale, "free", and no way to buy another yet: no paywall, no purchase code and no
+   entitlement check over the network. Calm R5 (plan §7 "Premium (Pro)", which replaces D1's "never show upgrade UI"):
+   gated parts carry a one-line "Pro" chip and a "See what Pro adds" sheet, never an interruption; fullPractices gates
+   the practices beyond the free core set (lib/mind.js FREE_PRACTICES). DEV_PRO_PLAN is the dev/QA unlock, chosen by
+   planFor() only when the build's VITE_FEATURES names the dev flag proDev (or "all"); R8 adds real purchases. This file imports nothing, stores nothing
    and sends nothing. pdfExportsPerMonth null means unlimited, and while it is null noteExport()
    returns null, so no count of her exports is kept. See docs/MONETIZATION.md.
 
@@ -17,6 +20,7 @@
  * @property {boolean} aiPatternReports advanced AI pattern reports (per-report consent).
  * @property {boolean} extraCustomisation customisation beyond the free favourites and palettes.
  * @property {boolean} cloudBackup end-to-end-encrypted cloud backup and sync.
+ * @property {boolean} fullPractices the whole Mind practices library (calm R5); the free plan has the core set.
  */
 /**
  * How many PDF files were made in a month. Recorded only while a limit is configured.
@@ -26,10 +30,15 @@
  */
 
 /** @type {Readonly<Plan>} */
-export const FREE_PLAN = Object.freeze({ tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false });
-/** The plan this build runs on. There is no other. */
+export const FREE_PLAN = Object.freeze({ tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false, fullPractices: false });
+/** The plan this build runs on unless a dev unlock applies (planFor). */
 export const PLAN = FREE_PLAN;
-export const PLAN_FEATURES = Object.freeze(["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup"]);
+/** The dev/QA unlock (dev flag proDev): Pro's in-app parts on, with the free plan's PDF rule. cloudBackup stays false
+    (it also needs the build's cloudBackup flag and a server; R9). */
+export const DEV_PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro-dev", aiPatternReports: true, extraCustomisation: true, fullPractices: true });
+/** The plan for this build's dev flags ({ proDev }): DEV_PRO_PLAN when proDev is on, else PLAN. */
+export const planFor = (devFlags = {}) => (devFlags && devFlags.proDev === true ? DEV_PRO_PLAN : PLAN);
+export const PLAN_FEATURES = Object.freeze(["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup", "fullPractices"]);
 
 /** Whether `feature` is available on `plan`. The PDF export is free core (off only when a plan
     allows 0); the paid extensions need an explicit true; anything else is false (fails closed).
@@ -39,7 +48,8 @@ export function can(feature, plan = PLAN) {
     case "pdfExport": return plan.pdfExportsPerMonth !== 0;
     case "aiPatternReports":
     case "extraCustomisation":
-    case "cloudBackup": return plan[feature] === true;
+    case "cloudBackup":
+    case "fullPractices": return plan[feature] === true;
     default: return false;
   }
 }

@@ -5,16 +5,16 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { FREE_PLAN, PLAN, PLAN_FEATURES, can, monthKey, exportsUsed, exportsLeft, noteExport } from "./plan.js";
+import { FREE_PLAN, PLAN, PLAN_FEATURES, DEV_PRO_PLAN, planFor, can, monthKey, exportsUsed, exportsLeft, noteExport } from "./plan.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`\\])\/\/[^\n]*/g, "$1");
 
 test("FREE_PLAN is the D1 entitlements object", () => {
-  assert.deepEqual(FREE_PLAN, { tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false });
+  assert.deepEqual(FREE_PLAN, { tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false, fullPractices: false });
   assert.ok(Object.isFrozen(FREE_PLAN));
   assert.equal(PLAN, FREE_PLAN);
-  assert.deepEqual([...PLAN_FEATURES], ["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup"]);
+  assert.deepEqual([...PLAN_FEATURES], ["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup", "fullPractices"]);
   assert.ok(Object.isFrozen(PLAN_FEATURES));
 });
 
@@ -95,4 +95,18 @@ test("plan.js imports nothing and does no I/O", () => {
   const code = stripComments(readFileSync(join(HERE, "plan.js"), "utf8"));
   assert.ok(!/\bimport\s/.test(code) && !/\bimport\s*\(/.test(code) && !/\brequire\s*\(/.test(code), "no import");
   for (const w of ["fetch", "XMLHttpRequest", "sendBeacon", "indexedDB", "localStorage", "sessionStorage", "import.meta"]) assert.ok(!code.includes(w), `plan.js mentions ${w}`);
+});
+
+test("calm R5: fullPractices is Pro only; the proDev dev flag picks DEV_PRO_PLAN, nothing else does", () => {
+  assert.equal(can("fullPractices"), false);
+  assert.equal(can("fullPractices", { ...FREE_PLAN, fullPractices: "yes" }), false, "fails closed");
+  assert.equal(planFor({}), PLAN);
+  assert.equal(planFor(), PLAN);
+  assert.equal(planFor({ proDev: "true" }), PLAN);
+  assert.equal(planFor({ devGallery: true }), PLAN);
+  assert.equal(planFor({ proDev: true }), DEV_PRO_PLAN);
+  assert.ok(Object.isFrozen(DEV_PRO_PLAN));
+  assert.equal(can("fullPractices", DEV_PRO_PLAN), true);
+  assert.equal(can("cloudBackup", DEV_PRO_PLAN), false, "cloud backup needs its build flag and a server too");
+  assert.equal(DEV_PRO_PLAN.pdfExportsPerMonth, null, "the basic PDF stays free and unlimited");
 });

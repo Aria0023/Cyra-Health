@@ -1230,4 +1230,160 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .pcoslong .bigcount { font:600 34px/1 'Fraunces Variable','Fraunces',serif; color:var(--primary-text); margin-right:8px; }
 .pcoslong p { margin:6px 0 0; }
 @media (max-width:359px) { .bodyacts .qtile-lab { font-size:11px; } .dayb-dn { font-size:14px; } .medquick { padding-left:0; } }
+
+/* ---- calm R5: Mind (Today check-in, Practices, Journey, the practice sheet, the breathing orb, the Pro sheet) ----
+   Colours from tokens only; mood cells use the data-viz soft ramp (--soft-1..4), never the UI palette. All motion is
+   transform/opacity, and off (or opacity only) under reduced motion. */
+.mindtoday, .practicespage, .journey { padding-bottom:8px; }
+.mindhead { position:relative; isolation:isolate; padding:4px 0 6px; margin-bottom:8px; }
+.mindhead .disp { margin:2px 0 4px; } .mindhead .hint { margin:0; }
+.mindblob { position:absolute; z-index:-1; right:-12px; top:-18px; width:200px; height:124px; fill:color-mix(in srgb, var(--primary) 9%, transparent); animation:cy-drift 17s var(--ease-std) infinite alternate; pointer-events:none; }
+.journey .mindblob { fill:color-mix(in srgb, var(--accent) 9%, transparent); }
+.flipx { transform:scaleX(-1); }
+.subback { min-height:44px; gap:6px; text-decoration:none; font-size:var(--fs-sm); margin:0 0 2px; }
+/* the check-in */
+.checkcard .v2card-head { margin-bottom:14px; }
+.moodrow { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:6px; margin:0 0 14px; }
+.moodbtn { display:flex; flex-direction:column; align-items:center; gap:6px; min-height:76px; padding:9px 2px 8px; border-radius:var(--r-tile); border:1px solid var(--edge); background:var(--card); color:var(--soft); cursor:pointer; font:inherit; transition:transform var(--t-fast) var(--ease-std), background-color var(--t-fast), border-color var(--t-fast); }
+.moodbtn:active { transform:scale(.95); }
+.moodbtn .moodface { color:var(--soft); }
+.moodface-bg { fill:color-mix(in srgb, var(--primary) 7%, var(--card)); }
+.moodbtn.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary-text); box-shadow:0 6px 14px -10px var(--primary); }
+.moodbtn.on .moodface { color:var(--primary-text); } .moodbtn.on .moodface-bg { fill:var(--card); }
+.moodlab { font:700 11.5px/1.15 'Karla Variable','Karla',sans-serif; text-align:center; color:inherit; }
+.moodbtn:not(.on) .moodlab { color:var(--soft); }
+.mindlab { margin:0 0 8px; font:700 13px 'Karla Variable','Karla',sans-serif; color:var(--ink); display:flex; align-items:center; gap:6px; }
+.mindlab span { font-weight:500; color:var(--soft); }
+.feelchips { display:flex; flex-wrap:wrap; gap:7px; margin:0 0 14px; }
+.feelchip { min-height:44px; transition:transform var(--t-fast) var(--ease-std), background-color var(--t-fast); } .feelchip:active { transform:scale(.95); }
+.levels { display:grid; gap:12px; }
+.levelrow .mindlab { color:var(--ink); } .levelrow .mindlab svg { color:var(--primary-text); }
+/* your next practice */
+.nextbody { display:flex; align-items:center; gap:14px; }
+.nextorb { flex:none; }
+.nexttext { min-width:0; }
+.nextwhy { margin:0 0 4px; font:600 14.5px/1.35 'Karla Variable','Karla',sans-serif; color:var(--ink); }
+.nextshort { margin:0; font-size:var(--fs-sm); color:var(--soft); line-height:1.4; }
+.nexttags { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 0; }
+.nextmin { display:inline-block; padding:2px 9px; border-radius:var(--r-pill); background:var(--tint-mind); color:var(--primary-text); font-weight:700; font-size:11.5px; }
+.nextacts { display:flex; align-items:center; gap:14px; margin-top:14px; }
+.nextacts .cta { flex:1; }
+.nextmore { min-height:44px; flex:none; font-size:var(--fs-sm); }
+.nextline { margin:10px 0 0; font-size:12px; color:var(--soft); }
+.cta.nextgo, .cta.psh-go, .cta.bhero-go { display:inline-flex; align-items:center; justify-content:center; gap:8px; }
+/* which one helped */
+.helpedlist { list-style:none; margin:0 0 6px; padding:0; }
+.helpedrow { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:8px 0; border-top:1px solid var(--edge); }
+.helpedrow:first-child { border-top:none; padding-top:0; }
+.helpedname { font:600 14.5px 'Karla Variable','Karla',sans-serif; color:var(--ink); }
+.helpedbtns { display:flex; gap:6px; } .helpedbtns .mc { min-height:44px; }
+/* the breathing orb */
+.orb { position:relative; width:var(--orb); height:var(--orb); max-width:100%; margin:0 auto; }
+.orb-svg { display:block; width:100%; height:100%; overflow:visible; }
+.orb-halo { fill:color-mix(in srgb, var(--primary) 6%, transparent); }
+.orb-blob-a { fill:color-mix(in srgb, var(--accent) 15%, transparent); }
+.orb-blob-b { fill:color-mix(in srgb, var(--primary) 15%, transparent); }
+.orb-drift { transform-box:view-box; transform-origin:50% 50%; animation:cy-orb-turn 40s linear infinite; }
+.orb-drift-b { animation-duration:56s; animation-direction:reverse; }
+.orb-still .orb-drift { animation:none; }
+.orb-core { transform-box:view-box; transform-origin:50% 50%; transform:scale(.64); opacity:.82; transition:transform var(--orb-t) cubic-bezier(.45,.05,.55,.95), opacity var(--orb-t) ease-in-out; }
+.orb-big .orb-core { transform:scale(1); opacity:1; }
+.orb-idle .orb-core, .orb-step .orb-core { transform:scale(.8); opacity:.95; animation:cy-orb-rest 7s ease-in-out infinite alternate; }
+.orb-still .orb-core { animation:none; }
+.orb-stop-a { stop-color:color-mix(in srgb, var(--primary) 16%, var(--card)); }
+.orb-stop-b { stop-color:color-mix(in srgb, var(--accent) 30%, var(--card)); }
+.orb-stop-c { stop-color:color-mix(in srgb, var(--primary) 42%, var(--card)); }
+.orb-shine { fill:var(--card); opacity:.4; }
+.cy[data-scheme="dark"] .orb-stop-a { stop-color:color-mix(in srgb, var(--primary) 34%, var(--card)); }
+.cy[data-scheme="dark"] .orb-stop-b { stop-color:color-mix(in srgb, var(--accent) 48%, var(--card)); }
+.cy[data-scheme="dark"] .orb-stop-c { stop-color:color-mix(in srgb, var(--primary) 66%, var(--card)); }
+.cy[data-scheme="dark"] .orb-shine { fill:var(--ink); opacity:.16; }
+.cy[data-scheme="dark"] .orb-blob-a { fill:color-mix(in srgb, var(--accent) 20%, transparent); }
+.cy[data-scheme="dark"] .orb-blob-b { fill:color-mix(in srgb, var(--primary) 20%, transparent); }
+.orb-dots circle { fill:color-mix(in srgb, var(--ink) 14%, transparent); }
+.orb-dots circle.on { fill:var(--primary); }
+.orb-mid { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; pointer-events:none; }
+.orb-word { font-size:23px; font-weight:560; color:var(--ink); line-height:1.1; }
+.orb-count { margin-top:6px; font:700 15px 'Karla Variable','Karla',sans-serif; color:var(--primary-text); font-variant-numeric:tabular-nums; }
+.orb-paused { margin-top:6px; font:700 12px 'Karla Variable','Karla',sans-serif; letter-spacing:.12em; text-transform:uppercase; color:var(--soft); }
+@keyframes cy-orb-turn { to { transform:rotate(360deg); } }
+@keyframes cy-orb-rest { from { transform:scale(.78); } to { transform:scale(.84); } }
+@media (prefers-reduced-motion: reduce) {
+  .orb-core, .orb-big .orb-core, .orb-idle .orb-core, .orb-step .orb-core { transform:scale(.86) !important; }
+  .orb-core { opacity:.55; } .orb-big .orb-core, .orb-idle .orb-core, .orb-step .orb-core { opacity:1; }
+  .moodbtn:active, .feelchip:active { transform:none; }
+}
+/* the practice sheet */
+.practicesheet .psh-eye { margin:-4px 0 6px; }
+.psh-stage { display:flex; justify-content:center; padding:4px 0 8px; }
+.psh-stage .orb { --orb:min(248px, 70vw) !important; }
+.psh-step { margin:4px auto 6px; max-width:330px; min-height:3.9em; text-align:center; font-size:18px; line-height:1.35; color:var(--ink); }
+.psh-step.idle { font-family:'Karla Variable','Karla',sans-serif; font-size:var(--fs-md); color:var(--soft); min-height:0; }
+.psh-timer { margin:0 0 12px; text-align:center; font:700 14px 'Karla Variable','Karla',sans-serif; color:var(--soft); font-variant-numeric:tabular-nums; letter-spacing:.04em; }
+.psh-ctrls { display:flex; gap:10px; align-items:stretch; }
+.psh-ctrls .cta { flex:2; margin:0; min-height:50px; }
+.psh-ctrls .psh-stop { flex:1; margin:0; display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:50px; }
+.psh-done { text-align:center; }
+.psh-help { margin:0 0 10px; font-size:19px; font-weight:560; color:var(--ink); }
+.psh-helpbtns { display:flex; gap:8px; justify-content:center; } .psh-helpbtns .mc { min-height:44px; }
+.psh-helpnote { margin:8px 0 0; }
+.psh-again { margin-top:10px; }
+.psh-caution { display:flex; gap:8px; align-items:flex-start; margin:12px 0 0; padding:10px 12px; border-radius:var(--r-inner); background:color-mix(in srgb, var(--accent) 8%, var(--card)); font-size:var(--fs-sm); color:var(--ink); line-height:1.4; }
+.psh-caution svg { flex:none; margin-top:2px; color:var(--accent-text); }
+.psh-tools { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 0; }
+.psh-tool { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 14px; border-radius:var(--r-pill); border:1px solid var(--line); background:var(--card); color:var(--ink); font:600 13px 'Karla Variable','Karla',sans-serif; cursor:pointer; }
+.psh-tool.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary-text); }
+.psh-tool.on svg { fill:currentColor; }
+.psh-ev { margin-top:14px; padding:14px; border-radius:var(--r-inner); background:var(--tint-mind); }
+.psh-evhead { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+.psh-evtitle { margin:0; font:600 15px 'Fraunces Variable','Fraunces',serif; color:var(--ink); }
+.psh-strength { font:700 11px 'Karla Variable','Karla',sans-serif; letter-spacing:.06em; text-transform:uppercase; padding:3px 9px; border-radius:var(--r-pill); background:var(--card); color:var(--primary-text); }
+.psh-strength.s-comfort { color:var(--soft); }
+.psh-evtext { margin:0 0 8px; font-size:var(--fs-sm); line-height:1.5; color:var(--ink); }
+.psh-srcs { margin:0 0 8px; padding-left:18px; font-size:12px; line-height:1.45; color:var(--soft); } .psh-srcs li { margin-bottom:4px; } .psh-srcs b { color:var(--ink); font-weight:600; }
+.psh-line { margin:0; font:700 12.5px 'Karla Variable','Karla',sans-serif; color:var(--primary-text); }
+/* the practices library */
+.breathhero .bhero { display:flex; align-items:center; gap:12px; }
+.breathhero .orb { flex:none; }
+.bhero-txt { min-width:0; } .bhero-txt p { margin:0 0 10px; font-size:var(--fs-sm); color:var(--soft); line-height:1.4; }
+.needcard .v2card-head { margin-bottom:6px; }
+.prows { list-style:none; margin:0; padding:0; }
+.prows li + li .prow-btn { border-top:1px solid var(--edge); }
+.prow-btn { width:100%; display:flex; align-items:center; gap:12px; min-height:62px; padding:9px 2px; border:0; background:none; color:var(--ink); text-align:left; font:inherit; cursor:pointer; border-radius:var(--r-inner); transition:background-color var(--t-fast); }
+.prow-btn:hover { background:color-mix(in srgb, var(--primary) 5%, transparent); }
+.prow-txt { flex:1; min-width:0; } .prow-txt b { display:block; font:600 15px 'Karla Variable','Karla',sans-serif; }
+.prow-sub { display:block; margin-top:2px; font-size:12.5px; color:var(--soft); }
+.prow-go { flex:none; color:var(--primary-text); }
+.prowhy { margin:4px 2px 8px; }
+.practfoot { margin:6px 2px 0; }
+/* journey */
+.moodsent { margin:0 0 10px; font-size:var(--fs-sm); color:var(--ink); }
+.moodcard .emptynote { margin-bottom:10px; }
+.moodrows { display:grid; gap:12px; }
+.moodrow-lab { margin:0 0 5px; font-size:12.5px; color:var(--soft); } .moodrow-lab b { color:var(--ink); font-weight:700; margin-right:4px; }
+.moodcells { display:grid; grid-template-columns:repeat(var(--n), minmax(0, 1fr)); gap:2px; height:30px; }
+.mcell { display:block; border-radius:3px; background:color-mix(in srgb, var(--ink) 7%, var(--card)); }
+.mcell.m1 { background:var(--soft-4); } .mcell.m2 { background:var(--soft-3); } .mcell.m3 { background:var(--soft-2); }
+.mcell.m4 { background:var(--soft-1); } .mcell.m5 { background:color-mix(in srgb, var(--soft-1) 55%, var(--card)); }
+.moodticks { position:relative; height:14px; margin:3px 0 0; font-size:10.5px; color:var(--soft); }
+.moodticks span { position:absolute; left:calc(var(--at) * 100%); }
+.moodkey { display:flex; flex-wrap:wrap; gap:4px 12px; margin:12px 0 0; font-size:11.5px; color:var(--soft); }
+.moodkey span { display:inline-flex; align-items:center; gap:5px; } .moodkey .mcell { width:12px; height:12px; }
+.journalcard .jwrite { min-height:44px; min-width:44px; justify-content:center; padding:0 4px; font-size:var(--fs-sm); }
+.jform .jacts { display:flex; gap:8px; } .jform .jacts .cta, .jform .jacts .ghostbtn { flex:1; margin:0; }
+.jlist { list-style:none; margin:0; padding:0; }
+.jlist .jentry { padding:8px 0; border-top:1px solid var(--edge); } .jlist .jentry:first-child { border-top:none; padding-top:2px; }
+.jlist .jentry b { font-size:12.5px; color:var(--primary-text); } .jlist .jentry p { margin:3px 0 0; font-size:var(--fs-sm); white-space:pre-wrap; color:var(--ink); }
+.connopen { display:inline-flex; align-items:center; justify-content:center; gap:8px; margin-top:4px; }
+.askpart { margin-top:calc(var(--stack) + 6px); padding-top:4px; }
+.journeyh { display:flex; align-items:center; gap:10px; margin:0 0 6px; font:560 20px 'Fraunces Variable','Fraunces',serif; color:var(--ink); }
+/* the Pro sheet */
+.prolist { list-style:none; margin:0 0 12px; padding:0; }
+.prolist li { display:flex; gap:12px; align-items:flex-start; padding:9px 0; border-top:1px solid var(--edge); } .prolist li:first-child { border-top:none; }
+.prolist-ico { flex:none; width:34px; height:34px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:var(--tint-mind); color:var(--primary-text); }
+.prolist b { display:block; font:600 14.5px 'Karla Variable','Karla',sans-serif; color:var(--ink); }
+.prolist-d { display:block; font-size:var(--fs-sm); color:var(--soft); margin-top:2px; }
+.profree { margin:0 0 6px; font-size:var(--fs-sm); color:var(--ink); }
+.pronote { margin:0 0 12px; }
+@media (max-width:359px) { .moodlab { font-size:10.5px; } .nextbody { gap:10px; } .breathhero .orb { --orb:100px !important; } }
 `;

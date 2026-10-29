@@ -146,3 +146,9 @@ test("the Logs card rows: plain values, Logged only when something is there, no 
   const banned = /\b(streak|score|grade|perfect|fail|missed|complete|behind)\b/i;
   for (const r of rows) assert.ok(!banned.test(`${r.label} ${r.value}`), r.id);
 });
+
+test("calm R5: the Logs card's Mood row shows the Mind check-in", () => {
+  const row = (ctx) => logRows(ctx).find((r) => r.id === "mood");
+  assert.deepEqual([row({ moodDay: { mood: 2, tags: ["tired", "sad", "calm"] } }).value, row({ moodDay: { mood: 2 } }).logged], ["Low · tired, sad", true]);
+  assert.equal(row({ moodDay: null }).logged, false);
+});

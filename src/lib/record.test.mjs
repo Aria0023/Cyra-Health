@@ -31,6 +31,7 @@ const DEFAULTS = () => ({
   pulseRev: 0, askAI: false, regAnswers: null, reminders: { enabled: false, endpoint: null, pending: [], rev: 0 }, terraOff: [], kickTally: null,
   pots: freshEmpty(), lastBackupAt: null, installHint: null, appearance: "system", cycleFlags: {}, symPrefs: {}, fertSigns: { on: null, unit: null }, exportLog: null, modules: {}, homeTiles: null, homeStepSkip: null,
   bodyLog: {}, labs: [], bodyPrefs: { weightOn: false, weightUnit: null, glucoseUnit: null, hba1cUnit: null, waistUnit: null },
+  moodLog: {}, practiceLog: [], practiceFavs: [], practiceHaptics: false,
 });
 const appRecord = (over = {}) => {
   const d = { ...DEFAULTS(), ...over };
@@ -105,11 +106,11 @@ test("migrate: a missing, throwing or non-advancing step returns the input (all 
 /* ---------- keys ---------- */
 
 test("key lists are the ones App.jsx used before L3 (pinned)", () => {
-  // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags, L6 symPrefs and L7 fertSigns (record keys: in RECORD and in backups); calm R1 appended modules (record, in backups); calm R3 appended homeTiles (record, in backups) and homeStepSkip (device-only, not in backups); calm R4 appended bodyLog, labs and bodyPrefs (record, in backups).
-  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs"]);
-  assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip"]);
+  // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags, L6 symPrefs and L7 fertSigns (record keys: in RECORD and in backups); calm R1 appended modules (record, in backups); calm R3 appended homeTiles (record, in backups) and homeStepSkip (device-only, not in backups); calm R4 appended bodyLog, labs and bodyPrefs (record, in backups); calm R5 appended moodLog, practiceLog, practiceFavs (record, in backups) and practiceHaptics (device-only, not in backups).
+  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics"]);
+  assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics"]);
   assert.deepEqual([...DEVICE_PREFS], ["appearance"]);
-  assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "appearance"]);
+  assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "appearance"]);
   assert.deepEqual([...RECORD], PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders"));
   for (const k of NOT_IN_BACKUP) { assert.ok(PERSISTED.includes(k), `${k} persisted`); assert.ok(DEVICE_ONLY.includes(k) || DEVICE_PREFS.includes(k), `${k} device-only or a device pref`); }
   for (const k of DEVICE_ONLY) assert.ok(PERSISTED.includes(k), `${k} persisted`);
@@ -145,6 +146,7 @@ test("backupCopy matches the transform exportBackup used before L3", () => {
     delete snap.installHint;
     delete snap.exportLog; // L9: this device's PDF count this month never travels
     delete snap.homeStepSkip; // calm R3: this device's "Not today" for Home's small step never travels
+    delete snap.practiceHaptics; // calm R5: this phone's vibration choice never travels
     for (const k of ["appearance"]) delete snap[k];
     return snap;
   };
@@ -432,7 +434,7 @@ test("daysLogged", () => {
 
 // record.js may import only these pure leaf modules. A later slice may add one (L6 './daylog.js',
 // L7 './fertility.js'); none of them may import record.js back.
-const RECORD_IMPORTS = ["./engine.js", "./constants.js", "./daylog.js", "./fertility.js", "./modules.js", "./home.js", "./bodylog.js"];
+const RECORD_IMPORTS = ["./engine.js", "./constants.js", "./daylog.js", "./fertility.js", "./modules.js", "./home.js", "./bodylog.js", "./mind.js"];
 const importsOf = (code) => [...code.matchAll(/^\s*import\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]);
 
 test("layering and no I/O", () => {
@@ -487,4 +489,17 @@ test("Body log (calm R4): bodyLog, labs and bodyPrefs are record keys in backups
   assert.deepEqual(RULES.labs([], "labs"), []);
   assert.equal(RULES.labs([{ id: "a", kind: "fglu", value: 9000, unit: "mg/dL", date: "2026-10-01" }], "labs").length, 1);
   assert.equal(RULES.bodyPrefs({ weightOn: "yes" }, "bodyPrefs").length, 1);
+});
+
+test("Mind (calm R5): moodLog, practiceLog and practiceFavs are record keys in backups; practiceHaptics stays on the device", () => {
+  for (const k of ["moodLog", "practiceLog", "practiceFavs"]) assert.ok(RECORD.includes(k) && !DEVICE_ONLY.includes(k) && !NOT_IN_BACKUP.includes(k), k);
+  assert.ok(DEVICE_ONLY.includes("practiceHaptics") && NOT_IN_BACKUP.includes("practiceHaptics") && !RECORD.includes("practiceHaptics"));
+  const ml = { "2026-10-01": { mood: 3, tags: ["tired"], fog: 2 } };
+  const pl = [{ id: "r1", p: "slow", day: "2026-10-01", sec: 180, done: true, helped: "yes" }];
+  const copy = backupCopy(appRecord({ moodLog: ml, practiceLog: pl, practiceFavs: ["slow"], practiceHaptics: true }));
+  assert.deepEqual(copy.moodLog, ml); assert.deepEqual(copy.practiceLog, pl); assert.deepEqual(copy.practiceFavs, ["slow"]);
+  assert.equal("practiceHaptics" in copy, false);
+  assert.deepEqual(validateRecord(appRecord({ moodLog: { "2026-10-01": { mood: 9 } } })).length > 0, true);
+  assert.deepEqual(validateRecord(appRecord({ practiceFavs: ["nope"] })).length > 0, true);
+  assert.deepEqual(validateRecord(appRecord({ moodLog: ml, practiceLog: pl, practiceFavs: ["slow"] })), []);
 });

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import Advice from "../components/Advice.jsx";
+import Icon from "../components/Icon.jsx";
 import Details, { AiFacts } from "../components/Details.jsx";
 import { STARTERS } from "../lib/askStarters.js";
 import { copyText } from "../lib/clipboard.js";
@@ -21,7 +22,10 @@ const AI_DISCLOSURE = "When this is on and the library can't answer, your typed 
 // sets askOut before this screen mounts) always does. One App instance, so one marker.
 let landedOn = null;
 
-export default function AskScreen({ org, stage, askQ, setAskQ, runAsk, askBusy, askOut, askAI, setAskAI, aiAvailable, potsOn = false, ping }) {
+/* calm R5: `embedded` renders it as the "Ask Cyra" section of Mind → Journey (a section named by an h2, inside the
+   Journey page's main) instead of a page of its own. Every control, sentence and behaviour is the same. */
+export default function AskScreen({ org, stage, askQ, setAskQ, runAsk, askBusy, askOut, askAI, setAskAI, aiAvailable, potsOn = false, ping, embedded = false }) {
+  const Wrap = embedded ? "section" : "main";
   const outRef = useRef(null);
   const starters = [...(STARTERS[stage] || STARTERS.peri), ...(potsOn ? STARTERS.pots : [])];
   const sourceLine = askOut?.source === "ai" ? "Written by Cyra's AI (Claude, made by Anthropic) — not from the written library."
@@ -57,8 +61,8 @@ export default function AskScreen({ org, stage, askQ, setAskQ, runAsk, askBusy, 
   );
   const onKey = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !askBusy) { e.preventDefault(); runAsk(); } };
   return (
-    <main>
-      <h1 className="disp">Ask {org.name}</h1>
+    <Wrap className={embedded ? "askpart" : undefined} id={embedded ? "ask" : undefined} aria-labelledby={embedded ? "ask-h" : undefined}>
+      {embedded ? <h2 className="journeyh askh" id="ask-h"><span className="ibadge" data-tint="mind" aria-hidden="true"><Icon name="sparkle" size={18} /></span>Ask {org.name}</h2> : <h1 className="disp">Ask {org.name}</h1>}
       <p className="hint">Plain-language answers from Cyra's written evidence library, built from the guidelines your doctor reads.{aiAvailable && " If you turn on Cyra's AI below, any answer it writes is labelled."}</p>
       <div className={askOut ? "askstart" : "askstart askintro"}>
         <p className="section-lab">Try asking</p>
@@ -125,6 +129,6 @@ export default function AskScreen({ org, stage, askQ, setAskQ, runAsk, askBusy, 
       <p className="rfoot" style={{ marginTop: 14 }}>{aiAvailable
         ? "Questions the library answers stay on this device. If you turn on Cyra's AI, only questions the library can't answer are sent, and never with your name or account."
         : "Questions are answered on this device from Cyra's written library and aren't sent anywhere."}</p>
-    </main>
+    </Wrap>
   );
 }

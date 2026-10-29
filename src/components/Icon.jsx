@@ -54,6 +54,11 @@ const PATHS = {
   calendar: "M3 5h18v16H3zM16 3v4M8 3v4M3 10h18",
   scale: "M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM8.5 10a4.5 4.5 0 0 1 7 0M12 10.5l1.2-1.6",
   breath: "M9.6 4.6A2 2 0 1 1 11 8H2M12.6 19.4A2 2 0 1 0 14 16H2M17.5 8a2.5 2.5 0 1 1 2 4H2",
+  star: "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z",
+  play: "M7 4.5v15l12-7.5z",
+  pause: "M8 5v14M16 5v14",
+  stop: "M6.5 6.5h11v11h-11z",
+  leaf: "M5 19c0-8 5-14 15-14 0 10-6 15-14 15M5 19l8-8",
 };
 
 export default function Icon({ name, size = 16, className }) {

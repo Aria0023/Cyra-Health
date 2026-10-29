@@ -71,14 +71,14 @@ export function homeTiles(saved, availableIds) {
 
 const anyOn = (o) => !!o && Object.values(o).some((v) => (typeof v === "number" ? v > 0 : !!v));
 /** Whether today already has this kind of entry (the tile's "Logged" chip). ctx: { entry, medDay, moveCount, pcosIds,
-    sleepH (hours from the body log, calm R4), pcosDay (the PCOS logger's chips today) }. */
-export function tileLogged(id, { entry = null, medDay = null, moveCount = 0, pcosIds = [], sleepH = null, pcosDay = [] } = {}) {
+    sleepH (hours from the body log, calm R4), pcosDay (the PCOS logger's chips today), moodDay (today's Mind check-in, calm R5) }. */
+export function tileLogged(id, { entry = null, medDay = null, moveCount = 0, pcosIds = [], sleepH = null, pcosDay = [], moodDay = null } = {}) {
   const sym = entry?.sym || {};
   switch (id) {
     case "symptoms": return anyOn(sym);
     case "period": return !!(entry && (entry.period || entry.flow));
     case "sleep": return !!entry?.sleepQ || sleepH != null;
-    case "mood": return (entry?.scales?.moodq || 0) > 0 || (sym.mood || 0) > 0;
+    case "mood": return (entry?.scales?.moodq || 0) > 0 || (sym.mood || 0) > 0 || (!!moodDay && Object.keys(moodDay).length > 0);
     case "move": return moveCount > 0;
     case "meds": return anyOn(medDay);
     case "note": return !!entry?.note;
@@ -113,10 +113,10 @@ export function mindSteps({ moodDone = false, readReady = false } = {}) {
 
 /* ---------------- today's small step ---------------- */
 /** Each step: what to try, why (src when it says what a practice does), and an optional action:
-    { log: <tile id> } opens that logger, { go: <view id> } a view, { open: "appts" | "journal" } a Home section. */
+    { log: <tile id> } opens that logger, { go: <view id> } a view, { open: "appts" | "journal" } a Home section, { practice: <practice id> } that guided practice (calm R5). */
 export const STEPS = Object.freeze({
   energy: Object.freeze({ id: "energy", title: "Log how your energy is", body: "One tap is enough. It doesn't need to be a full check-in.", why: "A short line a day is what lets Cyra show which days tend to feel lighter for you.", action: Object.freeze({ label: "Log it", log: "symptoms" }) }),
-  breathe: Object.freeze({ id: "breathe", title: "A 2-minute breathing practice", body: "Breathe in for about 4 counts and out for about 6, for two minutes, whenever suits you today.", why: "After a rough night, slow breathing (around six breaths a minute) is linked with feeling calmer in small studies. Wellbeing support, not treatment.", src: Object.freeze({ title: "How Breath-Control Can Change Your Life: A Systematic Review on Psycho-Physiological Correlates of Slow Breathing", body: "Zaccaro A, Piarulli A, Laurino M, et al. Frontiers in Human Neuroscience 12:353.", year: 2018 }), action: null }),
+  breathe: Object.freeze({ id: "breathe", title: "A 3-minute breathing practice", body: "Breathe in for about 4 counts and out for about 6, for three minutes, whenever suits you today.", why: "After a rough night, slow breathing (around six breaths a minute) is linked with feeling calmer in small studies. Wellbeing support, not treatment.", src: Object.freeze({ title: "How Breath-Control Can Change Your Life: A Systematic Review on Psycho-Physiological Correlates of Slow Breathing", body: "Zaccaro A, Piarulli A, Laurino M, et al. Frontiers in Human Neuroscience 12:353.", year: 2018 }), action: Object.freeze({ label: "Breathe with Cyra", practice: "slow" }) }),
   pcos: Object.freeze({ id: "pcos", title: "Notice your energy after meals", body: "If an energy dip or cravings show up today, log it. No food logging needed.", why: "Energy crashes after meals and cravings are among the signals the PCOS module keeps next to your cycles, to show your clinician. Associations, not a diagnosis.", src: Object.freeze({ title: MODULES.pcos.evidence[0].title, body: MODULES.pcos.evidence[0].body, year: MODULES.pcos.evidence[0].year }), action: Object.freeze({ label: "Log a signal", log: "symptoms" }) }),
   question: Object.freeze({ id: "question", title: "Note one question for your next visit", body: "Anything you'd like to ask. Cyra keeps it with your appointments.", why: "Questions are easy to forget in the room; writing them down as they come helps.", action: Object.freeze({ label: "Open appointments", open: "appts" }) }),
   note: Object.freeze({ id: "note", title: "Add one line about today", body: "A few words is plenty: what stood out?", why: "A note sits next to the day on your calendar and helps you remember what a lighter or harder day was about.", action: Object.freeze({ label: "Add a note", log: "note" }) }),

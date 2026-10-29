@@ -16,6 +16,7 @@ import { cleanFert, cleanFertPrefs } from "./fertility.js";
 import { cleanModules } from "./modules.js";
 import { cleanHomeTiles } from "./home.js";
 import { cleanBodyLog, cleanLabs, cleanBodyPrefs } from "./bodylog.js";
+import { cleanMoodLog, cleanPracticeLog, cleanPracticeFavs } from "./mind.js";
 
 /* ======================= shapes (documentation only) =======================
    Class tags: [record] the health record and settings (in the backup file, applied by a restore,
@@ -69,6 +70,10 @@ import { cleanBodyLog, cleanLabs, cleanBodyPrefs } from "./bodylog.js";
  * @property {Object<string, {sleepH?: number, move?: Array<{id: string, type: string, min: number}>, pcos?: string[], weight?: {v: number, unit: "kg"|"lb"}}>} bodyLog [record] the fast log's second half by local day (calm R4, lib/bodylog.js).
  * @property {Array<{id: string, kind: "fglu"|"hba1c"|"waist", value: number, unit: string, date: string}>} labs [record] values she typed from her own results, dated (calm R4); never interpreted.
  * @property {{weightOn: boolean, weightUnit: ?string, glucoseUnit: ?string, hba1cUnit: ?string, waistUnit: ?string}} bodyPrefs [record] her units and whether weight is in her log (calm R4).
+ * @property {Object<string, {mood?: number, tags?: string[], energy?: number, fog?: number}>} moodLog [record] the Mind check-in by local day (calm R5, lib/mind.js): a 1–5 face, feeling tags, optional energy and brain-fog levels (1–3).
+ * @property {Array<{id: string, p: string, day: string, sec: number, done: boolean, helped?: "yes"|"no"}>} practiceLog [record] practices she started, oldest first, at most 400, with her "Which one helped?" answer (calm R5).
+ * @property {string[]} practiceFavs [record] her favourite practices, in library order (calm R5).
+ * @property {boolean} practiceHaptics [device-only] [not-in-backup] gentle vibration at each change of a practice, on this phone (calm R5).
  * @property {Object<string, {on: boolean, since: (string|null)}>} modules [record] condition modules switched on or off (calm R1, lib/modules.js), POTS excepted (it stays in `pots`); missing means {} (all off).
  */
 
@@ -220,9 +225,12 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    bodyLog, labs, bodyPrefs (calm R4, lib/bodylog.js) are the fast log's second half: hours slept, movement sessions, PCOS
    day chips and an optional weight by day; dated lab values and waist measures she types; her units and the weight
    switch. Record, in backups, restored literally (a backup without them clears them). Health data: never sent anywhere.
+   moodLog, practiceLog, practiceFavs (calm R5, lib/mind.js) are the Mind tab: the daily mood check-in, the practices
+   she ran with her "Which one helped?" answers, and her favourites. Record, in backups, restored literally. Never sent.
+   practiceHaptics (calm R5) is whether this phone vibrates gently during a practice: device-only, never in a backup file.
    exportLog (L9) is this month's count of appointment PDFs, { month: "YYYY-MM", n }, written only while plan.js sets a
    monthly limit (none today, so it stays null): device-only and never in a backup file. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs"]);
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -230,7 +238,7 @@ export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "ca
    is whether this browser's Home install tip should stay away (null | "dismissed" |
    "installed", lib/pwa.js), also left out of the backup file; exportLog is this device's count of
    appointment PDFs this month (L9), null while exports are unlimited, also left out of the file. */
-export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip"]);
+export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics"]);
 /* A display preference of this device (L2): appearance ("system" | "light" | "dark", lib/appearance.js).
    It is saved with the record and followed by every open tab of this browser (so it stays in RECORD,
    they are all the same device), but it is never in a backup file and never taken from one:
@@ -243,7 +251,7 @@ export const RECORD = Object.freeze(PERSISTED.filter((k) => !DEVICE_ONLY.include
    lastBackupAt (this device's own note of when it last backed up), installHint (whether this
    device's install tip is hidden), exportLog (this device's PDF count this month, L9) and appearance
    (this device's light/dark choice). */
-export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", ...DEVICE_PREFS]);
+export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", ...DEVICE_PREFS]);
 
 /** The record as it goes into an encrypted backup file, as a new object (the input is not
     changed): every saved key, except that regAnswers loses zip and age (neither is used after
@@ -475,6 +483,11 @@ export const RULES = Object.freeze({
   bodyLog: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanBodyLog(v)) ? [] : [`${p}: expected { YYYY-MM-DD: { sleepH?, move?, pcos?, weight? } } in date order, no empty days, got ${show(v)}`]),
   labs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanLabs(v)) ? [] : [`${p}: expected a list of { id, kind, value, unit, date }, newest first, values within their unit's range, got ${show(v)}`]),
   bodyPrefs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanBodyPrefs(v)) ? [] : [`${p}: expected { weightOn, weightUnit, glucoseUnit, hba1cUnit, waistUnit }, got ${show(v)}`]),
+  // The Mind tab (calm R5): a problem whenever the clean function would change anything.
+  moodLog: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanMoodLog(v)) ? [] : [`${p}: expected { YYYY-MM-DD: { mood?: 1–5, tags?, energy?: 1–3, fog?: 1–3 } } in date order, no empty days, got ${show(v)}`]),
+  practiceLog: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanPracticeLog(v)) ? [] : [`${p}: expected a list of { id, p (practice id), day, sec, done, helped? }, at most 400, got ${show(v)}`]),
+  practiceFavs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanPracticeFavs(v)) ? [] : [`${p}: expected practice ids in library order, got ${show(v)}`]),
+  practiceHaptics: (v, p) => (typeof v === "boolean" ? [] : [`${p}: expected true or false, got ${show(v)}`]),
   symPrefs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanSymPrefs(v)) ? [] : [`${p}: expected { periods|peri|preg: { order, hidden, added } } (lists of symptom ids, at most 40 each, no empty stages), got ${show(v)}`]),
 });
 

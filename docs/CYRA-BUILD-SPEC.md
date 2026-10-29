@@ -154,6 +154,33 @@ quality, flow, symptoms, mood scale and the day note stay there. Meds keep the e
 and taken-by-day). Weight is never on Home and never charted; nothing here is in weekly counts, Ask, AI, the doctor
 email or the PDF.
 
+### 3.5c Mind: the check-in, practices and Journey (calm R5, `lib/mind.js`)
+```js
+moodLog: { "2026-10-29": { mood: 2,                 // 1 Very low · 2 Low · 3 Okay · 4 Good · 5 Very good (words, never a score)
+                           tags: ["tired"],         // FEELINGS ids, any number, in library order
+                           energy: 1, fog: 3 } }    // optional, 1–3: Low / Some / Good; Clear / A little / Foggy
+practiceLog: [{ id: "r…", p: "slow", day: "2026-10-29", sec: 180, done: true, helped: "yes" }]   // oldest first, ≤ 400
+practiceFavs: ["slow", "winddown"]                  // library order
+practiceHaptics: false                              // device-only, not in backups
+```
+Mind = Today | Practices | Journey (routes.js: views "mind", "practices", "ask"; Connection is the sub-page "connect"
+opened from Journey, #/mind/connection, its segment stays Journey). Today: the check-in (each tap saves; first tap of a
+day toasts "Check-in saved on this device"), "Your next practice" (`nextPractice`: late evening → Wind down; brain fog
+→ movement break; anxious / overwhelmed / restless → grounding; low mood → one small step; low energy → movement
+break; else slow breathing; only practices her plan opens; one she marked "It helped" before wins), and "Which one
+helped?" for today's runs. Practices: 11 practices in five needs (Feel calmer, Ease worry, Clear brain fog, Lift low
+energy, Wind down & rest), each 2–5 minutes with an evidence line, strength word, named sources and "Wellbeing support,
+not treatment." or "Comfort, not treatment." (docs/EVIDENCE.md, docs/CLINICIAN-REVIEW.md). The practice sheet: the
+breathing orb (BreathOrb: the core grows with the in-breath over the phase's own seconds; under reduced motion it only
+brightens and dims), the phase word and count or the step text, a timer, Start → Pause / Resume (one button, focus kept)
+and Stop, a polite live region for each change, pause when the app is hidden, favourites, optional gentle vibration on a
+phone; at the end "Did that help?". Free: slow, ground, step, move, winddown; the rest need `can("fullPractices")`
+(Pro chip → "What Pro adds" sheet). Journey: mood across her cycle (`moodByCycle`: a row per cycle, a cell per cycle
+day, shaded with the data-viz soft ramp; "Last 5 weeks" without cycle starts; the empty line under five check-ins),
+the journal (the same `journal` key as Home), the Connection card and Ask Cyra (unchanged, embedded). The "+" sheet's
+Mood, Home's Mood tile and Body's Mood row (today) open the check-in; the Mood tile and the Mind rail tick from it
+(`tileLogged("mood", { moodDay })`). Home's breathing step opens Slow breathing.
+
 ### 3.6 Her symptom list (symPrefs, local-first L6)
 ```js
 symPrefs: { periods?: { order, hidden, added }, peri?: { order, hidden, added }, preg?: { order, hidden } }
@@ -1532,7 +1559,7 @@ top to bottom (pure logic in src/lib/home.js, unit-tested):
    signals" is an option while the PCOS module is on (opens the symptom logger). Each tile opens its logger through the
    "+" sheet's routing and shows a "Logged" `Chip` once today has that entry (`tileLogged`).
 4. *Today's small step* (`.stepcard`, `smallStep`): nothing logged today → "Log how your energy is"; a rough night →
-   "A 2-minute breathing practice" (sourced, "Wellbeing support, not treatment."); PCOS on → "Notice your energy after
+   "A 3-minute breathing practice" (sourced; calm R5: its button opens the Slow breathing practice, "Wellbeing support, not treatment."); PCOS on → "Notice your energy after
    meals"; pregnancy → "Note one question for your next visit"; no note → "Add one line about today"; else "Look back at
    your week". An action button, "Not today" (hides it for the day; `homeStepSkip`) and a "Why" disclosure with the source.
 5. *Body / Mind rails* (`.railcard[data-tint]`, `StepRail`): Body Sleep · Movement · Symptoms (pregnancy Movement ·
@@ -1873,6 +1900,9 @@ Apple stays first.
       one-tap loggers in sheets (sleep hours, movement of any kind, meds taken from her list, PCOS signals and dated lab
       values, optional weight; §3.5b), the Calendar in a v2 card with symptom markers, Cycles with the PCOS
       longer-than-35-days count. A typical day measured at 12 taps, about 15 s at a steady 1.2 s per tap (calm/r4/accept.mjs).
+- [x] Mind (calm R5): Today | Practices | Journey — a mood check-in in words, eleven 2–5 minute practices each with its
+      evidence and named sources (docs/EVIDENCE.md), a reduced-motion-safe breathing visual, "Which one helped?",
+      favourites, a free core set with a calm Pro chip, mood across her cycle, journal, Connection and Ask (§3.5c).
 - [ ] Native biometric unlock (Face ID / fingerprint) through a Capacitor plugin — later work; the phone build offers
       the PIN only (D4).
 - [ ] Predicted-period reminder (later, phone only, as a local notification). On the web it would have to send the

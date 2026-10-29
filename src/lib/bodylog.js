@@ -241,16 +241,19 @@ export function periodDayOf(days, iso, isPeriod) {
   return n;
 }
 /** The rows of the Logs card for a day, in order: [{ id, label, icon, tint, value, logged }].
-    ctx: { preg, entry (the check-in or null), day (bodyDay), medDay ({ medId: bool }), meds, pcosOn, weightOn, symLabel(id),
+    ctx: { moodDay (the Mind check-in that day, calm R5), preg, entry (the check-in or null), day (bodyDay), medDay ({ medId: bool }), meds, pcosOn, weightOn, symLabel(id),
     periodDay (0 = none), fertText }. value is a short plain line; "" when nothing is logged yet. */
-export function logRows({ preg = false, entry = null, day = {}, medDay = null, meds = [], pcosOn = false, weightOn = false, symLabel = (id) => id, periodDay = 0 } = {}) {
+export function logRows({ moodDay = null, preg = false, entry = null, day = {}, medDay = null, meds = [], pcosOn = false, weightOn = false, symLabel = (id) => id, periodDay = 0 } = {}) {
   const sym = entry?.sym || {};
   const on = Object.keys(sym).filter((k) => (sym[k] || 0) > 0).sort((a, b) => sym[b] - sym[a]);
   const symV = on.length ? `${on.slice(0, 2).map(symLabel).join(", ")}${on.length > 2 ? ` +${on.length - 2}` : ""}` : entry ? "None" : "";
   const flowV = entry?.flow ? `${FLOW_W[entry.flow] || "Flow"}${periodDay ? ` · day ${periodDay}` : ""}` : entry?.period ? `Period${periodDay ? ` · day ${periodDay}` : ""}` : entry ? "No bleeding" : "";
   const sleepV = [day.sleepH != null ? hoursText(day.sleepH) : "", entry?.sleepQ ? SLEPT[entry.sleepQ] : ""].filter(Boolean).join(" · ");
   const mq = entry?.scales?.moodq || 0, ms = sym.mood || 0;
-  const moodV = mq > 0 ? moodWord(mq) : ms > 0 ? (preg ? "Mood noted" : "Mood swings") : "";
+  const md = moodDay && typeof moodDay === "object" ? moodDay : {};
+  const MW = ["", "Very low", "Low", "Okay", "Good", "Very good"];
+  const mdV = [MW[md.mood] || "", (Array.isArray(md.tags) ? md.tags : []).slice(0, 2).join(", ")].filter(Boolean).join(" · ");
+  const moodV = mdV || (mq > 0 ? moodWord(mq) : ms > 0 ? (preg ? "Mood noted" : "Mood swings") : "");
   const taken = (meds || []).filter((m) => medDay && medDay[m.id]);
   const medsV = !meds?.length ? "" : taken.length ? taken.map((m) => m.name).slice(0, 2).join(", ") + (taken.length > 2 ? ` +${taken.length - 2}` : "") : "";
   const mv = day.move || [];
@@ -261,7 +264,7 @@ export function logRows({ preg = false, entry = null, day = {}, medDay = null, m
     ...(preg ? [] : [{ id: "flow", label: "Flow", icon: "drop", tint: "body", value: flowV, logged: !!(entry && (entry.flow || entry.period)) }]),
     { id: "sleep", label: "Sleep", icon: "moon", tint: "mind", value: sleepV, logged: day.sleepH != null || !!entry?.sleepQ },
     { id: "move", label: "Movement", icon: "move", tint: "body", value: moveV, logged: mv.length > 0 },
-    { id: "mood", label: "Mood", icon: "smile", tint: "mind", value: moodV, logged: mq > 0 || ms > 0 },
+    { id: "mood", label: "Mood", icon: "smile", tint: "mind", value: moodV, logged: mq > 0 || ms > 0 || !!mdV },
     { id: "meds", label: "Meds", icon: "pill", tint: "patterns", value: medsV, logged: taken.length > 0 },
     { id: "note", label: "Note", icon: "note", tint: "you", value: entry?.note ? (entry.note.length > 42 ? `${entry.note.slice(0, 40)}…` : entry.note) : "", logged: !!entry?.note },
     ...(pcosOn && !preg ? [{ id: "pcos", label: "PCOS signals", icon: "sparkle", tint: "body", value: pc.length ? `${pc.slice(0, 2).map(pcosLabel).join(", ")}${pc.length > 2 ? ` +${pc.length - 2}` : ""}` : "", logged: pc.length > 0 }] : []),

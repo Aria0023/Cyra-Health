@@ -139,3 +139,10 @@ test("home.js stays pure", () => {
   const src = fs.readFileSync(new URL("./home.js", import.meta.url), "utf8");
   assert.ok(!/fetch\(|localStorage|indexedDB|from "\.\/(storage|api|plan|notifications|record)\.js"|from "react"/.test(src));
 });
+
+test("calm R5: the Mind check-in ticks the Mood tile; the breathing step opens the Slow breathing practice", () => {
+  assert.equal(tileLogged("mood", { moodDay: { mood: 3 } }), true);
+  assert.equal(tileLogged("mood", { moodDay: {} }), false);
+  assert.equal(tileLogged("mood", {}), false);
+  assert.deepEqual({ ...STEPS.breathe.action }, { label: "Breathe with Cyra", practice: "slow" });
+});

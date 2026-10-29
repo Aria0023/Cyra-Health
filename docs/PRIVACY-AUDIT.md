@@ -1198,3 +1198,51 @@ No privacy sentence was moved or removed. The Calendar's "Your cycles" disclosur
 - Reworded: the "+" log sheet hint "One tap opens the right place. Nothing is saved until you save it there." (Calm R2)
   is now "One tap opens the right place. Movement, meds and the other quick loggers save as you tap; the check-in saves
   with its button." — the new sheets write on tap (to this device only), so the old sentence would no longer be true.
+
+## Calm R5 (Mind: check-in, practices with their evidence, journey) — three new record keys (in backups), one device-only key, new sentences, nothing new leaves the device
+
+No request, dependency, font or external asset was added. `src/lib/mind.js` is pure (no storage, network or React
+import). The mood check-in, the practice log and favourites are read only by the Mind screens, Home's Mood tile / Mind
+rail and Body's Mood row; nothing reads them for weekly counts (`contribute()` is unchanged), Ask, the AI, the doctor
+email, the PDF or any network path. Ask moved inside Mind → Journey as an embedded section with every control and
+sentence unchanged ("Questions are answered on this device from Cyra's written library and aren't sent anywhere." /
+the AI disclosure and "Exactly what's sent" are the same components, shown in the same conditions).
+
+**New record key `moodLog`** ({ [YYYY-MM-DD]: { mood?: 1–5, tags?, energy?: 1–3, fog?: 1–3 } }): the Mind check-in.
+Class: health log. In RECORD, **in encrypted backups**, restored literally (a backup without it clears it here), erased by
+Delete everything. RULES.moodLog flags anything cleanMoodLog would change.
+
+**New record key `practiceLog`** ([{ id, p, day, sec, done, helped? }], at most 400): practices she ran and her "Which one
+helped?" answer. Class: health log. In RECORD, **in encrypted backups**, restored literally, erased by Delete everything.
+
+**New record key `practiceFavs`** (practice ids): her favourite practices. Class: record (a setting). In RECORD, **in
+encrypted backups**, restored literally.
+
+**New device-only key `practiceHaptics`** (boolean): whether this phone vibrates gently at each change of a practice.
+DEVICE_ONLY and NOT_IN_BACKUP (deleted before encryption; a restore keeps this device's value). The switch is shown only
+in a phone build that can vibrate (Capacitor's Haptics plugin if a native build bundles it, else the web view's
+`navigator.vibrate`); the call goes to the phone's own vibration motor, never to a network.
+
+**Dev flag `proDev`** (VITE_FEATURES, calm R5): a build-time QA unlock; `lib/plan.js planFor()` returns DEV_PRO_PLAN so
+the Pro practices open. Default off; harness builds ("all") have it on. It buys nothing, stores nothing and sends
+nothing; the Pro sheet then says "This is a test build: Pro's parts are unlocked here for checking. Nothing is bought."
+
+**Sentences (new, each literally true in every build configuration):**
+- Mind → Today hint: "One tap is enough. It saves as you go and stays on this device." — every tap writes `moodLog` in the
+  on-device record only.
+- Toast: "Check-in saved on this device" (first tap of a day).
+- "Which one helped?" card and the practice sheet: "Cyra suggests what helps you more often. Your answers stay on this
+  device." / "Your answer stays on this device. Cyra suggests what helps you more often." — `helped` is stored in
+  `practiceLog` and read only by `nextPractice()` on the device.
+- Journey → Journal: "Nothing written yet. Your journal stays on this device." — the same `journal` key as Home's Journal
+  (record, in encrypted backups, never sent).
+- Journey → Connection card: "How connected you feel, not just sex. Private, on this device." / "Last logged <date>.
+  Private, on this device." — `connLog` is unchanged and never sent.
+- Pro sheet: "Pro is coming to the app stores. There's nothing to buy in this version." (no purchase code exists) and,
+  under proDev only, the test-build sentence above. Its line "A weekly write-up and chat, only if you turn them on: each
+  shows exactly what it would send before anything is sent." describes R8 features that are not in this build (no code
+  path sends a summary yet); it is a description of Pro, not a claim about this build, and R8 must make it literally
+  true before Pro is sold.
+- Toasts: "Added to your favourites", "Removed from your favourites", "Saved to your journal" / "Added to today's
+  journal" (the existing Home journal toasts).
+No privacy sentence was moved or removed except Ask, which moved as a whole (above).
