@@ -29,7 +29,7 @@ export function heroModel({ stage, isMeno = false, pred = null, predWhy = null, 
   }
   if (isMeno) {
     const n = lastPeriodIso ? daysBetween(lastPeriodIso, todayIso) : null;
-    if (n != null && n >= 0 && n <= 365) return { kind: "meno", value: clamp01(n / 365), center: `${n}`, sub: n === 1 ? "day since your last period" : "days since your last period", line: `Last period ${fmt(lastPeriodIso)}`, note: "Log a bleed if one comes; Cyra keeps the count.", tone: "primary", action: "cal" };
+    if (n != null && n >= 0 && n <= 365) return { kind: "meno", value: clamp01(n / 365), center: `${n}`, sub: n === 1 ? "day since your last period" : "days since your last period", line: `Last period ${fmt(lastPeriodIso)}`, note: "Log a bleed if one comes; Heard Health keeps the count.", tone: "primary", action: "cal" };
     return { kind: "calm", value: 1, ...calm, line: "No period tracking needed", note: "Log how you feel: sleep, hot flashes, mood.", tone: "soft", action: null };
   }
   if (pred) {
@@ -38,10 +38,10 @@ export function heroModel({ stage, isMeno = false, pred = null, predWhy = null, 
     return { kind: "cycle", value: clamp01(pred.cycleDay / Math.max(pred.center || 28, pred.cycleDay)), center: `Day ${pred.cycleDay}`, sub: pred.phase ? `${pred.phase} phase` : "", line, note, tone: "primary", action: "cal" };
   }
   if (predWhy?.kind === "long") {
-    const note = pcosOn ? MODULES.pcos.cycle.expected.text : stage === "peri" ? "Long gaps are common in perimenopause." : "Over 120 days, so Cyra won't guess.";
+    const note = pcosOn ? MODULES.pcos.cycle.expected.text : stage === "peri" ? "Long gaps are common in perimenopause." : "Over 120 days, so Heard Health won't guess.";
     return { kind: "long", value: 1, center: `Day ${predWhy.days}`, sub: "since your last period", line: `No period on record for ${predWhy.days} days`, note, tone: "soft", action: "cal" };
   }
-  return { kind: "start", value: 0, ...calm, line: "Log a period start to see your cycle day", note: "Cyra works with any cycle length.", tone: "soft", action: "cal" };
+  return { kind: "start", value: 0, ...calm, line: "Log a period start to see your cycle day", note: "Heard Health works with any cycle length.", tone: "soft", action: "cal" };
 }
 
 /* ---------------- quick log tiles ---------------- */
@@ -116,10 +116,10 @@ export function mindSteps({ moodDone = false, readReady = false } = {}) {
 /** Each step: what to try, why (src when it says what a practice does), and an optional action:
     { log: <tile id> } opens that logger, { go: <view id> } a view, { open: "appts" | "journal" } a Home section, { practice: <practice id> } that guided practice (calm R5). */
 export const STEPS = Object.freeze({
-  energy: Object.freeze({ id: "energy", title: "Log how your energy is", body: "One tap is enough. It doesn't need to be a full check-in.", why: "A short line a day is what lets Cyra show which days tend to feel lighter for you.", action: Object.freeze({ label: "Log it", log: "symptoms" }) }),
-  breathe: Object.freeze({ id: "breathe", title: "A 3-minute breathing practice", body: "Breathe in for about 4 counts and out for about 6, for three minutes, whenever suits you today.", why: "After a rough night, slow breathing (around six breaths a minute) is linked with feeling calmer in small studies. Wellbeing support, not treatment.", src: Object.freeze({ title: "How Breath-Control Can Change Your Life: A Systematic Review on Psycho-Physiological Correlates of Slow Breathing", body: "Zaccaro A, Piarulli A, Laurino M, et al. Frontiers in Human Neuroscience 12:353.", year: 2018 }), action: Object.freeze({ label: "Breathe with Cyra", practice: "slow" }) }),
+  energy: Object.freeze({ id: "energy", title: "Log how your energy is", body: "One tap is enough. It doesn't need to be a full check-in.", why: "A short line a day is what lets Heard Health show which days tend to feel lighter for you.", action: Object.freeze({ label: "Log it", log: "symptoms" }) }),
+  breathe: Object.freeze({ id: "breathe", title: "A 3-minute breathing practice", body: "Breathe in for about 4 counts and out for about 6, for three minutes, whenever suits you today.", why: "After a rough night, slow breathing (around six breaths a minute) is linked with feeling calmer in small studies. Wellbeing support, not treatment.", src: Object.freeze({ title: "How Breath-Control Can Change Your Life: A Systematic Review on Psycho-Physiological Correlates of Slow Breathing", body: "Zaccaro A, Piarulli A, Laurino M, et al. Frontiers in Human Neuroscience 12:353.", year: 2018 }), action: Object.freeze({ label: "Breathe with Heard Health", practice: "slow" }) }),
   pcos: Object.freeze({ id: "pcos", title: "Notice your energy after meals", body: "If an energy dip or cravings show up today, log it. No food logging needed.", why: "Energy crashes after meals and cravings are among the signals the PCOS module keeps next to your cycles, to show your clinician. Associations, not a diagnosis.", src: Object.freeze({ title: MODULES.pcos.evidence[0].title, body: MODULES.pcos.evidence[0].body, year: MODULES.pcos.evidence[0].year }), action: Object.freeze({ label: "Log a signal", log: "symptoms" }) }),
-  question: Object.freeze({ id: "question", title: "Note one question for your next visit", body: "Anything you'd like to ask. Cyra keeps it with your appointments.", why: "Questions are easy to forget in the room; writing them down as they come helps.", action: Object.freeze({ label: "Open appointments", open: "appts" }) }),
+  question: Object.freeze({ id: "question", title: "Note one question for your next visit", body: "Anything you'd like to ask. Heard Health keeps it with your appointments.", why: "Questions are easy to forget in the room; writing them down as they come helps.", action: Object.freeze({ label: "Open appointments", open: "appts" }) }),
   note: Object.freeze({ id: "note", title: "Add one line about today", body: "A few words is plenty: what stood out?", why: "A note sits next to the day on your calendar and helps you remember what a lighter or harder day was about.", action: Object.freeze({ label: "Add a note", log: "note" }) }),
   look: Object.freeze({ id: "look", title: "Look back at your week", body: "See what has been showing up lately.", why: "Looking at a week at a time makes slower patterns easier to notice.", action: Object.freeze({ label: "Open Patterns", go: "patterns" }) }),
 });

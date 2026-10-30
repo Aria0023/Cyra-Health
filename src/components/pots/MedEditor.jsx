@@ -8,7 +8,7 @@ import { hm, libFor } from "./ui.js";
    used in any calculation (owner decision D8). Planned times are for her own plan; Cyra sends
    no reminder. "I've stopped this" keeps the medicine (before/after views still work);
    "Remove completely" asks first. */
-export const LIB_FOOT = "Names, classes and a short plain description only. Cyra never suggests a medicine, a dose, or a change.";
+export const LIB_FOOT = "Names, classes and a short plain description only. Heard Health never suggests a medicine, a dose, or a change.";
 const KINDS = [["rx", "Prescription"], ["otc", "Over the counter"], ["supp", "Supplement"], ["aid", "Support (compression etc.)"]];
 const libByName = (name) => POTS_MED_LIB.find((x) => x.name.toLowerCase() === String(name || "").trim().toLowerCase()) || null;
 const PREG_LINE = "Pregnant or planning to be? Ask your prenatal team or prescriber about every medicine and supplement you take for POTS. Some aren't used in pregnancy.";
@@ -60,14 +60,14 @@ function MedForm({ med, setPots, today, pregOrTtc, onDone, onGoCard, headRef }) 
             </div>
           ))}
           {times.length < 6 && <button type="button" className="linkbtn" onClick={() => setTimes([...times, ""])}>{times.length ? "+ another time" : "+ add a time"}</button>}
-          <p className="hint" style={{ margin: "6px 0 0" }}>These are for your own plan. Cyra doesn't send reminders.</p>
+          <p className="hint" style={{ margin: "6px 0 0" }}>These are for your own plan. Heard Health doesn't send reminders.</p>
         </>
       )}
       <label className="lab" htmlFor="pots-med-started">Started (optional)</label>
       <input id="pots-med-started" className="inp" type="date" aria-label="Started (optional)" max={today} value={started} onChange={(e) => setStarted(e.target.value)} />
       <label className="lab" htmlFor="pots-med-note" style={{ marginTop: 6 }}>Your note (optional)</label>
       <input id="pots-med-note" className="inp" aria-label="Your note (optional)" maxLength={120} value={note} onChange={(e) => setNote(e.target.value)} />
-      <p className="hint" style={{ margin: "-2px 0 10px" }}>For example, what your label says. Cyra never checks or suggests amounts.</p>
+      <p className="hint" style={{ margin: "-2px 0 10px" }}>For example, what your label says. Heard Health never checks or suggests amounts.</p>
       {err && <p className="errhint" role="alert" style={{ marginTop: 0, marginBottom: 10 }}>{err}</p>}
       <button type="button" className="cta" onClick={save}>Save</button>
       {med && !med.stopped && ask !== "stop" && <button type="button" id="pots-med-stopbtn" className="linkbtn" style={{ marginTop: 10, display: "block" }} onClick={() => setAsk("stop")}>I've stopped this</button>}
@@ -166,7 +166,7 @@ export function MedSetup({ setPots, saveRef }) {
         </div>
       ))}
       {picked.some((x) => x.kind === "aid") && <p className="hint" style={{ margin: "4px 0 8px" }}>Supports are a simple yes or no each day.</p>}
-      <p className="hint" style={{ margin: "4px 0 12px" }}>These are for your own plan. Cyra doesn't send reminders.</p>
+      <p className="hint" style={{ margin: "4px 0 12px" }}>These are for your own plan. Heard Health doesn't send reminders.</p>
       <p className="rfoot" style={{ marginTop: 0, marginBottom: 12 }}>{LIB_FOOT}</p>
     </>
   );

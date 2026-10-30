@@ -42,10 +42,10 @@ export const PCOS_STAGES = ["My Cycle", "Trying to conceive", "Perimenopause"];
 export const STEP_COPY = {
   stage: { short: "Stage", title: "Where are you right now?", sub: "This shapes your entire experience. You can change it anytime." },
   pcos: { short: "PCOS", title: "Living with PCOS?", sub: "Optional. A yes adds PCOS symptoms, signals and cycle wording to your log; you can change it anytime in You. Your answer stays on this device, and goes into an encrypted backup only if you save one." },
-  account: { short: "Device", title: "Set up Cyra on this device", sub: "There's no Cyra account. Your name, email and answers are saved on this device. Lose the device or clear the browser and you lose them, unless you saved an encrypted backup, which keeps most of them." },
+  account: { short: "Device", title: "Set up Heard Health on this device", sub: "There's no Heard Health account. Your name, email and answers are saved on this device. Lose the device or clear the browser and you lose them, unless you saved an encrypted backup, which keeps most of them." },
   cycle: { short: "Cycle", title: "Your cycle history", sub: "So predictions can start from day one. These answers stay on this device, and go into an encrypted backup only if you save one." },
   pregnancy: { short: "Pregnancy", title: "Your pregnancy", sub: "So your week and your care roadmap start in the right place. Your due date stays on this device, and goes into an encrypted backup only if you save one." },
-  consent: { short: "Consent", title: "Your data and your choices", sub: "What Cyra does with your data today — and choices you can change later in Settings." },
+  consent: { short: "Consent", title: "Your data and your choices", sub: "What Heard Health does with your data today — and choices you can change later in Settings." },
 };
 
 /** The steps for a stage card label (null before she picks one): 5 for the cycle stages (with the optional PCOS step),

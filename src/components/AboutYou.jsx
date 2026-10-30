@@ -23,21 +23,21 @@ export default function AboutYou({ answers, onAnswer, stage, stageName, todayIso
           <ChipRow id={id("cycleReg")} label="How regular?" options={REGULARITY} value={a.cycleReg} onPick={pick("cycleReg")} />
           <p className="lab">First day of your last period (optional)</p>
           <input className="inp" type="date" aria-label="First day of your last period" value={a.lastPeriod || ""} onChange={(e) => onAnswer("lastPeriod", e.target.value)} />
-          <p className="rfoot">Cyra uses your typical cycle length and last period for predictions until your own logged cycles take over.</p>
+          <p className="rfoot">Heard Health uses your typical cycle length and last period for predictions until your own logged cycles take over.</p>
         </Details>
       )}
       {stage === "preg" && (
         <Details label="Your pregnancy">
           <p className="lab" id={id("due")}>When is your baby due? (optional)</p>
           <input className="inp" type="date" aria-labelledby={id("due")} min={b.min} max={b.max} value={a.dueDate || ""} onChange={(e) => onAnswer("dueDate", e.target.value)} />
-          <p className="rfoot">Cyra uses this for your week and your care roadmap.</p>
+          <p className="rfoot">Heard Health uses this for your week and your care roadmap.</p>
         </Details>
       )}
       <Details label="Age and ZIP">
         <ChipRow id={id("age")} label="Age" options={AGE_BANDS} value={a.age} onPick={pick("age")} />
         <p className="lab">ZIP or postal code (optional)</p>
         <input className="inp" placeholder="e.g. 90210" aria-label="ZIP or postal code (optional)" maxLength={10} pattern="[A-Za-z0-9 \-]{0,10}" autoComplete="off" value={a.zip || ""} onChange={(e) => onAnswer("zip", sanitizeZip(e.target.value))} />
-        <p className="rfoot">ZIP is optional and stays on this device. Cyra doesn't use it yet and never sends it anywhere. Cyra never asks for your street address.</p>
+        <p className="rfoot">ZIP is optional and stays on this device. Heard Health doesn't use it yet and never sends it anywhere. Heard Health never asks for your street address.</p>
       </Details>
       <Details label="Reproductive history">
         <ChipRow id={id("preg")} label="Ever been pregnant?" options={EVER_PREG} value={a.preg} onPick={pick("preg")} />

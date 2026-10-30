@@ -203,7 +203,7 @@ export class PdfDoc {
     objs[2] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
     objs[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>";
     // A neutral title (the file name is neutral too): a file list or preview never names a condition.
-    objs[4] = "<< /Producer (Cyra) /Title (Cyra report) >>";
+    objs[4] = "<< /Producer (Heard Health) /Title (Heard Health report) >>";
     this.pages.forEach((ops, i) => {
       const stream = ops.join("\n");
       objs[pageNums[i] - 1] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${n2(this.W)} ${n2(this.H)}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${pageNums[i] + 1} 0 R >>`;

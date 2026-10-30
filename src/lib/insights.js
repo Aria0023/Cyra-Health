@@ -200,7 +200,7 @@ function cycleChecked(k, L) {
   if (k.why === "few") return `${L} by cycle day: logged on ${k.total} ${DAYW(k.total)} in these cycles so far — not enough to compare yet.`;
   return `${L} by cycle day — no clear cluster.`;
 }
-export const NEED_STARTS_LINE = "By cycle day: Cyra needs two logged period starts to compare cycle days.";
+export const NEED_STARTS_LINE = "By cycle day: Heard Health needs two logged period starts to compare cycle days.";
 
 /** Every check Cyra runs on Patterns, over the last `days` calendar days (sleep) and the last 4 logged cycles.
     Sleep candidates: the 3 symptoms logged on the most days in the window (never Sleep disruption itself: at ≥ 2 it already

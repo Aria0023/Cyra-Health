@@ -186,7 +186,7 @@ export default function MovePlan({ pots, setPots, stage, todayIso, ping, onStart
           <div className="mcrow" role="group" aria-labelledby="pots-move-step-h">
             {MOVE_STEPS.map((x) => <button type="button" key={x.step} className={`mc ${step === x.step ? "on" : ""}`} aria-pressed={step === x.step} onClick={() => { if (step !== x.step) set({ step: x.step }); }}>{`Step ${x.step}`}</button>)}
           </div>
-          <p className="hint" style={{ margin: "6px 0 8px" }}>You choose your step. Cyra never moves you on by itself. The weeks are typical, not targets.</p>
+          <p className="hint" style={{ margin: "6px 0 8px" }}>You choose your step. Heard Health never moves you on by itself. The weeks are typical, not targets.</p>
           {MOVE_STEPS.map((x) => (
             <div key={x.step} className="medrow" style={{ display: "block" }}>
               <p className="plain" style={{ margin: "0 0 2px" }}><b>{`Step ${x.step} · ${x.name}`}</b>{` · typical weeks ${x.weeks}${step === x.step ? " · your step" : ""}`}</p>
@@ -206,7 +206,7 @@ export default function MovePlan({ pots, setPots, stage, todayIso, ping, onStart
           <label className="lab" htmlFor="pots-move-hr">Heart-rate range from your clinician or physio (optional)</label>
           <input id="pots-move-hr" className="inp" maxLength={120} aria-label="Heart-rate range from your clinician or physio (optional)" aria-describedby="pots-move-hr-hint" value={hr}
             onChange={(e) => { const v = e.target.value; setHr(v); if (v.trim() !== (pr.hrNote || "")) set({ hrNote: v }); }} />
-          <p className="hint" id="pots-move-hr-hint" style={{ margin: "0 0 10px" }}>In their words. Cyra never suggests a range.</p>
+          <p className="hint" id="pots-move-hr-hint" style={{ margin: "0 0 10px" }}>In their words. Heard Health never suggests a range.</p>
         </>
       )}
 

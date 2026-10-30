@@ -95,7 +95,7 @@ export default function AmountSheet({ mode, item, units, isToday, onSave, onCanc
           {asButton && <input className="inp" aria-label="Button name (optional)" placeholder={`Button name, e.g. ${KIND_LABEL[kind]}`} maxLength={30} value={name} onChange={(e) => setName(e.target.value)} />}
         </>
       )}
-      <p className="hint" style={{ margin: "6px 0 10px" }}>Cyra never guesses sodium. Copy it from the label or packet.</p>
+      <p className="hint" style={{ margin: "6px 0 10px" }}>Heard Health never guesses sodium. Copy it from the label or packet.</p>
       {err && <p className="errhint" role="alert" style={{ marginTop: 0, marginBottom: 10 }}>{err}</p>}
       <button type="button" className="cta" onClick={save}>{item ? "Save changes" : "Add"}</button>
       <button type="button" className="ghostbtn" onClick={onCancel}>Cancel</button>
@@ -112,7 +112,7 @@ export function SodiumAsk({ preset, onSave, onSkip, headRef }) {
   return (
     <section className="plaincard" aria-labelledby="pots-naask-h">
       <h2 className="obq" id="pots-naask-h" tabIndex={-1} ref={headRef}>{preset.label}</h2>
-      <p className="plain">{drink ? "How much sodium is in one? Check the label. Cyra remembers it for next time." : "How much sodium is in one? It's on the packet or label."}</p>
+      <p className="plain">{drink ? "How much sodium is in one? Check the label. Heard Health remembers it for next time." : "How much sodium is in one? It's on the packet or label."}</p>
       <input className="inp" {...numProps()} aria-label="Sodium in milligrams, from the label" value={v} onChange={(e) => { setV(e.target.value); setErr(""); }} />
       {err && <p className="errhint" role="alert" style={{ marginTop: 0, marginBottom: 10 }}>{err}</p>}
       <button type="button" className="cta" onClick={() => { const n = numOf(v); if (n == null || n < 1 || n > 20000) { setErr("Type the milligrams of sodium from the label."); return; } onSave(Math.round(n)); }}>Save</button>

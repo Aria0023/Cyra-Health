@@ -104,7 +104,7 @@ export default function LockScreen({ cfg = null, unreadable = false, passkeyOk =
   );
   return (
     <main className="splash lockscreen" aria-labelledby="lock-title">
-      <div className="splashmark">Cyra<span>.</span></div>
+      <div className="splashmark">Heard<span className="sub">Health</span></div>
       <h1 id="lock-title" className="disp" tabIndex={-1} ref={titleRef}>{T.title}</h1>
       {view === "forgot" ? (
         <>

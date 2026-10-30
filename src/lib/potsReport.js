@@ -216,7 +216,7 @@ const countLine = (lead, words, vals) => `${lead}${Object.entries(words).map(([k
 /** The Movement section's blocks, third person, for `sessions` in the report period. */
 function moveBlocks(p, { sessions, range, today, stage, inc, eps }) {
   const st = moveState(p, stage), pr = st.program, blocks = [];
-  if (pr && pr.pem != null) blocks.push({ t: "p", text: `Often crashes 12 to 72 hours after effort, for a day or more (her answer): ${PEM_WORD[pr.pem] || "other answer"}.${st.pacing ? " Cyra's pacing mode is on for her: it shows no step-up options." : ""}` });
+  if (pr && pr.pem != null) blocks.push({ t: "p", text: `Often crashes 12 to 72 hours after effort, for a day or more (her answer): ${PEM_WORD[pr.pem] || "other answer"}.${st.pacing ? " Heard Health's pacing mode is on for her: it shows no step-up options." : ""}` });
   if (pr && !st.pacing) {
     if (!st.preg && pr.cleared != null) blocks.push({ t: "p", text: `OK from a clinician or physio to start an exercise plan (her answer): ${CLEAR_WORD[pr.cleared] || "other answer"}${pr.cleared === "yes" && pr.clearedOn ? ` (${fmtDayY(pr.clearedOn)})` : ""}.` });
     if (st.preg && inc.cycle && pr.clearedPreg != null) blocks.push({ t: "p", text: `OK from her prenatal team to start an exercise plan (her answer): ${CLEAR_WORD[pr.clearedPreg] || "other answer"}${pr.clearedPreg === "yes" && pr.clearedPregOn ? ` (${fmtDayY(pr.clearedPregOn)})` : ""}.` });
@@ -225,7 +225,7 @@ function moveBlocks(p, { sessions, range, today, stage, inc, eps }) {
     if (st.planShown && (!st.preg || inc.cycle)) {
       const sd = MOVE_STEPS.find((x) => x.step === (pr.step || 1));
       const days = (pr.days || []).length ? WEEKDAYS.filter(([n]) => pr.days.includes(n)).map(([, l]) => l).join(", ") : null;
-      blocks.push({ t: "p", text: `Her step in Cyra's plan, which she chooses herself: Step ${sd.step} (${sd.name.toLowerCase()}), week ${planWeek(pr, today)} of her plan.${days ? ` Planned days: ${days}.` : ""}${fin(pr.mainMin) ? ` Main part she set: ${pr.mainMin} min.` : ""}` });
+      blocks.push({ t: "p", text: `Her step in Heard Health's plan, which she chooses herself: Step ${sd.step} (${sd.name.toLowerCase()}), week ${planWeek(pr, today)} of her plan.${days ? ` Planned days: ${days}.` : ""}${fin(pr.mainMin) ? ` Main part she set: ${pr.mainMin} min.` : ""}` });
       if (inc.notes && pr.hrNote) blocks.push({ t: "p", text: `Heart-rate range she noted from her clinician or physio: ${pr.hrNote}` });
     }
   }
@@ -244,7 +244,7 @@ function moveBlocks(p, { sessions, range, today, stage, inc, eps }) {
   const guided = sessions.filter((x) => x.guided).length, stopped = sessions.filter((x) => x.stopped).length, closed = sessions.filter((x) => x.stopped && x.interrupted).length;
   const mainSum = sessions.reduce((a, x) => a + (fin(x.main) ? x.main : 0), 0), longest = sessions.reduce((a, x) => (fin(x.main) && x.main > a ? x.main : a), 0);
   const easy = sessions.reduce((a, x) => a + (fin(x.warm) ? x.warm : 0) + (fin(x.cool) ? x.cool : 0), 0);
-  blocks.push({ t: "p", text: `Sessions in this period: ${sessions.length} (${guided} with Cyra's timer${stopped ? `, ${stopped} stopped early${closed ? ` (${closed} because the app closed)` : ""}` : ""}). Main part: ${mainSum} min in all, longest ${longest} min; warm-up and cool-down ${easy} min.` });
+  blocks.push({ t: "p", text: `Sessions in this period: ${sessions.length} (${guided} with Heard Health's timer${stopped ? `, ${stopped} stopped early${closed ? ` (${closed} because the app closed)` : ""}` : ""}). Main part: ${mainSum} min in all, longest ${longest} min; warm-up and cool-down ${easy} min.` });
   const rec = sessions.filter((x) => RECUMBENT.includes(x.mode)).length, upr = sessions.filter((x) => UPRIGHT.includes(x.mode)).length;
   const modes = [...new Set(sessions.map((x) => x.mode))].map((m) => `${modeWord(m).toLowerCase()} ${sessions.filter((x) => x.mode === m).length}`).join(", ");
   blocks.push({ t: "p", text: `Lying or seated: ${rec} · upright: ${upr} · other: ${sessions.length - rec - upr} (${modes}).` });
@@ -347,12 +347,12 @@ export function reportModel(p, opts = {}) {
   if (onset) context.push(`Symptoms started: ${onset}`);
   if (after.length) context.push(`Just before they started: ${andList(after)}`);
   if ((ctx.conditions || []).length) context.push(`Other conditions: ${ctx.conditions.map((v) => optWord(COND_OPTS, v)).join(", ")}`);
-  if (inc.cycle && stage) context.push(preg ? "Life stage: Pregnant (week not recorded in Cyra)" : `Life stage: ${stageName || "not set"}`);
+  if (inc.cycle && stage) context.push(preg ? "Life stage: Pregnant (week not recorded in Heard Health)" : `Life stage: ${stageName || "not set"}`);
   const rangeLabel = fmtRange(range.from, range.to);
   const header = {
     title: "POTS log summary",
     line: `POTS log summary · ${who || "Prepared by the patient"} · ${rangeLabel}`,
-    made: `Made with the Cyra app on ${fmtDayY(today)} from the patient's own entries, measured at home with her own devices. Not a medical-device record. Not a diagnosis. Thresholds quoted from HRS 2015 and Freeman 2011.`,
+    made: `Made with the Heard Health app on ${fmtDayY(today)} from the patient's own entries, measured at home with her own devices. Not a medical-device record. Not a diagnosis. Thresholds quoted from HRS 2015 and Freeman 2011.`,
     context,
     rated: inc.sym ? `Rated days: ${rated} of ${range.n} · good ${ratings[1]}, okay ${ratings[2]}, rough ${ratings[3]}, bad ${ratings[4]}` : null,
   };
@@ -415,7 +415,7 @@ export function reportModel(p, opts = {}) {
       blocks.push({ t: "p", text: pregShown.length < shown.length ? `For the tests done in pregnancy (lying on left side): ${note[0].toLowerCase()}${note.slice(1)}` : note });
     }
     blocks.push({ t: "p", text: "Reference: a sustained rise of ≥30 bpm (≥40 at ages 12–19) within 10 min of standing, without orthostatic hypotension, is the heart-rate criterion in the 2015 HRS consensus statement. OH: drop ≥20 systolic or ≥10 diastolic within 3 min (Freeman 2011).", small: true });
-    if (teen) blocks.push({ t: "p", text: "She uses the 40-beat threshold for ages 12–19 in Cyra.", small: true });
+    if (teen) blocks.push({ t: "p", text: "She uses the 40-beat threshold for ages 12–19 in Heard Health.", small: true });
     const vit = days.flatMap((d) => (dayOf(d).vit || []).map((v) => ({ ...v, date: d })));
     if (vit.length) blocks.push({ t: "table", caption: "Single readings by position", head: ["Date", "Time", "Position", "Heart rate", "Blood pressure"], widths: [80, 60, 100, 100, 175], rows: vit.map((v) => [fmtDay(v.date), hm(v.t), VIT_POS[v.pos] || "Other", fin(v.hr) ? String(v.hr) : "—", bpText(v) || "—"]) });
     // Her typed words on a tilt result (where, what she was told, BP notes) go in only with
@@ -536,7 +536,7 @@ export function reportModel(p, opts = {}) {
       // episodes", so this line needs that box too.
       if (inc.sym) for (const m of meds) { const e = episodesByDose(p, m, periodRows); if (e) blocks.push({ t: "p", text: e.text }); }
     }
-    blocks.push({ t: "p", text: inc.notes ? "Medicine names, times and notes are as she entered them. Cyra never suggests a medicine, a dose or a change." : "Medicine names and times are as she entered them. Cyra never suggests a medicine, a dose or a change.", small: true });
+    blocks.push({ t: "p", text: inc.notes ? "Medicine names, times and notes are as she entered them. Heard Health never suggests a medicine, a dose or a change." : "Medicine names and times are as she entered them. Heard Health never suggests a medicine, a dose or a change.", small: true });
     sections.push({ id: "meds", title: "Medicines and supports", blocks });
   }
 
@@ -579,7 +579,7 @@ export function reportModel(p, opts = {}) {
     patternsShown = items;
     sections.push({ id: "patterns", title: "Patterns from her log", blocks: [
       { t: "p", text: "Observations, not causes." },
-      ...(items.length ? [{ t: "list", items }] : [{ t: "p", text: "Nothing stood out in this period. Cyra compares only once there are at least 14 rated days, with enough days on each side." }]),
+      ...(items.length ? [{ t: "list", items }] : [{ t: "p", text: "Nothing stood out in this period. Heard Health compares only once there are at least 14 rated days, with enough days on each side." }]),
       { t: "p", text: REPORT_FOOT, small: true },
     ] });
   }
@@ -612,7 +612,7 @@ export function reportModel(p, opts = {}) {
   const latestPreg = !!latestT && latestT.restPos === "left" && inc.cycle;
   const pregTail = !inc.cycle ? "" : latestPreg && preg ? " I'm pregnant, and heart rate normally rises during pregnancy; these thresholds come from studies of people who weren't pregnant."
     : latestPreg ? " This test was done in pregnancy, when heart rate normally rises; these thresholds come from studies of people who weren't pregnant."
-    : preg ? " I'm pregnant now; this test was done before I set Cyra to Pregnancy." : "";
+    : preg ? " I'm pregnant now; this test was done before I set Heard Health to Pregnancy." : "";
   const in90 = allDone.filter((t) => t.date >= addDays(today, -89) && t.date <= today).length;
   const sessions30 = allSessions(p).filter((x) => x.date >= addDays(today, -29) && x.date <= today).length;
   const summary = {
@@ -629,7 +629,7 @@ export function reportModel(p, opts = {}) {
   return {
     today, period, range, rangeLabel, inc, who, stage, preg, units, thr, teen, enough,
     paper: paperFor(p, locale),
-    files: { pdf: `cyra-report-${today}.pdf`, csv: `cyra-data-${today}.csv` },
+    files: { pdf: `heard-health-report-${today}.pdf`, csv: `heard-health-data-${today}.csv` },
     header, sections, summary,
     questions: { generated, own: s.questions || [] },
     data: { p, days, tests, tilt, overlap, results, sessions, cycleDays: new Map(tests.map((t) => [t.id, cycleOf(t)]).filter(([, c]) => c)), patterns: patternsShown },
@@ -750,7 +750,7 @@ export function summaryText(model) {
   return [
     "Hello,",
     "",
-    `Here is a short summary of my POTS log from the Cyra app, ${model.rangeLabel}. I logged it at home myself; it isn't a diagnosis.`,
+    `Here is a short summary of my POTS log from the Heard Health app, ${model.rangeLabel}. I logged it at home myself; it isn't a diagnosis.`,
     "",
     ...lines.map((l) => `- ${l}`),
     "",
@@ -901,6 +901,6 @@ export function reportPdf(model, PdfDoc) {
       else if (b.t === "weeks") { y = doc.ensure(y, 100); drawWeeks(doc, X, y, W, 90, b); y += 102; }
     }
   });
-  doc.footer((n, m, d) => d.text(d.W / 2, d.H - 24, `Page ${n} of ${m} · Cyra · Observations, not a diagnosis.`, { size: 7.5, align: "center", rgb: SOFT }));
+  doc.footer((n, m, d) => d.text(d.W / 2, d.H - 24, `Page ${n} of ${m} · Heard Health · Observations, not a diagnosis.`, { size: 7.5, align: "center", rgb: SOFT }));
   return doc.bytes();
 }

@@ -205,6 +205,13 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 .splash { padding-top:32px; text-align:left; }
 .splashmark { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:44px; }
 .splashmark span { color:var(--primary); }
+.splashmark .sub { font:700 13px 'Karla Variable','Karla'; letter-spacing:.13em; color:var(--primary-text); margin-left:9px; vertical-align:middle; position:relative; top:-3px; }
+.brandmark { color:var(--brand); flex-shrink:0; }
+.aboutbrand { display:flex; align-items:center; gap:10px; margin:0 0 10px; }
+.aboutbrand > span { display:flex; flex-direction:column; line-height:1.25; }
+.aboutbrand b { font-family:'Fraunces Variable','Fraunces',serif; font-weight:600; font-size:16px; }
+.aboutbrand .slogan { font-family:'Fraunces Variable','Fraunces',serif; font-style:italic; font-size:14px; color:var(--primary-text); }
+.splashtag.slogan { font-family:'Fraunces Variable','Fraunces',serif; font-style:italic; font-weight:500; font-size:19px; letter-spacing:0; text-transform:none; color:var(--primary-text); margin-top:4px; }
 .splashtag { font-size:12px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--primary); margin-top:2px; }
 .ghostbtn { width:100%; border:1px solid var(--primary); background:none; color:var(--primary); border-radius:var(--r-card); font:700 14px 'Karla Variable','Karla'; padding:13px; margin-top:10px; cursor:pointer; }
 .consentcard { background:var(--card); border:1px solid var(--edge); border-radius:var(--r-card); padding:14px; font-size:13px; margin-bottom:12px; }

@@ -61,20 +61,20 @@ export function RestoreForm({ onImport, onDone, compact = false, onPick = null }
    network (no answer from Cyra's server), refused (the server answered, but it — or Oura or
    Terra — didn't confirm), nokey (this device holds nothing that could end it). */
 const STEP = { reminders: "remove this browser's reminder details", terra: "disconnect Fitbit, Garmin or Whoop", oura: "disconnect Oura" };
-const WHO = { terra: "Terra (the service Cyra uses for Fitbit, Garmin and Whoop)", oura: "Oura" };
-const ENDED = { oura: "Oura is disconnected and removed from this device", terra: "Fitbit, Garmin or Whoop is disconnected and removed from this device (Cyra first tried to collect readings waiting on its server; any it couldn't collect were deleted there)", reminders: "Cyra's server erased this browser's reminder details, and reminders are off" };
+const WHO = { terra: "Terra (the service Heard Health uses for Fitbit, Garmin and Whoop)", oura: "Oura" };
+const ENDED = { oura: "Oura is disconnected and removed from this device", terra: "Fitbit, Garmin or Whoop is disconnected and removed from this device (Heard Health first tried to collect readings waiting on its server; any it couldn't collect were deleted there)", reminders: "Heard Health's server erased this browser's reminder details, and reminders are off" };
 const failLine = (kind, steps) => {
   const names = andList(steps.map((k) => STEP[k] || k));
-  if (kind === "network") return `Cyra didn't get an answer from its server to ${names}, so it can't tell whether that happened. Try again when you're online.`;
-  if (kind === "nokey") return `This device doesn't hold what Cyra needs to ${names} itself — ${steps.map((k) => (k === "terra" ? "remove Cyra (it may be listed as Terra) under connected apps in that account" : "remove Cyra in your Oura account's connected apps")).join("; ")}.`;
+  if (kind === "network") return `Heard Health didn't get an answer from its server to ${names}, so it can't tell whether that happened. Try again when you're online.`;
+  if (kind === "nokey") return `This device doesn't hold what Heard Health needs to ${names} itself — ${steps.map((k) => (k === "terra" ? "remove Heard Health (it may be listed as Cyra or Terra) under connected apps in that account" : "remove Heard Health (it may be listed as Cyra) in your Oura account's connected apps")).join("; ")}.`;
   const wear = steps.filter((k) => WHO[k]), rem = steps.includes("reminders");
-  return [wear.length && `Cyra's server asked ${andList(wear.map((k) => WHO[k]))} to end the connection, but it didn't confirm. Try again, or remove Cyra in that account's connected apps.`,
-    rem && "Cyra's server didn't confirm it removed this browser's reminder details. Try again."].filter(Boolean).join(" ");
+  return [wear.length && `Heard Health's server asked ${andList(wear.map((k) => WHO[k]))} to end the connection, but it didn't confirm. Try again, or remove Heard Health (it may be listed as Cyra) in that account's connected apps.`,
+    rem && "Heard Health's server didn't confirm it removed this browser's reminder details. Try again."].filter(Boolean).join(" ");
 };
 const STAYS = {
-  oura: "Oura stays connected to Cyra until you remove Cyra in your Oura account's connected apps",
-  terra: "your Fitbit, Garmin or Whoop account stays connected until you remove Cyra (it may be listed as Terra) in that account's connected apps; until then Terra keeps sending that account's new readings to Cyra's server, where each day waits up to 7 days for a device that will never collect it and is then deleted",
-  reminders: "Cyra's server keeps this browser's push address and its keys, the reminder days and time you chose, your time zone and the last day it sent a reminder, until the browser's push service reports the address gone (no reminder will be shown here)",
+  oura: "Oura stays connected to Heard Health until you remove Heard Health (it may be listed as Cyra) in your Oura account's connected apps",
+  terra: "your Fitbit, Garmin or Whoop account stays connected until you remove Heard Health (it may be listed as Cyra or Terra) in that account's connected apps; until then Terra keeps sending that account's new readings to Heard Health's server, where each day waits up to 7 days for a device that will never collect it and is then deleted",
+  reminders: "Heard Health's server keeps this browser's push address and its keys, the reminder days and time you chose, your time zone and the last day it sent a reminder, until the browser's push service reports the address gone (no reminder will be shown here)",
 };
 const andList = (a) => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`);
 
@@ -110,8 +110,8 @@ export function WipeConfirm({ onWipe, keepsWeekNote = false, onCancel, panelId =
       <Details label="More about deleting">
         <ul>
           {wipeMore(FEATURES, native).map((t) => <li key={t}>{t}</li>)}
-          {offlineCopy && <li>Cyra's offline copy of its own app files is removed from this browser too.</li>}
-          {keepsWeekNote && <li>So this device isn't counted twice, Cyra keeps only this week's date here (nothing else, nothing about your health) and deletes it the first time Cyra opens after this week ends.</li>}
+          {offlineCopy && <li>Heard Health's offline copy of its own app files is removed from this browser too.</li>}
+          {keepsWeekNote && <li>So this device isn't counted twice, Heard Health keeps only this week's date here (nothing else, nothing about your health) and deletes it the first time Heard Health opens after this week ends.</li>}
         </ul>
       </Details>
       {err && <p className="errhint" role="alert" style={{ marginTop: 0 }}>{err}</p>}
@@ -131,8 +131,8 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
   const where = driver == null ? null
     : driver === "app-sandbox" ? "in this app's private storage on this device"
     : driver === "indexeddb" ? "in this browser's on-device database (not cookies, not localStorage); in a private window it's erased once you close every private window"
-    : driver === "stale" ? "on this device, but Cyra couldn't confirm your latest changes were saved. A copy of your record, possibly without your most recent changes, is stored here, and changes that weren't saved may be lost when you close Cyra. Delete everything removes it"
-    : driver === "unreadable" ? "in memory for this session only: Cyra couldn't open this browser's storage. An earlier record may still be stored here; clear this site's data in your browser to remove it"
+    : driver === "stale" ? "on this device, but Heard Health couldn't confirm your latest changes were saved. A copy of your record, possibly without your most recent changes, is stored here, and changes that weren't saved may be lost when you close Heard Health. Delete everything removes it"
+    : driver === "unreadable" ? "in memory for this session only: Heard Health couldn't open this browser's storage. An earlier record may still be stored here; clear this site's data in your browser to remove it"
     : "in memory for this session only — nothing is saved on this device";
   const clearPass = () => { setPass(""); setPass2(""); };
   const switchTo = (m) => { setMode(mode === m ? null : m); setErr(""); clearPass(); }; // a closed WipeConfirm unmounts, which drops its blocked state
@@ -145,7 +145,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
       const saved = await onExport(pass);
       if (saved === false) return;
       setMode(null);
-      ping(phone ? "Backup handed to the app you chose — check it arrived. Keep the passphrase somewhere safe; Cyra can't recover it." : "Backup file created — check your downloads. Keep the passphrase somewhere safe; Cyra can't recover it.");
+      ping(phone ? "Backup handed to the app you chose — check it arrived. Keep the passphrase somewhere safe; Heard Health can't recover it." : "Backup file created — check your downloads. Keep the passphrase somewhere safe; Heard Health can't recover it.");
     } catch (e) { setErr(e.message || "Couldn't create the backup"); } finally { clearPass(); setBusy(false); }
   };
   const panels = (
@@ -157,12 +157,12 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
           <label className="flab"><span>Repeat it</span><input className="inp" type="password" placeholder="Repeat passphrase" aria-label="Repeat backup passphrase" {...noSave} value={pass2} onChange={(e) => setPass2(e.target.value)} /></label>
           {err && <p className="errhint" style={{ marginTop: 0 }}>{err}</p>}
           <button className="cta" disabled={busy} onClick={doExport}>{busy ? "Encrypting…" : phone ? "Save encrypted backup…" : "Download encrypted backup"}</button>
-          <p className="rfoot">Encrypted on this device with your passphrase before it becomes a file. Cyra's servers never receive the file or the passphrase. Without it the backup can't be opened, and a lost passphrase can't be recovered.</p>
+          <p className="rfoot">Encrypted on this device with your passphrase before it becomes a file. Heard Health's servers never receive the file or the passphrase. Without it the backup can't be opened, and a lost passphrase can't be recovered.</p>
           <Details label="Backup details">
             <ul>
               <li>AES-256 encryption.</li>
-              <li>Cyra never saves this passphrase, on this device or on its servers. Don't let your browser or password manager save it either.</li>
-              {phone && <li>On a phone, the file sits in the app's temporary cache only while you share it. A copy left by an interrupted share is deleted the next time Cyra opens.</li>}
+              <li>Heard Health never saves this passphrase, on this device or on its servers. Don't let your browser or password manager save it either.</li>
+              {phone && <li>On a phone, the file sits in the app's temporary cache only while you share it. A copy left by an interrupted share is deleted the next time Heard Health opens.</li>}
             </ul>
           </Details>
         </div>
@@ -173,7 +173,7 @@ export default function DataControls({ driver, onExport, onImport, onWipe, ping,
   );
   const statLine = <><b>{daysLogged === 1 ? "1 day logged" : `${daysLogged} days logged`}</b><span aria-hidden="true">·</span><span>last backup {lastBackupAt && todayIso ? relDay(lastBackupAt, todayIso) : (daysLogged >= 7 ? "never — worth doing once" : "never")}</span></>;
   const whereLine = <p className="hint" style={{ margin: "0 0 8px" }}>{where ? `Your check-ins, notes and history are stored ${where}.` : "Checking where your check-ins, notes and history are stored…"} {storeCopyLine(ACCOUNTS_HERE)}</p>;
-  const offlineLine = offlineCopy && <p className="rfoot" style={{ margin: "0 0 8px" }}>This browser also keeps a copy of Cyra's own app files, so Cyra opens without a connection. That copy holds none of your check-ins, notes or settings.</p>;
+  const offlineLine = offlineCopy && <p className="rfoot" style={{ margin: "0 0 8px" }}>This browser also keeps a copy of Heard Health's own app files, so Heard Health opens without a connection. That copy holds none of your check-ins, notes or settings.</p>;
   /* Calm R10 (You page): `compact` leads with three short facts (days logged and the last backup, what can leave the
      device right now, the lock) and the actions; where the record lives and the full "What can leave this device"
      list sit behind "How this works" (still in the page while closed). The Settings sheet keeps the full layout. */

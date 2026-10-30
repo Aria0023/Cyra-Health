@@ -10,7 +10,7 @@ import { hm, libFor } from "./ui.js";
 /** "Midodrine 8:00 taken at 8:05": how a dose reads in the Undo row and the "Removed:" toast. */
 export const doseText = (name, d) => `${name}${d.slot ? ` ${hm(d.slot)}` : ""} ${d.state === "skipped" ? "skipped" : "taken"} at ${hm(d.t)}`;
 
-export const MEDS_FOOT = "Cyra keeps only what you enter, such as names, times and your own note. It never suggests a medicine, an amount, or a change to when you take one. That's for you and your clinician.";
+export const MEDS_FOOT = "Heard Health keeps only what you enter, such as names, times and your own note. It never suggests a medicine, an amount, or a change to when you take one. That's for you and your clinician.";
 
 function MedRow({ med, doses, aids, isToday, day, setPots, remember, onRemoved }) {
   const lib = libFor(med);

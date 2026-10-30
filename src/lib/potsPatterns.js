@@ -347,7 +347,7 @@ export function adviceFor(f) {
   const a = ADVICE_BY[f.key];
   return a ? { urgency: a[0], advice: a[1] } : { urgency: "self", advice: ADVICE_SELF };
 }
-export const PATTERN_FOOT = "Cyra checks about a dozen things, so some differences will be chance. Treat these as hunches to test with your clinician, not answers.";
+export const PATTERN_FOOT = "Heard Health checks about a dozen things, so some differences will be chance. Treat these as hunches to test with your clinician, not answers.";
 export const SYMPTOM_FOOT = "You're looking at one symptom, so treat any difference here as a hunch too.";
 export const REPORT_FOOT = "Several factors were checked; some differences may be chance.";
 /** A card's words: the side with the higher share of rough days always comes first.
@@ -525,7 +525,7 @@ export function episodesByDose(p, med, rows) {
 }
 
 /* ---------- today and this week (design 5.5) ---------- */
-export const PACE_WAIT = "Once you've logged about a week, Cyra can show your usual pace.";
+export const PACE_WAIT = "Once you've logged about a week, Heard Health can show your usual pace.";
 /** "By 2:10 pm on most days you've had about 1.1 L": the median of earlier days' oral fluid up
     to the same time of day, over the last 30 days with drinks logged (needs 7). */
 export function todayPace(p, iso, nowMin) {

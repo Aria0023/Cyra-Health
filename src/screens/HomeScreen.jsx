@@ -31,8 +31,8 @@ import { t, fmtDate, fmtNumber } from "../lib/i18n.js";
    how many more it needs, or, when the days left can't get there, that it can't be compared. */
 const plural = (n) => `${n} logged day${n === 1 ? "" : "s"}`;
 function trialWait(e) {
-  if (e.stuckBefore) return `Only ${plural(e.haveBefore)} in the 2 weeks before the start date — Cyra needs 5 there, so this one can't be compared`;
-  if (e.stuckAfter) return `Only ${plural(e.haveAfter)} in the 2 weeks from the start date — Cyra needs 5 there, so this one can't be compared`;
+  if (e.stuckBefore) return `Only ${plural(e.haveBefore)} in the 2 weeks before the start date — Heard Health needs 5 there, so this one can't be compared`;
+  if (e.stuckAfter) return `Only ${plural(e.haveAfter)} in the 2 weeks from the start date — Heard Health needs 5 there, so this one can't be compared`;
   const n = e.needBefore + e.needAfter;
   return `${n} more ${n === 1 ? "logged day" : "logged days"} to compare`;
 }
@@ -41,19 +41,19 @@ const here = isNative() ? "this phone" : "this device";
 const Here = isNative() ? "This phone" : "This device";
 const DISCLOSE = {
   oura: {
-    summary: `Connecting Oura: you'll sign in at Oura, and Oura will know you connected Cyra. Each sync, Cyra's server fetches your temperature, resting heart rate, HRV and sleep score and passes them to ${here} without keeping them.`,
+    summary: `Connecting Oura: you'll sign in at Oura, and Oura will know you connected Heard Health. Each sync, Heard Health's server fetches your temperature, resting heart rate, HRV and sleep score and passes them to ${here} without keeping them.`,
     details: [
-      `Each time you sync, ${here} sends your Oura sign-in to Cyra's server, which uses it to fetch your last 30 days of readiness and sleep records from Oura, keeps only temperature, resting heart rate, HRV and sleep score, and passes those to ${here}. Your readings aren't kept on the server.`,
-      `Your Oura sign-in is kept on ${here}. While you connect, it waits on Cyra's server in memory, never on disk, for at most 5 minutes until ${here} collects it.`,
-      "Disconnect sends it once more so Oura can end Cyra's access.",
+      `Each time you sync, ${here} sends your Oura sign-in to Heard Health's server, which uses it to fetch your last 30 days of readiness and sleep records from Oura, keeps only temperature, resting heart rate, HRV and sleep score, and passes those to ${here}. Your readings aren't kept on the server.`,
+      `Your Oura sign-in is kept on ${here}. While you connect, it waits on Heard Health's server in memory, never on disk, for at most 5 minutes until ${here} collects it.`,
+      "Disconnect sends it once more so Oura can end Heard Health's access.",
     ],
   },
   terra: {
-    summary: `Connecting Fitbit, Garmin or Whoop: this goes through Terra, a health-data service that keeps your data under its own privacy policy. Cyra's server holds your daily readings until ${here} collects them, for 7 days at most.`,
+    summary: `Connecting Fitbit, Garmin or Whoop: this goes through Terra, a health-data service that keeps your data under its own privacy policy. Heard Health's server holds your daily readings until ${here} collects them, for 7 days at most.`,
     details: [
-      "Terra keeps your device connection and data under its own privacy policy and sends your new wearable data to Cyra's server.",
+      "Terra keeps your device connection and data under its own privacy policy and sends your new wearable data to Heard Health's server.",
       `The server keeps only daily temperature, resting heart rate, HRV and sleep, in memory, never on disk, until ${here} collects them, and discards the rest straight away. Anything not collected is deleted after 7 days.`,
-      `${Here} keeps a random secret key (nothing about you) and sends it to Cyra's server when you connect, each time it collects readings (when you open or return to Cyra, and when you tap Sync) and when you disconnect. Only a request with that key gets your readings.`,
+      `${Here} keeps a random secret key (nothing about you) and sends it to Heard Health's server when you connect, each time it collects readings (when you open or return to Heard Health, and when you tap Sync) and when you disconnect. Only a request with that key gets your readings.`,
     ],
   },
 };
@@ -379,7 +379,7 @@ export default function HomeScreen({
           </div>
           <p className="lab" style={{ margin: "4px 0 6px" }}>{t("home.startedOn")}</p>
           <input className="inp" type="date" aria-label={t("home.startedOnDate")} value={newMed.started} onChange={(e) => setNewMed((x) => ({ ...x, started: e.target.value }))} />
-          <button className="cta" onClick={() => { if (!newMed.name.trim()) return ping("Give it a name first"); setMeds((m) => [...m, { id: Date.now(), ...newMed }]); setNewMed({ name: "", kind: "supp", started: todayIso }); ping("Added — Cyra will compare your days before and after"); }}>{t("home.add")}</button>
+          <button className="cta" onClick={() => { if (!newMed.name.trim()) return ping("Give it a name first"); setMeds((m) => [...m, { id: Date.now(), ...newMed }]); setNewMed({ name: "", kind: "supp", started: todayIso }); ping("Added — Heard Health will compare your days before and after"); }}>{t("home.add")}</button>
           <p className="rfoot">{t("home.changeOneVariableAtA")}</p>
         </div>
       )}

@@ -105,7 +105,7 @@ test("PCOS sourcing: every medical sentence cites a named source with title, bod
   }
   const all = JSON.stringify(p);
   for (const bad of [/you have PCOS/i, /\bcure/i, /\btreat(s|ment)? (your|it|PCOS)/i, /\bmetformin|\bspironolactone|\binositol/i, /\bdose\b/i, /\bscore/i, /\bstreak/i]) assert.ok(!bad.test(all), `no ${bad}`);
-  assert.match(p.askTopics.find((t) => t.id === "pcos-diagnosis").a, /Cyra does not diagnose PCOS\./);
+  assert.match(p.askTopics.find((t) => t.id === "pcos-diagnosis").a, /Heard Health does not diagnose PCOS\./);
   assert.match(MODULE_FRAMING, /not a diagnosis or medical advice/);
 });
 

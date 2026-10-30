@@ -68,11 +68,11 @@ test("g: period ranges and paper size", () => {
 test("g: header, sections and neutral file names", () => {
   const m = reportModel(fixture(), base());
   assert.equal(m.header.line, "POTS log summary · Prepared by the patient · Sep 11 – Oct 10, 2026");
-  assert.match(m.header.made, /^Made with the Cyra app on Oct 10, 2026 from the patient's own entries/);
+  assert.match(m.header.made, /^Made with the Heard Health app on Oct 10, 2026 from the patient's own entries/);
   assert.equal(m.header.rated, "Rated days: 9 of 30 · good 2, okay 3, rough 2, bad 2");
   // S6: "Patterns from her log" (on by default) sits before the questions.
   assert.deepEqual(m.sections.map((s) => s.id), ["tests", "sym", "fluid", "meds", "patterns", "questions"]);
-  assert.deepEqual(m.files, { pdf: "cyra-report-2026-10-10.pdf", csv: "cyra-data-2026-10-10.csv" });
+  assert.deepEqual(m.files, { pdf: "heard-health-report-2026-10-10.pdf", csv: "heard-health-data-2026-10-10.csv" });
   assert.equal(emailParts(m).subject, "My health log summary ahead of my appointment");
   assert.ok(m.enough);
   assert.ok(m.header.context.includes("Life stage: Perimenopause"));
@@ -282,13 +282,13 @@ test("g: the pregnancy caveat follows each test (done in pregnancy), not the sta
   const before = reportModel(fixture(), base({ stage: "preg", stageName: "Pregnancy" }));
   assert.ok(!before.sections[0].blocks.some((b) => b.t === "p" && /heart rate normally rises during pregnancy/i.test(b.text)));
   assert.doesNotMatch(toCSV(before), /threshold_note/);
-  assert.match(summaryText(before), /sustained 30 or more: .*I'm pregnant now; this test was done before I set Cyra to Pregnancy\./);
+  assert.match(summaryText(before), /sustained 30 or more: .*I'm pregnant now; this test was done before I set Heard Health to Pregnancy\./);
 });
 
 test("g: 'Cycle or pregnancy details' off leaves out stage, pregnancy, overlap and stage-based questions", () => {
   const preg = base({ stage: "preg", stageName: "Pregnancy", checkin: (d) => (d === D ? { sym: { dzy: 2 } } : null), checkinLabels: { dzy: "Dizziness" } });
   const pOn = reportModel(fixture(), preg);
-  assert.ok(pOn.header.context.includes("Life stage: Pregnant (week not recorded in Cyra)"));
+  assert.ok(pOn.header.context.includes("Life stage: Pregnant (week not recorded in Heard Health)"));
   assert.ok(toCSV(pOn).includes(`"checkin_overlap","2026-10-08",,"Dizziness",2,"severity",,,2,"from cycle/pregnancy check-in"`));
   assert.ok(modelTexts(pOn).includes("Also logged in her pregnancy check-in: Dizziness (1 day)."));
   const periOn = reportModel(fixture(), base());
@@ -339,7 +339,7 @@ test("g: report wording is free of diagnosis, dose and late/missed words", () =>
     for (const p of [fixture(), upsertTest(fixture(), TEST({ status: "stopped", stoppedAt: 4, why: "faint", fainted: "yes", up: [{ min: 1, hr: 120 }, { min: 3, hr: 98 }] }))]) {
       const m = reportModel(p, base({ stage, stageName: stage === "preg" ? "Pregnancy" : "My Cycle" }));
       for (const t of [...modelTexts(m), summaryText(m), emailParts(m).subject]) assert.ok(!POTS_BANNED.test(t), `banned wording: ${t}`);
-      // No dose anywhere Cyra writes about medicines (sodium amounts from labels are not doses).
+      // No dose anywhere Heard Health writes about medicines (sodium amounts from labels are not doses).
       const medTexts = modelTexts({ ...m, header: { ...m.header, context: [] }, sections: m.sections.filter((x) => x.id === "meds" || x.id === "questions") });
       for (const t of [...medTexts, m.summary.meds]) assert.ok(!DOSE_RE.test(t), `dose-like wording: ${t}`);
     }
@@ -441,7 +441,7 @@ test("g: the PDF file: header, valid xref offsets, deterministic bytes", () => {
   assert.ok(s.startsWith("%PDF-1.4\n"));
   assert.ok(s.endsWith("%%EOF\n"));
   assert.ok(!/CreationDate|ModDate/.test(s));
-  assert.ok(s.includes("/Title (Cyra report)"));
+  assert.ok(s.includes("/Title (Heard Health report)"));
   const xrefAt = Number(/startxref\n(\d+)\n/.exec(s)[1]);
   assert.equal(s.slice(xrefAt, xrefAt + 4), "xref");
   const [, count] = /xref\n0 (\d+)\n/.exec(s.slice(xrefAt));
@@ -463,8 +463,8 @@ test("g: pdftotext reads the title, a reading and the footer", { skip: !existsSy
     assert.match(txt, /10: 104/);
     assert.match(txt, /\+36/);
     assert.match(txt, /Sustained\s+[\s\S]*>=30/);
-    assert.match(txt, /Page 1 of \d · Cyra · Observations, not a diagnosis\./);
-    assert.match(txt, /Medicine names and times are as she entered them\. Cyra never suggests a medicine, a dose or a change\./);
+    assert.match(txt, /Page 1 of \d · Heard Health · Observations, not a diagnosis\./);
+    assert.match(txt, /Medicine names and times are as she entered them\. Heard Health never suggests a medicine, a dose or a change\./);
     assert.ok(!txt.includes("SENTINEL_"));
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });

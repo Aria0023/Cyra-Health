@@ -1,5 +1,16 @@
 # CYRA HEALTH — BUILD SPECIFICATION
 
+> **Renamed to Heard Health (2026-10-30).** The product's visible name is now **Heard Health** (home-screen label
+> "Heard"), with the slogan **"I am Heard"** (the splash tagline, which replaces "One companion for every phase";
+> the PWA manifest and index.html description lead; the You → About & legal card). The body of this spec still says
+> "Cyra" and is not rewritten: read every user-facing "Cyra" below as "Heard Health". The new mark, wordmark,
+> colours and icon rules are in `docs/brand/README.md`; icons are drawn by `scripts/make-icons.mjs` (which replaces
+> `scripts/make-icons.py`). Unchanged on purpose: storage identifiers (IndexedDB names, keys, the backup envelope's
+> `format: "cyra-backup"`, record keys, flags, class names, routes, ids), the app id / bundle id / package
+> `com.cyrahealth.app` and the `cyrahealth://` scheme, the build stamp, and this file's name. Exported files are now
+> named `heard-health-…`; restore still accepts backups made by the Cyra builds (it reads the envelope, not the name).
+> Privacy wording: docs/PRIVACY-AUDIT.md "Rebrand".
+
 > **How to use this document:** Paste it to a coding AI with the instruction:
 > *"Build this application exactly to spec. Follow the data model, thresholds, and
 > algorithms precisely. Where the spec is silent, ask before deviating."*

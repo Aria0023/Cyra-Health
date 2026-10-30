@@ -28,7 +28,7 @@ import { CheckRow, Choice } from "./StandSafety.jsx";
 /* Only in builds with wearables (lib/features.js): without them no watch, ring or health app can be connected. */
 export const FIXED_LINE = potsFixedLine(FEATURES);
 export const WARNING = "This file isn't locked. Anyone who gets it can read it. Send it straight to your clinician or their patient portal, and avoid group chats or shared folders.";
-export const REPORT_HINT = "Make a report to send or print. Cyra itself sends nothing; the file goes only where you take it.";
+export const REPORT_HINT = "Make a report to send or print. Heard Health itself sends nothing; the file goes only where you take it.";
 export const WINANSI_WARNING = "Some characters you typed, such as in your own symptom or medicine names, can't be shown in the PDF and will appear as '?' or be left out. The spreadsheet keeps them exactly.";
 const NONE = []; // a stable default, so the report isn't rebuilt on every render
 const PERIODS = [["30", "Last 30 days"], ["90", "Last 90 days"], ["all", "Everything"]];
@@ -142,7 +142,7 @@ function Preview({ model, stage }) {
           })}
         </section>
       ))}
-      <p className="rfoot">Each PDF page ends: "Cyra · Observations, not a diagnosis."</p>
+      <p className="rfoot">Each PDF page ends: "Heard Health · Observations, not a diagnosis."</p>
     </div>
   );
 }
@@ -176,9 +176,9 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
       if (kind === "pdf") {
         // The PDF writer is bundled with the app (no POTS-only file is fetched from the host,
         // and it works offline).
-        data = reportPdf(model, PdfDoc); name = model.files.pdf; mime = "application/pdf"; title = "Cyra report";
+        data = reportPdf(model, PdfDoc); name = model.files.pdf; mime = "application/pdf"; title = "Heard Health report";
       } else {
-        data = toCSV(model); name = model.files.csv; mime = "text/csv;charset=utf-8"; title = "Cyra spreadsheet";
+        data = toCSV(model); name = model.files.csv; mime = "text/csv;charset=utf-8"; title = "Heard Health spreadsheet";
       }
       const r = await saveFile({ name, data, mime, title, onReady: () => ping("Report ready. Choose where to send it") });
       if (r === "downloaded") ping(kind === "pdf" ? "Report downloaded. It's in your browser's downloads" : "Spreadsheet downloaded. It's in your browser's downloads");
@@ -225,7 +225,7 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
 
       <section className="plaincard" aria-labelledby="pots-q-h" style={{ marginTop: 14 }}>
         <h3 className="lab" id="pots-q-h" tabIndex={-1} style={{ marginTop: 0 }}>Questions for my next visit</h3>
-        <p className="hint" style={{ margin: "0 0 8px" }}>These go in your report. Cyra suggests some from your log for the period above; add your own.</p>
+        <p className="hint" style={{ margin: "0 0 8px" }}>These go in your report. Heard Health suggests some from your log for the period above; add your own.</p>
         {gen.map((q) => <p className="script" key={q.id}>{q.text}</p>)}
         {!include.cycle && gen.some((q) => q.stageBased) && <p className="hint" style={{ margin: "0 0 8px" }}>Questions about your life stage stay out of the files while "Cycle or pregnancy details" is unticked.</p>}
         {partsOut.length > 0 && <p className="hint" style={{ margin: "0 0 8px" }}>{`Questions about ${andWords(topicsOut)} stay out of the files while ${partsOut.length === 1 ? `"${partsOut[0][1]}" is` : "those parts are"} unticked.`}</p>}

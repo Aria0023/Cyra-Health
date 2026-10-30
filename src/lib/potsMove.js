@@ -56,14 +56,14 @@ export const WEEKDAYS = [[1, "Mon"], [2, "Tue"], [3, "Wed"], [4, "Thu"], [5, "Fr
 /** Every sentence of the Move section that the design gives (exact copy; clinician review, Q1). */
 export const MOVE_COPY = {
   pemQ: "After effort, do you often crash 12 to 72 hours later, feeling much more tired or unwell for a day or more?",
-  pacing: "That's called post-exertional malaise (PEM), and it's common with ME/CFS and long COVID. For people with PEM, guidance such as NICE (2021) advises against fixed, step-up exercise programmes. Cyra will still log any activity and how you felt afterwards and the next day, with no step-ups, so you and your clinician can decide together. Ask about pacing.",
+  pacing: "That's called post-exertional malaise (PEM), and it's common with ME/CFS and long COVID. For people with PEM, guidance such as NICE (2021) advises against fixed, step-up exercise programmes. Heard Health will still log any activity and how you felt afterwards and the next day, with no step-ups, so you and your clinician can decide together. Ask about pacing.",
   clearQ: "Has a clinician or physio said it's OK for you to start an exercise plan?",
   clearPregQ: "Has your prenatal team said it's OK for you to start an exercise plan?",
   clearAdvice: "Check with your clinician or physio before starting, especially if you faint, have chest symptoms, or are pregnant.",
   pregWait: "During pregnancy, plan exercise with your prenatal team. You can still log activity here.",
   pregFloor: "After the first trimester, avoid lying flat on your back for long.",
   education: [
-    "Why start lying down: when you're horizontal, your heart doesn't have to fight gravity, so your muscles and heart can get fitter without setting off symptoms. Research programs for POTS (Fu and Levine and colleagues in Dallas; the international POTS registry) started with recumbent bikes, rowing machines and swimming, and moved upright only after several weeks. Many people felt better after about three months. Cyra's plan follows the same general idea in simpler form. It isn't their program and it isn't a prescription.",
+    "Why start lying down: when you're horizontal, your heart doesn't have to fight gravity, so your muscles and heart can get fitter without setting off symptoms. Research programs for POTS (Fu and Levine and colleagues in Dallas; the international POTS registry) started with recumbent bikes, rowing machines and swimming, and moved upright only after several weeks. Many people felt better after about three months. Heard Health's plan follows the same general idea in simpler form. It isn't their program and it isn't a prescription.",
     "A session: about 5 minutes easy to warm up, then the main part at an easy pace you could talk in full sentences at (Step 1), or short sentences once you're building, then 5 minutes easy and a rest sitting or lying down. Have a drink before and after.",
     "Rest days matter. Most programs leave a day between sessions.",
     "Strength, about twice a week: legs and core, done lying or seated.",

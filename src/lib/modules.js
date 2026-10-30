@@ -106,7 +106,7 @@ const PCOS = Object.freeze({
   /* PCOS-aware cycle wording: long and absent cycles are expected, not errors; "cycles longer than 35 days" is counted. */
   cycle: Object.freeze({
     longDays: 35,
-    expected: Object.freeze({ text: "Long or missed cycles are common with PCOS. Cyra shows them as part of your pattern, not as mistakes.", src: ["teede2023", "rotterdam2004"] }),
+    expected: Object.freeze({ text: "Long or missed cycles are common with PCOS. Heard Health shows them as part of your pattern, not as mistakes.", src: ["teede2023", "rotterdam2004"] }),
     definition: Object.freeze({ text: "For adults, the international PCOS guideline describes cycles shorter than 21 days or longer than 35 days, or fewer than eight a year, as irregular.", src: ["teede2023"] }),
     range: Object.freeze({ text: "Your cycles vary, so the range is wide on purpose.", src: [] }),
   }),
@@ -125,11 +125,11 @@ const PCOS = Object.freeze({
   /* Ask library entries (R5/R6 surface them). Each answer names its source; none is advice to start or stop anything. */
   askTopics: freezeAll([
     { id: "pcos-long-cycles", q: "Why are my cycles so long?",
-      a: "Irregular or long cycles are one of the features the 2023 international PCOS guideline describes. For adults it calls cycles under 21 or over 35 days, or fewer than eight a year, irregular. Cyra counts cycles longer than 35 days so you can show your clinician the pattern.", src: ["teede2023"] },
+      a: "Irregular or long cycles are one of the features the 2023 international PCOS guideline describes. For adults it calls cycles under 21 or over 35 days, or fewer than eight a year, irregular. Heard Health counts cycles longer than 35 days so you can show your clinician the pattern.", src: ["teede2023"] },
     { id: "pcos-diagnosis", q: "How is PCOS diagnosed?",
-      a: "Clinicians use the Rotterdam criteria as refined by the 2023 guideline: two of irregular cycles, signs of higher androgens (such as excess hair growth or acne, or a blood test) and ovary findings on ultrasound or an AMH blood test in adults, once other causes are ruled out. Cyra does not diagnose PCOS.", src: ["rotterdam2004", "teede2023"] },
+      a: "Clinicians use the Rotterdam criteria as refined by the 2023 guideline: two of irregular cycles, signs of higher androgens (such as excess hair growth or acne, or a blood test) and ovary findings on ultrasound or an AMH blood test in adults, once other causes are ruled out. Heard Health does not diagnose PCOS.", src: ["rotterdam2004", "teede2023"] },
     { id: "pcos-labs", q: "Which numbers from my blood tests can I add?",
-      a: "The guideline recommends that blood sugar is checked (for example fasting glucose or HbA1c) when PCOS is diagnosed and every one to three years after. You can type values from your own results with their unit and date. Cyra keeps them on this device and does not interpret them.", src: ["teede2023"] },
+      a: "The guideline recommends that blood sugar is checked (for example fasting glucose or HbA1c) when PCOS is diagnosed and every one to three years after. You can type values from your own results with their unit and date. Heard Health keeps them on this device and does not interpret them.", src: ["teede2023"] },
     { id: "pcos-skin", q: "What is skin darkening on the neck?",
       a: "Darker, velvety skin, often on the neck or in the armpits, is called acanthosis nigricans. The guideline lists it among signs linked with insulin resistance. It is worth mentioning to your clinician.", src: ["teede2023"] },
     { id: "pcos-mood", q: "Can PCOS affect my mood?",
@@ -139,7 +139,7 @@ const PCOS = Object.freeze({
   reportSections: freezeAll([
     { id: "pcos-cycles", title: "Cycles", shows: ["cycle lengths", "count of cycles longer than 35 days", "longest gap between periods"], note: "Long or missed cycles shown as part of the pattern." },
     { id: "pcos-symptoms", title: "PCOS symptoms", shows: ["days logged per PCOS symptom over the period", "moderate-or-strong days"], note: "Counts only." },
-    { id: "pcos-signals", title: "Insulin-resistance signals", shows: ["energy crashes after meals (days)", "cravings (days)", "high-sugar days (days)", "lab values as she typed them, with unit and date", "waist measures if she added them"], note: "Values as entered; Cyra does not interpret lab results." },
+    { id: "pcos-signals", title: "Insulin-resistance signals", shows: ["energy crashes after meals (days)", "cravings (days)", "high-sugar days (days)", "lab values as she typed them, with unit and date", "waist measures if she added them"], note: "Values as entered; Heard Health does not interpret lab results." },
     { id: "pcos-questions", title: "Associations to raise", shows: ["pattern questions with enough data, as associations"], note: MODULE_FRAMING },
   ]),
   evidence: PCOS_EVIDENCE,

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { RestoreForm } from "../components/DataControls.jsx";
 import Icon from "../components/Icon.jsx";
+import BrandMark from "../components/BrandMark.jsx";
 import { BUILD_STAMP } from "../lib/about.js";
 import { splashAccountLine } from "../lib/disclosures.js";
 import { ACCOUNT_COPY } from "../lib/account.js";
@@ -16,17 +17,15 @@ import { t } from "../lib/i18n.js";
 /* Calm R9: in a build that offers the optional account (`accounts`), the second promise says so (still "No account
    needed": guest is the default and nothing asks her to sign in), and with Pro (`onSignIn`) one quiet "Sign in to restore
    from your account" button sits under the file restore. */
+/* Heard Health rename: the Heard mark (BrandMark) replaces the three-circle motif in the same place, the wordmark is
+   "Heard" with "HEALTH" beside it (as the header), and the tagline is the slogan "I am Heard". */
 export default function SplashScreen({ onStart, onImport, initialRestore = false, accounts = false, onSignIn = null }) {
   const [restore, setRestore] = useState(initialRestore);
   return (
     <main className="splash">
-      <svg className="splashmotif" aria-hidden="true" focusable="false" width="96" height="64" viewBox="0 0 96 64">
-        <circle cx="30" cy="32" r="28" fill="var(--primary)" fillOpacity=".14" />
-        <circle cx="62" cy="30" r="22" fill="var(--accent)" fillOpacity=".18" />
-        <circle cx="46" cy="42" r="18" fill="var(--primary)" fillOpacity=".08" />
-      </svg>
-      <div className="splashmark">{t("splash.cyra")}<span>.</span></div>
-      <div className="splashtag">{t("splash.oneCompanionForEveryPhase")}</div>
+      <BrandMark size={60} className="splashmotif" />
+      <div className="splashmark">{t("splash.cyra")}<span className="sub">{t("splash.health")}</span></div>
+      <div className="splashtag slogan">{t("splash.slogan")}</div>
       <h1 className="disp" style={{ marginTop: 16 }}>{t("splash.periodsPregnancy")}
         <br />{t("splash.theTransitionAnd")}
         <br />{t("splash.finallyBeingHeard")}</h1>

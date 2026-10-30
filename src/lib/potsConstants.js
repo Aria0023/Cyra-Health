@@ -205,7 +205,7 @@ export const SAFETY_COPY = {
     GUIDE_VERIFIED stays false and the figure-free paragraph is used instead. Never a
     default, never pre-filled. */
 export const GUIDE_VERIFIED = false;
-const GUIDE_FIGURES = ["Expert guidance for adults with POTS often mentions about 2 to 3 litres of fluid a day and about 10 to 12 grams of salt (sodium chloride), which is roughly 4 to 5 grams of sodium, ", { b: "only when a clinician agrees" }, ". (Heart Rhythm Society 2015; Canadian Cardiovascular Society 2020.) Clinicians adjust these for each person. They aren't a goal Cyra sets for you."];
+const GUIDE_FIGURES = ["Expert guidance for adults with POTS often mentions about 2 to 3 litres of fluid a day and about 10 to 12 grams of salt (sodium chloride), which is roughly 4 to 5 grams of sodium, ", { b: "only when a clinician agrees" }, ". (Heart Rhythm Society 2015; Canadian Cardiovascular Society 2020.) Clinicians adjust these for each person. They aren't a goal Heard Health sets for you."];
 const GUIDE_NO_FIGURES = ["Expert guidance for adults with POTS often suggests more fluid and more salt than usual, only when a clinician agrees (Heart Rhythm Society 2015; Canadian Cardiovascular Society 2020). Clinicians set the amounts for each person."];
 export const GUIDE_COPY = [
   GUIDE_VERIFIED ? GUIDE_FIGURES : GUIDE_NO_FIGURES,
@@ -223,8 +223,8 @@ export const POTS_BANNED = /\byou(?:['’]ve)?\s+(?:(?:may|might|probably|likely
 /** Shown instead of the POTS tools page's content and instead of the Settings switch when the
     stored `pots` was written by a newer build (lib/pots.js isLockedPots): this build leaves
     it untouched. */
-export const POTS_LOCKED_COPY = "Update Cyra to see your POTS log. It was saved by a newer version of Cyra, so this version leaves it untouched.";
+export const POTS_LOCKED_COPY = "Update Heard Health to see your POTS log. It was saved by a newer version of Heard Health, so this version leaves it untouched.";
 
 /** "Delete POTS log" confirm (Settings → Add-ons → "Hide it and erase", and POTS settings). It
     lists exactly what lib/pots.js eraseLog keeps; PRIVACY-AUDIT checks it word for word. */
-export const POTS_ERASE = "Erase your POTS log from this device? Standing tests, drinks and salt, symptoms, triggers, episodes, medicines, movement, your goals, your plan and visit questions, the symptom and trigger names you added, your drink and salt buttons, and what you told Cyra for your report all go for good. Only display choices stay: units, paper size, Simple view, which cards show, the order of Cyra's own symptom chips, your stand-test setup, the teen threshold setting and whether notes and cycle details go in reports. Your check-ins aren't touched. Backups you saved earlier still have it.";
+export const POTS_ERASE = "Erase your POTS log from this device? Standing tests, drinks and salt, symptoms, triggers, episodes, medicines, movement, your goals, your plan and visit questions, the symptom and trigger names you added, your drink and salt buttons, and what you told Heard Health for your report all go for good. Only display choices stay: units, paper size, Simple view, which cards show, the order of Heard Health's own symptom chips, your stand-test setup, the teen threshold setting and whether notes and cycle details go in reports. Your check-ins aren't touched. Backups you saved earlier still have it.";

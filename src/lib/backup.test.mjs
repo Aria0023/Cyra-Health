@@ -19,7 +19,7 @@ test("backup: round trip; the envelope carries only the format and what decrypti
   await assert.rejects(decryptBackup(e, "wrong passphrase"), /Wrong passphrase/);
   assert.equal(isEnvelope(e), true);
   for (const x of [null, undefined, {}, { days: [] }, { ...e, v: 2 }, { ...e, format: "x" }, { ...e, ct: "" }, { ...e, salt: 1 }, "str"]) assert.equal(isEnvelope(x), false);
-  assert.equal(backupFileName("2026-10-22"), "cyra-backup-2026-10-22.cyra.json");
+  assert.equal(backupFileName("2026-10-22"), "heard-health-backup-2026-10-22.json");
 });
 
 test("backup: backup.js has no import (the POTS suites load it from Node)", () => {
@@ -43,7 +43,7 @@ test("backup: file transport, web — a download named by the day, the exact env
     const t = fileTransport({ isNative: () => false, doc, URL: URL_, Blob: FakeBlob, later: (fn, ms) => { timer = { fn, ms }; } });
     assert.equal(t.kind, "file"); assert.equal(t.available(), true);
     assert.equal(await t.save(e, { name: backupFileName("2026-10-22") }), true);
-    assert.equal(anchor.download, "cyra-backup-2026-10-22.cyra.json");
+    assert.equal(anchor.download, "heard-health-backup-2026-10-22.json");
     assert.equal(anchor.href, "blob:x");
     assert.equal(blobs.length, 1); assert.equal(blobs[0].type, "application/json"); assert.deepEqual(blobs[0].parts, [JSON.stringify(e)]);
     assert.deepEqual(log, ["create a", "url", "append", "click", "remove"]);
@@ -73,7 +73,7 @@ test("backup: file transport, phone — cache file, share sheet, deleted every t
     assert.equal(await t.save(e, { name }), true);
     assert.deepEqual(calls, [
       ["write", { path: name, data: JSON.stringify(e), directory: "CACHE", encoding: "utf8" }],
-      ["share", { title: "Cyra encrypted backup", files: ["file:///cache/x"] }],
+      ["share", { title: "Heard Health encrypted backup", files: ["file:///cache/x"] }],
       ["delete", { path: name, directory: "CACHE" }],
     ]);
     ({ t, calls } = mk({ shareError: "Share canceled" }));
@@ -95,7 +95,7 @@ test("backup: file transport, phone — cache file, share sheet, deleted every t
 test("backup: file transport load parses a chosen file and refuses anything else", async () => {
   const t = fileTransport({ isNative: () => false });
   assert.deepEqual(await t.load({ text: async () => '{"format":"cyra-backup","v":1}' }), { format: "cyra-backup", v: 1 });
-  await assert.rejects(t.load({ text: async () => "not json" }), { message: "That file isn't a Cyra backup" });
+  await assert.rejects(t.load({ text: async () => "not json" }), { message: "That file isn't a Heard Health backup" });
 });
 
 test("backup: cloud transport is closed by default — every method rejects CLOUD_OFF before any request", async () => {
@@ -105,7 +105,7 @@ test("backup: cloud transport is closed by default — every method rejects CLOU
   for (const t of [cloudTransport(), cloudTransport({ request: spy, enabled: true }), cloudTransport({ request: spy, gate: () => true }), cloudTransport({ enabled: true, gate: () => true })]) {
     assert.equal(t.kind, "cloud");
     assert.equal(t.available(), false);
-    await assert.rejects(t.save(e), { code: "CLOUD_OFF", message: "Encrypted cloud backup isn't available in this version of Cyra" });
+    await assert.rejects(t.save(e), { code: "CLOUD_OFF", message: "Encrypted cloud backup isn't available in this version of Heard Health" });
     await assert.rejects(t.load({ id: ID, token: TOKEN }), { code: "CLOUD_OFF" });
     await assert.rejects(t.remove({ id: ID, token: TOKEN }), { code: "CLOUD_OFF" });
   }
@@ -157,7 +157,7 @@ test("backup: cloud transport (opened in a test) sends only the envelope as octe
   answer = () => ok(404, { error: "not found" });
   await assert.rejects(t.load({ id: ID, token: TOKEN }), { code: "GONE", message: "That cloud backup is gone or the code is wrong" });
   answer = () => ok(500, {});
-  await assert.rejects(t.save(e), { code: "SERVER", status: 500, message: "Cyra's server couldn't keep the backup (HTTP 500)" });
+  await assert.rejects(t.save(e), { code: "SERVER", status: 500, message: "Heard Health's server couldn't keep the backup (HTTP 500)" });
   answer = () => { throw Object.assign(new Error("network"), { network: true }); };
   await assert.rejects(t.remove({ id: ID, token: TOKEN }), { message: "network", network: true }, "network errors pass through as apiFetch throws them");
 });

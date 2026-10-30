@@ -120,6 +120,7 @@ test("SCHEME_TOKENS (L2, v2 in calm R1): light is the v2 literals; dark has the 
     "--edge": "#ECE7E3", "--wash-a": "rgba(150,120,230,.06)", "--wash-b": "rgba(100,165,235,.06)", "--wash-c": "rgba(240,130,175,.06)",
     "--tint-mind": "#EAF1FB", "--tint-body": "#F5EDF8", "--tint-patterns": "#FDF0E6", "--tint-you": "#F2F0ED",
     "--sh-lift": "0 2px 6px rgba(30,33,50,.06), 0 14px 32px -10px rgba(30,33,50,.24)", "--scrim": "rgba(30,33,50,.34)",
+    "--brand": "#4A5DB0",
   });
   assert.deepEqual(Object.keys(SCHEME_TOKENS.dark).sort(), Object.keys(SCHEME_TOKENS.light).sort());
   const T = SCHEME_TOKENS.dark;

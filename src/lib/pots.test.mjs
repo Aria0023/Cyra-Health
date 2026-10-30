@@ -695,7 +695,7 @@ test("c4: POTS_BANNED catches diagnoses stated, hedged or denied, and lets the d
     "It indicates POTS", "points to POTS", "diagnosed with", "a positive test", "negative", "abnormal", "a normal result", "late", "missed",
   ]) assert.ok(POTS_BANNED.test(bad), bad);
   for (const ok of [
-    "Cyra can't diagnose POTS; only a clinician can.", "Some people with POTS notice symptoms shift with their cycle",
+    "Heard Health can't diagnose POTS; only a clinician can.", "Some people with POTS notice symptoms shift with their cycle",
     "conditions like POTS (postural orthostatic tachycardia syndrome)", "Is it safe for me to start an exercise plan?",
     "late_drop", "Could a standing test or tilt-table test help explain why I feel unwell when I stand?",
   ]) assert.ok(!POTS_BANNED.test(ok), ok);
@@ -1084,7 +1084,7 @@ test("s2: turnOn / turnOff never touch the log or the stage, and leave a locked 
   const locked = { v: 2, on: true, future: { a: 1 } };
   assert.equal(turnOn(locked, { day: D }), locked); assert.equal(turnOff(locked), locked);
   assert.equal(resetPregClearance(locked), locked);
-  assert.ok(isLockedPots(locked) && typeof POTS_LOCKED_COPY === "string" && /^Update Cyra to see your POTS log\./.test(POTS_LOCKED_COPY));
+  assert.ok(isLockedPots(locked) && typeof POTS_LOCKED_COPY === "string" && /^Update Heard Health to see your POTS log\./.test(POTS_LOCKED_COPY));
   assertClean(POTS_LOCKED_COPY, "POTS_LOCKED_COPY");
 });
 
@@ -1283,7 +1283,7 @@ test("s3: raiseSym only raises; markQuick, setFaintPause and markOffered set one
 });
 
 test("s3: the erase confirm names what eraseLog keeps (display choices only)", () => {
-  for (const kept of ["units", "paper size", "Simple view", "which cards show", "the order of Cyra's own symptom chips", "your stand-test setup", "the teen threshold setting", "whether notes and cycle details go in reports"]) assert.ok(POTS_ERASE.includes(kept), kept);
+  for (const kept of ["units", "paper size", "Simple view", "which cards show", "the order of Heard Health's own symptom chips", "your stand-test setup", "the teen threshold setting", "whether notes and cycle details go in reports"]) assert.ok(POTS_ERASE.includes(kept), kept);
   assert.ok(!POTS_BANNED.test(POTS_ERASE));
 });
 

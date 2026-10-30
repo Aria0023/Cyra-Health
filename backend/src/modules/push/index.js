@@ -112,7 +112,7 @@ export function mount(router, ctx, { intervalMs = 60_000, agent, clock = () => n
   const send = (s) => {
     let timer;
     const deadline = new Promise((resolve) => { timer = setTimeout(() => resolve(DEADLINE), sendDeadlineMs); timer.unref?.(); });
-    const req = webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, JSON.stringify({ title: "Cyra", body: "Time for your 30-second check-in.", tag: "cyra-checkin" }), { TTL: 60 * 60, urgency: "normal", timeout: sendTimeoutMs, ...(agent ? { agent } : {}) });
+    const req = webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, JSON.stringify({ title: "Heard Health", body: "Time for your 30-second check-in.", tag: "cyra-checkin" }), { TTL: 60 * 60, urgency: "normal", timeout: sendTimeoutMs, ...(agent ? { agent } : {}) });
     return Promise.race([req, deadline]).finally(() => clearTimeout(timer));
   };
   const tick = async (now = new Date()) => {

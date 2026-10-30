@@ -12,8 +12,8 @@ import { potsNeverSent } from "../../lib/disclosures.js";
 /** "Exactly what's kept", first line, by where the record really is (ui.js potsUnsaved). */
 const KEPT = {
   saved: "Everything you log in POTS tools is stored on this device with the rest of your record, and goes into an encrypted backup if you save one.",
-  memory: "Everything you log in POTS tools is kept with the rest of your record, which right now is only in memory for this session (see Privacy & your data below): it's lost when you close Cyra unless you save an encrypted backup.",
-  stale: "Everything you log in POTS tools is kept with the rest of your record, but Cyra couldn't confirm your latest changes were saved on this device (see Privacy & your data below). It goes into an encrypted backup if you save one.",
+  memory: "Everything you log in POTS tools is kept with the rest of your record, which right now is only in memory for this session (see Privacy & your data below): it's lost when you close Heard Health unless you save an encrypted backup.",
+  stale: "Everything you log in POTS tools is kept with the rest of your record, but Heard Health couldn't confirm your latest changes were saved on this device (see Privacy & your data below). It goes into an encrypted backup if you save one.",
 };
 
 /* Settings → Add-ons: the POTS tools switch (lib/pots.js, spec A13). It shows only once a life

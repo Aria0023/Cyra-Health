@@ -36,7 +36,7 @@ test("account lines: a name is mentioned only when one was given", () => {
   assert.equal(accountLine(null), ACCOUNT_LINES.none);
 });
 
-test("legal lines say what Cyra is not", () => {
+test("legal lines say what Heard Health is not", () => {
   assert.match(NOT_MEDICAL, /not a medical device/);
   assert.match(NOT_MEDICAL, /does not diagnose/);
   assert.match(AI_OFF_LINE, /aren't sent anywhere/);

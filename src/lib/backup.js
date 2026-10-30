@@ -48,7 +48,7 @@ export async function encryptBackup(state, passphrase) {
 
 /** envelope + passphrase → state. Throws a plain-language error on a wrong passphrase or a damaged file. */
 export async function decryptBackup(envelope, passphrase) {
-  if (!envelope || envelope.format !== "cyra-backup" || envelope.v !== 1) throw new Error("That file isn't a Cyra backup");
+  if (!envelope || envelope.format !== "cyra-backup" || envelope.v !== 1) throw new Error("That file isn't a Heard Health backup");
   const key = await deriveKey(String(passphrase || ""), unb64(envelope.salt), envelope.iter || ITERATIONS);
   try {
     const pt = await subtle.decrypt({ name: "AES-GCM", iv: unb64(envelope.iv) }, key, unb64(envelope.ct));
@@ -86,7 +86,7 @@ export async function encryptWithKey(state, { salt, key }) {
 
 /** envelope + passphrase → { state, salt, key } (the key for encryptWithKey). Same errors as decryptBackup. */
 export async function openBackup(envelope, passphrase) {
-  if (!isEnvelope(envelope)) throw new Error("That file isn't a Cyra backup");
+  if (!isEnvelope(envelope)) throw new Error("That file isn't a Heard Health backup");
   const raw = await rawKeyOf(String(passphrase || ""), unb64(envelope.salt), envelope.iter || ITERATIONS);
   try {
     const pt = await subtle.decrypt({ name: "AES-GCM", iv: unb64(envelope.iv) }, await aesKey(raw), unb64(envelope.ct));
@@ -99,7 +99,7 @@ export async function openBackup(envelope, passphrase) {
 /** envelope + { salt, key } → state, for an envelope made under the same key (an account's backups all share its salt).
     Throws "Wrong passphrase, or the file is damaged" when the salt differs or the key doesn't open it. */
 export async function decryptWithKey(envelope, { salt, key }) {
-  if (!isEnvelope(envelope)) throw new Error("That file isn't a Cyra backup");
+  if (!isEnvelope(envelope)) throw new Error("That file isn't a Heard Health backup");
   try {
     if (envelope.salt !== salt || (envelope.iter || ITERATIONS) !== ITERATIONS) throw new Error("other key");
     const pt = await subtle.decrypt({ name: "AES-GCM", iv: unb64(envelope.iv) }, await aesKey(unb64(key)), unb64(envelope.ct));
@@ -109,8 +109,10 @@ export async function decryptWithKey(envelope, { salt, key }) {
   }
 }
 
-/** The backup file's name: cyra-backup-<local day>.cyra.json (only the day it was made). */
-export const backupFileName = (iso) => `cyra-backup-${iso}.cyra.json`;
+/** The backup file's name: heard-health-backup-<local day>.json (only the day it was made). Builds before the
+    Heard Health rename wrote cyra-backup-<day>.cyra.json; restore reads either, since it checks the envelope
+    (format "cyra-backup", unchanged), never the file name. */
+export const backupFileName = (iso) => `heard-health-backup-${iso}.json`;
 
 /** true for an encrypted backup envelope (what encryptBackup returns), false for anything else. */
 export const isEnvelope = (x) => !!x && typeof x === "object" && x.format === "cyra-backup" && x.v === 1
@@ -139,7 +141,7 @@ export function fileTransport(io) {
         let uri;
         try { ({ uri } = await Filesystem.writeFile({ path: name, data: JSON.stringify(envelope), directory: Directory.Cache, encoding: Encoding.UTF8 })); }
         catch { throw new Error("Couldn't prepare the backup file on this phone"); }
-        try { await Share.share({ title: "Cyra encrypted backup", files: [uri] }); }
+        try { await Share.share({ title: "Heard Health encrypted backup", files: [uri] }); }
         catch (e) {
           const m = String(e?.message || e);
           if (/cancel/i.test(m)) return false;
@@ -158,7 +160,7 @@ export function fileTransport(io) {
     },
     /** A chosen file → its parsed contents (decryptBackup checks it is a Cyra backup). */
     async load(file) {
-      try { return JSON.parse(await file.text()); } catch { throw new Error("That file isn't a Cyra backup"); }
+      try { return JSON.parse(await file.text()); } catch { throw new Error("That file isn't a Heard Health backup"); }
     },
   };
 }
@@ -167,7 +169,7 @@ export function fileTransport(io) {
 export const CLOUD_MAX_BYTES = 4 * 1024 * 1024;
 const ID_RE = /^[A-Za-z0-9_-]{22}$/, TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
 const fail = (code, message, extra = {}) => Promise.reject(Object.assign(new Error(message), { code, ...extra }));
-const CLOUD_OFF = ["CLOUD_OFF", "Encrypted cloud backup isn't available in this version of Cyra"];
+const CLOUD_OFF = ["CLOUD_OFF", "Encrypted cloud backup isn't available in this version of Heard Health"];
 const NOT_ENCRYPTED = ["NOT_ENCRYPTED", "Only an encrypted backup can be uploaded"];
 const GONE = ["GONE", "That cloud backup is gone or the code is wrong"];
 
@@ -183,7 +185,7 @@ export function cloudTransport({ request = null, enabled = false, gate = () => f
   const bodyOf = (envelope) => new TextEncoder().encode(JSON.stringify(envelope));
   const okRef = (ref) => !!ref && typeof ref.id === "string" && ID_RE.test(ref.id) && typeof ref.token === "string" && TOKEN_RE.test(ref.token);
   const bearer = (ref) => ({ authorization: `Bearer ${ref.token}` });
-  const statusError = (r) => (r.status === 404 ? fail(...GONE) : fail("SERVER", `Cyra's server couldn't keep the backup (HTTP ${r.status})`, { status: r.status }));
+  const statusError = (r) => (r.status === 404 ? fail(...GONE) : fail("SERVER", `Heard Health's server couldn't keep the backup (HTTP ${r.status})`, { status: r.status }));
   const send = (path, init) => request(path, init, { timeoutMs: 30000 });
   return {
     kind: "cloud",
@@ -207,7 +209,7 @@ export function cloudTransport({ request = null, enabled = false, gate = () => f
       if (r.status !== 200) return statusError(r);
       let env = null;
       try { env = JSON.parse(new TextDecoder().decode(await r.arrayBuffer())); } catch { /* not JSON */ }
-      if (!isEnvelope(env)) return fail("NOT_ENCRYPTED", "That cloud backup isn't an encrypted Cyra backup");
+      if (!isEnvelope(env)) return fail("NOT_ENCRYPTED", "That cloud backup isn't an encrypted Heard Health backup");
       return env;
     },
     async remove(ref) {

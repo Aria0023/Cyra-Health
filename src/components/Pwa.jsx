@@ -10,18 +10,18 @@ import Icon from "./Icon.jsx";
    - InstallSettings: Settings → Install, the same offer with the iOS steps and an honest note
      that a Home Screen copy keeps its own record. */
 export const PWA_COPY = {
-  updText: "A new version of Cyra is ready",
+  updText: "A new version of Heard Health is ready",
   updButton: "Reload",
-  tipPrompt: "Install Cyra to open it like an app, even without a connection.",
-  tipIos: "Add Cyra to your Home Screen to open it like an app.",
+  tipPrompt: "Install Heard Health to open it like an app, even without a connection.",
+  tipIos: "Add Heard Health to your Home Screen to open it like an app.",
   tipInstall: "Install",
   tipShow: "Show me",
   tipClose: "Hide this tip",
   groupLabel: "Install",
-  rowTitle: "Install Cyra on this device",
+  rowTitle: "Install Heard Health on this device",
   rowPrompt: "Opens in its own window from your home screen or app list, even without a connection, with the same record you have here.",
   rowIos: "Tap Share, then Add to Home Screen.",
-  rowIosNote: "Cyra on your Home Screen starts with its own record, separate from this one in your browser. To bring your check-ins along, make an encrypted backup below, then restore it there from Cyra's first screen.",
+  rowIosNote: "Heard Health on your Home Screen starts with its own record, separate from this one in your browser. To bring your check-ins along, make an encrypted backup below, then restore it there from Heard Health's first screen.",
 };
 
 export function UpdateRow({ onReload }) {

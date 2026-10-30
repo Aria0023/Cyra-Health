@@ -30,8 +30,8 @@ import { FERT_COPY } from "./fertility.js";
 
 /* ---------- fixed text ---------- */
 export const VISIT_TITLE = "Cycle and symptom summary";
-export const MADE_LINE = "Prepared by the user in Cyra · observations, not a diagnosis";
-export const footerText = (n, m) => `Page ${n} of ${m} · Cyra · Observations, not a diagnosis.`;
+export const MADE_LINE = "Prepared by the user in Heard Health · observations, not a diagnosis";
+export const footerText = (n, m) => `Page ${n} of ${m} · Heard Health · Observations, not a diagnosis.`;
 // Same words as the POTS Report's WARNING, kept here so the Report screen never imports a POTS component.
 export const FILE_WARNING = "This file isn't locked. Anyone who gets it can read it. Send it straight to your clinician or their patient portal, and avoid group chats or shared folders.";
 export const GATE_EMPTY = "Log a day first. The PDF is made from your check-ins.";
@@ -73,7 +73,7 @@ function cycleHistory(days, ins, cycleFlags, today) {
     spreadLine = `Cycle lengths: ${lens6.map(lensLabel).join(", ")} days (${ins.variability}-day spread).`;
     if (lens6.some((l) => l.excluded)) spreadLine += " Every cycle is counted here, including any she left out of predictions.";
   } else if (lens6.length === 1) spreadLine = `One complete cycle: ${lens6[0].len} days.`;
-  return { rows, spreadLine, empty: rows.length ? null : "No period start logged in Cyra.", head: ["Start", "Length", "Period days logged", "Note"] };
+  return { rows, spreadLine, empty: rows.length ? null : "No period start logged in Heard Health.", head: ["Start", "Length", "Period days logged", "Note"] };
 }
 
 /**
@@ -107,7 +107,7 @@ export function visitModel({ days = [], ins, ids = [], stage, stageName = "", na
     head: ["Symptom", `Days (of ${n} logged)`, "Moderate or strong", ...(prevOk ? [`30 days before (of ${prevN} logged)`, "Change"] : [])],
     lead: "Days each symptom was logged, most frequent first.",
     more: rest.length ? `Also logged: ${rest.map((r) => `${r.label} (${r.days} ${dayWord(r.days)})`).join(", ")}.` : null,
-    noCompare: !prevOk && n > 0 ? `No comparison with the 30 days before (${fmtRange(pfrom, pto)}): ${prevN} ${prevN === 1 ? "day was" : "days were"} logged then, and Cyra compares only with 10 or more.` : null,
+    noCompare: !prevOk && n > 0 ? `No comparison with the 30 days before (${fmtRange(pfrom, pto)}): ${prevN} ${prevN === 1 ? "day was" : "days were"} logged then, and Heard Health compares only with 10 or more.` : null,
     none: n === 0 ? "Nothing logged in these 30 days." : symRows.length === 0 ? "No symptoms logged in these 30 days." : null,
   };
 
@@ -127,7 +127,7 @@ export function visitModel({ days = [], ins, ids = [], stage, stageName = "", na
     : `Average ${avg} over ${count} logged ${dayWord(count)}${count >= 2 ? `; lowest ${low.score} on ${fmtDay(low.iso)}, highest ${high.score} on ${fmtDay(high.iso)}` : ""}.${prevOk ? ` The 30 days before: average ${prevAvg} over ${prevCount} logged days.` : ""}`;
   const trend = {
     points, count, avg, low, high, prevAvg, prevCount, sentence,
-    caption: "Each dot is a day she logged: Cyra's 0–100 day score from her symptom severities and her fatigue, pain and mood ratings. Higher is a better day. Dashed line: 30-day average. Grey bars: period days. Gaps: days not logged.",
+    caption: "Each dot is a day she logged: Heard Health's 0–100 day score from her symptom severities and her fatigue, pain and mood ratings. Higher is a better day. Dashed line: 30-day average. Grey bars: period days. Gaps: days not logged.",
   };
 
   const fertility = Array.isArray(fertilityLines) && fertilityLines.length ? fertilityLines.map(String) : null;
@@ -154,7 +154,7 @@ export function visitModel({ days = [], ins, ids = [], stage, stageName = "", na
     contents: parts.length ? `In it: ${andList(parts)}.` : "",
     top: `At the top: ${cleanName ? "your name, " : ""}your life stage and the dates it covers.`,
     enough: n > 0 || cycles.rows.length > 0,
-    files: { pdf: `cyra-summary-${today}.pdf` },
+    files: { pdf: `heard-health-summary-${today}.pdf` },
   };
 }
 

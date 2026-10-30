@@ -58,7 +58,7 @@ function policyLinksFetch() {
 }
 
 /* Offline shell (spec A14.1): lists only Cyra's own files — index.html, the bundle under
-   assets/, manifest.webmanifest and icons/*.png (never sw.js, source maps or the font licence
+   assets/, manifest.webmanifest and icons/*.png and *.svg (never sw.js, source maps or the font licence
    texts) — and writes that list, a content-hash version and the entry script into the one
    `// @cyra-build` line of the sw.js copied into the out dir (public/sw.js keeps its dev
    placeholder). Identical rebuilds give an identical version; it works with any --outDir.
@@ -100,7 +100,7 @@ function cyraServiceWorker() {
       if (!fs.existsSync(swPath)) { config.logger.warn("\n[cyra] WARNING: no sw.js in the out dir, so this build has no offline shell.\n"); return; }
       fs.writeFileSync(swPath, injectBuild(fs.readFileSync(swPath, "utf8"), { version, base: config.base, entry, index: config.base + "index.html", files }));
       const missing = [config.base + "manifest.webmanifest", ...["icon-192.png", "icon-512.png", "icon-maskable-192.png", "icon-maskable-512.png", "apple-touch-icon.png"].map((f) => `${config.base}icons/${f}`)].filter((f) => !files.includes(f));
-      if (missing.length) config.logger.warn(`\n[cyra] WARNING: the offline shell is missing ${missing.join(", ")} (run python3 scripts/make-icons.py).\n`);
+      if (missing.length) config.logger.warn(`\n[cyra] WARNING: the offline shell is missing ${missing.join(", ")} (run node scripts/make-icons.mjs).\n`);
     },
   };
 }

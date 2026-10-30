@@ -187,7 +187,7 @@ export function checkSummary(s) {
     if (v === null) return;
     if (Array.isArray(v)) { if (v.length > 12) out.push(`${path}: too many items`); v.forEach((x) => walk(x, `${path}[]`)); return; }
     if (isObj(v)) { for (const k of Object.keys(v)) walk(v[k], path ? `${path}.${k}` : k); return; }
-    if (typeof v === "string") { if (!SUMMARY_VOCAB.has(v)) out.push(`${path}: text outside Cyra's fixed lists`); return; }
+    if (typeof v === "string") { if (!SUMMARY_VOCAB.has(v)) out.push(`${path}: text outside Heard Health's fixed lists`); return; }
     if (typeof v === "number") { if (!Number.isFinite(v) || v < 0 || v > 1000) out.push(`${path}: number out of range`); return; }
     out.push(`${path}: unexpected ${typeof v}`);
   };

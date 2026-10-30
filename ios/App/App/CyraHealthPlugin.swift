@@ -100,11 +100,11 @@ public class CyraHealthPlugin: CAPPlugin, CAPBridgedPlugin {
             // reads as empty. So granted: true means "the request completed", not
             // "every type was allowed"; readDaily returning no rows is the only signal.
             if let error = error {
-                call.reject("Cyra couldn't ask for access to your Health data. Please try again.", nil, error)
+                call.reject("Heard Health couldn't ask for access to your Health data. Please try again.", nil, error)
                 return
             }
             guard success else {
-                call.reject("Cyra couldn't ask for access to your Health data. Please try again.")
+                call.reject("Heard Health couldn't ask for access to your Health data. Please try again.")
                 return
             }
             call.resolve(["granted": true])
@@ -414,12 +414,12 @@ private final class DailyReader {
     private func finish() -> Outcome {
         if let first = errors.first {
             if errors.contains(where: DailyReader.isLocked) {
-                return .failed("Unlock your device so Cyra can read your Health data, then try again.", first)
+                return .failed("Unlock your device so Heard Health can read your Health data, then try again.", first)
             }
-            return .failed("Cyra couldn't read your Health data just now. Please try again.", first)
+            return .failed("Heard Health couldn't read your Health data just now. Please try again.", first)
         }
         if let first = notDetermined.first, notDetermined.count >= queriesStarted {
-            return .failed("Cyra needs your permission to read Health data first.", first)
+            return .failed("Heard Health needs your permission to read Health data first.", first)
         }
 
         let baseline = temperatureBaseline()

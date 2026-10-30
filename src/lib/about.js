@@ -17,8 +17,8 @@ export const MODULE_ADDS_IDS = Object.freeze(Object.keys(MODULE_ADDS));
 
 export const PLAN_COPY = Object.freeze({
   eyebrow: "Your plan",
-  free: "Cyra Free",
-  test: "Cyra Pro (test build)",
+  free: "Heard Health Free",
+  test: "Heard Health Pro (test build)",
   body: "Everything you need to log, follow your cycle and bring a clear summary to an appointment is free. Pro adds more depth for anyone who wants it.",
   see: "See what Pro adds",
   none: "There's nothing to buy in this version.",
@@ -29,12 +29,12 @@ export const PLAN_COPY = Object.freeze({
 export const ACCOUNT_LINES = Object.freeze({
   none: "No account. Your log lives on this device.",
   named: "No account. Your log lives on this device, and your name stays with it.",
-  more: "Cyra keeps no account or profile of you. Your name and email, if you gave them, stay on this device and go into an encrypted backup only if you save one.",
+  more: "Heard Health keeps no account or profile of you. Your name and email, if you gave them, stay on this device and go into an encrypted backup only if you save one.",
   // calm R9: a build that offers the optional account (the AccountCard's footer instead of `more`)
-  moreAccount: "Cyra keeps no profile of you. Your name and email, if you gave them, stay on this device and go into an encrypted backup only if you save one or make an account; your account itself never holds your email, only a one-way hash of it.",
+  moreAccount: "Heard Health keeps no profile of you. Your name and email, if you gave them, stay on this device and go into an encrypted backup only if you save one or make an account; your account itself never holds your email, only a one-way hash of it.",
 });
-export const NOT_MEDICAL = "Cyra is not a medical device. It shows patterns from what you log and plain-language information. It does not diagnose, treat or replace your clinician.";
-export const AI_OFF_LINE = "Questions are answered on this device from Cyra's written library and aren't sent anywhere.";
+export const NOT_MEDICAL = "Heard Health is not a medical device. It shows patterns from what you log and plain-language information. It does not diagnose, treat or replace your clinician.";
+export const AI_OFF_LINE = "Questions are answered on this device from Heard Health's written library and aren't sent anywhere.";
 
 /** The account line for an `acct` ({name, email, anon}): a name is mentioned only when she gave one. */
 export const accountLine = (acct) => (acct && !acct.anon && String(acct.name || "").trim() ? ACCOUNT_LINES.named : ACCOUNT_LINES.none);

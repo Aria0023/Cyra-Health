@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 72" width="300" height="72" role="img" aria-label="Heard Health">
+  <title>Heard Health</title>
+  <!-- Live text: needs Fraunces (600) and Karla (700), both bundled with the app under the SIL Open Font License.
+       Outline the text in a design tool before sending this file to a printer or a site that lacks the fonts. -->
+  <rect width="300" height="72" fill="#FAF7F4"/>
+  <g transform="translate(4 4)">
+    <g fill="none" stroke="#4A5DB0" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15.22 38.92 A19 19 0 1 1 26.13 48.07"/>
+      <path d="M26.13 48.07 Q22.93 53.47 16.53 55.47"/>
+    </g>
+    <circle cx="32" cy="30" r="5.5" fill="#4A5DB0"/>
+  </g>
+  <text x="76" y="48" font-family="Fraunces, 'Fraunces Variable', Georgia, serif" font-weight="600" font-size="40" fill="#1E2132">Heard</text>
+  <text x="198" y="40" font-family="Karla, 'Karla Variable', Arial, sans-serif" font-weight="700" font-size="13" letter-spacing="2" fill="#4A5DB0">HEALTH</text>
+</svg>

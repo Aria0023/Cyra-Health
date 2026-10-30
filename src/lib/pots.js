@@ -1148,7 +1148,7 @@ export function standResult(test, opts = {}) {
     const lead = peakRise > 0 ? `Your heart rate went up by ${fmtN(peakRise)} beats a minute at most, under the ${thr}-beat rise clinicians look for in this test.` : `Your heart rate didn't rise above your lying rate, so it stayed under the ${thr}-beat rise clinicians look for in this test.`;
     L("hr", `${lead} One test is one snapshot, and results change with time of day, fluids, medicines and your cycle. If standing makes you feel unwell, share this anyway. How you feel matters as much as the number.`, feelAny || symHeavy ? "visit" : "self");
   } else {
-    L("hr", "There aren't enough readings to work out a rise. Cyra needs a lying heart rate and at least two upright readings. What you entered is saved.");
+    L("hr", "There aren't enough readings to work out a rise. Heard Health needs a lying heart rate and at least two upright readings. What you entered is saved.");
   }
   if (counted) L("counted", `Counted pulses can be off by a few beats, so a result this close to ${thr} is worth repeating with a device.`);
   if (restHigh) L("restHigh", "A lying heart rate of 100 or more is something clinicians check separately. Mention it.", "visit");
@@ -1186,7 +1186,7 @@ export function standResult(test, opts = {}) {
   };
 }
 /** The fixed ending under every result. */
-export const RESULT_FOOT = "Cyra compares your numbers with published thresholds (Heart Rhythm Society 2015). It doesn't diagnose. One home test is one snapshot.";
+export const RESULT_FOOT = "Heard Health compares your numbers with published thresholds (Heart Rhythm Society 2015). It doesn't diagnose. One home test is one snapshot.";
 
 /* ---------- standing test: the schedule, the trend, tilt notes ---------- */
 /** Lying readings are taken at rest minutes restMin - 1 and restMin (A13.4). */

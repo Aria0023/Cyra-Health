@@ -1,6 +1,6 @@
 {
   "appId": "com.cyrahealth.app",
-  "appName": "Cyra",
+  "appName": "Heard Health",
   "webDir": "dist",
   "loggingBehavior": "none",
   "server": { "hostname": "localhost", "iosScheme": "capacitor", "androidScheme": "https" },

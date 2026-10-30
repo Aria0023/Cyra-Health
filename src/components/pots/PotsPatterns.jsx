@@ -34,7 +34,7 @@ const lc1 = (s) => (s ? s[0].toLowerCase() + s.slice(1) : s);
 const wearName = (src) => (src === "healthkit" ? (platform() === "android" ? "watch" : "Apple Watch") : src === "oura" ? "ring" : "wearable");
 export const WEAR_CARD_TAG = (src) => `From your ${wearName(src)} · shown here only, never in your report.`;
 export const WEAR_ROW_NOTE = (src) => `From your ${wearName(src)} · shown here only, not in reports.`;
-export const HEAT_LINE = "Cyra doesn't look up the weather, because that would send your location to a weather service. Tag heat yourself when it bothers you.";
+export const HEAT_LINE = "Heard Health doesn't look up the weather, because that would send your location to a weather service. Tag heat yourself when it bothers you.";
 const WEAR_CHECKED = "Watch and ring: HRV is compared only when exactly one watch or ring is connected, and only over its own readings, because devices measure it differently. Resting heart rate and sleep score use the device that sent most of the days.";
 
 /** Rich text: strings and { b } (bold) segments. */
@@ -165,8 +165,8 @@ function MonthView({ pots, pat, stage, stageName, outcome, setOutcome, window })
       <h3 className="lab" id="pots-pat-cards">What stood out</h3>
       {known < THRESH.pat.rated && (
         <p className="plain">{pat.outcome
-          ? `Cyra compares once it has at least ${THRESH.pat.rated} days with symptoms logged in this window. There are ${known} so far.`
-          : `Cyra compares days once you've rated at least ${THRESH.pat.rated} in this window. You've rated ${known} so far.`}</p>
+          ? `Heard Health compares once it has at least ${THRESH.pat.rated} days with symptoms logged in this window. There are ${known} so far.`
+          : `Heard Health compares days once you've rated at least ${THRESH.pat.rated} in this window. You've rated ${known} so far.`}</p>
       )}
       {pat.cards.length ? pat.cards.map((c) => <Card key={c.key} c={c} />) : <p className="plain">Nothing stands out yet.</p>}
       <p className="rfoot">{pat.footer}</p>
@@ -177,7 +177,7 @@ function MonthView({ pots, pat, stage, stageName, outcome, setOutcome, window })
           <div className="potstablewrap" role="region" aria-label="Good days and rough days" tabIndex={0}>
             <table className="rtab potsrtab">
               <caption>{`Your ${gvr.nGood} good and ${gvr.nRough} rough days ${inLast}, side by side.`}</caption>
-              <thead><tr><th scope="col"><span className="sr-only">What Cyra compared</span></th><th scope="col">{`Good days (${gvr.nGood})`}</th><th scope="col">{`Rough days (${gvr.nRough})`}</th></tr></thead>
+              <thead><tr><th scope="col"><span className="sr-only">What Heard Health compared</span></th><th scope="col">{`Good days (${gvr.nGood})`}</th><th scope="col">{`Rough days (${gvr.nRough})`}</th></tr></thead>
               <tbody>{gvr.rows.map((r) => <tr key={r.label}><th scope="row" style={{ fontWeight: 400, textAlign: "left", fontSize: 12.5, color: "var(--ink)" }}>{r.label}</th><td>{r.good}</td><td>{r.rough}</td></tr>)}</tbody>
             </table>
           </div>
@@ -195,7 +195,7 @@ function MonthView({ pots, pat, stage, stageName, outcome, setOutcome, window })
             </div>
           ) : <p className="plain">{`${pat.cycle.wait}.`}</p>}
           {stage === "peri" && <p className="plain">{CYCLE_PERI}</p>}
-          {pat.cycle.shown && <Details label="Where this comes from"><p className="plain">Groups come only from the period starts you logged: period days are the start and the 4 days after it, the week before is the 7 days before a period you went on to log, and other days are the rest. Cyra never predicts ovulation for this. Studies: Peggs KJ et al., Int J Gynaecol Obstet 2012; Fu Q et al., Hypertension 2010.</p></Details>}
+          {pat.cycle.shown && <Details label="Where this comes from"><p className="plain">Groups come only from the period starts you logged: period days are the start and the 4 days after it, the week before is the 7 days before a period you went on to log, and other days are the rest. Heard Health never predicts ovulation for this. Studies: Peggs KJ et al., Int J Gynaecol Obstet 2012; Fu Q et al., Hypertension 2010.</p></Details>}
         </>
       )}
       {stage === "preg" && <div style={{ marginTop: 18 }}><Details label="POTS and pregnancy"><p className="plain">{PREG_NOTE}</p></Details></div>}
@@ -232,8 +232,8 @@ function MonthView({ pots, pat, stage, stageName, outcome, setOutcome, window })
       )}
 
       <div style={{ marginTop: 18 }}>
-        <Details label="What Cyra checked">
-          {pat.checked.length ? <ul>{pat.checked.map((x) => <li key={x.key}>{x.text}</li>)}{wearUsed && <li>{WEAR_CHECKED}</li>}</ul> : <p className="plain">Everything Cyra compared is shown above.</p>}
+        <Details label="What Heard Health checked">
+          {pat.checked.length ? <ul>{pat.checked.map((x) => <li key={x.key}>{x.text}</li>)}{wearUsed && <li>{WEAR_CHECKED}</li>}</ul> : <p className="plain">Everything Heard Health compared is shown above.</p>}
         </Details>
         <Details label="Why heat is a tag"><p className="plain">{HEAT_LINE}</p></Details>
       </div>

@@ -174,7 +174,7 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
     setBusy(true);
     try {
       const data = visitPdf(visit, PdfDoc);
-      const r = await saveFile({ name: visit.files.pdf, data, mime: "application/pdf", title: "Cyra report", onReady: () => ping("PDF ready. Choose where to send it") });
+      const r = await saveFile({ name: visit.files.pdf, data, mime: "application/pdf", title: "Heard Health report", onReady: () => ping("PDF ready. Choose where to send it") });
       if (r !== "cancelled") onPdfMade();
       if (r === "downloaded") ping("PDF downloaded. It's in your browser's downloads");
     } catch (e) { ping(e?.message || "Couldn't make the PDF"); } finally { setBusy(false); }
@@ -210,7 +210,7 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
   const sendAhead = (
     <>
       {pdfCard}
-      <p className="hint" style={{ marginBottom: 10 }}>A short email your doctor can read in twenty seconds — nothing to log into on their end. Below is exactly what it says. Cyra itself sends nothing; the text goes only where you take it.</p>
+      <p className="hint" style={{ marginBottom: 10 }}>A short email your doctor can read in twenty seconds — nothing to log into on their end. Below is exactly what it says. Heard Health itself sends nothing; the text goes only where you take it.</p>
       <p className="rsec">Preview</p>
       <textarea className="inp emailpreview" readOnly rows={emailText.split("\n").length + 1} aria-label="Email preview" value={emailText} onFocus={(e) => e.target.select()} />
       <div className="routes">
