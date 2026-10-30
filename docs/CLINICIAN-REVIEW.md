@@ -310,3 +310,37 @@ clinician, not a diagnosis or medical advice."; their advice text is the L8 copy
 - Text: Associations to raise with your clinician, not a diagnosis or medical advice. / Written by Heard Health's AI (Claude, made by Anthropic) from your summary.
 - Sources: MODULE_FRAMING (R2), unchanged wording.
 - Status: Awaiting clinician sign-off
+
+## Meal notes (optional, PCOS-linked; 2026-10-30)
+No foods, calories, macros, photos or scores; no diet advice, no "good" or "bad" food, no weight. The existing PCOS
+"high-sugar day" marker is unchanged.
+
+### meals.setting
+- Where: You → Modules → Meal notes (under PCOS), the row's line and "What each one adds"
+- Text: Note what kind of meal it was and how your energy felt after. No calories, no photos, no scores. / A Meals row in Body, a Meals logger in the + sheet and on Home, an "Energy after meals" pattern once there are enough notes, and an optional line in your appointment PDF. Kept on this device and in your backups, like the rest of your log. An AI summary, if you use one, holds counts only.
+- Sources: describes the feature; no clinical claim.
+- Status: Awaiting clinician sign-off
+
+### meals.sheet
+- Where: Body → Meals sheet (#meals-sheet)
+- Text: Chips "Breakfast · Lunch · Dinner · Snack"; "What it was mostly": Balanced · Mostly carbs or sweet · Protein-forward · Skipped · Ate late; "Energy after": Steady · Dipped · Crashed. Sub-line: "What kind of meal it was and how your energy felt after, {day}. Every tap saves; all of it is optional." Footer: "No calories, no photos, no scores. Kept on this device and in your backups, like the rest of your log."
+- Sources: none needed (her own description of a meal); please check the kind labels read as neutral, not as a verdict.
+- Status: Awaiting clinician sign-off
+
+### meals.pattern
+- Where: Patterns → "What you're learning", card "Energy after meals" (lib/patterns.js mealCards), and its detail sheet
+- Text: "In your log, energy dipped or crashed more often (/ less often) after meals that were mostly carbs or sweet than after your other meals." / "Meals that were mostly carbs or sweet and (fewer) energy dips are still showing up together in your log, without a clear gap yet." / "In your log, energy dipped or crashed about as often after meals that were mostly carbs or sweet as after your other meals." Question: "Does my energy dip more often after some kinds of meals?" Detail lines: the counts; "Heard Health names a pattern with at least 5 meal notes on each side and 4 dips or crashes in all. Skipped meals and notes without an energy answer are left out."; "This is what your own notes show, not a rule about food. Energy after a meal also follows sleep, stress, your cycle and more."; "The 2023 International PCOS Guideline recommends healthy eating without naming any one specific diet." Followed by the not-medical-advice line.
+- Sources: teede2023 (Recommendations from the 2023 International Evidence-based Guideline for the Assessment and Management of Polycystic Ovary Syndrome, 2023). Verified only through a PubMed-indexed summary of the 2023 guideline ("a healthy lifestyle should be at the focus of care … with no specific diet or physical exercise recommended"); the guideline's own text could not be opened from the build environment. Please confirm the wording against the guideline's lifestyle/dietary recommendations.
+- Status: Awaiting clinician sign-off
+
+### meals.report
+- Where: Report → Appointment PDF, "Include meal notes" tick and the "Meal notes" section (lib/bodylog.js mealReportLines)
+- Text: "N meal notes on N days (no foods, amounts or calories)." / "What meals were mostly: balanced on N days, mostly carbs or sweet on N days, …" / "Energy after meals: steady after N meals, dipped after N meals and crashed after N meals."
+- Sources: counts of her own notes; no clinical claim.
+- Status: Awaiting clinician sign-off
+
+### meals.ai
+- Where: backend AI_FRAME (added rule) and "What Heard Health will send" line "Meal notes (counts only, no foods)"
+- Text: Never give diet or food advice: do not call any food or meal good, bad, healthy or unhealthy, never mention calories, weight or weight loss, and never tell her what to eat; meal-note counts are only associations with how her energy felt.
+- Sources: product rule (no diet advice); no clinical claim.
+- Status: Awaiting clinician sign-off

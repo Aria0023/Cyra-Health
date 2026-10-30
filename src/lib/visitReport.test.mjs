@@ -349,3 +349,21 @@ test("source", () => {
     assert.ok(!/import\((["'`])[^)]*(pdf|visitReport)\.js/.test(code), `${f} lazy-imports pdf.js or visitReport.js`);
   }
 });
+
+test("meal notes only when passed (Meal notes on and ticked): counts in words, no foods", () => {
+  const off = model();
+  assert.equal("meals" in off, false);
+  const sOff = latin1(visitPdf(off, PdfDoc));
+  assert.ok(!sOff.includes("Meal notes"));
+  assert.equal(sOff, latin1(visitPdf(model({ mealLines: null }), PdfDoc)), "null mealLines: identical bytes");
+  assert.equal(sOff, latin1(visitPdf(model({ mealLines: [] }), PdfDoc)), "empty mealLines: identical bytes");
+  const lines = ["5 meal notes on 3 days (no foods, amounts or calories).", "Energy after meals: steady after 3 meals and dipped after 2 meals."];
+  const on = model({ mealLines: lines });
+  assert.deepEqual(on.meals, lines);
+  const s = latin1(visitPdf(on, PdfDoc));
+  assert.ok(s.includes("(4. Meal notes) Tj"));
+  assert.ok(s.includes("5 meal notes on 3 days"));
+  assert.ok(on.contents.includes("your meal notes as counts"));
+  assert.ok(visitTexts(on).includes("Meal notes"));
+  checkWording(on);
+});

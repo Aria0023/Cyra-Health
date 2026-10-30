@@ -5,7 +5,7 @@ import Details from "./Details.jsx";
 import { MODULE_FRAMING, MODULES, sourcesOf } from "../lib/modules.js";
 import {
   MOVE_TYPES, MOVE_MINUTES, MOVE_MAX, SLEEP_CHIPS, SLEEP_MAX, SLEEP_STEP, hoursText, bodyDay, moveLabel, PCOS_DAY, LAB_KINDS,
-  WEIGHT_UNITS, labText, convert, checkValue,
+  WEIGHT_UNITS, labText, convert, checkValue, MEAL_SLOTS, MEAL_KINDS, MEAL_LATE, MEAL_ENERGY, MEALS_PER_DAY, mealText,
 } from "../lib/bodylog.js";
 import { t, fmtDate } from "../lib/i18n.js";
 
@@ -215,6 +215,73 @@ export function PcosSheet({ day, dayWord, todayIso, log, labs, units, onToggle, 
         <p className="hint labnote">{t("bodySheets.cyraKeepsTheseOnThis")}</p>
       </div>
       <p className="rfoot">{MODULE_FRAMING}</p>
+      <div className="bsheet-foot"><button type="button" className="cta" onClick={onClose}>{t("bodySheets.done")}</button></div>
+    </Sheet>
+  );
+}
+
+/* ---------- Meal notes (optional, off by default): which meal, what it was mostly, energy after ----------
+   Calorie-free on purpose: no foods, amounts, photos or scores. Picking a meal adds it (or opens the one already noted,
+   except Snack, which can repeat); every chip below saves on tap. Up to MEALS_PER_DAY a day. */
+export function MealsSheet({ day, dayWord, log, onAdd, onSet, onRemove, onClose }) {
+  const meals = bodyDay(log, day).meals || [];
+  const [sel, setSel] = useState(meals.length ? meals[meals.length - 1].id : null);
+  const cur = meals.find((m) => m.id === sel) || null;
+  const full = meals.length >= MEALS_PER_DAY;
+  const pickSlot = (slot) => {
+    const had = slot !== "snack" ? meals.find((m) => m.meal === slot) : null;
+    if (had) { setSel(had.id); return; }
+    const id = onAdd(slot);
+    if (id) setSel(id);
+  };
+  const chip = (on, label, onClick, key) => (
+    <button key={key} type="button" className={`mc pchip ${on ? "on" : ""}`} aria-pressed={on} onClick={onClick}>{on && <Icon name="check" size={13} />}{label}</button>
+  );
+  return (
+    <Sheet id="meals-sheet" title={t("bodySheets.meals")} closeLabel={t("bodySheets.closeMeals")} onClose={onClose} className="bsheet mealsheet">
+      <p className="bsheet-sub">{t("bodySheets.mealsSub", { dayWord })}</p>
+      <div className="bigval mealcount" aria-live="polite"><span className="serif">{meals.length}</span><span className="mealcount-w">{t("bodySheets.mealNotesCount", { count: meals.length })}</span></div>
+      {meals.length > 0 && (
+        <ul className="meallist" aria-label={t("bodySheets.mealNotesOn", { dayWord })}>
+          {meals.map((m) => (
+            <li key={m.id} className={m.id === sel ? "on" : ""}>
+              <button type="button" className="mealpick" aria-pressed={m.id === sel} onClick={() => setSel(m.id)}>
+                <span className="mealpick-ico" aria-hidden="true"><Icon name="bowl" size={16} /></span><span>{mealText(m)}</span>
+              </button>
+              <button type="button" className="linkbtn" aria-label={t("bodySheets.removeMeal", { what: mealText(m) })} onClick={() => { onRemove(m.id); if (m.id === sel) setSel(null); }}>{t("bodySheets.remove")}</button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="lab" id="meal-slot-lab">{meals.length ? t("bodySheets.whichMealAnother") : t("bodySheets.whichMeal")}</p>
+      <div className="typechips mealslots" role="group" aria-labelledby="meal-slot-lab">
+        {MEAL_SLOTS.map((x) => {
+          const on = !!cur && cur.meal === x.id;
+          const blocked = full && !(x.id !== "snack" && meals.some((m) => m.meal === x.id));
+          return <button key={x.id} type="button" className={`mc ${on ? "on" : ""}`} aria-pressed={on} disabled={blocked} onClick={() => pickSlot(x.id)}>{x.label}</button>;
+        })}
+      </div>
+      {full && <p className="hint">{t("bodySheets.mealsFull", { n: MEALS_PER_DAY })}</p>}
+      {cur ? (
+        <div className="mealedit">
+          <div className="pgroup">
+            <p className="lab" id="meal-kind-lab">{t("bodySheets.whatItWasMostly")}</p>
+            <div className="pchips" role="group" aria-labelledby="meal-kind-lab">
+              {MEAL_KINDS.map((k) => chip(cur.kind === k.id, k.label, () => onSet(cur.id, { kind: cur.kind === k.id ? null : k.id }), k.id))}
+              {chip(!!cur.late, MEAL_LATE.label, () => onSet(cur.id, { late: !cur.late }), MEAL_LATE.id)}
+            </div>
+          </div>
+          <div className="pgroup">
+            <p className="lab" id="meal-energy-lab">{t("bodySheets.energyAfter")}</p>
+            <div className="pchips mealenergy" role="group" aria-labelledby="meal-energy-lab">
+              {MEAL_ENERGY.map((e) => chip(cur.energy === e.id, e.label, () => onSet(cur.id, { energy: cur.energy === e.id ? null : e.id }), e.id))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <p className="hint mealhint">{t("bodySheets.mealsPickFirst")}</p>
+      )}
+      <p className="rfoot">{t("bodySheets.mealsFoot")}</p>
       <div className="bsheet-foot"><button type="button" className="cta" onClick={onClose}>{t("bodySheets.done")}</button></div>
     </Sheet>
   );

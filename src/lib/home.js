@@ -72,8 +72,9 @@ export function homeTiles(saved, availableIds) {
 
 const anyOn = (o) => !!o && Object.values(o).some((v) => (typeof v === "number" ? v > 0 : !!v));
 /** Whether today already has this kind of entry (the tile's "Logged" chip). ctx: { entry, medDay, moveCount, pcosIds,
-    sleepH (hours from the body log, calm R4), pcosDay (the PCOS logger's chips today), moodDay (today's Mind check-in, calm R5) }. */
-export function tileLogged(id, { entry = null, medDay = null, moveCount = 0, pcosIds = [], sleepH = null, pcosDay = [], moodDay = null } = {}) {
+    sleepH (hours from the body log, calm R4), pcosDay (the PCOS logger's chips today), moodDay (today's Mind check-in, calm R5),
+    mealCount (today's meal notes, only while Meal notes is on) }. */
+export function tileLogged(id, { entry = null, medDay = null, moveCount = 0, pcosIds = [], sleepH = null, pcosDay = [], moodDay = null, mealCount = 0 } = {}) {
   const sym = entry?.sym || {};
   switch (id) {
     case "symptoms": return anyOn(sym);
@@ -84,6 +85,7 @@ export function tileLogged(id, { entry = null, medDay = null, moveCount = 0, pco
     case "meds": return anyOn(medDay);
     case "note": return !!entry?.note;
     case "pcos": return (Array.isArray(pcosDay) && pcosDay.length > 0) || pcosIds.some((k) => (sym[k] || 0) > 0);
+    case "meals": return mealCount > 0;
     default: return false;
   }
 }

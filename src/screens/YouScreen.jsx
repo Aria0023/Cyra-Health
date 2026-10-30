@@ -52,7 +52,7 @@ const StageArt = () => (
     <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
   </svg>
 );
-export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, account = null, language = null }) {
+export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, account = null, language = null, meals = null }) {
   const offer = ai.offer || { any: false, weekly: false, chat: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
@@ -82,7 +82,9 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
           <ul className="modlist">
             {modules.map((m) => (m.id === "pots"
               ? pots && <PotsAddon key="pots" module pots={pots.pots} stageName={stageName} onOn={pots.onOn} onOff={pots.onOff} storageDriver={sp.storageDriver} />
-              : <ModuleRow key={m.id} id={m.id} icon="sparkle" name={m.name} short={m.short} adds={MODULE_ADDS[m.id] || m.adds} on={m.on} onToggle={m.onToggle} />))}
+              : [<ModuleRow key={m.id} id={m.id} icon="sparkle" name={m.name} short={m.short} adds={MODULE_ADDS[m.id] || m.adds} on={m.on} onToggle={m.onToggle} />,
+                /* Meal notes: an optional switch under the PCOS module (offered where PCOS is; works whether or not PCOS is on). */
+                m.id === "pcos" && meals && <ModuleRow key="meals" id="meals" icon="bowl" name={t("you.mealsName")} short={t("you.mealsShort")} adds={t("you.mealsAdds")} on={!!meals.on} onToggle={meals.onToggle} />]))}
             {fertRow && (
               <ModuleRow id="fert" icon="thermometer" name={FERT_COPY.settingTitle} short={t("you.fertShort")} adds={MODULE_ADDS.fert} on={!!fertRow.on} onToggle={() => fertRow.setOn(!fertRow.on)} />
             )}
@@ -90,6 +92,7 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
           <Details label={t("you.whatEachOneAdds")}>
             <ul className="modaddslist">
               {modules.filter((m) => m.id !== "pots" || pots).map((m) => <li key={m.id}><b>{m.name}</b> <span className="modadds" id={`mod-${m.id}-adds`}>{MODULE_ADDS[m.id] || m.adds}</span></li>)}
+              {meals && <li><b>{t("you.mealsName")}</b> <span className="modadds" id="mod-meals-adds">{t("you.mealsAdds")}</span></li>}
               {fertRow && <li><b>{FERT_COPY.settingTitle}</b> <span className="modadds" id="mod-fert-adds">{MODULE_ADDS.fert} {fertRow.privacy}</span></li>}
             </ul>
             <p className="rfoot">{t("you.yourModuleSwitchesStayOn", { MODULE_FRAMING })}</p>

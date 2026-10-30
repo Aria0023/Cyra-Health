@@ -1618,4 +1618,22 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .cy[data-scheme=dark] .bodyblob, .cy[data-scheme=dark] .mindblob, .cy[data-scheme=dark] .journey .mindblob, .cy[data-scheme=dark] .patblob { fill:color-mix(in srgb, var(--primary) 9%, transparent); }
 .journey .askpart { background:linear-gradient(180deg, var(--tint-mind) 0, var(--card) 92px) var(--card); border:1px solid var(--edge); border-radius:var(--r-card); box-shadow:var(--sh-card); padding:16px; margin-top:0; }
 .cyclespage > .eyebrow { margin:4px 0 2px; }
+/* Meal notes (optional, off by default): the Meals sheet, the calendar line and the report list. */
+.mealcount { display:flex; align-items:baseline; justify-content:center; gap:8px; }
+.mealcount-w { color:var(--soft); font-size:var(--fs-md); }
+.meallist { list-style:none; margin:0 0 12px; padding:0; display:grid; gap:8px; }
+.meallist li { display:flex; align-items:center; gap:8px; }
+.meallist .linkbtn { font-size:var(--fs-sm); min-height:44px; }
+.mealpick { flex:1; min-width:0; display:flex; align-items:center; gap:10px; min-height:52px; padding:8px 14px 8px 8px; border-radius:16px; border:1px solid var(--line); background:linear-gradient(90deg, var(--tint-body) 0, var(--card) 70%) var(--card); color:var(--ink); font:600 var(--fs-sm) 'Karla Variable','Karla',sans-serif; text-align:left; cursor:pointer; transition:transform var(--t-fast) var(--ease-std), border-color var(--t-fast); }
+.mealpick > span:last-child { overflow-wrap:anywhere; }
+.mealpick:active { transform:scale(.98); }
+.mealpick[aria-pressed="true"] { border-color:var(--primary); box-shadow:inset 0 0 0 1px var(--primary); }
+.mealpick-ico { width:32px; height:32px; flex:none; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; background:var(--card); color:var(--primary-text); box-shadow:inset 0 0 0 1px var(--edge); }
+.mealslots { margin-bottom:6px; }
+.mealedit { margin-top:12px; padding:12px; border-radius:16px; background:color-mix(in srgb, var(--tint-body) 60%, var(--card)); border:1px solid var(--edge); animation:cy-ai-in var(--t-med, 220ms) var(--ease-std); }
+.mealedit .lab { margin-top:0; }
+.mealhint { margin:10px 0 0; }
+.mealline b { margin-inline-end:4px; }
+.rmeals li { display:block; }
+@media (prefers-reduced-motion: reduce) { .mealedit { animation:none; } .mealpick { transition:none; } }
 `;

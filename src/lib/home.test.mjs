@@ -146,3 +146,11 @@ test("calm R5: the Mind check-in ticks the Mood tile; the breathing step opens t
   assert.equal(tileLogged("mood", {}), false);
   assert.deepEqual({ ...STEPS.breathe.action }, { label: "Breathe with Heard Health", practice: "slow" });
 });
+
+test("meal notes tile: Logged once today has a meal note (the tile exists only while Meal notes is on)", () => {
+  assert.equal(TILE_IDS.includes("meals"), true);
+  assert.equal(tileLogged("meals", {}), false);
+  assert.equal(tileLogged("meals", { mealCount: 2 }), true);
+  assert.deepEqual(homeTiles(["symptoms", "meals"], ["symptoms", "sleep", "mood", "move"]), ["symptoms", "sleep"]);
+  assert.deepEqual(homeTiles(["symptoms", "meals"], ["symptoms", "sleep", "mood", "move", "meals"]), ["symptoms", "meals"]);
+});

@@ -13,6 +13,7 @@ import { saveFile } from "../lib/files.js";
 import { isNative } from "../lib/native.js";
 import { can } from "../lib/plan.js";
 import { CheckRow } from "../components/pots/StandSafety.jsx";
+import { t } from "../lib/i18n.js";
 
 /* Cycle & Peri — Report, "What to tell your doctor": plain-language findings,
    what they might mean, verbatim scripts, send-ahead email, and the collapsed
@@ -98,7 +99,7 @@ function Meter({ color, any, strong, mounted }) {
 
 const Sec = ({ n, children }) => <p className="rsec"><span className="rnum">{n}</span><span>{children}</span></p>;
 
-export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, showTable, setShowTable, potsOn = false, todayIso = localDay(), appt = null, daysUntil = () => 0, goTab = () => {}, setShowAppts = () => {}, scoreOn = () => null, scoreColor = () => "var(--primary)", scheme = "light", lens6 = null, fert = null, buildVisit = null, pdfLeft = null, onPdfMade = () => {}, pdfLimit = null, onHandoff = null }) {
+export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, showTable, setShowTable, potsOn = false, todayIso = localDay(), appt = null, daysUntil = () => 0, goTab = () => {}, setShowAppts = () => {}, scoreOn = () => null, scoreColor = () => "var(--primary)", scheme = "light", lens6 = null, fert = null, buildVisit = null, pdfLeft = null, onPdfMade = () => {}, pdfLimit = null, onHandoff = null, mealsK = 0 }) {
   const n = ins.last30.length; // days logged in the last 30 calendar days
   // The last 6 cycle lengths, each marked when she left it out of predictions (L5): the spread still counts every one.
   const lensList = lens6 || ins.lens.map((len) => ({ len, excluded: false }));
@@ -106,6 +107,7 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
   const [copied, setCopied] = useState(null); // index of the script whose Copy just landed
   const [mounted, setMounted] = useState(false); // flips once so the meters grow from 0
   const [withNotes, setWithNotes] = useState(false); // "Include my notes" (L9): UI only, unticked on every visit, never saved
+  const [withMeals, setWithMeals] = useState(false); // "Include meal notes" (only offered while Meal notes is on and she has some): UI only, never saved
   const [busy, setBusy] = useState(false); // a PDF is being made or shared
   const copyTimer = useRef(null);
   useEffect(() => { setMounted(true); return () => clearTimeout(copyTimer.current); }, []);
@@ -151,7 +153,7 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
   const pickedScripts = picked.slice().sort((a, b) => a - b).map((i) => scripts[i]).filter(Boolean);
   // The appointment PDF's model (L9): the picked questions and, while ticked, her notes. It is also the one source of the
   // comparison numbers on this page (prevFor), so the screen and the file cannot drift.
-  const visit = buildVisit ? buildVisit({ questions: pickedScripts, includeNotes: withNotes }) : null;
+  const visit = buildVisit ? buildVisit({ questions: pickedScripts, includeNotes: withNotes, includeMeals: mealsK > 0 && withMeals }) : null;
   const prevFor = (c) => (visit && visit.symptoms.prevOk ? visit.symptoms.prevDays[c.id] ?? 0 : null);
   const email = buildEmail(pickedScripts);
   const emailText = `Subject: ${email.subject}\n\n${email.body}`;
@@ -194,6 +196,12 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
         <>
           <CheckRow on={withNotes} onToggle={() => setWithNotes((v) => !v)}>Include my notes</CheckRow>
           <p className="hint pdfnote">{withNotes ? `${notesK} day note${notesK === 1 ? "" : "s"} in these 30 days will be in the PDF.` : `${notesK} day note${notesK === 1 ? "" : "s"} in these 30 days. They go in only while this is ticked.`}</p>
+        </>
+      )}
+      {mealsK > 0 && (
+        <>
+          <CheckRow on={withMeals} onToggle={() => setWithMeals((v) => !v)}>{t("report.includeMealNotes")}</CheckRow>
+          <p className="hint pdfnote">{withMeals ? t("report.mealNotesIn", { count: mealsK }) : t("report.mealNotesOut", { count: mealsK })}</p>
         </>
       )}
       {visitTexts(visit).some(pdfLossy) && <p className="hint pdfnote">{LOSSY_LINE}</p>}
@@ -360,6 +368,12 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
             <>
               <p className="rcap">My day notes</p>
               <ul className="rnotes">{visit.notes.map(({ iso, text }) => <li key={iso}><b>{fmt(iso)}</b> {text}</li>)}</ul>
+            </>
+          )}
+          {visit && visit.meals && (
+            <>
+              <p className="rcap">{t("report.mealNotes")}</p>
+              <ul className="rnotes rmeals">{visit.meals.map((l) => <li key={l}>{l}</li>)}</ul>
             </>
           )}
           <p className="rfoot">Logged daily by you. Observations, not diagnoses.</p>

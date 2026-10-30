@@ -60,6 +60,7 @@ const PATHS = {
   pause: "M8 5v14M16 5v14",
   stop: "M6.5 6.5h11v11h-11z",
   leaf: "M5 19c0-8 5-14 15-14 0 10-6 15-14 15M5 19l8-8",
+  bowl: "M3 12h18a9 7 0 0 1-18 0zM9 21h6M8.5 8.5c-.8-1 .8-2 0-3.5M12 8.5c-.8-1 .8-2 0-3.5M15.5 8.5c-.8-1 .8-2 0-3.5",
 };
 
 export default function Icon({ name, size = 16, className }) {

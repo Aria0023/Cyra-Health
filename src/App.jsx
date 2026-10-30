@@ -88,7 +88,7 @@ import { fertShown, isTTC, cleanFertPrefs, restoredFertPrefs, defaultTempUnit, F
 import { cleanModules, setModuleOn, isModuleOn, modulesFor } from "./lib/modules.js";
 import { cleanHomeTiles, homeTiles as tilesFor, pcosCycleCand, lastPeriodDay, heroModel, TILE_CATALOG, tileLogged, bodySteps, mindSteps, smallStep, PCOS_SIGNAL_IDS, EMPTY_LINE, dateEyebrow } from "./lib/home.js";
 import { visitModel, paperForLocale } from "./lib/visitReport.js";
-import { cycleTimeline, bodyRing, mindRing, ringInputs, sleepCards, cycleCards, pcosCards, trialCards, spreadCard, topCard, rankCards, usualOf } from "./lib/patterns.js";
+import { cycleTimeline, bodyRing, mindRing, ringInputs, sleepCards, cycleCards, pcosCards, trialCards, spreadCard, topCard, rankCards, usualOf, mealCards } from "./lib/patterns.js";
 import { cleanExperiments, settle, startExperiment, skipWeek, markDay, runningOn, experimentStep, reviewWeek, weekCounts, countWords, weekSignals, pickExperiment, experimentFollowUp, lastFinished, experimentOf } from "./lib/experiments.js";
 import { PLAN, can, exportsLeft, noteExport, planFor } from "./lib/plan.js";
 import { cleanMoodLog, cleanPracticeLog, cleanPracticeFavs, setMoodDay, toggleFeeling, addRun, setHelped, runsOn, toggleFav, nextPractice, practiceOf, moodByCycle, stripSentence, moodStrip, STRIP_MIN, unlocked as practiceUnlocked } from "./lib/mind.js";
@@ -151,8 +151,8 @@ import YouScreen from "./screens/YouScreen.jsx";
 import CyclesScreen from "./screens/CyclesScreen.jsx";
 import LogSheet from "./components/LogSheet.jsx";
 import BodyLog from "./components/BodyLog.jsx";
-import { SleepSheet, MoveSheet, MedsSheet, WeightSheet, PcosSheet, fmtDay as shortDay } from "./components/BodySheets.jsx";
-import { cleanBodyLog, cleanLabs, cleanBodyPrefs, unitsOf, bodyDay, setSleepH, addMove, removeMove, togglePcos, setWeight, addLab, removeLab, moveTotals, logRows, periodDayOf, hoursText } from "./lib/bodylog.js";
+import { SleepSheet, MoveSheet, MedsSheet, WeightSheet, PcosSheet, MealsSheet, fmtDay as shortDay } from "./components/BodySheets.jsx";
+import { cleanBodyLog, cleanLabs, cleanBodyPrefs, unitsOf, bodyDay, setSleepH, addMove, removeMove, togglePcos, setWeight, addLab, removeLab, moveTotals, logRows, periodDayOf, hoursText, addMeal, setMeal, removeMeal, mealDayWords, mealCounts, mealReportLines } from "./lib/bodylog.js";
 import { NavPill } from "./components/ui/index.js";
 import { localTabs, localItems, localPractice } from "./locales/index.js";
 import { cleanLocale, setLocale, resolveLocale, applyDocumentLocale, getLocale, pickerShown, availableLocales } from "./lib/i18n.js";
@@ -537,13 +537,13 @@ export default function CyraDemo() {
   /* The appointment PDF's model (lib/visitReport.js, L9): the same insights, symptom ids and score scale as the screen,
      her picked questions, day notes only with includeNotes, and L7's fertility sentences only for Trying to conceive
      with signs on (the same rule as the Report's finding and the email line). Nothing else is an input. */
-  const buildVisit = ({ questions = [], includeNotes = false } = {}) => {
+  const buildVisit = ({ questions = [], includeNotes = false, includeMeals = false } = {}) => {
     let fertilityLines = null;
     if (ttc && fertOn) {
       const sum = fertSummary(ins.sorted, { from: addDays(todayIso, -29), to: todayIso });
       fertilityLines = sum.logged ? [...fertSummaryLines(sum).map((l) => l.text), ...(sum.bbt.shift ? [bbtShiftSentence(sum.bbt.shift, tempUnit)] : [])] : null;
     }
-    return visitModel({ days, ins, ids: symIds, stage, stageName, name: firstName, today: todayIso, questions, includeNotes, cycleFlags, fertilityLines, paper: paperForLocale(typeof navigator !== "undefined" ? navigator.language : "en-US"), scale: SCORE_SCALE[stage] });
+    return visitModel({ days, ins, ids: symIds, stage, stageName, name: firstName, today: todayIso, questions, includeNotes, cycleFlags, fertilityLines, ...(mealsHere && includeMeals === true ? { mealLines: mealReportLines(bodyLog, addDays(todayIso, -29), todayIso) } : {}), paper: paperForLocale(typeof navigator !== "undefined" ? navigator.language : "en-US"), scale: SCORE_SCALE[stage] });
   };
   // PDFs left this month (null = unlimited, the shipping plan) and the tally after one more (null while unlimited: nothing stored).
   const pdfNow = new Date(todayIso + "T12:00:00");
@@ -1190,6 +1190,10 @@ export default function CyraDemo() {
      expression so a later insight can carry the same sentence. */
   const countsEveryCycle = cyc.excludedCount > 0 ? ` This counts every cycle, including ${cyc.excludedCount === 1 ? "the one" : `the ${cyc.excludedCount}`} you left out of predictions.` : "";
   const pcosHere = stage !== "preg" && modulesFor(stage, stageName).some((m) => m.id === "pcos") && isModuleOn({ modules }, "pcos");
+  /* Meal notes (optional, off by default, bodyPrefs.mealsOn): offered wherever the PCOS module is (My Cycle, Trying to
+     conceive, Perimenopause), whether or not PCOS is on. While off, nothing about meals shows anywhere or goes anywhere. */
+  const mealsOffered = stage !== "preg" && modulesFor(stage, stageName).some((m) => m.id === "pcos");
+  const mealsHere = mealsOffered && bodyPrefs.mealsOn === true;
   const pcosCand = pcosHere && !isMeno ? pcosCycleCand({ on: true, lens: ins.lens }) : null;
   const homeInsight = (() => {
     if (stage === "preg") {
@@ -2319,13 +2323,13 @@ export default function CyraDemo() {
      Quick log tiles (homeTiles, 2–4) drawn from them; what today already holds, for the tiles' "Logged" chips and rails. */
   /* calm R4: Move is the general movement logger in every stage (a sheet); Sleep in pregnancy opens the hours sheet;
      PCOS signals is offered while the module is on. */
-  const logItems = logItemsFor({ period: stage !== "preg", pcos: pcosHere });
+  const logItems = logItemsFor({ period: stage !== "preg", pcos: pcosHere, meals: mealsHere });
   const tileAvail = logItems.map((i) => i.id);
   const homeTileIds = tilesFor(homeTiles, tileAvail);
   const todayEntryNow = entryOn(todayIso) || null;
   const potsMoves = potsTab && potsOk ? (pots?.days?.[todayIso]?.move || []).length : 0;
   const moveToday = moveTotals(bodyLog, todayIso);
-  const tileCtx = { entry: todayEntryNow, medDay: medLog[todayIso] || null, moveCount: moveToday.n + potsMoves, pcosIds: PCOS_SIGNAL_IDS, sleepH: bodyDay(bodyLog, todayIso).sleepH ?? null, pcosDay: pcosHere ? bodyDay(bodyLog, todayIso).pcos || [] : [], moodDay: moodLog[todayIso] || null };
+  const tileCtx = { entry: todayEntryNow, medDay: medLog[todayIso] || null, moveCount: moveToday.n + potsMoves, pcosIds: PCOS_SIGNAL_IDS, sleepH: bodyDay(bodyLog, todayIso).sleepH ?? null, pcosDay: pcosHere ? bodyDay(bodyLog, todayIso).pcos || [] : [], moodDay: moodLog[todayIso] || null, mealCount: mealsHere ? (bodyDay(bodyLog, todayIso).meals || []).length : 0 };
   const homeView = (
     <HomeScreen
       acct={acct} stage={stage} stageName={stageName} goTab={goTab}
@@ -2434,15 +2438,17 @@ export default function CyraDemo() {
   const lastMoveType = (() => { const ks = Object.keys(bodyLog).filter((k) => bodyLog[k].move).sort(); const mv = ks.length ? bodyLog[ks[ks.length - 1]].move : null; return mv ? mv[mv.length - 1].type : "walk"; })();
   const units = unitsOf(bodyPrefs, typeof navigator !== "undefined" ? navigator.language : "");
   const logEntry = entryOn(logDay) || null;
+  // A day counts as logged on the strip by its body log, leaving meal notes out while Meal notes is off.
+  const bodyHas = (iso) => !!bodyLog[iso] && Object.keys(bodyLog[iso]).some((k) => k !== "meals" || mealsHere);
   const logTop = (
     <BodyLog
       actions={stage === "preg"
         ? [{ id: "symptoms", label: "Log symptoms", icon: "pulse", tint: "body" }, { id: "sleep", label: "Sleep", icon: "moon", tint: "mind" }, { id: "move", label: "Move", icon: "move", tint: "body" }, { id: "meds", label: "Meds", icon: "pill", tint: "patterns" }].map((a) => ({ ...a, onClick: () => goLogger(a.id) }))
         : [{ id: "symptoms", label: "Log symptoms", icon: "pulse", tint: "body" }, { id: "flow", label: "Period", icon: "drop", tint: "body" }, fertOn ? { id: "fert", label: "Fertility signs", icon: "teststrip", tint: "mind" } : { id: "move", label: "Move", icon: "move", tint: "body" }, { id: "meds", label: "Meds", icon: "pill", tint: "patterns" }].map((a) => ({ ...a, onClick: () => goLogger(a.id) }))}
-      strip={Array.from({ length: 7 }, (_, i) => { const iso = addDays(todayIso, i - 6); const d = new Date(iso + "T12:00:00"); return { iso, wd: fmtDate(d, { weekday: "narrow" }), dn: d.getDate(), long: fmtDate(d, { weekday: "long", month: "long", day: "numeric" }), today: iso === todayIso, sel: iso === logDay, logged: !!entryOn(iso) || !!bodyLog[iso] || Object.values(medLog[iso] || {}).some(Boolean) }; })}
+      strip={Array.from({ length: 7 }, (_, i) => { const iso = addDays(todayIso, i - 6); const d = new Date(iso + "T12:00:00"); return { iso, wd: fmtDate(d, { weekday: "narrow" }), dn: d.getDate(), long: fmtDate(d, { weekday: "long", month: "long", day: "numeric" }), today: iso === todayIso, sel: iso === logDay, logged: !!entryOn(iso) || bodyHas(iso) || Object.values(medLog[iso] || {}).some(Boolean) }; })}
       onPickDay={(iso) => { if (iso === logDay) return; if (iso === todayIso) endEdit(); else startEdit(iso); }}
       title={logDay === todayIso ? "Today's log" : `Log for ${fmt(logDay)}`}
-      rows={logRows({ moodDay: moodLog[logDay] || null, preg: stage === "preg", entry: logEntry, day: bodyDay(bodyLog, logDay), medDay: medLog[logDay] || null, meds, pcosOn: pcosHere, weightOn: bodyPrefs.weightOn, symLabel: (id) => (stage === "preg" ? GSYM[id] : symMap[id] || ALL_SYM[id] || id), periodDay: stage === "preg" ? 0 : periodDayOf(days, logDay, isPeriodDay) })}
+      rows={logRows({ moodDay: moodLog[logDay] || null, preg: stage === "preg", entry: logEntry, day: bodyDay(bodyLog, logDay), medDay: medLog[logDay] || null, meds, pcosOn: pcosHere, weightOn: bodyPrefs.weightOn, mealsOn: mealsHere, symLabel: (id) => (stage === "preg" ? GSYM[id] : symMap[id] || ALL_SYM[id] || id), periodDay: stage === "preg" ? 0 : periodDayOf(days, logDay, isPeriodDay) })}
       onRow={goLogger} meds={meds} medDay={medLog[logDay] || null}
       onToggleMed={(mid) => setMedLog((l) => ({ ...l, [logDay]: { ...(l[logDay] || {}), [mid]: !(l[logDay] || {})[mid] } }))}
       weightOff={!bodyPrefs.weightOn} onWeightOn={() => openSheet("weight")}
@@ -2463,6 +2469,10 @@ export default function CyraDemo() {
         onUnit={(u) => setBodyPrefs((p) => ({ ...cleanBodyPrefs(p), weightUnit: u }))}
         onSave={(text, u) => { const r = setWeight(bodyLog, sheetDay, text, u); if (r.ok) { setBodyLog(r.log); if (String(text).trim()) setBodyPrefs((p) => ({ ...cleanBodyPrefs(p), weightOn: true })); ping(String(text).trim() ? "Weight saved on this device" : "Weight cleared"); closeSheet(); } return r; }}
         onOff={() => { setBodyPrefs((p) => ({ ...cleanBodyPrefs(p), weightOn: false })); ping("Weight is off your log. What you saved is kept"); closeSheet(); }} />
+    : bodySheet.kind === "meals" && mealsHere ? <MealsSheet day={sheetDay} dayWord={sheetWord} log={bodyLog} onClose={closeSheet}
+        onAdd={(meal) => { const r = addMeal(bodyLog, sheetDay, { meal }); if (r.ok) { setBodyLog(r.log); ping("Meal note added"); return r.id; } ping("That's as many as one day holds"); return null; }}
+        onSet={(mid, patch) => setBodyLog((l) => setMeal(l, sheetDay, mid, patch))}
+        onRemove={(mid) => setBodyLog((l) => removeMeal(l, sheetDay, mid))} />
     : bodySheet.kind === "pcos" ? <PcosSheet day={sheetDay} dayWord={sheetWord} todayIso={todayIso} log={bodyLog} labs={labs} units={units} onClose={closeSheet}
         onToggle={(pid) => setBodyLog((l) => togglePcos(l, sheetDay, pid))}
         onAddLab={(x) => { const r = addLab(labs, x); if (r.ok) { setLabs(r.labs); ping("Added on this device"); } return r; }}
@@ -2479,7 +2489,7 @@ export default function CyraDemo() {
     else if (id === "sleep") { if (stage === "peri") fullForm(); at("today", [".viewpanel button.pill[aria-pressed]", ".viewpanel main h1"]); } // peri's quick card asks sleep itself and hides the pill row
     else if (id === "mood") at("mind", ['.moodbtn[aria-pressed="true"]', ".moodbtn", ".viewpanel main h1"]); // calm R5: the Mind check-in
     else if (id === "note") { at("today", ["#day-note", { click: "button.addnote" }]); }
-    else if (id === "meds" || id === "move" || id === "pcos") openSheet(id);
+    else if (id === "meds" || id === "move" || id === "pcos" || id === "meals") openSheet(id);
   };
   /* ---------- Mind (calm R5, lib/mind.js): Today (check-in, next practice, which one helped), Practices, Journey ---------- */
   const plan = PLAN_NOW;
@@ -2497,7 +2507,7 @@ export default function CyraDemo() {
   };
   const summaryNow = () => buildSummary({
     stage, stageName, entries: stage === "preg" ? Object.entries(pregLog || {}).map(([date, e]) => ({ ...e, date })) : ins.sorted,
-    bodyLog, moodLog, labs, includeLabs: aiPrefs.labs, pcosOn: pcosHere, experiments, todayIso,
+    bodyLog, moodLog, labs, includeLabs: aiPrefs.labs, pcosOn: pcosHere, mealsOn: mealsHere, experiments, todayIso,
   });
   const setAiPref = (k, on) => {
     setAiPrefs((p) => ({ ...p, [k]: on }));
@@ -2550,6 +2560,7 @@ export default function CyraDemo() {
       stage === "peri" && !isMeno ? spreadCard({ variability: ins.variability, lens: cyc.lens6 || [] }) : null,
       ...(found ? sleepCards(found.links) : []), ...(found ? cycleCards(found.links) : []),
       ...(pcosHere ? pcosCards({ entries: ins.sorted, bodyLog, todayIso, lens: (cyc.lens6 || []).map((x) => x.len) }) : []),
+      ...(mealsHere ? mealCards({ bodyLog, todayIso }) : []),
       ...trialCards({ meds, scoreOn, usual: usualOf(sixty || []), todayIso }),
       stage === "periods" ? topCard(ins.counts[0]) : null,
     ].filter(Boolean));
@@ -2598,7 +2609,7 @@ export default function CyraDemo() {
   const youView = (
     <YouScreen acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={canFull} onPro={() => setProOpen(true)}
-      ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
+      ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line} meals={mealsOffered ? { on: mealsHere, onToggle: () => { const on = !mealsHere; setBodyPrefs((p) => cleanBodyPrefs({ ...p, mealsOn: on })); ping(on ? "Meal notes on" : "Meal notes off. What you noted is kept"); } } : null} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
       account={ACCOUNTS_HERE ? { can: ACCOUNTS.available(), acct: cloudAccount.acct, sync: cloudSync, todayIso, onCreate: () => setAcctSheet("create"), onSignIn: () => setAcctSheet("signin"), onBackup: () => backupToCloud(), onSignOut: signOut, onDelete: deleteAccount, onUseBackup: resolveUseBackup, onKeepDevice: resolveKeepDevice, onPro: () => setProOpen(true) } : null}
       care={stage === "preg" ? null : <CareScreen embedded shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Heard Health will compare your days before and after"); }} />} />
   );
@@ -2679,11 +2690,11 @@ export default function CyraDemo() {
               <TodayScreen onPots={potsTab ? () => openPots() : null} pred={pred} stage={stage} welcome={welcome} editDate={editDate} onEndEdit={endEdit} setDraft={setDraft} setSleepQ={setSleepQ} scoreMeter={scoreMeter} quickMode={quickMode} expanded={expanded} setExpanded={setExpanded} quickCheckin={quickCheckin} savedToday={savedToday} yesterdayIso={yesterdayIso} yesterdayLogged={yesterdayLogged} onEditDay={startEdit} symPrefs={symPrefs} setSymPrefs={setSymPrefs} dayNote={dayNote} setDayNote={setDayNote} symMap={symMap} draft={draft} sleepQ={sleepQ} scaleSection={scaleSection} bodySection={bodySection} todayIso={todayIso} editPeriod={editPeriod} setEditPeriod={setEditPeriod} scales={scales} flow={flow} disch={disch} odor={odor} bodyOdor={bodyOdor} days={days} setDays={setDays} onSaved={onSaved} ping={ping} setAppTab={setAppTab} research={FEATURES.counts && research} contribute={(entry, dateIso) => contribute(eventsForDay(stage, { ...entry, phase: pred?.phase, late: pred?.late }), dateIso)} fertSection={fertSection} fert={fert} tempUnit={tempUnit} fertOn={fertOn} logTop={logTop} sleepHours={hoursText(bodyDay(bodyLog, logDay).sleepH ?? null) || null} onSleepHours={() => openSheet("sleep")} />
             )}
             {appIs("cal") && (
-              <CalendarScreen pred={pred} predWhy={predWhy} cyc={cyc} onCycles={() => showView("cycles")} stage={stage} isMeno={isMeno} days={days} symIds={symIds} symMap={symMap} dayScore={scoreDay} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} fertOn={fertOn} tempUnit={tempUnit} />
+              <CalendarScreen pred={pred} predWhy={predWhy} cyc={cyc} onCycles={() => showView("cycles")} stage={stage} isMeno={isMeno} days={days} symIds={symIds} symMap={symMap} dayScore={scoreDay} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} fertOn={fertOn} tempUnit={tempUnit} mealLine={mealsHere ? (iso) => mealDayWords(bodyLog, iso) : null} />
             )}
             {appIs("cycles") && <CyclesScreen cyc={cyc} stage={stage} onUse={setCycleUse} pcosOn={pcosHere} lens={ins.lens} />}
             {appIs("patterns") && patternsView()}
-            {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} scheme={scheme} fert={ttc && fertOn ? { unit: tempUnit } : null} buildVisit={buildVisit} pdfLeft={pdfLeft} onPdfMade={onPdfMade} pdfLimit={PLAN.pdfExportsPerMonth} onHandoff={holdLock} />}
+            {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} scheme={scheme} fert={ttc && fertOn ? { unit: tempUnit } : null} buildVisit={buildVisit} pdfLeft={pdfLeft} onPdfMade={onPdfMade} pdfLimit={PLAN.pdfExportsPerMonth} onHandoff={holdLock} mealsK={mealsHere ? mealCounts(bodyLog, addDays(todayIso, -29), todayIso).notes : 0} />}
             {appIs("mind") && mindView()}
             {appIs("practices") && practicesView()}
             {appIs("ask") && journeyView()}

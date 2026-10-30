@@ -76,9 +76,13 @@ test("routeOf round-trips through parseRoute", () => {
 });
 
 test("log sheet items: Symptoms · Period · Sleep · Mood · Move · Meds · Note, each only where its logger exists", () => {
-  assert.deepEqual(LOG_ITEMS.map((i) => i.label), ["Symptoms", "Period", "Sleep", "Mood", "Move", "Meds", "Note", "PCOS signals"]);
-  assert.deepEqual(logItemsFor().map((i) => i.id), LOG_ITEMS.map((i) => i.id).filter((id) => id !== "pcos"));
-  assert.deepEqual(logItemsFor({ pcos: true }).map((i) => i.id), LOG_ITEMS.map((i) => i.id));
+  assert.deepEqual(LOG_ITEMS.map((i) => i.label), ["Symptoms", "Period", "Sleep", "Mood", "Move", "Meds", "Note", "PCOS signals", "Meals"]);
+  assert.deepEqual(logItemsFor().map((i) => i.id), LOG_ITEMS.map((i) => i.id).filter((id) => id !== "pcos" && id !== "meals"));
+  assert.deepEqual(logItemsFor({ pcos: true }).map((i) => i.id), LOG_ITEMS.map((i) => i.id).filter((id) => id !== "meals"));
+  // Meal notes: offered only while the switch is on (has.meals === true), with or without PCOS
+  assert.deepEqual(logItemsFor({ pcos: true, meals: true }).map((i) => i.id), LOG_ITEMS.map((i) => i.id));
+  assert.deepEqual(logItemsFor({ meals: true }).map((i) => i.id).slice(-1), ["meals"]);
+  assert.equal(logItemsFor({ meals: "yes" }).some((i) => i.id === "meals"), false);
   assert.deepEqual(logItemsFor({ move: false, period: false }).map((i) => i.label), ["Symptoms", "Sleep", "Mood", "Meds", "Note"]);
 });
 

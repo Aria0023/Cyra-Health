@@ -15,6 +15,8 @@
      (unit-tested: extra keys give byte-identical bytes).
    - Day notes (L6, entry.note) go in only with includeNotes === true; the count of notes in the
      window is reported either way so the screen can say what the tick would add.
+   - Meal notes (optional, Meal notes on): a short "Meal notes" section only when the caller passes mealLines, which App does
+     only while the switch is on and she ticks "Include meal notes" (lib/bodylog.js mealReportLines: counts in words, no foods).
    - Every character the PDF prints is WinAnsi (pdf.js winAnsi); the screen warns when a note
      or name would print as "?" (LOSSY_LINE) and shows the exact text itself.
    Nothing is diagnosed: every string is checked by the unit tests against banned wording, the
@@ -81,7 +83,7 @@ function cycleHistory(days, ins, cycleFlags, today) {
  * ins: App's insights(days, ids). ids: App's tracked symptom ids. scale: SCORE_SCALE[stage] (L6), so
  * day scores equal the calendar's. fertilityLines: L7's sentences, or null when signs are not on for her.
  */
-export function visitModel({ days = [], ins, ids = [], stage, stageName = "", name = "", today, questions = [], includeNotes = false, cycleFlags = {}, fertilityLines = null, paper = "a4", scale = ids.length || 1 } = {}) {
+export function visitModel({ days = [], ins, ids = [], stage, stageName = "", name = "", today, questions = [], includeNotes = false, cycleFlags = {}, fertilityLines = null, mealLines = null, paper = "a4", scale = ids.length || 1 } = {}) {
   const from = addDays(today, -(WINDOW - 1)), to = today;
   const pfrom = addDays(today, -(2 * WINDOW - 1)), pto = addDays(from, -1);
   const sorted = ins.sorted || [];
@@ -131,6 +133,7 @@ export function visitModel({ days = [], ins, ids = [], stage, stageName = "", na
   };
 
   const fertility = Array.isArray(fertilityLines) && fertilityLines.length ? fertilityLines.map(String) : null;
+  const meals = Array.isArray(mealLines) && mealLines.length ? mealLines.map(String) : null;
   const qs = (Array.isArray(questions) ? questions : []).map((q) => String(q ?? "").trim()).filter(Boolean).slice(0, MAX_QUESTIONS);
   const allNotes = sorted.filter((d) => d.date >= from && d.date <= to).map((d) => ({ iso: d.date, text: cleanNote(d.note) })).filter((x) => x.text);
   const notes = includeNotes === true ? allNotes : [];
@@ -140,6 +143,7 @@ export function visitModel({ days = [], ins, ids = [], stage, stageName = "", na
   if (symRows.length) parts.push(`your top symptoms${prevOk ? " against the month before" : ""}`);
   if (count > 0) parts.push("a 30-day day-score chart");
   if (fertility) parts.push("your fertility signs");
+  if (meals) parts.push("your meal notes as counts");
   if (qs.length) parts.push(qs.length === 1 ? "the question you added" : `the ${qs.length} questions you added`);
   if (notes.length) parts.push(`${notes.length} day ${notes.length === 1 ? "note" : "notes"}`);
 
@@ -150,7 +154,7 @@ export function visitModel({ days = [], ins, ids = [], stage, stageName = "", na
       line: `${stageName} · ${fmtRange(from, today)} · ${n} of the last 30 days logged`,
       made: MADE_LINE,
     },
-    stage, cycles, symptoms, trend, fertility, fertilityFoot: fertility ? FERTILITY_FOOT : null, questions: qs, notes, notesInWindow: allNotes.length,
+    stage, cycles, symptoms, trend, fertility, fertilityFoot: fertility ? FERTILITY_FOOT : null, ...(meals ? { meals } : {}), questions: qs, notes, notesInWindow: allNotes.length,
     contents: parts.length ? `In it: ${andList(parts)}.` : "",
     top: `At the top: ${cleanName ? "your name, " : ""}your life stage and the dates it covers.`,
     enough: n > 0 || cycles.rows.length > 0,
@@ -164,7 +168,7 @@ export function visitTexts(model) {
   const out = [model.header.title, model.header.line, model.header.made, "Recent cycles", "Symptoms, last 30 days", "Day score, last 30 days", "Fertility signs", "Questions I'd like to cover", "My day notes",
     model.cycles.spreadLine, model.cycles.empty, ...model.cycles.head, ...model.cycles.rows.flatMap((r) => r.cells),
     model.symptoms.lead, model.symptoms.more, model.symptoms.noCompare, model.symptoms.none, ...model.symptoms.head, ...model.symptoms.rows.flatMap((r) => r.cells),
-    model.trend.sentence, model.trend.caption, ...(model.fertility || []), model.fertilityFoot, ...model.questions, ...model.notes.flatMap((x) => [fmtDay(x.iso), x.text]), model.contents, model.top, footerText(1, 1)];
+    model.trend.sentence, model.trend.caption, ...(model.fertility || []), model.fertilityFoot, ...(model.meals ? ["Meal notes", ...model.meals] : []), ...model.questions, ...model.notes.flatMap((x) => [fmtDay(x.iso), x.text]), model.contents, model.top, footerText(1, 1)];
   return out.filter((x) => typeof x === "string" && x);
 }
 
@@ -252,6 +256,12 @@ export function visitPdf(model, PdfDoc) {
     section("Fertility signs", 40);
     for (const line of model.fertility) y = doc.wrap(X, y, W, line, { size: 9 });
     y = doc.wrap(X, y + 1, W, model.fertilityFoot, { size: 7.5, rgb: SOFT });
+  }
+
+  // Meal notes (only with mealLines: Meal notes on and "Include meal notes" ticked)
+  if (model.meals) {
+    section("Meal notes", 40);
+    for (const line of model.meals) y = doc.wrap(X, y, W, line, { size: 9 });
   }
 
   // Questions

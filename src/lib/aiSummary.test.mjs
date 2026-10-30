@@ -144,3 +144,22 @@ test("aiSummary.js does no I/O", () => {
   const code = readFileSync(join(HERE, "aiSummary.js"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   for (const w of ["fetch(", "XMLHttpRequest", "indexedDB", "localStorage", "import.meta", "regAnswers", "acct"]) assert.ok(!code.includes(w), w);
 });
+
+test("meal notes: aggregated counts only, only with Meal notes on, never in pregnancy", () => {
+  const bodyLog = {};
+  for (let i = 0; i < 10; i++) bodyLog[addDays(TODAY, -i)] = { meals: [{ id: `a${i}`, meal: "lunch", kind: i % 2 ? "carbs" : "protein", energy: i % 4 ? "steady" : "crashed", late: i < 3, food: "pasta LEAK" }] };
+  bodyLog[addDays(TODAY, -100)] = { meals: [{ id: "old", meal: "dinner", kind: "skipped" }] };
+  const off = buildSummary({ stage: "periods", stageName: "My Cycle", bodyLog, todayIso: TODAY });
+  assert.equal("meals" in off, false);
+  const on = buildSummary({ stage: "periods", stageName: "My Cycle", bodyLog, todayIso: TODAY, mealsOn: true });
+  assert.deepEqual(on.meals, { daysWithNotes: 10, daysWith: { balanced: 0, mostlyCarbsOrSweet: 5, proteinForward: 5, skipped: 0, ateLate: 3 }, energyAfter: { steady: 7, dipped: 0, crashed: 3 } });
+  assert.deepEqual(checkSummary(on), []);
+  const json = JSON.stringify(on);
+  for (const bad of ["lunch", "Lunch", "pasta", "LEAK", "2026-"]) assert.ok(!json.includes(bad), bad);
+  assert.equal("meals" in buildSummary({ stage: "preg", stageName: "Pregnancy", bodyLog, todayIso: TODAY, mealsOn: true }), false);
+  assert.equal("meals" in buildSummary({ stage: "periods", stageName: "My Cycle", bodyLog, todayIso: TODAY, mealsOn: "yes" }), false);
+  const line = summaryLines(on).find(([l]) => l.startsWith("Meal notes"));
+  assert.ok(line && /10 days with meal notes/.test(line[1]) && /crashed 3/.test(line[1]));
+  // a meal note smuggled in as text is refused
+  assert.ok(checkSummary({ ...on, meals: { ...on.meals, food: "pasta" } }).length > 0);
+});

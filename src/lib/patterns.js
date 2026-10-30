@@ -6,7 +6,7 @@
    (PATTERN_RULES) and tested (patterns.test.mjs). */
 import { addDays, isPeriodDay, median } from "./engine.js";
 import { MODULES, MODULE_FRAMING, longCycleCount } from "./modules.js";
-import { bodyDay, moveTotals } from "./bodylog.js";
+import { bodyDay, moveTotals, cleanBodyLog } from "./bodylog.js";
 
 /* The empty-state line (plan §7) and the not-medical-advice line shown near every list of insights. */
 export const EMPTY_LINE = "A few more logs will show clearer associations.";
@@ -275,6 +275,59 @@ export function questionSides(q, { entries = [], bodyLog = {}, from, to, level =
   return { exp, other };
 }
 /** The PCOS module's cards (only when the module is on). lens: her counted cycle lengths, oldest first. */
+/* ---------- meal notes (only while Meal notes is on): energy after meals ----------
+   One card comparing how often energy "Dipped" or "Crashed" after meals she noted as "Mostly carbs or sweet" against her
+   other meals (Balanced or Protein-forward; skipped meals and meals without a kind or an energy answer are left out). The
+   unit is a meal note, with PATTERN_RULES' thresholds (minEach meals on each side, minHits dips in all). Shown only
+   with enough notes; worded as an association in her log, never advice, never "good" or "bad" food, never weight. */
+export const MEAL_SRC = Object.freeze(["teede2023"]);
+export const MEAL_DIET_LINE = "The 2023 International PCOS Guideline recommends healthy eating without naming any one specific diet.";
+export function mealSides({ bodyLog = {}, from, to }) {
+  const a = { n: 0, hits: 0 }, b = { n: 0, hits: 0 };
+  for (const [iso, d] of Object.entries(cleanBodyLog(bodyLog))) {
+    if (iso < from || iso > to) continue;
+    for (const m of d.meals || []) {
+      if (!m.energy || !m.kind || m.kind === "skipped") continue;
+      const side = m.kind === "carbs" ? a : b;
+      side.n++;
+      if (m.energy === "dipped" || m.energy === "crashed") side.hits++;
+    }
+  }
+  return { carbs: a, other: b };
+}
+export function mealCards({ bodyLog = {}, todayIso, days = PATTERN_RULES.days }) {
+  const from = addDays(todayIso, -(days - 1));
+  const { carbs, other } = mealSides({ bodyLog, from, to: todayIso });
+  const more = statusOf(carbs, other), less = statusOf(other, carbs);
+  if (more === "notenough") return [];
+  const st = more !== "none" ? more : less !== "none" ? less : "seen";
+  const dir = more !== "none" ? "more" : less !== "none" ? "less" : "same";
+  const sentence = dir === "same"
+    ? "In your log, energy dipped or crashed about as often after meals that were mostly carbs or sweet as after your other meals."
+    : st === "supported"
+      ? `In your log, energy dipped or crashed ${dir} often after meals that were mostly carbs or sweet than after your other meals.`
+      : `Meals that were mostly carbs or sweet and ${dir === "more" ? "" : "fewer "}energy dips are still showing up together in your log, without a clear gap yet.`;
+  const d0 = dir === "less" ? diffOf(other, carbs, "as often after other meals") : diffOf(carbs, other, "as often after mostly carbs or sweet");
+  // With no dips at all on the other side the figure is "a of n": say which meals it counts, in plain words.
+  const d = d0.diff && / of /.test(d0.diff) ? { diff: d0.diff, diffLabel: dir === "less" ? "of your other meals had a dip or crash after; no mostly carbs or sweet meal did" : "mostly carbs or sweet meals had a dip or crash after; none of your other meals did" } : d0;
+  const mealW = (k) => (k === 1 ? "meal" : "meals");
+  return [card({
+    key: "meals:energy", kind: "meals", topic: "Energy after meals", status: st, sentence, family: "body",
+    bars: { a: { label: "Mostly carbs or sweet", days: carbs.n, value: carbs.hits / carbs.n, shown: `${carbs.hits} dipped or crashed`, count: `${carbs.n} ${mealW(carbs.n)}` }, b: { label: "Other meals", days: other.n, value: other.hits / other.n, shown: `${other.hits} dipped or crashed`, count: `${other.n} ${mealW(other.n)}` } },
+    ...(dir === "same" ? { diff: null, diffLabel: "" } : d),
+    strength: Math.abs(carbs.hits / carbs.n - other.hits / other.n),
+    detail: {
+      question: "Does my energy dip more often after some kinds of meals?",
+      lines: [
+        `Energy dipped or crashed after ${carbs.hits} of ${carbs.n} ${mealW(carbs.n)} you noted as mostly carbs or sweet, and after ${other.hits} of ${other.n} of your other ${mealW(other.n)} (balanced or protein-forward).`,
+        `Heard Health names a pattern with at least ${PATTERN_RULES.minEach} meal notes on each side and ${PATTERN_RULES.minHits} dips or crashes in all. Skipped meals and notes without an energy answer are left out.`,
+        "This is what your own notes show, not a rule about food. Energy after a meal also follows sleep, stress, your cycle and more.",
+        MEAL_DIET_LINE,
+      ],
+      askId: null, src: MEAL_SRC,
+    },
+  })];
+}
 export function pcosCards({ entries = [], bodyLog = {}, todayIso, lens = [], days = PATTERN_RULES.days }) {
   const from = addDays(todayIso, -(days - 1));
   const out = [];
