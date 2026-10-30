@@ -6,9 +6,9 @@
    nothing else (no source maps, no sw.js itself, no font licence texts).
    injectBuild: writes the BUILD object into the one marked line of public/sw.js. */
 
-const PUBLIC_KEEP = (f) => f === "manifest.webmanifest" || /^icons\/[^/]+\.png$/.test(f);
+const PUBLIC_KEEP = (f) => f === "manifest.webmanifest" || /^icons\/[^/]+\.(png|svg)$/.test(f);
 
-/** Every bundle file except *.map and sw.js, plus manifest.webmanifest and icons/*.png from
+/** Every bundle file except *.map and sw.js, plus manifest.webmanifest and icons/*.png and icons/*.svg (the favicon) from
     public/, de-duplicated, sorted and prefixed with base. */
 export function precacheList({ bundleFiles, publicFiles = [], base = "/" }) {
   const norm = (f) => String(f).replace(/\\/g, "/").replace(/^\/+/, "");

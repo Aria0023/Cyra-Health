@@ -1,4 +1,5 @@
 import { Card, Chip, Switch } from "../components/ui/index.js";
+import BrandMark from "../components/BrandMark.jsx";
 import Icon from "../components/Icon.jsx";
 import ModuleRow from "../components/ModuleRow.jsx";
 import PotsAddon from "../components/pots/PotsAddon.jsx";
@@ -208,6 +209,7 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
       {care}
 
       <Card id="you-about-legal" tint="you" icon="book" eyebrow={t("you.about")} title={t("you.aboutLegal")} level={2} className="youlegal-card">
+        <p className="aboutbrand"><BrandMark size={30} /><span><b>{t("you.brandName")}</b><span className="slogan">{t("splash.slogan")}</span></span></p>
         <p>{NOT_MEDICAL}</p>
         {TERMS_URL || PRIVACY_URL
           ? <div className="youlegals">{TERMS_URL && link(TERMS_URL, "Terms")}{PRIVACY_URL && link(PRIVACY_URL, "Privacy Policy")}</div>

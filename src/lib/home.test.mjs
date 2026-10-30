@@ -144,5 +144,5 @@ test("calm R5: the Mind check-in ticks the Mood tile; the breathing step opens t
   assert.equal(tileLogged("mood", { moodDay: { mood: 3 } }), true);
   assert.equal(tileLogged("mood", { moodDay: {} }), false);
   assert.equal(tileLogged("mood", {}), false);
-  assert.deepEqual({ ...STEPS.breathe.action }, { label: "Breathe with Cyra", practice: "slow" });
+  assert.deepEqual({ ...STEPS.breathe.action }, { label: "Breathe with Heard Health", practice: "slow" });
 });

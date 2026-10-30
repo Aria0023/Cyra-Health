@@ -106,7 +106,7 @@ test("prefsFor: defaults to three empty lists", () => {
 
 /* ---------- layout ---------- */
 
-test("chipLayout: Cyra's order by default; tracked = library + added borrowable ids", () => {
+test("chipLayout: Heard Health's order by default; tracked = library + added borrowable ids", () => {
   const p = chipLayout("periods", {});
   assert.deepEqual(p.first, Object.keys(PSYM));
   assert.equal(p.first.slice(-1)[0], "eng");
@@ -142,7 +142,7 @@ test("moveSym swaps neighbours and stores the whole first list; no change at the
   for (let i = 0; i < 10; i++) p = moveSym(p, "periods", "eng", -1);
   assert.equal(chipLayout("periods", p).first[0], "eng");
   assert.equal(p.periods.order[0], "eng");
-  // Moving back to Cyra's order stores no order: undoing every change leaves {}.
+  // Moving back to Heard Health's order stores no order: undoing every change leaves {}.
   assert.deepEqual(moveSym(moveSym({}, "peri", "eng", -1), "peri", "eng", 1), {});
 });
 

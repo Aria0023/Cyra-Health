@@ -205,7 +205,7 @@ export function sleepCards(links = []) {
         question: `Do rough nights line up with more ${lc} the next day?`,
         lines: [
           `${L} moderate or strong on ${l.rough.hits} of ${l.rough.n} ${dayW(l.rough.n)} after a rough night, and ${l.good.hits} of ${l.good.n} after a night you slept well.`,
-          `Cyra names a pattern with at least ${PATTERN_RULES.minEach} days on each side and ${PATTERN_RULES.minHits} days with ${lc} in all.`,
+          `Heard Health names a pattern with at least ${PATTERN_RULES.minEach} days on each side and ${PATTERN_RULES.minHits} days with ${lc} in all.`,
         ],
         advice: x.advice || null, askId: x.askId || null,
       },
@@ -309,7 +309,7 @@ export function pcosCards({ entries = [], bodyLog = {}, todayIso, lens = [], day
         question: q.question,
         lines: [
           `${q.outcome.label} moderate or strong${next} on ${exp.hits} of ${exp.n} ${dayW(exp.n)} (${lc1(q.exposure.label)}) and ${other.hits} of ${other.n} (${lc1(q.exposure.other)}).`,
-          `Cyra names a pattern with at least ${PATTERN_RULES.minEach} days on each side and ${PATTERN_RULES.minHits} days with ${lo} in all.`,
+          `Heard Health names a pattern with at least ${PATTERN_RULES.minEach} days on each side and ${PATTERN_RULES.minHits} days with ${lo} in all.`,
         ],
         askId: null,
       },
@@ -347,7 +347,7 @@ export function trialCards({ meds = [], scoreOn, usual, todayIso }) {
       strength: Math.abs(d),
       detail: {
         question: `Have your days felt different since starting ${m.name}?`,
-        lines: [`Lighter days for you: ${A.hits} of ${A.n} since starting, ${B.hits} of ${B.n} in the two weeks before.`, `Cyra compares once there are ${TRIAL_MIN} logged days on each side. It never suggests a dose or a change.`],
+        lines: [`Lighter days for you: ${A.hits} of ${A.n} since starting, ${B.hits} of ${B.n} in the two weeks before.`, `Heard Health compares once there are ${TRIAL_MIN} logged days on each side. It never suggests a dose or a change.`],
         advice: { urgency: "visit", text: "Bring this before and after to your next visit: it is the kind of record a clinician can use to decide whether to continue, adjust or stop." },
         askId: "med",
       },

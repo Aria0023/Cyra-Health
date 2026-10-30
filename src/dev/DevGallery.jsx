@@ -42,7 +42,7 @@ export default function DevGallery() {
   return (
     <Shell style={style} scheme={scheme}>
       <main className="devgallery" aria-labelledby="dg-title">
-        <p className="mark" style={{ margin: "4px 0 2px" }}>Cyra<span className="sub">Design system v2</span></p>
+        <p className="mark" style={{ margin: "4px 0 2px" }}>Heard<span className="sub">Design system v2</span></p>
         <p className="eyebrow" style={{ marginTop: 14 }}>Thursday, October 29</p>
         <h1 id="dg-title" className="disp">Good afternoon, Maya.</h1>
         <p className="hint">Every v2 component in the {stageLabel} accent ({pal.name}). Illustrative data only.</p>

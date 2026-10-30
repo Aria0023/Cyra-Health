@@ -79,7 +79,7 @@ export function PotsOffer({ onOn, onNot }) {
   return (
     <div className="plaincard" style={{ margin: "14px 0 6px" }} role="region" aria-labelledby="pots-offer-h">
       <p className="plain" style={{ marginBottom: 6 }}><b id="pots-offer-h">POTS tools</b></p>
-      <p className="plain">You mentioned POTS. Cyra can add a guided standing test, drinks and salt, symptoms and medicines, all kept on this device.</p>
+      <p className="plain">You mentioned POTS. Heard Health can add a guided standing test, drinks and salt, symptoms and medicines, all kept on this device.</p>
       <div className="wearbtns">
         <button type="button" className="takebtn" onClick={onOn}>Turn on</button>
         <button type="button" className="sbtn" onClick={onNot}>Not now</button>

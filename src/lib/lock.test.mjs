@@ -151,9 +151,9 @@ test("lock: forgotPinRecord writes the backup as the whole record, minus device-
 test("lock: the source makes no request and touches no storage; LOCK_COPY holds the lock strings", () => {
   for (const bad of ["fetch(", "XMLHttpRequest", "sendBeacon", "WebSocket", "localStorage", "sessionStorage", "indexedDB", "./api.js", "./native.js", "./storage.js", "./features.js"]) assert.ok(!src.includes(bad), bad);
   assert.ok(src.includes("credentials.create(") && src.includes("credentials.get("));
-  assert.equal(LOCK_COPY.title, "Cyra is locked");
-  assert.equal(LOCK_COPY.onSub(true, 60), "PIN, or fingerprint, face or screen lock. Cyra locks when it opens and after a minute away.");
-  assert.equal(LOCK_COPY.onSub(false, 0), "PIN. Cyra locks when it opens and as soon as you leave it.");
+  assert.equal(LOCK_COPY.title, "Heard Health is locked");
+  assert.equal(LOCK_COPY.onSub(true, 60), "PIN, or fingerprint, face or screen lock. Heard Health locks when it opens and after a minute away.");
+  assert.equal(LOCK_COPY.onSub(false, 0), "PIN. Heard Health locks when it opens and as soon as you leave it.");
   assert.equal(LOCK_COPY.wrong(1), "That PIN isn't right. 1 more try before a short wait.");
   assert.equal(LOCK_COPY.wrong(4), "That PIN isn't right. 4 more tries before a short wait.");
   assert.equal(LOCK_COPY.wrong(0), "That PIN isn't right.");

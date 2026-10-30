@@ -178,8 +178,8 @@ export const stagePalettes = (stage, stageName) => {
 };
 
 export const ORGS = {
-  cyra: { slug: "cyra", name: "Cyra", tag: "Health", theme: { primary: "#5B54A6", paper: "#FAF7F4", card: "#FFFFFF", ink: "#1E2132", soft: "#585C72", line: "#8A8DA3", accent: "#A8486E", dark: { paper: "#131520", card: "#1C1F2D", ink: "#E9EAF3", soft: "#A5A9C0", line: "#6D7290", primary: "#B9B3F2", accent: "#F0A3C0" } }, partnerIds: null, plan: "Consumer (D2C)" },
-  bloom: { slug: "bloom", name: "Bloom", tag: "by AcmeCare", theme: { primary: "#2F5D50", paper: "#F2F5F1", card: "#FBFDFA", accent: "#C89A5B", ink: "#26332E", soft: "#5F6E67", line: "#DCE3DD", dark: { paper: "#141713", card: "#1E221D", ink: "#E2ECE8", soft: "#9AAFA5", line: "#6F7971", primary: "#8AC2B0", accent: "#D8A96A" } }, partnerIds: ["midi", "restfully"], plan: "Employer benefit (500 seats)" },
+  cyra: { slug: "cyra", name: "Heard", title: "Heard Health", tag: "Health", theme: { primary: "#5B54A6", paper: "#FAF7F4", card: "#FFFFFF", ink: "#1E2132", soft: "#585C72", line: "#8A8DA3", accent: "#A8486E", dark: { paper: "#131520", card: "#1C1F2D", ink: "#E9EAF3", soft: "#A5A9C0", line: "#6D7290", primary: "#B9B3F2", accent: "#F0A3C0" } }, partnerIds: null, plan: "Consumer (D2C)" },
+  bloom: { slug: "bloom", name: "Bloom", title: "Bloom", tag: "by AcmeCare", theme: { primary: "#2F5D50", paper: "#F2F5F1", card: "#FBFDFA", accent: "#C89A5B", ink: "#26332E", soft: "#5F6E67", line: "#DCE3DD", dark: { paper: "#141713", card: "#1E221D", ink: "#E2ECE8", soft: "#9AAFA5", line: "#6F7971", primary: "#8AC2B0", accent: "#D8A96A" } }, partnerIds: ["midi", "restfully"], plan: "Employer benefit (500 seats)" },
 };
 
 /* Status and surface tokens that are not part of a palette, for each scheme (UI side, never data
@@ -200,6 +200,8 @@ export const SCHEME_TOKENS = {
     "--edge": "#ECE7E3", "--wash-a": "rgba(150,120,230,.06)", "--wash-b": "rgba(100,165,235,.06)", "--wash-c": "rgba(240,130,175,.06)",
     "--tint-mind": "#EAF1FB", "--tint-body": "#F5EDF8", "--tint-patterns": "#FDF0E6", "--tint-you": "#F2F0ED",
     "--sh-lift": "0 2px 6px rgba(30,33,50,.06), 0 14px 32px -10px rgba(30,33,50,.24)", "--scrim": "rgba(30,33,50,.34)",
+    // Heard Health rename: the brand mark's colour (docs/brand/README.md), apart from the stage palettes.
+    "--brand": "#4A5DB0",
   },
   dark: {
     "--good": "#8FCBA4", "--bad": "#F29B91", "--bad-bg": "#3B2120", "--bad-chip": "#4A2826", "--err-line": "#B4685F", "--err-edge": "#6E3B36",
@@ -211,6 +213,7 @@ export const SCHEME_TOKENS = {
     "--edge": "#2C3044", "--wash-a": "rgba(150,120,230,.07)", "--wash-b": "rgba(100,165,235,.06)", "--wash-c": "rgba(240,130,175,.05)",
     "--tint-mind": "#1F2A40", "--tint-body": "#2A2339", "--tint-patterns": "#30261F", "--tint-you": "#262836",
     "--sh-lift": "0 2px 6px rgba(0,0,0,.35), 0 14px 32px -10px rgba(0,0,0,.6)", "--scrim": "rgba(0,0,0,.58)",
+    "--brand": "#A7B5F4",
   },
 };
 

@@ -47,7 +47,7 @@ export default function SymptomSheet({ stage, symPrefs, setSymPrefs, days = [], 
   const show = (id) => act((cur) => showSym(cur, stage, id), `${label(id)} shows first again, at the end.`, `sym-up-${id}`);
   const add = (id) => act((cur) => addSym(cur, stage, id), `${label(id)} added at the end.`, `sym-up-${id}`);
   const remove = (id) => act((cur) => removeSym(cur, stage, id, days), `${label(id)} removed from your list.`, "title");
-  const reset = () => act((cur) => resetSyms(cur, stage), "Back to Cyra's order. Symptoms you added stay at the end.", "title");
+  const reset = () => act((cur) => resetSyms(cur, stage), "Back to Heard Health's order. Symptoms you added stay at the end.", "title");
   const from = (id) => (p.added.includes(id) && other ? <span>From the {other}</span> : null);
 
   return (
@@ -101,7 +101,7 @@ export default function SymptomSheet({ stage, symPrefs, setSymPrefs, days = [], 
           </ul>
         </Details>
       )}
-      {(p.order.length > 0 || p.hidden.length > 0) && <button type="button" className="linkbtn symreset" onClick={reset}>Put back Cyra's order</button>}
+      {(p.order.length > 0 || p.hidden.length > 0) && <button type="button" className="linkbtn symreset" onClick={reset}>Put back Heard Health's order</button>}
       <button type="button" className="ghostbtn" onClick={onClose}>Done</button>
       <p className="sr-only" aria-live="polite">{said.text}</p>
     </section>

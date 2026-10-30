@@ -331,8 +331,8 @@ test("S7 report: the Movement section, CSV session rows and the summary line", (
   const texts = sec.blocks.filter((b) => b.t === "p").map((b) => b.text);
   assert.ok(texts.includes("Often crashes 12 to 72 hours after effort, for a day or more (her answer): no."));
   assert.ok(texts.includes("OK from a clinician or physio to start an exercise plan (her answer): yes (Sep 10, 2026)."));
-  assert.ok(texts.includes("Her step in Cyra's plan, which she chooses herself: Step 1 (lying and seated start), week 5 of her plan. Planned days: Mon, Wed, Fri. Main part she set: 15 min."));
-  assert.ok(texts.includes("Sessions in this period: 3 (2 with Cyra's timer, 1 stopped early). Main part: 32 min in all, longest 12 min; warm-up and cool-down 30 min."));
+  assert.ok(texts.includes("Her step in Heard Health's plan, which she chooses herself: Step 1 (lying and seated start), week 5 of her plan. Planned days: Mon, Wed, Fri. Main part she set: 15 min."));
+  assert.ok(texts.includes("Sessions in this period: 3 (2 with Heard Health's timer, 1 stopped early). Main part: 32 min in all, longest 12 min; warm-up and cool-down 30 min."));
   assert.ok(texts.includes("Lying or seated: 2 · upright: 1 · other: 0 (recumbent bike 2, walking 1)."));
   assert.ok(texts.includes("How she felt right after: fine 0, a bit worse 1, much worse 1, had to stop 1, not answered 0."));
   assert.ok(texts.includes("How she felt the next day: better 0, the same 0, worse 1, crashed 1, not answered 1."));
@@ -361,7 +361,7 @@ test("S7 report: the Movement section, CSV session rows and the summary line", (
   assert.deepEqual(gen.filter((x) => x.part === "move").map((x) => x.id), ["q_pem"], "pacing mode: PEM question, no clearance question (no plan in pacing mode)");
   assert.ok(gen.filter((x) => x.part === "move").every((x) => !questionIn(x, { move: false, cycle: true }) && questionIn(x, { move: true, cycle: true })));
   m = reportModel(q, opts);
-  assert.ok(modelTexts(m).includes("Often crashes 12 to 72 hours after effort, for a day or more (her answer): not sure. Cyra's pacing mode is on for her: it shows no step-up options."));
+  assert.ok(modelTexts(m).includes("Often crashes 12 to 72 hours after effort, for a day or more (her answer): not sure. Heard Health's pacing mode is on for her: it shows no step-up options."));
   assert.ok(!modelTexts(m).some((t) => t.startsWith("Her step")), "pacing mode: no step line");
   // Nothing to report: off by default, and the summary has no line.
   m = reportModel(on(), opts);

@@ -36,7 +36,7 @@ export default function DayNote({ value = "", onChange, label }) {
       <label className="section-lab" htmlFor="day-note">{label}</label>
       <textarea id="day-note" ref={field} className="inp" rows={3} maxLength={NOTE_MAX} placeholder="A trigger, a change, anything worth remembering" aria-describedby="day-note-hint day-note-count" value={value} onChange={(e) => onChange(e.target.value.slice(0, NOTE_MAX))} />
       <div className="notefoot">
-        <p className="rfoot" id="day-note-hint">Kept with this day on this device and in backups you save. It goes into an appointment PDF only if you tick Include my notes; Cyra never sends it anywhere.</p>
+        <p className="rfoot" id="day-note-hint">Kept with this day on this device and in backups you save. It goes into an appointment PDF only if you tick Include my notes; Heard Health never sends it anywhere.</p>
         <span id="day-note-count" className={`notecount${left <= 20 ? " near" : ""}`}>{value.length}/{NOTE_MAX}</span>
       </div>
       <p className="sr-only" aria-live="polite">{live}</p>

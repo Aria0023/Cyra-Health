@@ -1,9 +1,18 @@
-# Cyra on iPhone and Android
+# Heard Health on iPhone and Android
 
 The phone apps are the same web app (`dist/`) running inside a small native shell
 built with Capacitor 8. `ios/` is an Xcode project (Swift Package Manager, no
 CocoaPods) and `android/` is an Android Studio project. Both use the app id
-`com.cyrahealth.app` and the name "Cyra".
+`com.cyrahealth.app` and the name "Heard Health" (renamed from Cyra on 2026-10-30).
+
+App names: `capacitor.config.json` `appName` "Heard Health"; iOS `CFBundleDisplayName` "Heard" (the home-screen
+label, which iOS also shows in Settings → Health → Data Access & Devices); Android `app_name` "Heard Health" (the
+app's name in Settings and Health Connect) and `title_activity_main` "Heard" (the launcher label). The app id, the
+Android package, the iOS bundle id and the `cyrahealth://` return scheme stay `com.cyrahealth.app` / `cyrahealth`:
+changing them makes a different app in the stores. They can still be changed before the first store submission if
+the owner wants. The icons in `Assets.xcassets/AppIcon.appiconset`, the iOS splash images and the Android
+`mipmap-*` launcher icons and `drawable*/splash.png` are drawn from the Heard mark by `scripts/make-icons.mjs`
+(the adaptive icon's background colour is paper `#FAF7F4`).
 
 What the shell adds:
 
@@ -172,9 +181,9 @@ damaged and never opens, the person can choose to delete it and start over.
    declaration in Play Console has to list exactly these.
 5. **Partial permission.** The person can allow only some of these types. The plugin then
    reports which ones (`requestAuthorization` returns `granted`, `grantedTypes` and
-   `requestedTypes`), reads only those, and Cyra says "Cyra can read only some of the health
-   data it asked for. You can change this in Health Connect → App permissions → Cyra." Only
-   when none is allowed does it say "Cyra wasn't given permission to read health data". The
+   `requestedTypes`), reads only those, and Cyra says "Heard Health can read only some of the health
+   data it asked for. You can change this in Health Connect → App permissions → Heard Health." Only
+   when none is allowed does it say "Heard Health wasn't given permission to read health data". The
    plugin asks Health Connect which permissions it holds before every read, because
    developer.android.com says users "can grant or revoke permissions at any time".
 6. **Privacy policy link.** Health Connect's privacy link opens Cyra's rationale screen,
@@ -467,7 +476,7 @@ repository.
 - How each window hands the `cyrahealth://` link back:
   - On iOS, whether `ASWebAuthenticationSession` catches the backend's 302 to
     `cyrahealth://…` and the Oura/Terra page's script redirect. The finish page also has
-    a "Return to Cyra" link to tap.
+    a "Return to Heard Health" link to tap.
   - Custom Tabs may need a tap if a redirect is blocked.
 - The Android choice not to call `Browser.close()` after the link arrives.
 - Notification timing on a real phone.

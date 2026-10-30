@@ -146,7 +146,7 @@ try {
   {
     const p = pair(); const out = await ouraApp(p.challenge);
     assert(out.status === 200 && !/postMessage/.test(out.html) && out.target.startsWith(`${OURA_APP}#oura=`), `oura app: callback page goes straight to ${OURA_APP}#oura=<code>, no postMessage`);
-    assert(out.html.includes(`href="${out.target}"`) && /min-height:44px/.test(out.html), "oura app: page also offers a 44px \"Return to Cyra\" link");
+    assert(out.html.includes(`href="${out.target}"`) && /min-height:44px/.test(out.html), "oura app: page also offers a 44px \"Return to Heard Health\" link");
     const code = out.target.split("#oura=")[1];
     const t = await exch({ code, verifier: p.verifier });
     const tj = t.status === 200 ? await t.json() : {};

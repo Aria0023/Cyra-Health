@@ -253,7 +253,7 @@ test("patternFindings: candidates (never Sleep disruption), the energy id, order
   const ids = ["hf", "ns", "fog", "slp", "mood", ENERGY_ID];
   const f = patternFindings({ sorted: rows, ids, labels: SYM, starts: [], todayIso: TODAY, energyId: ENERGY_ID });
   assert.ok(!f.checked.some((l) => l.startsWith("Sleep disruption")));
-  assert.deepEqual(f.checked.map((l) => l.split(" and sleep:")[0]), ["Hot flashes", "Night sweats", "Brain fog", "Low energy", "By cycle day: Cyra needs two logged period starts to compare cycle days."]);
+  assert.deepEqual(f.checked.map((l) => l.split(" and sleep:")[0]), ["Hot flashes", "Night sweats", "Brain fog", "Low energy", "By cycle day: Heard Health needs two logged period starts to compare cycle days."]);
   assert.equal(f.checked[4], NEED_STARTS_LINE);
   for (const l of f.checked.slice(0, 4)) assert.match(l, ENDINGS);
   assert.match(f.checked[1], /— no clear link\.$/);

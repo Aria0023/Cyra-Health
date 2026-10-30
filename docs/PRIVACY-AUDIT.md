@@ -1628,3 +1628,99 @@ sentence sits behind a Details that stays in the page while closed (Details.jsx 
 
 **Toasts.** While a bottom sheet is open the confirmation toast shows at the top of the screen, above the sheet, so it
 never covers what it confirms (e.g. "Added on this device" after a PCOS lab value). Same sentences.
+
+
+## Rebrand (Heard Health, 2026-10-30) — no new request, no new record key, nothing new leaves the device
+
+The product is renamed from Cyra to **Heard Health** (home-screen label "Heard", slogan "I am Heard"). Every privacy
+sentence in the app, the backend's user-visible text, the iOS Health usage description and the Android Health Connect
+rationale changed by **name substitution only** ("Cyra" → "Heard Health", "Cyra's" → "Heard Health's"), with the
+exceptions listed below. No sentence was dropped, merged or moved; no claim was weakened. The default build's requests
+are unchanged (the favicon is a same-origin file in the offline shell; no font, image or script from anywhere else).
+
+**Unchanged on purpose (existing logs keep working after the update):** the IndexedDB names ("cyra", "cyra-hold"), the
+phone record files (NoCloud/cyra-state.json, cyra-hold.json, cyra-lock.json), every record and preference key, the
+backup envelope's `format: "cyra-backup"` and the account key-derivation tags (`cyra-account-lookup/v1` and the
+others: changing them would orphan every existing account backup), the `cyra-shell-*` cache prefix, the BroadcastChannel
+and Web Lock names, feature-flag names, class names, routes, ids and `data-*` hooks, the app id / bundle id / package
+`com.cyrahealth.app` and the `cyrahealth://` return scheme.
+
+**Files she makes** are now named `heard-health-backup-<day>.json`, `heard-health-summary-<day>.pdf`,
+`heard-health-report-<day>.pdf` and `heard-health-data-<day>.csv`. Restore reads the envelope, never the file name,
+so a `cyra-backup-<day>.cyra.json` from a Cyra build restores as before (checked in the rebrand's restore test). The
+phone's cache sweep removes leftovers with either prefix, so "deleted the next time the app opens" stays true for a
+file an interrupted Cyra-build share left behind. Share-sheet titles and the PDF's metadata say "Heard Health".
+
+**Sentences reworded beyond the name, and why:**
+- The app lock's passkey is now created as "Heard Health lock" (relying-party name "Heard Health"). A passkey set up
+  before the update keeps the name "Cyra lock" in her password manager, so the three sentences that name it say both.
+- Removing the app in an Oura, Fitbit, Garmin or Whoop account: those services list the app under the name registered
+  with them (the Oura OAuth client and the Terra developer account), which the build doesn't control. Until the owner
+  renames those registrations, and for connections made before, the list may still say "Cyra", so each removal
+  instruction now says "(it may be listed as Cyra)" (or "Cyra or Terra" where it already named Terra). The same
+  applies to the two backend error messages.
+- iPhone Health settings list the app by its home-screen label, so "Settings → Health → Data Access & Devices → Cyra"
+  became "… → Heard", not "… → Heard Health". (Health Connect lists the Android app label, "Heard Health".)
+
+- `backend/src/modules/integrations/index.js`
+  - Before: Oura didn't confirm — remove Cyra under Oura's account settings, then try again
+  - After: Oura didn't confirm — remove Heard Health (it may be listed as Cyra) under Oura's account settings, then try again
+- `backend/src/modules/integrations/index.js`
+  - Before: Terra didn't confirm the disconnect — try again, or remove Cyra (it may be listed as Terra) under connected apps in your device account
+  - After: Terra didn't confirm the disconnect — try again, or remove Heard Health (it may be listed as Cyra or Terra) under connected apps in your device account
+- `src/App.jsx`
+  - Before: The Oura connection in the backup no longer works, so it was removed from this device. Tap Connect to reconnect; if Cyra still shows in your Oura account's connected apps, you can remove it there.
+  - After: The Oura connection in the backup no longer works, so it was removed from this device. Tap Connect to reconnect; if Heard Health (or Cyra) still shows in your Oura account's connected apps, you can remove it there.
+- `src/components/DataControls.jsx`
+  - Before: This device doesn't hold what Cyra needs to ${names} itself — ${steps.map((k) => (k === "terra" ? "remove Cyra (it may be listed as Terra) under connected apps in that account" : "remove Cyra in your Oura account's connected apps")).join("; ")}.
+  - After: This device doesn't hold what Heard Health needs to ${names} itself — ${steps.map((k) => (k === "terra" ? "remove Heard Health (it may be listed as Cyra or Terra) under connected apps in that account" : "remove Heard Health (it may be listed as Cyra) in your Oura account's connected apps")).join("; ")}.
+- `src/components/DataControls.jsx`
+  - Before: Cyra's server asked ${andList(wear.map((k) => WHO[k]))} to end the connection, but it didn't confirm. Try again, or remove Cyra in that account's connected apps.
+  - After: Heard Health's server asked ${andList(wear.map((k) => WHO[k]))} to end the connection, but it didn't confirm. Try again, or remove Heard Health (it may be listed as Cyra) in that account's connected apps.
+- `src/components/DataControls.jsx`
+  - Before: Oura stays connected to Cyra until you remove Cyra in your Oura account's connected apps
+  - After: Oura stays connected to Heard Health until you remove Heard Health (it may be listed as Cyra) in your Oura account's connected apps
+- `src/components/DataControls.jsx`
+  - Before: your Fitbit, Garmin or Whoop account stays connected until you remove Cyra (it may be listed as Terra) in that account's connected apps; until then Terra keeps sending that account's new readings to Cyra's server, where each day waits up to 7 days for a device that will never collect it and is then deleted
+  - After: your Fitbit, Garmin or Whoop account stays connected until you remove Heard Health (it may be listed as Cyra or Terra) in that account's connected apps; until then Terra keeps sending that account's new readings to Heard Health's server, where each day waits up to 7 days for a device that will never collect it and is then deleted
+- `src/lib/disclosures.js`
+  - Before: Cyra can't end a wearable connection from this version. If you connected Oura, Fitbit, Garmin or Whoop to Cyra before, remove Cyra in that account's connected apps (Fitbit, Garmin and Whoop may list it as Terra).
+  - After: Heard Health can't end a wearable connection from this version. If you connected Oura, Fitbit, Garmin or Whoop to Heard Health before, remove Heard Health in that account's connected apps (it may be listed as Cyra, and Fitbit, Garmin and Whoop may list it as Terra).
+- `src/lib/lock.js`
+  - Before: Your password manager lists it as "Cyra lock" for this website and may sync it to your other devices. It holds nothing about your health, and only this device's lock accepts it.
+  - After: Your password manager lists it as "Heard Health lock" ("Cyra lock" if you set it up before the app was renamed) for this website and may sync it to your other devices. It holds nothing about your health, and only this device's lock accepts it.
+- `src/lib/lock.js`
+  - Before:  You can delete the "Cyra lock" passkey from your password manager.
+  - After:  You can delete the "Heard Health lock" passkey ("Cyra lock" if you set it up before the app was renamed) from your password manager.
+- `src/lib/lock.js`
+  - Before: Fingerprint, face or screen lock is off. Your PIN still unlocks Cyra. You can delete the "Cyra lock" passkey from your password manager.
+  - After: Fingerprint, face or screen lock is off. Your PIN still unlocks Heard Health. You can delete the "Heard Health lock" passkey ("Cyra lock" if you set it up before the app was renamed) from your password manager.
+- `src/lib/wearables.js`
+  - Before: The connection window was closed before Cyra finished connecting to Oura. If you already approved Cyra there, remove Cyra in your Oura account's connected apps, then tap Connect to try again.
+  - After: The connection window was closed before Heard Health finished connecting to Oura. If you already approved Heard Health there, remove Heard Health (it may be listed as Cyra) in your Oura account's connected apps, then tap Connect to try again.
+- `src/lib/wearables.js`
+  - Before: No Health data shared yet — check Settings → Health → Data Access & Devices → Cyra.
+  - After: No Health data shared yet — check Settings → Health → Data Access & Devices → Heard.
+- `src/lib/wearables.js`
+  - Before: ${SERVER_SILENT}. If Cyra now shows up in your Oura account's connected apps, you can remove it there.
+  - After: ${SERVER_SILENT}. If Heard Health (or Cyra) now shows up in your Oura account's connected apps, you can remove it there.
+- `src/lib/wearables.js`
+  - Before: This Fitbit, Garmin or Whoop connection was set up by an older version of Cyra — tap Disconnect, then Connect again. If Disconnect can't end it, remove Cyra (it may be listed as Terra) under connected apps in that account.
+  - After: This Fitbit, Garmin or Whoop connection was set up by an older version of Heard Health — tap Disconnect, then Connect again. If Disconnect can't end it, remove Heard Health (it may be listed as Cyra or Terra) under connected apps in that account.
+- `src/lib/wearables.js`
+  - Before: remove Cyra (it may be listed as Terra) under connected apps in that account
+  - After: remove Heard Health (it may be listed as Cyra or Terra) under connected apps in that account
+- `src/lib/wearables.js`
+  - Before: remove Cyra in your Oura account's connected apps
+  - After: remove Heard Health (it may be listed as Cyra) in your Oura account's connected apps
+- `src/lib/wearables.js`
+  - Before: Cyra can't end this Fitbit, Garmin or Whoop connection itself — remove Cyra (it may be listed as Terra) under connected apps in that account
+  - After: Heard Health can't end this Fitbit, Garmin or Whoop connection itself — remove Heard Health (it may be listed as Cyra or Terra) under connected apps in that account
+- `src/lib/wearables.js`
+  - Before: Cyra can't end this Oura connection itself — remove Cyra in your Oura account's connected apps
+  - After: Heard Health can't end this Oura connection itself — remove Heard Health (it may be listed as Cyra) in your Oura account's connected apps
+
+**Owner actions so every sentence stays exact:** rename the app to "Heard Health" in the Oura developer portal, the
+Terra dashboard, the Apple Services ID / Sign in with Apple configuration, Google's OAuth consent screen and the
+Facebook app (the qualifiers above stay true either way). The legal drafts in docs/ still say Cyra and need the
+attorney's pass before publishing.

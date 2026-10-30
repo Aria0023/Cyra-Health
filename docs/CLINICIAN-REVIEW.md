@@ -1,6 +1,6 @@
 # Clinician review register
 
-Every sentence in Cyra that states something about a condition, a practice, an exercise or a marker is listed here
+Every sentence in Heard Health that states something about a condition, a practice, an exercise or a marker is listed here
 with where it appears and the named source it rests on. Nothing in this file is shown to users. A sentence ships to a
 public release only after a clinician has signed it off here (name, role, date). Until then its status reads
 "Awaiting clinician sign-off". Framing rules for every entry: an association or what a guideline describes, never a
@@ -31,7 +31,7 @@ The unit test `modules.test.mjs` fails if a medical sentence in the module is mi
 
 ### pcos.cycle.expected
 - Where: Body → Cycles, PCOS cycle wording (R4)
-- Text: Long or missed cycles are common with PCOS. Cyra shows them as part of your pattern, not as mistakes.
+- Text: Long or missed cycles are common with PCOS. Heard Health shows them as part of your pattern, not as mistakes.
 - Sources: Recommendations from the 2023 International Evidence-based Guideline for the Assessment and Management of Polycystic Ovary Syndrome (2023); Revised 2003 consensus on diagnostic criteria and long-term health risks related to polycystic ovary syndrome (2004)
 - Status: Awaiting clinician sign-off
 
@@ -49,19 +49,19 @@ The unit test `modules.test.mjs` fails if a medical sentence in the module is mi
 
 ### pcos.ask.pcos-long-cycles
 - Where: Ask library: "Why are my cycles so long?" (R5/R6)
-- Text: Irregular or long cycles are one of the features the 2023 international PCOS guideline describes. For adults it calls cycles under 21 or over 35 days, or fewer than eight a year, irregular. Cyra counts cycles longer than 35 days so you can show your clinician the pattern.
+- Text: Irregular or long cycles are one of the features the 2023 international PCOS guideline describes. For adults it calls cycles under 21 or over 35 days, or fewer than eight a year, irregular. Heard Health counts cycles longer than 35 days so you can show your clinician the pattern.
 - Sources: Recommendations from the 2023 International Evidence-based Guideline for the Assessment and Management of Polycystic Ovary Syndrome (2023)
 - Status: Awaiting clinician sign-off
 
 ### pcos.ask.pcos-diagnosis
 - Where: Ask library: "How is PCOS diagnosed?" (R5/R6)
-- Text: Clinicians use the Rotterdam criteria as refined by the 2023 guideline: two of irregular cycles, signs of higher androgens (such as excess hair growth or acne, or a blood test) and ovary findings on ultrasound or an AMH blood test in adults, once other causes are ruled out. Cyra does not diagnose PCOS.
+- Text: Clinicians use the Rotterdam criteria as refined by the 2023 guideline: two of irregular cycles, signs of higher androgens (such as excess hair growth or acne, or a blood test) and ovary findings on ultrasound or an AMH blood test in adults, once other causes are ruled out. Heard Health does not diagnose PCOS.
 - Sources: Revised 2003 consensus on diagnostic criteria and long-term health risks related to polycystic ovary syndrome (2004); Recommendations from the 2023 International Evidence-based Guideline for the Assessment and Management of Polycystic Ovary Syndrome (2023)
 - Status: Awaiting clinician sign-off
 
 ### pcos.ask.pcos-labs
 - Where: Ask library: "Which numbers from my blood tests can I add?" (R5/R6)
-- Text: The guideline recommends that blood sugar is checked (for example fasting glucose or HbA1c) when PCOS is diagnosed and every one to three years after. You can type values from your own results with their unit and date. Cyra keeps them on this device and does not interpret them.
+- Text: The guideline recommends that blood sugar is checked (for example fasting glucose or HbA1c) when PCOS is diagnosed and every one to three years after. You can type values from your own results with their unit and date. Heard Health keeps them on this device and does not interpret them.
 - Sources: Recommendations from the 2023 International Evidence-based Guideline for the Assessment and Management of Polycystic Ovary Syndrome (2023)
 - Status: Awaiting clinician sign-off
 
@@ -84,7 +84,7 @@ The unit test `modules.test.mjs` fails if a medical sentence in the module is mi
 - Pattern questions (sleep vs fatigue, high-sugar days vs cravings/energy, movement vs mood, cycle length over time)
   are reported as associations in her own log, with `MODULE_FRAMING`.
 - Lab values (fasting glucose in mg/dL or mmol/L, HbA1c in % or mmol/mol) are stored as she types them, with the test
-  date; Cyra never interprets them.
+  date; Heard Health never interprets them.
 - Reviewer questions: (1) is "Long or missed cycles are common with PCOS" acceptable lay wording for the guideline's
   irregular-cycle feature; (2) should the high-sugar day marker carry any caution about food anxiety or disordered
   eating; (3) confirm the NICE CKS revision date.
@@ -292,7 +292,7 @@ clinician, not a diagnosis or medical advice."; their advice text is the L8 copy
 - Sources: describes the fertility-signs group (lib/fertility.js FERT_COPY.settingCycle, shortened); no clinical claim.
 - Status: Awaiting clinician sign-off
 
-## Cyra's AI write-up and chat (calm R8)
+## Heard Health's AI write-up and chat (calm R8)
 ### ai.system.frame
 - Where: backend/src/modules/ai/tasks.js AI_FRAME (the system prompt for the weekly write-up and the chat)
 - Text: describes associations in her own data she could raise with her clinician; never diagnose, never name or adjust a treatment, medicine, supplement or dose, never tell her to start or stop anything; never interpret a lab value (normal, high, low, worrying); never grade, score or rate her; say plainly when there is too little data; plain warm language; for an emergency or red-flag question, no discussion of the data, the emergency line instead.
@@ -306,7 +306,7 @@ clinician, not a diagnosis or medical advice."; their advice text is the L8 copy
 - Status: Awaiting clinician sign-off
 
 ### ai.notadvice
-- Where: Patterns → Cyra's write-up, Mind → Journey → Chat about your log
-- Text: Associations to raise with your clinician, not a diagnosis or medical advice. / Written by Cyra's AI (Claude, made by Anthropic) from your summary.
+- Where: Patterns → Heard Health's write-up, Mind → Journey → Chat about your log
+- Text: Associations to raise with your clinician, not a diagnosis or medical advice. / Written by Heard Health's AI (Claude, made by Anthropic) from your summary.
 - Sources: MODULE_FRAMING (R2), unchanged wording.
 - Status: Awaiting clinician sign-off

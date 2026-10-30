@@ -45,7 +45,7 @@ const EXTRA = {
   "mind.level.energy": "Energy",
   "mind.level.fog": "Brain fog",
   "you.language": "Language",
-  "you.languageLead": "Cyra follows this device's language when it has it. Your choice stays on this device and isn't part of a backup.",
+  "you.languageLead": "Heard Health follows this device's language when it has it. Your choice stays on this device and isn't part of a backup.",
   "you.languageDevice": "Same as this device",
   "you.whatEachOneAdds": "What each one adds",
   "cycles.body": "Body",

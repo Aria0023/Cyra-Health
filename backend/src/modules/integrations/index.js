@@ -86,7 +86,7 @@ const STRIP = `try{history.replaceState(null,"",location.pathname)}catch(e){}`;
    Terra's user_id and reference_id never stay in the address bar or history. */
 function expiredPage(res) {
   res.status(400).set("content-type", "text/html; charset=utf-8").set("cache-control", "no-store").set("referrer-policy", "no-referrer")
-    .send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Cyra</title><script>${STRIP}</script><p style="font:15px system-ui;padding:24px">Connection link expired or invalid. Please go back to Cyra and try again.</p>`);
+    .send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Heard Health</title><script>${STRIP}</script><p style="font:15px system-ui;padding:24px">Connection link expired or invalid. Please go back to Heard Health and try again.</p>`);
 }
 
 /* The "done" page. Web (http/https return): hand a message to the opener and close;
@@ -96,9 +96,9 @@ function popupPage(res, { ret, message, frag }) {
   const target = `${ret}#${frag}`;
   res.set("content-type", "text/html; charset=utf-8").set("cache-control", "no-store").set("referrer-policy", "no-referrer");
   if (isAppReturn(ret)) {
-    return res.send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Cyra</title><p style="font:15px system-ui;padding:24px">Taking you back to Cyra… <a href="${attr(target)}" style="display:inline-block;min-height:44px;line-height:44px;padding:0 8px">Return to Cyra</a></p><script>${STRIP}location.replace(${js(target)});</script>`);
+    return res.send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Heard Health</title><p style="font:15px system-ui;padding:24px">Taking you back to Heard Health… <a href="${attr(target)}" style="display:inline-block;min-height:44px;line-height:44px;padding:0 8px">Return to Heard Health</a></p><script>${STRIP}location.replace(${js(target)});</script>`);
   }
-  res.send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Cyra</title><p style="font:15px system-ui;padding:24px">Finishing up… you can close this window.</p><script>${STRIP}(function(){var m=${js(message)};try{if(window.opener&&!window.opener.closed){window.opener.postMessage(m,${js(new URL(ret).origin)});window.close();return;}}catch(e){}location.replace(${js(target)});})();</script>`);
+  res.send(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Heard Health</title><p style="font:15px system-ui;padding:24px">Finishing up… you can close this window.</p><script>${STRIP}(function(){var m=${js(message)};try{if(window.opener&&!window.opener.closed){window.opener.postMessage(m,${js(new URL(ret).origin)});window.close();return;}}catch(e){}location.replace(${js(target)});})();</script>`);
 }
 
 export function mount(router, ctx, { handoffTtlMs = 5 * 60_000, inboxTtlMs = 7 * 86400000, sweepMs = 60_000 } = {}) {
@@ -230,7 +230,7 @@ export function mount(router, ctx, { handoffTtlMs = 5 * 60_000, inboxTtlMs = 7 *
     try {
       if (access && (await revoke(access))) return res.json({ ok: true });
       if (refresh) { const tok = await refreshTokens(o, refresh); if (tok && (await revoke(tok.access_token))) return res.json({ ok: true }); }
-      res.status(502).json({ error: "Oura didn't confirm — remove Cyra under Oura's account settings, then try again" });
+      res.status(502).json({ error: "Oura didn't confirm — remove Heard Health (it may be listed as Cyra) under Oura's account settings, then try again" });
     } catch {
       res.status(502).json({ error: "Oura did not answer" });
     }
@@ -339,7 +339,7 @@ export function mount(router, ctx, { handoffTtlMs = 5 * 60_000, inboxTtlMs = 7 *
       res.json({ ok: true, disconnected: ids.length });
     } catch (e) {
       console.warn(`[cyra] terra disconnect: ${String(e.message || "error").slice(0, 120)}`);
-      res.status(502).json({ error: "Terra didn't confirm the disconnect — try again, or remove Cyra (it may be listed as Terra) under connected apps in your device account" });
+      res.status(502).json({ error: "Terra didn't confirm the disconnect — try again, or remove Heard Health (it may be listed as Cyra or Terra) under connected apps in your device account" });
     }
   }
 }

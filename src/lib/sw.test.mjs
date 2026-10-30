@@ -1,6 +1,6 @@
 /* Unit tests for the offline shell (spec A14.1): the build-time helpers in lib/swBuild.js and
    public/sw.js itself, run in node:vm with a fake service-worker global. Run with
-   `npm run test:unit`. Checks: the precache list holds only Cyra's own files; the BUILD line is
+   `npm run test:unit`. Checks: the precache list holds only Heard Health's own files; the BUILD line is
    filled in literally and nothing else in the file changes; the dev placeholder stays a
    reminders-only worker; the push and notificationclick handlers are the ones from before L1,
    word for word, and behave as before; install precaches exactly BUILD.files, activate removes
@@ -21,13 +21,13 @@ const SOURCE = fs.readFileSync(SW_PATH, "utf8");
 const PUSH_STMT = `self.addEventListener("push", (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch { data = {}; }
-  event.waitUntil(self.registration.showNotification(data.title || "Cyra", { body: data.body || "Time for your 30-second check-in.", tag: data.tag || "cyra-checkin", renotify: false }));
+  event.waitUntil(self.registration.showNotification(data.title || "Heard Health", { body: data.body || "Time for your 30-second check-in.", tag: data.tag || "cyra-checkin", renotify: false }));
 });`;
 const CLICK_STMT = `self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => { const w = list.find((c) => "focus" in c); return w ? w.focus() : self.clients.openWindow("/"); }));
 });`;
-const MAIN_SW = `/* Cyra service worker: shows reminder pushes and opens the app on tap.
+const MAIN_SW = `/* Heard Health service worker: shows reminder pushes and opens the app on tap.
    The payload is a generic reminder — never health content. */
 ${PUSH_STMT}
 ${CLICK_STMT}
@@ -83,9 +83,9 @@ const fetchEvent = (url, { method = "GET", mode = "cors" } = {}) => ({ request: 
 
 test("precacheList: bundle files minus maps and sw.js, plus the manifest and icons, sorted and base-prefixed", () => {
   const bundleFiles = ["index.html", "assets/index-abc.js", "assets/index-abc.js.map", "assets/index-x.css", "assets/karla.woff2", "sw.js", "assets/index-abc.js"];
-  const publicFiles = ["sw.js", "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png", "icons/sub/deep.png", "icons/readme.txt", "fonts/OFL-Karla.txt", "fonts/OFL-Fraunces.txt", "other.webmanifest"];
+  const publicFiles = ["sw.js", "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png", "icons/favicon.svg", "icons/sub/deep.png", "icons/readme.txt", "fonts/OFL-Karla.txt", "fonts/OFL-Fraunces.txt", "other.webmanifest"];
   const out = precacheList({ bundleFiles, publicFiles, base: "/" });
-  assert.deepEqual(out, ["/assets/index-abc.js", "/assets/index-x.css", "/assets/karla.woff2", "/icons/apple-touch-icon.png", "/icons/icon-192.png", "/index.html", "/manifest.webmanifest"]);
+  assert.deepEqual(out, ["/assets/index-abc.js", "/assets/index-x.css", "/assets/karla.woff2", "/icons/apple-touch-icon.png", "/icons/favicon.svg", "/icons/icon-192.png", "/index.html", "/manifest.webmanifest"]);
   assert.ok(out.includes("/index.html"));
   assert.ok(!out.some((f) => f.endsWith(".map") || f.endsWith("sw.js") || f.includes("/fonts/")));
   assert.deepEqual([...out].sort(), out);
@@ -128,10 +128,10 @@ test("push and notificationclick are the pre-L1 statements, word for word, and b
     assert.deepEqual(plain(w.log.notifications.at(-1)), ["Hi", { body: "Check in", tag: "t1", renotify: false }]);
     e = w.fire("push", ext({ data: null }));
     await e.p;
-    assert.deepEqual(plain(w.log.notifications.at(-1)), ["Cyra", { body: "Time for your 30-second check-in.", tag: "cyra-checkin", renotify: false }]);
+    assert.deepEqual(plain(w.log.notifications.at(-1)), ["Heard Health", { body: "Time for your 30-second check-in.", tag: "cyra-checkin", renotify: false }]);
     e = w.fire("push", ext({ data: { json: () => { throw new Error("not json"); } } }));
     await e.p;
-    assert.deepEqual(plain(w.log.notifications.at(-1)), ["Cyra", { body: "Time for your 30-second check-in.", tag: "cyra-checkin", renotify: false }]);
+    assert.deepEqual(plain(w.log.notifications.at(-1)), ["Heard Health", { body: "Time for your 30-second check-in.", tag: "cyra-checkin", renotify: false }]);
     // click: closes, focuses an open window, else opens /
     let closed = 0;
     w.self.clients.windows = [{ url: "x" }, { focus: () => { w.log.focused++; } }];

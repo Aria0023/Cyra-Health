@@ -39,8 +39,8 @@ export default function GoalSheet({ pots, setPots, units, conditions = [], preg 
     <>
       {!setup && <h2 className="obq" id="pots-goal-h" tabIndex={-1} ref={headRef}>Your daily goals</h2>}
       {setup && <p className="lab" style={{ marginTop: 0 }}>Your daily goals</p>}
-      <p className="hint" style={{ marginBottom: 10 }}>Set these with your clinician. Cyra tracks them; it doesn't choose them.</p>
-      {highBp && <div className="plaincard" style={{ marginBottom: 10 }}><p className="plain">You told Cyra you have high blood pressure. Extra salt can raise it further, so please set any salt goal with your clinician.</p></div>}
+      <p className="hint" style={{ marginBottom: 10 }}>Set these with your clinician. Heard Health tracks them; it doesn't choose them.</p>
+      {highBp && <div className="plaincard" style={{ marginBottom: 10 }}><p className="plain">You told Heard Health you have high blood pressure. Extra salt can raise it further, so please set any salt goal with your clinician.</p></div>}
       {preg && <p className="plain">In pregnancy, ask your prenatal team before changing how much salt or fluid you have.</p>}
       <label className="lab" htmlFor="pots-goal-fl">{isOz(units) ? "Fluid goal (oz a day)" : "Fluid goal (ml a day)"}</label>
       <input id="pots-goal-fl" className="inp" {...numProps(isOz(units))} aria-label={isOz(units) ? "Fluid goal (oz a day)" : "Fluid goal (ml a day)"} value={fl} onChange={(e) => { setFl(e.target.value); setErr(""); }} />

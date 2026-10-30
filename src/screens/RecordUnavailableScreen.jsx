@@ -22,12 +22,12 @@ export default function RecordUnavailableScreen({ platform, locked, onRetry, onS
   const iosLocked = platform === "ios" && locked;
   return (
     <main className="splash">
-      <div className="splashmark">Cyra<span>.</span></div>
+      <div className="splashmark">Heard<span className="sub">Health</span></div>
       <h1 className="disp" style={{ marginTop: 26 }}>Your record couldn't be opened</h1>
       <div role="alert">
         <p className="hint">{iosLocked
-          ? "Your iPhone keeps Cyra's record locked while it's locked. Unlock it, then tap Try again. Cyra hasn't saved anything over your record."
-          : "Cyra couldn't read its record on this phone. Tap Try again. If it still won't open, the file may be damaged. Cyra hasn't saved anything over it."}</p>
+          ? "Your iPhone keeps Heard Health's record locked while it's locked. Unlock it, then tap Try again. Heard Health hasn't saved anything over your record."
+          : "Heard Health couldn't read its record on this phone. Tap Try again. If it still won't open, the file may be damaged. Heard Health hasn't saved anything over it."}</p>
       </div>
       <button className="cta" disabled={busy || deleting} onClick={retry}>{busy ? "Opening…" : "Try again"}</button>
       {!confirm && <button className="ghostbtn" onClick={() => setConfirm(true)}>It still won't open</button>}
@@ -36,8 +36,8 @@ export default function RecordUnavailableScreen({ platform, locked, onRetry, onS
           <p className="plain"><b>Start over on this phone?</b>{startOverText(FEATURES, ACCOUNTS_HERE)}</p>
           {FEATURES.wearables && <Details label="If you connected a wearable">
             <ul>
-              <li>If you connected Fitbit, Garmin or Whoop, new readings keep arriving at Cyra's server (held in memory up to 7 days, then deleted) until you remove access for Cyra or Terra, the service Cyra connects through, in that account. Terra keeps what it already collected under its own policy.</li>
-              <li>If you connected Oura, remove Cyra's access in your Oura account.</li>
+              <li>If you connected Fitbit, Garmin or Whoop, new readings keep arriving at Heard Health's server (held in memory up to 7 days, then deleted) until you remove access for Heard Health (it may be listed as Cyra) or Terra, the service Heard Health connects through, in that account. Terra keeps what it already collected under its own policy.</li>
+              <li>If you connected Oura, remove Heard Health's access in your Oura account (it may be listed as Cyra).</li>
             </ul>
           </Details>}
           {err && <p className="errhint" role="alert" style={{ marginTop: 0 }}>{err}</p>}

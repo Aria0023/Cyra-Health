@@ -400,7 +400,7 @@ export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso,
   const callout = cycleView ? (
     <div className={top}>
       {hs != null && <b>Days {hs}–{hs + 4}</b>}
-      <p>{hs != null ? `Across your last ${model.cyc.length} cycles, your hardest days usually fall around cycle days ${hs}–${hs + 4}. Worth planning a lighter week around them.` : "Keep logging through your next period and Cyra can show which cycle days are usually hardest for you."}</p>
+      <p>{hs != null ? `Across your last ${model.cyc.length} cycles, your hardest days usually fall around cycle days ${hs}–${hs + 4}. Worth planning a lighter week around them.` : "Keep logging through your next period and Heard Health can show which cycle days are usually hardest for you."}</p>
     </div>
   ) : (trend.kind || showStretches) ? (
     <div className={top}>

@@ -281,7 +281,7 @@ export function needFrom(day, hour = 12) {
   if (tags.some((t) => ["anxious", "overwhelmed", "restless"].includes(t))) return { need: "worry", why: "You said you're feeling on edge." };
   if ((d.mood && d.mood <= 2) || tags.some((t) => ["sad", "lonely"].includes(t))) return { need: "low", why: "You said your mood is low today." };
   if (d.energy === 1 || tags.includes("tired")) return { need: "energy", why: "You said your energy is low." };
-  return { need: "calm", why: d.mood ? "A short practice for whenever suits you today." : "Check in above and Cyra will pick one for how you feel." };
+  return { need: "calm", why: d.mood ? "A short practice for whenever suits you today." : "Check in above and Heard Health will pick one for how you feel." };
 }
 /* Low mood leads with one small step (behavioural activation); otherwise the need's own list. */
 const ORDER = { low: ["step", "move", "slow"], energy: ["move", "step", "slow"], fog: ["move", "pause", "slow"], worry: ["ground", "reframe", "pause", "slow"], rest: ["winddown", "slow", "pmr", "scan"], calm: ["slow", "box", "ground"] };

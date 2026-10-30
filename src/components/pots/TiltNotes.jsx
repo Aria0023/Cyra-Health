@@ -6,7 +6,7 @@ import { numOf, numProps, dayLabel } from "./ui.js";
 /* Tilt-table results (design 4.7), kept as she was told them, next to her stand tests, so
    everything is in one place for her clinician. Cyra stores the words and numbers she types and
    never interprets them: nothing here feeds a result, a pattern or a threshold. */
-export const TILT_HINT = "Cyra just keeps this with your other results so it's in one place for your clinician. It doesn't interpret it.";
+export const TILT_HINT = "Heard Health just keeps this with your other results so it's in one place for your clinician. It doesn't interpret it.";
 const FAINT = [["no", "No"], ["almost", "Almost"], ["yes", "Yes"]];
 const FAINT_WORD = { no: "didn't faint", almost: "almost fainted", yes: "fainted" };
 

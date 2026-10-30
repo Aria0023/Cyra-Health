@@ -11,7 +11,7 @@ const BUILD = {"version":"dev","base":"/","entry":null,"index":"/index.html","fi
 self.addEventListener("push", (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch { data = {}; }
-  event.waitUntil(self.registration.showNotification(data.title || "Cyra", { body: data.body || "Time for your 30-second check-in.", tag: data.tag || "cyra-checkin", renotify: false }));
+  event.waitUntil(self.registration.showNotification(data.title || "Heard Health", { body: data.body || "Time for your 30-second check-in.", tag: data.tag || "cyra-checkin", renotify: false }));
 });
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();

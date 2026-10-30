@@ -112,7 +112,7 @@ test("account: cloudAccount is cleaned, merged by rev and never resurrected", ()
   assert.equal(contentSum("abc"), contentSum("abc")); assert.notEqual(contentSum("abc"), contentSum("abd")); assert.match(contentSum(""), /^[0-9a-f]{8}$/);
 });
 
-test("account: every sentence is calm and honest (no streaks, grades, or claims Cyra can recover a passphrase)", () => {
+test("account: every sentence is calm and honest (no streaks, grades, or claims Heard Health can recover a passphrase)", () => {
   const all = Object.values(ACCOUNT_COPY).flatMap((v) => (typeof v === "function" ? [v("a@b.co")] : Array.isArray(v) ? v : [v])).join(" ");
   assert.match(ACCOUNT_COPY.lost, /nobody can recover it/);
   assert.ok(ACCOUNT_COPY.holds.some((t) => /hash of your email/.test(t) && /Never your email/.test(t)));
@@ -128,17 +128,17 @@ test("disclosures (calm R9): accounts builds name the encrypted account backup; 
   assert.deepEqual(serverSees(ALL, false, true), serverSees(ALL, false), "no server, no account");
   assert.match(wipeConfirm(ALL, false, true), /keep no readable copy/); assert.match(wipeConfirm(ALL, false, true), /until you delete the account or it expires/);
   assert.equal(wipeConfirm(ALL, false), wipeConfirm(ALL, false, false));
-  assert.equal(storeCopyLine(false), "Cyra's servers don't keep a copy."); assert.match(storeCopyLine(true), /only your encrypted account backup/);
+  assert.equal(storeCopyLine(false), "Heard Health's servers don't keep a copy."); assert.match(storeCopyLine(true), /only your encrypted account backup/);
   assert.match(startOverText(ALL, true), /no readable copy/);
   for (const f of [ALL, DEF, parseFeatures("none"), parseFeatures("counts")]) {
     assert.ok(potsTodayFoot(f, true).includes(ACCOUNT_EXCEPT) && !potsTodayFoot(f).includes("account"));
     assert.ok(Object.values(potsTodayFootUnsaved(f, true)).every((t) => t.includes(ACCOUNT_EXCEPT)));
     assert.ok(potsNeverSent(f, true).endsWith(`${ACCOUNT_EXCEPT}.`) && !potsNeverSent(f).includes("account"));
   }
-  assert.equal(splashAccountLine(), "No account needed. There's no Cyra account to make, and your name and email are optional.");
+  assert.equal(splashAccountLine(), "No account needed. There's no Heard Health account to make, and your name and email are optional.");
   assert.match(splashAccountLine(true), /^No account needed\. An account is optional/);
   assert.match(consentBackupFact(true), /optional account keeps the same kind of encrypted backup/);
-  assert.equal(consentBackupFact(), "A backup is a file you keep, locked with a passphrase only you know. Cyra never receives the file or the passphrase, so we can't read it or recover a lost passphrase.");
+  assert.equal(consentBackupFact(), "A backup is a file you keep, locked with a passphrase only you know. Heard Health never receives the file or the passphrase, so we can't read it or recover a lost passphrase.");
 });
 
 test("privacy flows (calm R9): the Cloud backup row needs the flag, a server and the plan, and is On while signed in", () => {

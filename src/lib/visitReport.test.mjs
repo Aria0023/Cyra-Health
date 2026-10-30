@@ -65,7 +65,7 @@ test("sections in the bytes", () => {
   assert.equal(m.symptoms.rows.length, 8);
   const s = latin1(visitPdf(m, PdfDoc));
   assert.ok(s.includes("(Cycle and symptom summary · Ada) Tj"));
-  assert.ok(s.includes("Prepared by the user in Cyra · observations, not a diagnosis"));
+  assert.ok(s.includes("Prepared by the user in Heard Health · observations, not a diagnosis"));
   for (const t of ["(1. Recent cycles) Tj", "(2. Symptoms, last 30 days) Tj", "(3. Day score, last 30 days) Tj", "(4. Questions I'd like to cover) Tj"]) assert.ok(s.includes(t), t);
   assert.equal((s.match(/\(Page 1 of /g) || []).length, 1);
   assert.equal((s.match(/\(Page \d+ of /g) || []).length, pageCount(s));
@@ -136,10 +136,10 @@ test("cycle history", () => {
   // No starts at all.
   const none = model({}, fixture({ periods: false }));
   assert.equal(none.cycles.rows.length, 0);
-  assert.equal(none.cycles.empty, "No period start logged in Cyra.");
+  assert.equal(none.cycles.empty, "No period start logged in Heard Health.");
   assert.equal(none.header.title, "Symptom summary · Ada");
   const s = latin1(visitPdf(none, PdfDoc));
-  assert.ok(s.includes("(Symptom summary · Ada) Tj") && s.includes("No period start logged in Cyra."));
+  assert.ok(s.includes("(Symptom summary · Ada) Tj") && s.includes("No period start logged in Heard Health."));
 });
 
 test("symptom comparison rule", () => {
@@ -147,7 +147,7 @@ test("symptom comparison rule", () => {
   assert.equal(nine.symptoms.prevN, 9);
   assert.equal(nine.symptoms.prevOk, false);
   assert.deepEqual(nine.symptoms.head, ["Symptom", "Days (of 30 logged)", "Moderate or strong"]);
-  assert.equal(nine.symptoms.noCompare, "No comparison with the 30 days before (Aug 24 – Sep 22, 2026): 9 days were logged then, and Cyra compares only with 10 or more.");
+  assert.equal(nine.symptoms.noCompare, "No comparison with the 30 days before (Aug 24 – Sep 22, 2026): 9 days were logged then, and Heard Health compares only with 10 or more.");
   assert.equal(nine.symptoms.rows[0].cells.length, 3);
   assert.ok(!visitTexts(nine).some((t) => t.includes("30 days before (of")));
   const ten = model({}, fixture({ prevLogged: 10 }));
@@ -243,7 +243,7 @@ test("contents and top lines", () => {
   const oldOnly = visitModel({ days: old, ins: insights(old, IDS, new Date(`${TODAY}T12:00:00`)), ids: IDS, stage: "peri", stageName: "Perimenopause", today: TODAY, scale: SCORE_SCALE.peri });
   assert.ok(oldOnly.enough, "cycles alone are enough");
   assert.equal(oldOnly.header.line, "Perimenopause · Sep 23 – Oct 22, 2026 · 0 of the last 30 days logged");
-  assert.equal(full.files.pdf, "cyra-summary-2026-10-22.pdf");
+  assert.equal(full.files.pdf, "heard-health-summary-2026-10-22.pdf");
   assert.equal(full.header.made, MADE_LINE);
   assert.equal(limitLine(3, "2026-11-01"), "You've made this month's 3 PDFs. You can make another from Nov 1, 2026. Print this page works any time.");
 });
@@ -274,7 +274,7 @@ test("deterministic, valid file", () => {
   assert.ok(s.startsWith("%PDF-1.4"));
   assert.ok(s.endsWith("%%EOF\n"));
   assert.ok(!/CreationDate|ModDate/.test(s));
-  assert.ok(s.includes("/Title (Cyra report)"));
+  assert.ok(s.includes("/Title (Heard Health report)"));
   const xrefAt = Number(/startxref\n(\d+)\n/.exec(s)[1]);
   assert.equal(s.slice(xrefAt, xrefAt + 4), "xref");
   const [, count] = /xref\n0 (\d+)\n/.exec(s.slice(xrefAt));
@@ -329,12 +329,12 @@ test("pdftotext", { skip: !existsSync("/usr/bin/pdftotext") }, () => {
   assert.match(t, /Cycle and symptom summary · Ada/);
   assert.match(t, /Perimenopause · \w{3} \d+ – \w{3} \d+, \d{4} · \d+ of the last 30 days logged/);
   assert.match(t, /Hot flashes\s+\d+\s+\d+/);
-  assert.match(t, /Page 1 of \d · Cyra · Observations, not a diagnosis\./);
+  assert.match(t, /Page 1 of \d · Heard Health · Observations, not a diagnosis\./);
 });
 
 test("banned wording", () => {
   for (const m of [model(), model({ includeNotes: true, fertilityLines: ["Positive ovulation test on 1 day: Oct 12", "Temperature logged on 9 days"] }), model({}, fixture({ periods: false, prevLogged: 9 }))]) checkWording(m);
-  assert.equal(footerText(2, 3), "Page 2 of 3 · Cyra · Observations, not a diagnosis.");
+  assert.equal(footerText(2, 3), "Page 2 of 3 · Heard Health · Observations, not a diagnosis.");
 });
 
 test("source", () => {

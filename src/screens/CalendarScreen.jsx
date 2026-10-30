@@ -153,13 +153,13 @@ function predictionText(p) {
 /* Why there is no prediction (engine whyNoPrediction). */
 function whyText(why, stage) {
   switch (why?.kind) {
-    case "unsure": return "At sign-up you said your cycles are irregular or you're not sure how long they run, so Cyra won't guess yet. Log a couple of periods (light flow or more on the Today screen) and the calendar starts estimating your next one.";
+    case "unsure": return "At sign-up you said your cycles are irregular or you're not sure how long they run, so Heard Health won't guess yet. Log a couple of periods (light flow or more on the Today screen) and the calendar starts estimating your next one.";
     case "excluded": return why.kept
       // An Irregular / Not sure sign-up with one cycle still in use (plan() waits for two).
-      ? "At sign-up you said your cycles are irregular or you're not sure how long they run, so Cyra waits until two cycles are in use. Only one of yours is in use now — turn another back on in Body → Cycles, or keep logging."
-      : "Every cycle you've logged is left out of predictions, so Cyra won't guess. Turn one back on in Body → Cycles, or keep logging.";
-    case "long": return `It's been ${why.days} days since the last period Cyra knows about, longer than it predicts across. If you had one since, tap that day to log it.${stage === "peri" ? " Long gaps are common in perimenopause." : " If you haven't and that's unexpected, it's worth mentioning to a clinician."}`;
-    case "meno": return "After menopause Cyra doesn't predict periods. Any bleeding now is worth mentioning to your doctor — log it on the Today screen so it's in your record.";
+      ? "At sign-up you said your cycles are irregular or you're not sure how long they run, so Heard Health waits until two cycles are in use. Only one of yours is in use now — turn another back on in Body → Cycles, or keep logging."
+      : "Every cycle you've logged is left out of predictions, so Heard Health won't guess. Turn one back on in Body → Cycles, or keep logging.";
+    case "long": return `It's been ${why.days} days since the last period Heard Health knows about, longer than it predicts across. If you had one since, tap that day to log it.${stage === "peri" ? " Long gaps are common in perimenopause." : " If you haven't and that's unexpected, it's worth mentioning to a clinician."}`;
+    case "meno": return "After menopause Heard Health doesn't predict periods. Any bleeding now is worth mentioning to your doctor — log it on the Today screen so it's in your record.";
     default: return "No predictions yet. Log a period day (light flow or more on the Today screen) and the calendar starts estimating your next one.";
   }
 }

@@ -49,7 +49,7 @@ const LINE = { warm: "Easy pace to warm up.", cool: "Easy pace to cool down." };
     pacing mode keep the plan's full-sentences pace (MOVE_STEPS step 1) and never step it up. */
 export const mainLine = (step) => (step == null || step <= 1 ? "An easy pace where you could talk in full sentences." : "A pace where you could still talk in short sentences.");
 const PART_WORD = { warm: "Warm up", main: "Main part", cool: "Cool down" };
-const FULL_TEXT = "You've logged 4 sessions on this day, the most Cyra keeps.";
+const FULL_TEXT = "You've logged 4 sessions on this day, the most Heard Health keeps.";
 const BEAT = 4 * MIN; // refresh a running session's upd this often (staleness is 30 minutes)
 const mmss = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const whole = (s, lo, hi) => { const n = numOf(s); return n != null && Number.isInteger(n) && n >= lo && n <= hi ? n : null; };

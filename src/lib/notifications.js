@@ -124,7 +124,7 @@ async function syncNow({ cadence, nudge }, { prompt = true, timeoutMs, known = [
     // Inexact on purpose: a gentle check-in may land a few minutes late, whereas exact (the plugin's default) makes Android 12+ open the "Alarms & reminders" settings screen.
     // allowWhileIdle (Android only; iOS ignores both options) lets each weekday's first alarm fire during Doze. The plugin re-arms later weeks
     // without it, so those can be held back in Doze until the app next opens and runs this again (App.jsx re-applies reminders after loading).
-    await ln.schedule({ notifications: DAYS[cadence].map((weekday) => ({ id: 1000 + weekday, title: "Cyra", body: "Time for your 30-second check-in.", schedule: { on: { weekday, hour, minute }, allowWhileIdle: true }, isExactNotification: false })) });
+    await ln.schedule({ notifications: DAYS[cadence].map((weekday) => ({ id: 1000 + weekday, title: "Heard Health", body: "Time for your 30-second check-in.", schedule: { on: { weekday, hour, minute }, allowWhileIdle: true }, isExactNotification: false })) });
     return { active: true };
   }
   if (!webSupported()) return { active: false, unsupported: true };

@@ -75,11 +75,11 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
   const remindKind = reminderSupport(); // "native" | "web" | "none"
   const webReminders = !isNativeBuild && remindKind === "web" && hasServer() && FEATURES.webReminders;
   const consentRows = [
-    (isNativeBuild || webReminders) && ["notifOptin", "Remind me on this device", isNativeBuild ? "Scheduled on this phone — no server involved. No phone number, no texts, ever." : "A plain reminder, nothing about your health in it. Cyra's server keeps this browser's push address and your reminder schedule; turning reminders off erases them. No phone number, no texts, ever."],
-    hasServer() && FEATURES.counts && ["research", "Share anonymous weekly counts", "Cyra's server gets your life stage group and which of a few symptoms you logged, each at most once a week. No dates, values or name. Counts already added can't be taken back."],
+    (isNativeBuild || webReminders) && ["notifOptin", "Remind me on this device", isNativeBuild ? "Scheduled on this phone — no server involved. No phone number, no texts, ever." : "A plain reminder, nothing about your health in it. Heard Health's server keeps this browser's push address and your reminder schedule; turning reminders off erases them. No phone number, no texts, ever."],
+    hasServer() && FEATURES.counts && ["research", "Share anonymous weekly counts", "Heard Health's server gets your life stage group and which of a few symptoms you logged, each at most once a week. No dates, values or name. Counts already added can't be taken back."],
     // Until the published Terms and Privacy Policy can be linked, the box asks only for
     // agreement to what this screen itself says.
-    ["terms", POLICY_LINKS_READY ? "I agree to the Terms & Privacy Policy" : "I agree to how Cyra handles my data, as described above", POLICY_LINKS_READY ? "Nothing here is pre-ticked, and every optional choice can be changed later in Settings." : "Plain language, no dark patterns."],
+    ["terms", POLICY_LINKS_READY ? "I agree to the Terms & Privacy Policy" : "I agree to how Heard Health handles my data, as described above", POLICY_LINKS_READY ? "Nothing here is pre-ticked, and every optional choice can be changed later in Settings." : "Plain language, no dark patterns."],
   ].filter(Boolean);
   const opensIn = isNativeBuild ? "opens in your browser" : "opens in a new tab";
   const PolicyLink = ({ url, children }) => (
@@ -202,7 +202,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
               {[
                 "Your health log is stored on this device, and your patterns are worked out here.",
                 "Nothing about your health leaves this device unless you turn on a feature that sends it, or take it out yourself.",
-                "Never sold. Care partners get nothing from Cyra about you.",
+                "Never sold. Care partners get nothing from Heard Health about you.",
                 "Doctor sharing happens only when you send it or save a file yourself.",
                 consentDeleteFact(FEATURES, isNativeBuild),
                 consentBackupFact(ACCOUNTS_HERE),

@@ -1,4 +1,4 @@
-/* Unit tests for Ask Cyra's written library (lib/askLibrary.js) and its backend mirror
+/* Unit tests for Ask Heard Health's written library (lib/askLibrary.js) and its backend mirror
    (backend/src/modules/ai/tasks.js, the deterministic fallback). Run with `npm run test:unit`.
    Checks: the two lists stay in step (same red flags, same entries in the same order; the backend
    copies drop only the "POTS tools in Settings" sentences, which older apps can't honour), the four
@@ -25,8 +25,8 @@ const POTS_ASK = [
 // Sentences only the client's copy carries: the backend fallback serves POTS entries only to older apps
 // (newer ones answer them on the device), and those have no POTS tools in Settings.
 const CLIENT_ONLY = [
-  "Cyra's optional POTS tools in Settings include a gentle plan you can adjust with them.",
-  "Cyra's optional POTS tools in Settings can help you gather what clinicians ask about.",
+  "Heard Health's optional POTS tools in Settings include a gentle plan you can adjust with them.",
+  "Heard Health's optional POTS tools in Settings can help you gather what clinicians ask about.",
 ];
 const backendCopy = (a) => CLIENT_ONLY.reduce((x, t) => x.replace(" " + t, ""), a);
 const HELP = "Get care today if you've fainted or blacked out, or if you have chest pain, trouble breathing, heavy bleeding, a racing heartbeat that doesn't settle after lying down, or dizziness that's new or much worse in pregnancy or after giving birth. If it's severe, call your local emergency number (911 in the US).";
@@ -188,7 +188,7 @@ test("POTS answers: no diagnosis, no banned wording, no amounts", () => {
       assert.ok(!/\b\d+(\.\d+)?\s?(litres?|liters?|L|ml|grams?|tablets?)\b/i.test(t), `amount: ${s}`);
     }
   }
-  assert.ok(LIBRARY[3].answer.includes("Cyra can't diagnose POTS; only a clinician can."));
+  assert.ok(LIBRARY[3].answer.includes("Heard Health can't diagnose POTS; only a clinician can."));
 });
 
 test("every Ask starter and insight question is answered by the library on the device", () => {

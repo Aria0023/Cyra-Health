@@ -1,6 +1,8 @@
-# Cyra Health
+# Heard Health
 
-A calm, low-pressure companion for women's health: a cycle and symptom tracker that finds patterns in her own
+*I am Heard.*
+
+Heard Health (formerly Cyra; renamed 2026-10-30) is a calm, low-pressure companion for women's health: a cycle and symptom tracker that finds patterns in her own
 log and turns them into plain-language notes and a doctor-ready PDF. One life-stage experience at a time — My
 Cycle, Trying to conceive, Pregnancy, Perimenopause, Menopause & beyond — with optional condition modules (PCOS,
 POTS; hair loss is the next slot). Guest first: no account to start, and the health log stays on the device.
@@ -9,14 +11,14 @@ Guidance only, never diagnosis or medical advice.
 **What's in the app**
 - Five tabs and a "+" log sheet: **Home** (cycle day in a ring, Today's small step, Quick log tiles, Body and Mind
   progress, your patterns), **Body** (fast log, calendar, cycles, PCOS signals and lab values she types in),
-  **Mind** (mood check-in, 2–5 minute practices with their evidence and sources, journal and Ask Cyra), **Patterns**
+  **Mind** (mood check-in, 2–5 minute practices with their evidence and sources, journal and Ask Heard Health), **Patterns**
   (cycle timeline, Body and Mind rings in words, pattern cards, the weekly review with one optional experiment,
-  the Report and PDF) and **You** (stage, privacy and your data, modules, plan, reminders, appearance, Cyra's AI,
+  the Report and PDF) and **You** (stage, privacy and your data, modules, plan, reminders, appearance, Heard Health's AI,
   account, support & care, about).
 - Tone rules: no streaks, scores, grades or failure language; empty states say "A few more logs will show clearer
   associations"; practices are "wellbeing support, not treatment".
 - Free core forever (logging, calendar, cycles, patterns, weekly review, the basic PDF). Pro (store purchase, not
-  wired to a store yet) adds the full practice library and Cyra's AI write-up and chat; see docs/MONETIZATION.md.
+  wired to a store yet) adds the full practice library and Heard Health's AI write-up and chat; see docs/MONETIZATION.md.
 - Language support: every screen string goes through `t()` (src/lib/i18n.js) with an English catalogue
   (src/locales/en.js). Dates and numbers are formatted with Intl, `<html lang>`/`dir` follow the language. Only
   English ships, so the You → Language picker stays hidden until a second complete catalogue is added.
@@ -145,8 +147,9 @@ Static site on Render: build `npm install && npm run build`, publish `dist`.
 
 The build also writes the installable-app pieces: `manifest.webmanifest` and `icons/` are
 copied from `public/`, and `sw.js` gets this build's file list and version (vite.config.js,
-`cyraServiceWorker`; spec A14.1). The icons are committed PNGs; regenerate them with
-`python3 scripts/make-icons.py` (Python 3 + Pillow, run from the repo root). `render.yaml`
+`cyraServiceWorker`; spec A14.1). The icons are committed PNGs drawn from the master mark in `docs/brand/`; regenerate them, and
+the native icon sets, with `node scripts/make-icons.mjs` then `python3 scripts/flatten-icons.py` (headless
+Chromium via an installed Playwright, not an npm dependency; run from the repo root). `render.yaml`
 sets `Cache-Control: no-cache` for `/`, `/index.html`, `/sw.js` and `/manifest.webmanifest` so
 browsers revalidate them; hashed `/assets/*` keep the host default.
 

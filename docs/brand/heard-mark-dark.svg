@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Heard Health">
+  <title>Heard Health</title>
+  <rect width="64" height="64" fill="#131520"/>
+  <g fill="none" stroke="#A7B5F4" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M15.22 38.92 A19 19 0 1 1 26.13 48.07"/>
+    <path d="M26.13 48.07 Q22.93 53.47 16.53 55.47"/>
+  </g>
+  <circle cx="32" cy="30" r="5.5" fill="#A7B5F4"/>
+</svg>

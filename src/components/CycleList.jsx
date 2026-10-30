@@ -23,7 +23,7 @@ export default function CycleList({ cyc, peri = false, onUse }) {
   };
   return (
     <>
-      <p>Predictions use up to your last 6 cycles. Tap “Don't use” on one that wasn't typical for you — after stopping the pill, an illness or a pregnancy, for example. Cyra may point out a cycle that looks unusual, but only you can leave one out.</p>
+      <p>Predictions use up to your last 6 cycles. Tap “Don't use” on one that wasn't typical for you — after stopping the pill, an illness or a pregnancy, for example. Heard Health may point out a cycle that looks unusual, but only you can leave one out.</p>
       <p>Your Report and insights still count every cycle.</p>
       <ul className="cyclist">
         {cyc.current && (

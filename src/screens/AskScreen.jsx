@@ -15,7 +15,7 @@ import { t } from "../lib/i18n.js";
    focused with its source badge up top, the evidence base one citation per line, the
    visit question copyable, and a one-tap AI route out of an unmatched answer that sets
    the same visible opt-in and shows the same disclosure. */
-export const AI_DISCLOSURE = "When this is on and the library can't answer, your typed words go through Cyra's server to Anthropic, maker of the Claude AI, which keeps them for a limited time. Leave out identifying details.";
+export const AI_DISCLOSURE = "When this is on and the library can't answer, your typed words go through Heard Health's server to Anthropic, maker of the Claude AI, which keeps them for a limited time. Leave out identifying details.";
 
 // The answer object the screen last landed on. Module-level on purpose: the tab panel remounts this
 // screen on every tab switch, and coming back to a standing answer must not scroll or steal focus
@@ -29,15 +29,15 @@ export default function AskScreen({ org, stage, askQ, setAskQ, runAsk, askBusy, 
   const Wrap = embedded ? "section" : "main";
   const outRef = useRef(null);
   const starters = [...(STARTERS[stage] || STARTERS.peri), ...(potsOn ? STARTERS.pots : [])];
-  const sourceLine = askOut?.source === "ai" ? "Written by Cyra's AI (Claude, made by Anthropic) — not from the written library."
-    : askOut?.source === "library" ? "From Cyra's written library — answered on this device; nothing was sent."
-    : askOut?.source === "server-library-attempted" ? "From Cyra's written library. Your question was sent to Cyra's server, which asked Cyra's AI (Claude, made by Anthropic). Anthropic may have received it, but no AI answer came back."
-    : askOut?.source === "server-library" ? "From Cyra's written library. Your question was sent to Cyra's server, but Cyra's AI isn't set up there, so it didn't go to Anthropic."
+  const sourceLine = askOut?.source === "ai" ? "Written by Heard Health's AI (Claude, made by Anthropic) — not from the written library."
+    : askOut?.source === "library" ? "From Heard Health's written library — answered on this device; nothing was sent."
+    : askOut?.source === "server-library-attempted" ? "From Heard Health's written library. Your question was sent to Heard Health's server, which asked Heard Health's AI (Claude, made by Anthropic). Anthropic may have received it, but no AI answer came back."
+    : askOut?.source === "server-library" ? "From Heard Health's written library. Your question was sent to Heard Health's server, but Heard Health's AI isn't set up there, so it didn't go to Anthropic."
     : null;
   // Source badge, mapped strictly from askOut.source: every library route (on the device, or the
   // server's rules fallback) is "Written library"; only an AI-written answer is "Cyra's AI"; an
   // error has no badge. It must agree with the footer sentence above, which is the authority.
-  const badge = askOut?.source === "ai" ? ["Cyra's AI", "u-ai"] : askOut && askOut.source !== "error" ? ["Written library", "u-visit"] : null;
+  const badge = askOut?.source === "ai" ? ["Heard Health's AI", "u-ai"] : askOut && askOut.source !== "error" ? ["Written library", "u-visit"] : null;
   const unmatched = !!askOut && askOut.source === "library" && askOut.matched === false;
   // The library's own paragraphing (blank lines) is kept; no sentence scanner.
   const paragraphs = askOut ? String(askOut.answer || "").split(/\n\s*\n/) : [];
@@ -63,7 +63,7 @@ export default function AskScreen({ org, stage, askQ, setAskQ, runAsk, askBusy, 
   const onKey = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !askBusy) { e.preventDefault(); runAsk(); } };
   return (
     <Wrap className={embedded ? "askpart" : undefined} id={embedded ? "ask" : undefined} aria-labelledby={embedded ? "ask-h" : undefined}>
-      {embedded ? <h2 className="journeyh askh" id="ask-h"><span className="ibadge" data-tint="mind" aria-hidden="true"><Icon name="sparkle" size={18} /></span>{t("ask.ask", { name: org.name })}</h2> : <h1 className="disp">{t("ask.ask", { name: org.name })}</h1>}
+      {embedded ? <h2 className="journeyh askh" id="ask-h"><span className="ibadge" data-tint="mind" aria-hidden="true"><Icon name="sparkle" size={18} /></span>{t("ask.ask", { name: org.title || org.name })}</h2> : <h1 className="disp">{t("ask.ask", { name: org.title || org.name })}</h1>}
       <p className="hint">{t("ask.plainLanguageAnswersFromCyras")}{aiAvailable && t("ask.ifYouTurnOnCyras")}</p>
       <div className={askOut ? "askstart" : "askstart askintro"}>
         <p className="section-lab">{t("ask.tryAsking")}</p>

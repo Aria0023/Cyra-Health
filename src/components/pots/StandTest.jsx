@@ -149,7 +149,7 @@ function DueCard({ card, bp, standAt, now, onSave, onSkip, onFeel, headRef, over
       {!up && <p className="hint" style={{ margin: "0 0 6px" }}>{`Rest minute ${card.min}. Stay lying down.`}</p>}
       {over && <p className="plain" style={{ margin: "0 0 6px" }}>{`If you took the minute ${card.min} reading before you sat down, add it now. Otherwise skip it.`}</p>}
       {/* Only upright readings store the time they were entered (atSec), so only they say so. */}
-      {up && late && <p className="hint" style={{ margin: "0 0 6px" }}>That's fine. Cyra notes the time you entered it.</p>}
+      {up && late && <p className="hint" style={{ margin: "0 0 6px" }}>That's fine. Heard Health notes the time you entered it.</p>}
       {field("hr", "Heart rate (beats per minute)", hr, setHr)}
       {counted && n.hr != null && <p className="hint" style={{ margin: "0 0 8px" }}>Counted for 15 seconds, times 4.</p>}
       {bp && (

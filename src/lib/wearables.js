@@ -37,8 +37,8 @@ export const SOURCES = [
       ? { id: "healthkit", name: "Health Connect", what: "skin temperature, resting heart rate, HRV, sleep · read on this phone" }
       : { id: "healthkit", name: "Apple Watch · Health app", what: "wrist temperature, resting heart rate, HRV, sleep · read on this phone" }]
     : []),
-  { id: "oura", name: "Oura Ring", what: "temperature, resting heart rate, HRV, sleep score · passes through Cyra's server, readings not stored", viaServer: true },
-  { id: "terra", name: "Fitbit · Garmin · Whoop", what: "through Terra, a health-data service · waits on Cyra's server up to 7 days", viaServer: true },
+  { id: "oura", name: "Oura Ring", what: "temperature, resting heart rate, HRV, sleep score · passes through Heard Health's server, readings not stored", viaServer: true },
+  { id: "terra", name: "Fitbit · Garmin · Whoop", what: "through Terra, a health-data service · waits on Heard Health's server up to 7 days", viaServer: true },
 ];
 /** Sources that go through Cyra's server, need a disclosure before connecting, and can be disconnected. */
 export const VIA_SERVER = new Set(SOURCES.filter((s) => s.viaServer).map((s) => s.id));
@@ -53,7 +53,7 @@ const HEALTH_CONNECT_TYPES = 4; // resting heart rate, HRV, sleep, skin temperat
 /* Without VITE_API_BASE there is no server to connect through, and nothing is requested. */
 const needServer = () => { if (!API_BASE) throw new Error("This version of the app isn't set up to connect accounts yet"); };
 const err = (message, code) => Object.assign(new Error(message), { code });
-const SERVER_SILENT = "Cyra's server didn't answer — try again in a moment";
+const SERVER_SILENT = "Heard Health's server didn't answer — try again in a moment";
 
 /* Local calendar day (the bridge contract and Oura both count days in local time; a UTC
    date would drop "today" east of UTC early in the day). */
@@ -84,7 +84,7 @@ export function mergeRows(existing, incoming) {
 /** Open a popup synchronously (inside the user's tap) and wait for the backend's done-page message. */
 function popupFlow(open, type, timeoutMs = 5 * 60_000) {
   const win = window.open("about:blank", "cyra-connect", "popup,width=480,height=720");
-  if (!win) return Promise.reject(err("Your browser blocked the sign-in window — allow pop-ups for Cyra and try again", "OPEN_FAILED"));
+  if (!win) return Promise.reject(err("Your browser blocked the sign-in window — allow pop-ups for Heard Health and try again", "OPEN_FAILED"));
   return new Promise((resolve, reject) => {
     const origin = apiOrigin();
     const timer = setTimeout(() => { cleanup(); reject(err("The connection window timed out", "TIMEOUT")); }, timeoutMs);
@@ -107,12 +107,12 @@ async function sources() {
    before its window opens, so a late approval can still be collected with Sync. */
 function windowError(id, e) {
   if (id === "terra") {
-    if (e?.code === "CLOSED") return new Error("The connection window was closed. If you already approved Cyra there, tap Sync to finish, or tap Disconnect to end it.");
-    if (e?.code === "TIMEOUT") return new Error("Cyra stopped waiting for the connection. If you finished signing in anyway, tap Sync to finish.");
+    if (e?.code === "CLOSED") return new Error("The connection window was closed. If you already approved Heard Health there, tap Sync to finish, or tap Disconnect to end it.");
+    if (e?.code === "TIMEOUT") return new Error("Heard Health stopped waiting for the connection. If you finished signing in anyway, tap Sync to finish.");
   }
   if (id === "oura") {
-    if (e?.code === "CLOSED") return new Error("The connection window was closed before Cyra finished connecting to Oura. If you already approved Cyra there, remove Cyra in your Oura account's connected apps, then tap Connect to try again.");
-    if (e?.code === "TIMEOUT") return new Error("Cyra stopped waiting for Oura and didn't finish connecting. If you approved Cyra there anyway, remove it in your Oura account's connected apps. Tap Connect to try again.");
+    if (e?.code === "CLOSED") return new Error("The connection window was closed before Heard Health finished connecting to Oura. If you already approved Heard Health there, remove Heard Health (it may be listed as Cyra) in your Oura account's connected apps, then tap Connect to try again.");
+    if (e?.code === "TIMEOUT") return new Error("Heard Health stopped waiting for Oura and didn't finish connecting. If you approved Heard Health there anyway, remove it in your Oura account's connected apps. Tap Connect to try again.");
   }
   return e;
 }
@@ -124,16 +124,16 @@ function windowError(id, e) {
 export async function connectSource(id, { onStatus = () => {}, onPending = () => {} } = {}) {
   if (id === "healthkit") {
     const hk = bridge();
-    if (!hk) throw new Error("Apple Health and Health Connect are read inside the Cyra app on your phone — in a browser there's nothing to connect");
+    if (!hk) throw new Error("Apple Health and Health Connect are read inside the Heard Health app on your phone — in a browser there's nothing to connect");
     if (!hasPlugin("CyraHealth") || !(await hk.available()).available) throw new Error("Health data isn't available on this device");
     const auth = await hk.requestAuthorization();
     const granted = Array.isArray(auth?.grantedTypes) ? auth.grantedTypes : null;
     const requested = Array.isArray(auth?.requestedTypes) ? auth.requestedTypes.length : HEALTH_CONNECT_TYPES;
-    if (!auth?.granted && !(granted && granted.length)) throw err("Cyra wasn't given permission to read health data", "NOT_GRANTED");
+    if (!auth?.granted && !(granted && granted.length)) throw err("Heard Health wasn't given permission to read health data", "NOT_GRANTED");
     const out = await hk.readDaily({ from: isoDay(-30), to: isoDay(0) });
     const rows = (out?.days || []).map((d) => ({ ...d, sourceId: "healthkit" }));
-    if (out?.needsAuthorization && !rows.length) throw err("No Health data shared yet — check Settings → Health → Data Access & Devices → Cyra.", "NEEDS_AUTH");
-    const notice = granted && granted.length < requested ? "Cyra can read only some of the health data it asked for. You can change this in Health Connect → App permissions → Cyra." : null;
+    if (out?.needsAuthorization && !rows.length) throw err("No Health data shared yet — check Settings → Health → Data Access & Devices → Heard.", "NEEDS_AUTH");
+    const notice = granted && granted.length < requested ? "Heard Health can read only some of the health data it asked for. You can change this in Health Connect → App permissions → Heard Health." : null;
     return { rows, state: { connectedAt: Date.now() }, notice };
   }
   if (id === "oura") {
@@ -161,8 +161,8 @@ export async function connectSource(id, { onStatus = () => {}, onPending = () =>
     } catch (e) { throw windowError("oura", e); }
     let tokens;
     try { tokens = await apiPost("/api/integrations/oura/exchange", verifier ? { code, verifier } : { code }); }
-    catch (e) { throw new Error(e?.status ? "The connection didn't complete — tap Connect to try again" : `${SERVER_SILENT}. If Cyra now shows up in your Oura account's connected apps, you can remove it there.`); }
-    onStatus("Oura connected — fetching up to 30 days through Cyra's server");
+    catch (e) { throw new Error(e?.status ? "The connection didn't complete — tap Connect to try again" : `${SERVER_SILENT}. If Heard Health (or Cyra) now shows up in your Oura account's connected apps, you can remove it there.`); }
+    onStatus("Oura connected — fetching up to 30 days through Heard Health's server");
     const state = { connectedAt: Date.now(), tokens };
     try { return { rows: await pullOura(tokens), state }; }
     catch (e) { return { rows: [], state, notice: e.message }; } // connected; Sync can try again
@@ -193,7 +193,7 @@ export async function connectSource(id, { onStatus = () => {}, onPending = () =>
         }, "cyra:terra");
       }
     } catch (e) { throw windowError("terra", e); }
-    onStatus("Connected. Terra will send your recent readings over the next few minutes; Cyra collects them when you open the app or tap Sync.");
+    onStatus("Connected. Terra will send your recent readings over the next few minutes; Heard Health collects them when you open the app or tap Sync.");
     const state = { connectedAt: Date.now(), key };
     try { return { rows: await drainTerra(key), state }; }
     catch { return { rows: [], state }; } // connected, nothing collected yet
@@ -210,19 +210,19 @@ async function pullOura(tokens) {
   const toRows = (out) => (out.rows || []).map((r) => ({ ...r, sourceId: "oura" }));
   try { return toRows(await attempt(tokens)); }
   catch (e) {
-    if (e?.network) throw new Error("Couldn't reach Cyra's server — check your connection");
+    if (e?.network) throw new Error("Couldn't reach Heard Health's server — check your connection");
     if (e?.status !== 401) throw new Error("Oura didn't answer — try syncing again in a moment");
     if (!tokens.refresh_token) throw expired();
     let fresh;
     try { fresh = await apiPost("/api/integrations/oura/refresh", { refresh_token: tokens.refresh_token }); }
     catch (e2) { // only a refusal (401) means the sign-in is gone; an outage keeps the tokens for the next Sync
-      if (e2?.network) throw new Error("Couldn't reach Cyra's server — check your connection");
+      if (e2?.network) throw new Error("Couldn't reach Heard Health's server — check your connection");
       if (e2?.status === 401) throw expired();
       throw new Error("Oura didn't answer — try syncing again in a moment");
     }
     Object.assign(tokens, fresh);
     try { return toRows(await attempt(tokens)); }
-    catch (e3) { if (e3?.network) throw new Error("Couldn't reach Cyra's server — check your connection"); if (e3?.status === 401) throw expired(); throw new Error("Oura didn't answer — try syncing again in a moment"); }
+    catch (e3) { if (e3?.network) throw new Error("Couldn't reach Heard Health's server — check your connection"); if (e3?.status === 401) throw expired(); throw new Error("Oura didn't answer — try syncing again in a moment"); }
   }
 }
 
@@ -247,7 +247,7 @@ export async function syncSource(id, state) {
   }
   if (id === "terra") {
     needServer();
-    if (!state?.key) throw err("This Fitbit, Garmin or Whoop connection was set up by an older version of Cyra — tap Disconnect, then Connect again. If Disconnect can't end it, remove Cyra (it may be listed as Terra) under connected apps in that account.", "TERRA_OLD");
+    if (!state?.key) throw err("This Fitbit, Garmin or Whoop connection was set up by an older version of Heard Health — tap Disconnect, then Connect again. If Disconnect can't end it, remove Heard Health (it may be listed as Cyra or Terra) under connected apps in that account.", "TERRA_OLD");
     const rows = await drainTerra(state.key);
     return { rows, state: rows.length && state.pending ? { connectedAt: state.connectedAt || Date.now(), key: state.key } : state };
   }
@@ -258,9 +258,9 @@ export async function syncSource(id, state) {
     Oura's token is revoked. Rejects when Cyra's server couldn't confirm it, and (code NO_KEY)
     when this device holds nothing that could end it — it never reports an end it didn't get. */
 /** Where to end a connection Cyra couldn't end itself, for each source. */
-export const disconnectHelp = (id) => (id === "terra" ? "remove Cyra (it may be listed as Terra) under connected apps in that account" : "remove Cyra in your Oura account's connected apps");
-const NO_KEY_TERRA = "Cyra can't end this Fitbit, Garmin or Whoop connection itself — remove Cyra (it may be listed as Terra) under connected apps in that account";
-const NO_KEY_OURA = "Cyra can't end this Oura connection itself — remove Cyra in your Oura account's connected apps";
+export const disconnectHelp = (id) => (id === "terra" ? "remove Heard Health (it may be listed as Cyra or Terra) under connected apps in that account" : "remove Heard Health (it may be listed as Cyra) in your Oura account's connected apps");
+const NO_KEY_TERRA = "Heard Health can't end this Fitbit, Garmin or Whoop connection itself — remove Heard Health (it may be listed as Cyra or Terra) under connected apps in that account";
+const NO_KEY_OURA = "Heard Health can't end this Oura connection itself — remove Heard Health (it may be listed as Cyra) in your Oura account's connected apps";
 export async function disconnectSource(id, state, { timeoutMs = 15000 } = {}) {
   needServer();
   if (id === "terra") {

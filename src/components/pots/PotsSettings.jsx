@@ -323,7 +323,7 @@ export default function PotsSettings({ pots, setPots, stage, stageName, conditio
             {preg
               ? <Choice id="pots-set-clearp" label={MOVE_COPY.clearPregQ} value={pr ? pr.clearedPreg ?? null : null} options={CLEAR_PREG_OPTS} onPick={(v) => setP({ clearedPreg: pr && pr.clearedPreg === v ? null : v })} />
               : <Choice id="pots-set-clear" label={MOVE_COPY.clearQ} value={pr ? pr.cleared ?? null : null} options={CLEAR_OPTS} onPick={(v) => setP({ cleared: pr && pr.cleared === v ? null : v })} />}
-            {mv.planShown && <Choice id="pots-set-step" label="Your step" value={pr.step || 1} options={MOVE_STEPS.map((x) => [x.step, `Step ${x.step}`])} onPick={(v) => setP({ step: v })} hint="You choose your step. Cyra never moves you on by itself." />}
+            {mv.planShown && <Choice id="pots-set-step" label="Your step" value={pr.step || 1} options={MOVE_STEPS.map((x) => [x.step, `Step ${x.step}`])} onPick={(v) => setP({ step: v })} hint="You choose your step. Heard Health never moves you on by itself." />}
           </>
         );
       })()}

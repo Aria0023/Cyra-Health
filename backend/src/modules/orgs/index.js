@@ -17,7 +17,7 @@ export function mount(router, ctx) {
   (async () => {
     if (!(await store.findOne("orgs", (o) => o.slug === "cyra"))) {
       await store.insert("orgs", {
-        slug: "cyra", name: "Cyra Health",
+        slug: "cyra", name: "Heard Health",
         theme: { primary: "#8E3B5E", paper: "#F6F1EC", accent: "#DD8A4E" },
         stages: ["cycle", "fertility", "peri", "meno"],
         partnerIds: null, // null = all global partners

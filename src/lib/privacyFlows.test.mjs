@@ -72,8 +72,8 @@ test("privacyFlows: cloud is 'na' unless the flag and the plan allow it; every i
   // D2 / D3 acceptance: the rows a build renders (state ≠ na)
   const shown = (c) => flowRows(c).filter((r) => r.state !== "na").map((r) => r.name);
   assert.deepEqual(shown({ ...base, server: false, flags: DEF }), ["Backups and files you make"]);
-  assert.deepEqual(shown({ ...base, server: true, flags: DEF }), ["Browser reminders", "Ask Cyra's AI", "Backups and files you make"]);
-  assert.deepEqual(shown({ ...base, server: true, flags: ALL }), ["Browser reminders", "Weekly counts", "Ask Cyra's AI", "Wearable connections", "Backups and files you make"]);
+  assert.deepEqual(shown({ ...base, server: true, flags: DEF }), ["Browser reminders", "Ask Heard Health's AI", "Backups and files you make"]);
+  assert.deepEqual(shown({ ...base, server: true, flags: ALL }), ["Browser reminders", "Weekly counts", "Ask Heard Health's AI", "Wearable connections", "Backups and files you make"]);
 });
 
 test("privacyFlows: otherConnections — the server bullet only with a server flow, sign-in only with its flag", () => {
@@ -81,7 +81,7 @@ test("privacyFlows: otherConnections — the server bullet only with a server fl
   assert.deepEqual(otherConnections({ native: false, server: true, flags: DEF }), ["web", "server"]);
   assert.deepEqual(otherConnections({ native: false, server: true, flags: ALL }), ["web", "server", "signin"]);
   assert.deepEqual(otherConnections({ native: false, server: true, flags: NONE }), ["web"]);
-  assert.deepEqual(otherConnections({ native: true, server: true, flags: DEF }), ["server"], "the phone default build still has Cyra's AI");
+  assert.deepEqual(otherConnections({ native: true, server: true, flags: DEF }), ["server"], "the phone default build still has Heard Health's AI");
   assert.deepEqual(otherConnections({ native: true, server: true, flags: parseFeatures("webReminders") }), [], "a phone with only web reminders has no server flow");
   assert.deepEqual(otherConnections({ native: true, server: true, flags: ALL }), ["server", "signin"]);
   assert.deepEqual(otherConnections({ native: true, server: false, flags: ALL }), []);
@@ -105,7 +105,7 @@ test("privacyFlows + lock: harness-collision guard over FLOW_COPY and LOCK_COPY"
 test("privacyFlows: the files row renders disclosures' filesSentence, which the s7 suite asserts in the all-features build", () => {
   let s7 = null; // the suite lives in the scratchpad; the sentence check still runs without it
   try { s7 = readFileSync("/tmp/claude-0/-home-user/dd34ad26-25bd-5d87-8174-4dbbc0f7e686/scratchpad/pots/s7/native-pots-s5-on-s7.mjs", "utf8"); } catch { /* not on this machine */ }
-  const asserted = "Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase and never include readings Cyra gets from a connected watch, ring or health app.";
+  const asserted = "Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase and never include readings Heard Health gets from a connected watch, ring or health app.";
   assert.equal(filesSentence(ALL), asserted);
   if (s7) assert.ok(s7.includes(asserted.replace(/'/g, "\\'")));
   const pf = readFileSync(path.join(here, "../components/PrivacyFlows.jsx"), "utf8");

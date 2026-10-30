@@ -26,9 +26,9 @@ export function WebReminderFacts() {
   return (
     <ul>
       <li>Your browser's push service delivers the reminder.</li>
-      <li>An update or restart of Cyra's server can pause reminders until you next open Cyra, which sets them up again.</li>
-      <li>Cyra's server keeps only this browser's push address and its encryption keys, which days and what time to remind you, your time zone, and the last day it sent you a reminder.</li>
-      <li>Turning reminders off erases them. If Cyra's server can't be reached or doesn't confirm it then, Cyra asks again while Cyra is open and each time you open it, until the server confirms. This browser stops accepting reminders right away.</li>
+      <li>An update or restart of Heard Health's server can pause reminders until you next open Heard Health, which sets them up again.</li>
+      <li>Heard Health's server keeps only this browser's push address and its encryption keys, which days and what time to remind you, your time zone, and the last day it sent you a reminder.</li>
+      <li>Turning reminders off erases them. If Heard Health's server can't be reached or doesn't confirm it then, Heard Health asks again while Heard Health is open and each time you open it, until the server confirms. This browser stops accepting reminders right away.</li>
     </ul>
   );
 }
@@ -53,7 +53,7 @@ export function AiFacts() {
   return (
     <ul>
       <li>The question you typed (up to 500 characters) is sent. Your name, account and life stage don't go with it.</li>
-      <li>Cyra doesn't keep your question. Anthropic keeps it for a limited time under its own terms.</li>
+      <li>Heard Health doesn't keep your question. Anthropic keeps it for a limited time under its own terms.</li>
     </ul>
   );
 }
@@ -61,11 +61,11 @@ export function AiFacts() {
 export function WearableFacts({ native = false }) {
   return (
     <ul>
-      {native && <li>Cyra never sends Apple Health or Health Connect readings anywhere; they leave this phone only inside an encrypted backup you choose to save.</li>}
-      <li>Oura readings pass through Cyra's server on the way to you and aren't stored there.</li>
-      <li>Fitbit, Garmin and Whoop connect through Terra, a health-data service that keeps your connection, and the data it collects, under its own policy. Their readings wait in Cyra's server memory (never on disk) until this device collects them, and are deleted after 7 days if not collected.</li>
+      {native && <li>Heard Health never sends Apple Health or Health Connect readings anywhere; they leave this phone only inside an encrypted backup you choose to save.</li>}
+      <li>Oura readings pass through Heard Health's server on the way to you and aren't stored there.</li>
+      <li>Fitbit, Garmin and Whoop connect through Terra, a health-data service that keeps your connection, and the data it collects, under its own policy. Their readings wait in Heard Health's server memory (never on disk) until this device collects them, and are deleted after 7 days if not collected.</li>
       <li>Disconnect ends the connection; anything Terra already collected stays under Terra's policy.</li>
-      <li>Delete everything also ends both connections. If Cyra can't confirm that, your record isn't deleted yet: Cyra shows what did and didn't end, and lets you try again where that can help, or delete on this device anyway.</li>
+      <li>Delete everything also ends both connections. If Heard Health can't confirm that, your record isn't deleted yet: Heard Health shows what did and didn't end, and lets you try again where that can help, or delete on this device anyway.</li>
     </ul>
   );
 }

@@ -60,7 +60,7 @@ try {
   r = await j(await post(R, "/api/ai/ask", { question: "I'm soaking a pad every hour and feel faint" }));
   assert(r.urgent === true, "ask: red flags → urgent");
   r = await j(await post(R, "/api/ai/ask", { question: "What is the best color for a nursery?" }));
-  assert(r.urgent === false && /don't have a written answer/.test(r.answer) && /Cyra's AI wasn't available/.test(r.answer) && r.ask_your_doctor, "ask: unknown topic → honest no-answer naming Cyra's AI");
+  assert(r.urgent === false && /don't have a written answer/.test(r.answer) && /Heard Health's AI wasn't available/.test(r.answer) && r.ask_your_doctor, "ask: unknown topic → honest no-answer naming Heard Health's AI");
   let s = await post(R, "/api/ai/ask", { question: "" }); assert(s.status === 400, "ask: empty question → 400");
 
   // SDK path against the mock

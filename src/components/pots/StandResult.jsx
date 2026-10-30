@@ -156,13 +156,13 @@ export default function StandResult({ pots, test, stage, cyc = null }) {
       <HrChart test={test} result={r} stage={stage} />
       <Details label="The numbers"><NumbersTable pots={pots} test={test} result={r} /></Details>
       <p className="rfoot">{RESULT_FOOT}</p>
-      <Details label="How Cyra worked this out">
+      <Details label="How Heard Health worked this out">
         <ul>
           <li>{`Lying heart rate: the average of your last two lying readings, or the one you took.`}</li>
-          <li>{`Rise: each standing heart rate minus your lying heart rate. Cyra looks for a rise of ${r.thr} or more that lasts: two readings in a row at or above it, the second at minute 3 or after, no more than 5 minutes apart. A skipped reading between them doesn't break the pair.`}</li>
+          <li>{`Rise: each standing heart rate minus your lying heart rate. Heard Health looks for a rise of ${r.thr} or more that lasts: two readings in a row at or above it, the second at minute 3 or after, no more than 5 minutes apart. A skipped reading between them doesn't break the pair.`}</li>
           <li>{`Clinicians use ${THRESH.hr} beats a minute for adults and ${THRESH.hrTeen} for ages 12–19, within 10 minutes of standing (Sheldon RS et al., Heart Rhythm Society 2015).`}</li>
           <li>{`Blood pressure: a drop of ${THRESH.ohSys} or more in the top number, or ${THRESH.ohDia} or more in the bottom number, within 3 minutes of standing, compared with your lying blood pressure (Freeman R et al., Clin Auton Res 2011). A lying blood pressure of ${THRESH.supineSys}/${THRESH.supineDia} or more is noted on its own (Fanciulli A et al., Clin Auton Res 2018).`}</li>
-          <li>Cyra's "lasts" rule is its own way of applying these published thresholds to a home test. A clinician reads the whole picture.</li>
+          <li>Heard Health's "lasts" rule is its own way of applying these published thresholds to a home test. A clinician reads the whole picture.</li>
         </ul>
       </Details>
     </>
