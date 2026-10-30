@@ -1,0 +1,13 @@
+{
+  "id": "P014",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "I'd maybe download the free version because the doctor PDF sounds useful before I push for a PCOS workup, but I already know I'll stop logging after two or three weeks. Paying $5 a month for an AI write-up of a log I won't keep up is paying for homework I'm not doing.",
+  "objection": "Every tracker promises 'under a minute' and I still quit. A weekly AI summary is worthless if my log is half empty, and Flo already does most of this for free.",
+  "would_change_my_mind": "If it filled in most of the log on its own from my phone or watch (sleep, steps, cycle) so I only tapped a couple of symptoms, and the Pro write-up actually got a doctor to take me seriously and order tests.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 1.99,
+  "price_expensive": 3.99,
+  "price_too_expensive": 6.99
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P020",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "I'd probably download it for the free summary before my appointment, but I've quit every tracker within a few weeks and I'm not paying until I've actually kept logging. The free summary and free doctor PDF would cover this visit anyway.",
+  "objection": "Three taps a day still turns into homework for me, and I'll stop logging after a couple of weeks like always, so the paid summary would have nothing in it.",
+  "would_change_my_mind": "If the free summary actually got my doctor to take my symptoms seriously at this appointment, I'd pay the $7.99 before the next one.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.99,
+  "price_expensive": 6.99,
+  "price_too_expensive": 12
+}

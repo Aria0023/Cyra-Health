@@ -1,0 +1,13 @@
+{
+  "id": "P003",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "I'd maybe download the free version for the doctor PDF, but I've quit every tracker within a few weeks because logging feels like homework, so paying for Pro before I've even stuck with the free part makes no sense. An AI write-up of my own log doesn't tell me whether my metformin is working or change what my doctor does.",
+  "objection": "I'll stop logging after two or three weeks like I always do, and an app summary won't make my doctor take me more seriously or change my treatment.",
+  "would_change_my_mind": "If I actually kept logging for a couple of months on the free version and the doctor PDF got my doctor to change something, like adjusting my meds or ordering tests, I'd consider paying.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.99,
+  "price_expensive": 5.99,
+  "price_too_expensive": 9.99
+}

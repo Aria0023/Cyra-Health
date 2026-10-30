@@ -1,0 +1,2 @@
+# Panel size note
+100 buyers were dealt (seed in panel.json). The run stopped after 2 waves of 10: all 20 buyers passed on Pro at $4.99/month with converging reasons (free tier already covers the need; distrust of the AI feature sending data; expect to quit logging). The remaining 80 would have cost about 5.4 million tokens to confirm a 0/20 result, so the panel was trimmed to the first 20 cards of the same seeded deal (the skill's --quick size). Treat segment rows as thin (n=20).

@@ -1,0 +1,38 @@
+{
+  "business": "Cyra Health, a private PCOS and irregular-cycle tracking app (iOS, Android, web)",
+  "target": "Women in the US, 18 to 40, with diagnosed or suspected PCOS and irregular cycles, who want to understand their symptoms and be taken seriously by a clinician",
+  "where": "Online: App Store, Google Play and the web; found through search, PCOS communities and social media",
+  "age": [18, 40],
+  "segments": [
+    {"name": "Diagnosed PCOS, managing symptoms", "share": 0.40, "income": [30000, 110000]},
+    {"name": "Suspected PCOS, not yet diagnosed", "share": 0.30, "income": [20000, 90000]},
+    {"name": "Trying to conceive with PCOS", "share": 0.20, "income": [45000, 140000]},
+    {"name": "Student or early-career with irregular periods", "share": 0.10, "income": [8000, 40000]}
+  ],
+  "behaviours": [
+    {"name": "Uses Flo or Clue today", "share": 0.25, "how": "Has logged in a mainstream period app for years; annoyed its predictions are always wrong for her."},
+    {"name": "Privacy-wary", "share": 0.15, "how": "Deleted a period app after the data-sharing news; reads privacy policies before installing anything health-related."},
+    {"name": "Research-heavy", "share": 0.15, "how": "Reads r/PCOS, studies and guidelines; distrusts wellness claims and wants sources."},
+    {"name": "App fatigue", "share": 0.15, "how": "Has tried several tracking apps and quit each within a few weeks; logging feels like homework."},
+    {"name": "Free-only", "share": 0.15, "how": "Never pays for apps; uses Apple Health or notes; cancels anything after the trial."},
+    {"name": "Pays for help", "share": 0.15, "how": "Already pays for a PCOS program, supplements or telehealth; will pay if it saves time with doctors."}
+  ],
+  "objections": [
+    "Apple Health or my current app already tracks this for free",
+    "Every app paywalls the useful part and keeps upselling me",
+    "Predictions never work for my irregular cycles",
+    "I don't trust a period app with my health data",
+    "I've quit tracking apps before; I won't keep logging",
+    "An app won't change what my doctor does",
+    "I don't want another AI chatbot giving me health advice",
+    "Is this just another weight-loss app in disguise?"
+  ],
+  "habits": [
+    "you have a doctor's appointment coming up and keep forgetting what happened between visits",
+    "you scroll r/PCOS or TikTok PCOS content a few nights a week",
+    "your last period was more than six weeks ago",
+    "you track your cycle in Flo but ignore its predictions",
+    "you take metformin or inositol and can't tell if it helps",
+    "you are tired of being told to just lose weight"
+  ]
+}

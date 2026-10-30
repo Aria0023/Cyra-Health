@@ -1,0 +1,13 @@
+{
+  "id": "P017",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I'd maybe download the free version, because on-device with no account and ranges instead of a 28-day guess is the first pitch that sounds like it was made for me. But paying for Pro means sending my log to an AI, which is exactly what I deleted my last app over, and I'm not doing that before the free part has proven itself.",
+  "objection": "The whole Pro tier is built on my health data leaving my phone. They say they strip dates and my name, but symptoms like hair changes and missed periods are still sensitive, and 'encrypted backup' means nothing to me until I know who holds the key and where the AI data goes.",
+  "would_change_my_mind": "A few months of the free app actually giving me useful ranges for my cycles, plus a short plain-English privacy policy saying the AI provider doesn't keep or train on what's sent and that only I hold the backup key.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.99,
+  "price_expensive": 5.99,
+  "price_too_expensive": 9.99
+}

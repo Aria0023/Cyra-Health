@@ -1,0 +1,13 @@
+{
+  "id": "P016",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "I'd maybe download it for the free first summary and the free logging, but I'm not paying for a tracker when I already have Apple Health and my notes app. My doctor's going to do whatever she was going to do anyway.",
+  "objection": "An app won't change what my doctor does. A nice one-page PDF doesn't mean she'll actually listen or change my meds, and I can write my questions down for free.",
+  "would_change_my_mind": "If the free summary actually got my doctor to take me seriously and change something, like adjusting my metformin, I might pay the $7.99 once before the next appointment.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 1.99,
+  "price_expensive": 3.99,
+  "price_too_expensive": 5.99
+}

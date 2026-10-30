@@ -1,0 +1,13 @@
+{
+  "id": "P012",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "If the free version really keeps everything on my phone and gives me the doctor PDF, that's all I'd want, and I'd try it after reading the privacy policy. I'm not paying monthly to send my health log to an AI when what I actually need is my doctor to take me seriously about whether the metformin is doing anything.",
+  "objection": "An app won't change what my doctor does, and the Pro part sends my log off my phone, which is exactly what made me delete my last period app.",
+  "would_change_my_mind": "Proof that the doctor-ready report actually changed how clinicians treated people, plus an independent privacy audit showing what the AI part sends and that it isn't kept.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 1.99,
+  "price_expensive": 3.99,
+  "price_too_expensive": 6
+}

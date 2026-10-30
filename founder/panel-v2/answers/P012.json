@@ -1,0 +1,13 @@
+{
+  "id": "P012",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "The on-device, no-account part is the first thing in a while that doesn't make me want to run, so I'd probably try the free logging and the free first summary. But I'm not paying when the free summary is already the thing I'd use, and an app won't change what my doctor does.",
+  "objection": "My clinician spends ten minutes with me and does what they were going to do anyway. A nicer one-page summary doesn't make them take me more seriously, and on $28k I'm not paying for a hope that it might.",
+  "would_change_my_mind": "If the free summary actually made my doctor change something, like adjusting the metformin or ordering labs, I'd pay the $7.99 before the next appointment.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 1.99,
+  "price_expensive": 3.99,
+  "price_too_expensive": 6
+}

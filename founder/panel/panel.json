@@ -1,0 +1,99 @@
+{
+ "n": 20,
+ "seed": 476364,
+ "customer": {
+  "business": "Cyra Health, a private PCOS and irregular-cycle tracking app (iOS, Android, web)",
+  "target": "Women in the US, 18 to 40, with diagnosed or suspected PCOS and irregular cycles, who want to understand their symptoms and be taken seriously by a clinician",
+  "where": "Online: App Store, Google Play and the web; found through search, PCOS communities and social media",
+  "age": [
+   18,
+   40
+  ],
+  "segments": [
+   {
+    "name": "Diagnosed PCOS, managing symptoms",
+    "share": 0.4,
+    "income": [
+     30000,
+     110000
+    ]
+   },
+   {
+    "name": "Suspected PCOS, not yet diagnosed",
+    "share": 0.3,
+    "income": [
+     20000,
+     90000
+    ]
+   },
+   {
+    "name": "Trying to conceive with PCOS",
+    "share": 0.2,
+    "income": [
+     45000,
+     140000
+    ]
+   },
+   {
+    "name": "Student or early-career with irregular periods",
+    "share": 0.1,
+    "income": [
+     8000,
+     40000
+    ]
+   }
+  ],
+  "behaviours": [
+   {
+    "name": "Uses Flo or Clue today",
+    "share": 0.25,
+    "how": "Has logged in a mainstream period app for years; annoyed its predictions are always wrong for her."
+   },
+   {
+    "name": "Privacy-wary",
+    "share": 0.15,
+    "how": "Deleted a period app after the data-sharing news; reads privacy policies before installing anything health-related."
+   },
+   {
+    "name": "Research-heavy",
+    "share": 0.15,
+    "how": "Reads r/PCOS, studies and guidelines; distrusts wellness claims and wants sources."
+   },
+   {
+    "name": "App fatigue",
+    "share": 0.15,
+    "how": "Has tried several tracking apps and quit each within a few weeks; logging feels like homework."
+   },
+   {
+    "name": "Free-only",
+    "share": 0.15,
+    "how": "Never pays for apps; uses Apple Health or notes; cancels anything after the trial."
+   },
+   {
+    "name": "Pays for help",
+    "share": 0.15,
+    "how": "Already pays for a PCOS program, supplements or telehealth; will pay if it saves time with doctors."
+   }
+  ],
+  "objections": [
+   "Apple Health or my current app already tracks this for free",
+   "Every app paywalls the useful part and keeps upselling me",
+   "Predictions never work for my irregular cycles",
+   "I don't trust a period app with my health data",
+   "I've quit tracking apps before; I won't keep logging",
+   "An app won't change what my doctor does",
+   "I don't want another AI chatbot giving me health advice",
+   "Is this just another weight-loss app in disguise?"
+  ],
+  "habits": [
+   "you have a doctor's appointment coming up and keep forgetting what happened between visits",
+   "you scroll r/PCOS or TikTok PCOS content a few nights a week",
+   "your last period was more than six weeks ago",
+   "you track your cycle in Flo but ignore its predictions",
+   "you take metformin or inositol and can't tell if it helps",
+   "you are tired of being told to just lose weight"
+  ]
+ },
+ "pitch": "Cyra, a private PCOS and irregular-cycle tracker for iPhone, Android and the web.\nFree forever: log cycles, symptoms (acne, hair changes, fatigue, cravings, brain fog), sleep, movement, mood and meds in under a minute; predictions shown as honest ranges, never a 28-day guess; plain-language patterns; and a doctor-ready PDF for your appointments.\nYour log stays on your phone: no account needed, no ads, no tracking SDKs, your data is never sold.\nCyra Pro, $4.99 a month or $39.99 a year: a weekly AI write-up and chat about your own log (you see exactly what is sent first, with no dates, notes or name), the full library of short breathing and grounding practices, and an optional encrypted backup.\nGuidance only, not a diagnosis or medical device. Download free; upgrade only if you want Pro.\n(For the price questions: answer as a monthly price for Cyra Pro, in US dollars.)",
+ "note": "Stopped after 2 waves (20 of 100 dealt) because 20/20 passed with converging reasons; trimmed to the first 20 cards of the seeded deal. See founder/panel/NOTE.md."
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P002",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "I'd download the free version for the doctor-ready PDF because that's exactly my problem before appointments, but I never pay for apps and nothing in Pro is something I need. An AI write-up and breathing exercises aren't worth $5 a month when the free part already does the job.",
+  "objection": "I don't pay subscriptions, period. And I'm still half-waiting for this to turn into another weight-loss pitch once I'm in.",
+  "would_change_my_mind": "If my doctor actually used the Pro write-up and it helped get my fertility questions taken seriously, maybe a one-time payment, but not a monthly one.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 1.99,
+  "price_expensive": 2.99,
+  "price_too_expensive": 4.99
+}

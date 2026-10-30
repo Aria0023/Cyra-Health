@@ -1,0 +1,156 @@
+{
+ "business": "Cyra Health, a private PCOS and irregular-cycle tracking app (iOS, Android, web)",
+ "seed": 476364,
+ "dealt": 20,
+ "answered": 20,
+ "skipped": [],
+ "buys": 0,
+ "passes": 20,
+ "buy_rate": 0.0,
+ "by_segment": [
+  [
+   "Suspected PCOS, not yet diagnosed",
+   6,
+   0.0
+  ],
+  [
+   "Trying to conceive with PCOS",
+   7,
+   0.0
+  ],
+  [
+   "Student or early-career with irregular periods",
+   3,
+   0.0
+  ],
+  [
+   "Diagnosed PCOS, managing symptoms",
+   4,
+   0.0
+  ]
+ ],
+ "by_behaviour": [
+  [
+   "Free-only",
+   4,
+   0.0
+  ],
+  [
+   "App fatigue",
+   5,
+   0.0
+  ],
+  [
+   "Pays for help",
+   3,
+   0.0
+  ],
+  [
+   "Uses Flo or Clue today",
+   1,
+   0.0
+  ],
+  [
+   "Privacy-wary",
+   5,
+   0.0
+  ],
+  [
+   "Research-heavy",
+   2,
+   0.0
+  ]
+ ],
+ "by_income": [
+  [
+   "$66,000 and up",
+   8,
+   0.0
+  ],
+  [
+   "$41,000 to $66,000",
+   6,
+   0.0
+  ],
+  [
+   "under $41,000",
+   6,
+   0.0
+  ]
+ ],
+ "why_not": [
+  [
+   "need",
+   7,
+   [
+    "The no-account, stays-on-my-phone part actually gets me to download it, but the doctor PDF is the thing I'd use and that's free. Pro is an AI chat and breathing exercises, and I'm not paying to send my log to an AI when what I want is to know if my inositol is working.",
+    "Honestly the free version is the part I want: ranges instead of a fake 28-day guess and a PDF I can show my doctor. I'd download it and try it, but I'm not paying $5 a month on my budget for an AI write-up when I don't know yet if the free predictions are any better than Flo's."
+   ],
+   [
+    "P004",
+    "P005"
+   ]
+  ],
+  [
+   "habit",
+   5,
+   [
+    "I'd maybe download the free version, since honest ranges instead of a fake 28-day guess and the doctor PDF actually sound useful. But I don't pay for apps, and an AI write-up of my own notes isn't worth $5 a month when Apple Health and my Notes app cost nothing.",
+    "I'd maybe download the free version for the doctor PDF, but I've quit every tracker within a few weeks because logging feels like homework, so paying for Pro before I've even stuck with the free part makes no sense. An AI write-up of my own log doesn't tell me whether my metformin is working or change what my doctor does."
+   ],
+   [
+    "P001",
+    "P003"
+   ]
+  ],
+  [
+   "trust",
+   5,
+   [
+    "I'd download the free version, because on-phone storage with no account is exactly what I want, and the doctor PDF could help me find out whether the metformin is doing anything. But I won't pay to send my fertility log to an AI until I've read the privacy policy and seen who handles that data, and I'd want a couple of months of free use before I decide Pro is worth it.",
+    "I might download the free version for the doctor PDF, since my period is six weeks late and I need something to show a clinician, but I'm not paying to have my log sent to an AI. On $31k, five bucks a month for a chatbot and breathing exercises isn't a priority."
+   ],
+   [
+    "P008",
+    "P009"
+   ]
+  ],
+  [
+   "price",
+   3,
+   [
+    "I'd download the free version for the doctor-ready PDF because that's exactly my problem before appointments, but I never pay for apps and nothing in Pro is something I need. An AI write-up and breathing exercises aren't worth $5 a month when the free part already does the job.",
+    "I might download the free version for the doctor PDF since that's my actual problem, but I don't pay for apps, period. An AI write-up of my own log isn't worth $5 a month when I can just read it myself before my appointment."
+   ],
+   [
+    "P002",
+    "P007"
+   ]
+  ]
+ ],
+ "why_yes": [],
+ "flip": [
+  "If the free version actually got my cycles roughly right for a few months and the AI summary helped me get a doctor to take me seriously and order PCOS tests, I might pay for a year once, at a deal.",
+  "If my doctor actually used the Pro write-up and it helped get my fertility questions taken seriously, maybe a one-time payment, but not a monthly one.",
+  "If I actually kept logging for a couple of months on the free version and the doctor PDF got my doctor to change something, like adjusting my meds or ordering tests, I'd consider paying.",
+  "If Pro showed me a before-and-after of my symptoms and cycle length since I started metformin or inositol, in a form my doctor would take seriously, so it saves me an appointment or gets me a real answer faster.",
+  "If after a few months the free ranges were actually right for me and the Pro write-up could clearly show whether my metformin or inositol is changing my cycles or symptoms, I'd pay for the yearly plan.",
+  "If I'd actually kept logging on the free version for two or three months and Pro gave me something concrete for trying to conceive, like ovulation likelihood with PCOS or something my OB said was useful, not just AI commentary.",
+  "If my doctor actually used the Pro write-up and it changed what happened at my appointment, I might pay for a month or two around visits.",
+  "A plain-language policy naming the AI provider and saying in writing that it keeps nothing and doesn't train on the data, plus an independent privacy audit. After that, a free trial of the weekly write-up showing it can actually tell me whether my meds are working.",
+  "An independent privacy audit or a clear published policy saying the AI provider keeps and trains on nothing, plus a few months of using the free app without any weight-loss pushing.",
+  "An independent privacy audit, plus proof the doctor PDF actually changed how clinicians respond to people with PCOS.",
+  "If Pro did something that actually cut down time with doctors, like a write-up my clinician has said they'll use, or something that helps me get a PCOS workup ordered, instead of a summary for me to read.",
+  "Proof that the doctor-ready report actually changed how clinicians treated people, plus an independent privacy audit showing what the AI part sends and that it isn't kept.",
+  "An independent security or privacy audit I can read, plus Pro features that cite the international PCOS guideline and help with TTC, like ovulation-range tracking I can bring to my reproductive endocrinologist.",
+  "If it filled in most of the log on its own from my phone or watch (sleep, steps, cycle) so I only tapped a couple of symptoms, and the Pro write-up actually got a doctor to take me seriously and order tests.",
+  "If Pro got me something that actually speeds up a diagnosis, like a summary written to push a clinician toward ordering the right PCOS labs, and the AI part ran on my phone instead of a server.",
+  "If my doctor actually used the Cyra report and it got them to change my treatment or take my symptoms more seriously, I might pay for it, but probably only a few dollars a year.",
+  "A few months of the free app actually giving me useful ranges for my cycles, plus a short plain-English privacy policy saying the AI provider doesn't keep or train on what's sent and that only I hold the backup key.",
+  "If Pro's write-up cited actual PCOS guidelines or studies for each pattern it pointed out, and my doctor found it useful at the appointment.",
+  "If I'm still logging after a month and the AI write-up actually spots something about my cycles or symptoms that I can bring to my doctor for trying to conceive, I'd pay.",
+  "If I actually stuck with logging for a couple of months and the free PDF got my doctor to take me seriously, then I'd consider Pro for the weekly write-up."
+ ],
+ "purchases_first_month_per_buyer": null,
+ "price_answers": 20
+}

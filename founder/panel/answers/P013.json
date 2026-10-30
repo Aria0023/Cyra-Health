@@ -1,0 +1,13 @@
+{
+  "id": "P013",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I might download the free version because it stays on my phone with no account, and the doctor PDF would actually help. But I'm not paying for an AI write-up of my own log until I know what model it uses and what happens to my data, and breathing exercises won't help me get pregnant.",
+  "objection": "The privacy promises are just claims on a landing page. 'You see what is sent first' still means my symptoms go to some AI company, and I've seen period apps say 'never sold' before. I also don't see any sign the patterns are grounded in actual PCOS guidelines rather than wellness fluff.",
+  "would_change_my_mind": "An independent security or privacy audit I can read, plus Pro features that cite the international PCOS guideline and help with TTC, like ovulation-range tracking I can bring to my reproductive endocrinologist.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.99,
+  "price_expensive": 5.99,
+  "price_too_expensive": 9.99
+}

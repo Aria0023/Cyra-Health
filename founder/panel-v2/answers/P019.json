@@ -1,0 +1,13 @@
+{
+  "id": "P019",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "I'd download it for the free summary before my appointment, since forgetting what happened between visits is my actual problem, but the first summary is free so there's nothing to pay for this month. And I've quit every tracker within a few weeks, so I wouldn't pay until I've proven to myself I'll still be logging after that.",
+  "objection": "I'll stop logging in two weeks like I always do, and then the summary is half empty. Also I'm trying to conceive and nothing here says it helps with ovulation or fertility, it reads more like a symptom diary for the doctor.",
+  "would_change_my_mind": "If the free summary actually got my doctor to take me seriously and change something, I'd pay $7.99 before the next appointment without thinking twice.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.99,
+  "price_expensive": 6.99,
+  "price_too_expensive": 12
+}

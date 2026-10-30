@@ -1,0 +1,13 @@
+{
+  "id": "P015",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "The free version already gives me what I'd actually pay for: a doctor-ready PDF so my doctor takes me seriously about a PCOS workup. I'd download it free and maybe drop Flo, but Pro's AI write-up and breathing exercises don't save me any time with a doctor, and on $20k I'm already paying for supplements.",
+  "objection": "The whole reason I'd switch is that my data stays on my phone, and then Pro wants to send my log to an AI. Even with a preview and no dates or name, that's my health data leaving my phone, which is exactly what I don't trust period apps with.",
+  "would_change_my_mind": "If Pro got me something that actually speeds up a diagnosis, like a summary written to push a clinician toward ordering the right PCOS labs, and the AI part ran on my phone instead of a server.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 1.99,
+  "price_expensive": 4.99,
+  "price_too_expensive": 8
+}

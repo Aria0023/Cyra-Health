@@ -1,0 +1,13 @@
+{
+  "id": "P008",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I'd download the free version, because on-phone storage with no account is exactly what I want, and the doctor PDF could help me find out whether the metformin is doing anything. But I won't pay to send my fertility log to an AI until I've read the privacy policy and seen who handles that data, and I'd want a couple of months of free use before I decide Pro is worth it.",
+  "objection": "The paid part is the one feature that sends my data off my phone. 'No dates, notes or name' still leaves symptoms and meds from someone trying to conceive, and I don't know who the AI provider is, whether they keep it, or what happens if the company is sold.",
+  "would_change_my_mind": "A plain-language policy naming the AI provider and saying in writing that it keeps nothing and doesn't train on the data, plus an independent privacy audit. After that, a free trial of the weekly write-up showing it can actually tell me whether my meds are working.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.99,
+  "price_expensive": 6.99,
+  "price_too_expensive": 11.99
+}

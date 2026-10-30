@@ -1,0 +1,13 @@
+{
+  "id": "P010",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "No account and on-device storage is the first pitch that gets past my privacy filter, so I'd probably download it and use the free summary. But the free logging and basic PDF cover what I need, and I'm not paying for Pro before I've seen whether my doctor even looks at the page.",
+  "objection": "An app won't change what my doctor does. A nicer one-page summary doesn't make them take me more seriously, and I'd still read the privacy policy to check the 'never leaves your phone' claim before trusting it.",
+  "would_change_my_mind": "If the free summary actually made my appointment go differently, like getting a test ordered or a med change taken seriously, I'd pay the $7.99 before the next one.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2,
+  "price_expensive": 4.99,
+  "price_too_expensive": 8
+}

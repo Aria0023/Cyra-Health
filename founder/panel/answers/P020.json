@@ -1,0 +1,13 @@
+{
+  "id": "P020",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "I might download the free version just to get the doctor PDF before my appointment, but I've quit every tracker within a few weeks, so paying for Pro on top of logging I probably won't keep up makes no sense. The free tier already covers the part I actually need.",
+  "objection": "I've quit tracking apps before; I won't keep logging, and an AI write-up of an empty log is worth nothing.",
+  "would_change_my_mind": "If I actually stuck with logging for a couple of months and the free PDF got my doctor to take me seriously, then I'd consider Pro for the weekly write-up.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.99,
+  "price_expensive": 6.99,
+  "price_too_expensive": 12
+}

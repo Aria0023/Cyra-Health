@@ -1,0 +1,13 @@
+{
+  "id": "P008",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "The no-account, on-device setup and weight being off by default are what I want, but I'd read the privacy policy and use the free first summary before paying anything. My next appointment is weeks away, so nothing makes me pay this month.",
+  "objection": "'Runs entirely on your phone' is easy to say. The last period app said nice things too. I'd want to know who's behind it, what the AI write-up sends and where it goes, and whether the free tier gets cut back once they have users. I also need it to deal with trying to conceive. It can't just be a symptom log.",
+  "would_change_my_mind": "An independent privacy audit or open-source proof that nothing leaves the phone, and a free summary that actually helps my doctor change something about my metformin or inositol plan.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.99,
+  "price_expensive": 5.99,
+  "price_too_expensive": 9.99
+}

@@ -1,0 +1,13 @@
+{
+  "id": "P018",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "What I actually need before my appointment is the free part: logging between visits and a doctor-ready PDF. I'd download it and use it for free, but I don't need an AI write-up of my own log or a breathing library, so I wouldn't pay for Pro.",
+  "objection": "An AI summary sounds like more wellness fluff. Nothing here says what sources or guidelines the patterns and 'honest ranges' are based on, and predictions have never worked for my cycles, so why would an AI chat be any better?",
+  "would_change_my_mind": "If Pro's write-up cited actual PCOS guidelines or studies for each pattern it pointed out, and my doctor found it useful at the appointment.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 1.99,
+  "price_expensive": 4.99,
+  "price_too_expensive": 8
+}

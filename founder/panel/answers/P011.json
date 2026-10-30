@@ -1,0 +1,13 @@
+{
+  "id": "P011",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I'd download the free version for the doctor PDF, since that's the part that actually helps me get taken seriously. But I already pay for a PCOS program and I'm on $23k, so an AI write-up and breathing exercises aren't worth another monthly charge.",
+  "objection": "Everything I'd really use, the tracking and the PDF for my appointment, is already free, and Apple Health plus the program I pay for cover the rest. An AI chat doesn't get me a diagnosis any faster.",
+  "would_change_my_mind": "If Pro did something that actually cut down time with doctors, like a write-up my clinician has said they'll use, or something that helps me get a PCOS workup ordered, instead of a summary for me to read.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.99,
+  "price_expensive": 4.99,
+  "price_too_expensive": 8
+}

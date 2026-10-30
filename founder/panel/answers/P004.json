@@ -1,0 +1,13 @@
+{
+  "id": "P004",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "The no-account, stays-on-my-phone part actually gets me to download it, but the doctor PDF is the thing I'd use and that's free. Pro is an AI chat and breathing exercises, and I'm not paying to send my log to an AI when what I want is to know if my inositol is working.",
+  "objection": "Every period app says my data is private until it isn't, and Pro is the part that sends my stuff off my phone. Even with a preview, I'd want to know who sees it and whether it's stored before I let it go.",
+  "would_change_my_mind": "If Pro showed me a before-and-after of my symptoms and cycle length since I started metformin or inositol, in a form my doctor would take seriously, so it saves me an appointment or gets me a real answer faster.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.99,
+  "price_expensive": 5.99,
+  "price_too_expensive": 9.99
+}

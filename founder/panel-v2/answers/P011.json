@@ -1,0 +1,13 @@
+{
+  "id": "P011",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I'd actually download it, because walking in with something on paper so I don't get the 'just lose weight' speech again is exactly what I want. But my first summary is free and I haven't even been diagnosed yet, so there's nothing for me to pay for this month.",
+  "objection": "I'm 19 on about $23k and already paying for supplements, and my period app tracks cycles for free. I'm not sure a one-page summary makes a doctor take me more seriously, and I'd want to see that happen before paying for Pro.",
+  "would_change_my_mind": "If the free summary actually got me taken seriously, like a doctor ordering the bloodwork or ultrasound instead of brushing me off, I'd pay the $7.99 for my next appointment.",
+  "price_too_cheap": 1,
+  "price_cheap": 2.99,
+  "price_expensive": 5.99,
+  "price_too_expensive": 9.99
+}

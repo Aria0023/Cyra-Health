@@ -1,0 +1,13 @@
+{
+  "id": "P018",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "need",
+  "reason": "I'd download it for the free first appointment summary since my appointment is coming up, but that plus free logging and the basic doctor PDF covers what I need this month, so I wouldn't pay yet. I'd only consider Pro after I see whether the summary actually gets my doctor to take me seriously.",
+  "objection": "Cycle predictions have never worked for my irregular cycles, and 'drawn from the 2023 guideline' means nothing to me unless every suggested question links to the actual guideline recommendation so I can check it isn't wellness fluff.",
+  "would_change_my_mind": "If the free summary visibly helped in my appointment (clinician actually used it, got me toward a diagnosis or labs) and Pro showed cited guideline sources for each question, I'd pay for the next appointment.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.0,
+  "price_expensive": 5.0,
+  "price_too_expensive": 9.0
+}

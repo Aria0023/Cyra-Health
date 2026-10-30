@@ -1,0 +1,13 @@
+{
+  "id": "P003",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "I've downloaded and quit like four tracking apps already, so I'm not paying for Pro before I know I'll still be logging in three weeks. If anything I'd grab the free summary before my next appointment and stop there.",
+  "objection": "An app won't change what my doctor does. Even with a nice one-page summary, I'm not sure my doctor will actually read it or change my metformin plan because of it, and I'll probably stop logging before it's useful anyway.",
+  "would_change_my_mind": "If the free summary actually got my doctor to change something or answer a question she normally brushes off, I'd pay the $7.99 before my next appointment.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.99,
+  "price_expensive": 5.99,
+  "price_too_expensive": 9.99
+}

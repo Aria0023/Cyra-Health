@@ -1,0 +1,13 @@
+{
+  "id": "P016",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "I'd maybe download the free version and use the doctor PDF, but I'm not paying $5 a month for an AI write-up when I already log stuff in Apple Health and notes. I never pay for apps, and I'd just cancel after a trial anyway.",
+  "objection": "An app won't change what my doctor does. A summary of my own log doesn't tell me if metformin or inositol is actually working, and Pro features like breathing exercises and backup aren't things I'd pay for.",
+  "would_change_my_mind": "If my doctor actually used the Cyra report and it got them to change my treatment or take my symptoms more seriously, I might pay for it, but probably only a few dollars a year.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 1.99,
+  "price_expensive": 3.99,
+  "price_too_expensive": 4.99
+}

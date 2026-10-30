@@ -1,0 +1,13 @@
+{
+  "id": "P019",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "habit",
+  "reason": "I'd probably download the free version for the doctor-ready PDF before my appointment, but I've quit every tracker within a few weeks, so paying for Pro before I know I'll actually keep logging makes no sense. Everything I need right now is in the free tier.",
+  "objection": "I'll stop logging in two weeks like always, and then a weekly AI write-up of an empty log is worth nothing. Also I want to see that it doesn't turn into weight and calorie nagging.",
+  "would_change_my_mind": "If I'm still logging after a month and the AI write-up actually spots something about my cycles or symptoms that I can bring to my doctor for trying to conceive, I'd pay.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 2.99,
+  "price_expensive": 7.99,
+  "price_too_expensive": 12.99
+}

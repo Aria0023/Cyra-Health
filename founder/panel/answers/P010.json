@@ -1,0 +1,13 @@
+{
+  "id": "P010",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "trust",
+  "reason": "I'd maybe try the free version since it says no account and the log stays on my phone, but I'd check the privacy policy first. I'm not paying to send my cycle data to an AI, and an app write-up won't change what my doctor does.",
+  "objection": "Pro's whole point is sending my health log off my phone to an AI. 'You see what's sent first' is nice, but after the last period app I'm not trusting any company with that, and I don't see how an AI summary gets my doctor to take me more seriously.",
+  "would_change_my_mind": "An independent privacy audit, plus proof the doctor PDF actually changed how clinicians respond to people with PCOS.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 1.99,
+  "price_expensive": 3.99,
+  "price_too_expensive": 6.99
+}

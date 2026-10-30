@@ -1,0 +1,13 @@
+{
+  "id": "P007",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "I'd download it for the free first summary before my appointment, and logging plus the basic doctor PDF are free forever, so there's nothing I'd need to pay for. I don't pay for apps, and I'd cancel any trial before it charged me.",
+  "objection": "Predictions never work for my irregular cycles, so 'honest ranges' will probably just be so wide they're useless. And the free tier already covers what I'd actually use.",
+  "would_change_my_mind": "If my doctor actually changed something because of the free summary, I might pay the $7.99 one-time for the next appointment. I'd never do a subscription.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 1.99,
+  "price_expensive": 3.99,
+  "price_too_expensive": 5
+}

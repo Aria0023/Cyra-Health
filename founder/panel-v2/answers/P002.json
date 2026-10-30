@@ -1,0 +1,13 @@
+{
+  "id": "P002",
+  "buys": false,
+  "purchases_first_month": 0,
+  "reason_code": "price",
+  "reason": "I'd download it for the free appointment summary since my visit is coming up, but I don't pay for apps. If the logging and basic doctor PDF stay free forever, that's all I'd use, and I'd never upgrade to Pro.",
+  "objection": "Why pay when the free tier plus Apple Health and my notes already cover it? I'm also wary that it's a weight-loss app in disguise. Weight being off by default helps, but I'd still be watching for it.",
+  "would_change_my_mind": "If the free PDF turned out to be too thin to be useful at my appointment and the $7.99 one-off was clearly better, I might pay once. A subscription, never.",
+  "price_too_cheap": 0.99,
+  "price_cheap": 1.99,
+  "price_expensive": 2.99,
+  "price_too_expensive": 4.99
+}

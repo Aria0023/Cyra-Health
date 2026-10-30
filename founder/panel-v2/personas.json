@@ -1,0 +1,222 @@
+[
+ {
+  "id": "P001",
+  "name": "Emma",
+  "age": 38,
+  "segment": "Suspected PCOS, not yet diagnosed",
+  "income": 76000,
+  "behaviour": "Free-only",
+  "behaviour_how": "Never pays for apps; uses Apple Health or notes; cancels anything after the trial.",
+  "objection": "Predictions never work for my irregular cycles",
+  "habit": "you scroll r/PCOS or TikTok PCOS content a few nights a week"
+ },
+ {
+  "id": "P002",
+  "name": "Caleb",
+  "age": 39,
+  "segment": "Trying to conceive with PCOS",
+  "income": 69000,
+  "behaviour": "Free-only",
+  "behaviour_how": "Never pays for apps; uses Apple Health or notes; cancels anything after the trial.",
+  "objection": "Is this just another weight-loss app in disguise?",
+  "habit": "you have a doctor's appointment coming up and keep forgetting what happened between visits"
+ },
+ {
+  "id": "P003",
+  "name": "Ava",
+  "age": 20,
+  "segment": "Trying to conceive with PCOS",
+  "income": 62000,
+  "behaviour": "App fatigue",
+  "behaviour_how": "Has tried several tracking apps and quit each within a few weeks; logging feels like homework.",
+  "objection": "An app won't change what my doctor does",
+  "habit": "you take metformin or inositol and can't tell if it helps"
+ },
+ {
+  "id": "P004",
+  "name": "Nico",
+  "age": 19,
+  "segment": "Student or early-career with irregular periods",
+  "income": 33000,
+  "behaviour": "Pays for help",
+  "behaviour_how": "Already pays for a PCOS program, supplements or telehealth; will pay if it saves time with doctors.",
+  "objection": "I don't trust a period app with my health data",
+  "habit": "you take metformin or inositol and can't tell if it helps"
+ },
+ {
+  "id": "P005",
+  "name": "Talia",
+  "age": 23,
+  "segment": "Student or early-career with irregular periods",
+  "income": 19000,
+  "behaviour": "Uses Flo or Clue today",
+  "behaviour_how": "Has logged in a mainstream period app for years; annoyed its predictions are always wrong for her.",
+  "objection": "Predictions never work for my irregular cycles",
+  "habit": "you take metformin or inositol and can't tell if it helps"
+ },
+ {
+  "id": "P006",
+  "name": "Beatriz",
+  "age": 20,
+  "segment": "Trying to conceive with PCOS",
+  "income": 93000,
+  "behaviour": "App fatigue",
+  "behaviour_how": "Has tried several tracking apps and quit each within a few weeks; logging feels like homework.",
+  "objection": "I don't want another AI chatbot giving me health advice",
+  "habit": "your last period was more than six weeks ago"
+ },
+ {
+  "id": "P007",
+  "name": "Andre",
+  "age": 35,
+  "segment": "Diagnosed PCOS, managing symptoms",
+  "income": 57000,
+  "behaviour": "Free-only",
+  "behaviour_how": "Never pays for apps; uses Apple Health or notes; cancels anything after the trial.",
+  "objection": "Predictions never work for my irregular cycles",
+  "habit": "you have a doctor's appointment coming up and keep forgetting what happened between visits"
+ },
+ {
+  "id": "P008",
+  "name": "Farah",
+  "age": 37,
+  "segment": "Trying to conceive with PCOS",
+  "income": 78000,
+  "behaviour": "Privacy-wary",
+  "behaviour_how": "Deleted a period app after the data-sharing news; reads privacy policies before installing anything health-related.",
+  "objection": "Is this just another weight-loss app in disguise?",
+  "habit": "you take metformin or inositol and can't tell if it helps"
+ },
+ {
+  "id": "P009",
+  "name": "Luca",
+  "age": 37,
+  "segment": "Suspected PCOS, not yet diagnosed",
+  "income": 31000,
+  "behaviour": "Privacy-wary",
+  "behaviour_how": "Deleted a period app after the data-sharing news; reads privacy policies before installing anything health-related.",
+  "objection": "Is this just another weight-loss app in disguise?",
+  "habit": "your last period was more than six weeks ago"
+ },
+ {
+  "id": "P010",
+  "name": "Owen",
+  "age": 24,
+  "segment": "Diagnosed PCOS, managing symptoms",
+  "income": 65000,
+  "behaviour": "Privacy-wary",
+  "behaviour_how": "Deleted a period app after the data-sharing news; reads privacy policies before installing anything health-related.",
+  "objection": "An app won't change what my doctor does",
+  "habit": "your last period was more than six weeks ago"
+ },
+ {
+  "id": "P011",
+  "name": "Tess",
+  "age": 19,
+  "segment": "Suspected PCOS, not yet diagnosed",
+  "income": 23000,
+  "behaviour": "Pays for help",
+  "behaviour_how": "Already pays for a PCOS program, supplements or telehealth; will pay if it saves time with doctors.",
+  "objection": "Apple Health or my current app already tracks this for free",
+  "habit": "you are tired of being told to just lose weight"
+ },
+ {
+  "id": "P012",
+  "name": "Callum",
+  "age": 34,
+  "segment": "Student or early-career with irregular periods",
+  "income": 28000,
+  "behaviour": "Privacy-wary",
+  "behaviour_how": "Deleted a period app after the data-sharing news; reads privacy policies before installing anything health-related.",
+  "objection": "An app won't change what my doctor does",
+  "habit": "you take metformin or inositol and can't tell if it helps"
+ },
+ {
+  "id": "P013",
+  "name": "Julian",
+  "age": 37,
+  "segment": "Trying to conceive with PCOS",
+  "income": 54000,
+  "behaviour": "Research-heavy",
+  "behaviour_how": "Reads r/PCOS, studies and guidelines; distrusts wellness claims and wants sources.",
+  "objection": "I don't trust a period app with my health data",
+  "habit": "you are tired of being told to just lose weight"
+ },
+ {
+  "id": "P014",
+  "name": "Iris",
+  "age": 24,
+  "segment": "Suspected PCOS, not yet diagnosed",
+  "income": 57000,
+  "behaviour": "App fatigue",
+  "behaviour_how": "Has tried several tracking apps and quit each within a few weeks; logging feels like homework.",
+  "objection": "I've quit tracking apps before; I won't keep logging",
+  "habit": "you track your cycle in Flo but ignore its predictions"
+ },
+ {
+  "id": "P015",
+  "name": "Clara",
+  "age": 22,
+  "segment": "Suspected PCOS, not yet diagnosed",
+  "income": 20000,
+  "behaviour": "Pays for help",
+  "behaviour_how": "Already pays for a PCOS program, supplements or telehealth; will pay if it saves time with doctors.",
+  "objection": "I don't trust a period app with my health data",
+  "habit": "you track your cycle in Flo but ignore its predictions"
+ },
+ {
+  "id": "P016",
+  "name": "Esme",
+  "age": 19,
+  "segment": "Diagnosed PCOS, managing symptoms",
+  "income": 41000,
+  "behaviour": "Free-only",
+  "behaviour_how": "Never pays for apps; uses Apple Health or notes; cancels anything after the trial.",
+  "objection": "An app won't change what my doctor does",
+  "habit": "you take metformin or inositol and can't tell if it helps"
+ },
+ {
+  "id": "P017",
+  "name": "Lucia",
+  "age": 18,
+  "segment": "Diagnosed PCOS, managing symptoms",
+  "income": 66000,
+  "behaviour": "Privacy-wary",
+  "behaviour_how": "Deleted a period app after the data-sharing news; reads privacy policies before installing anything health-related.",
+  "objection": "Predictions never work for my irregular cycles",
+  "habit": "your last period was more than six weeks ago"
+ },
+ {
+  "id": "P018",
+  "name": "Kenji",
+  "age": 28,
+  "segment": "Suspected PCOS, not yet diagnosed",
+  "income": 66000,
+  "behaviour": "Research-heavy",
+  "behaviour_how": "Reads r/PCOS, studies and guidelines; distrusts wellness claims and wants sources.",
+  "objection": "Predictions never work for my irregular cycles",
+  "habit": "you have a doctor's appointment coming up and keep forgetting what happened between visits"
+ },
+ {
+  "id": "P019",
+  "name": "Selin",
+  "age": 29,
+  "segment": "Trying to conceive with PCOS",
+  "income": 130000,
+  "behaviour": "App fatigue",
+  "behaviour_how": "Has tried several tracking apps and quit each within a few weeks; logging feels like homework.",
+  "objection": "Is this just another weight-loss app in disguise?",
+  "habit": "you have a doctor's appointment coming up and keep forgetting what happened between visits"
+ },
+ {
+  "id": "P020",
+  "name": "Keisha",
+  "age": 24,
+  "segment": "Trying to conceive with PCOS",
+  "income": 101000,
+  "behaviour": "App fatigue",
+  "behaviour_how": "Has tried several tracking apps and quit each within a few weeks; logging feels like homework.",
+  "objection": "I've quit tracking apps before; I won't keep logging",
+  "habit": "you have a doctor's appointment coming up and keep forgetting what happened between visits"
+ }
+]
