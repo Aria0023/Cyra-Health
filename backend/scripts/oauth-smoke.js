@@ -9,6 +9,7 @@
 // Usage: node scripts/oauth-smoke.js
 import http from "http";
 import crypto from "crypto";
+import fs from "fs";
 import { spawn } from "child_process";
 import express from "express";
 import { startMockProvider } from "./mock-oauth-provider.js";
@@ -175,8 +176,11 @@ try { await waitFor("http://127.0.0.1:3107/health");
 
 // RETURN_ORIGINS overrides CORS_ORIGIN for web returns; production fails closed without a list
 const roEnv = { ...process.env, OAUTH_MOCK_BASE: MOCK, AUTH_SECRET: "test-auth-secret", APP_RETURN_SCHEMES: "" };
+// Production no longer mounts oauth (local-first L4: config/app.json is push + ai), so the production run gets the
+// production config with oauth listed, the way a build with VITE_FEATURES signin would be served.
+{ const cfg = JSON.parse(fs.readFileSync("config/app.json")); fs.writeFileSync("config/app.oauth-prod-test.json", JSON.stringify({ ...cfg, modules: ["oauth", ...cfg.modules] })); }
 const ro = spawn("node", ["server.js"], { env: { ...roEnv, PORT: "3108", PUBLIC_BASE_URL: "http://127.0.0.1:3108", CORS_ORIGIN: "https://app.example,https://localhost", RETURN_ORIGINS: "https://web.example,https://localhost", NODE_ENV: "" }, stdio: ["ignore", "ignore", "inherit"] });
-const prod = spawn("node", ["server.js"], { env: { ...roEnv, PORT: "3109", PUBLIC_BASE_URL: "http://127.0.0.1:3109", CORS_ORIGIN: "", RETURN_ORIGINS: "", NODE_ENV: "production", ADMIN_KEY: crypto.randomBytes(32).toString("hex"), AUTH_SECRET: crypto.randomBytes(32).toString("hex") }, stdio: ["ignore", "ignore", "inherit"] });
+const prod = spawn("node", ["server.js"], { env: { ...roEnv, PORT: "3109", PUBLIC_BASE_URL: "http://127.0.0.1:3109", CORS_ORIGIN: "", RETURN_ORIGINS: "", NODE_ENV: "production", CYRA_CONFIG: "config/app.oauth-prod-test.json", ADMIN_KEY: crypto.randomBytes(32).toString("hex"), AUTH_SECRET: crypto.randomBytes(32).toString("hex") }, stdio: ["ignore", "ignore", "inherit"] });
 try { await waitFor("http://127.0.0.1:3108/health"); await waitFor("http://127.0.0.1:3109/health");
   const at = (port, ret, extra = "") => go(`http://127.0.0.1:${port}/api/oauth/google/start?return=${encodeURIComponent(ret)}${extra}`).then((x) => x.status);
   assert(await at(3108, "https://web.example/") === 302 && await at(3108, "https://app.example/") === 400, "RETURN_ORIGINS: its origins are web returns, CORS_ORIGIN's are not");
@@ -184,7 +188,7 @@ try { await waitFor("http://127.0.0.1:3108/health"); await waitFor("http://127.0
   assert(await at(3109, "https://anything.example/") === 400, "NODE_ENV=production, no CORS_ORIGIN/RETURN_ORIGINS: web returns fail closed");
   const ch = crypto.createHash("sha256").update(crypto.randomBytes(32).toString("base64url")).digest("base64url");
   assert(await at(3109, "cyrahealth://auth/oauth", `&app_challenge=${ch}`) === 302, "NODE_ENV=production: app links still work");
-} finally { ro.kill(); prod.kill(); }
+} finally { ro.kill(); prod.kill(); fs.rmSync("config/app.oauth-prod-test.json", { force: true }); }
 
 // unconfigured provider → 503 (separate backend without the mock)
 const bare = spawn("node", ["server.js"], { env: { ...process.env, PORT: "3104", APPLE_CLIENT_ID: "", GOOGLE_CLIENT_ID: "", FACEBOOK_APP_ID: "", OAUTH_MOCK_BASE: "" }, stdio: ["ignore", "ignore", "inherit"] });

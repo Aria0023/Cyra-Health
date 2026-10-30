@@ -1,6 +1,6 @@
 # Cyra privacy audit
 
-This file records the privacy audit that the build spec's production checklist (section A12) asks for: every privacy statement Cyra makes was checked against what the build actually does. It is written for the product owner and for counsel reviewing the draft legal documents in `docs/Cyra-Legal-Documents.docx`. It describes the code as of 9 October 2026 (build stamp BUILD 2026.10.07-D).
+This file records the privacy audit that the build spec's production checklist (section A12) asks for: every privacy statement Cyra makes was checked against what the build actually does. It is written for the product owner and for counsel reviewing the draft legal documents in `docs/Cyra-Legal-Documents.docx`. It describes the code as of 23 October 2026 (build stamp BUILD 2026.10.07-D; the L11 section is the latest change).
 
 ## How the audit was done and what it found
 
@@ -50,7 +50,7 @@ Each of these was settled with a default so that the build is truthful today. If
    - Recommendation: keep it. The spec requires the counts, the wearable hub and the AI proxy, so "always" can't be true while they exist.
 2. **Anonymous Mode.** Drop the promise "If anyone ever demands we identify you, we can't"?
    - Applied: dropped. In its place, the app says no profile is kept and that the server sees the device's internet address.
-   - The build now: the sentence is gone. Step 1's "What Cyra's server sees" panel says Anonymous Mode skips name and email, Cyra keeps no account or profile in either mode, and "our server and its host see your device's internet address and app or browser type when the app connects. Cyra's own code doesn't keep the address."
+   - The build now: the sentence is gone. The Device step's (step 2 since L11) "What Cyra's server sees" panel says Anonymous Mode skips name and email, Cyra keeps no account or profile in either mode, and "our server and its host see your device's internet address and app or browser type when the app connects. Cyra's own code doesn't keep the address."
    - Recommendation: keep this for now. Before making a stronger promise later, use infrastructure that doesn't see or log addresses (an oblivious relay, no address logging at the host) and re-verify. Cyra can't promise how infrastructure it doesn't control responds to legal process.
 3. **Ask Cyra.** Keep an opt-in AI fallback, or ship the written library only?
    - Applied: library first, AI only by explicit opt-in on each device, question text only. Until an exact retention period is confirmed, the copy says Anthropic keeps questions "for a limited time under its own terms".
@@ -68,12 +68,12 @@ Each of these was settled with a default so that the build is truthful today. If
    - Applied: no studies now. The only choice is "Share anonymous weekly counts".
    - The build now: that toggle appears on the consent step and in Settings, off by default. No study screens exist.
    - Recommendation: keep it. No studies exist, and the old copy promised per-study consent that wasn't built.
-7. **Email on step 1.** Optional or removed?
+7. **Email on the Device step** (step 1 before L11, step 2 since). Optional or removed?
    - Applied: optional, labeled as kept on the device.
    - The build now: the field's accessible name is "Email (optional, kept only on this device and in backups you save)"; since UI O1 the placeholder reads "Email (optional)" and the clause "Kept only on this device and in backups you save." is a visible helper line under the field. Anonymous Mode hides both. No code sends it anywhere.
    - Recommendation differs: remove the field unless a feature will use it soon, since nothing reads it.
 8. **ZIP.** Optional or removed?
-   - Applied: optional, described truthfully.
+   - Applied: optional, described truthfully; since L11 it is no longer asked at registration at all, only in Settings → About you → Age and ZIP.
    - The build now: "ZIP is optional and stays on this device. Cyra doesn't use it yet and never sends it anywhere." Backups leave it out.
    - Recommendation differs: remove it until a local feature uses it. It is unused, and combined with other details it can help identify someone.
 9. **Care shelf brands.** Show real company names (such as Midi Health) with a "Partner" label?
@@ -82,11 +82,11 @@ Each of these was settled with a default so that the build is truthful today. If
    - Recommendation differs: for any brand without a signed agreement, use clearly fictional placeholders. A real company next to "Partner link coming soon" still implies a relationship that isn't on record.
 10. **Backend modules.** Unload the partner, FHIR, organization and admin modules in production?
     - Applied: yes. Production loads only what the shipped app calls.
-    - The build now: `backend/config/app.json` loads only sign-in (oauth), wearables (integrations), weekly counts (pulse), web reminders (push) and AI. The other modules run only in the development setup. Production refuses to start without real ADMIN_KEY and AUTH_SECRET values.
+    - The build now (local-first L4, owner decision D2): `backend/config/app.json` loads only web reminders (push) and AI (ai), what the app's default build calls. Sign-in (oauth), wearables (integrations), weekly counts (pulse) and the encrypted backup scaffold (backup) are present in the code, mounted in development (`config/app-dev.json`), and re-enabled in production by listing them, for a build whose `VITE_FEATURES` offers them (see "Local-first L4"). The other modules run only in the development setup. Production refuses to start without real ADMIN_KEY and AUTH_SECRET values.
     - Recommendation: keep it. Those modules were publicly reachable, some had no authentication, they held demo secrets, and the FHIR and telehealth webhooks would trigger a HIPAA business-associate review.
 11. **Minimum age and teens.**
     - Planned default: a 13+ gate, plus an "Under 18" band that hides weekly counts and AI.
-    - The build now: not built, and deferred to counsel. There is no age gate, and the age bands start at "Under 25", so the app can't tell a minor from an adult.
+    - The build now: not built, and deferred to counsel. There is no age gate, and the age bands start at "Under 25", so the app can't tell a minor from an adult. Since L11 the age band is not asked at registration at all; it is an optional chip row in Settings → About you → Age and ZIP.
     - Recommendation: counsel to choose. A 13+ gate is the minimum consistent with the draft Terms, and the draft policy promises teen protections the app can't apply today.
 12. **Publishing the policy, and a release gate.**
     - Planned default: publish the attorney-reviewed Terms and Privacy Policy, link them from the consent checkbox, and fail web and iOS builds when the policy address is empty.
@@ -94,7 +94,7 @@ Each of these was settled with a default so that the build is truthful today. If
     - Recommendation: publish the documents. Paste VITE_TERMS_URL and VITE_PRIVACY_URL into Render → Environment for the static site (and `.env.local` for phone builds), and set `privacy_policy_url`. Consider failing web and iOS release builds on an empty address too. Agreement to documents people can't read isn't valid consent, and Washington's My Health My Data Act (MHMDA) requires a linked consumer health data policy.
 13. **Facebook sign-in.** Keep it?
     - Applied: kept, with a disclosure.
-    - The build now: the buttons appear as Apple, Google, Facebook (Apple first). The app says "Apple, Google or Facebook will know you're setting up Cyra." Facebook fills in the name only, and its email is never passed on.
+    - The build now: the buttons appear as Apple, Google, Facebook (Apple first). The app says "Apple, Google or Facebook will know you're setting up Cyra." Facebook fills in the name only, and its email is never passed on. Since local-first L4 the providers appear only in builds with the `signin` flag, which is off by default (production mounts no oauth module), so the default build offers no third-party login at all.
     - Recommendation: counsel and owner to decide. Removing Facebook means an ad company doesn't learn that someone tried to sign in to a hormonal-health app, which happens even if she cancels.
 
 ## Where the draft privacy policy does not match the build
@@ -163,7 +163,7 @@ The legal draft is marked for attorney review and was not edited. These are the 
 - **User ID:** the Terra reference id, a one-way hash of a secret key kept on the device.
 - **Other data types:** Oura access and refresh tokens, held in memory for up to 5 minutes while connecting.
 - **Product interaction:** the host's log entry for each backend request. The comment says it includes the URL with any query string, the client IP and the user agent. Linked because Terra's return page adds the connection's reference id to a logged URL. The draft said to remove this type; it stays, for that reason.
-- **Not collected,** with reasons given: Apple Health data, the encrypted backup, the doctor summary, loading the weekly counts, the welcome sentence, phone reminders, fonts, the sign-in and connect pages themselves, and rate-limit hashes. Also not collected: the POTS log, and the POTS report and spreadsheet files (built on the device and handed only to the share sheet or a download).
+- **Not collected,** with reasons given: Apple Health data, the encrypted backup, the doctor summary, loading the weekly counts, the welcome sentence, phone reminders, fonts, the sign-in and connect pages themselves, and rate-limit hashes. Also not collected: the POTS log, the POTS report and spreadsheet files, and the appointment PDF from the Report (`cyra-summary-{date}.pdf`, L9) — all built on the device and handed only to the share sheet or a download.
 - **Required-reason API:** file timestamps (reason C617.1), used by the Capacitor Filesystem library built into the app.
 
 **App Store Connect.** The App Privacy answers should mirror the manifest. Data Linked to You: Health, Sensitive Info, Other User Content, Name, Email Address, User ID, Product Interaction and Other Data. Data Used to Track You: none. A privacy policy URL (the attorney-reviewed policy) is required. The HealthKit usage text says Cyra never sends Health data to its servers or anyone else, and that the data leaves the device only inside an encrypted backup. That matches the code: the health plugin makes no network calls. Review notes should say the same (Guideline 5.1.3).
@@ -181,7 +181,9 @@ The legal draft is marked for attorney review and was not edited. These are the 
 - **Sharing:** nothing is shared for a third party's own use. Anthropic, Render, Terra and Oura act as service providers or at the user's direction. Counsel to confirm.
 - **Deletion:** there is no account. Delete everything clears the device and ends server-side reminders and wearable connections. Add the privacy contact once it exists.
 
-**Web.** California law (CCPA/CPRA) requires a notice at or before collection, and MHMDA requires a linked consumer health data policy. Today the consent step links the Terms and Privacy Policy only when VITE_TERMS_URL and VITE_PRIVACY_URL are both set. Otherwise it says they aren't published yet, and the checkbox covers only what the screen says. Settings → Your data has no policy link. Add one there.
+**Feature flags (local-first L4).** Everything above describes the `all` feature set (`VITE_FEATURES=all`). A phone release with the default flags (`ai,webReminders`) collects no Name, Email Address, User ID or Oura tokens, its Health, Sensitive info and Other user content types come only from Ask questions, and its HealthKit entitlement, Info.plist Health strings and Health Connect permissions would be unused. The owner must match `PrivacyInfo.xcprivacy`, the entitlements and permissions, and the App Store and Play answers to the release's `VITE_FEATURES` (or ship phones with `wearables` and its backend module). See "Local-first L4".
+
+**Web.** California law (CCPA/CPRA) requires a notice at or before collection, and MHMDA requires a linked consumer health data policy. Today the consent step links the Terms and Privacy Policy only when VITE_TERMS_URL and VITE_PRIVACY_URL are both set. Otherwise it says they aren't published yet, and the checkbox covers only what the screen says. Settings → Privacy & your data has no policy link. Add one there.
 
 ## Data flows the app does not mention yet
 
@@ -191,14 +193,15 @@ These are real and not yet disclosed in the app. Most belong in the privacy poli
 - **Anthropic retention.** The app says Anthropic keeps Ask questions "for a limited time under its own terms". The exact period is unconfirmed, and no zero-data-retention agreement is in place.
 - **Sign-in history on Android.** The app says Apple, Google or Facebook will know you're setting up Cyra. It doesn't say that on Android the sign-in and connect windows open in the default browser, so their addresses can land in that browser's history, which may sync to other devices.
 - **Push services.** Settings says "Your browser's push service delivers the reminder." It doesn't say that the push service (Google, Mozilla or Apple) sees the push address and when each reminder arrives, which reveals the reminder schedule.
-- **Doctor email.** The Report screen says Cyra sends nothing and the text goes only where you take it. It doesn't say that webmail or the Gmail app can save the draft to the mail provider's servers before she presses send, or that "Copy email" can sync through Universal Clipboard or a keyboard's clipboard history.
 - **Screenshots and keyboards.** Android doesn't block screenshots of health screens (no FLAG_SECURE), and iOS shows health screens in the app switcher (no privacy cover). Predictive keyboards can learn journal and Ask text. Nothing in the app mentions this.
-- **Unencrypted web storage.** Your data says the record is in the browser's on-device database and that a private window erases it. It doesn't say the record isn't encrypted, or that system backups of the computer (such as Time Machine) can copy it, including the Oura sign-in and the Fitbit/Garmin/Whoop connection key.
+- **System backups of web storage.** Privacy & your data says the record is in the browser's on-device database and that a private window erases it, and (since L10) that the app lock doesn't encrypt it. It still doesn't say that system backups of the computer (such as Time Machine) can copy the browser's database, including the Oura sign-in and the Fitbit/Garmin/Whoop connection key.
 
-- **Exported POTS files.** The Report section says the file isn't locked and that it goes only where she takes it. It doesn't list where a copy can end up: the Downloads folder, the Files app, cloud drives, Mail drafts and sent mail, and AirDrop or messaging targets may keep or sync it, under their own terms.
+- **Exported files (the appointment PDF and the POTS report and spreadsheet).** The Report tab's card and the POTS Report section say the file isn't locked and that it goes only where she takes it. They don't list where a copy can end up: the Downloads folder, the Files app, cloud drives, Mail drafts and sent mail, and AirDrop or messaging targets may keep or sync it, under their own terms.
 
 **Now disclosed or resolved since the draft:**
-- **The device's internet address.** Step 1 says Cyra's server and its host see it. The weekly-counts details, on the consent step and in Settings, say each request carries it. Cyra's rate limiters keep only a salted hash of it, for about a minute.
+- **Unencrypted web storage (the encryption half).** Settings → Privacy & your data → App lock says, in every state of the lock (L10): "The lock keeps Cyra closed on this device until your PIN is entered. It doesn't encrypt what's stored: anyone with full access to this browser, for example through its developer tools, could still read your record. Only an encrypted backup file is locked with a passphrase." (phone: "…your phone's own passcode is what protects its storage."). System backups remain undisclosed (above).
+- **Doctor email drafts and clipboard sync.** The "Backups and files you make" row's Details (L10, every stage but pregnancy) say: "The doctor summary on the Report tab goes only where you take it: a draft in your email app, your clipboard, the share sheet or a printout. Those apps may keep a copy under their own terms."
+- **The device's internet address.** The Device step (step 2 since L11) says Cyra's server and its host see it. The weekly-counts details, on the consent step and in Settings, say each request carries it. Cyra's rate limiters keep only a salted hash of it, for about a minute.
 - **Terra and Oura.** Each is named before connecting, with what it keeps: Terra keeps data under its own policy, and Oura will know you connected Cyra.
 - **Restoring a backup.** The restore screen (`src/components/DataControls.jsx`) and Your data now say that wearable connections in the backup come back unconfirmed until Cyra checks them through its server (Oura straight away; Fitbit/Garmin/Whoop when readings arrive), that one this device is still disconnecting isn't restored, and that connections only on this device stay connected.
 - **Partner webhook secrets.** Production refuses to start if the webhook module is turned on without a real secret for each partner. The demo secrets in `backend/config/partners/` are used only in development.
@@ -250,7 +253,7 @@ Each statement below was traced to the code that makes it true. Every POTS write
 - **Goals:** "Set these with your clinician. Cyra tracks them; it doesn't choose them." True: goals start blank and are never pre-filled. The guideline Details uses the figure-free text while `GUIDE_VERIFIED` is false.
 - **High blood pressure caution:** "You told Cyra you have high blood pressure. Extra salt can raise it further, so please set any salt goal with your clinician." It reads the registration answer on screen only. No POTS write or output uses `regAnswers`.
 - **Erase confirm in POTS settings → Delete POTS log:** the same text as the Slice 2 entry, now one shared constant (`POTS_ERASE` in `src/lib/potsConstants.js`). It runs `eraseLog` and keeps the tab on. The phone test checks the text word for word and that the record is empty under a new epoch afterwards.
-- **Registration, health step:** the new condition "POTS or dysautonomia" is stored in the registration answers like the others, so "Your answers stay on this device (and in an encrypted backup, if you save one)" stays true. Ticking it never turns POTS on.
+- **Registration, health step (since L11: Settings → About you → Health background):** the new condition "POTS or dysautonomia" is stored in the registration answers like the others, so "Your answers stay on this device (and in an encrypted backup, if you save one)" stays true. Ticking it never turns POTS on; it only raises the Home offer card once Settings is closed.
 - **Home offer card (owner decision D2):** "You mentioned POTS. Cyra can add drinks and salt, symptoms and medicines, all kept on this device." True for the tools it names (as the Today footer). Either button sets `pots.offered`, and the card never returns. The design's version names "a guided standing test", which arrives in slice 4.
 - **Home "POTS today" card and the Today link "Log POTS symptoms and drinks →":** display only. "Today's insight" is unchanged, and POTS writes nothing into the check-in record (the phone test checks that the day's check-in entry carries no POTS field).
 - **Overlap line:** "Already in today's check-in: … No need to log it twice." It only reads the check-in. The design's clause "your POTS report shows both" waits for the report slice.
@@ -607,3 +610,1021 @@ Traced to `src/screens/PotsScreen.jsx`, `src/components/pots/PotsToday.jsx`, `sr
 - **Simple view tiles without a button:** "Tap to add your first drink" / "Tap to add your first salt" replace "Add a drink button in POTS settings" / "Add a salt button in POTS settings"; they name what the tap does (the amount sheet, which can save the amount as a button). No privacy claim is involved.
 - **Every other POTS sentence** (the Settings switch and its "Exactly what's kept" panel, the turn-off and erase cards, the sodium hint, the medicine footer, the report and spreadsheet statements, the safety cards) is byte-identical.
 
+
+## Local-first L1 (installable, opens offline) — one new device-only key, six new statements, nothing new leaves the device
+
+Traced to `public/sw.js`, `vite.config.js` (`cyraServiceWorker`), `src/lib/pwa.js`, `src/lib/swBuild.js`, `src/lib/notifications.js`, `src/components/Pwa.jsx`, `src/components/SettingsSheet.jsx`, `src/components/DataControls.jsx`, `src/screens/HomeScreen.jsx`, `src/screens/RegisterScreen.jsx`, `public/manifest.webmanifest`, `index.html` and `App.jsx` (`PERSISTED` / `DEVICE_ONLY`, the autosave merge, `exportBackup` / `importBackup`, `cleanUpHere`) on 22 October 2026.
+
+**What the service worker stores.** Only Cyra's own build files: the exact `BUILD.files` list that `vite.config.js` writes into the built `sw.js` (`/index.html`, every file under `/assets/` — the script, the stylesheet and the bundled font files — `/manifest.webmanifest` and the five `/icons/*.png`), in one cache named `cyra-shell-<version>`. It is filled once, at install, by `cache.addAll(BUILD.files)`. It never stores health data (the record stays in IndexedDB, which the worker never opens: the source has no `indexedDB`), never an answer from Cyra's server or any other site, and never anything under `/api/`: its fetch handler returns without answering for every non-GET request, every cross-origin request and every `/api/` path, and the source has no `cache.put`, so there is no runtime caching at all. A network answer to a navigation is passed to the page and never written. The unit tests (`src/lib/sw.test.mjs`) run the worker with a fake global and assert each of these; the L1 acceptance run checked, after an online session on a build with an API base whose requests were answered, that every cached URL is in `BUILD.files` and none is under `/api/` or on another origin.
+
+**What the service worker requests.** Same-origin GETs for the files above (at install, and as a fallback when a cached file is missing), the network-first navigation the page would have made anyway, and the browser's own update checks for `/sw.js` (on navigation, and from the page at most once an hour when Cyra comes back on screen, `checkForUpdate`). Each carries only what any page load carries (IP address, user agent, the usual request headers) and nothing from the record. It never contacts Cyra's API origin, Oura, Terra or any other site.
+
+**When it exists.** The app registers it only on the web (`isNative()` gates `registerWorker`, the install listeners and every install UI), only in a production build, and only while this device holds a record (`phase === "app"`; never on the splash or during registration). The phone app never registers it; `sw.js`, the manifest and the icons ship in its web assets unused. Delete everything unregisters every service worker and then deletes every `cyra-shell-*` cache before the record is cleared, and the splash it lands on never registers again (acceptance: 0 registrations and no `cyra-shell-*` cache right after, and 2 s later).
+
+**New on-device key `installHint`** (DEVICE_ONLY) — `null`, `"dismissed"` (she hid the Home install tip, or dismissed the browser's install dialog the tip opened) or `"installed"` (the browser reported the install, she accepted the dialog, or Cyra was opened standalone). Nothing about her health. It is saved with the record on this device, is left out of what other tabs adopt (RECORD excludes DEVICE_ONLY), is `delete`d from the snapshot before encryption so it is never in a backup file (acceptance: a decrypted backup has no `installHint`), is kept as this device's own value on restore (`keep`; acceptance: a crafted backup carrying `"installed"` left this device's `"dismissed"` in place), only ever gets stronger when saved (`mergeInstallHint`, so a stale tab can't bring the tip back), and goes with everything else on Delete everything. It is in no network payload: `grep installHint src/lib/api.js src/lib/pulse.js src/lib/notifications.js src/lib/wearables.js` finds nothing.
+
+**New statements, each true of the build:**
+- **Manifest description** — "Track periods, pregnancy and the transition in 30 seconds a day. Your health log lives on your device." (shown in browser install dialogs and app info). The second sentence is the first sentence of the splash promise, unchanged in meaning; true in every build (the record is in IndexedDB or the app sandbox).
+- **Home tip, prompt mode** — "Install Cyra to open it like an app, even without a connection." True: the worker serves the precached shell and the record is local. It says "opens", not "works", so server features (weekly counts, Cyra's AI, wearables, web reminders) aren't implied to work offline. Shown only with a captured Chromium install prompt, from 3 logged days, with the record in IndexedDB.
+- **Home tip, iOS** — "Add Cyra to your Home Screen to open it like an app." No privacy claim.
+- **Settings → Install, prompt mode** — "Install Cyra on this device" / "Opens in its own window from your home screen or app list, even without a connection, with the same record you have here." "The same record" is true on Chromium, where the installed app shares this origin's IndexedDB; the row shows only when `storageDriver` is `indexeddb`, so it is never shown for a record held in memory.
+- **Settings → Install, iOS** — "Tap Share, then Add to Home Screen." and "Cyra on your Home Screen starts with its own record, separate from this one in your browser. To bring your check-ins along, make an encrypted backup below, then restore it there from Cyra's first screen." This matches WebKit's documented behaviour (Home Screen web apps get their own storage, separate from Safari). **Release check:** confirm it on a real iPhone and iPad (iOS 17, 18 and 26) before release; if a version shares storage, change the sentence before shipping.
+- **Settings → Your data** — "This browser also keeps a copy of Cyra's own app files, so Cyra opens without a connection. That copy holds none of your check-ins, notes or settings." directly under the unchanged storage line, on the web only, once the worker is active and a `cyra-shell-*` cache exists (`offlineReady`). True: the cache holds exactly `BUILD.files`. It is plain JSX gated only by the `offlineCopy` prop.
+- **Delete everything → More about deleting** — "Cyra's offline copy of its own app files is removed from this browser too." (same condition). True: `cleanUpHere` unregisters every worker and deletes every `cyra-shell-*` cache before the record is cleared.
+- **Toasts and the update row** — "Cyra is installed. Open it from your home screen or app list." (after an accepted dialog), "Tip hidden. Install stays in Settings." (true: the tip shows only in the modes where Settings shows the Install group, and hiding it changes only `installHint`) and "A new version of Cyra is ready · Reload". No privacy content; none is shown on its own.
+- **Reminders, worker not active** — when the service worker never becomes active, `notifications.js` now stops before asking Cyra's server or the push service anything and the toast reuses the existing sentence "Couldn't set up reminders in this browser — try turning them on again" (not "Cyra's server couldn't set up reminders", which would blame the server for something it was never asked); Settings shows the existing "Couldn't set up reminders just now — tap Turn on to try again".
+
+**Changed (tech-lead amendment):** Registration step 1, "What Cyra's server sees", first bullet.
+- Old: "An encrypted backup keeps everything except your ZIP and age band."
+- New: "An encrypted backup keeps your name, email and other sign-up answers, except your ZIP and age band."
+- Why: `installHint` (like `lastBackupAt` before it) is left out of backups, so "everything" was no longer literally true. The new sentence names what the bullet is about (step 1's name and email and the other registration answers) and is true: `exportBackup` keeps `acct` and `regAnswers` minus `zip` and `age`; Anonymous Mode keeps no name or email anywhere (the next bullet).
+
+**Unchanged and re-verified:**
+- **Splash** — "Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that tells you exactly what it sends." Still true: the worker's only requests are GETs for Cyra's own static files and `/sw.js` update checks to the site that already serves Cyra, carrying nothing but what any page load carries; it never contacts Cyra's API origin or `/api/`.
+- **Settings → Your data** — "Your check-ins, notes and history are stored … Cyra's servers don't keep a copy." and "What can leave this device": the offline copy stays on the device, holds no record data and isn't a server copy.
+- **Code and docs** — the `App.jsx` header comment, the `public/sw.js` header, README's Privacy bullet and spec A14.1 say the same thing: the web build's worker shows reminders and keeps Cyra's own app files for offline use, fetches only those files from the site that serves Cyra, and never stores health data or any server answer.
+
+**Data-flow note.** No new destination: the manifest, the icons and the worker's files come from the site that already serves Cyra. Browsers fetch the manifest and the 192px icon at page load like any other same-origin file. The harness checks that count requests (native and web-live "no request at all" / "no /api request") are unchanged, because they count `/api/` and the API origin only, and the worker never touches either.
+
+## Local-first L2 (Light and dark mode) — one new device preference, one sentence added, one extended, nothing new leaves the device
+
+Traced to `src/lib/appearance.js`, `src/lib/constants.js` (`PALETTES` / `ORGS` dark sets, `SCHEME_TOKENS`, `FAMILIES` dark, `RAMPS_DARK`, `vizVars`), `src/lib/engine.js` (`scoreRgb` / `scoreColorOf` / `inkOn`), `src/styles.js`, `src/components/Shell.jsx`, `src/components/SettingsSheet.jsx`, `src/components/PaletteSheet.jsx`, `src/components/DataControls.jsx`, `src/screens/RegisterScreen.jsx`, `src/lib/potsReport.js`, `index.html` and `App.jsx` (`PERSISTED` / `DEVICE_PREFS`, `exportBackup` / `importBackup`, the print listeners, `applyDocumentScheme`) on 22 October 2026.
+
+**New on-device key `appearance`** (a `DEVICE_PREFS` key, not DEVICE_ONLY) — `"system"` (the default), `"light"` or `"dark"`; anything else or missing reads as `"system"` (`cleanAppearance`). It describes this device's display, nothing about her health.
+- **Where it lives:** in the on-device record only, like every other persisted key: IndexedDB `cyra` / `state` on the web, the app's own `NoCloud/cyra-state.json` on the phone. Never in cookies or localStorage: `src/lib/appearance.js` contains no `localStorage`, `sessionStorage`, `document.cookie` or `fetch(` (a unit test scans for each), so the Your data sentence "(not cookies, not localStorage)" and the web-live wipe check `localStorage.length === 0` still hold. (`grep -rn localStorage src` finds only that sentence, the long-standing "NOT localStorage" comment at the top of `src/lib/storage.js`, and the test files.) The cost is deliberate: with an explicit choice that differs from the device setting, the page wears the device's scheme until IndexedDB answers, while it is still empty (index.html's loading background, then an empty `<main aria-busy>`). The first frame with any content already wears the chosen scheme, and nothing fades across: the `.cy` background transitions only inside the `.repaint` window of a tap, and hydrate never sets it (acceptance, Dark on a light device and Light on a dark one, three runs each: content first appeared 90–161 ms after navigation, with the final background and button colours in that first frame and no `.repaint`; the empty `<main aria-busy>` before it lasted 30–73 ms).
+- **Tabs:** it stays in RECORD, so every open tab of this browser follows a change (they are one device). The adopting tab writes nothing back (acceptance: after Dark in tab A, tab B turned dark in about 0.5 s, its page background and cards in one frame with no crossfade, and the stored record still said `"dark"` once both settled).
+- **Backups:** `exportBackup` deletes every DEVICE_PREFS key from the snapshot before encryption, so it is never in a backup file (acceptance: a backup exported while Dark, decrypted with `lib/backup.js` `decryptBackup` and its passphrase, has no `appearance` and still no `lastBackupAt`). `importBackup` skips it (`skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"]`) and keeps this device's value (`keep`; acceptance: restoring that backup into a device set to Light left it Light, and the record still held `"light"`).
+- **Erase:** Delete everything and Start over remove it with the rest of the record; the next launch is System (acceptance: after Delete everything in a dark browser the splash was dark, through System, and the record was gone).
+- **Network:** in no payload. `grep -n appearance src/lib/api.js src/lib/pulse.js src/lib/notifications.js src/lib/wearables.js` finds nothing. System is read with `matchMedia("(prefers-color-scheme: dark)")`, which makes no request, in every build configuration (with or without `VITE_API_BASE` or `VITE_FEATURES`). Acceptance: the set of request paths during a dark walk of every tab, Settings and the palette sheet equals the light walk's, with no `/api` request.
+
+**New sentence, Settings → Appearance** (`p.rfoot` under the System / Light / Dark control, between Add-ons & sharing and Your data): "System follows this device's light or dark setting. Your choice stays on this device and isn't part of a backup." True: System resolves through `matchMedia` and follows a change live (`resolveScheme`); the choice is saved only in this device's record and every tab here shares it, which is still "this device"; `exportBackup` deletes it before encryption and a restore never takes one from a file.
+
+**Extended sentence, Settings → Your data → Restore → "What a restore changes", first item.**
+- Old: "Your settings are replaced too, except this device's choices about weekly counts, Cyra's AI and browser reminders."
+- New: "Your settings are replaced too, except this device's choices about weekly counts, Cyra's AI, browser reminders and appearance (light or dark)."
+- Why: once `appearance` is left out of backups and kept on restore, the old list was incomplete. No other sentence in that list changed.
+
+**New line, palette sheet** (`p.rfoot` above Done): "Showing the light versions. Settings → Appearance switches between light and dark." ("dark versions" in dark mode). It makes no privacy claim; it is recorded because the sheet sits beside privacy copy. The rows preview `paletteFor(p, scheme)`, the light values or the palette's `dark` object; `palIdx` is stored exactly as before.
+
+**index.html.** `<meta name="color-scheme" content="light dark">`, two theme-color metas with `media` (`#EDE4DC` light, `#1B150E` dark) and `--doc-bg` (the same two values) in the inline style: no new request, asset or font. `applyDocumentScheme` writes only `documentElement.style.colorScheme`, `--doc-bg` and the metas' `content`.
+
+**Print and the POTS files.** Printing renders the light palette: `beforeprint` and `matchMedia("print")` flip the scheme to light with `flushSync` before the browser takes its snapshot (acceptance: the Report's "Print or save PDF" in dark printed `data-scheme="light"`), and a print neither event reaches falls back to a monochrome black-on-white rule in the print stylesheet. The POTS PDF and CSV are unchanged: `lib/potsReport.js` still draws with the light `RAMPS.peri` and never reads the scheme or the appearance (a unit test scans its code; acceptance: the POTS PDF downloaded in light and in dark is byte-identical).
+
+**One legend word per scheme, Report → What stands out** (the first finding's meter legend). In light, and in print, which always resolves to light, it is byte-identical: "Darker = moderate or strong". In dark it reads "Full colour = moderate or strong". It makes no privacy claim; it is recorded because the dark colours alone would have made the light wording false on the screen she shows her clinician. The moderate-or-strong segment is the family colour itself and the other symptom days a 34% tint of it into the card (`.fm-strong` / `.fm-any`). On a light card the tint is paler, so that segment is the darker one. On a dark card the tint is darker, so "Darker" pointed at the mild days (relative luminance, strong vs tint, on the teal dark card: Heat 0.206 vs 0.046, Pain 0.287 vs 0.061). "Full colour" holds on every dark card and in the monochrome print fallback alike. `strongMeterWord(scheme)` in `lib/appearance.js` picks the word, and a unit test checks it against the luminance order of the two segments for every family on every light and dark card.
+
+**Every other sentence** in the app, the registration flow, Settings, the backup and delete panels and the POTS screens is byte-identical. Apart from that legend word, the dark palettes, the status tokens and the data-viz steps change colour only.
+
+## Local-first L3 (data model and plan hooks) — no screen sentence added, moved or reworded; nothing new stored or sent
+
+Traced to `src/lib/record.js`, `src/lib/plan.js`, `src/lib/storage.js` (load), `exportBackup` / `importBackup` / `entryOn` in `src/App.jsx` and the save handler in `src/screens/TodayScreen.jsx` on 22 October 2026.
+
+**No new key, no new payload.** `PERSISTED`, `DEVICE_ONLY`, `DEVICE_PREFS` and `RECORD` moved from `src/App.jsx` to `src/lib/record.js` with the same keys in the same order (pinned by `record.test.mjs`), their code comments moved word for word. So what is saved on the device, what another tab takes over and what a restore applies are unchanged (acceptance: on the demo build, the record saved after registering and a check-in has `Object.keys` equal to `["v", "savedAt", "phase", ...PERSISTED]`, identical to the same run on the build before L3). `plan.js` imports nothing, stores nothing and sends nothing; `noteExport` returns `null` while exports are unlimited, so no count of exports is kept. No `.jsx` file imports `plan.js`, and the built bundle contains no "paywall" or "premium".
+
+**Backup file contents unchanged.** The transform `exportBackup` applied inline is now `backupCopy()`: drop `regAnswers.zip` and `.age`, keep only `reminders.enabled`, and delete every `NOT_IN_BACKUP` key — `lastBackupAt`, `installHint` and `appearance` (the DEVICE_PREFS key), the same three the inline code deleted. A unit test proves its JSON is byte-identical to the old inline code; a decrypted web export from this build has the same top-level keys, in the same order, as one from the build before L3, and the native suite decrypts a phone backup as before. These on-screen sentences stay literally true:
+- "Your age band, plus an optional ZIP. Both stay on this device."
+- "Kept only on this device and in backups you save."
+- "These answers stay on this device, and go into an encrypted backup only if you save one."
+- The "last backup" line's date is still never in the file.
+
+The new code comment above `NOT_IN_BACKUP` names the three keys it leaves out of the file, and the JSDoc of `backupCopy()` says the other DEVICE_ONLY consents and bookkeeping are still in the file and that a restore never applies them (`importBackup`'s `skip` and `keep`, unchanged).
+
+**Loads pass through `migrate()`**, which returns every version-1 record as the same object (unit-tested, including that it never throws, so a damaged or unexpected record can't turn the web store `unreadable` or show the phone's record-unavailable screen because of it). Nothing is rewritten, dropped or re-saved because of it, and `validateRecord()` is not called at runtime. A backup made by the build before L3 restores on this one ("Backup restored", the same "{N} days logged" in Settings).
+
+**`entryOn` and the check-in save.** `entryOn` now reads through `entryFor` (the first entry for a date, as `days.find` did; `null` instead of `undefined` when there is none, and every caller only tests truthiness), and Today's save through `upsertDay` (the same replace-and-sort, unit-tested against the old expression). What is saved for a day is unchanged.
+
+**Docs.**
+- `docs/ARCHITECTURE.md`'s storage sentences are taken from `src/lib/storage.js`'s header and `docs/NATIVE.md`. Its §1 Principles sums up the network flows in two sentences and points to the README's Privacy section and the `App.jsx` header for the full list:
+  - "The health record lives on the device that made it and is never sent to a server (CLAUDE.md, hard rules). The optional server features she turns on send only what their in-app disclosure says, never the record". It does not say "health data never goes to a server": the weekly-count flags, the typed question for Cyra's AI and readings from an Oura, Fitbit, Garmin or Whoop connection, once she turns each on, do reach Cyra's server as disclosed; no request carries the record.
+  - "A build without `VITE_API_BASE` makes no request to Cyra's server at all (on the web it fetches only Cyra's own app files from the site that serves it). With one, the server answers one request per launch, once a life stage is set, for last week's anonymous counts (no health data, no life stage and no identifier, only what any request carries: IP address and user agent), and otherwise handles only the features she turns on or starts (sign-in, web reminders, sharing weekly counts, Cyra's AI, wearable connections), each as its disclosure says … It never receives the record." Checked against `src/App.jsx` (the `fetchPulse()` effect runs once per launch as soon as `stage` is set and `API_BASE` is not empty, with no opt-in; `startSocial` asks the server only when she taps a sign-in button; the header's "A build without VITE_API_BASE makes neither kind"), `src/lib/pulse.js` ("one GET /api/pulse with no query", "every launch, no opt-in needed") and the README ("Each launch, no health data: once a life stage is set, one request for last week's anonymous counts"). True with and without `VITE_API_BASE`, on the web and on the phone.
+- Its key table was checked against `backupCopy`, `importBackup` (`skip`, `keep`, `restoreRem`, the wearable merge) and `adoptRecord`, including that the per-device consents (weekly counts, Cyra's AI, unfinished Terra disconnects) are inside a backup file but never applied by a restore, and that `installHint` and `appearance` are never in the file. Its derived-data paragraph names the one derived value sent with weekly counts (mood swings before a predicted period, worked out from the prediction in `eventsForDay`), adds that this flag waits in the on-device queue until it is sent, and adds that the Report's "Print or save PDF" button hands the page on screen to the browser's print dialog and its "Share…" button (Web Share, shown wherever the browser offers it, on a phone or a computer) hands the email-draft text to the app she picks, each only when she taps it (`window.print()`; `navigator.share({ title, text: emailText })` behind `canShare` in `src/screens/ReportScreen.jsx`, whose header says the text leaves by email, clipboard, print dialog or share sheet).
+- `docs/MONETIZATION.md`'s rules are commitments for future paid features. Its statements about this build were checked against `plan.js`, the README ("there is no analytics, advertising or tracking code"), `grep -rn "/api/" src` (only ai, integrations, oauth, pulse and push) and `backend/config/app.json` (modules oauth, integrations, pulse, push, ai): one free plan, no paywall or purchase code, no analytics, advertising or tracking code, and no call to the partner, referral, affiliate or payout endpoints, which production does not mount. Its Care-shelf line quotes the Care screen ("partners never see your data") and spec §1.
+
+## Local-first L4 — feature flags, the two-module server and the cloud backup scaffold (both configurations)
+
+Traced to `src/lib/features.js`, `src/lib/disclosures.js`, `src/lib/backup.js`, `src/lib/cloudBackup.js`, `src/App.jsx`, the screens and components that read them, `backend/config/app.json`, `backend/src/core/registry.js`, `backend/server.js` and `backend/src/modules/backup/index.js` on 22 October 2026. Owner decisions D2 (server surface by configuration) and D3 (encrypted cloud backup scaffold).
+
+**The flags.** `VITE_FEATURES` (build time; unset or empty = the defaults; a list replaces them; `all`; `none`):
+
+| Flag | Offers | Backend module | Default |
+|---|---|---|---|
+| `wearables` | Oura, Fitbit/Garmin/Whoop (Terra), on the phone Apple Health / Health Connect; Home's Wearables door, panel and cards; wearable milestones; POTS watch/ring rows | `integrations` | off |
+| `counts` | "You're not alone" (one read per launch) and "Share anonymous weekly counts" | `pulse` | off |
+| `ai` | "Also ask Cyra's AI when the library has no answer" | `ai` | on |
+| `webReminders` | check-in reminders in a browser (phones always have local reminders) | `push` | on |
+| `cloudBackup` | nothing yet (scaffold) | `backup` | off |
+| `signin` | Apple / Google / Facebook name-and-email prefill on step 1 | `oauth` | off |
+
+`signin` is a sixth flag beside D2's five: production no longer mounts `oauth` (D2: push + ai), so without a flag the default build would show provider buttons that end in "Couldn't reach the sign-in service". A flag decides only what the build offers; each opt-in still starts off for her.
+
+**What the default build sends** (flags `ai,webReminders`, with `VITE_API_BASE` set): nothing at launch and nothing during registration, Home, a check-in save, Settings or Ask, until she opts in. Then only (1) the typed question, `POST /api/ai/ask` with the JSON body `{question}` alone, after she ticks "Also ask Cyra's AI" and the library has no answer; and (2) on the web, after she turns reminders on, the browser's push address and keys, reminder days, time and time zone (`/api/push/*`), which turning them off erases. No weekly counts (no read, no tally), no wearable request, no sign-in request, nothing to `/api/backup`. Measured by `lf/l4/flags-e2e.mjs` (fake backend, every request logged): zero requests from the splash through registration, Home with every door and Details opened, a Today save, Settings and Ask with the box unticked; then exactly one `POST /api/ai/ask` whose body has only `question`. A `none` build made zero requests for the whole walk. Without `VITE_API_BASE` nothing is sent in any configuration, as before.
+
+**Production backend.** `backend/config/app.json` modules = `["push", "ai"]` (`registry.js` `PRODUCTION_MODULES`). `oauth`, `integrations`, `pulse` and `backup` stay in the code and in `config/app-dev.json`; listing one in `app.json` mounts it again (`prod-smoke.js`: production with the extra four listed mounts six modules and `/api/pulse`, `/api/oauth/providers`, `/api/integrations/sources` answer, `POST /api/backup` stores a blob). Production answers 404 for `/api/pulse`, `/api/pulse/tally`, `/api/oauth/*`, `/api/integrations/*` and `/api/backup*`. CORS now also allows `PUT` (for the backup module's replace), for every module; no module other than backup has a PUT route.
+
+**Earlier records** (made by a build with more features, or restored from a backup of one). A flag never deletes or changes recorded data, and backups still carry it:
+- A queued weekly-counts tally is never sent (`flushPulse` and `contribute` return at once without `counts`), and the stored `research` choice is kept but not shown (Today's sharing note and the header's "· sharing counts ✓" also need `counts`).
+- Wearable rows (`wearData`), connections (`wearSources`) and unconfirmed Terra disconnects (`terraOff`) are kept but not shown, synced, collected, checked or disconnected: no request to `/api/integrations` (connect, sync, the Terra collect on launch and return, the disconnect retries, the Oura check after a restore, Delete everything's Oura and Terra steps). So Delete everything shows one new line when the record still holds a real (non-demo) connection or an unconfirmed Terra disconnect (below).
+- A web push subscription left on by an earlier build, in a web build without `webReminders`: at launch the switch is turned off, the browser subscription is cancelled and its address is asked to be forgotten (clean-up: `DELETE /api/push/subscribe {endpoint}`), and no subscribe ever happens; with no known address no request is made (`flags-e2e`, VITE_FEATURES=ai). Forgetting addresses still held (`retryPushForget`, Delete everything's push step) stays as it was in every configuration, because the server may still hold them; these fire only when such an address exists.
+- Restoring a backup made with reminders on: in a browser the switch stays off as before, and the toast "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here." shows only where this build has a reminders row (`remindersInBuild`: web with `webReminders`). In a web build without `webReminders` the toast is exactly "Backup restored", since Settings there has no reminders to turn on (`flags-e2e`: the `none` build restores a backup holding `reminders.enabled: true` and gets "Backup restored"; the default build gets the full sentence, unchanged).
+- A stored "Also ask Cyra's AI" choice in a build without `ai` (or without a server) does nothing: Ask shows its existing library-only hint and footer "Questions are answered on this device from Cyra's written library and aren't sent anywhere."
+
+**New sentence.** "Cyra can't end a wearable connection from this version. If you connected Oura, Fitbit, Garmin or Whoop to Cyra before, remove Cyra in that account's connected apps (Fitbit, Garmin and Whoop may list it as Terra)." (`LEGACY_WEAR_LINE`, a `.rfoot` directly under the Delete everything confirm). Shown only when `wearables` is off AND the record holds a real Oura/Terra connection or an unconfirmed Terra disconnect, because this build doesn't ask the server to end it. True: the wipe's Oura and Terra steps run only with `wearables`, and every connection named can be removed in the provider's connected-apps list (the Terra naming matches the existing STAYS text). `flags-e2e` restores a backup holding an Oura connection into the default build: the line shows, Home shows no wearable, Delete everything makes no `/api/integrations` request, and the restored record still holds `wearSources.oura`.
+
+**Statements rebuilt from the flags** (`src/lib/disclosures.js`; text generated from the builders, so it is exactly what each build shows; `disclosures.test.mjs` pins every `all` output byte for byte to the pre-L4 literals and checks every one of the 64 flag combinations, web and phone, with and without a server, for clean sentences):
+
+| Statement (builder) | `all` (= before L4, except where the row says) | default (`ai,webReminders`) | `none` |
+|---|---|---|---|
+| Step 1 “What Cyra's server sees” (serverSees; with a server) | “An encrypted backup keeps your name, email and other sign-up answers, except your ZIP and age band.” / “Anonymous Mode skips your name and email entirely.” / “Cyra's servers keep no account and no profile of you in either mode: no age, health history or check-ins.” / “A few optional choices send a little to Cyra's server, and each one says exactly what before you turn it on.” / “Two of them keep a little there while they're on. Browser reminders: this browser's push address and its encryption keys, your reminder days, time and time zone, and the last day a reminder went out. Fitbit/Garmin/Whoop sync: new readings, held up to 7 days until this device collects them.” / “Turning one off erases it from Cyra's server. If the server can't be reached then, Cyra keeps asking until it confirms, and Delete everything tells you if anything stays connected.” / “If you choose to share weekly counts, they're added to anonymous weekly totals that stay on the server.” / “Sign-in prefill and Oura connect leave your name and email, or your Oura access, there for 5 minutes at most.” / “Like any app that goes online, our server and its host see your device's internet address and app or browser type when the app connects. Cyra's own code doesn't keep the address.” | “An encrypted backup keeps your name, email and other sign-up answers, except your ZIP and age band.” / “Anonymous Mode skips your name and email entirely.” / “Cyra's servers keep no account and no profile of you in either mode: no age, health history or check-ins.” / “A few optional choices send a little to Cyra's server, and each one says exactly what before you turn it on.” / “One of them keeps a little there while it's on. Browser reminders: this browser's push address and its encryption keys, your reminder days, time and time zone, and the last day a reminder went out.” / “Turning it off erases it from Cyra's server. If the server can't be reached then, Cyra keeps asking until it confirms.” / “Like any app that goes online, our server and its host see your device's internet address and app or browser type when the app connects. Cyra's own code doesn't keep the address.” | “An encrypted backup keeps your name, email and other sign-up answers, except your ZIP and age band.” / “Anonymous Mode skips your name and email entirely.” / “Cyra's servers keep no account and no profile of you in either mode: no age, health history or check-ins.” |
+| The same, in a build without VITE_API_BASE (new in every configuration: before L4 a build with no server showed all nine bullets, although no choice could reach a server) | “An encrypted backup keeps your name, email and other sign-up answers, except your ZIP and age band.” / “Anonymous Mode skips your name and email entirely.” / “Cyra's servers keep no account and no profile of you in either mode: no age, health history or check-ins.” | “An encrypted backup keeps your name, email and other sign-up answers, except your ZIP and age band.” / “Anonymous Mode skips your name and email entirely.” / “Cyra's servers keep no account and no profile of you in either mode: no age, health history or check-ins.” | “An encrypted backup keeps your name, email and other sign-up answers, except your ZIP and age band.” / “Anonymous Mode skips your name and email entirely.” / “Cyra's servers keep no account and no profile of you in either mode: no age, health history or check-ins.” |
+| Consent fact 5 (consentDeleteFact) | “Delete everything from Settings, anytime. It also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop.” | “Delete everything from Settings, anytime. It also turns off reminders.” | web: “Delete everything from Settings, anytime.”<br>phone: “Delete everything from Settings, anytime. It also turns off reminders.” |
+| Consent “The details” (consentDetails) | “Features that send something: weekly counts, Cyra's AI and wearable syncs. Each one tells you what it sends before you turn it on.” / “Taking it out yourself means a doctor summary you open in email or copy, a POTS report or spreadsheet you save or share, which isn't locked, or a backup file you save, which stays locked with your passphrase.” / “If Delete everything can't confirm that reminders are off and Oura and Fitbit/Garmin/Whoop are disconnected, Cyra tells you what did and didn't happen, and keeps your record on this device until you choose.” / “Deleting can't pull back what already left: anonymous counts you shared stay counted, questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy.” | web: “A feature that sends something: Cyra's AI. It tells you what it sends before you turn it on.” / “Taking it out yourself means a doctor summary you open in email or copy, a POTS report or spreadsheet you save or share, which isn't locked, or a backup file you save, which stays locked with your passphrase.” / “If Delete everything can't confirm that reminders are off, Cyra tells you what did and didn't happen, and keeps your record on this device until you choose.” / “Deleting can't pull back what already left: questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms.”<br>phone: “A feature that sends something: Cyra's AI. It tells you what it sends before you turn it on.” / “Taking it out yourself means a doctor summary you open in email or copy, a POTS report or spreadsheet you save or share, which isn't locked, or a backup file you save, which stays locked with your passphrase.” / “Deleting can't pull back what already left: questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms.” | “Taking it out yourself means a doctor summary you open in email or copy, a POTS report or spreadsheet you save or share, which isn't locked, or a backup file you save, which stays locked with your passphrase.” |
+| Your data “What can leave this device” (leaveDevice) | “Features you turn on (reminders in a browser, weekly counts, Cyra's AI, Oura, Fitbit/Garmin/Whoop) each say, before you turn them on, what they send and where.” / “Restoring a backup brings back its wearable connections on this device.” / “Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase and never include readings Cyra gets from a connected watch, ring or health app.” | “Features you turn on (reminders in a browser, Cyra's AI) each say, before you turn them on, what they send and where.” / “Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase.” | “Files you make yourself, like a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase.” |
+| Restore form footer (restoreFoot; Settings and the splash) | “Unlocked on this device with your passphrase. It replaces your record here. Oura and Fitbit/Garmin/Whoop connections in the backup come back unconfirmed until Cyra checks them through its server; ones only on this device stay connected.” | “Unlocked on this device with your passphrase. It replaces your record here.” | “Unlocked on this device with your passphrase. It replaces your record here.” |
+| “What a restore changes” (restoreChanges) | “Your settings are replaced too, except this device's choices about weekly counts, Cyra's AI, browser reminders and appearance (light or dark).” / “If the backup has Oura or Fitbit/Garmin/Whoop connected, that connection comes back on this device marked not confirmed, because it may have been ended since the backup was made. It counts as connected again once Cyra confirms it through its server: Oura on a Sync that works (checked straight away, and removed from this device if it no longer works), Fitbit/Garmin/Whoop when readings arrive. A Fitbit/Garmin/Whoop connection you ended after the backup can't send readings, so tap Disconnect to remove it. One this device is still waiting to see disconnected isn't restored. A connection this device has now for the same service is replaced, so remove Cyra in that account if you want it ended.” / “A connection this device has that the backup doesn't (Oura or Fitbit/Garmin/Whoop) stays connected here and keeps fetching readings through Cyra's server as before. Tap Disconnect under Wearables on Home if you don't want it.” / “A backup made before you turned on POTS tools has no POTS log, so restoring it clears the POTS log on this device.” | “Your settings are replaced too, except this device's choices about Cyra's AI, browser reminders and appearance (light or dark).” / “A backup made before you turned on POTS tools has no POTS log, so restoring it clears the POTS log on this device.” | “Your settings are replaced too, except this device's choices about appearance (light or dark).” / “A backup made before you turned on POTS tools has no POTS log, so restoring it clears the POTS log on this device.” |
+| Delete everything confirm, after “Delete everything on this device?” (wipeConfirm) | “Every check-in, POTS log, note, appointment and setting goes for good. This also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop. Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.” | “Every check-in, POTS log, note, appointment and setting goes for good. This also turns off reminders. Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.” | web: “Every check-in, POTS log, note, appointment and setting goes for good. Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.”<br>phone: “Every check-in, POTS log, note, appointment and setting goes for good. This also turns off reminders. Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup.” |
+| “More about deleting” (wipeMore; DataControls then adds the offline-copy and this-week items, unchanged) | web: “If Cyra's server, Oura or Fitbit/Garmin/Whoop can't confirm that, Cyra tells you what did and didn't end and keeps your record on this device until you choose.” / “Anonymous counts you already shared stay counted. Questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy.” / “Report files you already saved or shared aren't on this device's record. Delete them wherever you put them.”<br>phone: “If Cyra's server, Oura or Fitbit/Garmin/Whoop can't confirm that, Cyra tells you what did and didn't end and keeps your record on this device until you choose.” / “Anonymous counts you already shared stay counted. Questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy.” / “Apple Health or Health Connect access stays on until you turn it off in your phone's settings.” / “Report files you already saved or shared aren't on this device's record. Delete them wherever you put them.” | web: “If Cyra's server can't confirm that, Cyra tells you what did and didn't end and keeps your record on this device until you choose.” / “Questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms.” / “Report files you already saved or shared aren't on this device's record. Delete them wherever you put them.”<br>phone: “Questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms.” / “Report files you already saved or shared aren't on this device's record. Delete them wherever you put them.” | “Report files you already saved or shared aren't on this device's record. Delete them wherever you put them.” |
+| Stage intake hint (intakeHint) | “Four quick taps. Your answers shape the whole app — one experience, built for where you are. Your answers stay on this device. (If you share weekly counts, your life stage is part of what's shared.)” | “Four quick taps. Your answers shape the whole app — one experience, built for where you are. Your answers stay on this device.” | “Four quick taps. Your answers shape the whole app — one experience, built for where you are. Your answers stay on this device.” |
+| Start over, after “Start over on this phone?” (startOverText; phone only) | “This deletes this phone's record for good and turns off reminders, but doesn't disconnect wearables. Cyra keeps no copy of your record on its servers, so the only way back is an encrypted backup you saved — you can restore one on the next screen.” | “This deletes this phone's record for good and turns off reminders. Cyra keeps no copy of your record on its servers, so the only way back is an encrypted backup you saved — you can restore one on the next screen.” | “This deletes this phone's record for good and turns off reminders. Cyra keeps no copy of your record on its servers, so the only way back is an encrypted backup you saved — you can restore one on the next screen.” |
+| POTS Today footer TODAY_FOOT (potsTodayFoot) | “Saved on this device as you tap. Cyra's server never gets your POTS log, and it isn't part of weekly counts.” | “Saved on this device as you tap. Cyra's server never gets your POTS log.” | “Saved on this device as you tap. Cyra's server never gets your POTS log.” |
+| POTS Today unsaved footers TODAY_FOOT_UNSAVED | memory: “Not being saved: Cyra couldn't open this browser's storage, so what you log here is lost when you close Cyra. Cyra's server never gets your POTS log, and it isn't part of weekly counts.” / stale: “Cyra couldn't confirm your latest taps were saved on this device; they may be lost when you close Cyra. Cyra's server never gets your POTS log, and it isn't part of weekly counts.” | memory: “Not being saved: Cyra couldn't open this browser's storage, so what you log here is lost when you close Cyra. Cyra's server never gets your POTS log.” / stale: “Cyra couldn't confirm your latest taps were saved on this device; they may be lost when you close Cyra. Cyra's server never gets your POTS log.” | memory: “Not being saved: Cyra couldn't open this browser's storage, so what you log here is lost when you close Cyra. Cyra's server never gets your POTS log.” / stale: “Cyra couldn't confirm your latest taps were saved on this device; they may be lost when you close Cyra. Cyra's server never gets your POTS log.” |
+| POTS Today second footer TODAY_FOOT_2 | “Never part of weekly counts. Cyra can't diagnose POTS; only a clinician can.” | “Cyra can't diagnose POTS; only a clinician can.” | “Cyra can't diagnose POTS; only a clinician can.” |
+| POTS page hint tail HINT_TAIL (potsHintTail) | “Never part of weekly counts. Cyra can't diagnose POTS; only a clinician can, and good notes make that visit faster.” | “Cyra can't diagnose POTS; only a clinician can, and good notes make that visit faster.” | “Cyra can't diagnose POTS; only a clinician can, and good notes make that visit faster.” |
+| POTS add-on “Exactly what's kept”, third item (potsNeverSent) | “None of it is part of weekly counts, and none of it is sent to Cyra's server or Cyra's AI.” | “None of it is sent to Cyra's server or Cyra's AI.” | “None of it is sent to Cyra's server.” |
+| POTS report FIXED_LINE (potsFixedLine) | “Readings Cyra gets from a connected watch, ring or health app aren't included in this report or spreadsheet. Heart rates and blood pressures you type in yourself are, even if you read them off a watch.” | (not shown) | (not shown) |
+| POTS settings REMINDERS_LINE (potsRemindersLine) | “Cyra doesn't send medicine or drink reminders. The only reminder Cyra can send is your check-in reminder, if you turned it on. If reminders help you, your phone's clock app can set them.” | “Cyra doesn't send medicine or drink reminders. The only reminder Cyra can send is your check-in reminder, if you turned it on. If reminders help you, your phone's clock app can set them.” | web: “Cyra doesn't send medicine or drink reminders. If reminders help you, your phone's clock app can set them.”<br>phone: “Cyra doesn't send medicine or drink reminders. The only reminder Cyra can send is your check-in reminder, if you turned it on. If reminders help you, your phone's clock app can set them.” |
+
+**Statements shown or hidden whole by a flag (text unchanged wherever shown):**
+
+| Statement | Where | Shown with |
+|---|---|---|
+| "or fill in your name and email from" + Apple / Google / Facebook (Apple first) + "Apple, Google or Facebook will know you're setting up Cyra. None of your health data goes to them, and Cyra's server erases what they send within 5 minutes." + "Exactly what's shared" (3 paragraphs) | Register step 1 | `signin` (and not Anonymous Mode). Off: none of it renders; `startSocial` and a returning `#oauth=` make no request. |
+| "Share anonymous weekly counts" + "Cyra's server gets your life stage group …" + its "Exactly what's sent" | Register consent | `counts` and a server |
+| "Remind me on this device" + its sentence + "Exactly what's kept" (WebReminderFacts) | Register consent | a phone, or a push-capable browser with `webReminders` and a server |
+| "How often should Cyra check in?" + the cadence cards + "You can change this anytime in Settings. Cyra sends one reminder at most, never a second nudge, and never guilts you for a missed day — gaps are fine, your patterns still work." | Register consent | reminders in the build (a phone, or `webReminders`) |
+| "You're not alone · last week, from people who share counts", the pulse rows, "Anonymous counts only: no names, dates or values. Loading these numbers tells Cyra's server nothing about your health.", "Community counts aren't available in this version of the app", "How these counts work" | Home | `counts` (off: the section is gone and so is the launch `GET /api/pulse`) |
+| The Wearables door and panel ("Entirely optional. Cyra works fully without a device…", the Oura/Terra summaries and "Exactly what happens", "Wearable signals confirm patterns after the fact — they don't replace a clinician and aren't contraception.", "How each connection works"), "From your wearable" cards, the milestones "Wearable connected" and "Ovulation confirmed by temperature" | Home, App.jsx | `wearables` (off: 4 doors, 2 × 2) |
+| " · sharing counts ✓" | header `.acctchip` text and title | `counts` (and sharing on, and a server) |
+| "Sharing weekly counts is on: …" + its "Exactly what's sent" | Today, pregnancy Today | `counts` (App passes `research=false` otherwise) |
+| The "Anonymous weekly counts" group (`#set-counts`): the row and its 5-item "Exactly what's sent" (including "Nothing you log in POTS tools is ever part of weekly counts."), or "Weekly counts aren't available in this version of Cyra, so nothing is shared." | Settings | `counts` |
+| Rhythm (`#set-rhythm`), nudge (`#set-nudge`) and Reminders (`#set-reminders`): `remindersText` / `remindersSub` (including "A plain reminder, nothing about your health in it. Cyra's server keeps this browser's push address and your reminder schedule…"), WebReminderFacts, "One reminder at most. Missed days are never scolded — your patterns work fine with gaps.", the nudge hints | Settings | a phone always; the web with `webReminders` (default on). Off on the web: none of these rows, and a switch left on is cancelled and forgotten at launch. |
+| "If you connected a wearable" Details | Start over (phone) | `wearables` |
+| Ask: the AI checkbox, AI_DISCLOSURE, "Exactly what's sent", the offer to ask Cyra's AI, source lines and footers | Ask | `aiAvailable = ai && server` (no code change in AskScreen); otherwise the existing library-only hint and footer |
+| "Readings Cyra gets from a connected watch, ring or health app aren't included in this report or spreadsheet. …" (FIXED_LINE) | POTS report | `wearables`; no replacement sentence (nothing can be connected) |
+
+**Unchanged and still literally true in every build** (checked): the splash "Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that tells you exactly what it sends." (default: only an Ask question and a browser push address, each after she turns it on; none: nothing can leave; all: as before); ReportScreen "Cyra itself sends nothing; the text goes only where you take it."; the Your data hint "… Cyra's servers don't keep a copy."; Today, Calendar, Patterns, Milestones and Report have no flagged mention.
+
+**The cloud backup scaffold (not reachable).** Backend module `backup` (`backend/src/modules/backup/index.js`), listed in `config/app-dev.json` only, so production doesn't mount it (404). It would store opaque client-encrypted blobs: rows `{id, tokenHash, size, createdAt, updatedAt, expiresAt}` and the bytes in `<dir>/<id>.bin`; a random 128-bit id, a 256-bit write token returned once (only its SHA-256 is kept and the token is in no file: `smoke:backup`); `application/octet-stream` only; 4 MiB per blob, 10,000 blobs, 1 GiB in all; deleted 90 days after the last write by a sweep; rate-limited with the usual daily-salted address hash held about a minute. It never parses, inspects or decrypts a body, and logs only its mount line, "body refused (<type>)" and "storage error (<code>)", never a body, token, id or address (`smoke:backup` greps the captured logs for the body marker, every token and every id). On the client, `cloudTransport` in `src/lib/backup.js` moves only an already-encrypted envelope (never the passphrase or plaintext), refuses anything that isn't one before any request, and is fail-closed; its configured instance `src/lib/cloudBackup.js` is gated by `plan.can("cloudBackup")` (false on the only plan, even with `VITE_FEATURES=all`) AND the `cloudBackup` flag, and nothing imports it, so no bundle contains it. These four sentences therefore stay literally true in every build, and **must be rewritten in the same commit that makes cloud backup reachable** (with the recovery-code screen, the device-only `cloudBackupRef` key and persistent server storage, docs/ARCHITECTURE.md §10.5):
+1. "Encrypted on this device with your passphrase before it becomes a file. Cyra's servers never receive the file or the passphrase. …" (Your data, Encrypted backup)
+2. "A backup is a file you keep, locked with a passphrase only you know. Cyra never receives the file or the passphrase, so we can't read it or recover a lost passphrase." (consent fact 6)
+3. "… Cyra's servers don't keep a copy." (Your data hint)
+4. "… Cyra's servers keep no copy of your log, so it can't be recovered unless you saved a backup." (Delete everything confirm)
+
+**Docs claims rewritten:** README Privacy ("What can leave it, when a backend is configured (`VITE_API_BASE`) and the build offers the feature (`VITE_FEATURES`; the default build offers only Ask Cyra's AI and web reminders, so it makes no request at launch)", each bullet tagged with its flag; Run; Status), backend/README (two-modes table: production push and ai; endpoints split into production today / by configuration / development only; the backup module section; Status "only the modules the default app calls (push and ai) are mounted"), `.env.example` (VITE_FEATURES; NODE_ENV "(config/app.json: push and ai, matching the app's default VITE_FEATURES)"; VITE_DEMO_WEARABLES "(needs wearables in VITE_FEATURES)"), docs/NATIVE.md §2 (the flags, the no-server paragraph now quoting today's copy), docs/ARCHITECTURE.md §1 and §10, docs/MONETIZATION.md §3 and §7, render.yaml comments, the App.jsx header (each flow tagged with its flag), decision 10 and 13 and "Store disclosures" below.
+
+**Pre-existing nuance kept for `all` fidelity:** step 1's server panel lists "Browser reminders" on the phone too, and in the default phone build it still says "A few optional choices …" and "One of them keeps … Browser reminders: …", although a phone schedules reminders locally. True as a description of what the choice would keep on the web, and unchanged from before L4; left for L10/L11 to make platform-aware with the builders. Likewise, in a build without `VITE_API_BASE` the consent card's "The details" still names the flagged features that send something (default: "A feature that sends something: Cyra's AI. …"), as the no-server build did before L4 for all three, although no request can be made there; only `serverSees` takes the server (tech-lead amendment). Also left for L10/L11.
+
+**Store disclosures for a phone release with the default flags.** The iOS privacy manifest, the App Store answers and the Play Data safety answers above describe the `all` feature set. A phone build with the default flags collects no Name, Email Address, User ID or Oura tokens, and its Health / Sensitive info / Other user content types come only from Ask questions; its HealthKit entitlement, Info.plist Health strings and Android Health Connect permissions would be unused. The owner must match the manifest, entitlements, permissions and store answers to the release's `VITE_FEATURES` (or ship phones with `wearables` and the matching backend modules). This slice changes no native metadata.
+
+**Harness.** `a12-8-loop/build-dists.sh` and both live suites build with `VITE_FEATURES=all` (the live suites also write a production config listing oauth, integrations, pulse, push and ai), so every existing suite still tests the full feature set with the pre-L4 text. The uiux snap/axe demo builds pin the shipping defaults (`VITE_FEATURES=` empty). `lf/l4/flags-e2e.mjs` joins `pots/s9/run-all.sh`. `walk.mjs`, `axe.mjs`, `a12-8-plain/axe-expanded.mjs` and `final-review/axe-edit.mjs` click "Apple" and "Wearables", so they need an `all` build (they run on dist-plain).
+
+**Verification (22 October 2026, working tree).**
+- Build: `npm run build` logs "[cyra] features: ai, webReminders (VITE_FEATURES unset: the shipping defaults)"; `VITE_FEATURES=all` logs all six; `VITE_FEATURES=ai,bogus` logs "ai" and warns about "bogus". `BUILD 2026.10.07-D` appears once in the bundle of every variant (default, all, none, ai, ai+bogus).
+- ESLint: 0 errors (the 2 pre-existing warnings). Unit tests: 252 pass, 0 fail (new: features.test.mjs, disclosures.test.mjs, backup.test.mjs). `node -e "import('…/src/lib/backup.js')…"` prints "function function function"; backup.js has no import, and nothing in `src` imports cloudBackup.js.
+- Backend `npm run smoke:all`: AI, OAUTH, INTEGRATIONS, PULSE, PUSH, BACKUP and PROD SMOKE all passed. Production mounts exactly push and ai; the eight unmounted routes answer 404; the same production server with oauth, integrations, pulse and backup listed mounts six and answers 200/200/200/201.
+- `flags-e2e.mjs`: 55 passed, 0 failed (the default, none, all and ai builds, as described above, plus the restore toast for a backup made with reminders on: the full sentence in the default build, exactly "Backup restored" in the none build, which also still shows no reminder controls and makes no request).
+- Harness dists rebuilt with `VITE_FEATURES=all`: NATIVE E2E all passed; `pots/s9/run-all.sh`: every one of its 20 logs ends "exit 0", including live (164 passed, 0 failed), s6live and the new flags suite.
+- axe on the default demo build, `SCHEMES=light,dark`: "AXE SUMMARY: 84 screens, 0 with problems", no page errors.
+- Screenshots (default demo build, light and dark): Home is 220 px shorter for My Cycle and Perimenopause and 237 px for Pregnancy (no pulse block, the 2 × 2 door grid), Settings 302–326 px shorter (no weekly-counts group), the consent step 19 px shorter; no screen grew. Step 1 has no provider row.
+- The hard-click axe walks on dist-plain (now an `all` build) through `rework/axe-run.sh` → `pots/s9/axe-all.sh`: axe.mjs, a12-8-plain/axe-expanded.mjs, final-review/axe-edit.mjs, every POTS axe harness and the S9 probe end "exit 0" with 0 violations.
+- Selective commit: the uncommitted L2 review fixes in the working tree (`src/lib/appearance.js`, `appearance.test.mjs`, `src/screens/ReportScreen.jsx`, `src/styles.js` and their hunks in `src/App.jsx`, the spec and this file) are left out of this commit, as in L3; every run above used the working tree, which contains them.
+- After the review fix (the restore toast's reminders clause now needs `remindersInBuild`): the committed tree builds with the stamp once, ESLint 0 errors (the 2 pre-existing warnings), unit 251 pass, 0 fail; `flags-e2e.mjs` 55 passed, 0 failed; harness dists rebuilt, NATIVE E2E all passed; `pots/s9/run-all.sh`: all 20 logs end "exit 0" (live 164 passed, 0 failed; flags 55 passed).
+
+## Local-first L5 (irregular cycles) — one new key in the record and in backups, one restore line, nothing new leaves the device
+
+Traced on 22 October 2026 to `src/lib/engine.js` (`predict`, `whyNoPrediction`, `cycleSummary`, `cleanCycleFlags`, `toggleExclude`), `src/components/CycleList.jsx`, `src/screens/CalendarScreen.jsx`, `src/lib/disclosures.js` `restoreChanges` (rendered by `src/components/DataControls.jsx`), and `PERSISTED` / `DEVICE_ONLY` (`src/lib/record.js`) with `exportBackup` / `importBackup` in `src/App.jsx`.
+
+**The new key, `cycleFlags` — health data held like `days`.** Her own per-cycle choice to leave a cycle out of predictions, `{ [cycleStartIso]: { exclude: true } }`. Only her tap on "Don't use" (Calendar → Your cycles) writes it (`toggleExclude`); Cyra's "Unusual" chip is a suggestion and changes nothing (acceptance: with a 61-day cycle among 27–30-day ones, the chip and suggestion show, the switch stays `aria-pressed="false"` and the stored record's `cycleFlags` is `{}`). It is in `PERSISTED` and not `DEVICE_ONLY`, so it is:
+- saved with the record on this device (IndexedDB on the web, the app sandbox on the phone), sanitised by `cleanCycleFlags` on load, adopt and restore (at most 400 entries);
+- adopted by her other open tabs (it is in `RECORD`);
+- encrypted inside a backup she saves (`backupCopy(snapshot())` carries it; acceptance: a decrypted export holds the flag, and the start date is not readable in the file);
+- restored literally: `importBackup` applies `cleanCycleFlags(saved.cycleFlags)` and writes it into the stored record, so a backup without the key gives `{}` (acceptance: restore of a backup made before any flag → stored `cycleFlags` `{}`, every switch `aria-pressed="false"`; restore after Delete everything → the flag is back);
+- deleted by Delete everything (the wipe clears the whole store, unchanged).
+
+**In no network payload.** `grep -n cycleFlags src/lib/api.js src/lib/pulse.js src/lib/notifications.js src/lib/wearables.js` finds nothing; `cycleFlags` appears only in `App.jsx`, `lib/engine.js` and `lib/record.js`. `eventsForDay` (weekly counts) reads only the day entry plus `pred.phase` and `pred.late`; Ask sends `{ question }` only. The Fixture A acceptance run (Home, Today, Calendar with the switch toggled on and off, the Report, a reload) logs no request off the preview origin.
+
+**Computed, never stored.** Predictions (the kept-cycle median, the likely-start range, the fertile window, the states), the unusual check and every label ("(left out of predictions)", "Based on your last 5 cycles · 1 left out") are computed on the device each time they are shown; only her choices are stored.
+
+**The weekly-counts flag can move by several days.** `pred.late` still means days past the central estimate and `pred.phase` still names the phase, but both now come from the kept-cycle prediction: the centre is the median of her last up-to-6 kept cycles rather than the mean of the last 6 counted ones, and the fertile window widens by up to 3 days on each side as her range widens, which moves the day "luteal" starts. So the opt-in "mood swings before a predicted period" flag can fall on different days than before L5, by several days for some people. Comparing the pre-L5 engine with this one under pulse.js's `mood_dip` rule, cycle day by cycle day: with one long outlier among six cycles (28, 29, 27, 30, 61 and 28 days, nothing left out) the flag was on for cycle days 23–35 and is now on for days 21–30, so its last day moves by 5 (the centre went from a mean of 34 days to a median of 29); cycles of 26, 28 and 33 days move it by up to 2 days and 21, 28 and 45 days by 3; steady cycles (28, 28, 28 or 28, 29, 30) do not move it. Leaving a cycle out moves it the same way, since the prediction then uses only the cycles she keeps; her choice itself is never sent. It is still only a yes/no worked out on the device (`eventsForDay`, untouched, reads the day entry plus `pred.phase` and `pred.late`), and the consent and Settings wording ("… mood swings in the days before a predicted period …", "No dates, values, name or account.") stays literally true: the flag still marks a day before the predicted period, which is the same kept-cycle prediction Cyra shows her.
+
+**One new sentence (Settings → Your data → Restore → "What a restore changes"),** from `restoreChanges(f)`, directly before the POTS line, which stays last, in every flag configuration (unit-tested over all 64 flag sets):
+- "Cycles you left out of predictions are restored as the backup has them; a backup made before you left any out uses every cycle again." True because of the literal restore above.
+
+**Re-verified, unchanged:**
+- "Your check-ins, notes and history are stored {where}. Cyra's servers don't keep a copy." — `cycleFlags` lives inside the same on-device record and goes to no server.
+- "Delete everything on this device? Every check-in, POTS log, note, appointment and setting goes for good. …" — the wipe deletes the whole record, `cycleFlags` included.
+- "Unlocked on this device with your passphrase. It replaces your record here. …" — the literal restore keeps it true: an older backup without the key does not leave this device's flags behind.
+- "Encrypted on this device with your passphrase before it becomes a file. Cyra's servers never receive the file or the passphrase. …" — the encrypted snapshot now also carries `cycleFlags`; nothing else about the file changes.
+- The weekly-counts consent (RegisterScreen) and Settings wording — `eventsForDay` is untouched and never reads `cycleFlags`; "predicted period" now comes from the kept-cycle prediction, still computed on the device.
+
+**Clinical markers keep every cycle (D5).** `insights()` takes no flags: the perimenopause variability card (Home and Patterns), the Report's spread, chip, "My cycles have ranged from…" script and the doctor email count every cycle; the Patterns card, the Report finding and the table footer label a left-out one "(left out of predictions)". The doctor email body is identical with and without a flag (acceptance).
+
+**No new request, dependency, font or asset.** `package.json` is unchanged; the new component and styles use tokens only. Nothing in this slice is feature-flagged, so every statement above holds with the default `VITE_FEATURES` and with `VITE_FEATURES=all` (acceptance run on both builds).
+
+**Verification (22 October 2026).**
+- Committed tree (L5 only, without the uncommitted L2/L4 review fixes): build with `BUILD 2026.10.07-D` once, ESLint 0 errors (the 2 pre-existing warnings), unit 271 pass, 0 fail (new: `src/lib/predict.test.mjs`; `engine.test.mjs`'s Calendar (UI C1) test unchanged and passing). Working tree (with those fixes): unit 272 pass, 0 fail.
+- `lf/l5/a-l5.mjs` (fixtures written into IndexedDB) on a default build (light) and a `VITE_FEATURES=all` build (dark): all passed — Fixture A before and after leaving the 61-day cycle out (Home, Today, the Calendar range, card and cells, the switch by keyboard with its toast and focus, the stored record, a reload, the Report's labels and hollow dot, the unchanged email), Perimenopause, later, long (130 days) and 120 days, menopause, pregnancy, every cycle left out, export → Delete everything → restore, a restore of a backup without `cycleFlags`, the restore list order, the flow overlay, and 320px.
+- `lf/l5/demo-axe-l5.mjs`: the demo build (registration "24–31 days") shows "Based on your sign-up answer · Calendar →" and "(one logged so far: 37d)", and "Your cycles" lists the running cycle and one 37-day row with no Unusual chip; axe clean with "Your cycles" open on the demo build and on Fixture A, light and dark, both stages, every switch 44px with the 3px focus ring.
+- `SCHEMES=light,dark uiux/axe.sh`: "AXE SUMMARY: 84 screens, 0 with problems", no page errors. Demo screenshots: Home heights unchanged in every stage and scheme; only the Calendar grows (the closed "Your cycles", 5–95px).
+- Harness dists rebuilt: NATIVE E2E all passed; `pots/s9/run-all.sh`: all 20 logs end "exit 0" (live 164 passed, 0 failed; flags 55 passed). `rework/axe-run.sh`: axe.mjs, axe-expanded.mjs, axe-edit.mjs, every POTS axe harness and the S9 probe report 0 violations; `axe-pots-s4.mjs` once reported one stand-test focus timing check ("peri lean minute 1") under the parallel load and passed on its own re-run (0 wrong); this slice does not touch the POTS runner.
+- After the review fix: an Irregular / Not sure sign-up with one cycle still in use and the rest left out now gets its own Calendar card sentence ("… so Cyra waits until two cycles are in use. Only one of yours is in use now — turn another back on under “Your cycles” below, or keep logging.") instead of "Every cycle you've logged is left out of predictions…" (`whyNoPrediction` returns `{ kind: "excluded", kept }`); the weekly-counts paragraph above was corrected from "a day" to several days after measuring both engines; the wearables Trying-to-conceive advice keeps the pre-L5 floor of day 1 (`Math.max(1, pred.fertileDay)`). The committed tree builds with `BUILD 2026.10.07-D` once (default and `VITE_FEATURES=all`), ESLint 0 errors (the 2 pre-existing warnings), unit 271 pass, 0 fail; the L5 acceptance script (118 checks, including the new sentence and the every-cycle-left-out sentence) passed on the default build in light and the `all` build in dark; axe on the demo build, `SCHEMES=light,dark`: "AXE SUMMARY: 84 screens, 0 with problems"; harness dists rebuilt, NATIVE E2E all passed.
+
+## L6 (daily log) — a day note and her symptom list, both kept on the device; nothing new leaves it
+
+Traced on 22 October 2026 to `src/lib/daylog.js` (`cleanNote`, `cleanSymPrefs`, `trackedIds`, the editors), `src/components/DayNote.jsx`, `src/components/SymptomSheet.jsx`, `src/screens/TodayScreen.jsx`, `src/screens/PregTodayScreen.jsx`, both Calendar screens, `src/lib/record.js` (`PERSISTED`, `RULES`), `src/lib/pulse.js` `eventsForDay`, `src/lib/potsReport.js` / `src/lib/potsPatterns.js`, and `exportBackup` / `importBackup` / `runAsk` / `buildEmail` / `contribute` in `src/App.jsx`. No request-making module (`lib/api.js`, `lib/pulse.js`, `lib/notifications.js`, `lib/wearables.js`, the cloud transport) imports `daylog.js`.
+
+**New sentence: "Kept with this day on this device and in backups you save. Cyra never sends it anywhere."** (reworded in L9, below, once the appointment PDF could carry the note: "Kept with this day on this device and in backups you save. It goes into an appointment PDF only if you tick Include my notes; Cyra never sends it anywhere.") (`p.rfoot#day-note-hint` under the day-note field, `DayNote.jsx`; Today in My Cycle, Trying to conceive, Perimenopause and Menopause — quick, full, "more detail" and "Fixing up {date}" — and Pregnancy Today.) The trace:
+- The note lives on that day's entry: `days[i].note` (TodayScreen's save, `cleanNote(dayNote)`, no key when empty) and `pregLog[iso].note` (PregTodayScreen). `days` and `pregLog` are already in `PERSISTED`, so the note is saved with the record on this device and is inside the encrypted backup she makes (`exportBackup` → `backupCopy(snapshot())`; acceptance: a decrypted export holds `days[i].note`). A restore brings it back with `days` / `pregLog`; Delete everything deletes it with the record.
+- Weekly counts: `contribute()` receives `{ sym: quickCard ? {} : flagged, sleepQ, flow }` on Today and `{ sym: draft, kicks }` on Pregnancy Today — both unchanged, neither names the note (a unit test reads both screens and checks that no `contribute(` call mentions `note` or `dayNote`), and `eventsForDay` reads no note (unit test: the same events with and without `note: "secret"`, all three stages).
+- Ask: `runAsk` posts `{ question }` only (unchanged; acceptance: with Cyra's AI on, the request body's only key is `question`).
+- The doctor email: `buildEmail` reads `ins.counts`, the 30-day cycle lengths and `hfMult30` only (unchanged; acceptance: the Report email preview does not contain the canary note).
+- The POTS report and patterns read a check-in's `sym`, `sleepQ` and `__q` only (`potsReport.js` overlap, `potsPatterns.js` rows); unit test: a check-in lookup whose entries carry `note: "CHECKIN-NOTE-CANARY"` with `include { cycle: true, notes: true }` leaves the canary out of `JSON.stringify(reportModel(...))`, the CSV, the summary and the email parts.
+- Live check (`lf/l6/accept.mjs`, the `VITE_FEATURES=all` native-shaped build with a server, sharing on, every request recorded): My Cycle logged an added Hot flashes, Low energy, Cramps and the note "Today L6-NOTE-CANARY stays here"; across the session (registration, the check-in, Ask with Cyra's AI on, the Report, the next-day tally) no request URL or body contained the canary.
+- True in both flag configurations: in the default build nothing about the note reaches any request either (no counts module, Ask sends only the question). L4's cloud-backup transport is unreachable while `plan.cloudBackup` is false, which it is in every build.
+- **Two dependencies, written down:** (1) if cloud backup is ever enabled, this sentence must change ("backups you save" would then include a copy on Cyra's server, encrypted); (2) when L9 adds "Include my notes" to the PDF export, append that clause here and to the hint in `DayNote.jsx`.
+
+**New key, `symPrefs` — record, in backups.** Her symptom list per stage id, `{ periods?, peri?, preg? }` × `{ order, hidden, added }` (which chips show first and in what order, which sit under "More symptoms", which she added from the other stage's library). It is a setting and part of the record, not a per-device consent, so it is in `PERSISTED` and not `DEVICE_ONLY`: saved with the record on this device (sanitised by `cleanSymPrefs` on load, adopt and restore), adopted by her other open tabs (`RECORD`; acceptance: tab B's grid follows tab A's change with no write-back loop), encrypted into a backup she saves (acceptance: a decrypted export holds it), restored literally (`importBackup` applies `cleanSymPrefs(saved.symPrefs)` and writes it into the stored record, so a backup without it brings back Cyra's order; acceptance both ways), and deleted by Delete everything. It is in no network payload: `grep -n symPrefs src/lib/api.js src/lib/pulse.js src/lib/notifications.js src/lib/wearables.js` finds nothing. UI state is not persisted: the sheet being open, More symptoms being open and the note field being open are component state only.
+
+**Two new sentences that say what happens to logged data** (not privacy claims, recorded because they describe her data):
+- "Pick what shows first and in what order. Hide moves a symptom under More symptoms. Everything you log stays in your patterns, calendar and report, wherever it sits. Changes save as you go." (hint at the top of "Your symptoms", cycle and perimenopause stages). True because the tracked list (`trackedIds`: library + added, hidden included) drives `insights()` (so the patterns card, its "The numbers behind this chart", the Report's "The numbers behind this" table and the doctor email), the Calendar day card's symptom list, Home's today line and the day score; acceptance: with Hot flashes added and Skin breakouts hidden, both logged on four days, every one of those places lists both. Each action writes `symPrefs` into the record on the 400 ms autosave. Pregnancy's sheet says "…stays in your calendar, wherever it sits…" because pregnancy has no Patterns or Report tab; the Pregnancy Calendar day card lists every GSYM symptom whatever her list says.
+- "These show up in your patterns, calendar and report like the rest. Once you've logged one, you can hide it but not remove it, so your history stays whole." (inside "Add from the perimenopause list" / "Add from the cycle list"). True because added ids join `trackedIds`, and `canRemove()` is false once `loggedEver()` is (the sheet also counts a value in the unsaved form, so a chip she just tapped can't be removed and then saved untracked); acceptance: once a saved day has hf > 0 the sheet offers only Show, never Remove.
+
+**Re-verified, unchanged:**
+- The weekly-counts footer on Today and Pregnancy Today ("Sharing weekly counts is on: which of {flagWords(stage)} this check-in logged, plus your life stage group, go to Cyra's server on a later day, with no dates or values." and the Details lines "A quick check-in shares only whether you had a poor night's sleep." / "…whether you logged a heavy-flow day."). `eventsForDay` is a per-stage allowlist, so Low energy (`eng`) is never a flag, and a symptom added from the other stage's list is never a flag in this stage: My Cycle never flags hf / ns and Perimenopause never flags crm (unit test; acceptance: My Cycle with Hot flashes, Low energy and Cramps queued exactly `["crm"]`, and the next-day tally body was exactly `{ "stage": "periods", "events": ["crm"] }`). Hiding a symptom does not stop its flag when it is logged, which the footer already says ("which of … this check-in logged"). The note is never in the queue.
+- "Your check-ins, notes and history are stored {where}. Cyra's servers don't keep a copy." (Settings → Your data) — "notes" now also literally covers day notes, and `symPrefs` is part of the same stored record.
+- "Unlocked on this device with your passphrase. It replaces your record here. …" and "Your settings are replaced too, except this device's choices about weekly counts, Cyra's AI, browser reminders and appearance (light or dark)." (Restore form and "What a restore changes") — they stay true because `importBackup` sets `symPrefs` from the backup even when the backup has none (a literal restore); otherwise a pre-L6 backup would leave this device's list in place.
+- "Delete everything on this device? Every check-in, POTS log, note, appointment and setting goes for good. …" — the wipe deletes the whole record, day notes and `symPrefs` included.
+- "Encrypted on this device with your passphrase before it becomes a file. Cyra's servers never receive the file or the passphrase. …" — the encrypted snapshot now also carries notes and `symPrefs`; nothing else about the file changes (`lastBackupAt`, `installHint` and `appearance` are still left out; acceptance).
+
+**The Ask path for Low energy.** "Ask about this →" on a Low energy insight (Patterns, when Low energy is her most-logged symptom) hands "Why am I so tired?" (`INSIGHT_STARTERS[ENERGY_ID]`) to Ask. It was already a STARTERS string, and `askLibrary.test.mjs` asserts every INSIGHT_STARTERS value is answered by the written library on the device, so the tap sends nothing whatever the AI switch says.
+
+**App.jsx header comment (comment only).** "The health record (daily logs with their optional notes, her symptom list per stage, journal, intimacy log, trials, appointments, wearable rows once collected) lives in this component's state and is saved only on this device …" names the two new parts of the record; the list of what can leave the device is unchanged.
+
+**Low energy and scores.** `eng` ("Low energy") is the last key of SYM and PSYM, in the Sleep family. The day score's divisor is fixed per stage (`SCORE_SCALE`: 12 / 10 / 8, the library sizes when the score was defined), so neither Low energy nor her list rescales a past day: acceptance on the same record in the pre-L6 build and this one gives identical Calendar tints, digits and labels and the same Home and day-card scores, and changing her list changes none of them. The demo seed already wrote `eng`, so demo builds now show Low energy in counts, Patterns rows and the Report, and demo day scores move slightly (a demo-only effect; no screen sentence changes).
+
+**No new request, dependency, font or asset; no plan gate.** `package.json` is unchanged; the diff adds no `fetch(`, `XMLHttpRequest`, `sendBeacon`, `WebSocket`, `EventSource`, `new Image` or `serviceWorker` call; favourites and notes are free core (brief must-have 1) and never call `plan.can()`. Every statement above holds with the default `VITE_FEATURES` and with `VITE_FEATURES=all`.
+
+**Verification (22–23 October 2026).**
+- Build with `BUILD 2026.10.07-D` once; ESLint 0 errors (the 2 pre-existing warnings); unit 289 pass, 0 fail (new: `src/lib/daylog.test.mjs`, the symPrefs / note test in `record.test.mjs`, the check-in note canary in `potsReport.test.mjs`).
+- `lf/l6/taps.mjs` (Playwright, 390 × 844, My Cycle and Perimenopause): quick log 4 taps; full log (flow, three symptoms, sleep, Save) 8 from quick mode and 7 in Full detail; every saved entry checked in IndexedDB (flow light, period, the three symptoms at 1, sleep good, no note key). "L6 TAPS: all passed".
+- `lf/l6/accept.mjs`: 126 checks, "L6 ACCEPT: all passed" — default layouts in every stage, the quick card, the sheet (focus, Done / close / Escape, the live sentences, Move by keyboard ×10, Hide, Show, Add, Remove, reset), More symptoms and the lifted chip, everything-logged-counts (Home, Patterns, Report table and email, Calendar), scores identical to the pre-L6 build, the note round trip (cycle and pregnancy, reload, Calendar card, edit, clear, spaces only, HTML as text), form continuity and cross-tab, backup decrypt and both restores, the weekly-counts canary (no request URL or body with the note; queue `["crm"]`; tally `{ stage, events }`; Ask `{ question }` only), and the source checks (no new request call, `package.json` unchanged, no plan gate, every pre-L6 Today string still there).
+- axe: `lf/l6/axe-l6.mjs` (the sheet open with its Add Details, More symptoms open, the note open and near full, a fixing-up day, Calendar and Pregnancy Calendar day cards with a note; light and dark; plus the 44 px / 24 px target check): "AXE L6: 36 screens, 0 with problems". `SCHEMES=light,dark uiux/axe.sh`: "AXE SUMMARY: 84 screens, 0 with problems". `rework/axe-run.sh` (axe.mjs, axe-expanded, axe-edit, every POTS axe harness, the S9 probe): 0 violations, 0 undersized targets.
+- Demo screenshots (light and dark): Home heights unchanged in every stage; Today +54 px (the "Add a note" row, quick mode as it opens), Pregnancy Today +102 px ("Symptoms · Edit" and "Add a note"), the peri Calendar day card +43 px and My Cycle Patterns +28 px (the demo's Low energy rows).
+- Harness dists rebuilt: NATIVE E2E all passed; `pots/s9/run-all.sh`: all 20 logs end "exit 0" (live 164 passed, 0 failed; flags 55 passed). `uiux/g1-accept.mjs`: all passed. `walk.mjs` stops at the same registration click with and without L6 (pre-existing; it reports 5 harness timeouts on the pre-L6 build too).
+
+## L7 Fertility signs — three optional day-entry fields, one record key, nothing new leaves the device
+
+Traced on 23 October 2026 to `src/lib/fertility.js` (`fertShown`, `cleanFert`, `fertEntryFields`, the summaries and `FERT_COPY`), `src/lib/disclosures.js` `fertPrivacyLine`, `src/components/FertilitySigns.jsx`, `src/components/FertilitySummary.jsx`, `src/components/BodySignals.jsx`, `src/components/SettingsSheet.jsx`, `src/screens/TodayScreen.jsx`, `CalendarScreen.jsx`, `HomeScreen.jsx`, `PatternsScreen.jsx`, `ReportScreen.jsx`, `src/lib/record.js` (`PERSISTED`, `RULES`), `src/lib/engine.js` `routeIntake`, `src/lib/pulse.js` `eventsForDay`, `src/lib/potsReport.js` / `src/lib/potsPatterns.js`, and `exportBackup` / `importBackup` / `runAsk` / `buildEmail` / `contribute` / `finishOnboarding` / `finishReg` in `src/App.jsx`. Decision D6: on by default for Trying to conceive, an opt-in for My Cycle (Settings), hidden in Pregnancy, Perimenopause and Menopause; never sent anywhere; guidance only.
+
+**What is stored.**
+- `days[].cm` ("dry" | "sticky" | "creamy" | "watery" | "eggwhite"), `days[].opk` ("neg" | "pos"; absent = not tested) and `days[].bbt` (°C, 34–40, 3 decimals) — optional fields on the existing day entries, written only when set (`fertEntryFields`). They live inside `days`, so they are saved with the record on this device, in the encrypted backup she saves (acceptance: a decrypted export holds today's `cm`, `opk` and `bbt`), restored with `days`, adopted by her other tabs with `days`, and deleted by Delete everything with the record.
+- New key `fertSigns` = `{ on: true|false|null, unit: "C"|"F"|null }` — **record, in backups** (not DEVICE_ONLY): it is a setting, not a consent, and holds no health data. Sanitised by `cleanFertPrefs` on load, adopt and restore; adopted by other open tabs (`RECORD`; acceptance: switching it off in tab A removes the group in tab B); in the encrypted backup (acceptance: a decrypted export holds `{ on: true, unit: "F" }`); restored literally (`restoredFertPrefs`: a backup without it resets `on` to null and keeps this device's unit; acceptance both ways); deleted by Delete everything. `on` goes back to null when the intake changes the stage label or at registration.
+- Gate: `fertShown(stage, stageName, on)` is false for every stage but `periods`, so a Perimenopause or Pregnancy record restored with signs in it shows no fertility element anywhere (acceptance: restores into both, every tab and Settings checked).
+
+**Added statements (exact text).**
+1. Today → Fertility signs footer (`p.rfoot.fertfoot`) = `fertPrivacyLine(FEATURES)` + " A guide to timing, not a confirmation of ovulation — and not contraception." The four build variants, keyed on the `counts` and `ai` flags only (`disclosures.test.mjs` pins all four):
+   - counts and ai (`VITE_FEATURES=all`, the harness dist-native and dist-plain): "Kept on this device. Never part of weekly counts or sent to Cyra's AI."
+   - counts only: "Kept on this device. Never part of weekly counts."
+   - ai only (the shipping default): "Kept on this device. Never sent to Cyra's AI."
+   - neither (`VITE_FEATURES=none`): "Kept on this device."
+   Each is literally true in every build, with or without a server: the fields are only in `days`; `contribute()` gets `{ sym, sleepQ, flow }` on Today (a unit test reads TodayScreen's one `contribute(` call and finds no `cm`, `opk`, `bbt` or `fert`); `eventsForDay('periods', { …, cm: 'eggwhite', opk: 'pos', bbt: 36.7 })` is `[]` and `FLAG_WORDS` names no sign; `runAsk` posts `apiPost("/api/ai/ask", { question })` (unit test: exactly once in App.jsx).
+2. Settings → Add-ons → "Track fertility signs" (stage periods only): "Cervical mucus, ovulation tests and basal temperature on Today, marked on your Calendar." — for Trying to conceive "…on your Calendar, with your fertile-window read on Home." — followed by the same `fertPrivacyLine` variant.
+3. Settings → Anonymous weekly counts → "Exactly what's sent" (stage periods; only where the counts row renders): "Fertility signs (mucus, ovulation tests and temperature) are never part of weekly counts." — directly before "Nothing you log in POTS tools is ever part of weekly counts.", which stays last.
+4. Today → the research Details "Exactly what's sent" (only while sharing is on and the group is shown): "Fertility signs are never part of weekly counts."
+5. Home → Coming up (Trying to conceive with signs shown, while the window is ahead or under way): "Fertile window likely {Oct 27 – Nov 4}" / "In your estimated fertile window, until {Nov 4}", sub "An estimate, not contraception · Calendar →". No row otherwise (her period row says what is next).
+6. Home → the today line, when today has a sign: "Today: {parts} — {clause}." (e.g. "Today: egg-white mucus · positive ovulation test · 97.7 °F — your most fertile signs."). Guidance only.
+7. Patterns → "Mucus and test results point to your most fertile days; on their own they can't show that ovulation happened. Not contraception." and, with a 3-over-6 rise, "From {date}, your temperature stayed above the six readings before it (highest {temp}) for three days in a row. A rise like this is often seen after ovulation: an observation from your own readings, not a confirmation." (also in the Report finding).
+8. Today → Body signals → Discharge, while the group is shown: "Mucus changes through your cycle go under Fertility signs above. Use this if something seems unusual." (where to log; not a privacy claim).
+`FERT_BANNED` (no "ovulation confirmed", "you ovulated", "safe days", "birth control", guarantees…) and `contraOk` hold over every `FERT_COPY` string and every builder output over a grid of fixtures (unit test) and over every fertility element on screen (`lf/l7/fert-e2e.mjs`).
+
+**Re-verified, unchanged.**
+- Report → "Cyra itself sends nothing; the text goes only where you take it." — for Trying to conceive with signs shown, the email draft (and so Copy email, Print or save PDF and Share) now carries one line "• Fertility signs in these 30 days: egg-white mucus on 1 day, positive ovulation test on 1 day, temperature on 1 day." (plus "My temperature stayed higher from {date} (three days above the six readings before)." when there is a rise), and the page shows a Fertility signs finding. These are the same user-started OS hand-offs recorded under UI R1; Cyra makes no request. The "Doctor email" note under "Data flows the app does not mention yet" applies to this line too. My Cycle, Perimenopause, Menopause and Pregnancy get no such line.
+- Settings → Your data: "Your check-ins, notes and history are stored {where}. Cyra's servers don't keep a copy." and the encrypted-backup statements — the signs are part of the `days` check-ins and travel only inside the encrypted backup she saves.
+- The weekly-counts consent and Settings copy listing the flags ("cycle tracking or trying to conceive: cramps, a heavy-flow day, mood swings in the days before a predicted period…") — `FLAG_WORDS`, `PULSE_EVENTS` and `eventsForDay` gain nothing; the backend allowlist is untouched. Acceptance: with sharing on, a save with Egg-white + Positive + 97.7 °F queues exactly `["crm"]`, the same as the same save without them.
+- Ask: the AI disclosure and footer sentences — the request body is `{ question }` only (acceptance: the one `/api/ai/ask` body has keys `["question"]`).
+- Calendar: "Estimates — not contraception." — fertility signs never change `pred` (predict() reads no `cm`, `opk` or `bbt`).
+
+**Greps (no network or contribute path reads the fields).** `src/lib/fertility.js` and `src/components/Fertility*.jsx` contain none of `fetch(`, `apiPost`, `apiFetch`, `contribute(`, `localStorage`, `sessionStorage`, `indexedDB` (unit test); `src/lib/potsReport.js` and `src/lib/potsPatterns.js` never read `.cm`, `.opk` or `.bbt` (unit test); no request-making module (`lib/api.js`, `lib/pulse.js`, `lib/notifications.js`, `lib/wearables.js`, the cloud transport) imports `fertility.js`. `dayScore`, `insights()` and `predict()` read no fertility field. No new dependency, font, asset or request call; never behind `plan.can()`.
+
+**The intake.** "Trying to be" now routes to Trying to Conceive (stage `periods`) instead of My Cycle (`routeIntake`, lib/engine.js). Routing still runs on the device and the answers are still never stored or sent; the "Your answers stay on this device." hint is unchanged and true.
+
+**Known wording outside this slice, left for the owner.** The wearables insight ("This confirms it after the fact…"), the milestone "Ovulation confirmed by temperature" (both only in builds with wearables, off by default) and the Ask library sentence "basal body temperature confirms it happened, but only after the fact" (needs clinician review) still use confirmation wording. They are not fertility-signs elements and the e2e scan is scoped to fertility elements; raise them as a follow-up.
+
+**Harness.** No asserted string, class, role or label changed. `uiux/axe-all.mjs` and `uiux/allshots.mjs` gained a Trying to conceive pass (the group filled, saved, Calendar day card, Home after the save); `lf/l7/fert-e2e.mjs` is new and runs in `pots/s9/run-all.sh`.
+
+**Verification (23 October 2026).**
+- Build with `BUILD 2026.10.07-D` once; ESLint 0 errors (the 2 pre-existing warnings); unit 304 pass, 0 fail on the committed tree (new: `src/lib/fertility.test.mjs`; the fertility test in `record.test.mjs`, `fertPrivacyLine` in `disclosures.test.mjs`, `routeIntake` in `engine.test.mjs`).
+- `lf/l7/fert-e2e.mjs` on the `VITE_FEATURES=all` server build (sharing on, Cyra's AI on, every request logged), plus the no-server, default and `none` builds: "L7 E2E: all passed (81 checks)" — the Today group and its controls, tap-to-clear, the 98.6 °C save block, the saved entry (cm eggwhite, opk pos, bbt 36.5, fertSigns.unit F), the same weekly-counts queue with and without the signs (`["crm"]`), no request body with a fertility field and the AI body `{ question }` only, Calendar names / marks / legend / day card, Home's fertile-window row and today line (Home +57 px, limit 60), Patterns, Report finding and email line, Settings (row, default, labels unchanged, counts list order), cross-tab adopt, switch off / on, the backup round trip, restores into Perimenopause and Pregnancy (no fertility UI), a backup without fertSigns, My Cycle default and opt-in, the intake ("Trying to be", re-running into My Cycle, TTC off → My Cycle), and the footer in each build.
+- axe: `SCHEMES=light,dark uiux/axe.sh` with the new Trying to conceive pass: "AXE SUMMARY: 114 screens, 0 with problems". Screenshots (`uiux/snap.sh`, light and dark) looked at for Trying to conceive Today, Calendar, Home, Patterns, Report and Settings; at 320 px no horizontal scroll and "Egg-white" wraps inside its 44 px segment.
+- Harness dists rebuilt: `pots/s9/run-all.sh` (now with `l7`): all 21 logs end "exit 0" (NATIVE E2E all passed; live 164 passed, 0 failed; flags 55 passed).
+
+## Local-first L8: summaries and links — one new sentence, nothing new leaves the device
+
+Traced on 23 October 2026 to `src/lib/insights.js` (new), `src/lib/engine.js` (`nightOf`, `isRoughNight`, `SLEEP_LINK`, `sleepLink`, `insights()`, `seed()`), `src/components/SummaryCard.jsx` (new), `src/screens/PatternsScreen.jsx`, `src/screens/ReportScreen.jsx`, `src/components/PatternCharts.jsx` (`symptomRows`), `src/lib/pulse.js` `eventsForDay` (unchanged), `src/lib/plan.js` (unchanged) and `buildEmail` / `homeInsight` / `recap` / the `week`, `month`, `found`, `keysBefore` memos in `src/App.jsx`. Checked in both flag configurations: the shipping default (`VITE_FEATURES` empty) and `VITE_FEATURES=all`.
+
+**Added statement (exact text).** Patterns → "How Cyra finds these" Details, last paragraph: "Worked out on this device whenever Cyra shows them. Cyra doesn't save them or send them anywhere; they leave this device only in a report you choose to share." True in both configurations:
+- `src/lib/insights.js` is pure: it imports only `./engine.js` and `./constants.js`, and `insights.test.mjs` greps its source for `fetch(`, `XMLHttpRequest`, `sendBeacon`, `WebSocket`, `EventSource`, `localStorage`, `indexedDB`, `import(` and any import of `./api`, `./storage`, `./plan` or `./notifications` (none). App.jsx calls it in `useMemo` on render.
+- No persisted key is added (`PERSISTED` unchanged; the This week / This month choice is React state in `SummaryCard`). The results are never in the record, so never in a backup (a backup carries the record, never these results; cloud backup stays off and unreachable).
+- The only routes out are her own hand-offs from the Report: the email draft and Copy / Print or save PDF / Share text (L9's PDF later). Patterns' findings themselves are not in the email; the Report carries the hot-flash finding and the email its one line (below).
+- The AI path still sends only a typed question the on-device library can't answer (`apiPost("/api/ai/ask", { question })`, unchanged).
+- Weekly counts send only `eventsForDay` flags, and `eventsForDay` is untouched: `rough_night` still comes from sleepQ "poor" only (unit test: `eventsForDay("peri", { sym: { slp: 2 }, sleepQ: "fair" })` has no `rough_night`).
+- Acceptance: from opening Patterns through toggling This week / This month and opening the Details, Playwright recorded zero requests on the no-server default build and on the `VITE_FEATURES=all` demo build.
+- Day notes (L6) and fertility signs (L7) are never read by insights.js: unit test (entries carrying `note`, `mucus`, `cm`, `opk`, `bbt`; no output contains them) and acceptance (a TTC day with a note, egg-white mucus, a positive test and a temperature: no summary sentence, finding or checked line holds the note or a mucus / ovulation-test / temperature word).
+
+**Changed wording.**
+- Doctor email (`buildEmail`, perimenopause): "• Hot flashes were {x}x more likely after poorly-rated nights" → "• In my log, hot flashes were moderate or strong {x}x as often after a rough night". Same data category: one ratio computed on the device, still only inside the email she opens in her own mail app. It is now the 30-day same-day `sleepLink("hf")` with the SLEEP_LINK thresholds, so it is absent more often.
+- Report → What stands out (perimenopause): "Bad nights made the next day worse. After a rough night's sleep, hot flashes were about {x} times more likely." → "Rough nights and hot flashes went together. In your log, hot flashes were moderate or strong about {x} times as often after a rough night." An accuracy correction, not a data-flow change: the old headline claimed a cause and a next-day pairing the data doesn't support. Listed here so the Report text L9 puts into its PDF is traceable.
+- Home → Today's insight: "Hot flashes were {x}× more likely after a rough night. Sleep is your biggest lever." is gone; the card now shows `homePick` texts ("In your log, {symptom} flared up {R}× as often after a rough night.", "… flared up after {a} of {n} rough nights.", "In your log, {symptom} cluster(s) on cycle days {a}–{b}."). Observations from her own log, not data-flow claims.
+
+**Re-verified, unchanged and still true.**
+- Registration consent: "Your health log is stored on this device, and your patterns are worked out here." — summaries, links and clusters are computed on the device.
+- Today footer "A quick check-in shares only whether you had a poor night's sleep." and its "Exactly what's sent" Details ("Sharing weekly counts is on: which of {flags} this check-in logged…") — `eventsForDay` still flags `rough_night` only from sleepQ "poor". The new rough-night reading (Sleep disruption ≥ 2) is used only on the device: summaries, the chart's Rough nights row, the links, the recap and Care matching (`ins.roughNights`). The weekly-count body is byte-identical (the live suites' tally checks pass unchanged).
+- `PatternCharts.jsx` header "Everything is computed from the on-device record; nothing here is stored or sent." and the UI P1 bullet "computed from the on-device record on each render and are never stored or sent" — still true after the Rough nights row moved to `isRoughNight`.
+- `plan.aiPatternReports` stays `false`; no UI mentions AI pattern reports or an upgrade (unit test).
+
+**Verification (23 October 2026).**
+- Build with `BUILD 2026.10.07-D` once; ESLint 0 errors (the 2 pre-existing warnings); unit 326 pass, 0 fail on the committed tree (new: `src/lib/insights.test.mjs`; the L8 tests in `engine.test.mjs`). The built JS holds neither "Bad nights made the next day worse." nor "Sleep is your biggest lever." nor "more likely after a rough night".
+- `lf/l8/accept.mjs` on the default demo build, the pre-L8 demo build, the `VITE_FEATURES=all` demo build and the no-server default build: all passed (the summary card, its two 44px buttons and focus ring, week / month text, 7 / 30 cells in the score colour, the cards, the Details collapsed then opened with the privacy sentence, Report and email wording, Home height equal to the pre-L8 build for Perimenopause and My Cycle and every finding kind at 73.5px, the door matching "This month", the three-cycle headache fixture showing "Days 25–28", Menopause without cycle lines, Pregnancy unchanged, 1 logged day and none in 60 days, the rotation over two dates and a new finding on both, zero requests on Patterns in both flag configurations, no note or fertility word on Patterns for Trying to conceive).
+- axe: `SCHEMES=light,dark uiux/axe.sh`: "AXE SUMMARY: 114 screens, 0 with problems"; `lf/l8/axe-l8.mjs` (Patterns, Perimenopause and My Cycle, week and month, every Details open, light and dark): clean. `uiux/g1-accept.mjs`: all passed. Screenshots looked at for Home and Patterns in both schemes; Home heights are unchanged from the pre-L8 build for every stage.
+- `a12-8-loop/build-dists.sh`, "NATIVE E2E: all passed", and `pots/s9/run-all.sh`: all 21 logs end "exit 0" (live 164 passed, 0 failed, the weekly-count tallies unchanged).
+
+## Local-first L9 (appointment PDF) — one new file she makes, two sentences widened, one device-only key that stays empty
+
+**What changed.** The Report tab's section 4 opens with an "Appointment PDF" card. "Download PDF" (web) / "Share PDF…" (phone) builds `cyra-summary-{date}.pdf` (PDF title "Cyra report") on the device with `src/lib/visitReport.js` (`visitModel` → `visitPdf`, drawn with the statically bundled `lib/pdf.js` writer) and hands it over through the same `lib/files.js` `saveFile` the POTS report uses: a browser download, or the phone's cache → share sheet → delete. No request is made at any step (acceptance: `page.route('**/*')` aborting everything plus `context.setOffline(true)`: the download still happens and the request log stays at 0). The file is plain (no passphrase) and the card says so every time.
+
+**What is in the file, and what never is.** `visitModel` takes her day entries, App's own `insights(days, ids)`, the tracked symptom ids and `SCORE_SCALE[stage]` (so every number equals the screen's), the life stage and label, today's date, her first name only when she gave one and is not in Anonymous Mode (`acct.anon ? "" : acct.name`), the Report's picked questions, her cycle flags (L5) and, only for Trying to conceive with fertility signs on (the same `ttc && fertOn` rule as the Report's finding and the email line), L7's fertility sentences with L7's Patterns footer as the caveat. Day notes (L6, `cleanNote(entry.note)`) go in only while "Include my notes" is ticked; the tick is React state, off on every visit and never saved. Never an input: registration answers, wearable rows, the journal, the Connect log, appointments, POTS data (unit test "no other inputs": passing wearData with resting heart rates, journal text, a ZIP and appointments gives byte-identical bytes and none of those strings). The header reads "Prepared by the user in Cyra · observations, not a diagnosis", the day-score caption names exactly dayScore's inputs ("Cyra's 0–100 day score from her symptom severities and her fatigue, pain and mood ratings"), and every page ends "Page n of m · Cyra · Observations, not a diagnosis." Every string the PDF can print is checked against a banned-wording regex (diagnosis only inside "not a diagnosis", no ovulation confirmation, no contraception claim except "Not contraception", and L7's FERT_BANNED over every fertility line).
+
+**Statements added (all in `src/screens/ReportScreen.jsx` unless noted; wording in `src/lib/visitReport.js`):**
+- "Download PDF" / "Share PDF…" sub-label **"made on this device"** — true: `visitModel` and `visitPdf` run in the page with the bundled writer, `saveFile` makes no request (verified with every request aborted and offline).
+- **"In it: {your recent cycles, your top symptoms[ against the month before], a 30-day day-score chart[, your fertility signs][, the N questions you added][, N day notes]}. At the top: [your name, ]your life stage and the dates it covers."** (`.pdfin`) — generated from the same model the PDF is drawn from, so it lists exactly what the file holds, including when her name is on it. The name goes on automatically when she gave one (the brief's "name if given"); this line discloses it, and Anonymous Mode removes it (acceptance: "At the top: your life stage and the dates it covers." and a title without " · ").
+- **FILE_WARNING** "This file isn't locked. Anyone who gets it can read it. Send it straight to your clinician or their patient portal, and avoid group chats or shared folders." — the POTS Report's words, shown every time, not dismissible; true: a plain PDF.
+- **"{k} day note(s) in these 30 days. They go in only while this is ticked." / "{k} day note(s) in these 30 days will be in the PDF."** under the `role=checkbox` "Include my notes" — true: `model.notes` is `[]` unless `includeNotes === true` (unit-tested on the bytes: the sentinel note and the "My day notes" title are absent until ticked; a note dated before the window never appears; acceptance repeats it through L6's Today note).
+- **LOSSY_LINE** "Some characters in your notes or name can't be shown in the PDF and will appear as '?' or be left out. This page shows them exactly." — only when `visitTexts(model).some(pdfLossy)`; the same WinAnsi mechanism as the POTS line.
+- **SAME_NUMBERS** 'The same numbers are on this page; the tables are under "The numbers behind this".' — an accessibility claim, true because the bodypanel gains the identical cycle table (`row.cells`), the identical day-score sentence and, when ticked, the notes list, and the symptom deltas now read `visit.symptoms.prevDays` (the same rule as before: a comparison only with 10 or more days logged in the 30 days before; acceptance checks the on-screen `.rtab` day counts against pdftotext and the delta sentences are unchanged against main on the same seeded record).
+- **GATE_EMPTY** "Log a day first. The PDF is made from your check-ins." (`#pdf-gate`, the button `aria-disabled`, never `disabled`; no download and no toast on a tap).
+- Toasts: "PDF downloaded. It's in your browser's downloads" (web) and "PDF ready. Choose where to send it" (phone, before the share sheet). Cancel shows no toast; saveFile's existing errors are unchanged.
+- Inside the PDF: the header's made line, the caption and the footer quoted above.
+
+**Statements changed:**
+- Registration consent step → "The details" (`src/lib/disclosures.js` `consentDetails`, rendered by `RegisterScreen.jsx`): "Taking it out yourself means a doctor summary you open in email or copy, **an appointment PDF, POTS report or spreadsheet** you save or share, which isn't locked, or a backup file you save, which stays locked with your passphrase." (was "a POTS report or spreadsheet"). The old list became incomplete once the appointment PDF exists. `disclosures.test.mjs`'s pinned text and `pots/s7/native-pots-s5-on-s7.mjs` (run-all `s5n`) updated in the same commit. True in both flag configurations: the file needs no flag.
+- Settings → Your data → "What can leave this device" (`filesSentence`, rendered by `DataControls.jsx`): "Files you make yourself, **like your appointment PDF or a POTS report or spreadsheet**, go only where you save or send them. They aren't locked with a passphrase[ and never include readings Cyra gets from a connected watch, ring or health app]." The wearable clause stays true because `visitModel` takes no wearable input (unit-tested). Pinned test strings (all / default / none) and the s7 harness updated.
+- Today → day-note hint (`DayNote.jsx` `#day-note-hint`): was "Kept with this day on this device and in backups you save. Cyra never sends it anywhere."; now "Kept with this day on this device and in backups you save. It goes into an appointment PDF only if you tick Include my notes; Cyra never sends it anywhere." The old sentence would have stayed literally true (Cyra sends nothing) but silent about the one file the note can now reach, which she makes herself. L7's fertility line ("Kept on this device…") is unchanged because it is still true: signs leave only in a file she makes and shares herself, which that copy already allows.
+- Report → section 3 hint: "Up to three can ride along in the email **and the PDF**."; the button "Add to email" → "Add to email and PDF" — the picks now also go into the PDF ("Added ✓" and aria-pressed unchanged).
+- Report → "Print or save PDF" (sub "pinch the preview to save" on iOS / "from your browser") → "Print this page" (sub "from your browser"): the same `window.print()` hand-off already recorded under UI R1, renamed so the print dialog is not confused with the real PDF route. "Open in email" loses `.primary`; `uiux/verify/r1-accept.mjs` updated for the new route order.
+- Code comments: the App.jsx egress header lists the appointment PDF among user-started file exports; `files.js` and `ReportScreen.jsx` headers describe it; `sweepBackupCache`'s regex and comment name `cyra-summary-*.pdf`.
+
+**Unchanged and re-checked, still true:** "Cyra itself sends nothing; the text goes only where you take it." (the email hint), "Doctor sharing happens only when you send it or save a file yourself.", "Report files you already saved or shared aren't on this device's record. Delete them wherever you put them.", and the POTS pointer line at the end of section 4.
+
+**New persisted key `exportLog`** (`src/lib/record.js`: PERSISTED, DEVICE_ONLY, NOT_IN_BACKUP; `RULES.exportLog`: null or `{ month: YYYY-MM, n ≥ 0 }`): this month's count of appointment PDFs, so plan.js could enforce a monthly limit if one were ever configured (D1). App.jsx writes it only when `noteExport()` returns a tally, which it never does while `PLAN.pdfExportsPerMonth` is null — so in the shipping plan Cyra keeps no count or list of the PDFs she makes (acceptance: after three downloads the stored record's `exportLog` is null). It is deleted from the backup snapshot by `backupCopy`, kept by a restore (`importBackup`'s `keep`), never handed to another tab (not in RECORD), never sent, and cleared by Delete everything. The POTS report is not gated or counted (docs/MONETIZATION.md §5). If a limit were set, the button would read `limitLine` ("You've made this month's N PDFs. You can make another from {date}. Print this page works any time.") as `aria-disabled`, never an upgrade prompt.
+
+**Phone (dist-native, fake iOS, the POTS suites' `window.__native` recorder).** A tap writes `cyra-summary-<date>.pdf` to `Directory.Cache` as base64, calls `Share.share` with title "Cyra report" and that uri, then `deleteFile`; cancel also deletes and shows no toast; a planted `CACHE/cyra-summary-2026-10-01.pdf` is gone after relaunch while `cyra-notes.txt` and `cyra-report-final.pdf` remain (the sweep regex adds only `summary` between the same anchors).
+
+**Both feature-flag configurations.** The PDF is not flagged and reads no flagged data (no wearable rows, no counts, no AI): the card, its sentences and the file are identical in the default and `all` builds.
+
+**Store disclosures / data flows above:** "Not collected" now names the appointment PDF; the "Exported files" entry under "Data flows the app does not mention yet" is widened to cover it.
+
+**Verification (23 October 2026).**
+- Build with `BUILD 2026.10.07-D` once; ESLint 0 errors (the 2 pre-existing warnings); unit 345 pass, 0 fail (new: `src/lib/visitReport.test.mjs`, 16 tests; `record.test.mjs` exportLog test; `appearance.test.mjs` scans visitReport.js for RAMPS_DARK / scheme / appearance; `disclosures.test.mjs` pinned strings updated).
+- `lf/l9/accept.mjs` (demo build light and dark, the `VITE_FEATURES=all` non-demo build): 80 checks, 0 failures — the card and route order, Download PDF with every request aborted and offline, pdftotext content and the on-screen symptom rows, Enter key, picks in the PDF and the email, exportLog null after three downloads, the day-note opt-in end to end (Today → Report, bytes with and without the tick, the numbers panel, the tick resetting), print media, Anonymous Mode, the empty gate, Trying to conceive fertility section and caveat, My Cycle "Symptom summary" with no period, and a cycle left out of predictions on screen and in the PDF.
+- VERIFY_PLACEHOLDER
+
+## L10 (Privacy dashboard and app lock) — one device-only slot outside the record, three sentences moved, one removed, nothing new leaves the device
+
+**What changed (23 October 2026).** Settings' last group is "Privacy & your data" (`src/components/DataControls.jsx`, `p.section-lab#set-privacy`). It opens with the unchanged status strip and the unchanged "where it lives" sentence, then a live "What can leave this device" list (`src/components/PrivacyFlows.jsx`, states from the pure `src/lib/privacyFlows.js` `flowRows`, computed in `src/App.jsx` from `lib/features.js`, `plan.can("cloudBackup")`, `hasServer()`, the platform and her settings), then the unchanged Encrypted backup / Restore / Delete everything pills under a new label "Backup, restore or delete", then the App lock block (`src/components/LockSettings.jsx`). The lock itself is `src/lib/lock.js` (PIN hashing, back-off, WebAuthn checks, the forgotten-PIN record), its slot is in `src/lib/storage.js` (`loadLock` / `saveLock` / `clearLock`), the lock screen is `src/screens/LockScreen.jsx`, and App.jsx reads the slot in `hydrate`, checks PINs in `verifyPin`, locks on hide / show, and runs the forgotten-PIN restore through `wipe()`. Settings' "Exactly what's sent" list, Ask's "Exactly what's sent" list and Home's "How each connection works" list are now the shared `CountsFacts`, `AiFacts` and `WearableFacts` (`src/components/Details.jsx`), byte-identical to before, so the dashboard's Details show the same words as the screens where each feature is turned on.
+
+**The lock slot (new on-device storage, never in a backup).** Web: IndexedDB `cyra` / `state`, key `v1-lock`; phone: `Library/NoCloud/cyra-lock.json` (the same iCloud / device-backup exclusion and Complete protection as the record, `docs/NATIVE.md`). It holds a `LockCfg` (`lib/lock.js` typedef): `pin = { salt, hash, iter, len }` (a 16-byte random salt, the 32-byte PBKDF2-SHA-256 hash with 600,000 rounds, the round count, the PIN's length), `after` (0 | 60 | 300 seconds), `cred = { id } | null` (the base64url WebAuthn credential id of the passkey, web only; the private key never reaches Cyra), `fails` and `waitUntil` (the back-off, so a reload or a second tab can't reset it; capped at 15 minutes when read). It is not in PERSISTED, RECORD, DEVICE_ONLY or `snapshot()`, so it is never in `backupCopy()`, never in an encrypted backup file (verified in `lf/l10/lock-check.mjs` by decrypting an export made with a lock and a passkey set and scanning for the lock's field names `pin`, `salt`, `hash`, `cred`, `fails`, `waitUntil`, `after` and `v1-lock` outside `pots.*` (the POTS settings have their own `units.salt`, a sodium unit, and `context.onset.after`, a symptom-onset answer), for any `{ salt, hash }` object anywhere, and for the stored hash, salt and credential id strings: none found), never adopted by or written from another tab's autosave (verified: an autosave in tab A leaves `v1-lock` byte-identical). Only explicit lock actions write it (set / change / off, lock-after, passkey on / off, a failed or successful PIN check). It is removed by Delete everything (web: `clear()` in the same transaction as the record; phone: `clearLock()` after the record is confirmed deleted), Start over, a forgotten-PIN restore (which runs the full wipe) and, on the phone, a stale copy found when a new record starts (`finishReg`, the splash restore). The PIN itself is never stored (unit-tested: the JSON of `hashPin()` never contains the digits). Nothing about it is sent anywhere: `lib/lock.js` has no network, storage or `features.js` import (unit-tested by source scan), and `navigator.credentials` appears only there.
+
+**WebAuthn.** The passkey is created and checked between the page and the device's own platform authenticator (`createPasskey` / `verifyPasskey`): `rp: { name: "Cyra" }`, `user.name` "Cyra lock", `attestation: "none"`, `userVerification: "required"`, `authenticatorAttachment: "platform"`. No request leaves the device: Cyra's server never sees a challenge, an id or an assertion, and no signature is sent anywhere (Cyra checks the credential id, the challenge, the origin, the type and the UP + UV flags itself; it is a device gate, not a cryptographic login). iCloud Keychain or Google Password Manager may sync the "Cyra lock" passkey to her other devices; it holds nothing about her health, and only this device's slot accepts its id. Both are disclosed in the passkey row's Details. The phone build never offers it (WKWebView needs associated domains; Android WebView an opt-in): "The phone app unlocks with your PIN only."
+
+**Why the forgotten-PIN restore wipes first.** A merge restore (as Settings → Restore does, keeping this device's consents and merging wearable connections) would have let anyone holding the device unlock her existing record with a backup of their own: a crafted backup whose plaintext is only `{ v: 1, stage: "peri" }` would clear the lock and leave her days, journal, appointments, medicines and Oura token in place. So "Yes, restore my backup" runs `wipe()` (every server step Delete everything makes, then this device's clean-up, the record, the lock) and only then writes `forgotPinRecord(backup)` (`lib/lock.js`: persisted keys from the backup only, minus DEVICE_ONLY / DEVICE_PREFS / NOT_IN_BACKUP and `reminders`; wearable connections from the backup only, marked unconfirmed; reminders off on the web) into the fresh store before the reload. Verified with exactly that crafted backup (`lock-check.mjs`): after the restore the record has no days, journal, appointments, medicines, Oura token or name from before, no `v1-lock` remains, and the screen shows none of the old data; a wrong passphrase changes nothing (still locked, record intact). Her backup opened on this device with the passphrase stays in memory only between "Open my backup" and the confirm (`forgotBackup` ref), and is dropped on every way out.
+
+**Statements added, moved or removed, and what makes each one true (default flags; `VITE_FEATURES=all` with a server; the phone build):**
+- "Privacy & your data" (label, was "Your data"): changed. The POTS add-on's memory / stale pointer "(see Your data below)" becomes "(see Privacy & your data below)" (`PotsAddon.jsx`; no suite asserts it).
+- "Your check-ins, notes and history are stored {where}. Cyra's servers don't keep a copy." — unchanged, byte-identical, rendered exactly once (the dashboard never repeats it). L1's offline-copy line stays directly under it.
+- "What can leave this device" — moved from a Details label to `p.section-lab#set-flows` heading the live list.
+- "Features you turn on (…) each say, before you turn them on, what they send and where." — **removed** (`leaveDevice` retired from `lib/disclosures.js`). The live list replaces it with each flow's current state and exact payload, which is stronger, and it no longer names features a build lacks.
+- "Restoring a backup brings back its wearable connections on this device." — moved verbatim (`WEAR_RESTORE_LINE`) into the "Wearable connections" row's Details, which exists only with the wearables flag and a server: the only configuration with wearable connections.
+- "Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase[ and never include readings Cyra gets from a connected watch, ring or health app]." — moved verbatim (`filesSentence(FEATURES)`, unchanged builder) into the always-rendered "Backups and files you make" row's Details; `pots/s7/native-pots-s5-on-s7.mjs:125` still finds it in the Settings text (hidden Details count toward `textContent`).
+- "What this version of Cyra can send, and when. Nothing about your health leaves this device unless a row below says On, or you take it out yourself as a backup, file or summary." — new (`p.flowintro`). True in every configuration: the only flows that carry health data are weekly counts and Cyra's AI, which appear as On rows when on, and her own exports; wearable connections send tokens, and reminders, sign-in, app files and the counts read carry no health data (each verified against the code paths in the A12 audit above).
+- Rows, each `On` / `Off` / `When you make one` with one line and a Details (a flow this build cannot use is not rendered at all, D2 / D3; there is no cloud row while `plan.cloudBackup` is false):
+  - **Browser reminders** (web, webReminders flag and a server; "Reminders" on the phone): "This browser's push address, and the days, time and time zone you chose, go to Cyra's server. Nothing about your health." (Details: the existing `WebReminderFacts`, verbatim) — `lib/notifications.js` sends `{ subscription, cadence, nudge, tz }` only. Notes: "Cyra's server hasn't confirmed it erased this browser's reminder address yet. Cyra keeps asking while it's open and each time you open it." (pending addresses, mirrors the Settings reminders text and `retryPushForget`) and "This browser can't show reminders, so nothing is sent." (unsupported browser). Phone: "Your phone shows them itself. Nothing is sent." with Details "Cyra asks this phone to show one reminder on the days and at the time you chose. No server is involved." / "The reminder only says \"Time for your 30-second check-in.\"" — `LocalNotifications` scheduled on the device, body string in `lib/notifications.js`; the harness-counted "Scheduled on this phone — no server involved." still occurs exactly once.
+  - **Weekly counts** (counts flag and a server): "Your life-stage group and yes/no flags for a few symptoms, each at most once a week. No dates, values or name." (Details: `CountsFacts`, verbatim, then "Whether or not you share, Cyra loads last week's totals once each time it opens. That request carries nothing about you except, like any request, your device's internet address and app or browser type." — the `fetchPulse` read, once per launch with no stage, now disclosed where it runs regardless of her switch). The chip follows `research` live.
+  - **Ask Cyra's AI** (ai flag and a server): "Only a question you type, and only when Cyra's written library can't answer it. It goes through Cyra's server to Anthropic, which keeps it for a limited time." (Details: `AiFacts`, verbatim, then "Turn it on or off on the Ask tab.") — `runAsk` posts `{ question }` only when `askAI` and the library has no match. The chip follows `askAI`.
+  - **Wearable connections** (wearables flag and a server): "This device sends its Oura sign-in, or its Fitbit, Garmin or Whoop connection key, to Cyra's server, which brings your readings back without saving them to disk. Terra, which connects Fitbit, Garmin and Whoop, keeps its own copy." (Details: `WearableFacts`, verbatim, then the moved restore line and "Connect or disconnect under Wearables on Home.") — `lib/wearables.js`; On while any Oura / Terra entry or an unconfirmed Terra disconnect exists; notes "A Fitbit, Garmin or Whoop disconnect isn't confirmed yet. Cyra keeps asking until Cyra's server confirms it." (terraOff) and, in `VITE_DEMO_WEARABLES` builds, "This demo build shows illustrative readings. Nothing is sent." (Off).
+  - **Backups and files you make** (always): "They go only where you save or send them. Cyra's servers don't receive them." Details: "An encrypted backup is locked with your passphrase on this device before it becomes a file. Without the passphrase it can't be opened." (`lib/backup.js` encrypts in the page; `fileTransport` downloads or shares), the moved files sentence, and, when a stage is set and not pregnancy, the doctor-summary sentence quoted under "Now disclosed" above (the Report's mailto, clipboard, Web Share and print hand-offs, UI R1).
+- "Other connections Cyra makes" (Details under the list; omitted when empty): "Cyra's app files come from Cyra's website when you open or update it online. Like any request, that shows your device's internet address and browser type, and nothing about your health." (web only; the static site and `public/sw.js` fetch only Cyra's own files); "Any request to Cyra's server shows your device's internet address and app or browser type. Cyra's own code doesn't keep the address." (only when the build has at least one server flow: web reminders, counts, AI, wearables or sign-in, with a server; the rate limiters keep a salted hash for about a minute, as audited above); "If you used Apple, Google or Facebook to fill in your name at setup, your name and email passed through Cyra's server, which erases them within 5 minutes." (only with the signin flag and a server; matches step 1's wording).
+- "Backup, restore or delete" — new label over the unchanged three pills (`#set-data` still labels the group).
+- App lock row: "Off — Ask for a PIN each time Cyra opens on this device." / "On — {PIN | PIN, or fingerprint, face or screen lock}. Cyra locks when it opens and {as soon as you leave it | after a minute away | after 5 minutes away}." — from the slot's `after` and `cred` (and whether a platform authenticator exists).
+- The honest note (always visible, web and phone wording quoted under "Now disclosed").
+- Lock Details: "Cyra never stores your PIN, only a one-way hash of it made with a random salt. It stays on this device, isn't in your backups and is never sent anywhere. A 4 to 6 digit PIN could still be worked out from that hash by someone who copies it off the device, which is one reason the lock isn't encryption." / "After 5 wrong tries Cyra makes you wait before the next one: 30 seconds at first, longer each time, up to 15 minutes." (`BACKOFF_SEC` 30, 60, 120, 300, 900) / "If you forget your PIN there's no reset. On the lock screen you can restore an encrypted backup, which replaces everything on this device, or erase Cyra's record here. Anyone holding the device can do either, as they could by deleting the app, but neither shows them your record." / "Delete everything, or restoring a backup from the lock screen, also removes the lock. Restoring a backup from Settings keeps it." (verified both ways) / "Anything you turned on keeps working while Cyra is locked." (the record, its autosave, reminders, the counts queue and wearable retries are untouched by `locked`) / with POTS on: "Cyra waits to lock while a stand test or movement session is running, and locks the next time you leave it." (`shouldLock` running → false; verified) / phone: "The phone app unlocks with your PIN only."
+- Passkey row (web, lock on, platform authenticator available): "Fingerprint, face or screen lock — Unlock with a passkey this device keeps. Your PIN always works too." and its Details: "The passkey is made and checked on this device. Cyra's servers aren't involved." / "Anyone whose fingerprint or face this device accepts, or who knows its screen lock, can open Cyra with it." / "Your password manager lists it as \"Cyra lock\" for this website and may sync it to your other devices. It holds nothing about your health, and only this device's lock accepts it." / "Turning it off here doesn't delete it from your password manager; you can delete it there." (`cred` is only the id; nothing else is touched).
+- Panels: "If you forget it, Cyra can't reset it: you'd restore an encrypted backup or erase Cyra's record on this device.[ You haven't made a backup on this device yet.]" (from `lastBackupAt`), "Turn off the app lock? Cyra will open without a PIN on this device."
+- Lock screen: "Cyra is locked" / "Enter your PIN to open it." / "Cyra can't reset your PIN. There's no account and no back door. You can restore an encrypted backup, which replaces everything on this device and turns the lock off, or erase Cyra's record on this device." / "Opened on this device with your passphrase. Nothing changes until you confirm on the next step." / "Cyra couldn't read its lock settings on this device." — the restore confirm's intro "Your backup opened. Restore it on this device? Cyra first deletes everything on this device, the same as Delete everything: every check-in, POTS log, note, appointment and setting here, and the app lock.[ This also {deleteAlso}.] Then it puts your backup in their place and opens without a PIN." is true because the restore runs `wipe()` and writes `forgotPinRecord` into the empty store before reloading; "Erase this device's record" shows the existing "Delete everything on this device?" card (same `WipeConfirm`, same Details and blocked card).
+- Toasts: "App lock on. Cyra asks for your PIN when it opens and when you come back to it." / "PIN changed." / "App lock off. Cyra opens without a PIN on this device.[ You can delete the \"Cyra lock\" passkey from your password manager.]" / "Fingerprint, face or screen lock can now unlock Cyra on this device." / "Fingerprint, face or screen lock is off. Your PIN still unlocks Cyra. You can delete the \"Cyra lock\" passkey from your password manager." / "Backup restored. The app lock is off — set a new PIN in Settings if you want one." / "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here. The app lock is off — set a new PIN in Settings if you want one." (the reminders clause only where `remindersInBuild(false)`, as L4's fix) / "Cyra deleted this device's record but couldn't put your backup in its place. Choose the backup file again to restore it." No app toast shows while locked (the lock Shell takes no toast).
+- Code comments: the App.jsx egress header gains the app-lock line; `storage.js` documents the slot.
+
+**Harness.** No suite sets a lock, and no suite file was edited except one check in `lf/l7/fert-e2e.mjs`: it assumed the weekly-counts POTS line was the last `li` in the whole Settings sheet, which the dashboard and lock Details lists now follow, so it checks per list that every fertility line is directly followed by the POTS line (the asserted behaviour is unchanged). Every asserted class, label, button name and sentence is kept: dashboard rows are `li.flowrow` (never `.medrow`, no `.takebtn`), their Details read "Details" / "Other connections Cyra makes" (never "Exactly what's sent" / "Exactly what's kept"), the lock rows contain none of the strings the suites locate rows by (unit-tested in `privacyFlows.test.mjs`), and the lock screen never appears in a harness run.
+
+**Risks accepted (D4).** The lock is not encryption and the back-off is client-side; both are said in the UI. A damaged slot fails open (the record is never stranded); an unreadable slot fails closed with Try again / Forgot PIN. Hand-offs Cyra doesn't grace (Open in email and Share… do; the app switcher's own snapshot may still show content before React re-renders) lock on return under "Immediately". A tab still running a pre-L10 build ignores the lock until reloaded.
+
+**Verification (23 October 2026).** Build with `BUILD 2026.10.07-D` once; ESLint 0 errors (the 2 pre-existing warnings); unit 364 pass, 0 fail (new `src/lib/lock.test.mjs` and `src/lib/privacyFlows.test.mjs`; `disclosures.test.mjs` pins `filesSentence` and `WEAR_RESTORE_LINE`). `SCHEMES=light,dark uiux/axe.sh`: 114 screens, 0 with problems, no page errors; `snap.sh` light and dark, Settings read for peri, cycle and pregnancy. `lf/l10/lock-check.mjs` (scratch, Chromium CDP virtual authenticator, simulated visibility and `page.clock`): the default build light and dark (dashboard order and rows, lock set / validation / slot shape, lock on launch with nothing behind it, keypad, back-off and its persistence, lock-after timing, grace, POTS runs, change / turn off), cross-tab, the server build with mocked `/api` (reminders, counts, AI and wearable chips live, terraOff note, Other connections, no request from the lock screen itself), the native fake bridge (Reminders row, phone wording, no passkey row, `cyra-lock.json`), the backup / passkey / forgot-PIN section (a decrypted export holds no lock field, hash, salt or credential id; passkey set / unlock / refused without user verification; the crafted-backup restore replaces everything and leaves no `v1-lock`; a genuine restore and the reminders variant; a Settings restore keeps the lock; erase from the lock screen), and axe on Settings with the lock on and every lock-screen view in both schemes (25 screens, 0 problems): 0 failures. `a12-8-loop/build-dists.sh` then the native suite: "NATIVE E2E: all passed". `pots/s9/run-all.sh`: every log ends "exit 0" (l7 after the check above; `lf/l4/flags-e2e.mjs` default, none and all pass with the dashboard). Backend untouched (`package.json` and `backend/` unchanged).
+
+## L11 (Onboarding) — the promise in one place, four steps, answers moved to Settings, nothing new leaves the device
+
+Registration went from 8 steps to 4 (3 for Menopause & beyond): Stage → Device → Cycle (cycle stages) | Pregnancy (Pregnant) → Consent. The splash states the privacy promise once, before any personal question. The optional answers that used to be steps live in Settings → About you. Measured with Playwright (no-server build, 390×844): the splash-to-first-check-in path is 13 taps / 7 screens for My Cycle, Trying to conceive and Perimenopause (was 20 / 11), 11 / 6 for Menopause & beyond (was 20 / 11) and 9 / 7 for Pregnant (was 17 / 11). No request is added; no new dependency; no new persisted key. Every sentence below is true in both VITE_FEATURES configurations (the flag-dependent sentences still come only from lib/disclosures.js and are untouched).
+
+**Facts that make the sentences true.**
+- `regAnswers.dueDate` ("" or YYYY-MM-DD) is a field inside the existing `regAnswers` record key: on this device, in encrypted backups like the other answers (only `zip` and `age` are stripped by `backupCopy`), adopted by other tabs, erased by Delete everything, and read by no network path (weekly counts send the stage group only; Ask sends the question; push rows hold no answers; the POTS report and the appointment PDF never read `regAnswers`, both unit-tested). It drives `pregWeek`, the trimester, the due-date line, milestones and the care roadmap; older records without it keep the fixed week 22.
+- Settings → About you writes only `regAnswers` (App.jsx `setAnswer`, spread over `ANSWER_BLANK`, which carries no name, email or anon key, so an edit can never put identity back into an Anonymous Mode record). The native suite checks that an About you edit makes no request and that the answer is on the device within a second.
+- A web sign-in redirect carries nothing across: the page restarts and she re-picks the stage, with her name and email waiting on the Device step. No session storage, local storage or IndexedDB key is written before `finishReg` (the only browser storage write before the app phase is the record itself, after Enter Cyra). A native return lands on the step after Device.
+- Answers typed on a step that left her flow when she changed stage are not saved (`pruneForStage`: a Pregnant or Menopause & beyond record has `cycleLen` null and `lastPeriod` ""; `dueDate` is "" for every stage but Pregnant).
+
+**Statements, by action.**
+- **Moved (text unchanged):** "Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that tells you exactly what it sends." — Splash, first item of `ul.splashpromise` under the `h2` "Your privacy, plainly" (was `p.splashpriv`), before "Get started"; it appears exactly once from the splash to the consent step. Still true: every server path for health data is an opt-in that states what it sends (decision 1).
+- **Added:** "No account needed. There's no Cyra account to make, and your name and email are optional." — Splash item 2. True: there is no Cyra account at all (no password, no server profile), and the Device step's name and email are optional, with Anonymous Mode.
+- **Added:** "Guidance, never a diagnosis. For anything medical, talk with your clinician." — Splash item 3. It replaces the footer clause "guidance, never diagnosis"; Cyra states or denies no diagnosis anywhere (A13.3 and the PDF's banned-wording checks).
+- **Changed:** "Free to use · guidance, never diagnosis" → "Free to use" — Splash footer above the build stamp (the clause moved into the list).
+- **Moved to step 2 (text unchanged):** "There's no Cyra account. Your name, email and answers are saved on this device. Lose the device or clear the browser and you lose them, unless you saved an encrypted backup, which keeps most of them." — the Device step. The provider footnote, the email helper, "What Cyra's server sees" and "Exactly what's shared" are byte-identical and Apple stays first.
+- **Unchanged (now step 3, cycle stages only):** "So predictions can start from day one. These answers stay on this device, and go into an encrypted backup only if you save one." The regularity row it covered moved to Settings → About you → Your cycle.
+- **Added:** "So your week and your care roadmap start in the right place. Your due date stays on this device, and goes into an encrypted backup only if you save one." — step 3 "Your pregnancy" (Pregnant only). True: see the facts above.
+- **Added:** "Not sure yet? Leave it blank — you can add it anytime in Settings → About you." — the same step's footer.
+- **Removed with their steps:** "Your age band, plus an optional ZIP. Both stay on this device." (old step 2 hint; carried by the About you note "your age band and ZIP never go into one" and the verbatim ZIP footnote), "Optional, and kept on this device (and in an encrypted backup, if you save one). Skip anything you like." (old step 5) and "Pick as many as you like. These stay on this device and leave it only inside an encrypted backup you choose to save." (old step 7), both covered by the About you note.
+- **Split:** the old step 6 hint "Diagnoses and family history that can affect hormonal health. All optional. They stay on this device and leave it only inside an encrypted backup you choose to save. We never import medical records." → "Diagnoses and family history that can affect hormonal health. We never import medical records." under Settings → About you → Health background; the storage clause is carried, as strong or stronger, by the About you note.
+- **Added:** "All optional, and you can change them anytime. They stay on this device and leave it only inside an encrypted backup you choose to save — and your age band and ZIP never go into one." — Settings → About you (`p.hint` under `#set-about`). True: `regAnswers` is in RECORD and backups; `backupCopy` deletes `zip` and `age`; weekly counts send only the stage group; Ask sends only the question; the POTS report and the appointment PDF never read `regAnswers`; push rows hold no answers.
+- **Moved verbatim to Settings → About you:** "ZIP is optional and stays on this device. Cyra doesn't use it yet and never sends it anywhere. Cyra never asks for your street address." (Age and ZIP; was step 2), "Every question can be skipped. Your answers stay on this device (and in an encrypted backup, if you save one) and are never sold." (Reproductive history; was step 5), "General categories only. We never ask for medical records, insurance or policy numbers, government ID, or an SSN." (Health background; was step 6).
+- **Added:** "Cyra uses your typical cycle length and last period for predictions until your own logged cycles take over." (About you → Your cycle) — true of L5's rule: `predict` uses the told length and last period as the prior only while fewer logged cycles exist, and never reads `cycleReg`. "Cyra uses this for your week and your care roadmap." (About you → Your pregnancy) — true: `pregWeek` feeds the greeting, week bar, milestones, "Due in about N weeks" and the prenatal roadmap.
+- **Moved verbatim:** "You can change this anytime in Settings. Cyra sends one reminder at most, never a second nudge, and never guilts you for a missed day — gaps are fine, your patterns still work." — consent step, inside `.cadwrap` directly under "Remind me on this device", shown while it is ticked (was under the consent card for everyone). In builds where reminders cannot work there is no Remind me row, so no rhythm grid or note dangles.
+- **Unchanged (now step 4):** the six consent-card facts, "The details", the weekly-counts row and its Details, the terms box and the policy lines, byte-identical, including whatever L4 made conditional.
+- **Code comments changed:** the RegisterScreen header ("Required: a stage, a typical cycle length (cycle stages only) and the consent box"; the remaining answers live in Settings → About you; a web sign-in redirect keeps nothing across it), the App.jsx registration, finishReg and finishSocial comments (the due date is in regAnswers on this device and in backups, sent nowhere).
+- **This file:** decisions 2, 7, 8 and 11, the "Data flows" internet-address line and the POTS Slice 3 "Registration, health step" line now name the Device step / About you; the claims are unchanged.
+
+**Install hint (L1).** `INSTALL_HINT_AFTER` is 1: Home's install tip shows after the first saved check-in instead of the third, and never on the splash, a register step or the stage-change intake (it renders only in the app phase on Home). Its sentences are unchanged.
+
+**Harness.** Every registration walk in the suite set, the whole-app axe set, the uiux snap/axe walks, walk.mjs, flags-e2e, fert-e2e and the L1/L6 helper libs go through one shared walker (`lf/onboard.mjs`); `pots/e2e/nlib.mjs`'s `finishRegistrationFromStep2` now throws so a missed call site fails loudly. Historical scripts not run by any suite were left as they are.
+
+## Calm R1 (design system v2 and the condition-module registry) — one new record key, one gallery sentence in a dev-only build, nothing new leaves the device
+
+R1 changes how every screen looks (tokens, palettes, surfaces) and adds a module registry. No privacy sentence in the
+app was added, moved or reworded; no request, dependency, font or external asset was added (icons are inline SVG paths
+in `Icon.jsx`; the blobs are inline SVG).
+
+**New persisted key `modules`** (`{ pcos?: { on: true|false, since: "YYYY-MM-DD" | null } }`, src/lib/modules.js
+`cleanModules`). Class: record (a setting; it says whether a condition module is switched on, which is itself health
+information, so it is treated like the rest of the record). Where it goes: the on-device record (IndexedDB on the web,
+the app's own file on the phone); **in encrypted backups** (it is in RECORD and not in NOT_IN_BACKUP or DEVICE_ONLY);
+applied literally by a restore (a backup without it turns PCOS off); taken over by another open tab of this browser;
+erased by Delete everything with the rest of the record. It is never sent anywhere: no network path reads it (weekly
+counts send the stage group and symptom flags only, Ask sends the question only, push rows hold no record data, the AI
+proxy receives only the question). No screen reads or writes it yet (R2/R7 add the switch); App.jsx holds it in state
+and saves it.
+POTS is registered as a module but keeps its own `pots` key and switch (`isModuleOn` reads `pots.on`); its handling in
+this file is unchanged.
+
+**PCOS data (no UI yet).** The PCOS lab values (fasting glucose, HbA1c), waist measure and weight that later slices
+will log are specified in `MODULES.pcos` as on-device values she types from her own results; R4 records their storage
+here when it adds them. Nothing in R1 stores any of them.
+
+**Dev gallery (`#/dev/ui`).** Present only in a build whose VITE_FEATURES names `devGallery` (or `all`, the harness
+builds); the shipping build and the default Render build do not contain the route or its code (`__CYRA_DEV_GALLERY__`
+is false, so the import is dropped). Added sentence, gallery only: "Illustrative data. Nothing on this page is saved or
+sent." True: the gallery renders instead of the app (main.jsx), so the record is never loaded or saved, App.jsx's
+service-worker registration and reminder code never run, and the page makes no request beyond loading its own bundle; its stage and scheme
+switches live in the URL hash only.
+
+**Colour-only changes with a privacy surface.** None. The theme-color metas, `--doc-bg` and the web manifest colours
+changed to the v2 paper (#FAF7F4 / #131520); they carry no data.
+
+## Calm R2 (five tabs, the log sheet, PCOS in onboarding) — one new answer inside `regAnswers`, three new privacy sentences, nothing new leaves the device
+
+No request, dependency, font or external asset was added. Navigation state (the selected tab and view, the last view per
+tab, the open log sheet) is UI state only: never persisted, never sent. Deep links (`#/body/calendar`, `#/report`, …) are
+read from the location hash on this device and the hash is cleared after use; a fragment never reaches a server.
+
+**New answer `regAnswers.pcos`** ("yes" | "suspect" | "no" | "unsaid" | null, registration's optional "Living with
+PCOS?" step; lib/onboarding.js). Not a new record key: it lives inside `regAnswers` (class: health log), so it goes where
+the other answers go — the on-device record, **encrypted backups** (regAnswers is backed up without `zip` and `age`;
+`pcos` is kept), restored with the rest of regAnswers, erased by Delete everything. Kept only for My Cycle, Trying to
+conceive and Perimenopause (`pruneForStage` empties it for the other stages). No network path reads regAnswers: weekly
+counts send the life-stage group and symptom flags, web reminders send the rhythm, time and time zone, Ask sends the
+question only, the POTS report uses no registration answer. "Yes, diagnosed" or "I suspect it" turns the PCOS module on
+(the R1 `modules` key, unchanged handling: on the device and in backups, never sent).
+
+**Sentences added (all true in the shipping and the all-flags builds):**
+- Registration, PCOS step hint (`STEP_COPY.pcos.sub`): "Optional. A yes adds PCOS symptoms, signals and cycle wording to
+  your log; you can change it anytime in You. Your answer stays on this device, and goes into an encrypted backup only if
+  you save one." — true as above (same wording pattern as the Cycle and Pregnancy steps).
+- You → Modules footer: "Associations to raise with your clinician, not a diagnosis or medical advice. Your module
+  switches stay on this device, and go into an encrypted backup only if you save one." — the `modules` key and `pots.on`
+  are record keys in backups and are read by no network path.
+- You → Settings card: "Privacy & your data: what leaves this device, encrypted backup, app lock, delete everything" — a
+  list of what the Settings sheet's Privacy & your data group (L10) holds, present in every build.
+- You → stage card: "Cyra is shaped around one stage at a time. Changing it keeps everything you've logged." — the stage
+  change (intake) keeps the record (spec §6 "continuous data").
+- "+" log sheet hint: "One tap opens the right place. Nothing is saved until you save it there." — the sheet only routes;
+  every item opens an existing logger whose own Save / Add writes the record.
+
+**Sentences moved, wording unchanged:** the Care shelf ("That matching runs on your device, and partners never see your
+data. …") is now the "Care & support" section of the You page (CareScreen `embedded`); the "<stage> · change" button
+moved from the header to You. Toasts added: "PCOS module on", "PCOS module off. What you logged is kept" (the switch
+never deletes a log).
+
+## Calm R3 (Home v2) — two new record keys (one in backups, one device-only), no new privacy sentence, nothing new leaves the device
+
+No request, dependency, font or external asset was added. Everything Home v2 computes (the hero ring, the Logged chips,
+the step rails, Today's small step, the week trend and the by-cycle phases, the PCOS cycle-length insight) is worked out
+on this device from the record by pure functions in `src/lib/home.js` (its unit test checks it imports no storage,
+network, plan or React module).
+
+**New record key `homeTiles`** (null | 2–4 tile ids from `TILE_CATALOG`, e.g. ["symptoms","sleep","mood","period"]):
+her Quick log choice. Class: record (settings, no health data). In RECORD (shared with other open tabs), **in encrypted
+backups**, restored literally (a backup without it brings back Cyra's default tiles), erased by Delete everything. Read by
+no network path. RULES.homeTiles flags anything cleanHomeTiles would change.
+
+**New key `homeStepSkip`** (null | { day: YYYY-MM-DD, id }): the day she tapped "Not today" on Today's small step.
+DEVICE_ONLY and in NOT_IN_BACKUP: never in a backup file, never handed to another tab, kept across a restore. Read by
+no network path.
+
+**Sentences:** no privacy sentence was added, moved or reworded. New non-privacy copy: the small steps (lib/home.js
+STEPS; the breathing and PCOS "Why" lines are in docs/CLINICIAN-REVIEW.md and the breathing source in docs/EVIDENCE.md),
+"Associations to raise with your clinician, not a diagnosis or medical advice." under Today's insight (MODULE_FRAMING,
+already registered in R1), the Quick log picker hint "Pick 2 to 4. They show on Home in the order you pick them.", and
+the toast "Okay, not today". The question step says appointments are kept "with your appointments" — the existing
+on-device `appts` key. Removed from Home: the "N of 14 days" badge and its streak line, the "N of 3" first-insight
+countdown, the day score in today's line, the 0–100 patterns chart (still in Patterns until R6), "Average day score" in
+Month vs last month (now a sentence in words) and "Day score a → b" in What I'm trying (now words).
+
+## Calm R4 (Body: the fast log, calendar, cycles, PCOS signals) — three new record keys (all in backups), four new sentences, nothing new leaves the device
+
+No request, dependency, font or external asset was added. The new loggers write only to the on-device record; nothing
+they hold is read by weekly counts (`contribute()` still gets `{ sym, sleepQ, flow }` from the check-in only), Ask, the
+AI, the doctor email, the PDF or any network path. `src/lib/bodylog.js` is pure (no storage, network or React import).
+
+**New record key `bodyLog`** ({ [YYYY-MM-DD]: { sleepH?, move?, pcos?, weight? } }): hours slept, movement sessions,
+the PCOS module's day chips and an optional weight. Class: health log. In RECORD (shared with other open tabs), **in
+encrypted backups**, restored literally (a backup without it clears it here, so "It replaces your record here." stays
+true), erased by Delete everything. RULES.bodyLog flags anything cleanBodyLog would change.
+
+**New record key `labs`** ([{ id, kind, value, unit, date }]): fasting glucose, HbA1c and waist measures she types from
+her own results, each with its unit and date. Class: health log. In RECORD, **in encrypted backups**, restored literally,
+erased by Delete everything. Never interpreted, never sent.
+
+**New record key `bodyPrefs`** ({ weightOn, weightUnit, glucoseUnit, hba1cUnit, waistUnit }): her units and whether
+weight is in her log. Class: record (a setting, no health data). In RECORD, **in encrypted backups**, restored
+literally. The default units come from the device's language setting (`navigator.language`), read on the device only.
+
+The existing `meds` / `medLog` keys (her list, taken by day) now also have a one-tap Meds sheet and the Meds row on Body;
+their class and backup handling are unchanged.
+
+**Sentences (new, each literally true in every build configuration):**
+- PCOS signals sheet: "Cyra keeps these on this device and does not interpret them." — the values live only in `labs`
+  on the device (and in a backup file she makes, which is encrypted with her passphrase); no code path sends or
+  evaluates them.
+- Weight sheet (the R1 module copy, first shown now): "Optional. Only you see it; it is never on Home and never charted
+  unless you choose." — weight is drawn only in the Weight row and sheet on Body; no chart, Home tile, PDF or report reads
+  it; it leaves the device only inside her own encrypted backup file.
+- Toasts: "Weight saved on this device", "Added on this device" (a lab value) — both writes go to the on-device record.
+- Meds sheet: "Cyra never recommends doses or changes; those stay with you and your clinician." (the sentence already in
+  What I'm trying, shortened; not a privacy claim.)
+No privacy sentence was moved or removed. The Calendar's "Your cycles" disclosure became a link to Body → Cycles; its
+"no prediction" lines now say "in Body → Cycles" instead of "under “Your cycles” below".
+- Reworded: the "+" log sheet hint "One tap opens the right place. Nothing is saved until you save it there." (Calm R2)
+  is now "One tap opens the right place. Movement, meds and the other quick loggers save as you tap; the check-in saves
+  with its button." — the new sheets write on tap (to this device only), so the old sentence would no longer be true.
+
+## Calm R5 (Mind: check-in, practices with their evidence, journey) — three new record keys (in backups), one device-only key, new sentences, nothing new leaves the device
+
+No request, dependency, font or external asset was added. `src/lib/mind.js` is pure (no storage, network or React
+import). The mood check-in, the practice log and favourites are read only by the Mind screens, Home's Mood tile / Mind
+rail and Body's Mood row; nothing reads them for weekly counts (`contribute()` is unchanged), Ask, the AI, the doctor
+email, the PDF or any network path. Ask moved inside Mind → Journey as an embedded section with every control and
+sentence unchanged ("Questions are answered on this device from Cyra's written library and aren't sent anywhere." /
+the AI disclosure and "Exactly what's sent" are the same components, shown in the same conditions).
+
+**New record key `moodLog`** ({ [YYYY-MM-DD]: { mood?: 1–5, tags?, energy?: 1–3, fog?: 1–3 } }): the Mind check-in.
+Class: health log. In RECORD, **in encrypted backups**, restored literally (a backup without it clears it here), erased by
+Delete everything. RULES.moodLog flags anything cleanMoodLog would change.
+
+**New record key `practiceLog`** ([{ id, p, day, sec, done, helped? }], at most 400): practices she ran and her "Which one
+helped?" answer. Class: health log. In RECORD, **in encrypted backups**, restored literally, erased by Delete everything.
+
+**New record key `practiceFavs`** (practice ids): her favourite practices. Class: record (a setting). In RECORD, **in
+encrypted backups**, restored literally.
+
+**New device-only key `practiceHaptics`** (boolean): whether this phone vibrates gently at each change of a practice.
+DEVICE_ONLY and NOT_IN_BACKUP (deleted before encryption; a restore keeps this device's value). The switch is shown only
+in a phone build that can vibrate (Capacitor's Haptics plugin if a native build bundles it, else the web view's
+`navigator.vibrate`); the call goes to the phone's own vibration motor, never to a network.
+
+**Dev flag `proDev`** (VITE_FEATURES, calm R5): a build-time QA unlock; `lib/plan.js planFor()` returns DEV_PRO_PLAN so
+the Pro practices open. Default off; harness builds ("all") have it on. It buys nothing, stores nothing and sends
+nothing; the Pro sheet then says "This is a test build: Pro's parts are unlocked here for checking. Nothing is bought."
+
+**Sentences (new, each literally true in every build configuration):**
+- Mind → Today hint: "One tap is enough. It saves as you go and stays on this device." — every tap writes `moodLog` in the
+  on-device record only.
+- Toast: "Check-in saved on this device" (first tap of a day).
+- "Which one helped?" card and the practice sheet: "Cyra suggests what helps you more often. Your answers stay on this
+  device." / "Your answer stays on this device. Cyra suggests what helps you more often." — `helped` is stored in
+  `practiceLog` and read only by `nextPractice()` on the device.
+- Journey → Journal: "Nothing written yet. Your journal stays on this device." — the same `journal` key as Home's Journal
+  (record, in encrypted backups, never sent).
+- Journey → Connection card: "How connected you feel, not just sex. Private, on this device." / "Last logged <date>.
+  Private, on this device." — `connLog` is unchanged and never sent.
+- Pro sheet: "Pro is coming to the app stores. There's nothing to buy in this version." (no purchase code exists) and,
+  under proDev only, the test-build sentence above. Its line "A weekly write-up and chat, only if you turn them on: each
+  shows exactly what it would send before anything is sent." describes R8 features that are not in this build (no code
+  path sends a summary yet); it is a description of Pro, not a claim about this build, and R8 must make it literally
+  true before Pro is sold.
+- Toasts: "Added to your favourites", "Removed from your favourites", "Saved to your journal" / "Added to today's
+  journal" (the existing Home journal toasts).
+No privacy sentence was moved or removed except Ask, which moved as a whole (above).
+
+## Calm R6 (Patterns: timeline, rings, pattern cards, weekly review, Share) — one new record key (in backups), new sentences, nothing new leaves the device
+
+No request, dependency, font or external asset was added. `src/lib/patterns.js` and `src/lib/experiments.js` are pure (no
+storage, network or React import). Everything on Patterns is worked out on render from the on-device record and is not
+saved, except her experiment choices (below). `insights.js patternFindings()` gained a `links` field (every candidate it
+checked) read only by the Patterns cards. Nothing here is read by weekly counts (`contribute()` is unchanged), Ask, the
+AI, the doctor email or the PDF; the L9 PDF content is unchanged.
+
+**New record key `experiments`** ({ active: { id, start, done: [days] } | null, skip: Sunday | null, past: [{ id, start,
+days, target }] ≤ 26 }): the weekly review's optional experiment. Class: health log (which days she did a small habit). In
+RECORD, **in encrypted backups**, restored literally (a backup without it clears it here), erased by Delete everything.
+RULES.experiments flags anything cleanExperiments would change.
+
+**Sentences (new, each literally true in every build configuration):**
+- Share sheet: "Made on this device. Nothing is sent until you choose where it goes." — the PDF is built on the device
+  (lib/visitReport.js) and leaves it only through her own download / share sheet; the Report's email and print buttons
+  open her own mail app or print dialog. No Patterns code path sends anything.
+- "How Cyra finds these" keeps its L8 sentence unchanged: "Worked out on this device whenever Cyra shows them. Cyra
+  doesn't save them or send them anywhere; they leave this device only in a report you choose to share." (moved from a
+  plain card into the same Details at the end of the page).
+- Pattern cards and sheet: "Associations to raise with your clinician, not a diagnosis or medical advice." (the module
+  framing line, not a privacy sentence) and "A link in your log is not proof that one thing causes the other."
+- Toasts: "Experiment started. Tick the days you do it on Home.", "Skipped for this week", "Ticked for today",
+  "Unticked for today".
+No privacy sentence was removed. The L8 summary card ("This week / This month") is no longer on Patterns (its numbers
+were day scores); `periodSummary` still feeds Home's monthly recap and the PDF unchanged.
+
+## Calm R7 (You: privacy dashboard, modules, plan, settings on one page) — no new record key, no new request, nothing new leaves the device
+
+No request, dependency, font or external asset was added, and no persisted key (`modules`, `askAI`, `appearance`, the lock
+and every other key keep their class: record and in backups, or DEVICE_ONLY, exactly as before). The You tab now shows the
+controls the Settings sheet always had (`components/settingsParts.jsx`), so the sheet's markup is byte-identical (checked
+against the R6 build) and is simply not drawn while the You tab is open.
+
+**Moved, unchanged word for word (now inline on You, still in the sheet on the other tabs):** every sentence of Privacy &
+your data (where the record lives, "What can leave this device" and each flow row and Details, Encrypted backup, Restore,
+Delete everything and its confirms, the app lock), Check-in rhythm / nudge / style, Reminders and "Exactly what's kept",
+Anonymous weekly counts and "Exactly what's sent", Appearance, About you, Install. The section label "Privacy & your data" is
+visually hidden on You (the card's own title says what it is); it keeps its id. The Ask AI consent checkbox and its
+disclosure ("When this is on and the library can't answer, your typed words go through Cyra's server to Anthropic…") now
+also appear on You → Cyra's AI, the same `askAI` choice (device-only, never in a backup), only in a build whose AI is
+available; a build without it says "Questions are answered on this device from Cyra's written library and aren't sent
+anywhere." (Ask's existing sentence).
+
+**New sentences, each literally true in every build configuration:**
+- Privacy card: title "You decide what leaves this device"; "Your log is yours. Below is everything Cyra can send, and the
+  tools to back it up, lock it and delete it." Every send is a row below it that is Off until she turns it on, or a file she
+  makes herself.
+- Modules, "What it adds": PCOS "Adds a PCOS signals log, a count of cycles longer than 35 days and pattern questions about
+  sleep, cravings, movement and cycle length. It does not diagnose PCOS." / POTS "Adds a guided standing test, drinks and
+  salt, symptoms, medicines, an exercise plan and a clinician report, opened from Home." / Fertility signs "Adds cervical
+  mucus, ovulation tests and basal temperature to your log, marked on your Calendar." All three describe features that exist
+  in this build; the fertility row keeps its privacy line ("Kept on this device. Never part of weekly counts or sent to
+  Cyra's AI." from `fertPrivacyLine`, which follows the build's flags). The card footer is R2's: "Associations to raise with
+  your clinician, not a diagnosis or medical advice. Your module switches stay on this device, and go into an encrypted
+  backup only if you save one." (`modules` is a record key, in backups.)
+- Plan: "Cyra Free" / "Everything you need to log, follow your cycle and bring a clear summary to an appointment is free. Pro
+  adds more depth for anyone who wants it." / "Free stays free: logging, the calendar, cycles, your weekly review, a core set
+  of practices and the basic doctor-ready PDF." (R5's line) / "There's nothing to buy in this version." (no purchase code
+  exists) / under proDev "This is a test build: Pro's parts are unlocked here for checking. Nothing is bought." The Pro sheet
+  is unchanged and opens only when she taps "See what Pro adds".
+- Account: "No account. Your log lives on this device." (with a name: "…, and your name stays with it.") and "Cyra keeps no
+  account or profile of you. Your name and email, if you gave them, stay on this device and go into an encrypted backup only if
+  you save one." Consistent with the Device step's existing "Cyra keeps no account or profile of you" panel and with this audit's
+  account-information entry (no server account; email stays on the device and in backups she saves).
+- AI card: "Off until you turn it on. It is the same choice as on Ask Cyra in Mind → Journey." (askAI defaults to false and is
+  one state.)
+- About & legal: "Cyra is not a medical device. It shows patterns from what you log and plain-language information. It does
+  not diagnose, treat or replace your clinician." / where the build has no Terms or Privacy Policy address: "Cyra's Terms and
+  Privacy Policy aren't published yet; a later version will link them here." / "Free to use" and the build stamp (the splash
+  now reads the same `BUILD_STAMP` constant). The legal drafts in docs/legal still need attorney review before publishing.
+- "N days logged" on the stage card: counted on the device from the record, shown only on the screen.
+- Toasts: "PCOS module on", "PCOS module off. What you logged is kept" (R2's, unchanged), and POTS's existing "POTS tools on…"
+  and "POTS tools hidden…" family.
+No privacy sentence was removed or weakened. The Settings sheet's POTS row still exists (one switch per screen); the You page
+renders the same component as a module row.
+
+
+## Calm R8 (Pro, Cyra's weekly write-up and chat) — the one opt-in, previewed AI summary; three device-only keys
+
+**The rule change, owner-approved (plan §7).** CLAUDE.md hard rule 1 now reads "Health data never goes to a server, except
+the opt-in, previewed AI summary." Nothing else was relaxed: the record, notes, journal, fertility signs, POTS log, weight,
+wearable readings and registration answers still never leave the device except as files she makes herself. The splash
+sentence "Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that tells
+you exactly what it sends." stays literally true: both features are off until she turns them on, and each shows exactly what
+it sends before every send.
+
+**When anything is sent.** Only when all of these hold: the build has the `ai` flag and a server (`VITE_API_BASE`); the plan
+includes the feature (`can("aiPatternReports")` for the write-up, `can("aiChat")` for the chat; Pro only from a store
+purchase, which this version cannot make, or the `proDev` QA flag, off in shipping builds); her switch in You → Cyra's AI is
+on (both off by default, `aiPrefs`); and she tapped **Send** in "What Cyra will send", which opens before every send and
+shows the request body in plain words and exactly as sent. Cancel sends nothing. Turning a switch on sends nothing. Before
+the first send of a session, the open card asks `GET /api/ai/status` (no body, nothing about her; like any request it carries
+the device's internet address and app or browser type) so it can say "AI isn't set up on this server yet". A red-flag chat
+question is answered on the device with the emergency line and never sent.
+
+**Measured** (calm/r8/ai-e2e.mjs and lf/l4/flags-e2e.mjs, fake backend logging every request): a Pro build with both switches
+off made zero requests from the splash through every tab; turning a switch on made none; the write-up card made one GET
+/api/ai/status; Send made exactly one POST whose raw body equals the previewed JSON byte for byte (compacted); Cancel made
+none; a second chat message opened the sheet again; a red-flag question, the offline state and a server without a key made
+no POST. The default build (no Pro) and a no-server build made zero requests and show no switch.
+
+**The payload, field by field** (`src/lib/aiSummary.js` `buildSummary`; `checkSummary` must pass before it is shown or sent:
+every key on an allowlist, every text value from Cyra's fixed lists, every number finite and 0–1000, nothing date-, email-
+or ZIP-shaped).
+- `POST /api/ai/weekly` body: `{ summary }`.
+- `POST /api/ai/chat` body: `{ summary, question, history }` — `question`: what she typed, trimmed, at most 500 characters
+  (free text: it carries whatever she types, as Ask's does); `history`: her last at most 6 chat messages from this device as
+  `{ role: "user" | "assistant", text }` (at most 1200 characters each; no time stamps; a question answered on the device and
+  emergency replies are left out).
+- `summary.kind` "cyra-summary", `summary.version` 1 — fixed.
+- `summary.lifeStage` — one of My Cycle, Trying to conceive, Pregnancy, Perimenopause, Menopause.
+- `summary.weeks` — 8 (the window, in weeks; no date).
+- `summary.daysLogged` — how many days in those 8 weeks have a check-in.
+- `summary.cycles.lengthsInDays` — up to 6 recent finished cycle lengths, whole days (every counted cycle, D5); `cycles.currentCycleDay`
+  — today's cycle day or null; `cycles.longerThan35Days` — a count, only with the PCOS module on. Not in pregnancy or menopause.
+- `summary.daysLoggedByCycleDay.{cd1to5, cd6to12, cd13to19, cd20to28, cd29plus}` — check-in days per cycle-day bucket.
+- `summary.symptoms[]` — at most 8: `name` (the library label, e.g. "Cramps"; an id no library names is dropped), `days`,
+  `moderateOrStrongDays`, `byCycleDay.{bucket}` (days per bucket, when there are cycles).
+- `summary.sleep.{nightsWithHours, averageHours, roughNights}` — from the hours she logged and the check-in's "Last night".
+- `summary.movement.{sessionsPerWeek, minutesPerWeek}` — averages over the 8 weeks (no activity names).
+- `summary.mood.{checkIns, days.{veryLow, low, okay, good, veryGood}, lowEnergyDays, foggyDays, feelings[] {name, days}}` —
+  counts; feelings are the fixed tags (top 5).
+- `summary.pcosSignals[] {name, days}` — PCOS chips by label, only with the PCOS module on.
+- `summary.labs[] {name, value, unit}` — only when she ticks "Include lab values": the latest fasting glucose, HbA1c and waist
+  values, rounded (mg/dL, mmol/mol, cm, in to whole numbers; mmol/L and % to one decimal), never their dates.
+- `summary.experiment {name, daysDone, target, status}` — the running or last finished starter experiment (fixed title).
+**Never in it** (adversarial unit tests in src/lib/aiSummary.test.mjs and the e2e put each of these into the record): any
+date or weekday, the day note, the journal, Connect, appointments, medicine names, any other text she typed, her name,
+email, ZIP, age band, due date or any registration answer, lab dates, weight, cervical mucus / ovulation tests / basal
+temperature (D6), the POTS log, wearable readings, the account. The builder is never given `acct` or `regAnswers`.
+
+**Cyra's server** (`backend/src/modules/ai`): forwards the body to Anthropic with the key from its own environment
+(`ANTHROPIC_API_KEY`; the app holds no key), keeps nothing, and logs only an error's kind (smoke-tested: none of a summary,
+question or malformed body appears in its output). It re-checks the summary and refuses anything else (400), caps bodies
+(413), rate-limits per address (in memory, salted hash), and answers a red-flag question itself without forwarding it.
+Without a key it answers 503 and the app says "AI isn't set up on this server yet, so nothing was sent to Anthropic."
+Anthropic keeps requests for a limited time under its own terms (the same sentence as Ask's).
+
+**New record keys.** `aiPrefs` `{ weekly, chat, labs }` — DEVICE_ONLY (a consent given on this device, like `askAI`: in the
+backup file, never applied by a restore). `aiChat` and `aiWeekly` — DEVICE_ONLY and NOT_IN_BACKUP: the chat and the last
+write-up stay on this device, are cleared by turning the feature off or by "Clear chat", and go with Delete everything.
+
+**Privacy dashboard.** Two new rows, shown only where the build, server and plan offer them (state "na" otherwise, so the
+intro "Nothing about your health leaves this device unless a row below says On…" stays true in every configuration):
+"Cyra's weekly write-up" — "When you ask for one: a summary of your last 8 weeks (counts, averages and cycle lengths; no
+dates, notes or anything that names you). You see exactly what will be sent first. It goes through Cyra's server to
+Anthropic, which keeps it for a limited time." and "Chat about your log" — "Each message you send: your question, your last
+few chat messages and the same summary. You see exactly what will be sent first. It goes through Cyra's server to
+Anthropic, which keeps it for a limited time." Details: the summary-fields sentence, "It never holds a date, a note, your
+journal, anything you typed elsewhere, your name, email, ZIP or age band, fertility signs, weight, your POTS log or wearable
+readings. Cyra's server keeps none of it." and "Turn it on or off in You → Cyra's AI. Turning it off clears what it kept on
+this device." The "Ask Cyra's AI" row ("Only a question you type…") still describes Ask alone, which still sends only `{question}`.
+
+**New sentences (lib/aiFeatures.js AI_COPY, ProSheet, about.js, purchase.js), each true in every configuration:**
+- You → Cyra's AI (Pro, ai flag, server): "Weekly write-up" / "A short write-up of your last 8 weeks, on Patterns" / "When you
+  ask for one, Cyra sends a summary of your last 8 weeks: counts, averages and cycle lengths, with no dates, notes or anything
+  that names you. It goes through Cyra's server to Anthropic, maker of the Claude AI, which keeps it for a limited time. You
+  see exactly what will be sent first, every time." · "Chat about your log" / "Questions about your own patterns, in Mind →
+  Journey" / "Each message sends your question, your last few chat messages and the same summary, the same way. You see
+  exactly what will be sent first, every time. Your chat history stays on this device." · "Include lab values" / "Adds the
+  latest fasting glucose, HbA1c and waist values you typed, rounded and without their dates." · "Both are off until you turn
+  them on. Cyra's server passes a request on and keeps nothing. Turning one off clears what it kept on this device." ·
+  Details "Exactly what the summary holds" (the two dashboard sentences). Without Pro: "Pro adds a weekly write-up and a
+  chat about your own log, written by Cyra's AI from a summary you see before it's sent. Both stay off until you turn them
+  on." Without the ai flag or a server none of this renders (the card keeps "Questions are answered on this device…").
+- "What Cyra will send": "Exactly the text below goes through Cyra's server to Anthropic, maker of the Claude AI, which keeps
+  it for a limited time. Cyra's server keeps nothing. Nothing else from your log is sent." (the sheet is the body: the JSON
+  shown is `JSON.stringify(body, null, 2)` of the object posted; the request carries, like any request, the device's
+  internet address and app or browser type, already stated under "Other connections Cyra makes").
+- Cards: "A short write-up of what stands out in your last 8 weeks, from a summary you see before it's sent." · "Ask about
+  your own patterns. Each message shows you exactly what it sends first." · "Sent: your summary" · "Sent: your question +
+  your summary" · "Written by Cyra's AI (Claude, made by Anthropic) from your summary." · "Associations to raise with your
+  clinician, not a diagnosis or medical advice." · "Kept on this device only." · "AI isn't set up on this server yet, so
+  nothing was sent to Anthropic." · "You're offline. This needs a connection; nothing was sent." · "Too many requests in a
+  minute. Nothing went to Anthropic; try again shortly." (429 is answered before forwarding) · "No answer came back from
+  Cyra's AI. Nothing is kept on Cyra's server; try again later." · the on-device emergency answer ending "Nothing was sent."
+- Toasts: "Weekly write-up on. Nothing is sent until you tap Send." / "Chat on. Nothing is sent until you tap Send." /
+  "Weekly write-up off. The write-up on this device was cleared." / "Chat off. Its messages on this device were cleared." /
+  "Chat cleared from this device" / "Lab values will be included in what you preview" / "Lab values left out".
+- Plan and purchases: "Restore purchases" → "There's nothing to restore: Pro isn't sold in this version. Nothing was checked
+  or sent." (web) / "Restoring purchases needs the app store, which isn't connected in this build. Nothing was checked or
+  sent." (phone); under the card "Pro will be sold in the iPhone and Android apps. There's nothing to buy on the web." / "The
+  app store isn't connected in this build, so Pro can't be bought or restored here yet." "There's nothing to buy in this
+  version." stays (still true). No price anywhere.
+- Pro sheet: "What Pro adds" now lists only the full practices library and, where the build has Cyra's AI and a server, "A
+  weekly write-up and chat about your log, only if you turn them on" / "Written by Cyra's AI from a summary of your log with
+  no dates, notes or anything that names you. Each shows exactly what it would send before anything is sent." Removed
+  because they were not true of the build: "Every pattern" (patterns stay free), "Your own experiments" and "Medicine and
+  supplement reminders"; the latter two and "A richer PDF with trends and the write-up" are listed under "Planned for Pro,
+  not in this version yet". The free line became "Free stays free: logging, the calendar, cycles, every pattern Cyra finds,
+  your weekly review, a core set of practices and the basic doctor-ready PDF."
+
+**Re-checked, unchanged and still literally true in both flag configurations** (default `ai,webReminders` without Pro, and
+`all` with proDev): the splash promise; the registration "What Cyra's server sees" bullets ("Cyra's servers keep no account
+and no profile of you… no age, health history or check-ins" — the server keeps nothing); the consent card details ("A feature
+that sends something: Cyra's AI. It tells you what it sends before you turn it on."; in `all`, the list); the Delete
+everything lines ("Questions already sent to Cyra's AI stay with Anthropic for a limited time under its own terms" — true, and
+a summary sent stays the same way, which the AI rows and sheet say); `fertPrivacyLine` ("Never sent to Cyra's AI": fertility
+signs are not in the summary); `potsNeverSent` ("none of it is sent to Cyra's server or Cyra's AI": the POTS log is not in the
+summary); the journal's "Your journal stays on this device."; Connection's "Private, on this device."; Ask's sentences
+(Ask still sends only `{question}`). The PCOS lab sentence "Cyra keeps them on this device and does not interpret them." stays
+true: lab values leave only when she ticks "Include lab values", and the system prompt forbids interpreting a lab value.
+
+
+## Calm R9 (guest → optional account: an encrypted backup on Cyra's server) — one device-only key, no change in the default build
+
+**Default production build: nothing changes.** The account exists only where the build has the `cloudBackup` flag AND a
+server (`ACCOUNTS_HERE`, `src/lib/cloudBackup.js`). The shipping build (`VITE_FEATURES` unset, no `VITE_API_BASE` on Render)
+has neither: You keeps R7's "No account needed" card word for word, the splash keeps "No account needed. There's no Cyra
+account to make, and your name and email are optional.", every sentence below keeps its pre-R9 text, and no account
+request can be made (`lf/l4/flags-e2e.mjs`: no account UI, zero requests). Production backend config
+(`backend/config/app.json`) still does not list `backup` (`smoke:account` asserts it). Every builder that changed takes an
+explicit `accounts` argument defaulting to false, so every pre-R9 pin (disclosures.test.mjs PRE) is unchanged.
+
+**What Cyra's server stores per account (and nothing else):** a row `{ id, kind: "account", emailHash, tokenHash, version,
+size, createdAt, updatedAt, expiresAt }` and the file `<dir>/<id>.bin`.
+- `id`: 128 random bits made by the server, never sent to the app.
+- `emailHash`: the app's SHA-256 of `"cyra-account-lookup/v1\n"` + her normalised email (`lib/account.js lookupFor`). The
+  email itself never leaves the device. Like any unsalted hash of an email, someone who already knows her email could
+  check whether it has an account by hashing it; the API itself never says (below).
+- `tokenHash`: SHA-256 of the write token. The token is made on the device: PBKDF2-SHA256 (600,000 rounds, salted with a
+  hash of the email) of the passphrase, then HMAC-SHA256 of a fixed label. It is not the backup key and can't open the
+  backup; guessing the passphrase from it costs the same 600,000 rounds per guess as attacking the backup itself.
+- the bytes: the `cyra-backup` envelope, AES-256-GCM under a key PBKDF2 derives from her passphrase and the envelope's own
+  random salt (`lib/backup.js backupKey / encryptWithKey`), exactly the format of a backup file. The plaintext is
+  `backupCopy(snapshot())`, the same as a backup file: no ZIP, no age band, no push addresses, no device preferences, no AI
+  chat or write-up, and no `cloudAccount` (record.test.mjs, account-e2e).
+- `version`, `size` and three times (created, last written, expiry = 365 days after the last write, `accountTtlDays`).
+Never the email, the passphrase, the plaintext or the key (`smoke:account` greps the disk and the logs for the email, the
+passphrase, the token, the lookup, a note marker and the ciphertext; calm/r9/account-e2e does the same against the real
+development server). The module logs nothing about a request beyond what L4 recorded. Wrong-passphrase back-off: at most
+10 refused tries per email hash in 15 minutes, held **in memory only**, keyed by the email hash (never an address).
+**No enumeration:** one email with another passphrase is another account, so a wrong passphrase and an unknown email
+answer the same 404. **No mail provider, no magic link, no new secret:** the account is email + passphrase only, and the
+app never sends the email anywhere, so Cyra cannot email her.
+
+**What this device keeps:** new record key `cloudAccount` `{ rev, acct }` — DEVICE_ONLY and NOT_IN_BACKUP (never in a
+backup file and never in the account backup; a restore keeps this device's value; other tabs take the highest `rev`). `acct`
+is null for a guest, otherwise her email (shown as "Signed in as …"), the email hash and write token, the backup key and its
+salt (so this device can back up after each change without asking for the passphrase), the server version it last wrote or
+restored, when, and an 8-digit checksum of that content. **Never the passphrase.** Sign out sets `acct` to null; Delete
+everything removes the record with it. The lock (L10) still doesn't encrypt what's stored, so anyone who can open this
+device's record can also use this key; they could already read the record itself.
+
+**When anything is sent:** only after she submits Create (one `PUT`), Sign in (one `GET`), taps Back up now, a choice,
+or Delete account (`DELETE`); and while she is signed in, an automatic `PUT` 8 seconds after a saved change to what a
+backup holds (none for a device-only change) and once at launch (only `GET …/meta` when nothing changed since the last
+back-up). Sign out sends nothing. Every request carries only `x-cyra-account` (the email hash), `authorization: Bearer
+<write token>`, `x-cyra-base` (on a PUT) and the encrypted bytes, plus what any request shows (address, app or browser type).
+
+**Sentences that changed, only in a build that offers the account (each literally true there):**
+1. Splash, promise 2 (`splashAccountLine`): "No account needed. An account is optional and only keeps an encrypted backup,
+   and your name and email are optional too." (Guest is the default; nothing asks her to sign in.)
+2. Registration "What Cyra's server sees", third bullet (`serverSees(f, server, accounts)`): "Cyra's servers keep no
+   profile of you in either mode: no age, health history or check-ins. If you later make the optional account, they keep
+   only your encrypted backup, which they can't read, and a one-way hash of your email." (replaces "keep no account and no
+   profile").
+3. Consent card, backup fact (`consentBackupFact`): the L4 sentence about the file, unchanged, plus "The optional account
+   keeps the same kind of encrypted backup on Cyra's server; Cyra can't read it or recover that passphrase either."
+4. Privacy & your data, storage line (`storeCopyLine`): "Cyra's servers keep no readable copy: only your encrypted account
+   backup, if you make one." (replaces "Cyra's servers don't keep a copy.").
+5. Delete everything (`wipeConfirm(f, native, accounts)`): "… Cyra's servers keep no readable copy of your log. An
+   encrypted account backup, if you made one, stays on Cyra's server until you delete the account or it expires; otherwise
+   your log can't be recovered unless you saved a backup." (Delete everything does not delete the account's backup: that
+   is You → Account → Delete account. It is said here so "goes for good" isn't read as covering it.)
+6. Start over on the phone (`startOverText(f, accounts)`): "Cyra keeps no readable copy of your record on its servers, so
+   the only way back is an encrypted backup you saved or your account's encrypted backup — you can restore a saved one on
+   the next screen."
+7. POTS Today footers (`potsTodayFoot`, `potsTodayFootUnsaved` ×2) and "Exactly what's kept" (`potsNeverSent`): the
+   existing sentence plus ", except locked inside your encrypted account backup, if you make one". The POTS log is part of
+   the record, so it is inside the account backup, encrypted.
+8. Lock screen, Forgot PIN (`LOCK_COPY.forgotBodyAccount`): "There's no back door, and your account can't reset it either.
+   …" (replaces "There's no account and no back door.").
+9. Privacy dashboard: the "Cloud backup" row now appears (flag + server + Pro), Off for a guest, On while signed in, line
+   "While you're signed in to your account: your log, encrypted on this device first, after each change. Cyra's server
+   can't read it and never gets your email or passphrase."; Details: what the server keeps (as above), "A lost passphrase
+   can't be recovered, and nobody can open the backup without it.", where to manage it. "Other connections" now counts
+   cloudBackup as a server flow (the "Any request to Cyra's server shows your device's internet address…" line).
+10. You → Account footer (`ACCOUNT_LINES.moreAccount`): "Cyra keeps no profile of you. Your name and email, if you gave
+    them, stay on this device and go into an encrypted backup only if you save one or make an account; your account itself
+    never holds your email, only a one-way hash of it."
+
+**New sentences (lib/account.js ACCOUNT_COPY, ProSheet PRO_CLOUD), all true in the builds that show them:** the guest
+lines ("You're using Cyra as a guest. Your log lives on this device.", "An account is optional. It keeps an encrypted copy of
+your log on Cyra's server, so you can bring it back on a new phone or browser. Cyra can't read it.", "An encrypted backup to
+Cyra's server comes with Pro."); the create sheet ("Your account is your email and a passphrase only you know. Both are
+turned into keys on this device; Cyra's server never sees either." — the server sees only derived keys; the four "What
+Cyra's server keeps" items above; "If you lose your passphrase, nobody can recover it or your backup — not Cyra, and not
+you. Write it down somewhere safe."; "While you're signed in, this device keeps a key made from your passphrase (not the
+passphrase) so it can back up after each change. Signing out removes it."); the signed-in card ("Cyra backs up a few
+seconds after each change while you're signed in, encrypted on this device first.", statuses, the delete confirm "Your
+encrypted backup is deleted from Cyra's server now. Your log stays on this device."); the choices ("The backup is newer",
+"This device already has a log", "Replaces this device's log with the backup." / "Replaces the backup with this device's
+log."); errors ("No backup matches that email and passphrase. Check both — a lost passphrase can't be recovered.", offline /
+busy / full / gone); toasts (created, backed up, restored, signed in, "Signed out. Your log stays on this device, and your
+encrypted backup stays on Cyra's server.", "Account deleted. Your log is still on this device."); the Pro sheet line "An
+encrypted backup to Cyra's server, if you make an account — Bring your log back on a new phone or browser with your email
+and passphrase. It's encrypted on your device first; Cyra can't read it."
+
+**L4's four sentences (the ones to rewrite when cloud backup became reachable):** (1) "Encrypted on this device with your
+passphrase before it becomes a file. Cyra's servers never receive the file or the passphrase. …" — kept: it describes the
+file backup, which still never reaches a server, and the account uses a different upload. (2) the consent fact — kept and
+extended (item 3). (3) "Cyra's servers don't keep a copy." — rewritten (item 4). (4) the Delete everything confirm —
+rewritten (item 5). L4's proposed `cloudBackupRef` recovery code is replaced by email + passphrase, so no code is shown and
+the device key is `cloudAccount`.
+
+**Sentences reviewed and left as they are in accounts builds:** "… stays on this device" / "Your journal stays on this
+device" / "Kept on this device" and the like say where the data lives and remains; since L3 they have coexisted with
+encrypted backups she chooses to make (a file that may go to Drive or iCloud), and the account is one more encrypted backup
+she chooses to make, so they stay true in the same sense. Sentences that say something goes into an encrypted backup "only
+if you save one" (modules, About you, onboarding answers) stay true: making an account is saving an encrypted backup.
+"Cyra never saves this passphrase, on this device or on its servers" (backup file details) stays true: the account keeps a
+derived key, never a passphrase. The splash's first promise ("Nothing about your health leaves it unless you turn on a
+feature that tells you exactly what it sends") stays true: the create sheet lists what the server keeps before anything is
+sent. Files ("Cyra's servers don't receive them") and the AI summary's "never holds … your POTS log" stay true.
+
+**Store disclosures (owner action before an accounts build ships):** the App Store / Play data-safety answers must add the
+end-to-end-encrypted backup and the email hash (an identifier) for builds with `cloudBackup`; the default build's answers
+are unchanged. **Before production:** a persistent disk for `DATA_DIR`, and a server-side check of the Pro purchase (today
+the entitlement is checked only in the app; no store is connected).
+
+## Calm R10 (language support, the You page compacted, a last calm pass) — one device preference, no new request, nothing new leaves the device
+
+No request, dependency, font or external asset was added. New persisted key `uiLocale` (null = follow this device's
+language, or a catalogue code): a device preference like `appearance` (DEVICE_PREFS: in RECORD for this browser's tabs,
+NOT_IN_BACKUP, a restore keeps this device's value). It is never sent anywhere. Only English ships, so the You → Language
+card that would set it is not shown (lib/i18n.js `pickerShown()` is false with one catalogue).
+
+**Where the words live now.** Every user-visible string of the five tabs, the log sheet, onboarding, the practices and
+the AI sheets moved behind `t()` (src/lib/i18n.js) with its exact English text in src/locales/en-ui.js (screen strings)
+or flattened from its data module in src/locales/en.js (tab and log names, onboarding steps, practices, mood words,
+`AI_COPY`). The text on screen is byte-for-byte what it was; the disclosure builders (lib/disclosures.js,
+privacyFlows.js, account.js, lock.js, about.js) are unchanged and still called directly. The automated suites read the
+rendered text, so they check the same sentences as before.
+
+**Moved on the You page only (word for word; the Settings sheet keeps its full layout and is unchanged).** Each moved
+sentence sits behind a Details that stays in the page while closed (Details.jsx renders the panel `hidden`):
+- Privacy card → "How this works": "Your log is yours. Below is everything Cyra can send, and the tools to back it up,
+  lock it and delete it."; the storage sentence ("Your check-ins, notes and history are stored …") with the store copy
+  line (including the account exception where the build has accounts); the offline-copy sentence; the whole "What can
+  leave this device" list with every row, state, note and Details. The backup / restore / delete buttons and their
+  panels stay visible, unchanged.
+- App lock: the honest note (`LOCK_COPY.noteWeb` / `notePhone`: what the lock does and that it is not encryption)
+  moved into the lock's own "Details", first.
+- Modules → "What each one adds": each module's "what it adds" line (p#mod-<id>-adds, still the switch's
+  description), the fertility-signs privacy line, and "{MODULE_FRAMING} Your module switches stay on this device, and go
+  into an encrypted backup only if you save one." The switches stay visible.
+- Plan → "How this works": the free-keeps line, "There's nothing to buy in this version." (or the test-build note) and
+  the store line.
+- Check-ins → "Rhythm, time and style": the rhythm, nudge and style controls; and, only where reminders can't work in
+  this build, the Reminders row ("Reminders aren't available in this version of Cyra." / "This browser can't show
+  reminders.") with "One reminder at most. Missed days are never scolded — your patterns work fine with gaps." Where
+  reminders can work, the Reminders row, its "Exactly what's kept" and that sentence stay visible.
+- Cyra's AI: "Off until you turn it on. It is the same choice as on Ask Cyra in Mind → Journey." moved into "Exactly
+  what's sent"; `AI_COPY.offLine` moved into "Exactly what the summary holds". The consent checkbox, its disclosure
+  (`AI_DISCLOSURE`, its aria-describedby) and the Pro switches with their lines stay visible.
+- About you: "All optional, and you can change them anytime." stays visible; "They stay on this device and leave it
+  only inside an encrypted backup you choose to save — and your age band and ZIP never go into one." moved into "Your
+  answers", above the answers.
+- Account (build without accounts): unchanged (both lines stay visible; the card is already short).
+- Support & care: "Options for your stage, with the ones that fit what you've logged first. That matching runs on your
+  device, and partners never see your data." stays visible; "Every label below is the honest state of the evidence,
+  including when something is comfort rather than treatment.", the legend and every option moved into "See N options
+  for your stage" (the best-fitting option first). The standalone Care page is unchanged.
+
+**New sentences, each literally true in every build configuration:**
+- Privacy facts (You only): "N days logged · last backup …" (the existing line); "Every feature that can send something
+  is off right now." when no row of "What can leave this device" is On, else "Turned on now: <row names>. Each one says
+  exactly what it sends." (computed from the same rows, settingsParts.jsx `privacyFacts`); "App lock is on." / "App lock
+  is off. You can set a PIN below." (only where the lock exists, from the same lock state the lock row shows).
+- Check-ins summary: "Rhythm: <rhythm> · nudge <time> · quick check-in, 3 taps." (the nudge part only where reminders
+  can work and a rhythm schedules something). Words only, no claim about data.
+- Language card (not shown in this build): "Cyra follows this device's language when it has it. Your choice stays on
+  this device and isn't part of a backup." True: `uiLocale` is a device preference left out of backups.
+- Tone, not privacy: the check-in meter says "Tap below — this fills in as you go" and "heavier / lighter" instead of a
+  number out of 100; the calendar day pill shows the day's words without "· 73"; the connection card shows its word
+  ("Steady connection today") instead of a 0–100 number and says "Cyra puts into words how connected today felt".
+
+**Toasts.** While a bottom sheet is open the confirmation toast shows at the top of the screen, above the sheet, so it
+never covers what it confirms (e.g. "Added on this device" after a PCOS lab value). Same sentences.

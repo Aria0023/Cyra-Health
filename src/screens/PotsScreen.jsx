@@ -4,6 +4,8 @@ import { POTS_LOCKED_COPY } from "../lib/potsConstants.js";
 import UrgentCard from "../components/pots/UrgentCard.jsx";
 import Icon from "../components/Icon.jsx";
 import { potsSaved } from "../components/pots/ui.js";
+import { FEATURES } from "../lib/features.js";
+import { potsHintTail } from "../lib/disclosures.js";
 
 /* POTS tools page (spec A13; lib/pots.js). An optional add-on inside whichever single life
    stage she has, opened from Home (never a tab): it never shows a stage choice and never changes the stage. Everything here is
@@ -26,7 +28,8 @@ import { potsSaved } from "../components/pots/ui.js";
      which opens `settings({ headRef, onBack })` in place of the section. */
 const SECTIONS = [["today", "Today"], ["stand", "Stand test"], ["move", "Move"], ["patterns", "Patterns"], ["report", "Report"]];
 const SHOW_CHOICES = [["test", "Stand test"], ["fluid", "Fluids & salt"], ["sym", "Symptoms"], ["meds", "Meds & supports"], ["move", "Movement"]];
-const HINT_TAIL = "Never part of weekly counts. Cyra can't diagnose POTS; only a clinician can, and good notes make that visit faster.";
+// "Never part of weekly counts." only in builds with counts (lib/disclosures.js potsHintTail).
+const HINT_TAIL = potsHintTail(FEATURES);
 const HINT_SHORT = "Kept on this device and ready for your clinician.";
 const HINT = `${HINT_SHORT} ${HINT_TAIL}`;
 // While the record isn't being saved (ui.js potsSaved), the hint says so instead.

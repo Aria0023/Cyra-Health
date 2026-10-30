@@ -3,15 +3,18 @@
 //     value) when ADMIN_KEY or AUTH_SECRET is unset, a demo value, too short, or the two
 //     are equal — and, if partner webhooks are ever re-enabled, without real
 //     PARTNER_<ID>_WEBHOOK_SECRET values;
-//   - with real-looking secrets, starts and mounts exactly oauth, integrations, pulse,
-//     push and ai: no partner/referral/FHIR/admin routes, no /r/:code, no ops console.
+//   - with real-looking secrets, starts and mounts exactly push and ai (local-first L4: what the
+//     app's default build calls): no weekly counts, sign-in, wearables or backup routes, no
+//     partner/referral/FHIR/admin routes, no /r/:code, no ops console;
+//   - reversible by configuration: the same production server with oauth, integrations, pulse and
+//     backup listed again in its config mounts and serves all six (nothing was deleted from the code).
 // Development (any other NODE_ENV) still mounts every module.
 // Usage: node scripts/prod-smoke.js
 import { spawn } from "child_process";
 import crypto from "crypto";
 import fs from "fs";
 const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode = 1; } else console.log("ok  ", m); };
-const PROD = ["oauth", "integrations", "pulse", "push", "ai"];
+const PROD = ["push", "ai"];
 const ALL = JSON.parse(fs.readFileSync("config/app-dev.json")).modules;
 const real = () => crypto.randomBytes(32).toString("hex");
 
@@ -57,24 +60,40 @@ for (const [label, env, want] of refusals) {
   fs.rmSync("config/app.prod-test.json", { force: true });
 }
 
-// real-looking secrets: starts with exactly the five modules
+// real-looking secrets: starts with exactly the two modules
 {
   const ADMIN = real(), AUTH = real(), P = port++;
   const r = await run({ NODE_ENV: "production", ADMIN_KEY: ADMIN, AUTH_SECRET: AUTH }, P);
   try {
     assert(!!r.proc, `production, real secrets: starts (${r.proc ? "listening" : `exit ${r.code}`})`);
     const m = mounted(r.out);
-    assert(m.length === 5 && PROD.every((x) => m.includes(x)), `production: mounts exactly ${m.join(", ")}`);
+    assert(m.length === 2 && PROD.every((x) => m.includes(x)), `production: mounts exactly ${m.join(", ")}`);
     assert(!r.out.includes(ADMIN) && !r.out.includes(AUTH), "production: secrets never logged");
     const B = `http://127.0.0.1:${P}`;
     const st = async (path, init) => (await fetch(`${B}${path}`, { redirect: "manual", ...init })).status;
     const jpost = (body) => ({ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    assert(await st("/health") === 200 && await st("/api/pulse") === 200 && await st("/api/oauth/providers") === 200 && await st("/api/integrations/sources") === 200 && await st("/api/push/vapid") === 503 && await st("/api/ai/ask", jpost({ question: "Does exercise help sleep?" })) === 200, "production: the five modules answer (push 503 = VAPID not set here)");
-    const gone = [["GET", "/"], ["GET", "/index.html"], ["GET", "/r/abcdef1234"], ["GET", "/api/partners"], ["POST", "/api/referrals/link"], ["POST", "/api/webhooks/midi"], ["GET", "/api/payouts"], ["GET", "/api/reports/partners/midi"], ["GET", "/api/catalog?stage=peri"], ["POST", "/api/agent/run"], ["GET", "/api/orgs/cyra/config"], ["GET", "/api/users"], ["POST", "/api/auth/login"], ["GET", "/api/fhir/outbox"], ["POST", "/api/fhir/push"], ["GET", "/api/affiliates"], ["POST", "/api/ai/welcome"], ["POST", "/api/ai/route"], ["POST", "/api/ai/insight"]];
+    assert(await st("/health") === 200 && await st("/api/push/vapid") === 503 && await st("/api/ai/ask", jpost({ question: "Does exercise help sleep?" })) === 200, "production: push and ai answer (push 503 = VAPID not set here)");
+    const gone = [["GET", "/api/pulse"], ["POST", "/api/pulse/tally"], ["GET", "/api/oauth/providers"], ["GET", "/api/oauth/apple/start"], ["GET", "/api/integrations/sources"], ["POST", "/api/integrations/terra/session"], ["POST", "/api/backup"], ["GET", "/api/backup/AAAAAAAAAAAAAAAAAAAAAA"], ["GET", "/"], ["GET", "/index.html"], ["GET", "/r/abcdef1234"], ["GET", "/api/partners"], ["POST", "/api/referrals/link"], ["POST", "/api/webhooks/midi"], ["GET", "/api/payouts"], ["GET", "/api/reports/partners/midi"], ["GET", "/api/catalog?stage=peri"], ["POST", "/api/agent/run"], ["GET", "/api/orgs/cyra/config"], ["GET", "/api/users"], ["POST", "/api/auth/login"], ["GET", "/api/fhir/outbox"], ["POST", "/api/fhir/push"], ["GET", "/api/affiliates"], ["POST", "/api/ai/welcome"], ["POST", "/api/ai/route"], ["POST", "/api/ai/insight"]];
     const statuses = [];
     for (const [method, path] of gone) statuses.push(`${method} ${path} ${await st(path, method === "POST" ? jpost({}) : { method })}`);
     assert(statuses.every((x) => x.endsWith(" 404")), `production: everything else is absent (${statuses.filter((x) => !x.endsWith(" 404")).join(", ") || "all 404"})`);
   } finally { r.proc?.kill(); }
+}
+
+// reversible by configuration: list the other app modules again and the same production server serves them
+{
+  const cfg = JSON.parse(fs.readFileSync("config/app.json"));
+  fs.writeFileSync("config/app.prod-test2.json", JSON.stringify({ ...cfg, modules: [...cfg.modules, "oauth", "integrations", "pulse", "backup"], storage: { ...cfg.storage, dir: "./data-prod-test" } }));
+  const P = port++;
+  const r = await run({ NODE_ENV: "production", ADMIN_KEY: real(), AUTH_SECRET: real(), CYRA_CONFIG: "config/app.prod-test2.json", DATA_DIR: "" }, P);
+  try {
+    const m = mounted(r.out);
+    assert(!!r.proc && m.length === 6 && ["push", "ai", "oauth", "integrations", "pulse", "backup"].every((x) => m.includes(x)), `production + oauth, integrations, pulse, backup listed: mounts ${m.join(", ")}`);
+    const B = `http://127.0.0.1:${P}`;
+    const st = async (path, init) => (await fetch(`${B}${path}`, { redirect: "manual", ...init })).status;
+    const codes = [await st("/api/pulse"), await st("/api/oauth/providers"), await st("/api/integrations/sources"), await st("/api/backup", { method: "POST", headers: { "content-type": "application/octet-stream" }, body: crypto.randomBytes(16) })];
+    assert(codes.join() === "200,200,200,201", `production, re-listed: /api/pulse, /api/oauth/providers, /api/integrations/sources answer and POST /api/backup stores a blob (${codes.join(", ")})`);
+  } finally { r.proc?.kill(); await new Promise((res) => setTimeout(res, 200)); fs.rmSync("config/app.prod-test2.json", { force: true }); fs.rmSync("data-prod-test", { recursive: true, force: true }); }
 }
 
 // development: every module, the ops console and /r/:code

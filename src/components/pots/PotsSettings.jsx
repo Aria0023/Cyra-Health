@@ -9,6 +9,9 @@ import { symLabel, amountText, naText, numOf, notNum, numProps, isOz, toMl, mlIn
 import { Choice, METHODS, methodDefaults } from "./StandSafety.jsx";
 import { STATUS_OPTS, ONSET_OPTS, COND_OPTS } from "../../lib/potsReport.js";
 import { moveState, setProgram, MOVE_COPY, MOVE_STEPS, PEM_OPTS, CLEAR_OPTS, CLEAR_PREG_OPTS } from "../../lib/potsMove.js";
+import { isNative } from "../../lib/native.js";
+import { FEATURES } from "../../lib/features.js";
+import { potsRemindersLine } from "../../lib/disclosures.js";
 
 /* "For your report" (design 4.12): what she tells Cyra for the report's context line. Only
    the report reads it; it never comes from her registration answers. */
@@ -58,7 +61,8 @@ function Multi({ id, label, value, options, onPick }) {
    standing-test rhythm, her Move answers and step, what she tells Cyra for her report and its
    paper size, and Delete POTS log. Her own symptoms and triggers are archived on "Remove" (past
    days keep their names); only Delete POTS log clears them. */
-export const REMINDERS_LINE = "Cyra doesn't send medicine or drink reminders. The only reminder Cyra can send is your check-in reminder, if you turned it on. If reminders help you, your phone's clock app can set them.";
+/* Names the check-in reminder only where this build has reminders (phones always; the web with webReminders). */
+export const REMINDERS_LINE = potsRemindersLine(FEATURES, isNative());
 export const SHOW_CHOICES = [["test", "Stand test"], ["fluid", "Fluids & salt"], ["sym", "Symptoms"], ["meds", "Meds & supports"], ["move", "Movement"]];
 const FLUID_KINDS = [["water", "Water"], ["electrolyte", "Electrolyte drink"], ["broth", "Broth or soup"], ["other", "Other drink"]];
 const SALT_KINDS = [["tablet", "Salt tablet"], ["food", "Salty food"], ["salt", "Table salt"], ["other", "Other salt"]];

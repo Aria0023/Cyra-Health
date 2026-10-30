@@ -2,18 +2,31 @@ import { fmt } from "../lib/engine.js";
 import { SOURCES, DEMO_WEARABLES } from "../lib/wearables.js";
 import { isNative } from "../lib/native.js";
 import Advice from "../components/Advice.jsx";
-import Details from "../components/Details.jsx";
+import Details, { WearableFacts } from "../components/Details.jsx";
 import Icon from "../components/Icon.jsx";
-import { dominantFamily, ChartSoon } from "../components/PatternCharts.jsx";
-import { FAMILIES } from "../lib/constants.js";
+import { dominantFamily } from "../components/PatternCharts.jsx";
+import { famVar } from "../lib/constants.js";
 import { reduceMotion } from "../lib/motion.js";
-import { useEffect, useRef } from "react";
+import { InstallTip } from "../components/Pwa.jsx";
+import { FEATURES } from "../lib/features.js";
+import { useEffect, useRef, useState } from "react";
+import { Card, QuickTile, StepRail, Ring, Chip, EmptyNote, Sheet } from "../components/ui/index.js";
+import { dateEyebrow, greeting, TILES_MIN, TILES_MAX } from "../lib/home.js";
+import { MODULE_FRAMING } from "../lib/modules.js";
+import { t, fmtDate, fmtNumber } from "../lib/i18n.js";
 
-/* Home (default tab): greeting + streak, check-in CTA, today's top insight, the patterns card,
-   wearable cards, milestones, coming up, pulse, and a grid of collapsible sections (month vs
-   last month, Wearables, What I'm trying, Appointments, Journal) whose open panels sit under
-   the grid. With POTS tools on, a "POTS today" card (potsCard, built in App.jsx) sits under the
-   check-in button. */
+/* Home v2 (calm R3, spec §5 Home). Top to bottom: the date eyebrow and her greeting; the hero, a large cycle-day ring
+   over a soft stage-coloured shape (lib/home.js heroModel: "Day 23" in the serif, the phase under it, then the
+   prediction line with its uncertainty range; pregnancy shows the week, menopause the days since the last period or a
+   calm "No period tracking needed"), the check-in button and today's line (words only, never a score); the POTS card
+   and install tip when they apply; Quick log (2–4 tiles she can choose, each with a "Logged" chip once today has that
+   entry); Today's small step (one optional suggestion, a Why disclosure, "Not today"); the Body and Mind step rails;
+   Today's insight (one, with the not-medical-advice line); the word-based patterns preview (components/HomePatterns.jsx,
+   no numbers out of 100); milestones (no counts); Coming up; the community pulse (builds with counts); and the grid of
+   collapsible sections (Month vs last month, Wearables, What I'm trying, Appointments, Journal) with their panels.
+   Tone (plan §7): no streaks, grades, completeness counts or bars; the empty state is "A few more logs will show
+   clearer associations." Harness-kept: "POTS today" is the first p.section-lab, "Today's insight" a later one, .todayline,
+   .nextrow (the TTC fertile window leads Coming up), .dgrid > .disclosure doors and their panels. */
 /* A trial without enough logged days on both sides of its start date (App.jsx medEffects):
    how many more it needs, or, when the days left can't get there, that it can't be compared. */
 const plural = (n) => `${n} logged day${n === 1 ? "" : "s"}`;
@@ -44,41 +57,50 @@ const DISCLOSE = {
     ],
   },
 };
-const FAM_COLOR = Object.fromEntries(FAMILIES.map((f) => [f.id, f.color]));
 const SLEPT = { good: "well", fair: "so-so", poor: "poorly" };
-/* The seven-dot sketch that stands in for the chart before 3 check-ins: --line and --soft only, no data. */
-const delta = (a, b, goodUp = true) => { const d = b - a; if (d === 0) return <span className="flat">unchanged</span>; const good = goodUp ? d > 0 : d < 0; return <span className={good ? "up" : "down"}>{d > 0 ? "+" : ""}{d}</span>; };
+const delta = (a, b, goodUp = true) => { const d = b - a; if (d === 0) return <span className="flat">{t("home.unchanged")}</span>; const good = goodUp ? d > 0 : d < 0; return <span className={good ? "up" : "down"}>{d > 0 ? "+" : ""}{d}</span>; };
 
 export default function HomeScreen({
-  acct, stage, stageName, pregWeek, tri = "second", dueDate = "", pred, loggedLast14, loggedTotal = 0, streakLine, goTab, entryOn, todayIso, homeInsight, patternsCard = null, wearInsights, milestones, justReached = null, nextUp, pulse,
-  todayEntry = null, scoreIds = [], scoreLabels = {}, dayScore = null,
+  acct, stage, stageName, goTab, todayIso, homeInsight, patternsCard = null, wearInsights, milestones, justReached = null, nextUp, pulse,
+  todayEntry = null, scoreIds = [], scoreLabels = {},
+  hero, tiles = [], onTile, tilePicker = null, step = null, onStep, onSkipStep, bodyRail = [], mindRail = [],
   recap, showRecap, setShowRecap,
   showWear, setShowWear, wearSources, terraOffCount = 0, connectWear, disconnectWear, wearConfirm, setWearConfirm, wearBusy, wearData, wAvg,
   showMeds, setShowMeds, meds, medLog, medEffects, setMedLog, newMed, setNewMed, setMeds, ping,
   showAppts, setShowAppts, upcoming, past, daysUntil, setAppts, newAppt, setNewAppt,
   showJournal, setShowJournal, journal, jDraft, setJDraft, setJournal,
   potsCard = null,
+  installTip = null,
+  fertRead = null,
 }) {
   const hour = new Date().getHours();
   const connectedCount = Object.values(wearSources).filter((w) => w && !w.pending).length;
   const allDemo = wearData.length > 0 && wearData.every((r) => r.demo);
-  const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
-  // Today's line under the CTA once today is logged: score, sleep, the two strongest symptoms, in words.
+  const [picking, setPicking] = useState(false);
+  // Today's line under the hero once today is logged: sleep and the two strongest symptoms, in words (no score).
   const todayLine = (() => {
     if (!todayEntry) return null;
-    const score = dayScore ? Math.round(dayScore(todayEntry, scoreIds) * 100) : null;
     const syms = scoreIds.filter((k) => (todayEntry.sym?.[k] || 0) > 0).sort((a, b) => todayEntry.sym[b] - todayEntry.sym[a]);
     const fam = dominantFamily(todayEntry, scoreIds);
-    const parts = ["Today", ...(score != null ? [`score ${score}`] : []), ...(todayEntry.sleepQ ? [`slept ${SLEPT[todayEntry.sleepQ] || todayEntry.sleepQ}`] : [])];
+    const parts = ["Today", ...(todayEntry.sleepQ ? [`slept ${SLEPT[todayEntry.sleepQ] || todayEntry.sleepQ}`] : [])];
     if (syms.length) parts.push(`${syms.slice(0, 2).map((k) => scoreLabels[k] || k).join(", ")}${syms.length > 2 ? ` +${syms.length - 2}` : ""}`);
-    return { text: parts.join(" · "), color: fam ? FAM_COLOR[fam] : "var(--line)" };
+    else parts.push("no symptoms logged");
+    return { text: fertRead || parts.join(" · "), color: fam ? famVar(fam) : "var(--line)" };
   })();
-  // Pregnancy week bar: three trimester segments (weeks 1–12, 13–27, 28–40), the elapsed part filled.
-  const wkSegs = [[0, 12], [12, 27], [27, 40]].map(([a, b]) => Math.max(0, Math.min(1, (pregWeek - a) / (b - a))));
-  // The stepper rail shows reached dots first (contiguous from the left); the list under "All milestones" keeps the spec order.
+  // Milestones: the reached ones first on the dot rail; the list under "All milestones" keeps the spec order.
   const rail = [...milestones.filter((m) => m.done), ...milestones.filter((m) => !m.done)];
   const nextMs = milestones.find((m) => !m.done && m.progress != null) || milestones.find((m) => !m.done);
-  const wd = (iso) => (iso === todayIso ? "today" : daysUntil(iso) > -7 ? new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" }) : fmt(iso));
+  // The hero already says when the next period (or the due date) is; the TTC fertile window sits in the hero under it
+  // (one row, so fertility signs never add a section); Coming up keeps visits.
+  const heroRows = nextUp.filter((n) => n.k === "fertile");
+  const comingUp = nextUp.filter((n) => !["period", "late", "due", "fertile"].includes(n.k));
+  const nextRow = (n) => (
+    <div className="nextrow" key={n.k} role={n.action ? "button" : undefined} tabIndex={n.action ? 0 : undefined} onKeyDown={n.action ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); n.action(); } } : undefined} onClick={n.action || undefined} style={n.action ? { cursor: "pointer" } : {}}>
+      <span className="nextdot" /><div><div className="nexttext">{n.text}</div><div className={`nextsub ${n.action ? "link" : ""}`}>{n.sub}</div></div>
+    </div>
+  );
+  const wd = (iso) => (iso === todayIso ? "today" : daysUntil(iso) > -7 ? fmtDate(iso, { weekday: "long" }) : fmt(iso));
+  const ctaRef = useRef(null); // the Quick log heading: where focus goes when the install tip closes
   // A section opened from the grid scrolls its panel into view (the panels sit under the grid, so an
   // open one can start below the fold). Not on first render, and only for the flag that just turned on.
   const wasOpen = useRef(null);
@@ -94,49 +116,97 @@ export default function HomeScreen({
   }, [showRecap, showWear, showMeds, showAppts, showJournal]);
 
   return (
-    <main>
-      <div className="homehead">
-        <div>
-          <h1 className="greet">{greet}{acct.name ? `, ${acct.name}` : ""}.</h1>
-          <div className="greetsub">{stage === "preg" ? `Week ${pregWeek} · ${tri} trimester` : pred ? `Day ${pred.cycleDay} · ${pred.phase} phase` : stageName}</div>
+    <main className="homev2">
+      {/* ---- Hero: the date, her greeting, and the cycle-day ring (pregnancy: the week; menopause: days since the last
+          period or the calm "no period tracking needed" state) with the prediction line and its uncertainty. ---- */}
+      <div className="homehero" data-kind={hero.kind} data-len={String(hero.center).length > 7 ? "long" : String(hero.center).length > 6 ? "mid" : undefined}>
+        <p className="eyebrow homedate">{dateEyebrow(todayIso)}</p>
+        <h1 className="greet">{greeting(hour)}{acct.name ? `, ${acct.name}` : ""}.</h1>
+        <div className="herofig">
+          <svg className="heroblob" viewBox="0 0 320 260" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet">
+            <path className="heroblob-a" d="M150 22c38-6 82 6 106 36s26 74 6 108-58 62-102 66-86-14-106-48S34 106 56 74s56-46 94-52z" />
+            <path className="heroblob-b" d="M234 34c26 4 50 24 54 50s-10 50-32 60-50 4-62-16-12-46 0-66 18-32 40-28z" />
+            <path className="heroblob-b" d="M70 176c16-2 32 8 36 24s-4 32-20 36-34-4-38-20 6-38 22-40z" opacity=".8" />
+            <circle className="heroblob-c" cx="268" cy="196" r="9" />
+            <circle className="heroblob-c" cx="44" cy="74" r="6" />
+          </svg>
+          <Ring value={hero.value} center={hero.center} sub={hero.sub} size={176} stroke={13} tone={hero.tone} className="heroring" />
         </div>
-        {loggedLast14 === 0
-          ? <div className="streak"><b>Day 1</b><span>let's start</span></div>
-          : <div className={`streak ${loggedLast14 >= 7 ? "warm" : ""}`}><b>{loggedLast14}</b><span>of 14 days</span></div>}
+        {hero.action ? (
+          <button type="button" className="heroline" onClick={() => goTab(hero.action)}>
+            <span className="heroline-ico" aria-hidden="true"><Icon name="calendar" size={16} /></span>
+            <span className="heroline-txt"><b>{hero.line}</b><span>{hero.note}</span></span>
+            <Icon name="arrow-right" size={16} className="heroline-go" />
+          </button>
+        ) : (
+          <p className="heroline still">
+            <span className="heroline-ico" aria-hidden="true"><Icon name={stage === "preg" ? "heart" : "sun"} size={16} /></span>
+            <span className="heroline-txt"><b>{hero.line}</b><span>{hero.note}</span></span>
+          </p>
+        )}
+        {heroRows.length > 0 && <div className="plaincard herorows">{heroRows.map(nextRow)}</div>}
+        {todayLine && <button type="button" className="todayline" onClick={() => goTab("today")}><i className="fdot" aria-hidden="true" style={{ background: todayLine.color }} />{todayLine.text}</button>}
       </div>
-      {stage === "preg" && (
-        <div className="wkbar" role="img" aria-label={`Week ${pregWeek} of 40, ${tri} trimester`}>
-          <div className="wktrack">{wkSegs.map((f, i) => <i key={i} className="wkseg"><b style={{ width: `${f * 100}%` }} />{f > 0 && f < 1 && <u style={{ left: `${f * 100}%` }} />}{f === 1 && i === 2 && <u style={{ left: "100%" }} />}</i>)}</div>
-          <div className="wkticks"><span>T1</span><span>T2</span><span>T3<em>Due {dueDate}</em></span></div>
-        </div>
-      )}
-      <p className="hint" style={{ marginTop: -6 }}>{streakLine}</p>
 
-      <button className={`cta ${entryOn(todayIso) ? "done" : ""}`} onClick={() => goTab("today")}>{entryOn(todayIso) ? "Update today's check-in" : "Check in — about 30 seconds"}</button>
-      {todayLine && <button type="button" className="todayline" onClick={() => goTab("today")}><i className="fdot" aria-hidden="true" style={{ background: todayLine.color }} />{todayLine.text}</button>}
       {/* POTS add-on (App.jsx): the "POTS today" card while it's on, or the one-time offer card. Never replaces Today's insight. */}
       {potsCard}
+      {/* The install tip (web only, spec A14.1): hiding it hands focus back to the check-in button. */}
+      {installTip && <InstallTip tip={installTip} returnFocusRef={ctaRef} />}
 
-      <p className="section-lab">Today's insight</p>
-      <div className="card insight"><div className="num">{homeInsight.num}</div><p>{homeInsight.fam && <i className="fdot" aria-hidden="true" style={{ background: FAM_COLOR[homeInsight.fam] }} />}{homeInsight.text}</p></div>
+      {/* ---- Quick log: 2–4 tiles (her choice, You can change them here); each opens its logger. ---- */}
+      <section className="quicklog" aria-labelledby="quicklog-t">
+        <div className="qlhead">
+          <h2 id="quicklog-t" className="v2card-title" ref={ctaRef} tabIndex={-1}>{t("home.quickLog")}</h2>
+          {tilePicker && <button type="button" className="qlpick" aria-label={t("home.chooseYourQuickLogTiles")} aria-haspopup="dialog" aria-expanded={picking} onClick={() => setPicking(true)}><Icon name="sliders" size={18} /></button>}
+        </div>
+        <div className="qtiles homeqtiles" style={{ "--qcols": tiles.length }}>
+          {tiles.map((tv) => <QuickTile key={tv.id} icon={tv.icon} label={tv.label} tint={tv.tint} note={tv.logged ? <Chip variant="logged" /> : null} onClick={() => onTile(tv.id)} />)}
+        </div>
+      </section>
 
-      {/* The patterns card (components/PatternCharts.jsx), the same card the Patterns tab opens with;
-          before 3 check-ins, a grey sketch that counts the gap (no chart classes, no family colours). */}
-      {patternsCard ? (
-        <>
-          <p className="section-lab">Your patterns · last 60 days</p>
-          {patternsCard}
-        </>
-      ) : stage !== "preg" && (
-        <>
-          <p className="section-lab">Your patterns</p>
-          <ChartSoon logged={loggedTotal} />
-        </>
+      {/* ---- Today's small step: one optional suggestion from her log and stage, a Why line, and "Not today". ---- */}
+      {step && (
+        <Card className="stepcard" eyebrow={step.eyebrow || t("home.todaysSmallStep")} title={step.title} icon={step.id === "breathe" ? "breath" : "sparkle"} tint="patterns" level={2}>
+          <p className="stepbody">{step.body}</p>
+          <div className="stepacts">
+            {step.action && <button type="button" className="stepgo" onClick={() => onStep(step.action)}>{step.action.label}</button>}
+            <button type="button" className="stepskip" onClick={onSkipStep}>{t("home.notToday")}</button>
+          </div>
+          {/* calm R6: an experiment from the weekly review may offer its practice as a second, quieter action */}
+          {step.alt && <p className="stepalt"><button type="button" className="linkbtn" onClick={() => onStep(step.alt)}>{step.alt.label} →</button></p>}
+          <Details label={t("home.why")}>
+            <p>{step.why}</p>
+            {step.src && <p className="stepsrc">{t("home.source", { title: step.src.title, body: step.src.body, year: step.src.year })}</p>}
+          </Details>
+        </Card>
       )}
+
+      {/* ---- Body and Mind: dotted step rails, a tick for what is logged today; untouched steps stay neutral. ---- */}
+      <div className="railcards">
+        <section className="v2card railcard" data-tint="body" aria-labelledby="rail-body-t">
+          <h2 id="rail-body-t" className="railtitle">{t("home.body")}</h2>
+          <StepRail steps={bodyRail} label={t("home.bodyToday")} />
+        </section>
+        <section className="v2card railcard" data-tint="mind" aria-labelledby="rail-mind-t">
+          <h2 id="rail-mind-t" className="railtitle">{t("home.mind")}</h2>
+          <StepRail steps={mindRail} label={t("home.mindToday")} />
+        </section>
+      </div>
+
+      <section className="v2card insightcard" aria-labelledby="insight-t">
+        <p className="section-lab" id="insight-t">{t("home.todaysInsight")}</p>
+        {homeInsight.empty
+          ? <EmptyNote>{homeInsight.text}</EmptyNote>
+          : <div className="card insight"><div className="num">{homeInsight.num}</div><p>{homeInsight.fam && <i className="fdot" aria-hidden="true" style={{ background: famVar(homeInsight.fam) }} />}{homeInsight.text}</p></div>}
+        {!homeInsight.empty && stage !== "preg" && <p className="insightnote">{MODULE_FRAMING}</p>}
+      </section>
+
+      {/* The compact, word-based patterns preview (components/HomePatterns.jsx); the full chart is in Patterns. */}
+      {patternsCard}
 
       {wearInsights.length > 0 && (
         <>
-          <p className="section-lab">From your wearable</p>
+          <p className="section-lab">{t("home.fromYourWearable")}</p>
           {wearInsights.map((w, i) => (
             <div className="icard" key={i}>
               <div className="card"><div className="num">{w.num}</div><p>{w.text}</p></div>
@@ -146,77 +216,76 @@ export default function HomeScreen({
         </>
       )}
 
-      {/* Milestones: a row of progress dots and the next one named; the full timeline sits under
-          "All milestones" (hidden until opened, so it isn't read twice). */}
-      <p className="section-lab">Milestones · {milestones.filter((m) => m.done).length} of {milestones.length} reached</p>
+      {/* Milestones: a row of dots and the next one named; the full timeline sits under "All milestones". No counts. */}
+      <p className="section-lab">{t("home.milestones")}</p>
       <div className="plaincard mscard">
         <ol className="msteps" aria-hidden="true">
           {rail.map((m, i) => <li className={`mstep ${m.done ? "done" : ""} ${justReached && m.label === justReached.label ? "new" : ""}`} key={i}><span className="msdot">{m.done ? "✓" : ""}</span></li>)}
         </ol>
         {nextMs
-          ? <p className="msnext"><b>Next up: </b>{nextMs.label}{nextMs.progress != null && <span className="msbar" aria-hidden="true"><i style={{ width: `${nextMs.progress * 100}%` }} /></span>}</p>
-          : <p className="msnext"><b>Every milestone reached.</b></p>}
-        <Details label="All milestones">
-          <ol className="mstrip" aria-label="Milestones">
+          ? <p className="msnext"><b>{t("home.nextUp")} </b>{nextMs.label}</p>
+          : <p className="msnext"><b>{t("home.everyMilestoneReached")}</b></p>}
+        <Details label={t("home.allMilestones")}>
+          <ol className="mstrip" aria-label={t("home.milestones")}>
             {milestones.map((m, i) => (
               <li className={`ms ${m.done ? "done" : ""}`} key={i}>
                 <span className="msdot" aria-hidden="true">{m.done ? "✓" : ""}</span>
-                <span className="mslabel"><span className="sr-only">{m.done ? "Reached: " : "Not yet: "}</span>{m.label}</span>
-                {m.progress != null && !m.done && <span className="msbar"><i style={{ width: `${m.progress * 100}%` }} /></span>}
+                <span className="mslabel"><span className="sr-only">{m.done ? t("home.reached") : t("home.notYet")}</span>{m.label}</span>
               </li>
             ))}
           </ol>
         </Details>
       </div>
 
-      {nextUp.length > 0 && (
+      {comingUp.length > 0 && (
         <>
-          <p className="section-lab">Coming up</p>
+          <p className="section-lab">{t("home.comingUp")}</p>
           <div className="plaincard" style={{ padding: "6px 16px" }}>
-            {nextUp.map((n) => (
-              <div className="nextrow" key={n.k} role={n.action ? "button" : undefined} tabIndex={n.action ? 0 : undefined} onKeyDown={n.action ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); n.action(); } } : undefined} onClick={n.action || undefined} style={n.action ? { cursor: "pointer" } : {}}>
-                <span className="nextdot" /><div><div className="nexttext">{n.text}</div><div className={`nextsub ${n.action ? "link" : ""}`}>{n.sub}</div></div>
-              </div>
-            ))}
+            {comingUp.map(nextRow)}
           </div>
         </>
       )}
 
-      <p className="section-lab">You're not alone <span className="seclite">· last week, from people who share counts</span></p>
+      {picking && tilePicker && <TilePicker {...tilePicker} onClose={() => setPicking(false)} />}
+
+      {pulse && (<>
+      <p className="section-lab">{t("home.youreNotAlone")} <span className="seclite">{t("home.lastWeekFromPeopleWho")}</span></p>
       <div className={`pulse ${pulse.status === "unavailable" ? "quiet" : ""}`}>
         {pulse.status === "unavailable" ? (
-          <div className="pulserow"><b>—</b><span>Community counts aren't available in this version of the app</span></div>
+          <div className="pulserow"><b>—</b><span>{t("home.communityCountsArentAvailableIn")}</span></div>
         ) : pulse.items.map((it) => (
           <div className="pulserow" key={it.id}>
-            <b>{it.count != null ? it.count.toLocaleString() : "—"}</b>
-            <span>{it.count != null ? `contributors ${it.what}`
-              : pulse.status === "loading" ? `${it.what} · loading last week's number`
-              : pulse.status === "offline" ? `${it.what} · couldn't load last week's number`
-              : `${it.what} · shows once ${pulse.k || 50} contributions are counted`}</span>
+            <b>{it.count != null ? fmtNumber(it.count) : "—"}</b>
+            <span>{it.count != null ? t("home.contributors", { what: it.what })
+              : pulse.status === "loading" ? t("home.loadingLastWeeksNumber", { what: it.what })
+              : pulse.status === "offline" ? t("home.couldntLoadLastWeeksNumber", { what: it.what })
+              : t("home.showsOnceContributionsAreCounted", { what: it.what, v1: pulse.k || 50 })}</span>
           </div>
         ))}
         {/* The two claims that matter most stay on screen; how the counts are made sits one tap away
             (hidden, not removed: the full text is always part of the screen). */}
-        <p className="rfoot" style={{ margin: "8px 0 0" }}>Anonymous counts only: no names, dates or values.{pulse.status !== "unavailable" && " Loading these numbers tells Cyra's server nothing about your health."}</p>
-        <Details label="How these counts work">
-          <p>The Cyra app adds to them only for people who turn on sharing, at most once a week from each phone or browser, so one person sharing from two devices counts twice. A number shows only once {pulse.k || 50} or more contributions are in. Because no one is identified, Cyra's server can't check who sends a count, so treat these as rough numbers.</p>
+        <p className="rfoot" style={{ margin: "8px 0 0" }}>{t("home.anonymousCountsOnlyNoNames")}{pulse.status !== "unavailable" && t("home.loadingTheseNumbersTellsCyras")}</p>
+        <Details label={t("home.howTheseCountsWork")}>
+          <p>{t("home.theCyraAppAddsTo", { v0: pulse.k || 50 })}</p>
         </Details>
       </div>
+      </>)}
 
-      {/* ---- The five collapsible sections: buttons in a two-column grid, the open panels under it ---- */}
+      {/* ---- The collapsible sections (five, or four without wearables): buttons in a two-column grid, the open panels under it ---- */}
       {(() => {
         // Each door carries its status after the base label (the base label stays the first text node).
         const scoreDelta = recap ? recap.score[1] - recap.score[0] : null;
+        const felt = scoreDelta == null ? null : Math.abs(scoreDelta) < 3 ? "about the same" : scoreDelta > 0 ? "lighter" : "heavier";
         const lastMed = meds[meds.length - 1];
         const lastJ = Object.keys(journal).sort().pop();
         const apptIn = upcoming[0] ? daysUntil(upcoming[0].date) : null;
         const sections = [
-          { id: "recap", label: "Month vs last month", status: recap ? (scoreDelta ? `${scoreDelta > 0 ? "+" : "−"}${Math.abs(scoreDelta)}` : "unchanged") : "soon", open: showRecap, set: setShowRecap },
-          { id: "wear", label: "Wearables", status: connectedCount ? `${connectedCount} connected` : "optional", open: showWear, set: setShowWear },
+          { id: "recap", label: "Month vs last month", status: recap ? felt : "soon", open: showRecap, set: setShowRecap },
+          FEATURES.wearables && { id: "wear", label: "Wearables", status: connectedCount ? `${connectedCount} connected` : "optional", open: showWear, set: setShowWear },
           { id: "meds", label: "What I'm trying", status: lastMed ? `${lastMed.name}, day ${Math.max(1, 1 - daysUntil(lastMed.started))}` : "", open: showMeds, set: setShowMeds },
           { id: "appts", label: "Appointments", status: upcoming[0] ? `${upcoming[0].who || "visit"} ${apptIn === 0 ? "today" : `in ${apptIn} day${apptIn === 1 ? "" : "s"}`}` : "", open: showAppts, set: setShowAppts },
           { id: "journal", label: "Journal", status: lastJ ? `last entry ${wd(lastJ)}` : "", open: showJournal, set: setShowJournal },
-        ];
+        ].filter(Boolean);
         return (
           <div className="dgrid">
             {sections.map((sec) => (
@@ -230,41 +299,41 @@ export default function HomeScreen({
 
       {showRecap && (
         <div className="bodypanel detached" id="home-recap">
-          <p className="ptitle">Your month vs last month</p>
+          <p className="ptitle">{t("home.yourMonthVsLastMonth")}</p>
           {recap ? (
             <>
-                  <div className="recaprow"><span>Average day score</span><b>{recap.score[0]} → {recap.score[1]} {delta(recap.score[0], recap.score[1])}</b></div>
-                  <div className="recaprow"><span>Calm days</span><b>{recap.calm[0]} → {recap.calm[1]} {delta(recap.calm[0], recap.calm[1])}</b></div>
-                  <div className="recaprow"><span>Rough nights</span><b>{recap.poor[0]} → {recap.poor[1]} {delta(recap.poor[0], recap.poor[1], false)}</b></div>
-                  {recap.top && <div className="recaprow"><span>{recap.top.label} days</span><b>{recap.top.prev} → {recap.top.now} {delta(recap.top.prev, recap.top.now, false)}</b></div>}
-                  <p className="rfoot">Progress isn't always a straight line — a harder month is information, not failure.</p>
+                  <p className="recapfelt">{(() => { const d = recap.score[1] - recap.score[0]; return Math.abs(d) < 3 ? "This month felt about the same as last month." : `This month felt ${Math.abs(d) >= 8 ? "" : "a little "}${d > 0 ? "lighter" : "heavier"} than last month.`; })()}</p>
+                  <div className="recaprow"><span>{t("home.calmDays")}</span><b>{recap.calm[0]} → {recap.calm[1]} {delta(recap.calm[0], recap.calm[1])}</b></div>
+                  <div className="recaprow"><span>{t("home.roughNights")}</span><b>{recap.poor[0]} → {recap.poor[1]} {delta(recap.poor[0], recap.poor[1], false)}</b></div>
+                  {recap.top && <div className="recaprow"><span>{t("home.days", { label: recap.top.label })}</span><b>{recap.top.prev} → {recap.top.now} {delta(recap.top.prev, recap.top.now, false)}</b></div>}
+                  <p className="rfoot">{t("home.progressIsntAlwaysAStraight")}</p>
             </>
-          ) : <p className="plain" style={{ marginTop: 6 }}>Your first monthly recap arrives once there are two months to compare. Keep going.</p>}
+          ) : <EmptyNote>{t("home.yourFirstMonthlyRecapArrives")}</EmptyNote>}
         </div>
       )}
 
       {/* ---- Wearables ---- */}
-      {showWear && (
+      {showWear && FEATURES.wearables && (
         <div className="bodypanel detached" id="home-wear">
-          <p className="ptitle">Wearables</p>
-          <p className="hint" style={{ margin: "10px 0" }}>Entirely optional. Cyra works fully without a device. Connect one and Cyra keeps only temperature, resting heart rate, HRV and sleep from it — whichever your device records.</p>
+          <p className="ptitle">{t("home.wearables")}</p>
+          <p className="hint" style={{ margin: "10px 0" }}>{t("home.entirelyOptionalCyraWorksFully")}</p>
           {SOURCES.map(({ id, name, what, viaServer }) => {
             const st = wearSources[id];
             return (
               <div key={id}>
                 <div className="medrow">
-                  <div className="medinfo"><b>{name}</b><span>{what}</span>{st?.pending && <span>{st.restored ? id === "oura" ? "Restored from a backup, not confirmed yet: it shows as connected once a Sync works, and Sync removes it if it no longer does." : "Restored from a backup, not confirmed yet: it shows as connected once readings arrive. If you ended it after making the backup, tap Disconnect." : "Waiting for the connection to finish — tap Sync once you've approved Cyra."}</span>}{id === "terra" && terraOffCount > 0 && <span>Disconnect not confirmed yet: your earlier connection may still be linked and sending new readings to Cyra's server. Cyra keeps asking while it's open and each time you open it.</span>}</div>
+                  <div className="medinfo"><b>{name}</b><span>{what}</span>{st?.pending && <span>{st.restored ? id === "oura" ? t("home.restoredFromABackupNot") : t("home.restoredFromABackupNot2") : t("home.waitingForTheConnectionTo")}</span>}{id === "terra" && terraOffCount > 0 && <span>{t("home.disconnectNotConfirmedYetYour")}</span>}</div>
                   <div className="wearbtns">
-                    {viaServer && st && !st.demo && <button className="takebtn" disabled={!!wearBusy} aria-busy={wearBusy === `${id}:off`} onClick={() => disconnectWear(id, name)}>{wearBusy === `${id}:off` ? "Disconnecting…" : "Disconnect"}</button>}
-                    <button className={`takebtn ${st && !st.pending ? "on" : ""}`} disabled={!!wearBusy} aria-busy={wearBusy === id} aria-expanded={viaServer && !st ? wearConfirm === id : undefined} onClick={() => connectWear(id, name)}>{wearBusy === id ? (st ? "Syncing…" : "Connecting…") : st ? (st.pending ? "Sync" : "✓ Sync") : "Connect"}</button>
+                    {viaServer && st && !st.demo && <button className="takebtn" disabled={!!wearBusy} aria-busy={wearBusy === `${id}:off`} onClick={() => disconnectWear(id, name)}>{wearBusy === `${id}:off` ? t("home.disconnecting") : t("home.disconnect")}</button>}
+                    <button className={`takebtn ${st && !st.pending ? "on" : ""}`} disabled={!!wearBusy} aria-busy={wearBusy === id} aria-expanded={viaServer && !st ? wearConfirm === id : undefined} onClick={() => connectWear(id, name)}>{wearBusy === id ? (st ? t("home.syncing") : t("home.connecting")) : st ? (st.pending ? t("home.sync") : t("home.sync2")) : t("home.connect")}</button>
                   </div>
                 </div>
                 {wearConfirm === id && !st && (
-                  <div className="plaincard wearconfirm" role="group" aria-label={`Before connecting ${name}`}>
+                  <div className="plaincard wearconfirm" role="group" aria-label={t("home.beforeConnecting", { name })}>
                     <p className="plain">{DISCLOSE[id].summary}</p>
-                    <Details label="Exactly what happens"><ul>{DISCLOSE[id].details.map((t) => <li key={t}>{t}</li>)}</ul></Details>
-                    <button className="cta" onClick={() => connectWear(id, name, { confirmed: true })}>Continue</button>
-                    <button className="ghostbtn" onClick={() => setWearConfirm(null)}>Not now</button>
+                    <Details label={t("home.exactlyWhatHappens")}><ul>{DISCLOSE[id].details.map((tv) => <li key={tv}>{tv}</li>)}</ul></Details>
+                    <button className="cta" onClick={() => connectWear(id, name, { confirmed: true })}>{t("home.continue")}</button>
+                    <button className="ghostbtn" onClick={() => setWearConfirm(null)}>{t("home.notNow")}</button>
                   </div>
                 )}
               </div>
@@ -272,25 +341,17 @@ export default function HomeScreen({
           })}
           {wearData.length > 0 && (
             <div className="plaincard" style={{ marginTop: 10 }}>
-              <div className="recaprow" style={{ borderTop: "none", marginTop: 0 }}><span>Avg temperature deviation</span><b>{wAvg("temp") == null ? "—" : `${wAvg("temp") > 0 ? "+" : ""}${wAvg("temp")}°C`}</b></div>
-              <div className="recaprow"><span>Resting heart rate</span><b>{wAvg("rhr") == null ? "—" : `${wAvg("rhr")} bpm`}</b></div>
-              <div className="recaprow"><span>HRV</span><b>{wAvg("hrv") == null ? "—" : `${wAvg("hrv")} ms`}</b></div>
-              <div className="recaprow"><span>Sleep score</span><b>{wAvg("sleep") == null ? "—" : wAvg("sleep")}</b></div>
+              <div className="recaprow" style={{ borderTop: "none", marginTop: 0 }}><span>{t("home.avgTemperatureDeviation")}</span><b>{wAvg("temp") == null ? "—" : t("home.c", { v0: wAvg("temp") > 0 ? "+" : "", v1: wAvg("temp") })}</b></div>
+              <div className="recaprow"><span>{t("home.restingHeartRate")}</span><b>{wAvg("rhr") == null ? "—" : t("home.bpm", { v0: wAvg("rhr") })}</b></div>
+              <div className="recaprow"><span>{t("home.hrv")}</span><b>{wAvg("hrv") == null ? "—" : t("home.ms", { v0: wAvg("hrv") })}</b></div>
+              <div className="recaprow"><span>{t("home.sleepScore")}</span><b>{wAvg("sleep") == null ? "—" : wAvg("sleep")}</b></div>
             </div>
           )}
-          <p className="rfoot">{allDemo ? "This build shows 30 days of illustrative demo data shaped to your stage — not a real device. "
-            : DEMO_WEARABLES && !wearData.length ? "In this demo build, connecting a device adds 30 days of illustrative data shaped to your stage — not from a real device. "
-            : isNative() ? "Apple Health and Health Connect are read on this phone and leave it only inside an encrypted backup you choose to save. " : ""}Wearable signals confirm patterns after the fact — they don't replace a clinician and aren't contraception.</p>
+          <p className="rfoot">{allDemo ? t("home.thisBuildShows30Days")
+            : DEMO_WEARABLES && !wearData.length ? t("home.inThisDemoBuildConnecting")
+            : isNative() ? t("home.appleHealthAndHealthConnect") : ""}{t("home.wearableSignalsConfirmPatternsAfter")}</p>
           {!allDemo && !(DEMO_WEARABLES && !wearData.length) && (
-            <Details label="How each connection works">
-              <ul>
-                {isNative() && <li>Cyra never sends Apple Health or Health Connect readings anywhere; they leave this phone only inside an encrypted backup you choose to save.</li>}
-                <li>Oura readings pass through Cyra's server on the way to you and aren't stored there.</li>
-                <li>Fitbit, Garmin and Whoop connect through Terra, a health-data service that keeps your connection, and the data it collects, under its own policy. Their readings wait in Cyra's server memory (never on disk) until this device collects them, and are deleted after 7 days if not collected.</li>
-                <li>Disconnect ends the connection; anything Terra already collected stays under Terra's policy.</li>
-                <li>Delete everything also ends both connections. If Cyra can't confirm that, your record isn't deleted yet: Cyra shows what did and didn't end, and lets you try again where that can help, or delete on this device anyway.</li>
-              </ul>
-            </Details>
+            <Details label={t("home.howEachConnectionWorks")}><WearableFacts native={isNative()} /></Details>
           )}
         </div>
       )}
@@ -298,73 +359,102 @@ export default function HomeScreen({
       {/* ---- What I'm trying ---- */}
       {showMeds && (
         <div className="bodypanel detached" id="home-meds">
-          <p className="ptitle">What I'm trying · meds, supplements, habits</p>
-          <p className="hint" style={{ margin: "10px 0" }}>Change one thing — a prescription, a supplement, cutting caffeine, an earlier bedtime — and Cyra compares your days before and after. Trial and error, with a record.</p>
+          <p className="ptitle">{t("home.whatImTryingMedsSupplements")}</p>
+          <p className="hint" style={{ margin: "10px 0" }}>{t("home.changeOneThingAPrescription")}</p>
           {meds.map((m) => {
             const takenToday = !!(medLog[todayIso] || {})[m.id];
             const eff = medEffects.find((e) => e.id === m.id);
             return (
               <div className="medrow" key={m.id}>
-                <div className="medinfo"><b>{m.name}</b><span>{m.kind === "rx" ? "Prescription" : m.kind === "supp" ? "Supplement" : "Habit"} · since {fmt(m.started)}</span>
-                  {eff?.ready ? <span className="medeff">Day score {eff.before} → {eff.after} since starting</span> : <span className="medeff muted">{eff ? trialWait(eff) : ""}</span>}
+                <div className="medinfo"><b>{m.name}</b><span>{m.kind === "rx" ? t("home.prescription") : m.kind === "supp" ? t("home.supplement") : t("home.habit")} {t("home.since")} {fmt(m.started)}</span>
+                  {eff?.ready ? <span className="medeff">{Math.abs(eff.after - eff.before) < 3 ? t("home.yourDaysHaveFeltAbout") : t("home.yourDaysHaveFeltSince", { v0: eff.after > eff.before ? "lighter" : "heavier" })}</span> : <span className="medeff muted">{eff ? trialWait(eff) : ""}</span>}
                 </div>
-                <button aria-pressed={takenToday} className={`takebtn ${takenToday ? "on" : ""}`} onClick={() => setMedLog((l) => ({ ...l, [todayIso]: { ...(l[todayIso] || {}), [m.id]: !takenToday } }))}>{takenToday ? "✓ Taken" : "Taken today?"}</button>
+                <button aria-pressed={takenToday} className={`takebtn ${takenToday ? "on" : ""}`} onClick={() => setMedLog((l) => ({ ...l, [todayIso]: { ...(l[todayIso] || {}), [m.id]: !takenToday } }))}>{takenToday ? t("home.taken") : t("home.takenToday")}</button>
               </div>
             );
           })}
-          <input className="inp" placeholder="e.g. Estradiol patch · Magnesium · No caffeine after noon" aria-label="e.g. Estradiol patch · Magnesium · No caffeine after noon" value={newMed.name} onChange={(e) => setNewMed((x) => ({ ...x, name: e.target.value }))} />
+          <input className="inp" placeholder={t("home.eGEstradiolPatchMagnesium")} aria-label={t("home.eGEstradiolPatchMagnesium")} value={newMed.name} onChange={(e) => setNewMed((x) => ({ ...x, name: e.target.value }))} />
           <div className="mcrow" style={{ marginBottom: 9 }}>
             {[["rx", "Prescription"], ["supp", "Supplement"], ["habit", "Habit / lifestyle"]].map(([v, l]) => <button key={v} aria-pressed={newMed.kind === v} className={`mc ${newMed.kind === v ? "on" : ""}`} onClick={() => setNewMed((x) => ({ ...x, kind: v }))}>{l}</button>)}
           </div>
-          <p className="lab" style={{ margin: "4px 0 6px" }}>Started on</p>
-          <input className="inp" type="date" aria-label="Started on date" value={newMed.started} onChange={(e) => setNewMed((x) => ({ ...x, started: e.target.value }))} />
-          <button className="cta" onClick={() => { if (!newMed.name.trim()) return ping("Give it a name first"); setMeds((m) => [...m, { id: Date.now(), ...newMed }]); setNewMed({ name: "", kind: "supp", started: todayIso }); ping("Added — Cyra will compare your days before and after"); }}>Add</button>
-          <p className="rfoot">Change one variable at a time for two weeks, then look — that's how you learn what actually moves your days. Cyra never recommends doses or changes; those stay with you and your clinician.</p>
+          <p className="lab" style={{ margin: "4px 0 6px" }}>{t("home.startedOn")}</p>
+          <input className="inp" type="date" aria-label={t("home.startedOnDate")} value={newMed.started} onChange={(e) => setNewMed((x) => ({ ...x, started: e.target.value }))} />
+          <button className="cta" onClick={() => { if (!newMed.name.trim()) return ping("Give it a name first"); setMeds((m) => [...m, { id: Date.now(), ...newMed }]); setNewMed({ name: "", kind: "supp", started: todayIso }); ping("Added — Cyra will compare your days before and after"); }}>{t("home.add")}</button>
+          <p className="rfoot">{t("home.changeOneVariableAtA")}</p>
         </div>
       )}
 
       {/* ---- Appointments ---- */}
       {showAppts && (
         <div className="bodypanel detached" id="home-appts">
-          <p className="ptitle">Appointments</p>
+          <p className="ptitle">{t("home.appointments")}</p>
           {upcoming.map((a) => (
             <div className="medrow" key={a.id}>
-              <div className="medinfo"><b>{a.who || "Appointment"}</b><span>{fmt(a.date)} · in {daysUntil(a.date)} day{daysUntil(a.date) === 1 ? "" : "s"}</span></div>
-              {daysUntil(a.date) <= 7 && stage !== "preg" && <button className="takebtn on" onClick={() => goTab("report")}>Prep report</button>}
+              <div className="medinfo"><b>{a.who || t("home.appointment")}</b><span>{fmt(a.date)} {t("home.in")} {daysUntil(a.date)} {t("home.day")}{daysUntil(a.date) === 1 ? "" : "s"}</span></div>
+              {daysUntil(a.date) <= 7 && stage !== "preg" && <button className="takebtn on" onClick={() => goTab("report")}>{t("home.prepReport")}</button>}
             </div>
           ))}
           {past.filter((a) => !a.note).map((a) => (
             <div className="plaincard" key={a.id} style={{ margin: "8px 0" }}>
-              <b style={{ fontSize: 13.5 }}>{a.who || "Appointment"} · {fmt(a.date)}</b>
-              <p className="hint" style={{ margin: "4px 0 8px" }}>What did they say? A line or two is enough.</p>
-              <textarea className="inp" rows={2} style={{ resize: "none", fontFamily: "inherit" }} placeholder="e.g. Starting a low-dose patch, recheck in 3 months" aria-label="e.g. Starting a low-dose patch, recheck in 3 months" onBlur={(e) => { const v = e.target.value.trim(); if (v) setAppts((x) => x.map((y) => y.id === a.id ? { ...y, note: v } : y)); }} />
+              <b style={{ fontSize: 13.5 }}>{a.who || t("home.appointment")} · {fmt(a.date)}</b>
+              <p className="hint" style={{ margin: "4px 0 8px" }}>{t("home.whatDidTheySayA")}</p>
+              <textarea className="inp" rows={2} style={{ resize: "none", fontFamily: "inherit" }} placeholder={t("home.eGStartingALow")} aria-label={t("home.eGStartingALow")} onBlur={(e) => { const v = e.target.value.trim(); if (v) setAppts((x) => x.map((y) => y.id === a.id ? { ...y, note: v } : y)); }} />
             </div>
           ))}
-          {past.filter((a) => a.note).slice(0, 3).map((a) => <div className="medrow" key={a.id}><div className="medinfo"><b>{a.who || "Appointment"} · {fmt(a.date)}</b><span>{a.note}</span></div></div>)}
-          <p className="lab" style={{ margin: "10px 0 6px" }}>Add an appointment</p>
-          {newAppt.note && <p className="hint apptnote" style={{ margin: "0 0 6px" }}>For: {newAppt.note}</p>}
-          <input className="inp" type="date" aria-label="Appointment date" value={newAppt.date} onChange={(e) => setNewAppt((x) => ({ ...x, date: e.target.value }))} />
-          <input className="inp" placeholder="With whom (optional)" aria-label="With whom (optional)" value={newAppt.who} onChange={(e) => setNewAppt((x) => ({ ...x, who: e.target.value }))} />
-          <button className="cta" onClick={() => { if (!newAppt.date) return ping("Pick a date"); setAppts((x) => [...x, { id: Date.now(), ...newAppt, note: newAppt.note || "" }]); setNewAppt({ date: "", who: "", note: "" }); ping(stage === "preg" ? "Added — it shows on Home under Coming up" : "Added — it shows on Home, with a prompt to prep your report in the week before"); }}>Add</button>
+          {past.filter((a) => a.note).slice(0, 3).map((a) => <div className="medrow" key={a.id}><div className="medinfo"><b>{a.who || t("home.appointment")} · {fmt(a.date)}</b><span>{a.note}</span></div></div>)}
+          <p className="lab" style={{ margin: "10px 0 6px" }}>{t("home.addAnAppointment")}</p>
+          {newAppt.note && <p className="hint apptnote" style={{ margin: "0 0 6px" }}>{t("home.for", { note: newAppt.note })}</p>}
+          <input className="inp" type="date" aria-label={t("home.appointmentDate")} value={newAppt.date} onChange={(e) => setNewAppt((x) => ({ ...x, date: e.target.value }))} />
+          <input className="inp" placeholder={t("home.withWhomOptional")} aria-label={t("home.withWhomOptional")} value={newAppt.who} onChange={(e) => setNewAppt((x) => ({ ...x, who: e.target.value }))} />
+          <button className="cta" onClick={() => { if (!newAppt.date) return ping("Pick a date"); setAppts((x) => [...x, { id: Date.now(), ...newAppt, note: newAppt.note || "" }]); setNewAppt({ date: "", who: "", note: "" }); ping(stage === "preg" ? "Added — it shows on Home under Coming up" : "Added — it shows on Home, with a prompt to prep your report in the week before"); }}>{t("home.add")}</button>
         </div>
       )}
 
       {/* ---- Journal ---- */}
       {showJournal && (
         <div className="bodypanel detached" id="home-journal">
-          <p className="ptitle">Journal</p>
-          <p className="hint" style={{ margin: "10px 0 8px" }}>How are you, really? Some days a slider isn't enough.</p>
-          <textarea className="inp" rows={3} style={{ resize: "none", fontFamily: "inherit" }} value={jDraft} onChange={(e) => setJDraft(e.target.value)} placeholder="Private. Just for you." />
+          <p className="ptitle">{t("home.journal")}</p>
+          <p className="hint" style={{ margin: "10px 0 8px" }}>{t("home.howAreYouReallySome")}</p>
+          <textarea className="inp" rows={3} style={{ resize: "none", fontFamily: "inherit" }} value={jDraft} onChange={(e) => setJDraft(e.target.value)} placeholder={t("home.privateJustForYou")} />
           <button className="cta" onClick={() => {
-            const t = jDraft.trim(); if (!t) return;
+            const tv = jDraft.trim(); if (!tv) return;
             const more = !!journal[todayIso];
             // A day keeps every entry written on it: a later one is added below the earlier ones.
-            setJournal((j) => ({ ...j, [todayIso]: j[todayIso] ? `${j[todayIso]}\n\n${t}` : t }));
+            setJournal((j) => ({ ...j, [todayIso]: j[todayIso] ? `${j[todayIso]}\n\n${tv}` : tv }));
             setJDraft(""); ping(more ? "Added to today's journal" : "Saved to your journal");
-          }}>Save entry</button>
+          }}>{t("home.saveEntry")}</button>
           {Object.keys(journal).sort().reverse().slice(0, 5).map((iso) => <div className="jentry" key={iso}><b>{fmt(iso)}</b><p style={{ whiteSpace: "pre-wrap" }}>{journal[iso]}</p></div>)}
         </div>
       )}
     </main>
+  );
+}
+
+/* Home's Quick log picker (calm R3): pick 2–4 tiles from what this stage can log; the order is the order picked.
+   "Put back Cyra's tiles" clears her choice (null = the default set). Saved in the record (homeTiles) and in backups. */
+function TilePicker({ choices, chosen, custom, set, onClose }) {
+  const toggle = (id) => {
+    const on = chosen.includes(id);
+    if (on && chosen.length <= TILES_MIN) return;
+    if (!on && chosen.length >= TILES_MAX) return;
+    set(on ? chosen.filter((x) => x !== id) : [...chosen, id]);
+  };
+  return (
+    <Sheet id="tile-sheet" title={t("home.yourQuickLog")} onClose={onClose} closeLabel={t("home.closeQuickLogChoices")}>
+      <p className="hint tilehint" id="tile-hint">{t("home.pickToTheyShowOn", { TILES_MIN, TILES_MAX })}</p>
+      <div className="tilepick" role="group" aria-label={t("home.quickLogTiles")} aria-describedby="tile-hint">
+        {choices.map((tv) => {
+          const on = chosen.includes(tv.id);
+          const stuck = on ? chosen.length <= TILES_MIN : chosen.length >= TILES_MAX;
+          return (
+            <button key={tv.id} type="button" className={`mc tileopt ${on ? "on" : ""}`} aria-pressed={on} aria-disabled={stuck || undefined} onClick={() => toggle(tv.id)}>
+              <span className="tileopt-ico" data-tint={tv.tint} aria-hidden="true"><Icon name={tv.icon} size={16} /></span>{tv.label}
+            </button>
+          );
+        })}
+      </div>
+      {custom && <button type="button" className="linkbtn tilereset" onClick={() => { document.getElementById("tile-sheet-t")?.focus(); set(null); }}>{t("home.putBackCyrasTiles")}</button>}
+      <button type="button" className="cta tiledone" onClick={onClose}>{t("home.done")}</button>
+    </Sheet>
   );
 }

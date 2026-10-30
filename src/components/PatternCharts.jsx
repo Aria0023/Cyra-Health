@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { dayScore, isPeriodDay, fmt, localDay, sevDots } from "../lib/engine.js";
-import { FAMILIES, SYM_FAMILY } from "../lib/constants.js";
+import { dayScore, isPeriodDay, isRoughNight, fmt, localDay, sevDots } from "../lib/engine.js";
+import { FAMILIES, SYM_FAMILY, famVar } from "../lib/constants.js";
 import Details from "./Details.jsx";
+import { usualOf, bandOf, BAND, BAND_WORDS, bandCounts, bandWords, bandTrend } from "../lib/patterns.js";
+import { fmtDate } from "../lib/i18n.js";
 
 /* "Your patterns" card (Home and the Patterns tab; cycle and perimenopause/menopause stages).
    One card, two views behind a switch:
-   - Day by day: the day score for the last 60 calendar days, each day a dot in the colour of
+   - Day by day: each of the last 60 calendar days as a dot (higher = a lighter day for her) in the colour of
      its strongest symptom family, the 7-day average as a line, period days shaded, the best and
-     hardest 4-day stretches labelled; under it, on the same columns, one row per most-logged
+     hardest 4-day stretches labelled. Calm R6: no 0–100 axis and no points; the plot is read against her own
+     usual (lib/patterns.js usualOf / bandOf), a soft band labelled "Usual" with "Lighter" above and "Heavier" below; under it, on the same columns, one row per most-logged
      symptom (plus rough nights) with a dot per day sized by severity.
    - By cycle (two logged period starts, not in menopause): one ring per logged cycle, day 1 at
      the top, clockwise; dot size = how hard the day was, dot colour = strongest symptom family;
@@ -20,13 +23,14 @@ import Details from "./Details.jsx";
    disclosure lists the same data as text, and the line and dots draw in once per mount.
    Everything is computed from the on-device record; nothing here is stored or sent. */
 
-const FAM = Object.fromEntries(FAMILIES.map((f) => [f.id, f]));
+// Each family's colour as its CSS variable (--fam-*, vizVars), so the marks follow light or dark without a literal.
+const FAM = Object.fromEntries(FAMILIES.map((f) => [f.id, { ...f, color: famVar(f.id) }]));
 const NONE = "var(--line)";
 // a hairline in the ink (not the card colour) so every dot has an edge on the card and on the period band
 const DOT_EDGE = "color-mix(in srgb, var(--ink) 35%, transparent)";
 const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return localDay(d); };
 const daysBetween = (a, b) => Math.round((new Date(b + "T12:00:00") - new Date(a + "T12:00:00")) / 86400000);
-const wkday = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
+const wkday = (iso) => fmtDate(iso, { weekday: "short" });
 const mean = (w) => w.reduce((a, d) => a + d.score, 0) / w.length;
 
 /* The family of the day's strongest symptom (ties go to the first symptom in the stage's list);
@@ -39,13 +43,14 @@ export function dominantFamily(entry, ids) {
   return entry.sleepQ === "poor" ? "sleep" : null;
 }
 
-/* The last `n` calendar days ending today, with the entry, score and family for each. */
-export function windowDays(sorted, ids, todayIso, n = 60) {
+/* The last `n` calendar days ending today, with the entry, score and family for each. scale: the day-score divisor
+   (App.jsx passes SCORE_SCALE[stage]; lib/engine.js dayScore). */
+export function windowDays(sorted, ids, todayIso, n = 60, scale = ids.length) {
   const by = new Map(sorted.map((d) => [d.date, d]));
   return Array.from({ length: n }, (_, i) => {
     const iso = addDays(todayIso, i - (n - 1));
     const e = by.get(iso) || null;
-    return { iso, e, score: e ? dayScore(e, ids) : null, fam: dominantFamily(e, ids) };
+    return { iso, e, score: e ? dayScore(e, ids, scale) : null, fam: dominantFamily(e, ids) };
   });
 }
 
@@ -64,19 +69,20 @@ const stepKey = (ev, count, cur, go) => {
 const daySyms = (e, ids) => (e ? ids.filter((k) => (e.sym?.[k] || 0) > 0).sort((a, b) => e.sym[b] - e.sym[a]) : []);
 
 /* The day card's reading as one sentence, for the live region (spoken on release or a step, never on every move). */
-export function describeDay(day, ids, labels, starts) {
+export function describeDay(day, ids, labels, starts, usual = null) {
   if (!day) return "";
   const cd = starts?.length ? cycleDayOf(starts, day.iso) : null;
   const e = day.e;
   const head = `${wkday(day.iso)}, ${fmt(day.iso)}${cd ? `, cycle day ${cd}` : ""}${e && isPeriodDay(e) ? ", period" : ""}.`;
   if (!e) return `${head} Nothing logged that day.`;
   const syms = daySyms(e, ids).slice(0, 6).map((k) => `${labels[k] || k} ${e.sym[k]} of 3`);
-  return `${head} Day score ${Math.round(day.score * 100)}${e.sleepQ ? `, slept ${e.sleepQ}` : ""}. ${syms.length ? syms.join(", ") + "." : "No symptoms logged."}`;
+  const band = bandOf(day.score, usual);
+  return `${head}${band ? ` ${BAND_WORDS[band]}` : ""}${e.sleepQ ? `${band ? ", slept" : " Slept"} ${e.sleepQ}` : ""}${band || e.sleepQ ? "." : ""} ${syms.length ? syms.join(", ") + "." : "No symptoms logged."}`;
 }
 
 /* The day card. No aria-live of its own (the card follows pointer moves; PatternsCard's sr-only region
    speaks on release or a step). onStep(dir): the ‹ › buttons on Patterns; absent on Home. */
-export function DayCard({ day, ids, labels, starts, empty, onStep = null, atStart = false, atEnd = false }) {
+export function DayCard({ day, ids, labels, starts, empty, onStep = null, atStart = false, atEnd = false, usual = null }) {
   if (!day) return <div className="pday"><span className="hint">{empty}</span></div>;
   const cd = starts?.length ? cycleDayOf(starts, day.iso) : null;
   const e = day.e;
@@ -96,7 +102,7 @@ export function DayCard({ day, ids, labels, starts, empty, onStep = null, atStar
       <div key={day.iso} className="pday-in">
         {!e ? <div>Nothing logged that day.</div> : (
           <>
-            <div>Day score <b>{Math.round(day.score * 100)}</b>{e.sleepQ ? `. Slept ${e.sleepQ}` : ""}.</div>
+            {(bandOf(day.score, usual) || e.sleepQ) && <div>{bandOf(day.score, usual) ? <b>{BAND_WORDS[bandOf(day.score, usual)]}</b> : null}{e.sleepQ ? `${bandOf(day.score, usual) ? ". Slept" : "Slept"} ${e.sleepQ}` : ""}.</div>}
             {syms.length ? (
               <ul className="pday-s">
                 {syms.slice(0, 6).map((k) => (
@@ -114,7 +120,7 @@ export function DayCard({ day, ids, labels, starts, empty, onStep = null, atStar
 function FamilyLegend({ fams, extra, className = "flegend" }) {
   return (
     <div className={className}>
-      {FAMILIES.filter((f) => fams.has(f.id)).map((f) => <span key={f.id}><i className="fdot" style={{ background: f.color }} aria-hidden="true" />{f.label}</span>)}
+      {FAMILIES.filter((f) => fams.has(f.id)).map((f) => <span key={f.id}><i className="fdot" style={{ background: famVar(f.id) }} aria-hidden="true" />{f.label}</span>)}
       {extra}
     </div>
   );
@@ -140,19 +146,21 @@ export function ChartSoon({ logged, children = null }) {
 
 /* ---------------- Day by day: the day-score line with the symptom rows under it ---------------- */
 
-/* Rough nights, then the `max` most-logged symptoms, each with a per-day value for its dots. */
+/* Rough nights, then the `max` most-logged symptoms, each with a per-day value for its dots. A rough night is engine
+   isRoughNight (L8: Rough night, or Sleep disruption moderate or strong), the same reading as the summary, the recap
+   and the sleep links. */
 export function symptomRows(days, ids, labels, max) {
   const count = (k) => days.filter((d) => (d.e?.sym?.[k] || 0) > 0).length;
-  const nights = days.filter((d) => d.e?.sleepQ === "poor").length;
+  const nights = days.filter((d) => isRoughNight(d.e)).length;
   return [
-    ...(nights ? [{ k: "_poor", label: "Rough nights", fam: "sleep", c: nights, v: (d) => (d.e?.sleepQ === "poor" ? 2 : 0) }] : []),
+    ...(nights ? [{ k: "_poor", label: "Rough nights", fam: "sleep", c: nights, v: (d) => (isRoughNight(d.e) ? 2 : 0) }] : []),
     ...ids.map((k) => ({ k, c: count(k) })).filter((o) => o.c > 0).sort((a, b) => b.c - a.c).slice(0, max)
       .map((o) => ({ k: o.k, label: labels[o.k] || o.k, fam: SYM_FAMILY[o.k] || "body", c: o.c, v: (d) => d.e?.sym?.[o.k] || 0 })),
   ];
 }
 
-/* 7-day average, best and hardest 4-day stretches, and the first-week to last-week change
-   (`diff`, in points; `first` / `last` are the two week means in points). */
+/* 7-day average, best and hardest 4-day stretches, and the first-week to last-week change (`diff`, `first`, `last`:
+   internal readings used only to decide what to say; calm R6 never shows them as numbers). */
 export function dayStats(days) {
   const n = days.length;
   const avg = days.map((_, i) => { const w = days.slice(Math.max(0, i - 6), i + 1).filter((d) => d.score != null); return w.length >= 3 ? mean(w) : null; });
@@ -172,17 +180,18 @@ export function dayStats(days) {
   return { avg, win, best, worst, showStretches, diff, first: first != null ? Math.round(first * 100) : null, last: last != null ? Math.round(last * 100) : null, bestSpan: span(best), worstSpan: span(worst) };
 }
 
-function DayField({ days, rows, stats, sel, setSel, compact = false, popIso = null, onCommit = null, animate = false }) {
-  const { avg, win, best, worst, showStretches, diff } = stats;
+function DayField({ days, rows, stats, sel, setSel, compact = false, popIso = null, onCommit = null, animate = false, usual = null, trend = null }) {
+  const { avg, win, best, worst, showStretches } = stats;
   // Home's compact card draws the same line, dots and bands on a shorter plot
-  const W = 360, LH = compact ? 150 : 206, L = 28, R = 10, T = 26, B = 16, n = days.length;
+  const W = 360, LH = compact ? 150 : 206, L = 50, R = 10, T = 26, B = 16, n = days.length;
   const RH = 30, rowsTop = LH + 8, rowsH = rows.length * RH, H = rowsTop + rowsH + 16;
   const x = (i) => L + (i / (n - 1)) * (W - L - R), step = (W - L - R) / (n - 1);
   // the scale starts a little below her lowest logged day (in tens), so the ups and downs are readable
   const minScore = Math.min(...days.filter((d) => d.score != null).map((d) => d.score), 1);
   const lo = Math.max(0, Math.floor((minScore - 0.1) * 10) / 10), span = 1 - lo;
   const y = (v) => T + (1 - (v - lo) / span) * (LH - T - B);
-  const ticks = [lo, lo + span / 2, 1].map((v) => Math.round(v * 100) / 100);
+  // her usual as a soft band (usual ± BAND.gap), clipped to the plot; words, never numbers, on the left
+  const uHi = usual != null ? Math.min(1, usual + BAND.gap) : null, uLo = usual != null ? Math.max(lo, usual - BAND.gap) : null;
   let path = "", pen = false;
   avg.forEach((v, i) => { if (v == null) { pen = false; return; } path += `${pen ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`; pen = true; });
   const logged = days.filter((d) => d.score != null);
@@ -196,7 +205,7 @@ function DayField({ days, rows, stats, sel, setSel, compact = false, popIso = nu
   const selBottom = rows.length ? rowsTop + rowsH : LH - B;
   // Patterns: an ink hairline on every dot (edge contrast on the card and the band); Home keeps H1's card-colour halo
   const edge = compact ? { stroke: "var(--card)", strokeWidth: 1.2 } : { stroke: DOT_EDGE, strokeWidth: 0.8 };
-  const summary = `Day score for the last 60 days, ${logged.length} days logged.${diff != null ? ` Weekly average ${diff >= 0 ? "up" : "down"} ${Math.abs(diff)} points since the first week.` : ""}${showStretches ? ` Best stretch from ${fmt(days[best].iso)}, hardest from ${fmt(days[worst].iso)}.` : ""}${rows.length ? ` Underneath: ${rows.map((r) => `${r.label} on ${r.c} days`).join(", ")}.` : ""} Use the left and right arrow keys to step through days.`;
+  const summary = `Your last 60 days, ${logged.length} days logged; higher dots are lighter days for you, lower dots heavier ones.${trend && trend.kind ? ` ${trend.sentence}` : ""}${showStretches ? ` Best stretch from ${fmt(days[best].iso)}, hardest from ${fmt(days[worst].iso)}.` : ""}${rows.length ? ` Underneath: ${rows.map((r) => `${r.label} on ${r.c} days`).join(", ")}.` : ""} Use the left and right arrow keys to step through days.`;
   return (
     <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-roledescription="interactive chart" aria-label={summary} tabIndex={0} className="psvg"
       onPointerMove={(ev) => setSel(pick(ev))} onPointerDown={(ev) => setSel(pick(ev))} onPointerUp={(ev) => commit(pick(ev))} onKeyDown={(ev) => stepKey(ev, n, sel, commit)}>
@@ -207,9 +216,17 @@ function DayField({ days, rows, stats, sel, setSel, compact = false, popIso = nu
             {rows.length > 0 && <rect x={x(i) - step / 2} y={rowsTop} width={step} height={rowsH} />}
           </g>
         ))}
-        {ticks.map((v) => (
-          <g key={v}><line x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="var(--line)" strokeWidth={1} /><text x={L - 6} y={y(v) + 3.5} textAnchor="end" className="ptick">{Math.round(v * 100)}</text></g>
-        ))}
+        {usual != null ? (
+          <g>
+            <rect x={L} y={y(uHi)} width={W - R - L} height={Math.max(2, y(uLo) - y(uHi))} rx={6} className="pusual" />
+            <text x={L - 6} y={(y(uHi) + y(uLo)) / 2 + 3.5} textAnchor="end" className="ptick">Usual</text>
+            <text x={L - 6} y={T + 8} textAnchor="end" className="ptick">Lighter</text>
+            <text x={L - 6} y={LH - B} textAnchor="end" className="ptick">Heavier</text>
+          </g>
+        ) : (
+          <g><text x={L - 6} y={T + 8} textAnchor="end" className="ptick">Lighter</text><text x={L - 6} y={LH - B} textAnchor="end" className="ptick">Heavier</text></g>
+        )}
+        <line x1={L} x2={W - R} y1={LH - B} y2={LH - B} stroke="var(--line)" strokeWidth={1} />
         {showStretches && [[best, bl, "Best stretch"], [worst, wl, "Hardest"]].map(([i, lb, t]) => (
           <g key={t}>
             <rect x={x(i) - 3} y={T} width={x(i + win - 1) - x(i) + 6} height={LH - T - B} rx={4} fill="none" stroke="var(--soft)" strokeDasharray="3 3" />
@@ -258,13 +275,13 @@ function DayField({ days, rows, stats, sel, setSel, compact = false, popIso = nu
 /* The last 4 cycles that began with a logged start (the newest runs to today), every day placed on
    its ring, and the 5-day window of cycle days that is usually hardest (needs 2 cycles and 6 rated
    days in the window; null otherwise). */
-function ringModel(sorted, ids, starts, todayIso) {
+function ringModel(sorted, ids, starts, todayIso, scale = ids.length) {
   const by = new Map(sorted.map((d) => [d.date, d]));
   const cyc = starts.slice(-4).map((s) => {
     const next = starts[starts.indexOf(s) + 1];
     const end = next ? addDays(next, -1) : todayIso;
     const len = Math.min(45, daysBetween(s, end) + 1);
-    return { start: s, days: Array.from({ length: len }, (_, k) => { const iso = addDays(s, k), e = by.get(iso) || null; return { iso, cd: k + 1, e, score: e ? dayScore(e, ids) : null, fam: dominantFamily(e, ids) }; }) };
+    return { start: s, days: Array.from({ length: len }, (_, k) => { const iso = addDays(s, k), e = by.get(iso) || null; return { iso, cd: k + 1, e, score: e ? dayScore(e, ids, scale) : null, fam: dominantFamily(e, ids) }; }) };
   });
   const S = 340, cx = S / 2, cy = S / 2;
   const MAXD = Math.max(35, ...cyc.map((c) => c.days.length));
@@ -341,8 +358,8 @@ const Tri = ({ up }) => <svg className="ptri" width="10" height="10" viewBox="0 
    is picked. The view switch and the legend stay in both variants. popIso: the day just saved
    (App.jsx justSaved, 1.2 s after a save of today); its dot pops once (.dot-new). allowCycle
    (Patterns): false in menopause, so the "By cycle · after your 2nd period" placeholder never
-   shows there. Renders nothing until 3 days are logged. */
-export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso, maxRows = 6, onMore = null, compact = false, popIso = null, allowCycle = true }) {
+   shows there. scale: the day-score divisor for the rings (as windowDays). Renders nothing until 3 days are logged. */
+export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso, maxRows = 6, onMore = null, compact = false, popIso = null, allowCycle = true, scale, title = null }) {
   const [view, setView] = useState("days");
   // Patterns opens on the last logged day; Home waits for a tap
   const [selIso, setSelIso] = useState(() => (compact ? null : [...days].reverse().find((d) => d.e)?.iso ?? null));
@@ -360,7 +377,7 @@ export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso,
   const allRows = symptomRows(days, ids, labels, maxRows);
   const rows = compact ? allRows.slice(0, maxRows) : allRows;
   const stats = dayStats(days);
-  const model = cycleView ? ringModel(sorted, ids, starts, todayIso) : null;
+  const model = cycleView ? ringModel(sorted, ids, starts, todayIso, scale) : null;
   // one selection for both views, kept by date so switching views keeps the day when it is drawn
   const daySel = selIso == null ? null : days.findIndex((d) => d.iso === selIso);
   const ringSel = model && selIso != null ? model.pts.findIndex((p) => p.iso === selIso) : null;
@@ -368,12 +385,14 @@ export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso,
   const fams = new Set((cycleView ? model.pts : days).map((d) => d.fam).filter(Boolean));
   if (!cycleView) rows.forEach((r) => fams.add(r.fam));
   const hasPeriod = (cycleView ? model.pts : days).some((d) => d.e && isPeriodDay(d.e));
-  const { diff, showStretches, worst, win } = stats;
+  const { showStretches, worst, win } = stats;
+  const usual = usualOf(days);
+  const trend = bandTrend(days, usual);
   const hs = model?.hs;
   // the current index, count and item list of the view that is drawn
   const list = cycleView ? model.pts : days;
   const cur = cycleView ? ringSel : daySel;
-  const speak = (i) => setAnnounce(describeDay(list[i], ids, labels, starts));
+  const speak = (i) => setAnnounce(describeDay(list[i], ids, labels, starts, usual));
   const goTo = (i) => { setSelIso(list[i].iso); };
   const stepTo = (dir) => { const from = cur == null || cur < 0 ? list.length - 1 : cur; const i = Math.max(0, Math.min(list.length - 1, from + dir)); goTo(i); speak(i); };
   // the one-sentence reading of the view: the card's headline above the plot (Home and Patterns)
@@ -383,12 +402,10 @@ export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso,
       {hs != null && <b>Days {hs}–{hs + 4}</b>}
       <p>{hs != null ? `Across your last ${model.cyc.length} cycles, your hardest days usually fall around cycle days ${hs}–${hs + 4}. Worth planning a lighter week around them.` : "Keep logging through your next period and Cyra can show which cycle days are usually hardest for you."}</p>
     </div>
-  ) : (diff != null || showStretches) ? (
+  ) : (trend.kind || showStretches) ? (
     <div className={top}>
-      {diff != null && (compact || Math.abs(diff) < 3
-        ? <b>{diff > 0 ? "+" : ""}{diff}</b>
-        : <b><Tri up={diff > 0} />{diff > 0 ? "+" : ""}{diff} <small className="pword">{diff > 0 ? "better" : "harder"}</small></b>)}
-      <p>{diff != null ? (Math.abs(diff) < 3 ? "Your weekly average is about where it was 8 weeks ago." : `Your weekly average is ${Math.abs(diff)} points ${diff > 0 ? "better" : "lower"} than 8 weeks ago.`) : ""}{showStretches ? ` Hardest stretch: ${fmt(days[worst].iso)}–${fmt(days[worst + win - 1].iso)}.` : ""}</p>
+      {trend.kind && trend.kind !== "same" && <b><Tri up={trend.kind === "lighter"} /><small className="pword">{trend.kind === "lighter" ? "More lighter days" : "More heavier days"}</small></b>}
+      <p>{trend.kind ? trend.sentence : ""}{showStretches ? ` Hardest stretch: ${fmt(days[worst].iso)}–${fmt(days[worst + win - 1].iso)}.` : ""}</p>
     </div>
   ) : null;
   const legendExtra = cycleView
@@ -410,20 +427,21 @@ export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso,
         </div>
       )}
       {callout}
-      {!compact && <p className="hint phint">{cycleView ? "One ring per cycle, day 1 at the top. Bigger dots are harder days." : "Your day score; higher is a better day. Each dot takes the colour of that day's strongest symptom."}</p>}
+      {!compact && <p className="hint phint">{cycleView ? "One ring per cycle, day 1 at the top. Bigger dots are harder days." : "Each dot is a day: higher is a lighter day for you, lower a heavier one, against your own usual. It takes the colour of that day's strongest symptom."}</p>}
       {!compact && <FamilyLegend className="flegend flegend-top" fams={fams} extra={legendExtra} />}
       {cycleView
         ? <CycleRings model={model} sel={ringSel} setSel={(i) => setSelIso(model.pts[i].iso)} compact={compact} onCommit={speak} animate={animate} />
-        : <DayField days={days} rows={rows} stats={stats} sel={daySel} setSel={(i) => setSelIso(days[i].iso)} compact={compact} popIso={popIso} onCommit={speak} animate={animate} />}
+        : <DayField days={days} rows={rows} stats={stats} sel={daySel} setSel={(i) => setSelIso(days[i].iso)} compact={compact} popIso={popIso} onCommit={speak} animate={animate} usual={usual} trend={trend} />}
       {compact && <FamilyLegend fams={fams} extra={legendExtra} />}
-      {(!compact || picked) && <DayCard day={picked} ids={ids} labels={labels} starts={starts} onStep={compact ? null : stepTo} atStart={cur === 0} atEnd={cur === list.length - 1}
+      {(!compact || picked) && <DayCard usual={usual} day={picked} ids={ids} labels={labels} starts={starts} onStep={compact ? null : stepTo} atStart={cur === 0} atEnd={cur === list.length - 1}
         empty={cycleView ? "Tap a dot to see that day." : rows.length ? "Tap a day, or a dot in a row, to see everything you logged that day. Bigger dots in the rows are stronger days." : "Tap a day to see what you logged."} />}
       <p className="sr-only" aria-live="polite" aria-atomic="true">{announce}</p>
       {!compact && (
         <Details label="The numbers behind this chart">
           <ul className="pnums">
             <li>{logged.length} of the last 60 days logged.</li>
-            {diff != null && <li>Weekly average {diff === 0 ? "unchanged" : `${diff > 0 ? "up" : "down"} ${Math.abs(diff)} points`} since the first week ({stats.first} then, {stats.last} now).</li>}
+            {usual != null && <li>The last 7 days: {bandWords(bandCounts(days.slice(-7), usual))}. The first 7: {bandWords(bandCounts(days.slice(0, 7), usual))}.</li>}
+            {usual != null && <li>Your usual is the middle of your logged days; a lighter or heavier day sits clearly above or below it.</li>}
             {showStretches && <li>Best stretch {stats.bestSpan}. Hardest stretch {stats.worstSpan}.</li>}
             {counts.map((r) => <li key={r.k}>{r.label}: {r.c} of 60 days.</li>)}
           </ul>

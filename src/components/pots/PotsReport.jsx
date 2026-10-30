@@ -5,8 +5,10 @@ import { reportModel, toCSV, summaryText, emailParts, reportPdf, modelTexts, pdf
 import { PdfDoc } from "../../lib/pdf.js";
 import { saveFile } from "../../lib/files.js";
 import { isNative } from "../../lib/native.js";
-import { RAMPS } from "../../lib/constants.js";
+import { rampVar } from "../../lib/constants.js";
 import Details from "../Details.jsx";
+import { FEATURES } from "../../lib/features.js";
+import { potsFixedLine } from "../../lib/disclosures.js";
 import { HrChart, TrendChart } from "./HrChart.jsx";
 import { CheckRow, Choice } from "./StandSafety.jsx";
 
@@ -23,7 +25,8 @@ import { CheckRow, Choice } from "./StandSafety.jsx";
    The preview below the buttons is an on-screen copy of exactly what the PDF holds, with real
    tables and labelled charts; it and the spreadsheet are the accessible versions of the PDF,
    which is untagged. Her own visit questions are kept in settings.questions. */
-export const FIXED_LINE = "Readings Cyra gets from a connected watch, ring or health app aren't included in this report or spreadsheet. Heart rates and blood pressures you type in yourself are, even if you read them off a watch.";
+/* Only in builds with wearables (lib/features.js): without them no watch, ring or health app can be connected. */
+export const FIXED_LINE = potsFixedLine(FEATURES);
 export const WARNING = "This file isn't locked. Anyone who gets it can read it. Send it straight to your clinician or their patient portal, and avoid group chats or shared folders.";
 export const REPORT_HINT = "Make a report to send or print. Cyra itself sends nothing; the file goes only where you take it.";
 export const WINANSI_WARNING = "Some characters you typed, such as in your own symptom or medicine names, can't be shown in the PDF and will appear as '?' or be left out. The spreadsheet keeps them exactly.";
@@ -36,12 +39,10 @@ const PARTS = [["tests", "Stand tests, single readings and tilt-table results"],
 const PART_TOPIC = { tests: "your stand tests", fluid: "your fluid and salt goal", meds: "your medicines", move: "exercise", patterns: "your cycle pattern", sym: "your cycle pattern" };
 export const PATTERNS_NEED_SYM = "Patterns compare your rated days, so they go in only with \"Symptoms, ratings and episodes\" ticked too.";
 const andWords = (a) => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a[a.length - 1]}`);
-const rgb = (c) => `rgb(${c.join(",")})`;
 
 /** Oral fluid per day, as the PDF draws it: a bar per logged day (ramp().mid), nothing for a
     day not logged, the goal as a dashed ink line. Every value is in the aria-label. */
-function FluidBars({ b, stage }) {
-  const ramp = RAMPS[stage] || RAMPS.peri;
+function FluidBars({ b }) {
   const W = 340, H = 130, L = 6, R = 6, T = 14, B = 26;
   const max = Math.max(1, b.goal || 0, ...b.days.map((d) => d.v || 0)) * 1.1;
   const step = (W - L - R) / b.days.length, bw = Math.max(2, step * 0.7), tick = tickAt(b.days.length, step, 34, 7);
@@ -53,7 +54,7 @@ function FluidBars({ b, stage }) {
         const cx = L + step * i + step / 2;
         return (
           <g key={d.date}>
-            {d.v != null && <rect x={cx - bw / 2} y={y(d.v)} width={bw} height={H - B - y(d.v)} fill={rgb(ramp.mid)} />}
+            {d.v != null && <rect x={cx - bw / 2} y={y(d.v)} width={bw} height={H - B - y(d.v)} fill={rampVar("mid")} />}
             {tick(i) && <text x={cx} y={H - B + 14} fontSize="10" textAnchor="middle" fill="var(--ink)">{fmtDay(d.date)}</text>}
           </g>
         );
@@ -65,8 +66,7 @@ function FluidBars({ b, stage }) {
 
 /** Exercise sessions per week, as the PDF draws them (ramp().mid), with the count on each bar.
     Every value is in the aria-label. */
-function WeekBarsSvg({ b, stage }) {
-  const ramp = RAMPS[stage] || RAMPS.peri;
+function WeekBarsSvg({ b }) {
   const W = 340, H = 120, L = 6, R = 6, T = 14, B = 24;
   const max = Math.max(1, ...b.weeks.map((k) => k.n)) * 1.15;
   const step = (W - L - R) / b.weeks.length, bw = Math.max(4, step * 0.6), tick = tickAt(b.weeks.length, step, 34, 2);
@@ -78,7 +78,7 @@ function WeekBarsSvg({ b, stage }) {
         const cx = L + step * i + step / 2;
         return (
           <g key={k.from}>
-            {k.n > 0 && <rect x={cx - bw / 2} y={y(k.n)} width={bw} height={H - B - y(k.n)} fill={rgb(ramp.mid)} />}
+            {k.n > 0 && <rect x={cx - bw / 2} y={y(k.n)} width={bw} height={H - B - y(k.n)} fill={rampVar("mid")} />}
             <text x={cx} y={y(k.n) - 3} fontSize="10" textAnchor="middle" fill="var(--ink)">{k.n}</text>
             {tick(i) && <text x={cx} y={H - B + 14} fontSize="10" textAnchor="middle" fill="var(--ink)">{fmtDay(k.from)}</text>}
           </g>
@@ -147,7 +147,7 @@ function Preview({ model, stage }) {
   );
 }
 
-export default function PotsReport({ pots, setPots, stage, stageName, todayIso, ping, firstName = "", checkin, checkinLabels, starts = NONE, locale }) {
+export default function PotsReport({ pots, setPots, stage, stageName, todayIso, ping, firstName = "", checkin, checkinLabels, starts = NONE, locale, onHandoff = null }) {
   const s = pots.settings;
   const [period, setPeriod] = useState("30");
   // "Movement" starts ticked when she has logged a session or answered the Move questions.
@@ -169,6 +169,7 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
 
   const exportFile = async (kind) => {
     if (!model.enough || busy) return;
+    onHandoff?.(); // L10: the share sheet / download this tap opens must not lock the app on its own hide
     setBusy(kind);
     try {
       let data, name, mime, title;
@@ -191,6 +192,7 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
   };
   const openEmail = () => {
     if (!model.enough) return;
+    onHandoff?.();
     window.open(`mailto:?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`);
     ping("Handing off to your email… If nothing opens, use Copy summary text instead.");
   };
@@ -241,7 +243,7 @@ export default function PotsReport({ pots, setPots, stage, stageName, todayIso, 
         ) : <p className="hint">You have 10 questions, the most there can be. Remove one to add another.</p>}
       </section>
 
-      <p className="plain" style={{ marginTop: 14 }}>{FIXED_LINE}</p>
+      {FIXED_LINE && <p className="plain" style={{ marginTop: 14 }}>{FIXED_LINE}</p>}
       <div className="plaincard"><p className="plain">{WARNING}</p></div>
       {lossyText && <p className="hint">{WINANSI_WARNING}</p>}
       {!model.enough && <p className="plain" id="pots-rep-gate"><b>Log a standing test or a few days first.</b></p>}

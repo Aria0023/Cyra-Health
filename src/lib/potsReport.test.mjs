@@ -234,6 +234,15 @@ test("g: CSV is UTF-8 with BOM, CRLF, quoted text, bare numbers and a formula gu
   assert.ok(csv.includes(`"goal","2026-09-01",,"fluid_goal",2500,"ml",,,,"set_by=clinician"`));
 });
 
+test("g: a check-in's day note (L6) never reaches the POTS report, even with notes and cycle on", () => {
+  const CANARY = "CHECKIN-NOTE-CANARY";
+  const checkin = (d) => (d === D ? { sym: { fog: 2, hf: 3 }, sleepQ: "poor", note: CANARY } : { sym: {}, sleepQ: "good", note: CANARY });
+  const m = reportModel(fixture(), base({ checkin, include: { cycle: true, notes: true } }));
+  assert.ok(!JSON.stringify(m).includes(CANARY), "model");
+  assert.ok(!toCSV(m).includes(CANARY), "CSV");
+  assert.ok(!allOut(m).includes(CANARY), "texts, summary and email");
+});
+
 test("g: notes and her name only when she opts in", () => {
   const SENT = /SENTINEL_/;
   const off = reportModel(fixture(), base({ name: "Ada" }));

@@ -25,6 +25,10 @@ export const hasPlugin = (name) => Capacitor.isPluginAvailable(name);
      readDaily({ from, to }) "YYYY-MM-DD" → { days: [{ date, temp, rhr, hrv, sleep }], needsAuthorization?: boolean }
                               (iOS: needsAuthorization when Health never asked about some types) */
 export const CyraHealth = registerPlugin("CyraHealth");
+/* Haptics (calm R5): Capacitor's Haptics plugin when a native build bundles it (this repo does not add it as a
+   dependency); App.jsx calls it only when hasPlugin("Haptics") says it is there, else falls back to the web
+   view's navigator.vibrate on the phone, else offers no vibration at all. */
+export const Haptics = registerPlugin("Haptics");
 
 /* Sign-in and connect flows on the phone run outside the web view and come back
    through the app's own link: cyrahealth://auth/<oauth|oura|terra>?a=<attempt>#…

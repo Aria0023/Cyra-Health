@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CONNECT, INTIMACY, AFTER, RELATIONSHIP } from "../lib/constants.js";
 import { localDay } from "../lib/engine.js";
 import Advice from "../components/Advice.jsx";
+import { t } from "../lib/i18n.js";
 
 /* Connect (intimacy & relationship): closeness / desire / tension / mental-load
    sliders, intimacy today, afterwards, situation. Never asks a partner's gender;
@@ -34,43 +35,43 @@ export default function ConnectScreen({ relationship, setRelationship, conn, set
   const loggedWeek = week.filter((d) => d.n != null).length;
   const sitLabel = (RELATIONSHIP.find(([v]) => v === relationship) || [])[1];
   const connAdvice = () => {
-    if (after === "pain") return <Advice urgency="visit">Pain or dryness with intimacy is one of the most common — and most treatable — things people never mention. Vaginal estrogen, moisturizers, and lubricants have strong evidence. This is worth saying out loud at your next visit.</Advice>;
-    if (conn.load <= 3 && conn.desire <= 4) return <Advice urgency="self">Research found that when the mental load falls mostly on one partner, their desire tends to drop — it's one of the strongest predictors, stronger than hormone levels. Worth a conversation about who carries what.</Advice>;
-    if (conn.friction >= 7) return <Advice urgency="self">High tension days are worth noting next to your symptoms. Couples' stress tends to sync up — and distressed partners amplify each other, while connected ones tend to calm each other down.</Advice>;
-    if (conn.closeness >= 8) return <Advice urgency="self">Affectionate closeness — not just sexual contact — has its own measurable effect on stress hormones. Days like this are worth tracking too.</Advice>;
-    return <Advice urgency="self">Studies show relationship satisfaction and partner availability predict desire far more than hormone levels do. Tracking how you feel alongside your cycle helps you see your own pattern — without assuming hormones are the whole story.</Advice>;
+    if (after === "pain") return <Advice urgency="visit">{t("connect.painOrDrynessWithIntimacy")}</Advice>;
+    if (conn.load <= 3 && conn.desire <= 4) return <Advice urgency="self">{t("connect.researchFoundThatWhenThe")}</Advice>;
+    if (conn.friction >= 7) return <Advice urgency="self">{t("connect.highTensionDaysAreWorth")}</Advice>;
+    if (conn.closeness >= 8) return <Advice urgency="self">{t("connect.affectionateClosenessNotJustSexual")}</Advice>;
+    return <Advice urgency="self">{t("connect.studiesShowRelationshipSatisfactionAnd")}</Advice>;
   };
   return (
     <main>
-      <h1 className="disp">Connection</h1>
-      <p className="hint">Optional, private, and judgment-free. It tracks how connected you feel, not just sex, and never assumes who your partner is or that there is only one.</p>
+      <h1 className="disp">{t("connect.connection")}</h1>
+      <p className="hint">{t("connect.optionalPrivateAndJudgmentFree")}</p>
       {!relationship ? (
         <>
-          <p className="section-lab">Your situation (optional)</p>
+          <p className="section-lab">{t("connect.yourSituationOptional")}</p>
           <div className="mcrow" style={{ marginBottom: 14 }}>
             {RELATIONSHIP.map(([v, l]) => <button key={v} aria-pressed={relationship === v} className={`mc ${relationship === v ? "on" : ""}`} onClick={() => setRelationship(v)}>{l}</button>)}
           </div>
         </>
       ) : (
-        <p className="hint sitline">Situation: {sitLabel} · <button type="button" className="linkbtn" onClick={() => setRelationship(null)}>Change</button></p>
+        <p className="hint sitline">{t("connect.situation", { sitLabel })} <button type="button" className="linkbtn" onClick={() => setRelationship(null)}>{t("connect.change")}</button></p>
       )}
-      <p className="section-lab">How it felt today, 0–10</p>
+      <p className="section-lab">{t("connect.howItFeltToday0")}</p>
       {Object.entries(CONNECT).map(([k, s]) => (
         <div className="scalerow" key={k}>
           <div className="scalehead"><span>{s.label}</span><b>{conn[k]}</b></div>
-          <input className="slider" type="range" min="0" max="10" value={conn[k]} aria-label={`${s.label}, 0 is ${s.low}, 10 is ${s.high}`} aria-valuetext={`${conn[k]} out of 10`} onChange={(e) => { setDirty(true); setConn((x) => ({ ...x, [k]: +e.target.value })); }} />
+          <input className="slider" type="range" min="0" max="10" value={conn[k]} aria-label={t("connect.0Is10Is", { label: s.label, low: s.low, high: s.high })} aria-valuetext={t("connect.outOf10", { v0: conn[k] })} onChange={(e) => { setDirty(true); setConn((x) => ({ ...x, [k]: +e.target.value })); }} />
           <div className="scaleends"><span>{s.low}</span><span>{s.high}</span></div>
         </div>
       ))}
       {relationship !== "single" && (
         <>
-          <p className="section-lab">Intimacy today</p>
+          <p className="section-lab">{t("connect.intimacyToday")}</p>
           <div className="mcrow" style={{ marginBottom: 10 }}>
             {INTIMACY.map(([v, l]) => <button key={v} aria-pressed={intimacy === v} className={`mc ${intimacy === v ? "on" : ""}`} onClick={() => { setDirty(true); setIntimacy(intimacy === v ? null : v); }}>{l}</button>)}
           </div>
           {intimacy && intimacy !== "none" && (
             <>
-              <p className="section-lab">Afterwards</p>
+              <p className="section-lab">{t("connect.afterwards")}</p>
               <div className="mcrow" style={{ marginBottom: 10 }}>
                 {AFTER.map(([v, l]) => <button key={v} aria-pressed={after === v} className={`mc ${after === v ? "on" : ""}`} onClick={() => { setDirty(true); setAfter(after === v ? null : v); }}>{l}</button>)}
               </div>
@@ -79,25 +80,25 @@ export default function ConnectScreen({ relationship, setRelationship, conn, set
         </>
       )}
       <div className={`card ${touched ? "" : "card-idle"}`}>
-        <div className="num">{touched ? connScore : "—"}</div>
+        <div className={touched ? "num numword" : "num"}>{touched ? band(connScore) : "—"}</div>
         <div className="cbody">
           {touched ? (
             <>
-              <p><b>{band(connScore)} connection today.</b> Over weeks this builds a picture next to {stage === "preg" ? "your week of pregnancy and how you felt" : "your symptoms"}.</p>
+              <p><b>{t("connect.connectionToday", { v0: band(connScore) })}</b> {t("connect.overWeeksThisBuildsA")} {stage === "preg" ? t("connect.yourWeekOfPregnancyAnd") : t("connect.yourSymptoms")}.</p>
               <span className="cmeter" aria-hidden="true"><i style={{ "--v": connScore / 100 }} /></span>
-              <div className="cweek">Last 7 days · {loggedWeek} logged
-                <span className="connstrip" role="img" aria-label={`Last 7 days: ${loggedWeek} of 7 logged`}>
+              <div className="cweek">{t("connect.last7DaysLogged", { loggedWeek })}
+                <span className="connstrip" role="img" aria-label={t("connect.last7DaysOf7", { loggedWeek })}>
                   {week.map((d) => <i key={d.iso} className={`conndot${d.n == null ? " off" : ""}${d.iso === todayIso ? " today" : ""}`} style={d.n == null ? undefined : { opacity: 0.3 + 0.7 * d.n / 100 }} />)}
                 </span>
               </div>
             </>
-          ) : <p>Move the sliders and Cyra scores how connected today felt. Over weeks this builds a picture next to {stage === "preg" ? "your week of pregnancy and how you felt" : "your symptoms"}.</p>}
+          ) : <p>{t("connect.moveTheSlidersAndCyra")} {stage === "preg" ? t("connect.yourWeekOfPregnancyAnd") : t("connect.yourSymptoms")}.</p>}
         </div>
       </div>
       {connAdvice()}
-      {savedScore != null && <p className="hint saved-line">Logged today at {savedScore} — saving again replaces it.</p>}
-      <button className="cta" style={{ marginTop: savedScore != null ? 0 : 12 }} onClick={() => { setConnLog((l) => ({ ...l, [todayIso]: { ...conn, intimacy, after } })); setDirty(false); ping("Saved — private to your device"); }}>Save</button>
-      <p className="rfoot">Separated from sexual activity on purpose: affection and sex move your body differently, and both matter. Pain with intimacy is always worth raising with a clinician — it's common and treatable.</p>
+      {savedScore != null && <p className="hint saved-line">{t("connect.loggedTodayAtSavingAgain", { savedScore })}</p>}
+      <button className="cta" style={{ marginTop: savedScore != null ? 0 : 12 }} onClick={() => { setConnLog((l) => ({ ...l, [todayIso]: { ...conn, intimacy, after } })); setDirty(false); ping("Saved — private to your device"); }}>{t("connect.save")}</button>
+      <p className="rfoot">{t("connect.separatedFromSexualActivityOn")}</p>
     </main>
   );
 }

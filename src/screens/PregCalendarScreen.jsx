@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { GSYM, famColor } from "../lib/constants.js";
 import { fmt, localDay, sevDots, trimesterOf } from "../lib/engine.js";
+import { cleanNote } from "../lib/daylog.js";
+import { t, fmtDate } from "../lib/i18n.js";
 
 /* Pregnancy — Calendar: any month, one at a time (‹ › move, "Back to this month" returns;
    the month resets when the tab is re-entered because the tab panel remounts). Week-start
@@ -9,16 +11,16 @@ import { fmt, localDay, sevDots, trimesterOf } from "../lib/engine.js";
    prediction here, by design. */
 const DAY = 86400000;
 const GIDS = Object.keys(GSYM);
-const longDay = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-const shortDay = (iso) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+const longDay = (iso) => fmtDate(iso, { weekday: "long", month: "long", day: "numeric" });
+const shortDay = (iso) => fmtDate(iso, { weekday: "short", month: "short", day: "numeric" });
 
 export default function PregCalendarScreen({ pregWeek, pregLog, dayScore, scoreColor, scoreInk, scoreLabel, todayIso, pregSel, setPregSel, onEdit, ping }) {
   const [mo, setMo] = useState(0);
   const now = new Date(); now.setHours(12, 0, 0, 0);
   const first = new Date(now.getFullYear(), now.getMonth() + mo, 1);
   const dim = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
-  const monthTitle = first.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  const due = new Date(Date.now() + (40 - pregWeek) * 7 * DAY).toLocaleDateString("en-US", { month: "long", day: "numeric" });
+  const monthTitle = fmtDate(first, { month: "long", year: "numeric" });
+  const due = fmtDate(new Date(Date.now() + (40 - pregWeek) * 7 * DAY), { month: "long", day: "numeric" });
   const firstRun = Object.keys(pregLog).length === 0;
   const open = (iso) => { onEdit(iso); setPregSel(null); ping(`Editing ${fmt(iso)} — save to update that day`); };
   const cells = [];
@@ -38,7 +40,7 @@ export default function PregCalendarScreen({ pregWeek, pregLog, dayScore, scoreC
     cells.push(
       <button key={iso} type="button" style={tint} className={cls} aria-label={label} aria-pressed={iso === pregSel} aria-current={isToday ? "date" : undefined} onClick={() => setPregSel(iso)}>
         {dnum}
-        {wkStart && <span className={`c-wklab${sc != null ? " onfill" : ""}`}>W{wk}</span>}
+        {wkStart && <span className={`c-wklab${sc != null ? " onfill" : ""}`}>{t("pregCal.w", { wk })}</span>}
         {logged && <span className="c-log" />}
       </button>
     );
@@ -46,12 +48,12 @@ export default function PregCalendarScreen({ pregWeek, pregLog, dayScore, scoreC
   return (
     <main>
       <div className="calnav">
-        <button type="button" className="sbtn" aria-label="Previous month" onClick={() => setMo((m) => m - 1)}>‹</button>
+        <button type="button" className="sbtn" aria-label={t("pregCal.previousMonth")} onClick={() => setMo((m) => m - 1)}>‹</button>
         <h1 className="disp" aria-live="polite">{monthTitle}</h1>
-        <button type="button" className="sbtn" aria-label="Next month" onClick={() => setMo((m) => m + 1)}>›</button>
+        <button type="button" className="sbtn" aria-label={t("pregCal.nextMonth")} onClick={() => setMo((m) => m + 1)}>›</button>
       </div>
-      {mo !== 0 && <button type="button" className="linkbtn backmonth" onClick={() => setMo(0)}>Back to this month</button>}
-      <p className="hint">Week markers and your logged days.</p>
+      {mo !== 0 && <button type="button" className="linkbtn backmonth" onClick={() => setMo(0)}>{t("pregCal.backToThisMonth")}</button>}
+      <p className="hint">{t("pregCal.weekMarkersAndYourLogged")}</p>
       <div className="calgrid" role="group" aria-label={monthTitle}>
         {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => <div key={d} className="calhead" aria-hidden="true">{d}</div>)}
         {cells}
@@ -61,41 +63,42 @@ export default function PregCalendarScreen({ pregWeek, pregLog, dayScore, scoreC
         const esc = e ? dayScore(e, GIDS) : null;
         const syms = e ? GIDS.filter((id) => (e.sym?.[id] || 0) > 0).sort((a, b) => e.sym[b] - e.sym[a]) : [];
         return (
-          <div className="card daycard" role="region" aria-label="Selected day">
+          <div className="card daycard" role="region" aria-label={t("pregCal.selectedDay")}>
             <div className="dayhead">
               <b>{shortDay(pregSel)}</b>
-              {esc != null && <span className="scorepill" style={{ background: scoreColor(esc), color: scoreInk(esc) }}>{scoreLabel(esc)} · {Math.round(esc * 100)}</span>}
+              {esc != null && <span className="scorepill" style={{ background: scoreColor(esc), color: scoreInk(esc) }}>{scoreLabel(esc)}</span>}
             </div>
             {e ? (
               <>
                 {syms.length ? (
                   <ul className="pday-s">
-                    {syms.map((id) => <li key={id} style={{ "--fc": famColor(id) }}>{GSYM[id]} <span className="sevd" aria-label={`${e.sym[id]} of 3`}>{sevDots(e.sym[id])}</span></li>)}
+                    {syms.map((id) => <li key={id} style={{ "--fc": famColor(id) }}>{GSYM[id]} <span className="sevd" aria-label={t("pregCal.of3", { v0: e.sym[id] })}>{sevDots(e.sym[id])}</span></li>)}
                   </ul>
-                ) : <p className="dayline">No symptoms</p>}
-                <p className="dayline">{e.kicks} kicks</p>
+                ) : <p className="dayline">{t("pregCal.noSymptoms")}</p>}
+                <p className="dayline">{t("pregCal.kicks", { kicks: e.kicks })}</p>
+                {cleanNote(e.note) && <p className="dayline noteline"><b>{t("pregCal.note")}</b> {cleanNote(e.note)}</p>}
               </>
             ) : (
-              <p className="hint" style={{ margin: "6px 0 0" }}>Nothing logged this day.</p>
+              <p className="hint" style={{ margin: "6px 0 0" }}>{t("pregCal.nothingLoggedThisDay")}</p>
             )}
             <div className="sfoot" style={{ marginTop: 10 }}>
-              {e ? <button type="button" className="sbtn" onClick={() => open(pregSel)}>Edit this day</button>
-                : pregSel <= todayIso ? <button type="button" className="sbtn" onClick={() => open(pregSel)}>Log this day</button>
-                : <span className="hint" style={{ margin: 0 }}>That day hasn't happened yet.</span>}
-              <button type="button" className="sbtn" onClick={() => setPregSel(null)}>Close</button>
+              {e ? <button type="button" className="sbtn" onClick={() => open(pregSel)}>{t("pregCal.editThisDay")}</button>
+                : pregSel <= todayIso ? <button type="button" className="sbtn" onClick={() => open(pregSel)}>{t("pregCal.logThisDay")}</button>
+                : <span className="hint" style={{ margin: 0 }}>{t("pregCal.thatDayHasntHappenedYet")}</span>}
+              <button type="button" className="sbtn" onClick={() => setPregSel(null)}>{t("pregCal.close")}</button>
             </div>
           </div>
         );
       })()}
       <div className="callegend">
-        <span><i className="dot d-wk" /> week starts</span><span><i className="dot d-logdot" /> logged day</span>
+        <span><i className="dot d-wk" /> {t("pregCal.weekStarts")}</span><span><i className="dot d-logdot" /> {t("pregCal.loggedDay")}</span>
       </div>
       <div className="gradlegend">
-        <span>rough day</span>
+        <span>{t("pregCal.heavierDay")}</span>
         <span className="gradbar" style={{ background: `linear-gradient(90deg, ${scoreColor(0)}, ${scoreColor(0.5)}, ${scoreColor(1)})` }} />
-        <span>great day</span>
+        <span>{t("pregCal.lighterDay")}</span>
       </div>
-      <div className="card"><div className="num">w{pregWeek}</div><p>{40 - pregWeek} weeks to your due date, {due}. Trimester {{ first: 1, second: 2, third: 3 }[trimesterOf(pregWeek)]}. Tap any day to see or add what you logged.</p></div>
+      <div className="card"><div className="num">{t("pregCal.w2", { pregWeek })}</div><p>{t("pregCal.weeksToYourDueDate", { v0: 40 - pregWeek, due, v1: { first: 1, second: 2, third: 3 }[trimesterOf(pregWeek)] })}</p></div>
     </main>
   );
 }

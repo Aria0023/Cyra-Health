@@ -1,0 +1,572 @@
+# Cyra architecture (local-first)
+
+How Cyra keeps a health record on the device: where it is stored, what it holds, which keys go
+where, what is worked out from it, and where later features plug in. `src/lib/record.js` is the
+authoritative description of the record; this document explains it. The normative product spec is
+`docs/CYRA-BUILD-SPEC.md`; every privacy sentence is traced in `docs/PRIVACY-AUDIT.md`.
+
+## 1. Principles
+
+- **On the device by default.** The health record lives on the device that made it and is never
+  sent to a server (CLAUDE.md, hard rules). The optional server features she turns on send only
+  what their in-app disclosure says, never the record; the full list is the README's Privacy
+  section and the header comment of `src/App.jsx`.
+- **No account needed.** Nothing needs a sign-up, a password or an email; guest is the default. Social
+  sign-in is optional and only pre-fills the name and email fields on this device. Calm R9: a build with
+  the `cloudBackup` flag and a server also offers an optional account (Pro) whose only purpose is an
+  encrypted backup on Cyra's server (§10.5a); the server never receives her email, passphrase or log in
+  readable form.
+- **Works offline.** The record is read and written locally; the installed web app opens without a
+  connection (spec A14.1).
+- **A minimal, optional server.** A build without `VITE_API_BASE` makes no request to Cyra's server
+  at all (on the web it fetches only Cyra's own app files from the site that serves it). With one,
+  what the app may ask of it is set first by the build's feature flags (`VITE_FEATURES`, §10): the
+  default build offers only Cyra's AI and web reminders, makes no request at launch, and its first
+  server contact is her own opt-in (turning on browser reminders, or ticking "Also ask Cyra's AI").
+  A build with `counts` also reads last week's anonymous counts once per launch, once a life stage
+  is set (no health data, no life stage and no identifier, only what any request carries: IP
+  address and user agent); with `signin`, `wearables` or `counts` the server also handles sign-in
+  prefill, wearable connections or sharing weekly counts when she starts them. Each flow does what
+  its disclosure says (the README's Privacy section, the `src/App.jsx` header). The server never
+  receives the record. An optional backup must be encrypted on the device with a key she holds.
+- **Guidance, not diagnosis.** Analyses are computed from her own log, on the device, and say
+  what to ask, never what she has.
+
+## 2. Layers and modules
+
+```
+UI          src/screens/*.jsx, src/components/**/*.jsx          (props in, callbacks out)
+  ↓
+State       src/App.jsx  (useState / useMemo, the 400 ms autosave, cross-tab messages)
+  ↓
+Pure lib    engine.js  ←  record.js, pots.js (+ potsPatterns, potsReport, potsMove)
+            daylog.js  ←  record.js;  constants.js, appearance.js, askLibrary.js;  plan.js and features.js stand alone;
+            disclosures.js imports only features.js;  privacyFlows.js stands alone (L10);
+            lock.js ← record.js (L10: PIN hashing, back-off, WebAuthn checks; no api/native/storage/features import)
+            onboarding.js imports nothing (L11: the one registration routing and step map — REG_STAGE moved out of App.jsx —
+            the option lists, ANSWER_BLANK, pruneForStage, pregWeekFrom / dueDateBounds; calm R2: the PCOS step,
+            PCOS_ANSWERS, pcosModuleFrom)
+            routes.js imports nothing (calm R2: the five tabs, the views each hosts, deep links, the log sheet's items)
+            home.js ← engine.js, routes.js, modules.js (calm R3: Home's hero model, Quick log tiles, step rails, small
+            step, week trend / by-cycle phases, PCOS cycle-length insight; pure, record.js imports it for RULES.homeTiles)
+            bodylog.js ← modules.js (calm R4: the fast log's sleep hours, movement, PCOS day chips, weight, dated lab
+            values, units and the Logs card rows; pure, record.js imports it for RULES.bodyLog / labs / bodyPrefs)
+  ↓
+I/O lib     storage.js, backup.js, files.js, native.js, api.js
+            (pulse.js, notifications.js and wearables.js call api.js; backup.js imports nothing,
+            its transports are given their I/O; cloudBackup.js wires its cloud transport, unimported)
+  ↓
+Device storage (IndexedDB / app sandbox)          optional server (VITE_API_BASE)
+```
+
+Dependency rules (unit-tested where a test can see them):
+
+- `engine.js` is the lowest pure layer. `record.js` and `pots.js` may import it; it never imports
+  them (`record.test.mjs` "layering and no I/O").
+- `record.js` imports only `./engine.js`, `./constants.js` and `./daylog.js` (L6; later `./fertility.js`, `./modules.js` and, calm R3, `./home.js`; the allowed list lives in
+  `record.test.mjs`; a later pure leaf module may be added to it, and none of them may import
+  `record.js` back). `daylog.js` imports only `./constants.js`. `plan.js` and `features.js` import nothing; `disclosures.js` imports only
+  `features.js`; `backup.js` imports nothing (the POTS suites load it straight from Node).
+- Pure modules never import `api.js`, `native.js` or `storage.js`, and never read `import.meta.env`,
+  so `node --test` can load them. (`features.js` is the one exception that reads it, as
+  `import.meta.env?.VITE_FEATURES`, which is undefined in Node, so Node and `vite.config.js` load it.) (`pwa.js`, `links.js`, `api.js` and `wearables.js` read build
+  settings and are not pure.)
+- Only `api.js` calls `fetch` (the service worker, `public/sw.js`, fetches Cyra's own files).
+- The phone app's web view has an iOS 15.0 deployment target: no `structuredClone`, `.at()`,
+  `findLast` or `Object.hasOwn` in shipped code.
+
+## 3. Where the record is stored
+
+In a browser the whole record is one value in IndexedDB (database `cyra`, store `state`, key `v1`),
+with a second copy of the POTS log under `v1-pots`, the app lock under `v1-lock` (L10) and a week-only hold in database `cyra-hold`;
+never localStorage or cookies. On iPhone and Android it is one file, `NoCloud/cyra-state.json`, in
+the app's private Library folder (left out of iPhone backups with complete file protection; Android
+backup and transfer switched off), written through a temp file and a rename. The phone build opens
+no IndexedDB.
+
+Details (all in `src/lib/storage.js`; phone specifics in `docs/NATIVE.md`):
+
+- **Web.** IndexedDB `cyra` / `state` holds `v1` (the record), `v1-pots` (the POTS log's second
+  copy, written in the same transaction as every save, so a tab still running a build from before
+  POTS can't lose it) and, for a moment during the probe, `probe` (a random token written and read
+  back before the UI names the store). Database `cyra-hold` holds the week-only hold: the ISO week
+  in which this device last sent weekly counts, nothing else. `v1-lock` (L10) holds this device's app
+  lock (`LockCfg`, `lib/lock.js`: the PIN's salt and PBKDF2 hash, lock-after, the passkey id, the
+  attempt back-off), written only by lock actions and removed by `clear()` with the record.
+  `navigator.storage.persist()` is asked once per launch, after the first save.
+- **Phone.** `Library/NoCloud/cyra-state.json` (iPhone: excluded from backup, complete file
+  protection; Android: the app's internal files folder, backup and transfer off). A save writes
+  `cyra-state.json.tmp` and renames it over the record; a load falls back to the temp file when a
+  save was interrupted. `NoCloud/cyra-hold.json` is the hold; `NoCloud/cyra-lock.json` is the app
+  lock (L10), under the same exclusion and protection, deleted by `clearLock()` after the record. While she shares an encrypted backup or
+  a POTS file, the file (the backup already encrypted; a POTS report or spreadsheet unencrypted) sits
+  in the app cache and is deleted afterwards, and any leftover is swept at launch and by Delete
+  everything.
+- **Which store is in use.** `storage.driver()` returns `indexeddb`, `app-sandbox`, `memory`
+  (nothing can be stored), `stale` (a save failed; an older copy is still on the device) or
+  `unreadable` (web: a record exists but couldn't be read). Settings → Privacy & your data words its storage
+  sentence from it, so it never says less is stored than really is. A new driver needs its own
+  sentence there and a PRIVACY-AUDIT entry.
+- **The app-lock slot (L10) is not a record key.** `storage.loadLock` / `saveLock` / `clearLock` read and
+  write it through the same save queue, but it is in none of PERSISTED, RECORD, DEVICE_ONLY or `snapshot()`:
+  never in a backup (`backupCopy` never sees it), never adopted by or written from another tab's autosave,
+  never applied by a restore. App.jsx reads it in `hydrate` after the record, and only when a record exists.
+  Delete everything, Start over and a forgotten-PIN restore remove it; a Settings restore keeps it.
+- **Other on-device locations.** The web build's service worker keeps Cyra's own app files (the
+  build's file list only, no record data, no server answers) in one Cache Storage entry named
+  `cyra-shell-<version>`, only in a production web build and only while a record exists (spec
+  A14.1); Delete everything removes it. The appearance choice (L2) is a key inside the record, not a
+  separate store. The browser itself keeps its push subscription while web reminders are on.
+
+**Later: SQLite on the phone** (a plan only; no dependency is added now):
+
+- Keep the `storage` interface (`load`, `save`, `clear`, `probe`, `driver`, the hold), so App.jsx
+  does not change.
+- Candidate: `@capacitor-community/sqlite`. It is a new dependency and needs the owner's approval.
+- Tables: `meta(key TEXT PRIMARY KEY, value JSON)` for the settings and bookkeeping keys,
+  `days(date TEXT PRIMARY KEY, entry JSON)`, `preg(date TEXT PRIMARY KEY, entry JSON)` and
+  `pots(value JSON)`. A save writes only the rows that changed instead of rewriting the whole file.
+- Same placement (`Library/NoCloud`), the same backup exclusion and file protection.
+- A one-time import from `cyra-state.json`, verified by reading every row back before the JSON
+  file is deleted.
+- A storage-engine change does not change `RECORD_VERSION`: the record's shape is the same. The web
+  stays on IndexedDB.
+- Trigger: when saves are measurably slow. A full day entry is about 320 bytes, so a year of daily
+  check-ins is about 115 KB; whole-file writes are not a problem yet.
+
+## 4. The record: version, keys and where each one goes
+
+The record is one object: `{ v, savedAt, phase: "app", ...PERSISTED }` (`snapshot()` in App.jsx).
+
+- `RECORD_VERSION = 1` (`src/lib/record.js`). `migrate()` runs on every load (`storage.load`, web and
+  phone) and on every decrypted backup (`importBackup`). With no steps yet it returns today's
+  records as the same object; it never throws (a throw on the web would turn the store
+  `unreadable`; on the phone it would show the record-unavailable screen).
+- The IndexedDB key name `v1` is a name, not the version.
+- Three versions exist, independent of one another: the record's `v` (record.js), the backup
+  envelope's `v` (`lib/backup.js`, the file format) and `pots.v` (`lib/pots.js`; a POTS log whose
+  `v` isn't 1 is shown read-only and kept untouched).
+
+Key lists (all in `record.js`): `PERSISTED` (every saved key), `DEVICE_ONLY` (per-device consents and
+bookkeeping), `DEVICE_PREFS` (display preferences of this device), `RECORD` (what another open tab
+takes over: PERSISTED minus DEVICE_ONLY and `reminders`) and `NOT_IN_BACKUP` (deleted before a backup
+is encrypted). `backupCopy()` is the whole backup transform.
+
+| Key | What it is | Class | In the backup file | A restore applies it | Other open tabs take it over |
+|---|---|---|---|---|---|
+| `days` | check-ins (cycle, peri, meno) | health log | yes | yes | yes |
+| `pregLog` | pregnancy check-ins | health log | yes | yes | yes |
+| `journal` | journal text by day | health log | yes | yes | yes |
+| `connLog` | Connect check-ins by day | health log | yes | yes | yes |
+| `meds` | What I'm trying | health log | yes | yes | yes |
+| `medLog` | taken / not taken by day | health log | yes | yes | yes |
+| `appts` | appointments | health log | yes | yes | yes |
+| `wearData` | daily wearable readings | health log | yes | yes | yes |
+| `kickTally` | today's kicks between taps | health log | yes | yes | yes |
+| `regAnswers` | registration and Settings → About you answers; `dueDate` ("" or YYYY-MM-DD, L11) drives the pregnancy week; `pcos` (calm R2: "yes" / "suspect" / "no" / "unsaid" / null) | health log | yes, without `zip` and `age` (`dueDate` is kept) | yes | yes |
+| `pots` | the POTS add-on | health log | yes | yes, literally, with a new epoch (a backup without one clears the POTS log; a newer build's locked log stays untouched) | yes, 3-way merged (`mergePots`, epochs) |
+| `cycleFlags` | cycles she left out of predictions, `{ [startIso]: { exclude: true } }` (L5, spec §3.5) | health record (her choice) | yes | yes, literally (`cleanCycleFlags`; a backup without it clears it) | yes (sanitised by `cleanCycleFlags`) |
+| `symPrefs` | her symptom list per stage id, `{ periods?, peri?, preg? }` × `{ order, hidden, added }` (L6, spec §3.6) | record (a setting) | yes | yes, literally (`cleanSymPrefs`; a backup without it brings back Cyra's order) | yes (sanitised by `cleanSymPrefs`) |
+| `fertSigns` | fertility signs switch and temperature unit, `{ on: true\|false\|null, unit: "C"\|"F"\|null }` (L7, spec A14.7); `on` null = the stage default | record (a setting, no health data) | yes | yes, literally (`restoredFertPrefs`; a backup without it resets `on` to null and keeps this device's unit) | yes (sanitised by `cleanFertPrefs`) |
+| `modules` | condition modules switched on, `{ pcos?: { on, since } }` (calm R1, `lib/modules.js`); POTS is not here (it stays in `pots`) | record (a setting, no health data) | yes | yes, literally (`cleanModules`; a backup without it turns PCOS off) | yes (sanitised by `cleanModules`) |
+| `homeTiles` | Home's Quick log tiles, null or 2–4 tile ids (calm R3, `lib/home.js`, spec §3.5a) | record (a setting, no health data) | yes | yes, literally (`cleanHomeTiles`; a backup without it brings back the default tiles) | yes (sanitised by `cleanHomeTiles`) |
+| `bodyLog` | the fast log's second half by day: hours slept, movement sessions, PCOS day chips, optional weight (calm R4, `lib/bodylog.js`, spec §3.5b) | health log | yes | yes, literally (`cleanBodyLog`; a backup without it clears it) | yes (sanitised by `cleanBodyLog`) |
+| `labs` | dated values she types from her own results (fasting glucose, HbA1c) and waist measures (calm R4) | health log | yes | yes, literally (`cleanLabs`) | yes (sanitised by `cleanLabs`) |
+| `bodyPrefs` | her units and whether weight is in her log (calm R4) | record (a setting) | yes | yes, literally (`cleanBodyPrefs`) | yes (sanitised by `cleanBodyPrefs`) |
+| `palIdx` | palette per stage (an index into `stagePalettes(stage, stageName)`, v2 list since calm R1) | setting | yes | yes | yes |
+| `cadence` | check-in rhythm | setting | yes | yes | yes |
+| `quietHours` | reminder time of day | setting | yes | yes | yes |
+| `quickMode` | quick or full check-in | setting | yes | yes | yes |
+| `relationship` | Connect setting | setting | yes | yes | yes |
+| `stage` | the one life-stage experience | setting | yes | yes | yes |
+| `stageName` | its label | setting | yes | yes | yes |
+| `welcome` | welcome sentence | setting | yes | yes | yes |
+| `acct` | name and email (empty in Anonymous Mode) | setting | yes | yes | yes |
+| `wearSources` | wearable connections | connection | yes | yes, unconfirmed (`pending` + `restored`) and merged with this device's; a Terra connection this device is disconnecting is left out | yes |
+| `terraOff` | unconfirmed Fitbit / Garmin / Whoop disconnects | device-only | yes | no (this device's kept) | no |
+| `research` | "Share anonymous weekly counts" | consent, device-only | yes | no (this device's kept) | through the pulse merge (`pulseRev`) |
+| `askAI` | "Also ask Cyra's AI" | consent, device-only | yes | no (this device's kept) | no |
+| `pulseQueue` | flags waiting to be sent | bookkeeping, device-only | yes | no | through the pulse merge |
+| `pulseSent` | what was sent this week | bookkeeping, device-only | yes | no | through the pulse merge |
+| `pulseLastSend` | last day a tally went | bookkeeping, device-only | yes | no | through the pulse merge |
+| `pulseRev` | version of the sharing state | bookkeeping, device-only | yes | no | through the pulse merge |
+| `lastBackupAt` | day this device last made a backup | bookkeeping, device-only | **no** (NOT_IN_BACKUP) | no | no |
+| `installHint` | whether this browser's install tip stays away | device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no (RECORD excludes it; each save merges the stored value one way: installed > dismissed > null) |
+| `exportLog` | appointment PDFs made this month, `{ month, n }`; null unless plan.js sets a monthly limit (none today, so it stays null) | bookkeeping, device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
+| `homeStepSkip` | the day she said "Not today" to Home's small step, `{ day, id }` (calm R3) | bookkeeping, device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
+| `moodLog` | the Mind check-in by day: a 1–5 face, feeling tags, optional energy and brain-fog levels (calm R5) | health log | yes | yes (literally) | yes |
+| `practiceLog` | practices she ran (≤ 400) with her "Which one helped?" answer (calm R5) | health log | yes | yes (literally) | yes |
+| `practiceFavs` | her favourite practices (calm R5) | record (setting) | yes | yes (literally) | yes |
+| `practiceHaptics` | this phone vibrates gently during a practice (calm R5) | device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
+| `experiments` | the weekly review's optional experiment: the one running with the days she ticked, the week whose offer she skipped, the ones she finished (calm R6) | health log | yes | yes (literally) | yes |
+| `aiPrefs` | her switches for Cyra's weekly write-up and chat and "Include lab values", `{ weekly, chat, labs }`, all false by default (calm R8) | consent, device-only | yes | no (this device's kept) | no |
+| `aiChat` | the chat about her log, `[{ role: me\|cyra, text, kind?, ask? }]` (≤ 40), cleared when chat is turned off (calm R8) | device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
+| `aiWeekly` | the last weekly write-up, `{ writeup, ask, day }`, cleared when the write-up is turned off (calm R8) | device-only | **no** (NOT_IN_BACKUP) | no (this device's kept) | no |
+| `cloudAccount` | the optional account this device is signed in to, `{ rev, acct }` (email, lookup, write token, backup key and salt, version, times, checksum; never the passphrase) (calm R9) | device-only | **no** (NOT_IN_BACKUP; never in a file or the account backup) | no (this device's kept) | through the autosave merge (highest `rev` wins) |
+| `appearance` | System / Light / Dark | device preference (DEVICE_PREFS) | **no** (NOT_IN_BACKUP) | never (this device's kept) | yes (same browser, same device) |
+| `uiLocale` | her language choice, null = follow this device (calm R10; the picker shows only with two or more catalogues) | device preference (DEVICE_PREFS) | **no** (NOT_IN_BACKUP) | never (this device's kept) | yes (same browser, same device) |
+| `reminders` | the switch, this browser's push addresses, a version | bookkeeping | `{ enabled }` only | on the phone only (the web keeps this browser's switch) | own merge (`rev`, the `reminders` message) |
+
+"In the backup file" means inside the encrypted envelope (`lib/backup.js`, PBKDF2-SHA256 600,000
+rounds, AES-256-GCM): nothing is readable without her passphrase. The per-device consents and
+bookkeeping are in the file but a restore never applies them; only the NOT_IN_BACKUP keys are left
+out of the file itself.
+
+`src/lib/record.js` is authoritative: its pinned lists are guarded by `record.test.mjs` ("key lists
+are the ones App.jsx used before L3"), which also checks that every key has a validation rule, a
+setter and a value in App.jsx. A slice that adds a key updates this table in the same commit.
+
+### 4.1 Condition modules (calm R1)
+
+A condition module adds a condition's symptoms, signals, cycle wording, pattern questions, Ask topics and Report
+sections to the one life-stage experience she already has; it never replaces the stage (exactly one experience per
+user). `src/lib/modules.js` is the registry: pure, imports only `engine.js`, `constants.js` and `pots.js`, never
+`record.js` (record.js imports it for `RULES.modules`), no storage, network or React.
+
+- `MODULES` = `{ pots, pcos }`, each `{ id, name, short, stages, what, symptoms, signals, cycle, askTopics,
+  reportSections, patternQuestions, evidence }`; `MODULE_IDS`, `MODULE_PHASES` (cycle, ttc, preg, peri, meno).
+- On/off: `isModuleOn(record, id)`, `setModuleOn(record, id, on, opts)` (returns a new record, input unchanged; the same
+  reference when nothing changes), `modulesFor(stage, stageName)` or `modulesFor(phaseId)`, `modulePhase(stage,
+  stageName)`, `cleanModules(raw)`, `sourcesOf(module, srcIds)`, `longCycleCount(lens, days = 35)`, `MODULE_FRAMING`.
+- POTS: the existing add-on stays the single source of truth. `isModuleOn(r, "pots")` reads `r.pots.on`;
+  `setModuleOn(r, "pots", on)` calls `lib/pots.js` `turnOn` / `turnOff` (turning off keeps the POTS log). No POTS code moved.
+- PCOS (offered in My Cycle, Trying to conceive, Perimenopause): data only in R1. Since R2 registration asks "Living
+  with PCOS?" (Yes / I suspect it → `setModuleOn(…, "pcos", true)` in finishReg) and You → Modules has its switch; R4
+  adds the Body logger and the "+" sheet's "PCOS signals", R6 patterns, R7 the full Modules list. Symptom ids already in the check-in libraries are reused
+  (`shared: true`: acn, eng, blo, mood, fog, hda, crm, cra) so existing logs count; new ids: hls (hair loss), hgr
+  (excess hair growth), pel (pelvic pain), sug (high-sugar day marker). Signals: crash, cra, waist, fglu (mg/dL |
+  mmol/L), hba1c (% | mmol/mol), acan (note). Lab values are hers, typed with unit and date, never interpreted.
+- Sourcing: every medical sentence carries `src` ids into `evidence` (Teede et al. 2023 international guideline,
+  Rotterdam 2003/2004, NICE CKS) and is listed in docs/CLINICIAN-REVIEW.md, awaiting sign-off; `modules.test.mjs`
+  enforces both, and bans diagnosis, treatment, score and streak wording.
+- Persisted key `modules` (table above): record class, in backups, restored literally, adopted by other tabs. Nothing
+  about modules is ever sent anywhere.
+- The next module (hair loss) is a new `MODULES` entry plus its copy in CLINICIAN-REVIEW.md; the comment at the top of
+  modules.js shows the shape. No engine change.
+
+**You page (calm R7).** `screens/YouScreen.jsx` renders the module switches (`components/ModuleRow.jsx` + `components/ui/Switch.jsx`,
+a real `role="switch"`), the Plan card (reuses `ProSheet`) and the settings cards. The Settings controls live in
+`components/settingsParts.jsx` (`CheckinsBody`, `RemindersBody`, `CountsBody`, `AppearanceBody`, `AboutBody`, `PrivacyBody`,
+`reminderModel`), shared by the Settings sheet and the You page, which are never on screen together. `lib/about.js` holds the
+page's copy-as-data (`BUILD_STAMP`, `MODULE_ADDS`, `PLAN_COPY`, `ACCOUNT_LINES`, `NOT_MEDICAL`, `accountLine`).
+
+### 4.2 Navigation (calm R2)
+
+`src/lib/routes.js` (pure, imports nothing) is the navigation model: `TABS` (Home · Body · Mind · Patterns · You),
+`viewsOf(tab, { preg, meno })` (each tab's views and segment labels), `tabOf(view, opts)`, `viewForTab(tab, lastByTab,
+opts)`, `parseRoute(hash, opts)` (new `#/<tab>[/<segment>]` links and the old tab names → `{ tab, view, section? }`),
+`routeOf(view, opts)`, `LOG_ITEMS` / `logItemsFor(has)`. App.jsx keeps one view id (`appTab` / `pregTab`, the ids every
+screen already routes with) and derives the selected tab from it; `NavPill`, the segmented `nav.subnav`, the `LogSheet`
+and the You page (`screens/YouScreen.jsx`, with `CareScreen embedded`) render from that. Nothing in navigation is
+persisted or sent; deep-link hashes are cleared after use.
+
+## 5. Shapes
+
+The typedefs in `src/lib/record.js` are the working definitions (spec §3.1 and §3.4):
+
+- **DayEntry** — `{ date: "YYYY-MM-DD" (unique), sym: { id: 0–3 }, scales?: { fatigue, pain, moodq,
+  stress: 0–10 }, sleepQ?: good | fair | poor, period?: boolean, flow?, disch?, odor?, bodyOdor?, note?, cm?, opk?,
+  bbt? }`. `cm` (cervical mucus: dry | sticky | creamy | watery | eggwhite), `opk` (ovulation test: neg | pos; absent =
+  not tested) and `bbt` (°C, 34–40, 3 decimals) are the L7 fertility signs, written only when set (`lib/fertility.js`).
+  `note` (L6) is her day note: trimmed, at most 280 UTF-16 units (`daylog.js` `cleanNote`), absent when empty; on the
+  device and in backups only.
+  Older records and `seed()` may carry only date, sleepQ, period and sym. At most one entry per date
+  (`upsertDay`); `entryFor` returns the first one, as `days.find` did.
+- **PregEntry** — `{ sym, kicks?, scales?, odor?, bodyOdor?, note? }`, kept in `pregLog` by date (`note` as DayEntry).
+- **SymPrefs** — `{ periods?, peri?, preg? }`, each `{ order, hidden, added }` (lists of symptom ids, at most 40 each);
+  `{}` is Cyra's order. My Cycle and Trying to conceive share `periods`, Perimenopause and Menopause share `peri`.
+- **Cycle** (derived, never stored) — `{ start, next, length, counted, periodDays }` from
+  `cyclesFrom(days)`, which builds on engine `cycleSpans(cycleStarts(days))` plus the running cycle.
+- **CycleFlags** — `{ [cycleStartIso]: { exclude: boolean } }`, her "Don't use for predictions" choices; a key within
+  2 days of a start applies to it (`flagKey`).
+- **Settings group** — Settings, StoredReminders, Account, Med, Appt, ConnEntry, WearRow,
+  PulseQueue, PulseSent, KickTally. The POTS log's shape is `lib/pots.js`'s.
+
+Symptom ids are stable keys and are never reused for another meaning, so an old entry always reads
+the same way. `sym` may hold ids from any library: `eng` ("Low energy") is in SYM and PSYM since L6, and
+her list can add a symptom from the other stage's library (`symPrefs.*.added`). `validateRecord()` checks all of this, but only
+as advice: nothing calls it at runtime, and nothing is ever dropped or rewritten because of it.
+
+## 6. Life stages and phases: one experience, continuous data
+
+`stage` is one of `periods`, `preg`, `peri` (or `null` while she chooses again). `stageName` carries
+the label registration chose, and `phaseOf(stage, stageName)` names the phase: `cycle` (My Cycle),
+`ttc` (Trying to Conceive), `preg` (Pregnancy), `peri` (Perimenopause) or `meno` (Menopause). `PHASES`
+lists the exact labels `finishReg` and `rulesRoute` write; any other label of a stage counts as
+`cycle` or `peri`. Registration routes with `REG_STAGE` and `STAGE_LABELS` in `src/lib/onboarding.js` (L11; unit-tested
+equal to `PHASES`), and `regSteps(stage)` decides which steps she sees (Stage → Device → Cycle | Pregnancy | nothing →
+Consent).
+
+Cycle, TTC, perimenopause and menopause all read the same `days`; pregnancy reads `pregLog`. Changing
+stage (`{stageName} · change`) keeps every log: the other one stays and is there again if she
+switches back. Only two things tied to the old stage go: weekly-count flags still waiting to be sent
+for it are dropped, and a move into Pregnancy asks the POTS exercise-clearance question again. She sees exactly one experience at a time. The POTS add-on is independent of stage.
+
+## 7. Derived data
+
+Analyses — insights, predictions, cycles, day scores, the monthly recap, medication comparisons,
+pattern charts and POTS totals — are computed on the device each time they are shown and are never
+saved. Cyra's server never receives them, with one exception while she shares weekly counts: the
+yes/no flag 'mood swings before a predicted period' is worked out from the prediction (see the
+README's Privacy section). Otherwise they leave the device only in what she sends herself: the
+doctor-summary email draft, copied summary text, and POTS reports or spreadsheets she exports.
+
+That flag waits in `pulseQueue` on the device until it is sent, like the other weekly-count flags.
+The Report's "Print or save PDF" button hands the page on screen to the browser's print dialog, and
+its "Share…" button (Web Share, shown wherever the browser offers it, on a phone or a computer)
+hands the email-draft text to the app she picks; each only when she taps it.
+
+Where each comes from: `insights()` and `predict()` (`lib/engine.js`), `cyclesFrom()`
+(`lib/record.js`), `dayScore()` (engine), the monthly recap, medication comparisons and wearable
+insights (App.jsx `useMemo` and render-time code), pattern charts (`components/PatternCharts.jsx`),
+POTS totals and patterns (`lib/pots.js`, `lib/potsPatterns.js`).
+
+Predictions since L5: `predict()`, `whyNoPrediction()` and `cycleSummary()` (`lib/engine.js`) are computed on the device
+from `days`, `cycleFlags` and the registration answers, every time they are shown, and never stored; only her flags
+are. The clinical markers (`insights()`: `lens`, `variability`, `lens30`, `variability30`) never read `cycleFlags`, so
+the perimenopause marker and the Report count every cycle. `engine.js` owns cycle detection (`cycleStarts`,
+`cycleSpans`, `cycleLens`); `record.js` `cyclesFrom()` delegates to it, so there is one implementation.
+
+The tracked list (L6): `trackedIds(stage, symPrefs)` (`lib/daylog.js`) is her stage's library plus what she added from
+the other one, hidden ones included; App.jsx's `symIds` is that list for the cycle and perimenopause stages, and
+`insights()`, the patterns card, the Calendar day card, the Report and the doctor email all run on it, so hiding a chip
+never hides what she logged. Day scores divide by `SCORE_SCALE[stage]` (`lib/constants.js`: 12 / 10 / 8, the library
+sizes when the score was defined; App.jsx `scoreDay`), so neither a new library symptom nor her list rescales a past
+day. Both are derived on each render and never stored; only `symPrefs` is.
+
+Summaries and links (L8): `periodSummary` / `summarySentences` / `recapFrom` (the "This week / This month" summary and
+Home's monthly recap), `cycleDayCluster` / `patternFindings` (sleep links and cycle-day clusters, with the list of
+checks Cyra ran) and `homePick` (Today's insight) in `lib/insights.js`, and `nightOf` / `isRoughNight` / `sleepLink`
+in `lib/engine.js`. All pure, computed by App.jsx (`useMemo`) on render, never stored, never in backups, never sent;
+they read no day note and no fertility sign. The AI pattern-report hook (`plan.aiPatternReports`) stays false and
+nothing calls it.
+
+The appointment PDF (L9): `visitModel()` / `visitPdf()` / `visitTexts()` in `lib/visitReport.js` sit beside
+`lib/potsReport.js` as the second file she can make. The model is built on render from `days`, `insights()`, the
+tracked ids, `SCORE_SCALE[stage]`, `cycleFlags`, her picked questions, the "Include my notes" tick (UI state) and, for
+Trying to conceive with signs on, L7's fertility sentences; the PDF is drawn with `lib/pdf.js` and handed over by
+`lib/files.js` `saveFile` (a download, or the phone's cache → share sheet → delete). Never stored, never sent.
+
+## 8. Saving, other tabs, backup and restore, delete
+
+- **Autosave.** Any change to a PERSISTED value schedules a save 400 ms later (App.jsx autosave
+  effect). A save waiting on its timer is written at once when the app is hidden, the page is
+  closed (`pagehide`) or the phone app goes to the background. `storage.save` runs saves one at a
+  time, in order.
+- **Other tabs (web).** BroadcastChannel `cyra` carries four messages: `record` (another tab saved:
+  take RECORD over, `adoptRecord`), `pulse` (sharing state, `pulseRev`), `reminders` (the switch,
+  `rev`) and `wipe` (Delete everything under way). Before every save a tab merges the stored sharing
+  state, reminders and install hint, and 3-way merges the POTS log (`mergePots`, epochs). Weekly
+  counts are sent inside the Web Lock `cyra-pulse-flush`.
+- **Backup.** `snapshot()` → `backupCopy()` → `encryptBackup()` (PBKDF2-SHA256, 600,000 rounds,
+  AES-256-GCM) → `fileTransport.save()` (lib/backup.js): a download on the web or the share sheet on
+  the phone. Cyra never receives it. A restore reads the chosen file with `fileTransport.load()`. The
+  cloud transport beside it is a scaffold no build can reach (§10).
+- **Restore.** `decryptBackup()` → `migrate()` → the version check (`v === RECORD_VERSION`, a stage
+  set; otherwise "That backup is empty or from a different version") → every key applied except
+  DEVICE_ONLY, DEVICE_PREFS and, on the web, `reminders` (§4) → saved at once.
+- **Files she makes.** `lib/files.js` `saveFile({ name, data, mime, title })`: on the web a Blob download; on the
+  phone a plaintext file in the app cache handed to the share sheet and deleted in `finally`. The launch sweep
+  (`sweepBackupCache`, also run by Delete everything / Start over) removes leftover `cyra-backup-*.cyra.json`,
+  `cyra-report-*.pdf`, `cyra-summary-*.pdf` (the appointment PDF, L9) and `cyra-data-*.csv`.
+- **Delete everything.** See the "Delete everything / Start over" comment in App.jsx: the server
+  steps first (each confirmed or explained), then this device's clean-up (worker and offline copy,
+  cache files, the record, the app lock), and every other open tab is told to stop saving.
+- **The app lock and the privacy dashboard (L10).** `lib/lock.js` is pure logic over WebCrypto and
+  WebAuthn (`hashPin` / `checkPin`, `cleanLock`, `afterFail` / `afterSuccess`, `shouldLock`,
+  `createPasskey` / `verifyPasskey`, `forgotPinRecord`); no network. The lock screen is rendered
+  instead of everything else while `locked`, and a forgotten PIN has two exits: the existing wipe, or
+  verify the backup → `wipe()` → write `forgotPinRecord(backup)` → reload (never a merge). The
+  dashboard's states come from `lib/privacyFlows.js` `flowRows`, computed from `features.js` flags,
+  `plan.can("cloudBackup")`, `hasServer()`, the platform and her settings; a flow the build cannot
+  use is not rendered.
+
+## 9. Health platforms: where HealthKit / Health Connect sync plugs in
+
+**Today.** The phone app's `CyraHealth` plugin (`lib/native.js`, bridge contract in
+`lib/wearables.js`) → `connectSource("healthkit")` / `syncSource("healthkit")` → rows
+`{ date, temp, rhr, hrv, sleep, sourceId: "healthkit" }` → `mergeRows` → `wearData`. Read-only, from 30
+days ago to today, phone only, never sent anywhere (it leaves the phone only inside an encrypted backup
+she exports).
+
+**Plug-in point (planned).** An adapter beside it in `lib/wearables.js` (or a new
+`lib/healthSync.js`) that extends the bridge contract, for example `readCycle({ from, to })`:
+
+- Cycle samples (menstrual flow, spotting) map onto `DayEntry.period` / `flow` through `upsertDay`,
+  carrying a source mark, and never overwrite what she logged in Cyra herself.
+- Writing back to Health is a separate, explicit permission.
+- It needs new permission strings, a PrivacyInfo update, a PRIVACY-AUDIT entry and unit tests.
+- It sits behind the build's wearables flag (L4) and her own opt-in.
+
+## 10. Server surface and feature flags
+
+### 10.1 The shipping surface
+
+Static/PWA hosting for the app, plus a backend that mounts **push and ai only** in production
+(`backend/config/app.json`, `NODE_ENV=production`). The app's default build (`VITE_FEATURES` unset)
+offers only Cyra's AI and web reminders: it makes **no request at launch**, and its first server
+contact is her own opt-in, turning on browser reminders (web push) or ticking "Also ask Cyra's AI"
+(the question alone). The phone app schedules reminders locally and needs no server for them. Every
+other server feature is present in the code, mounted in development (`config/app-dev.json`), and
+turned on for a release by configuration, never by deleting or adding code (owner decision D2).
+
+### 10.2 The flags
+
+`src/lib/features.js` reads `VITE_FEATURES` once, at build time: unset or empty = the defaults below;
+a comma list **replaces** the defaults (`counts,ai` offers only those two); `all` = every flag; `none`
+= none; names match without regard to case, and an unknown name is ignored with a build warning
+(`vite.config.js` logs `[cyra] features: …`). A flag decides only what the build **offers**: each
+opt-in still starts off for her and says what it sends before she turns it on. A feature that is off
+leaves no trace in the UI and makes no request.
+
+| Flag | What it adds in the app | Backend module (`FEATURE_MODULE`) | What the module keeps | Default |
+|---|---|---|---|---|
+| `wearables` | Home's Wearables door and panel, the "From your wearable" cards and milestones, Oura and Fitbit/Garmin/Whoop (Terra) connections, on the phone Apple Health / Health Connect, POTS watch/ring rows | `integrations` | Oura tokens in memory for at most 5 minutes during a connect; Fitbit/Garmin/Whoop readings in memory for at most 7 days until the device collects them | off |
+| `counts` | "You're not alone" on Home (one read per launch), "Share anonymous weekly counts" (consent and Settings) | `pulse` | weekly totals only: `{week, stage, event, count}` | off |
+| `ai` | "Also ask Cyra's AI when the library has no answer" on Ask | `ai` | nothing (it forwards the question to Anthropic) | on |
+| `webReminders` | check-in reminders in a browser (rhythm, nudge and Reminders in Settings, "Remind me" on the consent step); phones always have reminders | `push` | the browser's push address and keys, reminder days, time, time zone, the last day one was sent | on |
+| `cloudBackup` | the optional account (You → Account, the splash's "Sign in to restore from your account"; Pro) §10.5a | `backup` | per account: one opaque encrypted blob, a hash of her email, a hash of the write token, a version and timestamps; 365 days after the last write | off |
+| `signin` | the Apple / Google / Facebook prefill on step 1 (Apple first) | `oauth` | the provider's name and email in memory for at most 5 minutes | off |
+
+`signin` is a sixth flag beside the five D2 names: D2 makes production push + ai, so the oauth module
+is no longer mounted there, and the default build must not offer sign-in buttons that cannot work.
+
+### 10.3 Turning a feature on
+
+Both switches, and the secrets it needs:
+
+1. **The app:** add the flag to `VITE_FEATURES` for the static site (Render → cyra-health →
+   Environment) and for each phone build (`.env.local` before `npm run cap:sync`).
+2. **The server:** list its module in `backend/config/app.json` `"modules"`, and set the module's
+   variables from `.env.example` (Render → cyra-backend → Environment).
+
+One without the other fails visibly or idles: a flag without its module offers a feature whose
+requests answer 404 (the app then says it couldn't reach the service); a module without its flag is
+mounted but nothing calls it. `backend/scripts/prod-smoke.js` proves that re-listing oauth,
+integrations, pulse and backup brings them back on the same production server.
+
+### 10.4 Flag-dependent copy
+
+Every privacy sentence that names a flagged feature is built in one pure, unit-tested place,
+`src/lib/disclosures.js` (step 1's "What Cyra's server sees", the consent card's fifth fact and "The
+details", the files sentence and wearable restore line in Privacy & your data's "What can leave this device" (L10), the restore and delete texts, the intake hint,
+Start over and the POTS footers). With every flag on each builder returns the pre-L4 text byte for
+byte; otherwise a shorter sentence that is still literally true (no dangling sentence, no empty
+list). Screens gate whole rows and sections on `FEATURES`; they never inline a flag condition inside
+a sentence. A later slice that adds or rewords such a sentence adds a builder (with tests) there
+(L5's restore line, L7's fertility privacy line, L9's PDF wording, L10's dashboard), and L10's
+privacy dashboard derives On / Off / "Not in this version" from `features.js`, `remindersInBuild`,
+`plan.js` and her settings. A flag never deletes or changes recorded data: an earlier build's
+wearable rows and connections, queued counts or choices are kept (and travel in backups) but are not
+shown, sent or contacted; Delete everything in a build without wearables shows `LEGACY_WEAR_LINE`
+when the record still holds a real connection.
+
+### 10.5 The encrypted cloud backup scaffold (D3)
+
+- **Protocol** (backend module `backup`, `backend/src/modules/backup/index.js`; listed in
+  `config/app-dev.json`, **not** in `config/app.json`): `POST /api/backup` with the bytes →
+  `201 {id, token, expiresAt}`; `PUT /api/backup/:id`, `GET /api/backup/:id` and
+  `DELETE /api/backup/:id` with `authorization: Bearer <token>`. Bodies are
+  `application/octet-stream` only (otherwise 415), at most `maxBytes` (4 MiB, 413); `maxRows`
+  (10,000) and `maxTotalBytes` (1 GiB) cap the store (507); a blob expires `ttlDays` (90) after its
+  last write and a sweep deletes it (hourly and at start, plus row-less files over an hour old); an
+  in-memory rate limit per address. id = 128 random bits, token = 256 random bits, and only the
+  token's SHA-256 is kept. Unknown id, malformed id, wrong token and expired all answer the same 404.
+  Rows are exactly `{id, tokenHash, size, createdAt, updatedAt, expiresAt}`; bytes live in
+  `<dir>/<id>.bin` (written to a temp file, then renamed). It never parses, inspects, decrypts or logs
+  a body, a token or an id.
+- **Client:** `src/lib/backup.js` has the transport interface. `fileTransport(io)` is today's
+  download / share sheet; `cloudTransport({ request, enabled, gate })` moves only an envelope that is
+  already encrypted (`isEnvelope`), never the passphrase or plaintext, and is fail-closed: every
+  method rejects with `CLOUD_OFF` before any request unless `enabled && request && gate()`.
+  `src/lib/cloudBackup.js` wires it with `apiFetch`, `hasServer()` and
+  `gate: () => FEATURES.cloudBackup && can("cloudBackup")`. Nothing imports that file, so it is in no
+  bundle.
+- **Three gates, all closed today:** `plan.cloudBackup` (false on the only plan), the build's
+  `cloudBackup` flag (off by default), and the `backup` module listed in `app.json` (not listed).
+- **Before enabling it:** a screen that shows her the id + write token as a recovery code (needed to
+  restore on another device); a new device-only key for them (proposed `cloudBackupRef`,
+  `DEVICE_ONLY`, never in a backup; not added yet); persistent storage for the module instead of
+  Render's instance disk, which is wiped on every deploy; and, in the same commit, the four privacy
+  sentences that say Cyra never receives the backup file (docs/PRIVACY-AUDIT.md, L4 section).
+
+### 10.5a The optional account (calm R9)
+
+- **What she keeps:** an email and a passphrase. Both are turned into keys on her device
+  (`src/lib/account.js`): `lookupFor(email)` = SHA-256 of a tagged, normalised email (the server's
+  `emailHash`); `tokenFor(email, passphrase)` = HMAC-SHA256 under PBKDF2-SHA256 (600,000 rounds, salted
+  with a hash of the email) of a fixed label (the server keeps only its SHA-256). The backup itself is
+  the usual `cyra-backup` envelope (`src/lib/backup.js`), encrypted with a key from the same PBKDF2 over
+  the envelope's own random salt (`backupKey` / `encryptWithKey`; `openBackup` on sign-in), so the
+  write token can't open it. No email is ever sent: there is no mail provider and no magic link.
+- **What the server stores per account:** `{ id (random, never sent), kind: "account", emailHash,
+  tokenHash, version, size, createdAt, updatedAt, expiresAt }` and `<dir>/<id>.bin`, the encrypted
+  bytes as received. Deleted 365 days after the last write (`accountTtlDays`), at once on Delete account.
+- **What this device keeps:** record key `cloudAccount` `{ rev, acct }` (DEVICE_ONLY and NOT_IN_BACKUP;
+  §4): her email, the lookup and write token, the backup key and salt (never the passphrase), the
+  version it last wrote or restored, when, and a short checksum of that content. Sign out sets
+  `acct` to null; Delete everything removes it with the record.
+- **Sync:** last write wins with a check. Each `PUT` names the version she last had
+  (`x-cyra-base`); a newer server version answers 409 and You → Account shows "The backup is newer"
+  with "Use the backup" / "Keep this device's log". Automatic back-ups run 8 s after a saved change to
+  what a backup holds (never for a device-only change) and once at launch (only `GET …/meta` when
+  nothing changed). Across a browser's tabs the highest `rev` wins.
+- **Gates:** the `cloudBackup` flag and a server (`ACCOUNTS_HERE` in `src/lib/cloudBackup.js`: without
+  them no account UI exists), then `plan.can("cloudBackup")` (Pro, or proDev for QA). Production keeps
+  `backup` out of `config/app.json` until the owner enables it with a persistent disk (`DATA_DIR`).
+
+### 10.6 Plan hooks
+
+A feature that is optional on the server side or paid passes three gates, in this order:
+
+1. **Build flag** — `src/lib/features.js` (§10.2).
+2. **Plan** — `src/lib/plan.js` (`can(feature)`, the one entitlements object; today one free plan).
+3. **Her own opt-in** — the switch or consent on the screen, off until she turns it on.
+
+A screen never compares tier names; it asks `can(feature)`, which says no to anything it doesn't
+know. The free core, the paid extension points and the rules any paid feature must follow are in
+`docs/MONETIZATION.md`.
+
+### 10.6a Cyra's AI write-up and chat (calm R8)
+Four gates, in order: the build's `ai` flag, a server (`VITE_API_BASE`), the plan (`can("aiPatternReports")` /
+`can("aiChat")`; Pro only from `lib/purchase.js`, which owns nothing in this version, or the `proDev` QA flag) and her own
+switch in You → Cyra's AI (`aiPrefs`, off by default). `lib/aiSummary.js` builds the pseudonymized summary on the device
+(counts and fixed labels only; `checkSummary` proves it), `components/ai/AiParts.jsx` shows it in "What Cyra will send"
+before every send, and `lib/aiClient.js` posts that same object to `POST /api/ai/weekly` `{ summary }` or
+`POST /api/ai/chat` `{ summary, question, history }`. `GET /api/ai/status` → `{ ready }` lets the app say "AI isn't set up
+on this server yet" without sending anything about her. The backend (`backend/src/modules/ai`) re-checks the summary,
+caps bodies (32 kB parser, 16 kB route), rate-limits, answers red-flag chat questions itself, keeps nothing and logs
+only error kinds; the API key lives only in its environment (`ANTHROPIC_API_KEY`).
+
+### 10.7 Harness note
+
+The suites that pin today's full feature set build with `VITE_FEATURES=all`: `a12-8-loop/build-dists.sh`
+(dist-native, dist-plain, dist-links: every native, POTS and axe suite) and the two live suites, which
+also write a production config listing the five modules that build calls (oauth, integrations, pulse,
+push, ai). The hard-coded walks (`walk.mjs`, `axe.mjs`, `a12-8-plain/axe-expanded.mjs`,
+`final-review/axe-edit.mjs`) click "Apple" and "Wearables", so they need an `all` build and must never
+be pointed at a default-flag build. The uiux snap/axe demo builds pin the shipping defaults
+(`VITE_FEATURES=` empty), and `lf/l4/flags-e2e.mjs` (in `pots/s9/run-all.sh`) checks the default,
+`none` and `all` builds for DOM traces and requests.
+
+## 11. Changing the record
+
+**Adding a key**
+
+1. Add it to `PERSISTED` in `src/lib/record.js`, give it a `RULES` entry and a typedef, and add it to
+   `DEVICE_ONLY`, `DEVICE_PREFS` and/or `NOT_IN_BACKUP` when it belongs to this device.
+2. Add its setter and value in App.jsx (`setters`, `values`); `record.test.mjs` fails without them.
+3. Update the pinned literal lists in `record.test.mjs` and this document's §4 row.
+4. It must default safely when it is missing: an older build still open in another tab saves only
+   the keys it knows, so the key can be dropped from disk until the new tab saves again. A key that
+   must survive that needs a second copy, as the POTS log has.
+5. A PRIVACY-AUDIT entry (where it lives, whether it is in backups) and unit tests.
+
+**Bumping `RECORD_VERSION`**
+
+1. Only when an existing key's meaning or shape changes; a new optional key does not need it.
+2. Add one pure step to `MIGRATIONS` (version n → a new record at n + 1) with unit tests.
+3. Before the first bump, ship a newer-record guard (like `isLockedPots`) in an earlier release, so an
+   older build left open in a tab can't save over a newer record.
+4. Keep the IndexedDB key `v1` and the file name `cyra-state.json`.
+5. Older builds reject a newer backup with "That backup is empty or from a different version".

@@ -13,7 +13,9 @@ fs.rmSync(DIR, { recursive: true, force: true }); fs.mkdirSync(DIR, { recursive:
 // seed the store: last closed week has hf=50 (shows), ns=49 (suppressed); this week has hf=999 (never shown yet)
 const PREV = lastClosedWeek(), NOW = isoWeek();
 fs.writeFileSync(`${DIR}/pulse.json`, JSON.stringify([{ week: PREV, stage: "peri", event: "hf", count: 50 }, { week: PREV, stage: "peri", event: "ns", count: 49 }, { week: PREV, stage: "preg", event: "nau", count: 120 }, { week: NOW, stage: "peri", event: "hf", count: 999 }]));
-const cfg = JSON.parse(fs.readFileSync("config/app.json")); cfg.storage.dir = DIR; fs.writeFileSync("config/app.pulse-test.json", JSON.stringify(cfg));
+// The production config's settings, with the pulse module listed: since local-first L4 production mounts only
+// push and ai, so pulse is listed here to test the module itself (a build with VITE_FEATURES counts lists it too).
+const cfg = JSON.parse(fs.readFileSync("config/app.json")); cfg.modules = ["pulse"]; cfg.storage.dir = DIR; fs.writeFileSync("config/app.pulse-test.json", JSON.stringify(cfg));
 const be = spawn("node", ["server.js"], { env: { ...process.env, PORT: "3108", CYRA_CONFIG: "config/app.pulse-test.json", NODE_ENV: "" }, stdio: ["ignore", "ignore", "inherit"] });
 const B = "http://127.0.0.1:3108";
 const IPS = new Set();

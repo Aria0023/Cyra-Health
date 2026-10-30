@@ -3,6 +3,7 @@
    never reaches Cyra's AI or the network. STARTERS: a short list per stage for the Ask tab (plus the
    POTS extra, offered only with the POTS add-on on). INSIGHT_STARTERS: the question each Patterns
    insight card hands to Ask ("Ask about this →"), keyed by the insight's symptom id. */
+import { ENERGY_ID } from "./constants.js";
 
 export const STARTERS = {
   peri: ["Does hormone therapy raise cancer risk?", "What helps hot flashes without hormones?", "Why can't I sleep?", "Am I in perimenopause?", "Why am I so tired?"],
@@ -16,4 +17,6 @@ export const INSIGHT_STARTERS = {
   slp: "Why can't I sleep?",
   var: "Am I in perimenopause?",
   crm: "Why are my cramps worse some months?",
+  // Low energy (L6); already a STARTERS string, so the library answers it on the device.
+  [ENERGY_ID]: "Why am I so tired?",
 };

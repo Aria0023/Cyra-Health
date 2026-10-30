@@ -60,18 +60,34 @@ backend is **when you build it**:
 ```sh
 npm install
 export VITE_API_BASE=https://cyra-backend.onrender.com   # or put it in .env.local, which git ignores
+export VITE_FEATURES=all  # or a list; unset = Ask Cyra's AI and reminders only (docs/ARCHITECTURE.md §10)
 npm run cap:sync      # vite build, then copy dist/ and the plugins into ios/ and android/
 npm run cap:ios       # the same, then open ios/App/App.xcodeproj in Xcode
 npm run cap:android   # the same, then open android/ in Android Studio
 ```
 
+**Feature flags.** `VITE_FEATURES` decides which optional features the phone app offers
+(`src/lib/features.js`). With the default flags (unset: `ai,webReminders`) the phone app offers
+Ask Cyra's AI and its local check-in reminders, and **no** Apple Health / Health Connect,
+Oura or Fitbit/Garmin/Whoop, sign-in prefill or weekly counts: those screens, rows and sentences
+aren't there. Each server feature also needs its module in `backend/config/app.json` (production
+mounts only push and ai). For a store release, match the build to its metadata: with `wearables`
+off, the HealthKit entitlement, the Info.plist Health strings and the Android Health Connect
+permissions are unused (App Review and Play may reject an app that declares health access it never
+asks for), and the iOS privacy manifest over-declares (Name, Email, User ID, Oura tokens). Either
+build phones with `wearables` (and the matching modules), or remove those for that release and update
+`PrivacyInfo.xcprivacy` and the store answers (docs/PRIVACY-AUDIT.md, L4).
+
 If `VITE_API_BASE` is missing, the app still works on the phone and makes no request to a
-backend at all: every helper in `src/lib/api.js` fails at once without calling `fetch`.
-Sign-in shows "Sign-in isn't set up in this version of the app yet — continue with email",
-and connecting Oura, Fitbit, Garmin or Whoop shows "This version of the app isn't set up to
-connect accounts yet". The anonymous counts say they're "not available in this version of
-the app", no weekly counts are sent, and Ask Cyra answers from its on-device library only. Apple Health / Health Connect and
-reminders work as usual, because they never use the server.
+backend at all: every helper in `src/lib/api.js` fails at once without calling `fetch`. Ask
+Cyra answers from its on-device library only (the "Also ask Cyra's AI" choice isn't shown), and
+local reminders, Apple Health / Health Connect (in a build with `wearables`) work as usual,
+because they never use the server. In a build that offers them: sign-in shows "Sign-in isn't
+available in this version — fill in the form or use Anonymous Mode; your profile stays on this
+phone.", connecting Oura, Fitbit, Garmin or Whoop shows "This version of the app isn't set up to
+connect accounts yet", the anonymous counts say "Community counts aren't available in this version
+of the app", and Settings says "Weekly counts aren't available in this version of Cyra, so nothing
+is shared."
 
 Also set `VITE_TERMS_URL` and `VITE_PRIVACY_URL` (the published Terms and Privacy Policy)
 before a public release. Without them the build still passes, prints a warning, and the
@@ -79,6 +95,10 @@ consent step says the documents are still being finalized instead of linking the
 
 Run `npm run cap:sync` again after any change to `src/`, `capacitor.config.json` or the
 Capacitor packages.
+
+The phone app never registers the service worker and never shows install UI (spec A14.1:
+`isNative()` gates both); `sw.js`, `manifest.webmanifest` and `icons/` ship in the web assets
+unused.
 
 ## 3. iPhone (Xcode)
 
@@ -365,9 +385,30 @@ saves downloads (iOS has no download handling in Capacitor; Android has no
 made on the web or on a phone. The delete warning says, on every platform, that the log
 can't be recovered unless the person saved a backup.
 
+The appointment PDF from the Report (`cyra-summary-<date>.pdf`, local-first L9) and the POTS
+report files (`cyra-report-<date>.pdf`, `cyra-data-<date>.csv`) use the same path as the backup:
+written to the app cache, handed to the share sheet, deleted afterwards (also on cancel or error),
+and swept at launch and by Delete everything / Start over. Unlike the backup they are not
+encrypted — the screen says so ("This file isn't locked…") every time.
+
 App Review Guideline 5.1.3(ii): apps "may not store personal health information in
 iCloud". So the person has to choose where the file goes, and the app must never write it
 into an iCloud-synced folder on its own. It doesn't: it only writes to its own cache.
+
+## 7c. The app lock on the phone (local-first L10)
+
+The lock's settings (`Library/NoCloud/cyra-lock.json`: the PIN's salt and PBKDF2 hash, lock-after,
+the attempt back-off; never the PIN) sit next to the record and get the same treatment: CyraNoCloud's
+per-launch and per-background backup exclusion and Complete protection cover the whole `NoCloud`
+folder, and Delete everything / Start over remove the file after the record. It is never in an
+encrypted backup. The app reads it only after the record, at launch, and locks before anything
+renders; `appStateChange` (inactive) and `visibilitychange` drive "Immediately" / 1 minute / 5
+minutes. Passkey unlock is web-only: WKWebView would need associated domains and the Android WebView a
+WebAuthn opt-in, so the phone app unlocks with the PIN only, and the Settings row says so. Native
+biometrics (Face ID, fingerprint) through a Capacitor plugin are later work, deliberately not added
+(D4: no new dependency). Verify on a real iPhone and Android that `appStateChange` fires on
+background and screen lock; iOS also fires it for Control Center and the notification shade, so
+"Immediately" locks there too.
 
 ## 8. What has and hasn't been verified
 
@@ -434,3 +475,9 @@ repository.
   verifier only lived in memory, so the person has to start sign-in or connecting again.
   For Fitbit/Garmin/Whoop, the mailbox key is saved before the window opens, so **Sync**
   can still collect the readings once the connection finishes.
+- **Light and dark (L2).** The web view follows the phone's light or dark setting:
+  Android's `MainActivity` theme `AppTheme.NoActionBar` is `Theme.AppCompat.DayNight`,
+  and iOS sets no `UIUserInterfaceStyle`, so Cyra's System appearance matches the phone.
+  When Cyra's own Appearance (Settings → Appearance: Light or Dark) differs from the
+  phone, the status bar and the native launch screen still follow the phone. Styling them
+  from the app would need a status-bar plugin, a new dependency, so it is later work.

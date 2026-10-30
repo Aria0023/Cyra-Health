@@ -5,7 +5,9 @@
    complete file protection; on Android Library is the app's internal files
    directory and app backup is switched off. One document holds the whole health
    record (the web also keeps a second copy of its POTS log next to it, POTS_KEY below).
-   Nothing here talks to a network.
+   Nothing here talks to a network. Every record load passes through migrate() (lib/record.js),
+   which brings an older record up to RECORD_VERSION without changing what it holds; for today's
+   version-1 records it returns the record exactly as stored.
 
    The phone save is atomic: the record is written to cyra-state.json.tmp and then
    renamed over cyra-state.json, so a crash mid-write never leaves half a record.
@@ -15,7 +17,7 @@
    file of an interrupted save, which is removed when it isn't the only copy and kept
    (and counted) when it is — and "memory" only when none can be. On the web, a record
    that exists but couldn't be read reports "unreadable" (never "memory"), so the
-   privacy copy in Settings → Your data never says less is stored than really is.
+   privacy copy in Settings → Privacy & your data never says less is stored than really is.
 
    The hold: one tiny value outside the record — the ISO week in which this device last
    sent weekly counts (no stage, no flags, no dates or values; it shows only that this
@@ -23,8 +25,17 @@
    over leave it, so a fresh record made on this device that week sends no counts again
    (lib/pulse.js: each flag at most once a week from this browser or app install). Web:
    its own IndexedDB database "cyra-hold"; phone: NoCloud/cyra-hold.json. It is deleted
-   at the first start after that week ends (and by Delete everything, if stale). */
+   at the first start after that week ends (and by Delete everything, if stale).
+
+   The app-lock slot (L10, lib/lock.js LockCfg): this device's PIN hash and salt, lock-after choice,
+   passkey id and attempt back-off, outside the record, so no autosave, other tab or restore ever
+   writes it and it is never in a backup (snapshot() never sees it). Web: key "v1-lock" in the same
+   database and store as the record, so Delete everything's clear() and dropDatabase remove it and an
+   older build never touches it. Phone: NoCloud/cyra-lock.json, covered by the same iCloud / device
+   backup exclusion and Complete protection as the record; clearLock() removes it after the record is
+   deleted. Only explicit lock actions write it (App.jsx). It holds no health data and never leaves. */
 import { isNative, Filesystem, Directory, Encoding } from "./native.js";
+import { migrate } from "./record.js";
 
 const DB = "cyra", STORE = "state", KEY = "v1", PROBE_KEY = "probe";
 /* Web only: a second copy of the POTS log (the record's `pots`), written in the same transaction
@@ -34,6 +45,8 @@ const DB = "cyra", STORE = "state", KEY = "v1", PROBE_KEY = "probe";
    Delete everything (clear + dropDatabase), in this build or an older one, removes it too. The
    phone app has one web view and one bundled build, so it has no second copy. */
 const POTS_KEY = "v1-pots";
+/* Web only: the app-lock slot (see the header). Same store as the record; never in a backup. */
+const LOCK_KEY = "v1-lock";
 /* @capacitor/filesystem 8.1.4 rejects a read of a missing file with this code on both
    platforms (ios FilesystemError.fileNotFound = 8; android FilesystemErrors.doesNotExist
    = formatErrorCode(8)). Every other failure is "can't read it right now". */
@@ -47,6 +60,7 @@ export class StorageUnavailableError extends Error {
 const FILE = { path: "NoCloud/cyra-state.json", directory: Directory.Library };
 const TMP = { path: "NoCloud/cyra-state.json.tmp", directory: Directory.Library };
 const HOLD = { path: "NoCloud/cyra-hold.json", directory: Directory.Library };
+const LOCK = { path: "NoCloud/cyra-lock.json", directory: Directory.Library };
 const HOLD_DB = "cyra-hold";
 
 function idb(name = DB) {
@@ -124,9 +138,9 @@ export const storage = {
       let parsed;
       try { parsed = JSON.parse(data); } catch { throw new StorageUnavailableError("parse"); }
       if (parsed != null) hasRecord = true;
-      return parsed;
+      return migrate(parsed);
     }
-    try { const db = await idb(); const v = await tx(db, "readonly", (s) => s.get(KEY)); db.close(); loadFailed = false; if (v != null) hasRecord = true; return v ?? null; }
+    try { const db = await idb(); const v = await tx(db, "readonly", (s) => s.get(KEY)); db.close(); loadFailed = false; if (v != null) hasRecord = true; return v == null ? null : migrate(v); }
     catch { loadFailed = true; return null; } // reported as "unreadable" until a save works
   },
   /** Web: the second copy of the POTS log (see POTS_KEY), or null. Never throws. */
@@ -161,6 +175,39 @@ export const storage = {
       if (isNative()) await Filesystem.writeFile({ ...HOLD, encoding: Encoding.UTF8, data: JSON.stringify({ week }), recursive: true });
       else { const db = await idb(HOLD_DB); await tx(db, "readwrite", (s) => s.put({ week }, KEY)); db.close(); }
     } catch { /* best effort */ }
+  },
+  /** The app lock (L10): the stored LockCfg, or null when none is set. Rejects (StorageUnavailableError)
+      on any read failure other than "not there", so a lock is never silently skipped. */
+  loadLock() {
+    return inOrder(async () => {
+      if (isNative()) {
+        let data;
+        try { data = await readNative(LOCK); } catch (e) { if (e?.code === NOT_FOUND) return null; throw new StorageUnavailableError(e?.code); }
+        try { return JSON.parse(data); } catch { throw new StorageUnavailableError("parse"); }
+      }
+      if (typeof indexedDB === "undefined") return null;
+      try { const db = await idb(); const v = await tx(db, "readonly", (s) => s.get(LOCK_KEY)); db.close(); return v == null ? null : v; }
+      catch (e) { throw new StorageUnavailableError(e?.name); }
+    });
+  },
+  /** Write the lock (throws on failure, so Settings can say it wasn't saved). */
+  saveLock(cfg) {
+    return inOrder(async () => {
+      if (isNative()) { await Filesystem.writeFile({ ...LOCK, encoding: Encoding.UTF8, data: JSON.stringify(cfg), recursive: true }); return; }
+      const db = await idb();
+      try { await tx(db, "readwrite", (s) => s.put(cfg, LOCK_KEY)); } finally { db.close(); }
+    });
+  },
+  /** Remove the lock. Never throws (phone: a missing file is fine). */
+  clearLock() {
+    return inOrder(async () => {
+      try {
+        if (isNative()) { await Filesystem.deleteFile(LOCK); return; }
+        if (typeof indexedDB === "undefined") return;
+        const db = await idb();
+        try { await tx(db, "readwrite", (s) => s.delete(LOCK_KEY)); } finally { db.close(); }
+      } catch { /* not there, or nothing to do */ }
+    });
   },
   /** Web: drop the whole database (after clear()). Resolves even when another tab holds it open. */
   dropDatabase() {

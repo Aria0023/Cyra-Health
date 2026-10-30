@@ -32,6 +32,7 @@ import { standResult, median, fmtFluid, fmtSodium, isLockedPots, localDay, toMin
 import { patterns, dayRows, cycleGroups, cycleLabelOn, isCycleStage, episodesByDose, medLine, REPORT_FOOT, PREG_NOTE as PREG_PATTERN_NOTE } from "./potsPatterns.js";
 import { moveState, allSessions, hasMoveData, planWeek, modeWord, MOVE_STEPS, RECUMBENT, UPRIGHT, WEEKDAYS } from "./potsMove.js";
 import { RAMPS } from "./constants.js";
+import { fmtDate } from "./i18n.js";
 
 /* ---------- small helpers ---------- */
 const fin = (v) => typeof v === "number" && Number.isFinite(v);
@@ -39,7 +40,7 @@ const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const addDays = (iso, n) => { const [y, m, d] = iso.split("-").map(Number); return localDay(new Date(y, m - 1, d + n)); };
 const dayDiff = (a, b) => Math.round((new Date(`${b}T12:00:00`) - new Date(`${a}T12:00:00`)) / 86400000);
-const D = (iso, opts) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", opts);
+const D = (iso, opts) => fmtDate(iso, opts);
 /** "Oct 8". */
 export const fmtDay = (iso) => D(iso, { month: "short", day: "numeric" });
 /** "Oct 8, 2026". */
@@ -792,7 +793,7 @@ export function modelTexts(model) {
 
 /* ---------- PDF layout (design 6.2) ---------- */
 // Data colours come from the data-viz ramp only (one fixed ramp, so a file's colours never hint
-// at her life stage); chrome is greys and black.
+// at her life stage); chrome is greys and black. The light ramp always: the PDF stays light whatever the appearance.
 const RAMP = RAMPS.peri;
 const INK = [34, 34, 34], SOFT = [95, 95, 95], RULE = [170, 170, 170];
 

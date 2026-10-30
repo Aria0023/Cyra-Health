@@ -5,7 +5,7 @@ import {
 } from "../../lib/potsPatterns.js";
 import { fmtFluid, fmtSodium, activeMeds } from "../../lib/pots.js";
 import { THRESH } from "../../lib/potsConstants.js";
-import { RAMPS } from "../../lib/constants.js";
+import { rampVar } from "../../lib/constants.js";
 import { platform } from "../../lib/native.js";
 import Advice from "../Advice.jsx";
 import Details from "../Details.jsx";
@@ -13,6 +13,7 @@ import { TrendChart, fmtN } from "./HrChart.jsx";
 import { Choice } from "./StandSafety.jsx";
 import { resultFor, riseText, methodWord } from "./StandResult.jsx";
 import { SEV_WORD, naText } from "./ui.js";
+import { fmtDate } from "../../lib/i18n.js";
 
 /* POTS → Patterns (design 5.5): what her own log shows, worked out on this device by
    lib/potsPatterns.js at render and never stored. Windows: Today, 7 days, 30 days (default) and,
@@ -25,10 +26,9 @@ import { SEV_WORD, naText } from "./ui.js";
      only, never in your report". The report runs the same engine without them.
    - Cycle groups come from logged period starts only (no predicted ovulation), and only in My
      Cycle, Trying to Conceive and Perimenopause. Pregnancy and Menopause have no cycle card. */
-const rgb = (c) => `rgb(${c.join(",")})`;
-const short = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+const short = (iso) => fmtDate(iso, { weekday: "short", month: "short", day: "numeric" });
 /** "Mon 5", kept on one line: the 7-day table's Day column (the week never repeats a weekday). */
-const weekDay = (iso) => { const d = new Date(`${iso}T12:00:00`); return `${d.toLocaleDateString("en-US", { weekday: "short" })}\u00a0${d.getDate()}`; };
+const weekDay = (iso) => { const d = new Date(`${iso}T12:00:00`); return `${fmtDate(d, { weekday: "short" })}\u00a0${d.getDate()}`; };
 const lc1 = (s) => (s ? s[0].toLowerCase() + s.slice(1) : s);
 /** The device a watch or ring reading came from, as the card tag names it. */
 const wearName = (src) => (src === "healthkit" ? (platform() === "android" ? "watch" : "Apple Watch") : src === "oura" ? "ring" : "wearable");
@@ -42,7 +42,7 @@ const Parts = ({ parts }) => parts.map((x, i) => (typeof x === "string" ? <span 
 
 /** Horizontal bars, one per day (fill ramp().mid; a day not logged has no bar), with her goal
     as a thin ink tick. The whole series is in the aria-label. */
-function DayBars({ title, days, get, fmt, goal, ramp, label }) {
+function DayBars({ title, days, get, fmt, goal, label }) {
   const vals = days.map(get);
   const max = Math.max(1, goal || 0, ...vals.filter((v) => v != null)) * 1.05;
   return (
@@ -53,7 +53,7 @@ function DayBars({ title, days, get, fmt, goal, ramp, label }) {
           <div key={d.date} className="brow" style={{ gridTemplateColumns: "84px 1fr 64px" }}>
             <span className="blab">{short(d.date)}</span>
             <div className="btrack" style={{ position: "relative" }}>
-              {vals[i] != null && <div className="bfill" style={{ width: `${(vals[i] / max) * 100}%`, background: rgb(ramp.mid) }} />}
+              {vals[i] != null && <div className="bfill" style={{ width: `${(vals[i] / max) * 100}%`, background: rampVar("mid") }} />}
               {goal != null && <div style={{ position: "absolute", top: 0, bottom: 0, left: `${(goal / max) * 100}%`, width: 2, background: "var(--ink)" }} />}
             </div>
             <span className="bval" style={{ color: "var(--ink)" }}>{vals[i] == null ? "—" : fmt(vals[i])}</span>
@@ -101,7 +101,7 @@ function TodayView({ pots, pat, nowMin, stage, cyc }) {
   );
 }
 
-function WeekView({ pots, pat, ramp }) {
+function WeekView({ pots, pat }) {
   const w = pat.week, units = pots.settings.units, g = pots.settings.goals;
   const naFmt = (v) => fmtSodium(v, units);
   return (
@@ -124,9 +124,9 @@ function WeekView({ pots, pat, ramp }) {
           </tbody>
         </table>
       </div>
-      <DayBars title={`Fluids${g.fluidMl != null ? " (line: your goal)" : ""}`} days={w.days} get={(d) => d.fluidMl} fmt={(v) => fmtFluid(v, units)} goal={g.fluidMl} ramp={ramp}
+      <DayBars title={`Fluids${g.fluidMl != null ? " (line: your goal)" : ""}`} days={w.days} get={(d) => d.fluidMl} fmt={(v) => fmtFluid(v, units)} goal={g.fluidMl}
         label={`Fluids per day: ${w.days.map((d) => `${short(d.date)}, ${d.fluidMl == null ? "not logged" : fmtFluid(d.fluidMl, units)}`).join("; ")}${g.fluidMl != null ? `; goal ${fmtFluid(g.fluidMl, units)}` : ""}.`} />
-      <DayBars title={`Sodium${g.naMg != null ? " (line: your goal)" : ""}`} days={w.days} get={(d) => d.naMg} fmt={naFmt} goal={g.naMg} ramp={ramp}
+      <DayBars title={`Sodium${g.naMg != null ? " (line: your goal)" : ""}`} days={w.days} get={(d) => d.naMg} fmt={naFmt} goal={g.naMg}
         label={`Sodium per day: ${w.days.map((d) => `${short(d.date)}, ${d.naMg == null ? "not logged" : naText(d.naMg, units)}`).join("; ")}${g.naMg != null ? `; goal ${naText(g.naMg, units)}` : ""}.`} />
       <p className="plain" style={{ marginTop: 12 }}>{w.line}</p>
       <p className="rfoot">{WEEK_NOTE}</p>
@@ -255,7 +255,6 @@ export default function PotsPatterns({ pots, stage, stageName, todayIso, starts 
     [pots, window, todayIso, window === "today" ? nowMin : 0, stage, stageName, starts, checkin, wearData, connected, outcome], // eslint-disable-line
   );
   if (!pat) return null;
-  const ramp = RAMPS[stage] || RAMPS.peri;
   const WINDOWS = [["today", "Today"], ["7", "7 days"], ["30", "30 days"], ...(since ? [["all", "Since you started"]] : [])];
   return (
     <section aria-labelledby="pots-pat-h">
@@ -263,7 +262,7 @@ export default function PotsPatterns({ pots, stage, stageName, todayIso, starts 
       <Choice id="pots-pat-win" label="Show" value={window} options={WINDOWS} onPick={setWin} />
       <div style={{ marginTop: 12 }}>
         {window === "today" && <TodayView pots={pots} pat={pat} nowMin={nowMin} stage={stage} cyc={cyc} />}
-        {window === "7" && <WeekView pots={pots} pat={pat} ramp={ramp} />}
+        {window === "7" && <WeekView pots={pots} pat={pat} />}
         {(window === "30" || window === "all") && <MonthView pots={pots} pat={pat} stage={stage} stageName={stageName} outcome={outcome} setOutcome={setOutcome} window={window} />}
       </div>
     </section>

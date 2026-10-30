@@ -1,4 +1,6 @@
 import { famColor } from "../lib/constants.js";
+import Details from "../components/Details.jsx";
+import { t } from "../lib/i18n.js";
 
 /* Cycle & Peri — Care: options for this stage, the ones that fit what she logged in
    the last 30 days first (matched on this device, App.jsx shelfItems), each with an
@@ -10,39 +12,65 @@ import { famColor } from "../lib/constants.js";
    matched symptom's family, --primary when the match has none (rough nights). */
 const LEGEND = [["strong", "Strong evidence"], ["mixed", "Mixed evidence"], ["comfort", "Comfort"], ["clinical", "Clinical care"]];
 
-export default function CareScreen({ shelfItems, onTry }) {
+/* Calm R2: the shelf is the "Support & care" section of the You page (embedded: a <section> with an h2 inside You's
+   <main>); the standalone page (a <main> with the h1) stays for any caller that wants it. */
+export default function CareScreen({ shelfItems: items, onTry, embedded = false }) {
+  let shelfItems = items;
   const firstFit = shelfItems.find((s) => s.top && s.top.days > 0) || null;
-  return (
-    <main>
-      <h1 className="disp">Care & support</h1>
-      <p className="hint">Options for your stage, with the ones that fit what you've logged first. That matching runs on your device, and partners never see your data. Every label below is the honest state of the evidence, including when something is comfort rather than treatment.</p>
-      <div className="evlegend" aria-hidden="true">{LEGEND.map(([t, l]) => <span key={t} className={`ev ev-${t}`}>{l}</span>)}</div>
-      {shelfItems.length === 0 && <p className="hint shelf-empty">Nothing to show for your stage yet. Check back after the next update.</p>}
-      {shelfItems.length > 0 && !firstFit && <p className="hint shelf-empty">Log a few days and the options that fit your symptoms move to the top.</p>}
-      {shelfItems.map((s) => {
-        const top = s.top;
-        const matched = top && top.days > 0;
-        return (
-          <div className="shelfc" key={s.id}>
-            <div className="shead"><span className="sbrand">{s.brand}</span>{s.partner && <span className="ppill">Partner</span>}{firstFit && firstFit.id === s.id && <span className="ppill fit">Fits your log</span>}</div>
-            <div className="sname">{s.name}</div>
-            {matched && (
-              <div className="smatch">
-                Matched: {top.label.toLowerCase()} (logged {top.days} of the last 30 days)
-                <span className="smeter" aria-hidden="true"><i style={{ width: `${Math.round(Math.min(30, top.days) / 30 * 100)}%`, background: famColor(top.id) || "var(--primary)" }} /></span>
-              </div>
-            )}
-            <span className={`ev ev-${s.tone}`}>{s.ev}</span>
-            <div className="sfoot">
-              <b>{s.price}</b>
-              <div className="acts">
-                <button type="button" className="sbtn sadd" onClick={() => onTry(s)}>Add to what I'm trying</button>
-                <button className="sbtn" disabled aria-disabled="true">Partner link coming soon</button>
-              </div>
-            </div>
+  const Wrap = embedded ? "section" : "main";
+  /* Calm R10: on the You page (embedded) the options sit behind one Details, the best-fitting one first. */
+  const ordered = firstFit ? [firstFit, ...shelfItems.filter((x) => x !== firstFit)] : shelfItems;
+  if (embedded) shelfItems = ordered;
+  const item = (s) => {
+    const top = s.top;
+    const matched = top && top.days > 0;
+    return (
+      <div className="shelfc" key={s.id}>
+        <div className="shead"><span className="sbrand">{s.brand}</span>{s.partner && <span className="ppill">{t("care.partner")}</span>}{firstFit && firstFit.id === s.id && <span className="ppill fit">{t("care.fitsYourLog")}</span>}</div>
+        <div className="sname">{s.name}</div>
+        {matched && (
+          <div className="smatch">
+            {t("care.matchedLoggedOfTheLast", { v0: top.label.toLowerCase(), days: top.days })}
+            <span className="smeter" aria-hidden="true"><i style={{ width: `${Math.round(Math.min(30, top.days) / 30 * 100)}%`, background: famColor(top.id) || "var(--primary)" }} /></span>
           </div>
-        );
-      })}
-    </main>
+        )}
+        <span className={`ev ev-${s.tone}`}>{s.ev}</span>
+        <div className="sfoot">
+          <b>{s.price}</b>
+          <div className="acts">
+            <button type="button" className="sbtn sadd" onClick={() => onTry(s)}>{t("care.addToWhatImTrying")}</button>
+            <button className="sbtn" disabled aria-disabled="true">{t("care.partnerLinkComingSoon")}</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  const H = embedded ? "h2" : "h1";
+  return (
+    <Wrap id={embedded ? "care" : undefined} className={embedded ? "carepart" : undefined} aria-labelledby={embedded ? "care-h" : undefined} tabIndex={embedded ? -1 : undefined}>
+      <H className="disp" id={embedded ? "care-h" : undefined}>{t("care.careSupport")}</H>
+      {embedded ? (
+        <>
+          {/* Calm R10 (You page): one summary line and one control; the evidence legend and every option sit behind it. */}
+          <p className="hint">{t("care.summary")}</p>
+          {shelfItems.length === 0 ? <p className="hint shelf-empty">{t("care.nothingToShowForYour")}</p> : (
+            <Details label={t("care.seeOptions", { count: shelfItems.length })}>
+              <p className="hint">{t("care.labels")}</p>
+              <div className="evlegend" aria-hidden="true">{LEGEND.map(([tv, l]) => <span key={tv} className={`ev ev-${tv}`}>{l}</span>)}</div>
+              {!firstFit && <p className="hint shelf-empty">{t("care.logAFewDaysAnd")}</p>}
+              {shelfItems.map(item)}
+            </Details>
+          )}
+        </>
+      ) : (
+        <>
+          <p className="hint">{t("care.optionsForYourStageWith")}</p>
+          <div className="evlegend" aria-hidden="true">{LEGEND.map(([tv, l]) => <span key={tv} className={`ev ev-${tv}`}>{l}</span>)}</div>
+          {shelfItems.length === 0 && <p className="hint shelf-empty">{t("care.nothingToShowForYour")}</p>}
+          {shelfItems.length > 0 && !firstFit && <p className="hint shelf-empty">{t("care.logAFewDaysAnd")}</p>}
+          {shelfItems.map(item)}
+        </>
+      )}
+    </Wrap>
   );
 }

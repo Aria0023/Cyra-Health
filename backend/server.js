@@ -1,9 +1,10 @@
 // Cyra Health — backend (reference implementation).
 // Modular: features load from the config's "modules" list. With NODE_ENV=production
-// that is config/app.json — only what the shipped app calls (oauth, integrations,
-// pulse, push, ai) — and the server refuses to start without real ADMIN_KEY and
-// AUTH_SECRET values. Otherwise config/app-dev.json loads every module, including the
-// partner/referral demo (/r/:code) and the ops console at /.
+// that is config/app.json — push and ai, what the app's default build calls (local-first
+// L4); oauth, integrations, pulse and backup are mounted there only by listing them,
+// for a build whose VITE_FEATURES offers them — and the server refuses to start without
+// real ADMIN_KEY and AUTH_SECRET values. Otherwise config/app-dev.json loads every
+// module, including the partner/referral demo (/r/:code) and the ops console at /.
 // Plug-and-play: partners are JSON files in config/partners/.
 // Customizable: fee models, attribution windows, storage driver — all config.
 import path from "path";
@@ -35,8 +36,9 @@ app.use((req, res, next) => {
   if (origin && (origins.includes("*") || origins.includes(origin))) {
     res.set("access-control-allow-origin", origins.includes("*") ? "*" : origin);
     res.set("vary", "origin");
-    res.set("access-control-allow-methods", "GET,POST,PATCH,DELETE,OPTIONS");
-    res.set("access-control-allow-headers", "content-type, authorization, x-admin-key, x-cyra-signature");
+    res.set("access-control-allow-methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS"); // PUT: the backup module's replace
+    res.set("access-control-allow-headers", "content-type, authorization, x-admin-key, x-cyra-signature, x-cyra-account, x-cyra-base"); // x-cyra-*: the backup module's accounts (calm R9)
+    res.set("access-control-expose-headers", "x-cyra-version, x-cyra-updated");
     res.set("access-control-max-age", "600");
   }
   if (req.method === "OPTIONS") return res.sendStatus(204);
@@ -54,6 +56,14 @@ app.use("/api/integrations/terra/webhook", express.json({ limit: "5mb", verify: 
   console.warn(`[cyra] terra webhook: ${String(err.type || "bad body").slice(0, 40)}`);
   res.status(err.status === 413 ? 413 : 400).json({ error: "body could not be read" });
 });
+// Cyra's AI (calm R8): its own parser with a 32 kB cap, and a parse failure answered without Express's default
+// handler, which would log part of the body (a summary or a question). Only the error type is logged.
+app.use("/api/ai", express.json({ limit: "32kb" }), (err, req, res, next) => {
+  if (!err) return next();
+  console.warn(`[cyra] ai: ${String(err.type || "bad body").slice(0, 40)}`);
+  res.status(err.status === 413 ? 413 : 400).json({ error: "body could not be read" });
+});
+// Both ignore application/octet-stream bodies, so the backup module's own raw parser gets those bytes untouched.
 app.use(express.json({ verify: keepRaw }));
 app.use(express.urlencoded({ extended: false })); // Apple Sign-In posts its callback as a form
 
