@@ -141,3 +141,16 @@ unavailable this session, so a reviewer should re-check both). The others are th
 - Suggested as: "Try 10 to 20 minutes of movement you enjoy on 3 days this week."
 - Source: The effect of a single bout of exercise on energy and fatigue states: a systematic review and meta-analysis (Loy BD, O'Connor PJ, Dishman RK. Fatigue: Biomedicine, Health & Behavior 1(4):223–242, 2013).
 - Wording in the app: "A single bout of exercise raised feelings of energy in most trials, with small, short-lived effects." + "Wellbeing support, not treatment."
+
+## Meal notes: "Energy after meals" (Patterns card detail, 2026-10-30; src/lib/patterns.js `MEAL_DIET_LINE`, `MEAL_SRC`)
+- Wording in the app: "The 2023 International PCOS Guideline recommends healthy eating without naming any one specific diet."
+- Source: Teede HJ, Tay CT, Laven JJE, et al. Recommendations from the 2023 International Evidence-based Guideline for the
+  Assessment and Management of Polycystic Ovary Syndrome. 2023 (the PCOS module's `teede2023` entry).
+- How it was checked: a web search (2026-10-30) returned the PubMed record of a peer-reviewed summary of the 2023 guideline
+  (International evidence-based guideline on assessment and management of PCOS — a Nordic perspective, PMID 37983875):
+  "A healthy lifestyle should be at the focus of care for all women with PCOS; however, with no specific diet or physical
+  exercise recommended." The guideline's own text and PubMed could not be opened from the build environment, so the
+  sentence says only that, and a reviewer should confirm it against the guideline's dietary recommendations.
+- What the card itself claims: nothing about food; it reports her own meal notes as an association, with the
+  not-medical-advice line. No calories, no "good/bad food", no advice to eat or avoid anything.
+

@@ -323,6 +323,20 @@ of `config/app.json` until the owner adds a persistent disk and enables it.
 - **Toasts** never cover what they confirm: with a bottom sheet open the toast shows at the top of the screen.
 - **Tone.** The check-in meter, the calendar day pill and the connection card speak in words, never a number out of 100.
 
+### 3.5i Meal notes (optional, PCOS-linked; `lib/bodylog.js`, `components/BodySheets.jsx` MealsSheet, `lib/patterns.js` mealCards)
+- **Switch.** You → Modules → "Meal notes", under the PCOS row wherever PCOS is offered (My Cycle, Trying to conceive,
+  Perimenopause), on or off independently of PCOS; **off by default**; `bodyPrefs.mealsOn` (present only when true).
+- **Logger.** `#meals-sheet`: pick a meal (Breakfast · Lunch · Dinner · Snack; picking one already noted opens it, Snack can
+  repeat), then optional one-tap chips — what it was mostly (Balanced · Mostly carbs or sweet · Protein-forward · Skipped, and
+  Ate late) and energy after (Steady · Dipped · Crashed). Saves on tap; up to 6 a day; edit and remove. Stored as
+  `bodyLog[day].meals = [{ id, meal, kind?, late?, energy? }]`. The PCOS "high-sugar day" marker is unchanged.
+- **Surfaces, only while on.** Body → Logs "Meals" row; "Meals" in the "+" sheet and Home's tile catalogue
+  (`logItemsFor({ meals: true })`); the calendar day card's "Meals:" line in words; Patterns card "Energy after meals"
+  (meal notes as the unit, PATTERN_RULES thresholds, shown only with enough notes; association wording, the not-advice
+  line, no advice); Report tick "Include meal notes" → a "Meal notes" PDF section of counts in words; AI summary
+  `meals` counts (no meal names, foods or dates).
+- **Never.** Calories, macros, foods, amounts, barcodes, scanners, photos, scores, weight, "good/bad food", "you should eat".
+
 ### 3.6 Her symptom list (symPrefs, local-first L6)
 ```js
 symPrefs: { periods?: { order, hidden, added }, peri?: { order, hidden, added }, preg?: { order, hidden } }

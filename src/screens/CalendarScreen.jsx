@@ -26,7 +26,7 @@ const FLOW_WORDS = { light: ", light flow", med: ", medium flow", heavy: ", heav
 const longDay = (iso) => fmtDate(iso, { weekday: "long", month: "long", day: "numeric" });
 const shortDay = (iso) => fmtDate(iso, { weekday: "short", month: "short", day: "numeric" });
 
-export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCycles = null, stage, isMeno = false, days, symIds, symMap, dayScore, scoreColor, scoreInk, scoreLabel, todayIso, selDay, setSelDay, onEdit, fertOn = false, tempUnit = "C" }) {
+export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCycles = null, stage, isMeno = false, days, symIds, symMap, dayScore, scoreColor, scoreInk, scoreLabel, todayIso, selDay, setSelDay, onEdit, fertOn = false, tempUnit = "C", mealLine = null }) {
   const [mo, setMo] = useState(0);
   const now = new Date();
   const first = new Date(now.getFullYear(), now.getMonth() + mo, 1);
@@ -77,6 +77,7 @@ export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCyc
       {selDay && (() => {
         const e = days.find((x) => x.date === selDay);
         const esc = e ? dayScore(e, symIds) : null;
+        const meals = mealLine ? mealLine(selDay) : ""; // Meal notes in words (only while Meal notes is on)
         const loggedSyms = e ? symIds.filter((id) => (e.sym[id] || 0) > 0).sort((a, b) => e.sym[b] - e.sym[a]) : [];
         return (
           <div className="card daycard" role="region" aria-label={t("cal.selectedDay")}>
@@ -95,9 +96,10 @@ export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCyc
                 {fertOn && fertParts(e, tempUnit).length > 0 && <p className="dayline fertline">{t("cal.fertilitySigns", { v0: fertParts(e, tempUnit).join(" · ") })}</p>}
                 {cleanNote(e.note) && <p className="dayline noteline"><b>{t("cal.note")}</b> {cleanNote(e.note)}</p>}
               </>
-            ) : (
+            ) : !meals && (
               <p className="hint" style={{ margin: "6px 0 0" }}>{t("cal.nothingLoggedThisDay")}</p>
             )}
+            {meals && <p className="dayline mealline"><b>{t("cal.meals")}</b> {meals}</p>}
             <div className="sfoot" style={{ marginTop: 10 }}>
               {e ? <button type="button" className="sbtn" onClick={() => { onEdit(selDay); setSelDay(null); }}>{t("cal.editThisDay")}</button>
                 : selDay <= todayIso ? <button type="button" className="sbtn" onClick={() => { onEdit(selDay); setSelDay(null); }}>{t("cal.logThisDay")}</button>

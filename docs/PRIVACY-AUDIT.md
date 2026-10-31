@@ -1374,6 +1374,9 @@ or ZIP-shaped).
 - `summary.labs[] {name, value, unit}` — only when she ticks "Include lab values": the latest fasting glucose, HbA1c and waist
   values, rounded (mg/dL, mmol/mol, cm, in to whole numbers; mmol/L and % to one decimal), never their dates.
 - `summary.experiment {name, daysDone, target, status}` — the running or last finished starter experiment (fixed title).
+- `summary.meals.{daysWithNotes, daysWith.{balanced, mostlyCarbsOrSweet, proteinForward, skipped, ateLate}, energyAfter.{steady,
+  dipped, crashed}}` — added with Meal notes (2026-10-30): numbers only, only while Meal notes is on, never in pregnancy; never a
+  meal (breakfast, lunch…), a food, a time or a date. See "Meal notes" below.
 **Never in it** (adversarial unit tests in src/lib/aiSummary.test.mjs and the e2e put each of these into the record): any
 date or weekday, the day note, the journal, Connect, appointments, medicine names, any other text she typed, her name,
 email, ZIP, age band, due date or any registration answer, lab dates, weight, cervical mucus / ovulation tests / basal
@@ -1724,3 +1727,48 @@ file an interrupted Cyra-build share left behind. Share-sheet titles and the PDF
 Terra dashboard, the Apple Services ID / Sign in with Apple configuration, Google's OAuth consent screen and the
 Facebook app (the qualifiers above stay true either way). The legal drafts in docs/ still say Cyra and need the
 attorney's pass before publishing.
+
+## Meal notes (2026-10-30) — optional, off by default; no new record key, no new request, nothing new leaves the device
+
+**What it is.** A switch "Meal notes" in You → Modules, under the PCOS module row (offered in My Cycle, Trying to conceive
+and Perimenopause, whether or not PCOS is on; never in Pregnancy or Menopause). Off by default. While on she can note, for a
+day, which meal (Breakfast · Lunch · Dinner · Snack), what it was mostly (Balanced · Mostly carbs or sweet · Protein-forward ·
+Skipped, plus Ate late) and her energy after (Steady · Dipped · Crashed). No foods, amounts, calories, macros, photos,
+barcodes, scanners or free text exist anywhere in it.
+
+**Storage (no new key, no id changed).**
+- `bodyLog[day].meals` — `[{ id, meal, kind?, late?, energy? }]`, at most 6 a day (lib/bodylog.js cleanMeal / cleanBodyDay).
+  A new optional field of an existing record key: record class, **in backups** (local file and the optional encrypted
+  account backup), restored literally, like the rest of `bodyLog`. The cleaner drops any other field (unit-tested: a
+  `food`, `kcal` or `photo` field never survives).
+- `bodyPrefs.mealsOn` — the switch, **present only when true** (cleanBodyPrefs), so a record with the switch off has the
+  same `bodyPrefs` shape and bytes as before. In backups, like the rest of `bodyPrefs`.
+- Turning the switch off keeps what she noted (toast "Meal notes off. What you noted is kept") and hides it everywhere:
+  the Logs row, the "+" sheet item, Home's tile catalogue, the calendar line, the pattern card, the Report tick and the AI
+  summary field are all gated on the switch, and a day that holds only meal notes no longer shows a logged dot on the
+  Body day strip. Delete everything removes it with the record.
+
+**Where it can leave the device — only the two existing, opt-in routes:**
+1. The appointment PDF (a file she makes): a "Meal notes" section only while the switch is on **and** she ticks
+   "Include meal notes" on the Report (UI state, unticked on every visit, never saved, like "Include my notes"). It prints
+   counts in words (lib/bodylog.js mealReportLines: how many notes on how many days, days with each kind, energy-after
+   counts), never a meal, food or date.
+2. The AI summary (Pro, ai flag, server, her switch, previewed, sent only on Send): `summary.meals` (field list above) as
+   numbers under fixed keys, only while Meal notes is on. Shown in "What Heard Health will send" as the line "Meal notes
+   (counts only, no foods)". The backend accepts the new top-level key (`SUMMARY_TOP` + "meals"); `SAFE_TEXT` is unchanged
+   because the field holds no text. AI_FRAME gains a rule: no diet or food advice, no good/bad food, no calories or weight.
+The default build (no ai flag) makes **zero new requests** with the switch off or on (flags-e2e and the meal acceptance
+script check the request list).
+
+**New or changed sentences (all literally true of this build):**
+- You → Modules, Meal notes row: "Note what kind of meal it was and how your energy felt after. No calories, no photos, no scores."
+- You → "What each one adds": "A Meals row in Body, a Meals logger in the + sheet and on Home, an "Energy after meals"
+  pattern once there are enough notes, and an optional line in your appointment PDF. Kept on this device and in your
+  backups, like the rest of your log. An AI summary, if you use one, holds counts only."
+- Meals sheet footer: "No calories, no photos, no scores. Kept on this device and in your backups, like the rest of your log."
+- Report: "Include meal notes"; "N meal notes in these 30 days will be in the PDF as counts, with no foods." / "N meal notes
+  in these 30 days. They go in, as counts only, only while this is ticked."
+- FLOW_COPY.details.summaryFields (You → Heard Health's AI "Exactly what the summary holds", privacy dashboard rows) gains:
+  "if Meal notes is on, how many days had each kind of meal and how often your energy was steady, dipped or crashed after a
+  meal (counts only, never a meal or a food)". summaryNever is unchanged.
+

@@ -3,15 +3,19 @@
    (record.js imports this file for its RULES entries and the clean functions App.jsx runs on load and restore).
 
    Three persisted keys (record class, in encrypted backups, restored literally):
-   - bodyLog   { [YYYY-MM-DD]: BodyDay }  BodyDay = { sleepH?, move?, pcos?, weight? }
+   - bodyLog   { [YYYY-MM-DD]: BodyDay }  BodyDay = { sleepH?, move?, pcos?, weight?, meals? }
                  sleepH  hours slept, 0–16 in half hours (the check-in keeps the "Slept well / So-so / Rough night" word)
                  move    [{ id, type, min }] movement sessions: type MOVE_TYPES id, min 1–600 (any kind; general, not POTS)
                  pcos    PCOS module day chips: insulin-resistance signals, PCOS symptoms and the high-sugar day marker
                          (PCOS_DAY ids; ids a later build writes are kept)
                  weight  { v, unit } optional, only when she turned weight on; never on Home, never charted
+                 meals   [{ id, meal, kind?, late?, energy? }] optional meal notes (only while Meal notes is on): which
+                         meal (MEAL_SLOTS), what it was mostly (MEAL_KINDS, one), whether she ate late, and how her energy
+                         felt after (MEAL_ENERGY). No foods, no calories, no photos, no free text; at most MEALS_PER_DAY.
    - labs      [{ id, kind, value, unit, date }] values she types from her own results (fasting glucose, HbA1c) and
                  waist measures, each dated. Stored exactly as typed in her unit; Cyra never interprets them.
-   - bodyPrefs { weightOn, weightUnit, glucoseUnit, hba1cUnit, waistUnit } her units and whether weight is in her log.
+   - bodyPrefs { weightOn, weightUnit, glucoseUnit, hba1cUnit, waistUnit, mealsOn? } her units, whether weight is in her
+                 log and (only present when true) whether Meal notes is on.
 
    Tone rules (plan §7): no streaks, no grades, no "complete" counts; empty is calm ("Nothing yet"). */
 import { MODULES } from "./modules.js";
@@ -156,10 +160,48 @@ export function unitsFor(locale = "") {
 export function cleanBodyPrefs(raw) {
   const r = isObj(raw) ? raw : {};
   const pick = (v, list) => (list.includes(v) ? v : null);
-  return { weightOn: r.weightOn === true, weightUnit: pick(r.weightUnit, WEIGHT_UNITS), glucoseUnit: pick(r.glucoseUnit, GLUCOSE_UNITS), hba1cUnit: pick(r.hba1cUnit, HBA1C_UNITS), waistUnit: pick(r.waistUnit, WAIST_UNITS) };
+  return { weightOn: r.weightOn === true, weightUnit: pick(r.weightUnit, WEIGHT_UNITS), glucoseUnit: pick(r.glucoseUnit, GLUCOSE_UNITS), hba1cUnit: pick(r.hba1cUnit, HBA1C_UNITS), waistUnit: pick(r.waistUnit, WAIST_UNITS), ...(r.mealsOn === true ? { mealsOn: true } : {}) };
 }
 /** Prefs with every unit filled in (her choice, else the locale's). */
 export const unitsOf = (prefs, locale) => { const p = cleanBodyPrefs(prefs), d = unitsFor(locale); return { ...p, weightUnit: p.weightUnit || d.weightUnit, glucoseUnit: p.glucoseUnit || d.glucoseUnit, hba1cUnit: p.hba1cUnit || d.hba1cUnit, waistUnit: p.waistUnit || d.waistUnit }; };
+
+/* ---------------- meal notes (optional, off by default; bodyPrefs.mealsOn) ----------------
+   A light, calorie-free note: which meal, what it was mostly, whether she ate late and how her energy felt after.
+   No foods, no amounts, no calories or macros, no photos, no scores, no "good" or "bad" food. */
+export const MEAL_SLOTS = Object.freeze([
+  Object.freeze({ id: "breakfast", label: "Breakfast" }),
+  Object.freeze({ id: "lunch", label: "Lunch" }),
+  Object.freeze({ id: "dinner", label: "Dinner" }),
+  Object.freeze({ id: "snack", label: "Snack" }),
+]);
+/* What it was mostly: one of these (tap again to clear). "Ate late" is a separate yes/no next to them. */
+export const MEAL_KINDS = Object.freeze([
+  Object.freeze({ id: "balanced", label: "Balanced" }),
+  Object.freeze({ id: "carbs", label: "Mostly carbs or sweet" }),
+  Object.freeze({ id: "protein", label: "Protein-forward" }),
+  Object.freeze({ id: "skipped", label: "Skipped" }),
+]);
+export const MEAL_LATE = Object.freeze({ id: "late", label: "Ate late" });
+export const MEAL_ENERGY = Object.freeze([
+  Object.freeze({ id: "steady", label: "Steady" }),
+  Object.freeze({ id: "dipped", label: "Dipped" }),
+  Object.freeze({ id: "crashed", label: "Crashed" }),
+]);
+export const MEALS_PER_DAY = 6;
+const SLOT_IDS = MEAL_SLOTS.map((x) => x.id), KIND_IDS = MEAL_KINDS.map((x) => x.id), ENERGY_IDS = MEAL_ENERGY.map((x) => x.id);
+const labelOf = (list, id) => (list.find((x) => x.id === id) || { label: id }).label;
+export const mealSlotLabel = (id) => labelOf(MEAL_SLOTS, id);
+export const mealKindLabel = (id) => labelOf(MEAL_KINDS, id);
+export const mealEnergyLabel = (id) => labelOf(MEAL_ENERGY, id);
+/** One meal note cleaned (unknown kind / energy dropped, late only when true), or null without a known meal. */
+export function cleanMeal(m) {
+  if (!isObj(m) || !SLOT_IDS.includes(m.meal)) return null;
+  const out = { id: typeof m.id === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(m.id) ? m.id : `${m.meal}`, meal: m.meal };
+  if (KIND_IDS.includes(m.kind)) out.kind = m.kind;
+  if (m.late === true) out.late = true;
+  if (ENERGY_IDS.includes(m.energy)) out.energy = m.energy;
+  return out;
+}
 
 /* ---------------- the per-day log ---------------- */
 const cleanMove = (m) => {
@@ -175,6 +217,7 @@ export function cleanBodyDay(d) {
   if (Array.isArray(d.move)) { const mv = []; for (const m of d.move) { const c = cleanMove(m); if (c && !mv.some((x) => x.id === c.id) && mv.length < MOVES_PER_DAY) mv.push(c); } if (mv.length) out.move = mv; }
   if (Array.isArray(d.pcos)) { const ps = []; for (const id of d.pcos) if (typeof id === "string" && ID_RE.test(id) && !ps.includes(id)) ps.push(id); if (ps.length) out.pcos = ps; }
   const w = cleanWeight(d.weight); if (w) out.weight = w;
+  if (Array.isArray(d.meals)) { const ms = []; for (const m of d.meals) { const c = cleanMeal(m); if (c && !ms.some((x) => x.id === c.id) && ms.length < MEALS_PER_DAY) ms.push(c); } if (ms.length) out.meals = ms; }
   return Object.keys(out).length ? out : null;
 }
 /** Any stored value → a clean bodyLog (keys in date order, empty days dropped). */
@@ -225,6 +268,85 @@ export function moveText(log, iso) {
   return `${mv.length} sessions · ${mv.reduce((a, m) => a + m.min, 0)} min`;
 }
 
+/* ---------------- meal notes: add, change, remove, words ---------------- */
+/** Add a meal note ({ meal, id? }); { ok, log, id }. ok false when the meal is unknown or the day already holds MEALS_PER_DAY. */
+export function addMeal(log, iso, { meal, id } = {}) {
+  const d = bodyDay(log, iso);
+  const cur = d.meals || [];
+  const m = cleanMeal({ id: id || `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, meal });
+  if (!ISO.test(String(iso)) || !m || cur.length >= MEALS_PER_DAY || cur.some((x) => x.id === m.id)) return { ok: false, log, id: null };
+  return { ok: true, log: withDay(log, iso, { ...d, meals: [...cur, m] }), id: m.id };
+}
+/** Change one meal note: patch { meal?, kind? (null clears), late? (boolean), energy? (null clears) }. Unknown id → unchanged. */
+export function setMeal(log, iso, id, patch = {}) {
+  const d = bodyDay(log, iso);
+  const cur = d.meals || [];
+  if (!cur.some((m) => m.id === id)) return isObj(log) ? log : {};
+  const next = cur.map((m) => {
+    if (m.id !== id) return m;
+    const o = { ...m };
+    if ("meal" in patch && SLOT_IDS.includes(patch.meal)) o.meal = patch.meal;
+    if ("kind" in patch) { if (KIND_IDS.includes(patch.kind)) o.kind = patch.kind; else delete o.kind; }
+    if ("late" in patch) { if (patch.late === true) o.late = true; else delete o.late; }
+    if ("energy" in patch) { if (ENERGY_IDS.includes(patch.energy)) o.energy = patch.energy; else delete o.energy; }
+    return o;
+  });
+  return withDay(log, iso, { ...d, meals: next });
+}
+export const removeMeal = (log, iso, id) => { const d = bodyDay(log, iso); return withDay(log, iso, { ...d, meals: (d.meals || []).filter((m) => m.id !== id) }); };
+/** "Lunch · Mostly carbs or sweet · ate late · energy dipped" (only what she tapped). */
+export function mealText(m) {
+  if (!m) return "";
+  return [mealSlotLabel(m.meal), m.kind ? mealKindLabel(m.kind) : "", m.late ? "ate late" : "", m.energy ? `energy ${mealEnergyLabel(m.energy).toLowerCase()}` : ""].filter(Boolean).join(" · ");
+}
+/** The Logs row value: one meal in words, or "3 meals" (plus how many times energy dipped or crashed). "" when none. */
+export const mealsText = (log, iso) => mealsWords(bodyDay(log, iso).meals);
+/** The same words for a list of meal notes (a clean day's `meals`). */
+export function mealsWords(meals) {
+  const ms = Array.isArray(meals) ? meals : [];
+  if (!ms.length) return "";
+  if (ms.length === 1) return mealText(ms[0]);
+  const low = ms.filter((m) => m.energy === "dipped" || m.energy === "crashed").length;
+  return `${ms.length} meals${low ? ` · energy dipped or crashed after ${low}` : ""}`;
+}
+/** The calendar day card: every meal note of the day in words, one sentence ("Breakfast: balanced, energy steady. Lunch: …"). */
+export function mealDayWords(log, iso) {
+  const ms = bodyDay(log, iso).meals || [];
+  return ms.map((m) => {
+    const parts = [m.kind ? mealKindLabel(m.kind).toLowerCase() : "", m.late ? "ate late" : "", m.energy ? `energy ${mealEnergyLabel(m.energy).toLowerCase()}` : ""].filter(Boolean);
+    return `${mealSlotLabel(m.meal)}${parts.length ? `: ${parts.join(", ")}` : ""}.`;
+  }).join(" ");
+}
+/** Counts over [from, to] (ISO dates, inclusive): { notes, days, daysWith: { balanced, carbs, protein, skipped, late },
+    energyAfter: { steady, dipped, crashed } }. daysWith = days with at least one meal note of that kind; energyAfter = meal notes. */
+export function mealCounts(log, from, to) {
+  const out = { notes: 0, days: 0, daysWith: { balanced: 0, carbs: 0, protein: 0, skipped: 0, late: 0 }, energyAfter: { steady: 0, dipped: 0, crashed: 0 } };
+  const clean = cleanBodyLog(log);
+  for (const [iso, d] of Object.entries(clean)) {
+    if (iso < from || iso > to || !d.meals) continue;
+    out.days++; out.notes += d.meals.length;
+    for (const k of KIND_IDS) if (d.meals.some((m) => m.kind === k)) out.daysWith[k]++;
+    if (d.meals.some((m) => m.late)) out.daysWith.late++;
+    for (const m of d.meals) if (m.energy) out.energyAfter[m.energy]++;
+  }
+  return out;
+}
+const countList = (pairs) => pairs.filter(([, n]) => n > 0).map(([w, n]) => `${w} on ${n} ${n === 1 ? "day" : "days"}`);
+const energyList = (e) => [["steady", e.steady], ["dipped", e.dipped], ["crashed", e.crashed]].filter(([, n]) => n > 0).map(([w, n]) => `${w} after ${n} ${n === 1 ? "meal" : "meals"}`);
+const joinAnd = (xs) => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+/** The appointment summary's "Meal notes" lines: counts in words, no foods. [] when there are no meal notes. */
+export function mealReportLines(log, from, to) {
+  const c = mealCounts(log, from, to);
+  if (!c.notes) return [];
+  const kinds = countList([["balanced", c.daysWith.balanced], ["mostly carbs or sweet", c.daysWith.carbs], ["protein-forward", c.daysWith.protein], ["a skipped meal", c.daysWith.skipped], ["ate late", c.daysWith.late]]);
+  const en = energyList(c.energyAfter);
+  return [
+    `${c.notes} meal ${c.notes === 1 ? "note" : "notes"} on ${c.days} ${c.days === 1 ? "day" : "days"} (no foods, amounts or calories).`,
+    ...(kinds.length ? [`What meals were mostly: ${joinAnd(kinds)}.`] : []),
+    ...(en.length ? [`Energy after meals: ${joinAnd(en)}.`] : []),
+  ];
+}
+
 /* ---------------- the Logs card rows ---------------- */
 const SLEPT = { good: "Slept well", fair: "So-so", poor: "Rough night" };
 const FLOW_W = { spot: "Spotting", light: "Light flow", med: "Medium flow", heavy: "Heavy flow", flood: "Flooding" };
@@ -241,9 +363,9 @@ export function periodDayOf(days, iso, isPeriod) {
   return n;
 }
 /** The rows of the Logs card for a day, in order: [{ id, label, icon, tint, value, logged }].
-    ctx: { moodDay (the Mind check-in that day, calm R5), preg, entry (the check-in or null), day (bodyDay), medDay ({ medId: bool }), meds, pcosOn, weightOn, symLabel(id),
+    ctx: { moodDay (the Mind check-in that day, calm R5), preg, entry (the check-in or null), day (bodyDay), medDay ({ medId: bool }), meds, pcosOn, weightOn, mealsOn, symLabel(id),
     periodDay (0 = none), fertText }. value is a short plain line; "" when nothing is logged yet. */
-export function logRows({ moodDay = null, preg = false, entry = null, day = {}, medDay = null, meds = [], pcosOn = false, weightOn = false, symLabel = (id) => id, periodDay = 0 } = {}) {
+export function logRows({ moodDay = null, preg = false, entry = null, day = {}, medDay = null, meds = [], pcosOn = false, weightOn = false, mealsOn = false, symLabel = (id) => id, periodDay = 0 } = {}) {
   const sym = entry?.sym || {};
   const on = Object.keys(sym).filter((k) => (sym[k] || 0) > 0).sort((a, b) => sym[b] - sym[a]);
   const symV = on.length ? `${on.slice(0, 2).map(symLabel).join(", ")}${on.length > 2 ? ` +${on.length - 2}` : ""}` : entry ? "None" : "";
@@ -268,6 +390,7 @@ export function logRows({ moodDay = null, preg = false, entry = null, day = {}, 
     { id: "meds", label: "Meds", icon: "pill", tint: "patterns", value: medsV, logged: taken.length > 0 },
     { id: "note", label: "Note", icon: "note", tint: "you", value: entry?.note ? (entry.note.length > 42 ? `${entry.note.slice(0, 40)}…` : entry.note) : "", logged: !!entry?.note },
     ...(pcosOn && !preg ? [{ id: "pcos", label: "PCOS signals", icon: "sparkle", tint: "body", value: pc.length ? `${pc.slice(0, 2).map(pcosLabel).join(", ")}${pc.length > 2 ? ` +${pc.length - 2}` : ""}` : "", logged: pc.length > 0 }] : []),
+    ...(mealsOn && !preg ? [{ id: "meals", label: "Meals", icon: "bowl", tint: "body", value: mealsWords(day.meals), logged: (day.meals || []).length > 0 }] : []),
     ...(weightOn ? [{ id: "weight", label: "Weight", icon: "scale", tint: "you", value: day.weight ? `${day.weight.v} ${day.weight.unit}` : "", logged: !!day.weight }] : []),
   ];
   return rows;

@@ -6,6 +6,7 @@ import {
   cleanLabs, addLab, removeLab, labText, unitsFor, cleanBodyPrefs, unitsOf, cleanBodyDay, cleanBodyLog, bodyDay,
   setSleepH, addMove, removeMove, togglePcos, setWeight, moveTotals, moveText, logRows, periodDayOf,
   kgToLb, lbToKg, pctToMmolMol, mmolMolToPct,
+  MEAL_SLOTS, MEAL_KINDS, MEAL_ENERGY, MEALS_PER_DAY, cleanMeal, addMeal, setMeal, removeMeal, mealText, mealsText, mealDayWords, mealCounts, mealReportLines,
 } from "./bodylog.js";
 import { MODULES } from "./modules.js";
 
@@ -151,4 +152,71 @@ test("calm R5: the Logs card's Mood row shows the Mind check-in", () => {
   const row = (ctx) => logRows(ctx).find((r) => r.id === "mood");
   assert.deepEqual([row({ moodDay: { mood: 2, tags: ["tired", "sad", "calm"] } }).value, row({ moodDay: { mood: 2 } }).logged], ["Low · tired, sad", true]);
   assert.equal(row({ moodDay: null }).logged, false);
+});
+
+
+test("meal notes: fixed lists, calorie-free (no food, amount or calorie field survives cleaning)", () => {
+  assert.deepEqual(MEAL_SLOTS.map((x) => x.label), ["Breakfast", "Lunch", "Dinner", "Snack"]);
+  assert.deepEqual(MEAL_KINDS.map((x) => x.label), ["Balanced", "Mostly carbs or sweet", "Protein-forward", "Skipped"]);
+  assert.deepEqual(MEAL_ENERGY.map((x) => x.label), ["Steady", "Dipped", "Crashed"]);
+  assert.deepEqual(cleanMeal({ id: "a1", meal: "lunch", kind: "carbs", late: true, energy: "dipped", food: "pasta", kcal: 800, photo: "x" }), { id: "a1", meal: "lunch", kind: "carbs", late: true, energy: "dipped" });
+  assert.deepEqual(cleanMeal({ id: "a2", meal: "lunch", kind: "junk", late: "yes", energy: "great" }), { id: "a2", meal: "lunch" });
+  assert.equal(cleanMeal({ meal: "brunch" }), null);
+  assert.equal(cleanMeal("lunch"), null);
+  for (const l of [...MEAL_KINDS, ...MEAL_ENERGY].map((x) => x.label)) assert.ok(!/\b(good|bad|healthy|unhealthy|calorie|weight)\b/i.test(l), l);
+});
+
+test("meal notes: a day holds up to six; add, change, remove; other fields of the day untouched", () => {
+  let log = setSleepH({}, D, 7);
+  const a = addMeal(log, D, { meal: "breakfast", id: "b1" });
+  assert.ok(a.ok); assert.equal(a.id, "b1");
+  log = setMeal(a.log, D, "b1", { kind: "balanced", energy: "steady" });
+  assert.deepEqual(bodyDay(log, D), { sleepH: 7, meals: [{ id: "b1", meal: "breakfast", kind: "balanced", energy: "steady" }] });
+  log = setMeal(log, D, "b1", { kind: null, late: true });
+  assert.deepEqual(bodyDay(log, D).meals[0], { id: "b1", meal: "breakfast", late: true, energy: "steady" });
+  assert.equal(setMeal(log, D, "nope", { kind: "carbs" }), log, "unknown id: unchanged");
+  for (let i = 0; i < 5; i++) log = addMeal(log, D, { meal: "snack", id: `s${i}` }).log;
+  assert.equal(bodyDay(log, D).meals.length, MEALS_PER_DAY);
+  assert.equal(addMeal(log, D, { meal: "snack", id: "s9" }).ok, false);
+  assert.equal(addMeal(log, D, { meal: "brunch" }).ok, false);
+  log = removeMeal(log, D, "b1");
+  assert.equal(bodyDay(log, D).meals.some((m) => m.id === "b1"), false);
+  for (let i = 0; i < 5; i++) log = removeMeal(log, D, `s${i}`);
+  assert.deepEqual(bodyDay(log, D), { sleepH: 7 });
+  // cleaning keeps at most six and drops duplicates
+  const many = cleanBodyDay({ meals: Array.from({ length: 9 }, (_, i) => ({ id: `x${i % 7}`, meal: "snack" })) });
+  assert.equal(many.meals.length, MEALS_PER_DAY);
+});
+
+test("meal notes: words for the row, the calendar and the report (no foods)", () => {
+  let log = addMeal({}, D, { meal: "lunch", id: "l" }).log;
+  log = setMeal(log, D, "l", { kind: "carbs", late: true, energy: "dipped" });
+  assert.equal(mealText(bodyDay(log, D).meals[0]), "Lunch · Mostly carbs or sweet · ate late · energy dipped");
+  assert.equal(mealsText(log, D), "Lunch · Mostly carbs or sweet · ate late · energy dipped");
+  log = addMeal(log, D, { meal: "dinner", id: "d" }).log;
+  log = setMeal(log, D, "d", { kind: "protein", energy: "steady" });
+  assert.equal(mealsText(log, D), "2 meals · energy dipped or crashed after 1");
+  assert.equal(mealDayWords(log, D), "Lunch: mostly carbs or sweet, ate late, energy dipped. Dinner: protein-forward, energy steady.");
+  assert.equal(mealsText({}, D), "");
+  const c = mealCounts(log, "2026-10-01", D);
+  assert.deepEqual(c, { notes: 2, days: 1, daysWith: { balanced: 0, carbs: 1, protein: 1, skipped: 0, late: 1 }, energyAfter: { steady: 1, dipped: 1, crashed: 0 } });
+  assert.equal(mealCounts(log, "2026-10-30", "2026-11-30").notes, 0);
+  assert.deepEqual(mealReportLines(log, "2026-10-01", D), [
+    "2 meal notes on 1 day (no foods, amounts or calories).",
+    "What meals were mostly: mostly carbs or sweet on 1 day, protein-forward on 1 day and ate late on 1 day.",
+    "Energy after meals: steady after 1 meal and dipped after 1 meal.",
+  ]);
+  assert.deepEqual(mealReportLines({}, "2026-10-01", D), []);
+});
+
+test("meal notes: the switch is off by default and only stored when on; the Logs row only while on", () => {
+  assert.equal("mealsOn" in cleanBodyPrefs(null), false);
+  assert.equal(cleanBodyPrefs({ mealsOn: true }).mealsOn, true);
+  assert.equal("mealsOn" in cleanBodyPrefs({ mealsOn: "yes" }), false);
+  const day = { meals: [{ id: "a", meal: "snack", energy: "crashed" }] };
+  assert.equal(logRows({ day }).some((r) => r.id === "meals"), false);
+  assert.equal(logRows({ day, preg: true, mealsOn: true }).some((r) => r.id === "meals"), false);
+  const row = logRows({ day, mealsOn: true }).find((r) => r.id === "meals");
+  assert.deepEqual(row, { id: "meals", label: "Meals", icon: "bowl", tint: "body", value: "Snack · energy crashed", logged: true });
+  assert.equal(logRows({ day: {}, mealsOn: true }).find((r) => r.id === "meals").logged, false);
 });

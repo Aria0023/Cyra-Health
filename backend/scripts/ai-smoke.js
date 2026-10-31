@@ -104,6 +104,13 @@ try {
   const badLabels = [...SUMMARY_VOCAB].filter((t) => serverCheck({ kind: "cyra-summary", symptoms: [{ name: t, days: 1 }] }).length);
   assert(badLabels.length === 0, `server check accepts every label of the app's fixed lists (${badLabels.join(" | ") || "all"})`);
   assert(serverCheck(summary).length === 0, "server check accepts a real summary");
+  // Meal notes (only while she turned them on): counts under fixed keys, no meal, food or date
+  const mealLog = {}; for (let i = 0; i < 12; i++) { const d = new Date(Date.UTC(2026, 9, 29 - i)).toISOString().slice(0, 10); mealLog[d] = { meals: [{ id: `b${i}`, meal: "breakfast", kind: i % 2 ? "carbs" : "balanced", energy: i % 3 ? "steady" : "dipped" }, { id: `s${i}`, meal: "snack", late: true }] }; }
+  const mealSummary = buildSummary({ stage: "periods", stageName: "My Cycle", entries: days, bodyLog: mealLog, todayIso: "2026-10-29", mealsOn: true });
+  assert(mealSummary.meals && mealSummary.meals.daysWithNotes === 12 && mealSummary.meals.energyAfter.dipped === 4 && mealSummary.meals.daysWith.ateLate === 12, "meal notes: counts in the summary when on");
+  assert(serverCheck(mealSummary).length === 0, "server check accepts a summary with meal-note counts");
+  assert(!/breakfast|snack|2026-/i.test(JSON.stringify(mealSummary)), "meal notes: no meal name or date in the summary");
+  assert(!("meals" in buildSummary({ stage: "periods", stageName: "My Cycle", entries: days, bodyLog: mealLog, todayIso: "2026-10-29" })), "meal notes: nothing in the summary while off");
 
   // status
   let st = await j(await fetch(`${R2}/api/ai/status`)); assert(st.ready === false, "status: no key → ready false");

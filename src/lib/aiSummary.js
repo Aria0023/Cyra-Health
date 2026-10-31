@@ -3,20 +3,22 @@
 
    buildSummary() turns her on-device record into counts and averages over the last SUMMARY_WEEKS weeks, and nothing
    else. It is built from fixed vocabularies only: every text value in it is a label from one of Cyra's own lists
-   (life stages, the symptom libraries, feeling tags, PCOS chips, lab names and units, experiment titles). By
+   (life stages, the symptom libraries, feeling tags, PCOS chips, lab names and units, experiment titles). Meal notes
+   (only while Meal notes is on) are numbers under fixed keys: days with each kind of meal and energy-after counts. By
    construction it never contains:
      - a date, a weekday or a time (cycles are lengths in days; "currentCycleDay" is a count; the window is in weeks);
      - a note, the day note, the journal, a Connect entry, an appointment, a medicine name or any text she typed;
      - her name, email, ZIP, age band, due date, account or any registration answer (it is never given regAnswers or acct);
      - lab dates (a lab value appears only when she ticks "Include lab values", as the latest value per kind, rounded);
-     - weight, fertility signs (cervical mucus, ovulation tests, temperature), the POTS log, wearable readings.
+     - weight, fertility signs (cervical mucus, ovulation tests, temperature), the POTS log, wearable readings;
+     - a meal note itself, which meal it was or when (only the aggregated counts below, and only with Meal notes on).
    checkSummary() proves it before every send: every key path must be on SUMMARY_PATHS, every text value must be in
    SUMMARY_VOCAB, every number finite and 0–1000, and the JSON must hold nothing date-, email- or ZIP-shaped. App.jsx
    refuses to send a summary checkSummary() finds a problem with (it cannot happen with this builder).
    The same object is shown verbatim in "What Cyra will send" and sent as is (JSON.stringify of the shown object). */
 import { cycleStarts, cycleSpans, isRoughNight, addDays, daysBetween } from "./engine.js";
 import { ALL_SYM, GSYM } from "./constants.js";
-import { PCOS_DAY, LAB_KINDS, GLUCOSE_UNITS, HBA1C_UNITS, WAIST_UNITS, cleanBodyLog, cleanLabs } from "./bodylog.js";
+import { PCOS_DAY, LAB_KINDS, GLUCOSE_UNITS, HBA1C_UNITS, WAIST_UNITS, cleanBodyLog, cleanLabs, mealCounts } from "./bodylog.js";
 import { FEELINGS, MOODS, cleanMoodLog } from "./mind.js";
 import { EXPERIMENTS, EXP_DAYS, experimentOf } from "./experiments.js";
 
@@ -41,6 +43,9 @@ export const BUCKETS = Object.freeze([
 ]);
 const bucketOf = (cd) => (BUCKETS.find(([, a, b]) => cd >= a && cd <= b) || [null])[0];
 const MOOD_KEYS = Object.freeze(["veryLow", "low", "okay", "good", "veryGood"]);
+/* Meal notes: days with at least one meal of each kind, and how many meal notes had each energy-after answer. */
+export const MEAL_DAY_KEYS = Object.freeze(["balanced", "mostlyCarbsOrSweet", "proteinForward", "skipped", "ateLate"]);
+export const MEAL_ENERGY_KEYS = Object.freeze(["steady", "dipped", "crashed"]);
 
 const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 const r1 = (n) => Math.round(n * 10) / 10;
@@ -67,14 +72,15 @@ export const SUMMARY_PATHS = Object.freeze(new Set([
   "pcosSignals", "pcosSignals[]", "pcosSignals[].name", "pcosSignals[].days",
   "labs", "labs[]", "labs[].name", "labs[].value", "labs[].unit",
   "experiment", "experiment.name", "experiment.daysDone", "experiment.target", "experiment.status",
+  "meals", "meals.daysWithNotes", "meals.daysWith", ...MEAL_DAY_KEYS.map((k) => `meals.daysWith.${k}`), "meals.energyAfter", ...MEAL_ENERGY_KEYS.map((k) => `meals.energyAfter.${k}`),
 ]));
 
 /**
  * The summary. Every input is optional; anything unreadable counts as nothing logged.
  * @param {{ stage: string, stageName: string, entries: Array, bodyLog: Object, moodLog: Object, labs: Array,
- *   includeLabs: boolean, pcosOn: boolean, experiments: Object, todayIso: string }} input
+ *   includeLabs: boolean, pcosOn: boolean, mealsOn: boolean, experiments: Object, todayIso: string }} input
  */
-export function buildSummary({ stage = "periods", stageName = "", entries = [], bodyLog = {}, moodLog = {}, labs = [], includeLabs = false, pcosOn = false, experiments = null, todayIso } = {}) {
+export function buildSummary({ stage = "periods", stageName = "", entries = [], bodyLog = {}, moodLog = {}, labs = [], includeLabs = false, pcosOn = false, mealsOn = false, experiments = null, todayIso } = {}) {
   const today = typeof todayIso === "string" && /^\d{4}-\d{2}-\d{2}$/.test(todayIso) ? todayIso : null;
   const life = lifeStageOf(stage, stageName);
   const out = { kind: SUMMARY_KIND, version: SUMMARY_VERSION, lifeStage: life, weeks: SUMMARY_WEEKS, daysLogged: 0 };
@@ -147,6 +153,16 @@ export function buildSummary({ stage = "periods", stageName = "", entries = [], 
     const cnt = new Map();
     for (const [d, v] of Object.entries(body)) { if (!inW(d)) continue; for (const id of v.pcos || []) { const c = PCOS_DAY.find((x) => x.id === id); if (c) cnt.set(c.id, (cnt.get(c.id) || 0) + 1); } }
     out.pcosSignals = PCOS_DAY.filter((c) => cnt.has(c.id)).map((c) => ({ name: c.label, days: cnt.get(c.id) }));
+  }
+
+  // Meal notes (only with Meal notes on, never in pregnancy): counts only, never a meal, its time or its date.
+  if (mealsOn === true && stage !== "preg") {
+    const c = mealCounts(body, from, today);
+    out.meals = {
+      daysWithNotes: c.days,
+      daysWith: { balanced: c.daysWith.balanced, mostlyCarbsOrSweet: c.daysWith.carbs, proteinForward: c.daysWith.protein, skipped: c.daysWith.skipped, ateLate: c.daysWith.late },
+      energyAfter: { steady: c.energyAfter.steady, dipped: c.energyAfter.dipped, crashed: c.energyAfter.crashed },
+    };
   }
 
   // Lab values: only when she ticks "Include lab values"; the latest per kind, rounded, never its date.
@@ -233,6 +249,10 @@ export function summaryLines(s) {
   if (s.movement) L.push(["Movement", `${s.movement.sessionsPerWeek} sessions and ${s.movement.minutesPerWeek} minutes a week on average`]);
   if (s.mood) L.push(["Mood check-ins", `${s.mood.checkIns}${s.mood.feelings.length ? `; feelings: ${s.mood.feelings.map((f) => `${f.name} ${f.days}`).join(", ")}` : ""}`]);
   if (s.pcosSignals) L.push(["PCOS signals", s.pcosSignals.length ? s.pcosSignals.map((x) => `${x.name} ${n(x.days, "day", "days")}`).join(", ") : "none logged"]);
+  if (s.meals) {
+    const m = s.meals, dw = m.daysWith || {}, ea = m.energyAfter || {};
+    L.push(["Meal notes (counts only, no foods)", `${n(m.daysWithNotes, "day", "days")} with meal notes; days with balanced ${dw.balanced}, mostly carbs or sweet ${dw.mostlyCarbsOrSweet}, protein-forward ${dw.proteinForward}, skipped ${dw.skipped}, ate late ${dw.ateLate}; energy after a meal: steady ${ea.steady}, dipped ${ea.dipped}, crashed ${ea.crashed}`]);
+  }
   if (s.labs) L.push(["Lab values (latest, rounded, no dates)", s.labs.length ? s.labs.map((x) => `${x.name} ${x.value} ${x.unit}`).join(", ") : "none typed in"]);
   if (s.experiment) L.push(["Experiment", `${s.experiment.name}: ${s.experiment.daysDone} of ${s.experiment.target} days (${s.experiment.status})`]);
   return L;

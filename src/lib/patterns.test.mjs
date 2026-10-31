@@ -6,6 +6,7 @@ import fs from "node:fs";
 import {
   PATTERN_RULES, statusOf, EMPTY_LINE, NOT_ADVICE, usualOf, bandOf, bandCounts, bandWords, bandTrend, bodyRing, mindRing, RING_RULES, ringInputs,
   cycleTimeline, sleepCards, cycleCards, questionSides, pcosCards, trialCards, rankCards, TRIAL_MIN, BAND,
+  mealCards, mealSides, MEAL_SRC,
 } from "./patterns.js";
 import {
   EXPERIMENTS, cleanExperiments, settle, startExperiment, skipWeek, markDay, stopExperiment, runningOn, experimentStep, reviewWeek, weekCounts, countWords,
@@ -191,4 +192,29 @@ test("experiments are in the evidence register and the clinician review list, wo
     assert.ok(ev.includes(x.why) && cr.includes(x.why), `${x.id} why text missing from the registers`);
     for (const s of experimentSources(x)) assert.ok(ev.includes(s.title), `${x.id} source ${s.title}`);
   }
+});
+
+test("meal notes card: energy after meals, only with enough notes, worded as an association", () => {
+  const log = (rows) => { const out = {}; rows.forEach(([kind, energy], i) => { const d = addDays(T, -i); (out[d] = out[d] || { meals: [] }).meals.push({ id: `m${i}`, meal: "lunch", kind, energy }); }); return out; };
+  // too few notes: no card at all (not even "Not enough information")
+  assert.deepEqual(mealCards({ bodyLog: log([["carbs", "dipped"], ["balanced", "steady"]]), todayIso: T }), []);
+  // carbs meals dip more often: supported
+  const more = log([...Array(6).fill(["carbs", "dipped"]), ["carbs", "steady"], ...Array(6).fill(["balanced", "steady"]), ["protein", "crashed"], ["skipped", "crashed"], ["carbs", null]]);
+  const s = mealSides({ bodyLog: more, from: addDays(T, -59), to: T });
+  assert.deepEqual(s, { carbs: { n: 7, hits: 6 }, other: { n: 7, hits: 1 } }, "skipped meals and notes without energy are left out");
+  const [c] = mealCards({ bodyLog: more, todayIso: T });
+  assert.equal(c.key, "meals:energy"); assert.equal(c.topic, "Energy after meals"); assert.equal(c.status, "supported");
+  assert.equal(c.sentence, "In your log, energy dipped or crashed more often after meals that were mostly carbs or sweet than after your other meals.");
+  assert.deepEqual([...c.detail.src], [...MEAL_SRC]);
+  assert.ok(MODULES.pcos.evidence.some((e) => e.id === MEAL_SRC[0]));
+  // about as often: a plain observation without a chip
+  const same = log([...Array(3).fill(["carbs", "dipped"]), ...Array(3).fill(["carbs", "steady"]), ...Array(3).fill(["balanced", "dipped"]), ...Array(3).fill(["balanced", "steady"])]);
+  const [o] = mealCards({ bodyLog: same, todayIso: T });
+  assert.equal(o.status, "seen"); assert.match(o.sentence, /about as often/);
+  // the other way round
+  const less = log([...Array(6).fill(["carbs", "steady"]), ...Array(5).fill(["balanced", "dipped"]), ["balanced", "steady"]]);
+  const [l] = mealCards({ bodyLog: less, todayIso: T });
+  assert.match(l.sentence, /less often/);
+  // tone: no advice, no food verdicts, no weight, no calories
+  for (const x of [c, o, l]) for (const t of [x.sentence, x.topic, x.detail.question, ...x.detail.lines]) assert.ok(!/\b(should|avoid|cut|good food|bad food|unhealthy|calorie|weight|diet plan|try eating|eat less|eat more)\b/i.test(t), t);
 });
