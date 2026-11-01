@@ -1,5 +1,6 @@
 import { fmt } from "../../lib/engine.js";
 import { t } from "../../lib/i18n.js";
+import Details from "../Details.jsx";
 
 /* The Patterns hero (calm R6): the last cycles as bars of their actual lengths, newest first, the running one on top.
    Each bar shows the logged period days (strongest ramp step), a textbook fertile-window estimate on 21–35-day cycles
@@ -43,6 +44,7 @@ export default function CycleTimeline({ model }) {
         {model.rows.some((r) => r.current && r.expected > r.len) && <span><i className="k-exp" />{t("timeline.stillRunning")}</span>}
       </div>
       {model.sentence && <p className="tlsent">{model.sentence}</p>}
+      {model.note && <Details label={t("timeline.aboutLongCycles")}><p>{model.note}</p></Details>}
     </div>
   );
 }

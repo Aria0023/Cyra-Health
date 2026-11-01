@@ -150,7 +150,7 @@ export function AppearanceBody({ appearance, onAppearance, uiStyle = "soft", onS
           </div>
         </>
       )}
-      <p className="rfoot">System follows this device's light or dark setting.{onStyle ? " Mono is a quieter, single-colour look." : ""} Your {onStyle ? "choices stay" : "choice stays"} on this device and {onStyle ? "aren't" : "isn't"} part of a backup.</p>
+      <p className="rfoot">System follows this device's setting. Your {onStyle ? "choices stay" : "choice stays"} on this device and {onStyle ? "aren't" : "isn't"} part of a backup.</p>
     </>
   );
 }

@@ -3,6 +3,7 @@ import { famColor } from "../lib/constants.js";
 import { localDay, isPeriodDay, sevDots, fmt, fmtRange } from "../lib/engine.js";
 import { cleanNote } from "../lib/daylog.js";
 import Icon from "../components/Icon.jsx";
+import Details from "../components/Details.jsx";
 import { cleanFert, fertParts } from "../lib/fertility.js";
 import { t, fmtDate } from "../lib/i18n.js";
 
@@ -121,7 +122,7 @@ export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCyc
       </section>
       <p className="hint calhint">{firstRun ? (isMeno ? t("cal.tapTodayToLogYour") : t("cal.tapTodayToLogYour2")) : t("cal.tapAnyDayToSee")}</p>
       {pred ? (
-        <div className="card calpredcard"><div className="num">{t("cal.d", { half: pred.half })}<span className="rmeta">{t("cal.confidence")}</span></div><p>{predictionText(pred)}</p></div>
+        <div className="card calpredcard"><div className="num">{t("cal.d", { half: pred.half })}<span className="rmeta">{t("cal.confidence")}</span></div>{((pt) => <div className="calpredtext"><p>{pt.short}</p>{pt.more && <Details label={t("cal.howThisIsWorkedOut")}><p>{pt.more}</p></Details>}</div>)(predictionText(pred))}</div>
       ) : (
         <div className="card"><div className="num">—</div><p>{whyText(predWhy, stage)}</p></div>
       )}
@@ -136,7 +137,8 @@ export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCyc
 }
 
 /* The confidence card's sentence (spec §5.1 Calendar rules): the range, what it rests on, the perimenopause note and
-   "Estimates — not contraception." verbatim, joined with spaces. */
+   "Estimates — not contraception." verbatim. Solia C: `short` (the range and "Estimates — not contraception.") is on
+   the card; `more` (what it rests on, the perimenopause note) sits behind "How this is worked out". */
 function predictionText(p) {
   const range = p.state === "upcoming" ? `Period likely ${fmtRange(p.fromIso, p.toIso)}.`
     : p.state === "window" ? `Period likely any day now, by ${fmt(p.toIso)}.`
@@ -149,19 +151,19 @@ function predictionText(p) {
         ? `Based on the ${p.center}-day cycle you gave at sign-up, with ${p.left} logged cycle${p.left === 1 ? "" : "s"} left out. Once two cycles are in use, this becomes your own number.`
         : `Based on the ${p.center}-day cycle you gave at sign-up${p.oneLogged ? ` (one logged so far: ${p.oneLogged}d)` : ""}. After two logged cycles this becomes your own number.`)
       : "Based on a typical 28-day cycle until two of yours are logged.";
-  return [range, basis, p.wide ? "Cycles vary more in perimenopause, so the range is wider." : null, "Estimates — not contraception."].filter(Boolean).join(" ");
+  return { short: `${range} Estimates — not contraception.`, more: [basis, p.wide ? "Cycles vary more in perimenopause, so the range is wider." : null].filter(Boolean).join(" ") };
 }
 
 /* Why there is no prediction (engine whyNoPrediction). */
 function whyText(why, stage) {
   switch (why?.kind) {
-    case "unsure": return "At sign-up you said your cycles are irregular or you're not sure how long they run, so Solia Health won't guess yet. Log a couple of periods (light flow or more on the Today screen) and the calendar starts estimating your next one.";
+    case "unsure": return "At sign-up you said your cycles are irregular or you're not sure how long they run, so there's no estimate yet. Log a couple of periods (light flow or more on the Today screen) and the calendar starts estimating your next one.";
     case "excluded": return why.kept
       // An Irregular / Not sure sign-up with one cycle still in use (plan() waits for two).
-      ? "At sign-up you said your cycles are irregular or you're not sure how long they run, so Solia Health waits until two cycles are in use. Only one of yours is in use now — turn another back on in Body → Cycles, or keep logging."
-      : "Every cycle you've logged is left out of predictions, so Solia Health won't guess. Turn one back on in Body → Cycles, or keep logging.";
-    case "long": return `It's been ${why.days} days since the last period Solia Health knows about, longer than it predicts across. If you had one since, tap that day to log it.${stage === "peri" ? " Long gaps are common in perimenopause." : " If you haven't and that's unexpected, it's worth mentioning to a clinician."}`;
-    case "meno": return "After menopause Solia Health doesn't predict periods. Any bleeding now is worth mentioning to your doctor — log it on the Today screen so it's in your record.";
+      ? "At sign-up you said your cycles are irregular or you're not sure how long they run, so predictions wait until two cycles are in use. Only one of yours is in use now — turn another back on in Body → Cycles, or keep logging."
+      : "Every cycle you've logged is left out of predictions, so there's no estimate. Turn one back on in Body → Cycles, or keep logging.";
+    case "long": return `It's been ${why.days} days since the last period on record, longer than predictions cover. If you had one since, tap that day to log it.${stage === "peri" ? " Long gaps are common in perimenopause." : " If you haven't and that's unexpected, it's worth mentioning to a clinician."}`;
+    case "meno": return "After menopause, periods aren't predicted. Any bleeding now is worth mentioning to your doctor — log it on the Today screen so it's in your record.";
     default: return "No predictions yet. Log a period day (light flow or more on the Today screen) and the calendar starts estimating your next one.";
   }
 }

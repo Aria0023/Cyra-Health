@@ -41,7 +41,7 @@ export const PCOS_STAGES = ["My Cycle", "Trying to conceive", "Perimenopause"];
 
 export const STEP_COPY = {
   stage: { short: "Stage", title: "Where are you right now?", sub: "This shapes your entire experience. You can change it anytime." },
-  pcos: { short: "PCOS", title: "Living with PCOS?", sub: "Optional. A yes adds PCOS symptoms, signals and cycle wording to your log; you can change it anytime in You. Your answer stays on this device, and goes into an encrypted backup only if you save one." },
+  pcos: { short: "PCOS", title: "Living with PCOS?", sub: "Optional. A yes adds PCOS tracking, and you can change it in You. Your answer stays on this device, and goes into an encrypted backup only if you save one." },
   account: { short: "Device", title: "Set up Solia Health on this device", sub: "There's no Solia Health account. Your name, email and answers are saved on this device. Lose the device or clear the browser and you lose them, unless you saved an encrypted backup, which keeps most of them." },
   cycle: { short: "Cycle", title: "Your cycle history", sub: "So predictions can start from day one. These answers stay on this device, and go into an encrypted backup only if you save one." },
   pregnancy: { short: "Pregnancy", title: "Your pregnancy", sub: "So your week and your care roadmap start in the right place. Your due date stays on this device, and goes into an encrypted backup only if you save one." },

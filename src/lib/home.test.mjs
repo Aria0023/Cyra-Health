@@ -33,7 +33,7 @@ test("hero: pregnancy week, menopause count or calm state, long gap, no data", (
   assert.equal(heroModel({ stage: "peri", isMeno: true, lastPeriodIso: "2024-01-01", todayIso: T }).kind, "calm");
   const l = heroModel({ stage: "peri", predWhy: { kind: "long", days: 130 }, todayIso: T });
   assert.equal(l.line, "No period on record for 130 days"); assert.equal(l.note, "Long gaps are common in perimenopause.");
-  assert.match(heroModel({ stage: "periods", predWhy: { kind: "long", days: 130 }, pcosOn: true, todayIso: T }).note, /not as mistakes/);
+  assert.match(heroModel({ stage: "periods", predWhy: { kind: "long", days: 130 }, pcosOn: true, todayIso: T }).note, /not a mistake/);
   assert.equal(heroModel({ stage: "periods", todayIso: T }).kind, "start");
 });
 

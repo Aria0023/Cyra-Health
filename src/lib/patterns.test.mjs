@@ -72,7 +72,7 @@ test("cycle timeline: every cycle shown, outliers labelled, PCOS long cycles cal
   assert.deepEqual(tl.rows[2].labels, ["Left out of predictions"]); assert.deepEqual(tl.rows[2].fertile, [13, 17]);
   assert.deepEqual(tl.rows[3].labels, ["Shorter than your usual"]); assert.equal(tl.rows[3].fertile, null);
   assert.match(tl.sentence, /ran 29 to 42 days\. One ran over 35 days\./);
-  assert.ok(tl.sentence.includes(MODULES.pcos.cycle.expected.text));
+  assert.ok(!tl.sentence.includes(MODULES.pcos.cycle.expected.text) && tl.note === MODULES.pcos.cycle.expected.text, "the PCOS line is the timeline's note (behind a disclosure)");
   assert.equal(cycleTimeline({ rows: [], current: null, todayIso: T }), null);
   const off = cycleTimeline({ rows, current: null, sorted, pcosOn: false, todayIso: T });
   assert.ok(!off.sentence.includes("PCOS") && off.rows[0].labels.length === 0);

@@ -1826,3 +1826,41 @@ the only consumer is Shell's `data-style` attribute, which styles.js reads. No r
 - "What a restore changes" (src/lib/disclosures.js restoreChanges), because a restore keeps this device's style too:
   - Before: Your settings are replaced too, except this device's choices about …, and appearance (light or dark).
   - After: Your settings are replaced too, except this device's choices about …, and appearance (light or dark, and the style).
+
+## Readability pass (Solia C, 2026-11-01) — no new record key, no new request, nothing new leaves the device
+
+Screens show one or two short lines per card; explanations sit behind "How this works"-style disclosures (the Details
+component keeps a closed panel in the page, `hidden`, so every sentence is still part of the screen and still read by
+the suites). **No privacy sentence was dropped or weakened.** Each one below is either unchanged and moved behind a
+tap, or reworded only around an unchanged privacy clause.
+
+**Moved behind a disclosure (text unchanged):**
+- Report → Appointment PDF: "In it: … " (what the PDF holds) → "What's in it"; "The same numbers are on this page; the
+  tables are under "The numbers behind this"." → "Where the numbers come from". The file warning ("This file isn't
+  locked. …") and "At the top: your name, your life stage and the dates it covers." stay on the card.
+- Patterns → day-by-day chart: how to read the chart → "How to read this chart" (not a privacy sentence).
+- Body → Calendar: what the estimate rests on → "How this is worked out"; "Estimates — not contraception." stays.
+- Body → Cycles: the "Don't use" explanation → "When to leave one out" (not a privacy sentence).
+
+**Reworded around an unchanged privacy clause:**
+- You → Appearance footnote: "System follows this device's light or dark setting. Mono is a quieter, single-colour
+  look. Your choices stay on this device and aren't part of a backup." → "System follows this device's setting. Your
+  choices stay on this device and aren't part of a backup."
+- Report → email: "A short email your doctor can read in twenty seconds — nothing to log into on their end. Below is
+  exactly what it says. Solia Health itself sends nothing; the text goes only where you take it." → "A short email your
+  doctor can read in twenty seconds. Solia Health itself sends nothing; the text goes only where you take it."
+- Registration → Living with PCOS?: "Optional. A yes adds PCOS symptoms, signals and cycle wording to your log; you can
+  change it anytime in You. Your answer stays on this device, and goes into an encrypted backup only if you save
+  one." → "Optional. A yes adds PCOS tracking, and you can change it in You. Your answer stays on this device, and goes
+  into an encrypted backup only if you save one."
+- Practice sheet: "Your answer stays on this device. Solia Health suggests what helps you more often." → "Your answer
+  stays on this device. What helps you comes up more often." Mind → Today: "Solia Health suggests what helps you more
+  often. Your answers stay on this device." → "What helps you comes up more often. Your answers stay on this device."
+- You → About you (Your answers): "Solia Health uses your typical cycle length and last period for predictions until
+  your own logged cycles take over." → "Used for predictions until your own logged cycles take over." and "Solia
+  Health uses this for your week and your care roadmap." → "Used for your week and your care roadmap." (Both sit
+  under the answers they describe; the ZIP line is unchanged.)
+
+**What I'm trying:** items added from the Care shelf now get a fitting kind (`program`, `care`, `aid`, `supp`; lib/
+trying.js) instead of "supp"/"habit". `meds[].kind` was already free text in the record (record.js RULES), so no
+record key, migration or backup change; old items keep their kind.

@@ -4,6 +4,7 @@ import { FAMILIES, SYM_FAMILY, famVar } from "../lib/constants.js";
 import { strongMeterWord } from "../lib/appearance.js";
 import { copyText } from "../lib/clipboard.js";
 import Icon from "../components/Icon.jsx";
+import Details from "../components/Details.jsx";
 import { FertilityFinding } from "../components/FertilitySummary.jsx";
 import { fertSummary } from "../lib/fertility.js";
 import { PdfDoc } from "../lib/pdf.js";
@@ -134,13 +135,17 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
   const todayLogged = loggedSet.has(todayIso);
   const meanings = [
     stage === "peri" && ins.variability != null && ins.variability >= 7 && { k: "var", fam: "Cycles", color: "var(--primary)", head: "A clear sign of the transition",
-      text: "Periods that vary by a week or more are one of the clearest signs the menopause transition has started. That's not a diagnosis — but it's the exact thing doctors look at, and it usually means this is a years-long change worth planning for, not a random bad month." },
+      text: "Periods that vary by a week or more are one of the clearest signs the menopause transition has started.",
+      more: "That's not a diagnosis — but it's the exact thing doctors look at, and it usually means this is a years-long change worth planning for, not a random bad month." },
     stage === "peri" && ins.counts.find((c) => (c.id === "hf" || c.id === "ns") && c.days >= 8) && { k: "heat", fam: FAM.heat.label, color: FAM.heat.color, head: "Treatable, and often never discussed",
-      text: <>Hot flashes and night sweats this often are <b>treatable</b> — this is the single most fixable thing on your list. Most women are never offered treatment simply because it never gets discussed.</> },
+      text: <>Hot flashes and night sweats this often are <b>treatable</b> — this is the single most fixable thing on your list.</>,
+      more: "Most women are never offered treatment simply because it never gets discussed." },
     ins.counts.find((c) => c.id === "slp" && c.days >= 8) && { k: "sleep", fam: FAM.sleep.label, color: FAM.sleep.color, head: "Sleep is worth treating on its own",
-      text: "Sleep that's disrupted this often is worth treating on its own, not just waiting out. Poor sleep tends to make every other symptom louder, so fixing it often improves several things at once." },
+      text: "Sleep that's disrupted this often is worth treating on its own, not just waiting out.",
+      more: "Poor sleep tends to make every other symptom louder, so fixing it often improves several things at once." },
     stage === "periods" && ins.counts.find((c) => c.id === "crm" && c.strong >= 6) && { k: "pain", fam: FAM.pain.label, color: FAM.pain.color, head: "Pain this strong has causes",
-      text: "Pain this strong, this often, isn't something to just get through. Period pain that regularly stops you has causes that are diagnosable and treatable — it often goes unaddressed for years because people are told it's normal." },
+      text: "Pain this strong, this often, isn't something to just get through.",
+      more: "Period pain that regularly stops you has causes that are diagnosable and treatable — it often goes unaddressed for years because people are told it's normal." },
   ].filter(Boolean);
   const scripts = [
     ...ins.counts.filter((c) => c.days > 0).slice(0, 1).map((c) => `I logged ${n} of the last 30 days. ${c.label} happened on ${c.days} of them. What could be causing it?`),
@@ -189,9 +194,10 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
         <Icon name="file" size={20} className="pdfico" />
         <div>
           <h2 className="pdftitle" id="pdf-h">Appointment PDF</h2>
-          {visit.enough && <p className="pdfin">{visit.contents} {visit.top}</p>}
+          {visit.enough && <p className="pdfin">{visit.top}</p>}
         </div>
       </div>
+      {visit.enough && visit.contents && <Details label="What's in it"><p>{visit.contents}</p></Details>}
       {notesK > 0 && (
         <>
           <CheckRow on={withNotes} onToggle={() => setWithNotes((v) => !v)}>Include my notes</CheckRow>
@@ -211,14 +217,14 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
       {!visit.enough && <p className="hint pdfnote" id="pdf-gate">{GATE_EMPTY}</p>}
       {visit.enough && limitHit && <p className="hint pdfnote" id="pdf-limit">{limitLine(pdfLimit, firstOfNextMonth)}</p>}
       <p className="hint pdfnote">{FILE_WARNING}</p>
-      {visit.enough && <p className="rfoot pdfacc">{SAME_NUMBERS}</p>}
+      {visit.enough && <Details label="Where the numbers come from"><p className="rfoot pdfacc">{SAME_NUMBERS}</p></Details>}
     </section>
   );
 
   const sendAhead = (
     <>
       {pdfCard}
-      <p className="hint" style={{ marginBottom: 10 }}>A short email your doctor can read in twenty seconds — nothing to log into on their end. Below is exactly what it says. Solia Health itself sends nothing; the text goes only where you take it.</p>
+      <p className="hint" style={{ marginBottom: 10 }}>A short email your doctor can read in twenty seconds. Solia Health itself sends nothing; the text goes only where you take it.</p>
       <p className="rsec">Preview</p>
       <textarea className="inp emailpreview" readOnly rows={emailText.split("\n").length + 1} aria-label="Email preview" value={emailText} onFocus={(e) => e.target.select()} />
       <div className="routes">
@@ -240,7 +246,7 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
         {appt ? <><b>{appt.who || "Your appointment"}</b><span>· {apptIn === 0 ? "today" : apptIn === 1 ? "tomorrow" : `in ${apptIn} days`}</span><button type="button" className="linkbtn" onClick={openAppts}>Change</button></>
           : <button type="button" className="linkbtn" onClick={openAppts}>Add your appointment date</button>}
       </p>
-      <p className="hint">Appointments are short. This turns the last 30 days of what you felt into a few clear sentences — so "I just haven't felt right" becomes something your doctor can actually work with.</p>
+      <p className="hint">Your last 30 days, in a few clear sentences for your doctor.</p>
 
       {/* Cover: how much of the window is logged, as a number and a 30-day strip (decorative twin) tinted by each
           day's score on the stage ramp — the same colour the calendar gives that day. */}
@@ -309,14 +315,15 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
                 <span className="mfamrow"><i className="fdot" style={{ background: m.color }} aria-hidden="true" /><span className="mfam">{m.fam}</span></span>
                 <b className="mhead">{m.head}</b>
                 <p className="plain">{m.text}</p>
+                {m.more && <Details label="Why this matters"><p className="plain">{m.more}</p></Details>}
               </div>
             ))}
             {meanings.length === 0 && <p className="plain">Nothing in your log crosses the thresholds doctors usually ask about — that's useful to say too.</p>}
-            <p className="plain mnote">These are patterns in what you logged — observations, not a diagnosis. Only your doctor can say what's causing them.</p>
+            <p className="rfoot mnote">These are patterns in what you logged — observations, not a diagnosis. Only your doctor can say what's causing them.</p>
           </div>
 
           <Sec n={3}>What to say out loud</Sec>
-          <p className="hint" style={{ marginBottom: 10 }}>Read these word for word if it helps. Knowing the question is half of getting a real answer. Up to three can ride along in the email and the PDF.</p>
+          <p className="hint" style={{ marginBottom: 10 }}>Read these word for word if it helps. Up to three can go in the email and the PDF.</p>
           <div className="plaincard">
             {scripts.map((s, i) => {
               const on = picked.includes(i);

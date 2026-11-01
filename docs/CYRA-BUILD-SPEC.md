@@ -1725,6 +1725,27 @@ backend/scripts/ai-smoke.js against a mock upstream (no real key).
 
 ---
 
+
+### 11.x Readability (Solia C, 2026-11-01)
+
+The owner found long text hard on the eyes. Every screen follows five rules:
+1. At most one or two short sentences visible per card; explanations sit behind a disclosure ("How this works", "Why
+   this matters", "How comparing works", "What counts as long"); citations always collapsed under "Source".
+2. Don't repeat the app's name in sentences; prefer plain verbs ("Counted once a cycle ends.").
+3. A status that would repeat on every row becomes a short chip ("Not enough days to compare"); the detail is said
+   once, behind a tap.
+4. Labels and short lists beat paragraphs. Prose in cards, panels, sheets and onboarding is ≥ 16px, line-height 1.55,
+   at most 60ch, with paragraph spacing; text is soft ink, never pure black, and AA in both schemes and both styles.
+5. Disclaimers ("not a diagnosis or medical advice") are one small line, once per screen.
+
+Specific: the PCOS long-cycle card is a big number + label ("1 cycle longer than 35 days"), one calm line and two
+disclosures; "What I'm trying" is a one-line intro, compact rows (name, kind, since, a status chip), and the compare
+rule said once; Care-shelf items get a fitting kind (lib/trying.js: Program, Care, Comfort aid, Supplement) and the
+daily question fits the kind ("Taken today?", "Did it today?", "Used it today?", none for care). Journal: the prompt
+and the box. Privacy sentences moved or reworded: docs/PRIVACY-AUDIT.md "Readability pass"; medical ones:
+docs/CLINICIAN-REVIEW.md "Readability pass". Kept as they were, on purpose: the consent step, the Account card and the
+POTS screens' copy (the suites assert those sentences word for word; they get the typography only).
+
 ## 12. ACCEPTANCE CRITERIA
 
 **Toast.** `.toast[role=status][aria-live=polite]` is always in the DOM (its text node is empty between messages; never

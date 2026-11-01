@@ -38,7 +38,9 @@ const isPlural = (label) => /[^s]s$/i.test(label || "");
 const fmtRatio = (r) => (r >= 10 ? String(Math.round(r)) : r.toFixed(1));
 const dayW = (k) => (k === 1 ? "day" : "days");
 const STATUS_ORDER = { supported: 1, still: 2, notenough: 3, seen: 4 };
-const RECENT = `In your recent data: the last ${PATTERN_RULES.days} days`;
+/* The default window; a card shows its own "In your recent data" line only when it differs (Solia C: said once, in
+   "How these are found"). */
+export const RECENT = `In your recent data: the last ${PATTERN_RULES.days} days`;
 
 /** The difference figure for two sides: "2.3×" (with "as often …") or, with a zero base, "a of n". */
 function diffOf(a, b, label) {
@@ -174,8 +176,10 @@ export function cycleTimeline({ rows = [], current = null, sorted = [], expected
     sentence = lo === hi ? `Your last ${lens.length} cycles each ran ${lo} days.` : `Your last ${lens.length} cycles ran ${lo} to ${hi} days.`;
   }
   const nLong = longCycleCount(lens, longDays);
-  if (pcosOn && nLong) sentence += ` ${nLong === 1 ? "One" : nLong} ran over ${longDays} days. ${MODULES.pcos.cycle.expected.text}`;
-  return { rows: all, scale, sentence: sentence.trim(), todayIso };
+  if (pcosOn && nLong) sentence += ` ${nLong === 1 ? "One" : nLong} ran over ${longDays} days.`;
+  // Solia C: the PCOS line sits behind a disclosure under the sentence (CycleTimeline), not in it.
+  const note = pcosOn && nLong ? MODULES.pcos.cycle.expected.text : null;
+  return { rows: all, scale, sentence: sentence.trim(), note, todayIso };
 }
 
 /* ---------- pattern cards ---------- */
@@ -205,7 +209,7 @@ export function sleepCards(links = []) {
         question: `Do rough nights line up with more ${lc} the next day?`,
         lines: [
           `${L} moderate or strong on ${l.rough.hits} of ${l.rough.n} ${dayW(l.rough.n)} after a rough night, and ${l.good.hits} of ${l.good.n} after a night you slept well.`,
-          `Solia Health names a pattern with at least ${PATTERN_RULES.minEach} days on each side and ${PATTERN_RULES.minHits} days with ${lc} in all.`,
+          `A pattern is named with at least ${PATTERN_RULES.minEach} days on each side and ${PATTERN_RULES.minHits} days with ${lc} in all.`,
         ],
         advice: x.advice || null, askId: x.askId || null,
       },
@@ -320,7 +324,7 @@ export function mealCards({ bodyLog = {}, todayIso, days = PATTERN_RULES.days })
       question: "Does my energy dip more often after some kinds of meals?",
       lines: [
         `Energy dipped or crashed after ${carbs.hits} of ${carbs.n} ${mealW(carbs.n)} you noted as mostly carbs or sweet, and after ${other.hits} of ${other.n} of your other ${mealW(other.n)} (balanced or protein-forward).`,
-        `Solia Health names a pattern with at least ${PATTERN_RULES.minEach} meal notes on each side and ${PATTERN_RULES.minHits} dips or crashes in all. Skipped meals and notes without an energy answer are left out.`,
+        `A pattern is named with at least ${PATTERN_RULES.minEach} meal notes on each side and ${PATTERN_RULES.minHits} dips or crashes in all. Skipped meals and notes without an energy answer are left out.`,
         "This is what your own notes show, not a rule about food. Energy after a meal also follows sleep, stress, your cycle and more.",
         MEAL_DIET_LINE,
       ],
@@ -362,7 +366,7 @@ export function pcosCards({ entries = [], bodyLog = {}, todayIso, lens = [], day
         question: q.question,
         lines: [
           `${q.outcome.label} moderate or strong${next} on ${exp.hits} of ${exp.n} ${dayW(exp.n)} (${lc1(q.exposure.label)}) and ${other.hits} of ${other.n} (${lc1(q.exposure.other)}).`,
-          `Solia Health names a pattern with at least ${PATTERN_RULES.minEach} days on each side and ${PATTERN_RULES.minHits} days with ${lo} in all.`,
+          `A pattern is named with at least ${PATTERN_RULES.minEach} days on each side and ${PATTERN_RULES.minHits} days with ${lo} in all.`,
         ],
         askId: null,
       },
@@ -400,7 +404,7 @@ export function trialCards({ meds = [], scoreOn, usual, todayIso }) {
       strength: Math.abs(d),
       detail: {
         question: `Have your days felt different since starting ${m.name}?`,
-        lines: [`Lighter days for you: ${A.hits} of ${A.n} since starting, ${B.hits} of ${B.n} in the two weeks before.`, `Solia Health compares once there are ${TRIAL_MIN} logged days on each side. It never suggests a dose or a change.`],
+        lines: [`Lighter days for you: ${A.hits} of ${A.n} since starting, ${B.hits} of ${B.n} in the two weeks before.`, `Compared once there are ${TRIAL_MIN} logged days on each side. Never a suggested dose or change.`],
         advice: { urgency: "visit", text: "Bring this before and after to your next visit: it is the kind of record a clinician can use to decide whether to continue, adjust or stop." },
         askId: "med",
       },

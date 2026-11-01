@@ -19,7 +19,7 @@ export const PLAN_COPY = Object.freeze({
   eyebrow: "Your plan",
   free: "Solia Health Free",
   test: "Solia Health Pro (test build)",
-  body: "Everything you need to log, follow your cycle and bring a clear summary to an appointment is free. Pro adds more depth for anyone who wants it.",
+  body: "Logging, your cycle and a clear summary for appointments are free. Pro adds more depth.",
   see: "See what Pro adds",
   none: "There's nothing to buy in this version.",
   testNote: "This is a test build: Pro's parts are unlocked here for checking. Nothing is bought.",

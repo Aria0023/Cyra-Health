@@ -106,7 +106,7 @@ const PCOS = Object.freeze({
   /* PCOS-aware cycle wording: long and absent cycles are expected, not errors; "cycles longer than 35 days" is counted. */
   cycle: Object.freeze({
     longDays: 35,
-    expected: Object.freeze({ text: "Long or missed cycles are common with PCOS. Solia Health shows them as part of your pattern, not as mistakes.", src: ["teede2023", "rotterdam2004"] }),
+    expected: Object.freeze({ text: "Long or missed cycles are common with PCOS — part of your pattern, not a mistake.", src: ["teede2023", "rotterdam2004"] }),
     definition: Object.freeze({ text: "For adults, the international PCOS guideline describes cycles shorter than 21 days or longer than 35 days, or fewer than eight a year, as irregular.", src: ["teede2023"] }),
     range: Object.freeze({ text: "Your cycles vary, so the range is wide on purpose.", src: [] }),
   }),

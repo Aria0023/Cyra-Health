@@ -1654,4 +1654,24 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .cy[data-style="mono"] .vchip.v-notenough { box-shadow:inset 0 0 0 1px var(--line); }
 .cy[data-style="mono"] .ppill.later { opacity:1; }
 .cy[data-style="mono"] .blob, .cy[data-style="mono"] .ringblob, .cy[data-style="mono"] .emptyblob { opacity:.2; }
+/* ---- Readability (Solia C, 2026-11-01): fewer words on screen, and the ones left easier on the eyes. Prose in cards,
+   panels, sheets and onboarding is at least 16px, line-height 1.55, a comfortable measure (60ch) and spaced paragraphs;
+   labels, legends, chips and the one small disclaimer line per screen (.rfoot, .srcline, .notadvice) stay small.
+   .ministat is the big-number + label row (PCOS long cycles), .trow the compact "What I'm trying" row, .tchip its
+   status chip. ---- */
+.cy :is(.v2card, .card, .plaincard, .bodypanel, .emptynote, .pcallout, .meaning, .finding, .readcard, .askpart, .carepart, .v2sheet, .mindhead, .bodyhead, .calpage, .practicespage, .report, .regstep, .consentcard, .pots) :is(p.hint, p.plain, p:not([class]), li:not([class]), p.tlsent, p.nextwhy, p.nextshort, p.wrlead, p.stepbody, p.msnext, p.moodkey, p.yousum, p.prowhy, p.phint, p.calhint, p.bodyphase, p.fsub, p.lead) { font-size:16px; line-height:1.55; max-width:60ch; }
+.cy :is(.v2card, .card, .plaincard, .bodypanel, .v2sheet) p + p:not(.rfoot):not(.srcline) { margin-top:.6em; }
+.ministat { display:flex; align-items:baseline; gap:10px; margin:2px 0 6px; }
+.ministat .bigcount { font:600 40px/1 'Fraunces Variable','Fraunces',serif; color:var(--primary-text); }
+.ministat .ministat-lab { font-size:16px; line-height:1.4; font-weight:600; }
+.trow { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--edge); }
+.trow:last-of-type { border-bottom:0; }
+.trow .tinfo { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.trow .tinfo b { font-size:16px; }
+.trow .tmeta { font-size:var(--fs-md); color:var(--soft); }
+.tchip { align-self:flex-start; display:inline-flex; font:700 12px 'Karla Variable','Karla',sans-serif; line-height:1.2; border-radius:var(--r-pill); padding:4px 10px; color:var(--soft); background:color-mix(in srgb, var(--ink) 5%, var(--card)); box-shadow:inset 0 0 0 1px var(--edge); }
+.tchip.t-result { color:var(--primary-text); background:color-mix(in srgb, var(--primary) 12%, var(--card)); box-shadow:none; }
+.cy[data-style="mono"] .tchip { background:transparent; box-shadow:inset 0 0 0 1px var(--line); }
+.tintro { font-size:16px; line-height:1.55; margin:8px 0 4px; }
+.jprompt { font:600 18px/1.35 'Fraunces Variable','Fraunces',serif; margin:8px 0 10px; }
 `;

@@ -23,14 +23,14 @@ export default function AboutYou({ answers, onAnswer, stage, stageName, todayIso
           <ChipRow id={id("cycleReg")} label="How regular?" options={REGULARITY} value={a.cycleReg} onPick={pick("cycleReg")} />
           <p className="lab">First day of your last period (optional)</p>
           <input className="inp" type="date" aria-label="First day of your last period" value={a.lastPeriod || ""} onChange={(e) => onAnswer("lastPeriod", e.target.value)} />
-          <p className="rfoot">Solia Health uses your typical cycle length and last period for predictions until your own logged cycles take over.</p>
+          <p className="rfoot">Used for predictions until your own logged cycles take over.</p>
         </Details>
       )}
       {stage === "preg" && (
         <Details label="Your pregnancy">
           <p className="lab" id={id("due")}>When is your baby due? (optional)</p>
           <input className="inp" type="date" aria-labelledby={id("due")} min={b.min} max={b.max} value={a.dueDate || ""} onChange={(e) => onAnswer("dueDate", e.target.value)} />
-          <p className="rfoot">Solia Health uses this for your week and your care roadmap.</p>
+          <p className="rfoot">Used for your week and your care roadmap.</p>
         </Details>
       )}
       <Details label="Age and ZIP">

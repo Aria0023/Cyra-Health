@@ -14,6 +14,7 @@ import { Card, QuickTile, StepRail, Ring, Chip, EmptyNote, Sheet } from "../comp
 import { dateEyebrow, greeting, TILES_MIN, TILES_MAX } from "../lib/home.js";
 import { MODULE_FRAMING } from "../lib/modules.js";
 import { t, fmtDate, fmtNumber } from "../lib/i18n.js";
+import { HAND_KINDS, kindLabel, dailyQuestion, doneWord, tryChip, tryWaitLine, TRY_MIN } from "../lib/trying.js";
 
 /* Home v2 (calm R3, spec §5 Home). Top to bottom: the date eyebrow and her greeting; the hero, a large cycle-day ring
    over a soft stage-coloured shape (lib/home.js heroModel: "Day 23" in the serif, the phase under it, then the
@@ -27,15 +28,6 @@ import { t, fmtDate, fmtNumber } from "../lib/i18n.js";
    Tone (plan §7): no streaks, grades, completeness counts or bars; the empty state is "A few more logs will show
    clearer associations." Harness-kept: "POTS today" is the first p.section-lab, "Today's insight" a later one, .todayline,
    .nextrow (the TTC fertile window leads Coming up), .dgrid > .disclosure doors and their panels. */
-/* A trial without enough logged days on both sides of its start date (App.jsx medEffects):
-   how many more it needs, or, when the days left can't get there, that it can't be compared. */
-const plural = (n) => `${n} logged day${n === 1 ? "" : "s"}`;
-function trialWait(e) {
-  if (e.stuckBefore) return `Only ${plural(e.haveBefore)} in the 2 weeks before the start date — Solia Health needs 5 there, so this one can't be compared`;
-  if (e.stuckAfter) return `Only ${plural(e.haveAfter)} in the 2 weeks from the start date — Solia Health needs 5 there, so this one can't be compared`;
-  const n = e.needBefore + e.needAfter;
-  return `${n} more ${n === 1 ? "logged day" : "logged days"} to compare`;
-}
 /* Said before every first connect of a source that goes through Cyra's server. */
 const here = isNative() ? "this phone" : "this device";
 const Here = isNative() ? "This phone" : "This device";
@@ -356,31 +348,32 @@ export default function HomeScreen({
         </div>
       )}
 
-      {/* ---- What I'm trying ---- */}
+      {/* ---- What I'm trying (Solia C: one-line intro, compact rows with a status chip, the compare rule said once) ---- */}
       {showMeds && (
         <div className="bodypanel detached" id="home-meds">
-          <p className="ptitle">{t("home.whatImTryingMedsSupplements")}</p>
-          <p className="hint" style={{ margin: "10px 0" }}>{t("home.changeOneThingAPrescription")}</p>
+          <p className="ptitle">{t("home.whatImTrying")}</p>
+          <p className="tintro">{t("home.tryOneChangeForTwo")}</p>
           {meds.map((m) => {
             const takenToday = !!(medLog[todayIso] || {})[m.id];
-            const eff = medEffects.find((e) => e.id === m.id);
+            const chip = tryChip(medEffects.find((e) => e.id === m.id));
+            const q = dailyQuestion(m.kind);
             return (
-              <div className="medrow" key={m.id}>
-                <div className="medinfo"><b>{m.name}</b><span>{m.kind === "rx" ? t("home.prescription") : m.kind === "supp" ? t("home.supplement") : t("home.habit")} {t("home.since")} {fmt(m.started)}</span>
-                  {eff?.ready ? <span className="medeff">{Math.abs(eff.after - eff.before) < 3 ? t("home.yourDaysHaveFeltAbout") : t("home.yourDaysHaveFeltSince", { v0: eff.after > eff.before ? "lighter" : "heavier" })}</span> : <span className="medeff muted">{eff ? trialWait(eff) : ""}</span>}
+              <div className="trow" key={m.id}>
+                <div className="tinfo"><b>{m.name}</b><span className="tmeta">{kindLabel(m.kind)} {t("home.since")} {fmt(m.started)}</span>
+                  {chip && <span className={`tchip${chip.result ? " t-result" : ""}`}>{chip.text}</span>}
                 </div>
-                <button aria-pressed={takenToday} className={`takebtn ${takenToday ? "on" : ""}`} onClick={() => setMedLog((l) => ({ ...l, [todayIso]: { ...(l[todayIso] || {}), [m.id]: !takenToday } }))}>{takenToday ? t("home.taken") : t("home.takenToday")}</button>
+                {q && <button aria-pressed={takenToday} className={`takebtn ${takenToday ? "on" : ""}`} onClick={() => setMedLog((l) => ({ ...l, [todayIso]: { ...(l[todayIso] || {}), [m.id]: !takenToday } }))}>{takenToday ? doneWord(m.kind) : q}</button>}
               </div>
             );
           })}
-          <input className="inp" placeholder={t("home.eGEstradiolPatchMagnesium")} aria-label={t("home.eGEstradiolPatchMagnesium")} value={newMed.name} onChange={(e) => setNewMed((x) => ({ ...x, name: e.target.value }))} />
-          <div className="mcrow" style={{ marginBottom: 9 }}>
-            {[["rx", "Prescription"], ["supp", "Supplement"], ["habit", "Habit / lifestyle"]].map(([v, l]) => <button key={v} aria-pressed={newMed.kind === v} className={`mc ${newMed.kind === v ? "on" : ""}`} onClick={() => setNewMed((x) => ({ ...x, kind: v }))}>{l}</button>)}
-          </div>
-          <p className="lab" style={{ margin: "4px 0 6px" }}>{t("home.startedOn")}</p>
-          <input className="inp" type="date" aria-label={t("home.startedOnDate")} value={newMed.started} onChange={(e) => setNewMed((x) => ({ ...x, started: e.target.value }))} />
-          <button className="cta" onClick={() => { if (!newMed.name.trim()) return ping("Give it a name first"); setMeds((m) => [...m, { id: Date.now(), ...newMed }]); setNewMed({ name: "", kind: "supp", started: todayIso }); ping("Added — Solia Health will compare your days before and after"); }}>{t("home.add")}</button>
-          <p className="rfoot">{t("home.changeOneVariableAtA")}</p>
+          {meds.length > 0 && (
+            <Details label={t("home.howComparingWorks")}>
+              <p>{t("home.eachSideNeeds", { n: TRY_MIN })}</p>
+              {medEffects.some((e) => !e.ready) && <ul>{medEffects.map((e) => tryWaitLine(e)).filter(Boolean).map((l) => <li key={l}>{l}</li>)}</ul>}
+              <p>{t("home.neverRecommendsDoses")}</p>
+            </Details>
+          )}
+          <AddTry meds={meds} newMed={newMed} setNewMed={setNewMed} setMeds={setMeds} ping={ping} todayIso={todayIso} />
         </div>
       )}
 
@@ -414,8 +407,8 @@ export default function HomeScreen({
       {showJournal && (
         <div className="bodypanel detached" id="home-journal">
           <p className="ptitle">{t("home.journal")}</p>
-          <p className="hint" style={{ margin: "10px 0 8px" }}>{t("home.howAreYouReallySome")}</p>
-          <textarea className="inp" rows={3} style={{ resize: "none", fontFamily: "inherit" }} value={jDraft} onChange={(e) => setJDraft(e.target.value)} placeholder={t("home.privateJustForYou")} />
+          <p className="jprompt" id="home-jprompt">{t("home.howAreYouReally")}</p>
+          <textarea className="inp" rows={3} style={{ resize: "none", fontFamily: "inherit" }} aria-labelledby="home-jprompt" value={jDraft} onChange={(e) => setJDraft(e.target.value)} placeholder={t("home.privateJustForYou")} />
           <button className="cta" onClick={() => {
             const tv = jDraft.trim(); if (!tv) return;
             const more = !!journal[todayIso];
@@ -428,6 +421,23 @@ export default function HomeScreen({
       )}
     </main>
   );
+}
+
+/* What I'm trying → add one: name, kind (her own items: prescription, supplement or habit), start date. Open while the
+   list is empty; behind "Add something" once there is one (Solia C). */
+function AddTry({ meds, newMed, setNewMed, setMeds, ping, todayIso }) {
+  const form = (
+    <>
+      <input className="inp" placeholder={t("home.eGEstradiolPatchMagnesium")} aria-label={t("home.eGEstradiolPatchMagnesium")} value={newMed.name} onChange={(e) => setNewMed((x) => ({ ...x, name: e.target.value }))} />
+      <div className="mcrow" style={{ marginBottom: 9 }}>
+        {HAND_KINDS.map(([v, l]) => <button key={v} aria-pressed={newMed.kind === v} className={`mc ${newMed.kind === v ? "on" : ""}`} onClick={() => setNewMed((x) => ({ ...x, kind: v }))}>{l}</button>)}
+      </div>
+      <p className="lab" style={{ margin: "4px 0 6px" }}>{t("home.startedOn")}</p>
+      <input className="inp" type="date" aria-label={t("home.startedOnDate")} value={newMed.started} onChange={(e) => setNewMed((x) => ({ ...x, started: e.target.value }))} />
+      <button className="cta" onClick={() => { if (!newMed.name.trim()) return ping("Give it a name first"); setMeds((m) => [...m, { id: Date.now(), ...newMed }]); setNewMed({ name: "", kind: "supp", started: todayIso }); ping("Added — your days before and after will be compared"); }}>{t("home.add")}</button>
+    </>
+  );
+  return meds.length ? <Details label={t("home.addSomething")}>{form}</Details> : form;
 }
 
 /* Home's Quick log picker (calm R3): pick 2–4 tiles from what this stage can log; the order is the order picked.

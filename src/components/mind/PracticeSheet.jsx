@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Sheet } from "../ui/index.js";
 import Icon from "../Icon.jsx";
+import Details from "../Details.jsx";
 import BreathOrb from "./BreathOrb.jsx";
 import { practiceAt, practiceSeconds, sourcesOf } from "../../lib/mind.js";
 import { t } from "../../lib/i18n.js";
@@ -106,9 +107,11 @@ export default function PracticeSheet({ practice: p, need = null, fav = false, o
         <div className="psh-evhead"><h3 id="psh-ev-t" className="psh-evtitle">{t("practiceSheet.whatTheEvidenceSays")}</h3><span className={`psh-strength s-${p.strength}`}>{t(`strength.${p.strength}`)}</span></div>
         <p className="psh-evtext">{p.evidence}</p>
         {srcs.length > 0 && (
-          <ul className="psh-srcs" aria-label={t("practiceSheet.sources")}>
-            {srcs.map((s) => <li key={s.title}><b>{s.title}.</b> {s.body} {s.year}.</li>)}
-          </ul>
+          <Details label={t("practiceSheet.sourceLab")}>
+            <ul className="psh-srcs" aria-label={t("practiceSheet.sources")}>
+              {srcs.map((s) => <li key={s.title}><b>{s.title}.</b> {s.body} {s.year}.</li>)}
+            </ul>
+          </Details>
         )}
         <p className="psh-line">{p.line}</p>
       </section>
