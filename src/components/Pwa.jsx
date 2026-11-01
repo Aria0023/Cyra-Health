@@ -10,18 +10,18 @@ import Icon from "./Icon.jsx";
    - InstallSettings: Settings → Install, the same offer with the iOS steps and an honest note
      that a Home Screen copy keeps its own record. */
 export const PWA_COPY = {
-  updText: "A new version of Heard Health is ready",
+  updText: "A new version of Solia Health is ready",
   updButton: "Reload",
-  tipPrompt: "Install Heard Health to open it like an app, even without a connection.",
-  tipIos: "Add Heard Health to your Home Screen to open it like an app.",
+  tipPrompt: "Install Solia Health to open it like an app, even without a connection.",
+  tipIos: "Add Solia Health to your Home Screen to open it like an app.",
   tipInstall: "Install",
   tipShow: "Show me",
   tipClose: "Hide this tip",
   groupLabel: "Install",
-  rowTitle: "Install Heard Health on this device",
+  rowTitle: "Install Solia Health on this device",
   rowPrompt: "Opens in its own window from your home screen or app list, even without a connection, with the same record you have here.",
   rowIos: "Tap Share, then Add to Home Screen.",
-  rowIosNote: "Heard Health on your Home Screen starts with its own record, separate from this one in your browser. To bring your check-ins along, make an encrypted backup below, then restore it there from Heard Health's first screen.",
+  rowIosNote: "Solia Health on your Home Screen starts with its own record, separate from this one in your browser. To bring your check-ins along, make an encrypted backup below, then restore it there from Solia Health's first screen.",
 };
 
 export function UpdateRow({ onReload }) {

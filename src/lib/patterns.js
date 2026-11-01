@@ -205,7 +205,7 @@ export function sleepCards(links = []) {
         question: `Do rough nights line up with more ${lc} the next day?`,
         lines: [
           `${L} moderate or strong on ${l.rough.hits} of ${l.rough.n} ${dayW(l.rough.n)} after a rough night, and ${l.good.hits} of ${l.good.n} after a night you slept well.`,
-          `Heard Health names a pattern with at least ${PATTERN_RULES.minEach} days on each side and ${PATTERN_RULES.minHits} days with ${lc} in all.`,
+          `Solia Health names a pattern with at least ${PATTERN_RULES.minEach} days on each side and ${PATTERN_RULES.minHits} days with ${lc} in all.`,
         ],
         advice: x.advice || null, askId: x.askId || null,
       },
@@ -320,7 +320,7 @@ export function mealCards({ bodyLog = {}, todayIso, days = PATTERN_RULES.days })
       question: "Does my energy dip more often after some kinds of meals?",
       lines: [
         `Energy dipped or crashed after ${carbs.hits} of ${carbs.n} ${mealW(carbs.n)} you noted as mostly carbs or sweet, and after ${other.hits} of ${other.n} of your other ${mealW(other.n)} (balanced or protein-forward).`,
-        `Heard Health names a pattern with at least ${PATTERN_RULES.minEach} meal notes on each side and ${PATTERN_RULES.minHits} dips or crashes in all. Skipped meals and notes without an energy answer are left out.`,
+        `Solia Health names a pattern with at least ${PATTERN_RULES.minEach} meal notes on each side and ${PATTERN_RULES.minHits} dips or crashes in all. Skipped meals and notes without an energy answer are left out.`,
         "This is what your own notes show, not a rule about food. Energy after a meal also follows sleep, stress, your cycle and more.",
         MEAL_DIET_LINE,
       ],
@@ -362,7 +362,7 @@ export function pcosCards({ entries = [], bodyLog = {}, todayIso, lens = [], day
         question: q.question,
         lines: [
           `${q.outcome.label} moderate or strong${next} on ${exp.hits} of ${exp.n} ${dayW(exp.n)} (${lc1(q.exposure.label)}) and ${other.hits} of ${other.n} (${lc1(q.exposure.other)}).`,
-          `Heard Health names a pattern with at least ${PATTERN_RULES.minEach} days on each side and ${PATTERN_RULES.minHits} days with ${lo} in all.`,
+          `Solia Health names a pattern with at least ${PATTERN_RULES.minEach} days on each side and ${PATTERN_RULES.minHits} days with ${lo} in all.`,
         ],
         askId: null,
       },
@@ -400,7 +400,7 @@ export function trialCards({ meds = [], scoreOn, usual, todayIso }) {
       strength: Math.abs(d),
       detail: {
         question: `Have your days felt different since starting ${m.name}?`,
-        lines: [`Lighter days for you: ${A.hits} of ${A.n} since starting, ${B.hits} of ${B.n} in the two weeks before.`, `Heard Health compares once there are ${TRIAL_MIN} logged days on each side. It never suggests a dose or a change.`],
+        lines: [`Lighter days for you: ${A.hits} of ${A.n} since starting, ${B.hits} of ${B.n} in the two weeks before.`, `Solia Health compares once there are ${TRIAL_MIN} logged days on each side. It never suggests a dose or a change.`],
         advice: { urgency: "visit", text: "Bring this before and after to your next visit: it is the kind of record a clinician can use to decide whether to continue, adjust or stop." },
         askId: "med",
       },

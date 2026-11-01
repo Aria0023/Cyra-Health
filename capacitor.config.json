@@ -1,6 +1,6 @@
 {
   "appId": "com.cyrahealth.app",
-  "appName": "Heard Health",
+  "appName": "Solia Health",
   "webDir": "dist",
   "loggingBehavior": "none",
   "server": { "hostname": "localhost", "iosScheme": "capacitor", "androidScheme": "https" },

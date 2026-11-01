@@ -1,4 +1,4 @@
-/* Heard Health app icons, drawn from the master mark (docs/brand/heard-mark.svg) by headless Chromium.
+/* Solia Health app icons, drawn from the master mark (docs/brand/solia-mark.svg) by headless Chromium.
 
    Run by hand from the repo root; never run by the build, and Playwright is not an npm dependency of this
    repo. Point PLAYWRIGHT at any installed copy (default: /opt/node-tools/node_modules/playwright/index.mjs)
@@ -6,8 +6,9 @@
        node scripts/make-icons.mjs
    Then flatten the opaque ones to RGB (Pillow): python3 scripts/flatten-icons.py
 
-   What it draws: the mark (ring with a gap and a speech tail, one dot) in periwinkle #4A5DB0 on paper #FAF7F4.
-   The mark's bounding box in its 64x64 viewBox (stroke included) is x 10–54, y 8–58.5; `frac` is the share of the
+   What it draws: the mark (a soft ring, a half-sun rising from a short horizon inside it, one small dot) in
+   periwinkle #4A5DB0 on paper #FAF7F4. The mark's bounding box in its 64x64 viewBox (stroke included) is
+   x 7.5–56.5, y 7.5–56.5; `frac` is the share of the
    canvas that box's height takes, centred on the canvas.
 
    Files written (every size is one the folder already held):
@@ -29,8 +30,11 @@ const PW = process.env.PLAYWRIGHT || "/opt/node-tools/node_modules/playwright/in
 const { chromium } = await import(PW);
 
 const INK = "#4A5DB0", PAPER = "#FAF7F4";
-const RING = "M15.22 38.92 A19 19 0 1 1 26.13 48.07", TAIL = "M26.13 48.07 Q22.93 53.47 16.53 55.47";
-const BOX = { x0: 10, y0: 8, x1: 54, y1: 58.5 };
+const SUN = "M21 39 A11 11 0 0 1 43 39 Z", HORIZON = "M18.5 39 H45.5";
+const BOX = { x0: 7.5, y0: 7.5, x1: 56.5, y1: 56.5 };
+/** The mark's shapes in one colour (the same as src/components/BrandMark.jsx and docs/brand/solia-mark.svg). */
+export const markShapes = (c) => `<circle cx="32" cy="32" r="22" fill="none" stroke="${c}" stroke-width="5"/><path d="${SUN}" fill="${c}"/>`
+  + `<path d="${HORIZON}" fill="none" stroke="${c}" stroke-width="4.5" stroke-linecap="round"/><circle cx="42.5" cy="21.5" r="3.4" fill="${c}"/>`;
 
 /** One icon as an SVG document: w x h pixels, mark box height = frac of the short side, centred. */
 export function iconSvg({ w, h, frac, bg = "square", fg = INK, paper = PAPER }) {
@@ -42,8 +46,7 @@ export function iconSvg({ w, h, frac, bg = "square", fg = INK, paper = PAPER }) 
   const back = bg === "square" ? `<rect x="${x}" y="${y}" width="${vw}" height="${vh}" fill="${paper}"/>`
     : bg === "circle" ? `<circle cx="${cx}" cy="${cy}" r="${Math.min(vw, vh) / 2}" fill="${paper}"/>` : "";
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${x} ${y} ${vw} ${vh}">${back}`
-    + `<g fill="none" stroke="${fg}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"><path d="${RING}"/><path d="${TAIL}"/></g>`
-    + `<circle cx="32" cy="30" r="5.5" fill="${fg}"/></svg>`;
+    + markShapes(fg) + "</svg>";
 }
 
 const pngSize = (f) => { const b = fs.readFileSync(f); return [b.readUInt32BE(16), b.readUInt32BE(20)]; };

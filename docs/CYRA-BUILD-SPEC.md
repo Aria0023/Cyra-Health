@@ -1,5 +1,15 @@
 # CYRA HEALTH — BUILD SPECIFICATION
 
+> **Renamed to Solia Health (2026-11-01).** The product's visible name is now **Solia Health** (wordmark "Solia" +
+> small-caps "HEALTH", home-screen label "Solia"); the slogan stays **"I am Heard"**. Read every user-facing "Cyra" or
+> "Heard Health" in this spec (including the note below) as "Solia Health". New mark: a soft ring with a half-sun rising
+> from a short horizon inside it and one small dot (`docs/brand/solia-*.svg`, `docs/brand/README.md`); icons are
+> redrawn by `scripts/make-icons.mjs`. Exported files are named `solia-health-…`; restore still accepts backups made by
+> the Cyra and Heard Health builds (it reads the envelope, not the name). Unchanged on purpose: every storage
+> identifier, the backup format id, the account key tags, cache/channel/lock names, the app id / bundle id / package,
+> the plugin names, routes, classes, ids, `data-*` hooks, i18n keys and the build stamp. Privacy wording:
+> docs/PRIVACY-AUDIT.md "Rename to Solia".
+
 > **Renamed to Heard Health (2026-10-30).** The product's visible name is now **Heard Health** (home-screen label
 > "Heard"), with the slogan **"I am Heard"** (the splash tagline, which replaces "One companion for every phase";
 > the PWA manifest and index.html description lead; the You → About & legal card). The body of this spec still says

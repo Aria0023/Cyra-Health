@@ -1,7 +1,7 @@
 {
   "id": "./",
-  "name": "Heard Health",
-  "short_name": "Heard",
+  "name": "Solia Health",
+  "short_name": "Solia",
   "description": "I am Heard. Track periods, pregnancy and the transition in 30 seconds a day. Your health log lives on your device.",
   "start_url": "./",
   "scope": "./",

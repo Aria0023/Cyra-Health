@@ -17,8 +17,8 @@ import { t } from "../lib/i18n.js";
 /* Calm R9: in a build that offers the optional account (`accounts`), the second promise says so (still "No account
    needed": guest is the default and nothing asks her to sign in), and with Pro (`onSignIn`) one quiet "Sign in to restore
    from your account" button sits under the file restore. */
-/* Heard Health rename: the Heard mark (BrandMark) replaces the three-circle motif in the same place, the wordmark is
-   "Heard" with "HEALTH" beside it (as the header), and the tagline is the slogan "I am Heard". */
+/* Brand: the Solia mark (BrandMark) sits where the three-circle motif was, the wordmark is
+   "Solia" with "HEALTH" beside it (as the header), and the tagline is the slogan "I am Heard". */
 export default function SplashScreen({ onStart, onImport, initialRestore = false, accounts = false, onSignIn = null }) {
   const [restore, setRestore] = useState(initialRestore);
   return (

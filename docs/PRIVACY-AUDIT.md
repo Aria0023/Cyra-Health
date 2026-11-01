@@ -1772,3 +1772,39 @@ script check the request list).
   "if Meal notes is on, how many days had each kind of meal and how often your energy was steady, dipped or crashed after a
   meal (counts only, never a meal or a food)". summaryNever is unchanged.
 
+
+## Rename to Solia (Solia Health, 2026-11-01) — no new request, no new record key, nothing new leaves the device
+
+The product is renamed from Heard Health to **Solia Health** (wordmark "Solia", home-screen label "Solia"); the slogan
+stays "I am Heard". Every privacy sentence in the app, the backend's user-visible text, the iOS Health usage text and
+plugin errors and the Android Health Connect rationale changed by **name substitution only** ("Heard Health" →
+"Solia Health", "Heard Health's" → "Solia Health's", a bare "Heard" → "Solia" only where the old copy used a bare
+"Heard": the wordmark, the home-screen label and the iPhone Health settings path), with the exceptions listed below.
+No sentence was dropped, merged or moved in this step; no claim was weakened. The default build's requests are
+unchanged (the new favicon and icons are same-origin files).
+
+**Unchanged on purpose:** everything listed under "Rebrand" above (IndexedDB and phone file names, record and
+preference keys, the backup envelope's `format: "cyra-backup"`, the account key-derivation tags, the `cyra-shell-*`
+cache prefix, BroadcastChannel and Web Lock names, flag names, class names, routes, ids, `data-*` hooks, i18n keys, the
+CyraHealth/CyraAuth plugin names, the app id / bundle id / package `com.cyrahealth.app`, the `cyrahealth://` scheme
+and the build stamp).
+
+**Files she makes** are now named `solia-health-backup-<day>.json`, `solia-health-summary-<day>.pdf`,
+`solia-health-report-<day>.pdf` and `solia-health-data-<day>.csv`. Restore reads the envelope, never the file name, so
+backups made by the Cyra builds (`cyra-backup-<day>.cyra.json`) and the Heard Health builds
+(`heard-health-backup-<day>.json`) restore as before (checked by the rename's restore test with one of each). The
+phone's cache sweep removes leftovers with any of the three prefixes, so "deleted the next time the app opens" stays
+true for a file an interrupted share from an older build left behind.
+
+**Sentences reworded beyond the name, and why:**
+- The app lock's passkey is now created as "Solia Health lock" (relying-party name "Solia Health"). A passkey set up
+  before the update keeps its old name in her password manager, so the three sentences that name it now say
+  ("Cyra lock" or "Heard Health lock" if you set it up before the app was renamed).
+- Removing the app in an Oura, Fitbit, Garmin or Whoop account: those services list the app under the name
+  registered with them, which the build doesn't control. Each removal instruction now says "(it may be listed as Cyra
+  or Heard Health)", "(it may be listed as Cyra, Heard Health or Terra)" where it already named Terra, and "(or Cyra or
+  Heard Health)" in the two "if it still shows" lines (src/App.jsx restoredOuraGone, src/lib/wearables.js
+  SERVER_SILENT follow-up). Same in the two backend error messages (backend/src/modules/integrations/index.js), the
+  LEGACY_WEAR_LINE (src/lib/disclosures.js), DataControls' removal lines and the record-unavailable screen.
+  - Example, before: remove Heard Health (it may be listed as Cyra) in your Oura account's connected apps
+  - After: remove Solia Health (it may be listed as Cyra or Heard Health) in your Oura account's connected apps
