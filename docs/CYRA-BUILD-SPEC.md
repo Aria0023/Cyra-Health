@@ -1521,6 +1521,47 @@ Validator (`validate_palette.js --ordinal`): light on #FFFFFF and #FAF7F4 all ch
 6°), dark on #1C1F2D all pass (light end 2.68:1, hue spread 4°). FAMILIES, RAMPS and RAMPS_DARK are unchanged and still
 pass on the new dark cards (unit tests).
 
+### 8.6 The Mono style (Solia, 2026-11-01)
+
+You → Appearance has a second choice, **Style: Soft · Mono** (Soft, today's look, is the default). Mono is a calm
+single-colour skin of the same layout, components, spacing and type: neutral warm-grey paper and cards, one soft ink,
+ONE muted slate accent shared by every stage, no pastel wash, the domain tints resolved to one neutral grey, flat cards
+with hairline borders instead of shadows, icon badges and chips outlined instead of filled. Like Appearance it is a
+device preference (`uiStyle`, record.js DEVICE_PREFS): saved with the on-device record, followed by every open tab,
+never in a backup and never taken from one.
+
+- **Implementation.** One token layer: `MONO.light` / `MONO.dark` in lib/constants.js, written by styles.js onto
+  `.cy[data-style="mono"]` and `.cy[data-style="mono"][data-scheme="dark"]` (the seven palette tokens with
+  `!important`, since App.jsx sets them inline), plus five small rules (flat tinted card heads with a hairline, outlined
+  `.ibadge` / `.qtile-ico` / `.vchip`, quieter blobs). Shell puts `data-style` on `.cy`; no screen has style code.
+- **Colours (light | dark).** paper `#F3F2EF` | `#161719`, card `#FBFAF8` | `#1F2023`, ink `#2B2C30` | `#E4E3E0`, soft
+  `#5B5D63` | `#A7A9AE`, line `#808288` | `#72757C`, primary (slate) `#46576B` | `#A8B5C6`, accent (graphite) `#5D636C` |
+  `#B4B8BF`, edge `#DCDAD5` | `#2E3034`, one tint `#ECEBE7` | `#27292C`. The brand mark follows the slate in Mono.
+- **Data viz stays as it is.** FAMILIES, RAMPS / RAMPS_DARK and SOFT_RAMP are untouched, so charts keep their colours;
+  on the Mono cards their contrast is within 0.1 of the Soft cards (e.g. the dark family colours 3.11–5.51:1 on
+  `#1F2023` vs 3.12–5.53:1 on `#1C1F2D`).
+- **Contrast** (WCAG, lib/appearance.test.mjs; all text ≥ 4.5:1, all UI boundaries ≥ 3:1):
+
+| pair | light | dark |
+| --- | --- | --- |
+| ink on paper | 12.46:1 | 13.98:1 |
+| ink on card | 13.37:1 | 12.69:1 |
+| soft on paper | 5.88:1 | 7.63:1 |
+| soft on card | 6.31:1 | 6.93:1 |
+| soft on tint | 5.52:1 | 6.20:1 |
+| primary-text on paper | 7.47:1 | 9.45:1 |
+| primary-text on card | 8.01:1 | 8.58:1 |
+| accent-text on card | 6.76:1 | 8.93:1 |
+| good on card | 7.28:1 | 8.42:1 |
+| bad on card | 6.38:1 | 7.50:1 |
+| on-primary on primary | 7.40:1 | 8.62:1 |
+| line (control edge) on paper | 3.43:1 | 3.89:1 |
+| line (control edge) on card | 3.68:1 | 3.53:1 |
+| line (control edge) on tint | 3.22:1 | 3.16:1 |
+| primary (fill/focus) on card | 7.10:1 | 7.83:1 |
+| ev-mixed-ink on ev-mixed-bg | 7.15:1 | 9.12:1 |
+| primary-text on primary 16% chip | 6.31:1 | 6.20:1 |
+
 ## 9. BACKEND (separate service, optional for v1)
 
 Modular Node/Express. Features load from a config list; each is a folder exporting

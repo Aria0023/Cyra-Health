@@ -218,6 +218,37 @@ export const SCHEME_TOKENS = {
 };
 
 
+/* The Mono style (Solia, 2026-11-01): a quieter single-colour skin of the same layout, chosen in You → Appearance →
+   Style (a device preference, lib/appearance.js STYLES). styles.js writes these onto .cy[data-style="mono"] and its
+   dark variant, over the palette (the seven palette tokens, with !important because App.jsx sets those inline) and
+   over SCHEME_TOKENS: neutral warm-grey paper and cards, one soft ink, ONE muted slate accent for every stage (primary;
+   accent is its neutral graphite partner), no pastel wash, domain tints that resolve to one neutral grey, and flat
+   surfaces (no shadows; hairline borders instead). Status hues (--good, --bad) keep their meaning. Data-viz colours
+   (FAMILIES, RAMPS, SOFT_RAMP) are not touched: charts keep their colours. Every text pair is AA (4.5:1) and every
+   UI boundary 3:1 on paper, card and the tint grey in both schemes (lib/appearance.test.mjs; numbers in the
+   docs/CYRA-BUILD-SPEC.md "Mono style" note). */
+export const MONO_PALETTE_KEYS = ["--primary", "--accent", "--paper", "--card", "--ink", "--soft", "--line"];
+export const MONO = {
+  light: {
+    "--primary": "#46576B", "--accent": "#5D636C", "--paper": "#F3F2EF", "--card": "#FBFAF8", "--ink": "#2B2C30", "--soft": "#5B5D63", "--line": "#808288",
+    "--edge": "#DCDAD5", "--wash-a": "transparent", "--wash-b": "transparent", "--wash-c": "transparent",
+    "--tint-mind": "#ECEBE7", "--tint-body": "#ECEBE7", "--tint-patterns": "#ECEBE7", "--tint-you": "#ECEBE7",
+    "--ev-mixed-bg": "#ECEBE7", "--ev-mixed-ink": "#5B4A2E", "--ev-comfort-bg": "#ECEBE7", "--ev-comfort-ink": "#4F5258",
+    "--good": "#3E5A49", "--bad": "#9A3F3F", "--on-primary": "#FFF", "--on-ink": "#FFF", "--toast-dot": "var(--primary)", "--brand": "#46576B",
+    "--sh-card": "none", "--sh-opt": "none", "--sh-meter": "none", "--sh-lift": "0 0 0 1px #D6D4CF", "--sh-sheet": "0 -1px 0 #D6D4CF", "--sh-toast": "none",
+    "--scrim": "rgba(43,44,48,.30)",
+  },
+  dark: {
+    "--primary": "#A8B5C6", "--accent": "#B4B8BF", "--paper": "#161719", "--card": "#1F2023", "--ink": "#E4E3E0", "--soft": "#A7A9AE", "--line": "#72757C",
+    "--edge": "#2E3034", "--wash-a": "transparent", "--wash-b": "transparent", "--wash-c": "transparent",
+    "--tint-mind": "#27292C", "--tint-body": "#27292C", "--tint-patterns": "#27292C", "--tint-you": "#27292C",
+    "--ev-mixed-bg": "#27292C", "--ev-mixed-ink": "#E3C9A0", "--ev-comfort-bg": "#27292C", "--ev-comfort-ink": "#C9CBD0",
+    "--good": "#8FC7A2", "--bad": "#EE9A91", "--on-primary": "var(--paper)", "--on-ink": "var(--paper)", "--toast-dot": "var(--primary)", "--brand": "#A8B5C6",
+    "--sh-card": "none", "--sh-opt": "none", "--sh-meter": "none", "--sh-lift": "0 0 0 1px #3A3C41", "--sh-sheet": "0 -1px 0 #3A3C41", "--sh-toast": "none",
+    "--scrim": "rgba(0,0,0,.55)",
+  },
+};
+
 /* ---- Data viz (kept apart from PALETTES and SCHEME_TOKENS; never derived from a UI palette) ----
    Patterns charts: every symptom belongs to one family, and each family has one fixed data-viz colour
    (categorical, separate from the UI palettes). Colours are the reference categorical slots red, blue,

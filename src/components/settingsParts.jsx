@@ -1,5 +1,5 @@
 import { CADENCE } from "../lib/constants.js";
-import { APPEARANCES } from "../lib/appearance.js";
+import { APPEARANCES, STYLES } from "../lib/appearance.js";
 import { hasServer } from "../lib/api.js";
 import { STAGE_GROUP, flagWords } from "../lib/pulse.js";
 import { FEATURES, remindersInBuild } from "../lib/features.js";
@@ -130,8 +130,8 @@ export function CountsBody({ stage, research, setResearch, lead = false, hideLab
   );
 }
 
-/** Appearance: System / Light / Dark. */
-export function AppearanceBody({ appearance, onAppearance, hideLab = false }) {
+/** Appearance: System / Light / Dark, then Style: Soft / Mono (Solia; both are this device's display preferences). */
+export function AppearanceBody({ appearance, onAppearance, uiStyle = "soft", onStyle, hideLab = false }) {
   return (
     <>
       <Lab id="set-appearance" icon="moon" hide={hideLab} style={{ margin: "0 0 6px" }}>Appearance</Lab>
@@ -140,7 +140,17 @@ export function AppearanceBody({ appearance, onAppearance, hideLab = false }) {
           <button key={v} className={`mc ${appearance === v ? "on" : ""}`} aria-pressed={appearance === v} onClick={() => onAppearance(v)}>{label}</button>
         ))}
       </div>
-      <p className="rfoot">System follows this device's light or dark setting. Your choice stays on this device and isn't part of a backup.</p>
+      {onStyle && (
+        <>
+          <Lab id="set-style" icon="sun" style={{ margin: "12px 0 6px" }}>Style</Lab>
+          <div className="mcrow seg" role="group" aria-labelledby="set-style">
+            {STYLES.map(([v, label]) => (
+              <button key={v} className={`mc ${uiStyle === v ? "on" : ""}`} aria-pressed={uiStyle === v} onClick={() => onStyle(v)}>{label}</button>
+            ))}
+          </div>
+        </>
+      )}
+      <p className="rfoot">System follows this device's light or dark setting.{onStyle ? " Mono is a quieter, single-colour look." : ""} Your {onStyle ? "choices stay" : "choice stays"} on this device and {onStyle ? "aren't" : "isn't"} part of a backup.</p>
     </>
   );
 }

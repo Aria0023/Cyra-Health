@@ -129,7 +129,7 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
       )}
 
       <Card id="you-appearance" tint="body" icon="moon" title={t("you.appearance")} level={2} className="youset">
-        <AppearanceBody hideLab appearance={sp.appearance} onAppearance={sp.onAppearance} />
+        <AppearanceBody hideLab appearance={sp.appearance} onAppearance={sp.onAppearance} uiStyle={sp.uiStyle} onStyle={sp.onStyle} />
       </Card>
 
       {language && (

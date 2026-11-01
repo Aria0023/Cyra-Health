@@ -96,7 +96,7 @@ export const restoreFoot = (f) => `Unlocked on this device with your passphrase.
 
 /** "What a restore changes". This device's choices are kept whatever the server: they are settings on this device. */
 export function restoreChanges(f) {
-  const keep = on([f.counts && "weekly counts", f.ai && "Solia Health's AI", f.webReminders && "browser reminders", "appearance (light or dark)"]);
+  const keep = on([f.counts && "weekly counts", f.ai && "Solia Health's AI", f.webReminders && "browser reminders", "appearance (light or dark, and the style)"]);
   return on([
     `Your settings are replaced too, except this device's choices about ${andList(keep)}.`,
     f.wearables && "If the backup has Oura or Fitbit/Garmin/Whoop connected, that connection comes back on this device marked not confirmed, because it may have been ended since the backup was made. It counts as connected again once Solia Health confirms it through its server: Oura on a Sync that works (checked straight away, and removed from this device if it no longer works), Fitbit/Garmin/Whoop when readings arrive. A Fitbit/Garmin/Whoop connection you ended after the backup can't send readings, so tap Disconnect to remove it. One this device is still waiting to see disconnected isn't restored. A connection this device has now for the same service is replaced, so remove Solia Health in that account if you want it ended.",

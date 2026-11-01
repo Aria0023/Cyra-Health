@@ -3,12 +3,12 @@ import Shell from "../components/Shell.jsx";
 import Icon from "../components/Icon.jsx";
 import { Card, IBadge, QuickTile, StepRail, Ring, TwoBar, Chip, NavPill, Sheet, EmptyNote } from "../components/ui/index.js";
 import { stagePalettes, vizVars } from "../lib/constants.js";
-import { paletteFor, paletteVars, applyDocumentScheme, SYSTEM_DARK_QUERY } from "../lib/appearance.js";
+import { paletteFor, paletteVars, applyDocumentScheme, SYSTEM_DARK_QUERY, STYLES, cleanStyle } from "../lib/appearance.js";
 
 /* The design-system gallery (calm R1): every v2 component in the stage accent picked here, light or dark. Present
    only in a build whose VITE_FEATURES names devGallery (or "all"): main.jsx imports this file behind the build-time
    __CYRA_DEV_GALLERY__ constant. It reads nothing from storage, writes nothing and sends nothing; all figures are
-   illustrative. Deep links for the axe and screenshot passes: #/dev/ui?stage=cycle|ttc|peri|preg|meno&scheme=light|dark. */
+   illustrative. Deep links for the axe and screenshot passes: #/dev/ui?stage=cycle|ttc|peri|preg|meno&scheme=light|dark&style=soft|mono. */
 export const GALLERY_STAGES = [
   ["cycle", "My Cycle", "periods", "My Cycle"],
   ["ttc", "Trying to conceive", "periods", "Trying to Conceive"],
@@ -24,23 +24,24 @@ const readHash = () => {
   const q = new URLSearchParams((window.location.hash.split("?")[1]) || "");
   const stage = GALLERY_STAGES.some(([k]) => k === q.get("stage")) ? q.get("stage") : "cycle";
   const scheme = q.get("scheme") === "dark" || q.get("scheme") === "light" ? q.get("scheme") : (typeof matchMedia === "function" && matchMedia(SYSTEM_DARK_QUERY).matches ? "dark" : "light");
-  return { stage, scheme };
+  const style = cleanStyle(q.get("style"));
+  return { stage, scheme, style };
 };
 
 export default function DevGallery() {
-  const [{ stage, scheme }, setView] = useState(readHash);
+  const [{ stage, scheme, style: uiStyle }, setView] = useState(readHash);
   const [tab, setTab] = useState("home");
   const [sheet, setSheet] = useState(false);
   const [tiles, setTiles] = useState({ Sleep: true });
   useEffect(() => { const on = () => setView(readHash()); window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
-  const set = (next) => { const v = { stage, scheme, ...next }; window.location.hash = `#/dev/ui?stage=${v.stage}&scheme=${v.scheme}`; };
+  const set = (next) => { const v = { stage, scheme, style: uiStyle, ...next }; window.location.hash = `#/dev/ui?stage=${v.stage}&scheme=${v.scheme}&style=${v.style}`; };
   const [, stageLabel, stageId, stageName] = GALLERY_STAGES.find(([k]) => k === stage);
   const pal = stagePalettes(stageId, stageName)[0];
   const t = paletteFor(pal, scheme);
   useLayoutEffect(() => { applyDocumentScheme(document, { scheme, paper: t.paper }); }, [scheme, t.paper]);
   const style = { ...paletteVars(t), ...vizVars(scheme, stageId) };
   return (
-    <Shell style={style} scheme={scheme}>
+    <Shell style={style} scheme={scheme} uiStyle={uiStyle}>
       <main className="devgallery" aria-labelledby="dg-title">
         <p className="mark" style={{ margin: "4px 0 2px" }}>Solia<span className="sub">Design system v2</span></p>
         <p className="eyebrow" style={{ marginTop: 14 }}>Thursday, October 29</p>
@@ -55,6 +56,10 @@ export default function DevGallery() {
           <p className="lab" id="dg-scheme">Scheme</p>
           <div className="seg" role="group" aria-labelledby="dg-scheme">
             {["light", "dark"].map((k) => <button key={k} type="button" className={`mc${k === scheme ? " on" : ""}`} aria-pressed={k === scheme} onClick={() => set({ scheme: k })}>{k === "light" ? "Light" : "Dark"}</button>)}
+          </div>
+          <p className="lab" id="dg-style">Style</p>
+          <div className="seg" role="group" aria-labelledby="dg-style">
+            {STYLES.map(([k, l]) => <button key={k} type="button" className={`mc${k === uiStyle ? " on" : ""}`} aria-pressed={k === uiStyle} onClick={() => set({ style: k })}>{l}</button>)}
           </div>
         </div>
 

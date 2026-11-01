@@ -71,6 +71,7 @@ import { cleanLocale } from "./i18n.js";
  * @property {string|null} lastBackupAt [device-only] [not-in-backup] the local day this device last made a backup.
  * @property {null|"dismissed"|"installed"} installHint [device-only] [not-in-backup] whether this browser's install tip stays away (lib/pwa.js).
  * @property {"system"|"light"|"dark"} appearance [device-pref] [not-in-backup] this device's light / dark choice (lib/appearance.js).
+ * @property {"soft"|"mono"} uiStyle [device-pref] [not-in-backup] Solia: this device's style, Soft or Mono (lib/appearance.js STYLES).
  * @property {string|null} uiLocale [device-pref] [not-in-backup] calm R10: this device's language choice (null = follow the device; lib/i18n.js).
  * @property {CycleFlags} cycleFlags [record] cycles she left out of predictions (L5); missing means {}.
  * @property {ExportTally|null} exportLog [device-only] [not-in-backup] appointment PDFs made this month (L9, lib/plan.js ExportTally); null while exports are unlimited.
@@ -249,7 +250,7 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    on Cyra's server until she deletes the account or it expires).
    exportLog (L9) is this month's count of appointment PDFs, { month: "YYYY-MM", n }, written only while plan.js sets a
    monthly limit (none today, so it stays null): device-only and never in a backup file. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale"]);
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -262,8 +263,9 @@ export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent",
    It is saved with the record and followed by every open tab of this browser (so it stays in RECORD,
    they are all the same device), but it is never in a backup file and never taken from one:
    exportBackup deletes it before encryption and importBackup keeps this device's value. Calm R10: uiLocale (null =
-   follow this device's language, or a catalogue code from lib/i18n.js) is the same kind of display preference. */
-export const DEVICE_PREFS = Object.freeze(["appearance", "uiLocale"]);
+   follow this device's language, or a catalogue code from lib/i18n.js) is the same kind of display preference, and so
+   is uiStyle (Solia: "soft" | "mono", lib/appearance.js STYLES). */
+export const DEVICE_PREFS = Object.freeze(["appearance", "uiLocale", "uiStyle"]);
 /* The health record and settings another open tab of this browser can hand over (everything
    saved except the per-device consents and this browser's reminder addresses). */
 export const RECORD = Object.freeze(PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders"));
@@ -491,6 +493,7 @@ export const RULES = Object.freeze({
   lastBackupAt: isoOrNullRule,
   installHint: enumRule(INSTALL_HINTS, { nullable: true }),
   appearance: enumRule(APPEARANCES),
+  uiStyle: enumRule(["soft", "mono"]),
   uiLocale: (v, p) => (v === null || cleanLocale(v) === v ? [] : [`${p}: expected null or a language code, got ${show(v)}`]),
   // Her "Don't use for predictions" choices: a problem whenever cleanCycleFlags would change anything.
   cycleFlags: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanCycleFlags(v)) ? [] : [`${p}: expected { YYYY-MM-DD: { exclude: true|false, … } } (at most 400, no empty entries), got ${show(v)}`]),

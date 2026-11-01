@@ -6,9 +6,9 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  APPEARANCES, DEFAULT_APPEARANCE, cleanAppearance, resolveScheme, PALETTE_KEYS, paletteFor, paletteVars, tokenDecls, applyDocumentScheme, strongMeterWord,
+  APPEARANCES, DEFAULT_APPEARANCE, cleanAppearance, STYLES, DEFAULT_STYLE, cleanStyle, resolveScheme, PALETTE_KEYS, paletteFor, paletteVars, tokenDecls, applyDocumentScheme, strongMeterWord,
 } from "./appearance.js";
-import { PALETTES, ORGS, SCHEME_TOKENS, FAMILIES, RAMPS, RAMPS_DARK, SOFT_RAMP, stagePalettes, MENO_NAME, famVar, famColor, rampOf, rampVar, vizVars } from "./constants.js";
+import { MONO, MONO_PALETTE_KEYS, PALETTES, ORGS, SCHEME_TOKENS, FAMILIES, RAMPS, RAMPS_DARK, SOFT_RAMP, stagePalettes, MENO_NAME, famVar, famColor, rampOf, rampVar, vizVars } from "./constants.js";
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -311,4 +311,46 @@ test("v2 soft ramp (R1): ordinal, single hue, separate from UI palettes, arrives
   }
   const ui = new Set(THEMES.flatMap(([, p]) => [...PALETTE_KEYS.map((k) => p[k]), ...PALETTE_KEYS.map((k) => p.dark[k])]));
   for (const c of [...SOFT_RAMP.light, ...SOFT_RAMP.dark]) assert.ok(!ui.has(c), c);
+});
+
+
+/* ---------- Mono style (Solia): a device preference, one token layer, AA in both schemes ---------- */
+test("Mono style: Soft is the default; anything unknown reads as Soft", () => {
+  assert.deepEqual(STYLES.map(([k]) => k), ["soft", "mono"]);
+  assert.equal(DEFAULT_STYLE, "soft");
+  for (const v of [undefined, null, "", "Mono", "dark", 1]) assert.equal(cleanStyle(v), "soft");
+  assert.equal(cleanStyle("mono"), "mono");
+});
+
+test("Mono style: every text pair 4.5:1 and every UI boundary 3:1 on paper, card and the tint grey, light and dark", () => {
+  for (const scheme of ["light", "dark"]) {
+    const m = MONO[scheme];
+    for (const k of MONO_PALETTE_KEYS) assert.match(m[k], /^#[0-9A-F]{6}$/i, `${scheme} ${k}`);
+    const surfaces = [m["--paper"], m["--card"], m["--tint-body"]];
+    const pText = mix(m["--primary"], m["--ink"], 0.82), aText = mix(m["--accent"], m["--ink"], 0.82);
+    for (const bg of surfaces) {
+      for (const [n, c] of Object.entries({ ink: m["--ink"], soft: m["--soft"], primaryText: pText, accentText: aText, good: m["--good"], bad: m["--bad"] })) assert.ok(cr(c, bg) >= 4.5, `${scheme} ${n} on ${bg}: ${cr(c, bg).toFixed(2)}`);
+      for (const [n, c] of Object.entries({ line: m["--line"], primary: m["--primary"] })) assert.ok(cr(c, bg) >= 3, `${scheme} ${n} on ${bg}: ${cr(c, bg).toFixed(2)}`);
+    }
+    const onP = m["--on-primary"] === "var(--paper)" ? m["--paper"] : m["--on-primary"];
+    assert.ok(cr(onP, m["--primary"]) >= 4.5, `${scheme} on-primary`);
+    assert.ok(cr(m["--ev-mixed-ink"], m["--ev-mixed-bg"]) >= 4.5 && cr(m["--ev-comfort-ink"], m["--ev-comfort-bg"]) >= 4.5, `${scheme} evidence chips`);
+    // one neutral tint for every domain, no pastel wash, flat surfaces
+    assert.equal(new Set(["mind", "body", "patterns", "you"].map((d) => m[`--tint-${d}`])).size, 1);
+    for (const w of ["a", "b", "c"]) assert.equal(m[`--wash-${w}`], "transparent");
+    for (const k of ["--sh-card", "--sh-opt", "--sh-meter"]) assert.equal(m[k], "none");
+    // ink is soft, never pure black or white
+    assert.ok(!/^#(000000|FFFFFF)$/i.test(m["--ink"]));
+  }
+});
+
+test("Mono style: one token layer in styles.js, no per-screen code; data-viz colours untouched", () => {
+  const css = readFileSync(join(SRC, "styles.js"), "utf8");
+  assert.ok(css.includes('.cy[data-style="mono"] { ${monoDecls(MONO.light)} }'));
+  assert.ok(css.includes('.cy[data-style="mono"][data-scheme="dark"] { ${monoDecls(MONO.dark)} }'));
+  for (const k of Object.keys(MONO.light)) assert.ok(!k.startsWith("--fam-") && !k.startsWith("--ramp-") && !k.startsWith("--soft-"), k);
+  const users = [];
+  const walk = (d) => { for (const f of readdirSync(d)) { const p = join(d, f); if (statSync(p).isDirectory()) walk(p); else if (/\.jsx$/.test(f) && readFileSync(p, "utf8").includes("data-style")) users.push(p.slice(SRC.length + 1)); } };
+  walk(SRC);
+  assert.deepEqual(users.sort(), ["components/Shell.jsx"]);
 });

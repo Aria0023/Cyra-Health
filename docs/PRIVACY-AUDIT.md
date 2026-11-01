@@ -1808,3 +1808,21 @@ true for a file an interrupted share from an older build left behind.
   LEGACY_WEAR_LINE (src/lib/disclosures.js), DataControls' removal lines and the record-unavailable screen.
   - Example, before: remove Heard Health (it may be listed as Cyra) in your Oura account's connected apps
   - After: remove Solia Health (it may be listed as Cyra or Heard Health) in your Oura account's connected apps
+
+## Mono style (Solia, 2026-11-01) — one device preference, no new request, nothing new leaves the device
+
+You → Appearance gains **Style: Soft · Mono**. The choice is a new record key, `uiStyle` ("soft" | "mono", default
+"soft"), and it is a **device preference** exactly like `appearance` and `uiLocale` (record.js DEVICE_PREFS): saved with
+the on-device record (IndexedDB on the web, the app's own file on the phone), followed by every open tab of this
+browser, **never in a backup file** (NOT_IN_BACKUP; exportBackup drops it) and **never taken from one** (importBackup
+keeps this device's value; applySaved skips DEVICE_PREFS). It is never sent anywhere: lib/appearance.js stays pure, and
+the only consumer is Shell's `data-style` attribute, which styles.js reads. No request, font or asset was added.
+
+**Sentences reworded, and why:**
+- Appearance card / Settings sheet footnote (src/components/settingsParts.jsx AppearanceBody), because the card now
+  holds two choices and both stay on this device:
+  - Before: System follows this device's light or dark setting. Your choice stays on this device and isn't part of a backup.
+  - After: System follows this device's light or dark setting. Mono is a quieter, single-colour look. Your choices stay on this device and aren't part of a backup.
+- "What a restore changes" (src/lib/disclosures.js restoreChanges), because a restore keeps this device's style too:
+  - Before: Your settings are replaced too, except this device's choices about …, and appearance (light or dark).
+  - After: Your settings are replaced too, except this device's choices about …, and appearance (light or dark, and the style).

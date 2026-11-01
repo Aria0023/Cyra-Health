@@ -3,8 +3,12 @@
    @fontsource-variable/fraunces and /karla), so this stylesheet loads nothing from
    another server. The bundled faces are named 'Fraunces Variable' and 'Karla Variable';
    plain 'Fraunces' / 'Karla' stay listed as fallbacks for a locally installed copy. */
-import { SCHEME_TOKENS } from "./lib/constants.js";
+import { SCHEME_TOKENS, MONO, MONO_PALETTE_KEYS } from "./lib/constants.js";
 import { tokenDecls } from "./lib/appearance.js";
+
+/* Mono style (Solia): the palette tokens arrive inline on .cy (App.jsx paletteVars), so they are overridden with
+   !important; the other tokens are plain declarations. */
+const monoDecls = (t) => `${tokenDecls(Object.fromEntries(Object.entries(t).filter(([k]) => MONO_PALETTE_KEYS.includes(k))), true)};${tokenDecls(Object.fromEntries(Object.entries(t).filter(([k]) => !MONO_PALETTE_KEYS.includes(k))))}`;
 
 export const css = `
 /* ---- tokens (spec §8.4): one type scale, one grid, one set of radii and motion timings. --primary-text is the
@@ -1636,4 +1640,18 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .mealline b { margin-inline-end:4px; }
 .rmeals li { display:block; }
 @media (prefers-reduced-motion: reduce) { .mealedit { animation:none; } .mealpick { transition:none; } }
+/* ---- Mono style (Solia, 2026-11-01): a quieter single-colour skin of the same layout. The token layer is
+   lib/constants.js MONO (neutral warm-grey paper and cards, one soft ink, one slate accent for every stage, domain tints
+   resolved to one grey, no wash, no shadows); the few rules below make surfaces flat with hairlines, and icon badges
+   and chips outlined instead of filled. Data-viz colours (--fam-*, --ramp-*, --soft-*) are untouched. The dark rule
+   stays off paper so the print fallback above keeps its black-on-white. ---- */
+.cy[data-style="mono"] { ${monoDecls(MONO.light)} }
+@media not print { .cy[data-style="mono"][data-scheme="dark"] { ${monoDecls(MONO.dark)} } }
+.cy[data-style="mono"] .v2card[data-tint] { background:var(--card); }
+.cy[data-style="mono"] .v2card-head:not(:only-child) { padding-bottom:10px; border-bottom:1px solid var(--edge); }
+.cy[data-style="mono"] .ibadge, .cy[data-style="mono"] .ibadge[data-tint], .cy[data-style="mono"] .v2card[data-tint] .ibadge, .cy[data-style="mono"] .qtile-ico { background:transparent; color:var(--primary-text); box-shadow:inset 0 0 0 1.5px var(--line); }
+.cy[data-style="mono"] .vchip { background:transparent; box-shadow:inset 0 0 0 1px currentColor; }
+.cy[data-style="mono"] .vchip.v-notenough { box-shadow:inset 0 0 0 1px var(--line); }
+.cy[data-style="mono"] .ppill.later { opacity:1; }
+.cy[data-style="mono"] .blob, .cy[data-style="mono"] .ringblob, .cy[data-style="mono"] .emptyblob { opacity:.2; }
 `;
