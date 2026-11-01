@@ -38,7 +38,7 @@ import { Lab, reminderModel, CheckinsBody, RemindersBody, CountsBody, Appearance
    Calm R7: the group bodies moved to settingsParts.jsx (same markup, ids and sentences) so the You page can show them in
    cards; this sheet composes them in the same order and wrappers as before. On the You tab App.jsx closes the sheet
    and scrolls to the same controls on the page instead. */
-export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, keepsWeekNote, reminders, reminderSupport, onReminders, research, setResearch, stage, stageName, pots, onPotsOn, onPotsOff, daysLogged = 0, lastBackupAt = null, todayIso, triggerRef, install = null, focusTo = null, offlineCopy = false, appearance = "system", onAppearance, legacyWear = false, fertRow = null, flows = [], flowCtx = {}, lock = null, potsOn = false, onHandoff = null, regAnswers = null, onAnswer = null }) {
+export default function SettingsSheet({ cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping, storageDriver, onExport, onImport, onWipe, keepsWeekNote, reminders, reminderSupport, onReminders, research, setResearch, stage, stageName, pots, onPotsOn, onPotsOff, daysLogged = 0, lastBackupAt = null, todayIso, triggerRef, install = null, focusTo = null, offlineCopy = false, appearance = "system", onAppearance, uiStyle = "soft", onStyle, legacyWear = false, fertRow = null, flows = [], flowCtx = {}, lock = null, potsOn = false, onHandoff = null, regAnswers = null, onAnswer = null }) {
   const headRef = useRef(null);
   const installLabRef = useRef(null);
   useEffect(() => {
@@ -77,7 +77,7 @@ export default function SettingsSheet({ cadence, setCadence, quietHours, setQuie
         <CountsBody stage={stage} research={research} setResearch={setResearch} afterOthers={!!(stage || remindersHere)} />
       </div>}
       <div className="setgroup">
-        <AppearanceBody appearance={appearance} onAppearance={onAppearance} />
+        <AppearanceBody appearance={appearance} onAppearance={onAppearance} uiStyle={uiStyle} onStyle={onStyle} />
       </div>
       {install && <InstallSettings install={install} labRef={installLabRef} />}
       <div className="setgroup">

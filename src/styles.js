@@ -3,8 +3,12 @@
    @fontsource-variable/fraunces and /karla), so this stylesheet loads nothing from
    another server. The bundled faces are named 'Fraunces Variable' and 'Karla Variable';
    plain 'Fraunces' / 'Karla' stay listed as fallbacks for a locally installed copy. */
-import { SCHEME_TOKENS } from "./lib/constants.js";
+import { SCHEME_TOKENS, MONO, MONO_PALETTE_KEYS } from "./lib/constants.js";
 import { tokenDecls } from "./lib/appearance.js";
+
+/* Mono style (Solia): the palette tokens arrive inline on .cy (App.jsx paletteVars), so they are overridden with
+   !important; the other tokens are plain declarations. */
+const monoDecls = (t) => `${tokenDecls(Object.fromEntries(Object.entries(t).filter(([k]) => MONO_PALETTE_KEYS.includes(k))), true)};${tokenDecls(Object.fromEntries(Object.entries(t).filter(([k]) => !MONO_PALETTE_KEYS.includes(k))))}`;
 
 export const css = `
 /* ---- tokens (spec §8.4): one type scale, one grid, one set of radii and motion timings. --primary-text is the
@@ -1636,4 +1640,38 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .mealline b { margin-inline-end:4px; }
 .rmeals li { display:block; }
 @media (prefers-reduced-motion: reduce) { .mealedit { animation:none; } .mealpick { transition:none; } }
+/* ---- Mono style (Solia, 2026-11-01): a quieter single-colour skin of the same layout. The token layer is
+   lib/constants.js MONO (neutral warm-grey paper and cards, one soft ink, one slate accent for every stage, domain tints
+   resolved to one grey, no wash, no shadows); the few rules below make surfaces flat with hairlines, and icon badges
+   and chips outlined instead of filled. Data-viz colours (--fam-*, --ramp-*, --soft-*) are untouched. The dark rule
+   stays off paper so the print fallback above keeps its black-on-white. ---- */
+.cy[data-style="mono"] { ${monoDecls(MONO.light)} }
+@media not print { .cy[data-style="mono"][data-scheme="dark"] { ${monoDecls(MONO.dark)} } }
+.cy[data-style="mono"] .v2card[data-tint] { background:var(--card); }
+.cy[data-style="mono"] .v2card-head:not(:only-child) { padding-bottom:10px; border-bottom:1px solid var(--edge); }
+.cy[data-style="mono"] .ibadge, .cy[data-style="mono"] .ibadge[data-tint], .cy[data-style="mono"] .v2card[data-tint] .ibadge, .cy[data-style="mono"] .qtile-ico { background:transparent; color:var(--primary-text); box-shadow:inset 0 0 0 1.5px var(--line); }
+.cy[data-style="mono"] .vchip { background:transparent; box-shadow:inset 0 0 0 1px currentColor; }
+.cy[data-style="mono"] .vchip.v-notenough { box-shadow:inset 0 0 0 1px var(--line); }
+.cy[data-style="mono"] .ppill.later { opacity:1; }
+.cy[data-style="mono"] .blob, .cy[data-style="mono"] .ringblob, .cy[data-style="mono"] .emptyblob { opacity:.2; }
+/* ---- Readability (Solia C, 2026-11-01): fewer words on screen, and the ones left easier on the eyes. Prose in cards,
+   panels, sheets and onboarding is at least 16px, line-height 1.55, a comfortable measure (60ch) and spaced paragraphs;
+   labels, legends, chips and the one small disclaimer line per screen (.rfoot, .srcline, .notadvice) stay small.
+   .ministat is the big-number + label row (PCOS long cycles), .trow the compact "What I'm trying" row, .tchip its
+   status chip. ---- */
+.cy :is(.v2card, .card, .plaincard, .bodypanel, .emptynote, .pcallout, .meaning, .finding, .readcard, .askpart, .carepart, .v2sheet, .mindhead, .bodyhead, .calpage, .practicespage, .report, .regstep, .consentcard, .pots) :is(p.hint, p.plain, p:not([class]), li:not([class]), p.tlsent, p.nextwhy, p.nextshort, p.wrlead, p.stepbody, p.msnext, p.moodkey, p.yousum, p.prowhy, p.phint, p.calhint, p.bodyphase, p.fsub, p.lead) { font-size:16px; line-height:1.55; max-width:60ch; }
+.cy :is(.v2card, .card, .plaincard, .bodypanel, .v2sheet) p + p:not(.rfoot):not(.srcline) { margin-top:.6em; }
+.ministat { display:flex; align-items:baseline; gap:10px; margin:2px 0 6px; }
+.ministat .bigcount { font:600 40px/1 'Fraunces Variable','Fraunces',serif; color:var(--primary-text); }
+.ministat .ministat-lab { font-size:16px; line-height:1.4; font-weight:600; }
+.trow { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--edge); }
+.trow:last-of-type { border-bottom:0; }
+.trow .tinfo { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.trow .tinfo b { font-size:16px; }
+.trow .tmeta { font-size:var(--fs-md); color:var(--soft); }
+.tchip { align-self:flex-start; display:inline-flex; font:700 12px 'Karla Variable','Karla',sans-serif; line-height:1.2; border-radius:var(--r-pill); padding:4px 10px; color:var(--soft); background:color-mix(in srgb, var(--ink) 5%, var(--card)); box-shadow:inset 0 0 0 1px var(--edge); }
+.tchip.t-result { color:var(--primary-text); background:color-mix(in srgb, var(--primary) 12%, var(--card)); box-shadow:none; }
+.cy[data-style="mono"] .tchip { background:transparent; box-shadow:inset 0 0 0 1px var(--line); }
+.tintro { font-size:16px; line-height:1.55; margin:8px 0 4px; }
+.jprompt { font:600 18px/1.35 'Fraunces Variable','Fraunces',serif; margin:8px 0 10px; }
 `;

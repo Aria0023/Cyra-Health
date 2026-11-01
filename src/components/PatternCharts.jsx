@@ -400,7 +400,7 @@ export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso,
   const callout = cycleView ? (
     <div className={top}>
       {hs != null && <b>Days {hs}–{hs + 4}</b>}
-      <p>{hs != null ? `Across your last ${model.cyc.length} cycles, your hardest days usually fall around cycle days ${hs}–${hs + 4}. Worth planning a lighter week around them.` : "Keep logging through your next period and Heard Health can show which cycle days are usually hardest for you."}</p>
+      <p>{hs != null ? `Across your last ${model.cyc.length} cycles, your hardest days usually fall around cycle days ${hs}–${hs + 4}. Worth planning a lighter week around them.` : "Keep logging through your next period and Solia Health can show which cycle days are usually hardest for you."}</p>
     </div>
   ) : (trend.kind || showStretches) ? (
     <div className={top}>
@@ -427,7 +427,7 @@ export function PatternsCard({ days, ids, labels, starts = [], sorted, todayIso,
         </div>
       )}
       {callout}
-      {!compact && <p className="hint phint">{cycleView ? "One ring per cycle, day 1 at the top. Bigger dots are harder days." : "Each dot is a day: higher is a lighter day for you, lower a heavier one, against your own usual. It takes the colour of that day's strongest symptom."}</p>}
+      {!compact && <Details label="How to read this chart"><p className="hint phint">{cycleView ? "One ring per cycle, day 1 at the top. Bigger dots are harder days." : "Each dot is a day: higher is a lighter day for you, lower a heavier one, against your own usual. It takes the colour of that day's strongest symptom."}</p></Details>}
       {!compact && <FamilyLegend className="flegend flegend-top" fams={fams} extra={legendExtra} />}
       {cycleView
         ? <CycleRings model={model} sel={ringSel} setSel={(i) => setSelIso(model.pts[i].iso)} compact={compact} onCommit={speak} animate={animate} />

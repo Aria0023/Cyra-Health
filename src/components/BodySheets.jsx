@@ -8,6 +8,7 @@ import {
   WEIGHT_UNITS, labText, convert, checkValue, MEAL_SLOTS, MEAL_KINDS, MEAL_LATE, MEAL_ENERGY, MEALS_PER_DAY, mealText,
 } from "../lib/bodylog.js";
 import { t, fmtDate } from "../lib/i18n.js";
+import { HAND_KINDS, dailyQuestion } from "../lib/trying.js";
 
 /* The fast log's sheets (calm R4, spec §3.5b). Each one writes on tap: there is no Save to forget, and she can close it
    whenever. Everything is on this device only (lib/bodylog.js keys bodyLog / labs / bodyPrefs, and the existing meds /
@@ -81,8 +82,9 @@ export function MoveSheet({ day, dayWord, log, onAdd, onRemove, onClose, lastTyp
 }
 
 /* ---------- Meds: her list, one tap taken; add / remove ---------- */
-const KINDS = [["rx", "Prescription"], ["supp", "Supplement"], ["habit", "Habit"]];
-export function MedsSheet({ day, dayWord, todayIso, meds, medDay, onToggle, onAdd, onRemove, onClose }) {
+export function MedsSheet({ day, dayWord, todayIso, meds: allMeds, medDay, onToggle, onAdd, onRemove, onClose }) {
+  // Solia C: a care service (added from the Care shelf) has no daily question, so it isn't in the taken list.
+  const meds = allMeds.filter((m) => dailyQuestion(m.kind));
   const [edit, setEdit] = useState(meds.length === 0);
   const [name, setName] = useState("");
   const [kind, setKind] = useState("supp");
@@ -116,7 +118,7 @@ export function MedsSheet({ day, dayWord, todayIso, meds, medDay, onToggle, onAd
           <p className="lab" id="medadd-lab">{meds.length ? t("bodySheets.addToYourList") : t("bodySheets.yourListIsEmptyAdd")}</p>
           <input className="inp" aria-labelledby="medadd-lab" placeholder={t("bodySheets.eGMetforminInositolVitamin")} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") add(); }} aria-invalid={!!err} aria-describedby={err ? "medadd-err" : undefined} />
           <div className="seg medkinds" role="group" aria-label={t("bodySheets.kind")}>
-            {KINDS.map(([v, l]) => <button key={v} type="button" className={`mc ${kind === v ? "on" : ""}`} aria-pressed={kind === v} onClick={() => setKind(v)}>{l}</button>)}
+            {HAND_KINDS.map(([v, l]) => <button key={v} type="button" className={`mc ${kind === v ? "on" : ""}`} aria-pressed={kind === v} onClick={() => setKind(v)}>{l}</button>)}
           </div>
           {err && <p className="fielderr" id="medadd-err" role="alert">{err}</p>}
           <button type="button" className="sbtn" onClick={add}>{t("bodySheets.addToList")}</button>
@@ -124,7 +126,7 @@ export function MedsSheet({ day, dayWord, todayIso, meds, medDay, onToggle, onAd
       ) : (
         <button type="button" className="linkbtn" onClick={() => setEdit(true)}>{t("bodySheets.editList")}</button>
       )}
-      <p className="rfoot">{t("bodySheets.cyraNeverRecommendsDosesOr")}</p>
+      <p className="rfoot">{t("bodySheets.neverRecommendsDoses")}</p>
       <div className="bsheet-foot"><button type="button" className="cta" onClick={onClose}>{t("bodySheets.done")}</button></div>
     </Sheet>
   );

@@ -1,6 +1,6 @@
 # Clinician review register
 
-Every sentence in Heard Health that states something about a condition, a practice, an exercise or a marker is listed here
+Every sentence in Solia Health that states something about a condition, a practice, an exercise or a marker is listed here
 with where it appears and the named source it rests on. Nothing in this file is shown to users. A sentence ships to a
 public release only after a clinician has signed it off here (name, role, date). Until then its status reads
 "Awaiting clinician sign-off". Framing rules for every entry: an association or what a guideline describes, never a
@@ -31,7 +31,7 @@ The unit test `modules.test.mjs` fails if a medical sentence in the module is mi
 
 ### pcos.cycle.expected
 - Where: Body → Cycles, PCOS cycle wording (R4)
-- Text: Long or missed cycles are common with PCOS. Heard Health shows them as part of your pattern, not as mistakes.
+- Text: Long or missed cycles are common with PCOS — part of your pattern, not a mistake. (Solia C, 2026-11-01: reworded from "Long or missed cycles are common with PCOS. Solia Health shows them as part of your pattern, not as mistakes." — same claim, shorter; on Body → Cycles it is now the one visible line under the count, and the guideline definition moved behind "What counts as long".)
 - Sources: Recommendations from the 2023 International Evidence-based Guideline for the Assessment and Management of Polycystic Ovary Syndrome (2023); Revised 2003 consensus on diagnostic criteria and long-term health risks related to polycystic ovary syndrome (2004)
 - Status: Awaiting clinician sign-off
 
@@ -49,19 +49,19 @@ The unit test `modules.test.mjs` fails if a medical sentence in the module is mi
 
 ### pcos.ask.pcos-long-cycles
 - Where: Ask library: "Why are my cycles so long?" (R5/R6)
-- Text: Irregular or long cycles are one of the features the 2023 international PCOS guideline describes. For adults it calls cycles under 21 or over 35 days, or fewer than eight a year, irregular. Heard Health counts cycles longer than 35 days so you can show your clinician the pattern.
+- Text: Irregular or long cycles are one of the features the 2023 international PCOS guideline describes. For adults it calls cycles under 21 or over 35 days, or fewer than eight a year, irregular. Solia Health counts cycles longer than 35 days so you can show your clinician the pattern.
 - Sources: Recommendations from the 2023 International Evidence-based Guideline for the Assessment and Management of Polycystic Ovary Syndrome (2023)
 - Status: Awaiting clinician sign-off
 
 ### pcos.ask.pcos-diagnosis
 - Where: Ask library: "How is PCOS diagnosed?" (R5/R6)
-- Text: Clinicians use the Rotterdam criteria as refined by the 2023 guideline: two of irregular cycles, signs of higher androgens (such as excess hair growth or acne, or a blood test) and ovary findings on ultrasound or an AMH blood test in adults, once other causes are ruled out. Heard Health does not diagnose PCOS.
+- Text: Clinicians use the Rotterdam criteria as refined by the 2023 guideline: two of irregular cycles, signs of higher androgens (such as excess hair growth or acne, or a blood test) and ovary findings on ultrasound or an AMH blood test in adults, once other causes are ruled out. Solia Health does not diagnose PCOS.
 - Sources: Revised 2003 consensus on diagnostic criteria and long-term health risks related to polycystic ovary syndrome (2004); Recommendations from the 2023 International Evidence-based Guideline for the Assessment and Management of Polycystic Ovary Syndrome (2023)
 - Status: Awaiting clinician sign-off
 
 ### pcos.ask.pcos-labs
 - Where: Ask library: "Which numbers from my blood tests can I add?" (R5/R6)
-- Text: The guideline recommends that blood sugar is checked (for example fasting glucose or HbA1c) when PCOS is diagnosed and every one to three years after. You can type values from your own results with their unit and date. Heard Health keeps them on this device and does not interpret them.
+- Text: The guideline recommends that blood sugar is checked (for example fasting glucose or HbA1c) when PCOS is diagnosed and every one to three years after. You can type values from your own results with their unit and date. Solia Health keeps them on this device and does not interpret them.
 - Sources: Recommendations from the 2023 International Evidence-based Guideline for the Assessment and Management of Polycystic Ovary Syndrome (2023)
 - Status: Awaiting clinician sign-off
 
@@ -84,7 +84,7 @@ The unit test `modules.test.mjs` fails if a medical sentence in the module is mi
 - Pattern questions (sleep vs fatigue, high-sugar days vs cravings/energy, movement vs mood, cycle length over time)
   are reported as associations in her own log, with `MODULE_FRAMING`.
 - Lab values (fasting glucose in mg/dL or mmol/L, HbA1c in % or mmol/mol) are stored as she types them, with the test
-  date; Heard Health never interprets them.
+  date; Solia Health never interprets them.
 - Reviewer questions: (1) is "Long or missed cycles are common with PCOS" acceptable lay wording for the guideline's
   irregular-cycle feature; (2) should the high-sugar day marker carry any caution about food anxiety or disordered
   eating; (3) confirm the NICE CKS revision date.
@@ -292,7 +292,7 @@ clinician, not a diagnosis or medical advice."; their advice text is the L8 copy
 - Sources: describes the fertility-signs group (lib/fertility.js FERT_COPY.settingCycle, shortened); no clinical claim.
 - Status: Awaiting clinician sign-off
 
-## Heard Health's AI write-up and chat (calm R8)
+## Solia Health's AI write-up and chat (calm R8)
 ### ai.system.frame
 - Where: backend/src/modules/ai/tasks.js AI_FRAME (the system prompt for the weekly write-up and the chat)
 - Text: describes associations in her own data she could raise with her clinician; never diagnose, never name or adjust a treatment, medicine, supplement or dose, never tell her to start or stop anything; never interpret a lab value (normal, high, low, worrying); never grade, score or rate her; say plainly when there is too little data; plain warm language; for an emergency or red-flag question, no discussion of the data, the emergency line instead.
@@ -306,8 +306,8 @@ clinician, not a diagnosis or medical advice."; their advice text is the L8 copy
 - Status: Awaiting clinician sign-off
 
 ### ai.notadvice
-- Where: Patterns → Heard Health's write-up, Mind → Journey → Chat about your log
-- Text: Associations to raise with your clinician, not a diagnosis or medical advice. / Written by Heard Health's AI (Claude, made by Anthropic) from your summary.
+- Where: Patterns → Solia Health's write-up, Mind → Journey → Chat about your log
+- Text: Associations to raise with your clinician, not a diagnosis or medical advice. / Written by Solia Health's AI (Claude, made by Anthropic) from your summary.
 - Sources: MODULE_FRAMING (R2), unchanged wording.
 - Status: Awaiting clinician sign-off
 
@@ -329,7 +329,7 @@ No foods, calories, macros, photos or scores; no diet advice, no "good" or "bad"
 
 ### meals.pattern
 - Where: Patterns → "What you're learning", card "Energy after meals" (lib/patterns.js mealCards), and its detail sheet
-- Text: "In your log, energy dipped or crashed more often (/ less often) after meals that were mostly carbs or sweet than after your other meals." / "Meals that were mostly carbs or sweet and (fewer) energy dips are still showing up together in your log, without a clear gap yet." / "In your log, energy dipped or crashed about as often after meals that were mostly carbs or sweet as after your other meals." Question: "Does my energy dip more often after some kinds of meals?" Detail lines: the counts; "Heard Health names a pattern with at least 5 meal notes on each side and 4 dips or crashes in all. Skipped meals and notes without an energy answer are left out."; "This is what your own notes show, not a rule about food. Energy after a meal also follows sleep, stress, your cycle and more."; "The 2023 International PCOS Guideline recommends healthy eating without naming any one specific diet." Followed by the not-medical-advice line.
+- Text: "In your log, energy dipped or crashed more often (/ less often) after meals that were mostly carbs or sweet than after your other meals." / "Meals that were mostly carbs or sweet and (fewer) energy dips are still showing up together in your log, without a clear gap yet." / "In your log, energy dipped or crashed about as often after meals that were mostly carbs or sweet as after your other meals." Question: "Does my energy dip more often after some kinds of meals?" Detail lines: the counts; "A pattern is named with at least 5 meal notes on each side and 4 dips or crashes in all. Skipped meals and notes without an energy answer are left out."; "This is what your own notes show, not a rule about food. Energy after a meal also follows sleep, stress, your cycle and more."; "The 2023 International PCOS Guideline recommends healthy eating without naming any one specific diet." Followed by the not-medical-advice line.
 - Sources: teede2023 (Recommendations from the 2023 International Evidence-based Guideline for the Assessment and Management of Polycystic Ovary Syndrome, 2023). Verified only through a PubMed-indexed summary of the 2023 guideline ("a healthy lifestyle should be at the focus of care … with no specific diet or physical exercise recommended"); the guideline's own text could not be opened from the build environment. Please confirm the wording against the guideline's lifestyle/dietary recommendations.
 - Status: Awaiting clinician sign-off
 
@@ -340,7 +340,47 @@ No foods, calories, macros, photos or scores; no diet advice, no "good" or "bad"
 - Status: Awaiting clinician sign-off
 
 ### meals.ai
-- Where: backend AI_FRAME (added rule) and "What Heard Health will send" line "Meal notes (counts only, no foods)"
+- Where: backend AI_FRAME (added rule) and "What Solia Health will send" line "Meal notes (counts only, no foods)"
 - Text: Never give diet or food advice: do not call any food or meal good, bad, healthy or unhealthy, never mention calories, weight or weight loss, and never tell her what to eat; meal-note counts are only associations with how her energy felt.
 - Sources: product rule (no diet advice); no clinical claim.
 - Status: Awaiting clinician sign-off
+
+## Readability pass (Solia C, 2026-11-01): medical sentences moved behind a tap or reworded
+
+No medical claim was added. The sentences below keep their facts; they were shortened, or moved behind a disclosure so
+a card shows one or two short lines. Every one still renders (in the page, inside the closed panel).
+
+### pcos.cycle.expected (reworded)
+- Where: Body → Cycles, PCOS card (the one visible line under the count); Patterns → cycle timeline → "About long cycles" (moved there from the timeline sentence); Home hero note on a long gap
+- Before: Long or missed cycles are common with PCOS. Solia Health shows them as part of your pattern, not as mistakes.
+- After: Long or missed cycles are common with PCOS — part of your pattern, not a mistake.
+- Sources: teede2023, rotterdam2004 (unchanged)
+- Status: Awaiting clinician sign-off
+
+### pcos.cycle.definition (moved)
+- Where: Body → Cycles, PCOS card → "What counts as long" (was "What counts as a long cycle"); the source and the not-a-diagnosis line → "Source"
+- Text (unchanged): For adults, the international PCOS guideline describes cycles shorter than 21 days or longer than 35 days, or fewer than eight a year, as irregular.
+- Status: Awaiting clinician sign-off
+
+### report.meanings (split: first sentence visible, the rest behind "Why this matters")
+- Where: Patterns → Report → "What this might mean" (src/screens/ReportScreen.jsx meanings)
+- Visible / behind the tap:
+  - "Periods that vary by a week or more are one of the clearest signs the menopause transition has started." / "That's not a diagnosis — but it's the exact thing doctors look at, and it usually means this is a years-long change worth planning for, not a random bad month."
+  - "Hot flashes and night sweats this often are treatable — this is the single most fixable thing on your list." / "Most women are never offered treatment simply because it never gets discussed."
+  - "Sleep that's disrupted this often is worth treating on its own, not just waiting out." / "Poor sleep tends to make every other symptom louder, so fixing it often improves several things at once."
+  - "Pain this strong, this often, isn't something to just get through." / "Period pain that regularly stops you has causes that are diagnosable and treatable — it often goes unaddressed for years because people are told it's normal."
+- The observations-not-a-diagnosis line under them is unchanged (now one small line).
+- Status: Awaiting clinician sign-off (the wording itself predates this pass and was never registered here)
+
+### trial.detail and What I'm trying (reworded)
+- Where: Patterns → a "What I'm trying" card → its sheet (lib/patterns.js trialCards); Home → What I'm trying → "How comparing works"; Body → Meds sheet footnote
+- Before: "Solia Health compares once there are 5 logged days on each side. It never suggests a dose or a change." / "Change one variable at a time for two weeks, then look … Solia Health never recommends doses or changes; those stay with you and your clinician."
+- After: "Compared once there are 5 logged days on each side. Never a suggested dose or change." / "Try one change for two weeks and compare." + "How comparing works": "Your days are compared once there are 5 logged days on each side: the 2 weeks before you started and the 2 weeks from the start. Lighter days for you count, never a score." and "It never recommends doses or changes; those stay with you and your clinician." / Meds sheet: "Never a dose or a change from here; those stay with you and your clinician."
+- Status: Awaiting clinician sign-off
+
+### calendar.prediction and calendar.why (moved / reworded, no new claim)
+- Where: Body → Calendar. The range and "Estimates — not contraception." stay on the card; what the estimate rests on (and "Cycles vary more in perimenopause, so the range is wider.") moved behind "How this is worked out". The no-prediction lines drop the app's name ("After menopause, periods aren't predicted. Any bleeding now is worth mentioning to your doctor — log it on the Today screen so it's in your record.").
+- Status: Awaiting clinician sign-off
+
+### meals.pattern detail line (reworded)
+- "Solia Health names a pattern with at least 5 meal notes on each side …" → "A pattern is named with at least 5 meal notes on each side …" (same rule; the meals.pattern entry above now quotes the new wording).

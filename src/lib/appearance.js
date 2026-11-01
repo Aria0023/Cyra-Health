@@ -9,6 +9,14 @@ export const APPEARANCES = [["system", "System"], ["light", "Light"], ["dark", "
 export const DEFAULT_APPEARANCE = "system";
 /* Anything that isn't one of the three keys (missing, an old record, a typo) reads as System. */
 export const cleanAppearance = (v) => (APPEARANCES.some(([k]) => k === v) ? v : DEFAULT_APPEARANCE);
+/* Style (Solia, 2026-11-01): Soft (the pastel look, default) or Mono (a quieter single-colour skin, lib/constants.js
+   MONO). Like Appearance it is a display preference of this device: saved with the on-device record (record.js
+   DEVICE_PREFS uiStyle), followed by every open tab of this browser, never sent anywhere and never put in a backup.
+   Shell puts it on .cy as data-style; styles.js does the rest (no per-screen code). */
+export const STYLES = [["soft", "Soft"], ["mono", "Mono"]];
+export const DEFAULT_STYLE = "soft";
+/* Anything that isn't one of the two keys (missing, an old record, a typo) reads as Soft. */
+export const cleanStyle = (v) => (STYLES.some(([k]) => k === v) ? v : DEFAULT_STYLE);
 export const SYSTEM_DARK_QUERY = "(prefers-color-scheme: dark)";
 /* The scheme on screen: printing → light; then her explicit choice; else the device setting. */
 export const resolveScheme = (appearance, systemDark, printing = false) =>

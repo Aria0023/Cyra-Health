@@ -102,8 +102,8 @@ export default function PatternsScreen({
 
       {logged >= 3 && checked.length > 0 && (
         <div className="plaincard findhow">
-          <Details label={t("patterns.howCyraFindsThese")}>
-            <p className="plain">{t("patterns.cyraComparesDaysInYour")}</p>
+          <Details label={t("patterns.howTheseAreFound")}>
+            <p className="plain">{t("patterns.daysInYourOwnLog")}</p>
             <p className="plain">{t("patterns.aCardSaysSupportedPattern")}</p>
             <p className="plain">{t("patterns.sleepLinksCompareDaysAfter")}</p>
             {!isMeno && <p className="plain">{t("patterns.cycleDaysCountFromEach")}</p>}

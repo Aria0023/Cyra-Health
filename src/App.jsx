@@ -67,7 +67,7 @@ import { flushSync } from "react-dom";
 
 import { SYMS, GSYM, ALL_SYM, ENERGY_ID, SCORE_SCALE, SHELF, stagePalettes, ORGS, SYM_FAMILY, PRENATAL, vizVars, rampOf } from "./lib/constants.js";
 import { seed, fmt, addDays, routeIntake, insights, predict, whyNoPrediction, cycleSummary, cleanCycleFlags, toggleExclude, periodHead, basisLine, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick, scoreRgb, scoreColorOf, inkOn } from "./lib/engine.js";
-import { DEFAULT_APPEARANCE, SYSTEM_DARK_QUERY, cleanAppearance, resolveScheme, paletteFor, paletteVars, applyDocumentScheme } from "./lib/appearance.js";
+import { DEFAULT_APPEARANCE, DEFAULT_STYLE, SYSTEM_DARK_QUERY, cleanAppearance, cleanStyle, resolveScheme, paletteFor, paletteVars, applyDocumentScheme } from "./lib/appearance.js";
 import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
 import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource, drainTerra, mergeRows, disconnectHelp } from "./lib/wearables.js";
 import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue, pruneQueue, mergeQueues, localDay, weekKey } from "./lib/pulse.js";
@@ -88,6 +88,7 @@ import { fertShown, isTTC, cleanFertPrefs, restoredFertPrefs, defaultTempUnit, F
 import { cleanModules, setModuleOn, isModuleOn, modulesFor } from "./lib/modules.js";
 import { cleanHomeTiles, homeTiles as tilesFor, pcosCycleCand, lastPeriodDay, heroModel, TILE_CATALOG, tileLogged, bodySteps, mindSteps, smallStep, PCOS_SIGNAL_IDS, EMPTY_LINE, dateEyebrow } from "./lib/home.js";
 import { visitModel, paperForLocale } from "./lib/visitReport.js";
+import { shelfKind } from "./lib/trying.js";
 import { cycleTimeline, bodyRing, mindRing, ringInputs, sleepCards, cycleCards, pcosCards, trialCards, spreadCard, topCard, rankCards, usualOf, mealCards } from "./lib/patterns.js";
 import { cleanExperiments, settle, startExperiment, skipWeek, markDay, runningOn, experimentStep, reviewWeek, weekCounts, countWords, weekSignals, pickExperiment, experimentFollowUp, lastFinished, experimentOf } from "./lib/experiments.js";
 import { PLAN, can, exportsLeft, noteExport, planFor } from "./lib/plan.js";
@@ -328,6 +329,7 @@ export default function CyraDemo() {
   /* Appearance (L2, spec §8.4): her choice (persisted, a DEVICE_PREFS key), the device's own light/dark
      setting (matchMedia, followed live) and whether a print is under way (always light). */
   const [appearance, setAppearance] = useState(DEFAULT_APPEARANCE);
+  const [uiStyle, setUiStyle] = useState(DEFAULT_STYLE); // Solia: Soft or Mono, a device preference like appearance (lib/appearance.js STYLES)
   const [uiLocale, setUiLocale] = useState(null); // calm R10: null = follow this device's language (lib/i18n.js)
   const [systemDark, setSystemDark] = useState(() => typeof matchMedia === "function" && matchMedia(SYSTEM_DARK_QUERY).matches);
   const [printing, setPrinting] = useState(false);
@@ -595,7 +597,7 @@ export default function CyraDemo() {
       // degraded: the server did ask Cyra's AI, but no AI answer came back (refusal, timeout, error)
       setAskOut({ source: out.provider === "rules" ? (out.degraded ? "server-library-attempted" : "server-library") : "ai", question, answer: out.answer, source_note: out.source_note || null, ask_your_doctor: out.ask_your_doctor || null, urgent: !!out.urgent });
     } catch (e) {
-      const answer = e?.status === 429 ? "Too many questions in a minute — try again shortly." : e?.status === 400 ? "Please type a slightly longer question." : "No answer came back from Heard Health's AI. Check your connection and try again, or write the question down and bring it to your next visit.";
+      const answer = e?.status === 429 ? "Too many questions in a minute — try again shortly." : e?.status === 400 ? "Please type a slightly longer question." : "No answer came back from Solia Health's AI. Check your connection and try again, or write the question down and bring it to your next visit.";
       setAskOut({ source: "error", question, answer, source_note: null, ask_your_doctor: null, urgent: false });
     }
     setAskBusy(false);
@@ -774,6 +776,7 @@ export default function CyraDemo() {
   const flashRepaint = () => { clearTimeout(repaintTimer.current); setRepaint(true); repaintTimer.current = setTimeout(() => setRepaint(false), 400); };
   const choosePalette = (upd) => { setPalIdx(upd); flashRepaint(); };
   const chooseAppearance = (v) => { const next = cleanAppearance(v); if (next === appearance) return; setAppearance(next); flashRepaint(); };
+  const chooseStyle = (v) => { const next = cleanStyle(v); if (next === uiStyle) return; setUiStyle(next); flashRepaint(); };
   const appearanceRef = useRef(appearance); appearanceRef.current = appearance;
   /* The device's setting is followed live (System). Printing always renders the light palette: beforeprint
      (and matchMedia("print"), which also covers print previews) flips it with flushSync, so the page the
@@ -927,7 +930,7 @@ export default function CyraDemo() {
       ping("Stopped sharing weekly counts. Nothing more will be sent.");
     } catch {
       setStorageDriver(storage.driver());
-      ping("Sharing is off, but Heard Health couldn't save that, so it could turn back on next time — tap Turn on, then off again.");
+      ping("Sharing is off, but Solia Health couldn't save that, so it could turn back on next time — tap Turn on, then off again.");
     }
   };
   /* A stored sharing state newer than this tab's (another tab turned sharing off, or sent
@@ -992,7 +995,7 @@ export default function CyraDemo() {
   };
   const [wearBusy, setWearBusy] = useState(null);
   const [wearConfirm, setWearConfirm] = useState(null); // a server-mediated source whose disclosure card is open
-  const restoredOuraGone = "The Oura connection in the backup no longer works, so it was removed from this device. Tap Connect to reconnect; if Heard Health (or Cyra) still shows in your Oura account's connected apps, you can remove it there.";
+  const restoredOuraGone = "The Oura connection in the backup no longer works, so it was removed from this device. Tap Connect to reconnect; if Solia Health (or Cyra or Heard Health) still shows in your Oura account's connected apps, you can remove it there.";
   const connectWear = async (id, label, { confirmed = false } = {}) => {
     if (!FEATURES.wearables || wearBusy) return;
     if (DEMO_WEARABLES) { // illustrative data, build-flag only; the UI says so
@@ -1014,7 +1017,7 @@ export default function CyraDemo() {
       setWearData((d) => mergeRows(d, result.rows));
       const n = result.rows.length;
       let msg = n ? `${label}: ${n} day${n === 1 ? "" : "s"} imported.` : existing ? `${label}: no new readings found.`
-        : id === "terra" ? `${label} connected — no readings yet. They come in when you open Heard Health or tap Sync.` : `${label} connected — no readings yet. Tap Sync to check again.`;
+        : id === "terra" ? `${label} connected — no readings yet. They come in when you open Solia Health or tap Sync.` : `${label} connected — no readings yet. Tap Sync to check again.`;
       if (result.notice) msg = `${msg} ${result.notice}`;
       ping(msg);
     } catch (e) {
@@ -1047,7 +1050,7 @@ export default function CyraDemo() {
       } else if (id === "terra") { // kept on this device and asked again until Cyra's server confirms (retryTerraOff)
         setTerraOff((p) => cleanTerraOff([...p, st]));
         setWearSources(({ terra: _gone, ...rest }) => rest);
-        ping(`Couldn't confirm the disconnect yet — ${label} may still be connected, so Heard Health will keep asking.`);
+        ping(`Couldn't confirm the disconnect yet — ${label} may still be connected, so Solia Health will keep asking.`);
       } else ping(`Couldn't confirm the disconnect — ${label} may still be connected. Try again, or ${disconnectHelp(id)}.`);
     } finally {
       setWearBusy(null);
@@ -1071,7 +1074,7 @@ export default function CyraDemo() {
       }
       if (done.length && !wipingRef.current) {
         setTerraOff((p) => cleanTerraOff(p).filter((x) => !done.includes(offId(x))));
-        ping("Fitbit · Garmin · Whoop: Heard Health's server confirmed the disconnect. Readings already imported stay on this device.");
+        ping("Fitbit · Garmin · Whoop: Solia Health's server confirmed the disconnect. Readings already imported stay on this device.");
       }
     } finally { terraOffBusy.current = false; }
   };
@@ -1114,8 +1117,8 @@ export default function CyraDemo() {
       for (let i = 1; i < sorted.length - 2; i++) {
         if (has(sorted[i - 1].temp) && has(sorted[i].temp) && has(sorted[i + 1].temp) && has(sorted[i + 2].temp) && sorted[i - 1].temp < 0.12 && sorted[i].temp >= 0.2 && sorted[i + 1].temp >= 0.2 && sorted[i + 2].temp >= 0.2) { ovu = sorted[i - 1].date; riseAt = sorted[i].date; break; }
       }
-      if (ovu) out.push({ num: "Ovulated", text: `A sustained temperature rise began ${fmt(riseAt)} and held — consistent with ovulation around ${fmt(ovu)}. This confirms it after the fact, the way basal-temperature charting does. It can't predict next month, and it isn't contraception.`, advice: stageName === "Trying to Conceive" ? "If you're trying to conceive, the fertile days were the ~5 before and the day of that rise — Heard Health will use this to sharpen next month's estimate." : null, urgency: "self" });
-      else if (pred && pred.cycleDay < pred.avgLen - 14) out.push({ num: `Day ${pred.cycleDay}`, text: `No temperature shift yet this cycle — which fits: based on your usual ${pred.avgLen}-day cycle, ovulation would be expected around day ${pred.avgLen - 14}. Heard Health will flag the rise when it holds for three days.`, urgency: "self", advice: stageName === "Trying to Conceive" ? `Your estimated fertile window opens around day ${Math.max(1, pred.fertileDay)} — the temperature rise confirms it only afterwards, so pair it with other signs if timing matters.` : null });
+      if (ovu) out.push({ num: "Ovulated", text: `A sustained temperature rise began ${fmt(riseAt)} and held — consistent with ovulation around ${fmt(ovu)}. This confirms it after the fact, the way basal-temperature charting does. It can't predict next month, and it isn't contraception.`, advice: stageName === "Trying to Conceive" ? "If you're trying to conceive, the fertile days were the ~5 before and the day of that rise — Solia Health will use this to sharpen next month's estimate." : null, urgency: "self" });
+      else if (pred && pred.cycleDay < pred.avgLen - 14) out.push({ num: `Day ${pred.cycleDay}`, text: `No temperature shift yet this cycle — which fits: based on your usual ${pred.avgLen}-day cycle, ovulation would be expected around day ${pred.avgLen - 14}. Solia Health will flag the rise when it holds for three days.`, urgency: "self", advice: stageName === "Trying to Conceive" ? `Your estimated fertile window opens around day ${Math.max(1, pred.fertileDay)} — the temperature rise confirms it only afterwards, so pair it with other signs if timing matters.` : null });
       const lut = sorted.filter((s) => has(s.temp) && s.temp >= 0.2), fol = sorted.filter((s) => has(s.temp) && s.temp < 0.12);
       if (lut.length >= 4 && fol.length >= 4) {
         const av = (a, k) => { const v = a.map((y) => y[k]).filter(has); return v.length >= 4 ? Math.round(v.reduce((x, y) => x + y, 0) / v.length) : null; };
@@ -1229,12 +1232,12 @@ export default function CyraDemo() {
   if (stage === "preg") nextUp.push({ k: "due", text: `Due in about ${40 - pregWeek} weeks`, sub: dueDate });
   // The likely-start range (L5): "Period likely Oct 26 – Nov 1" over what it rests on; later than the range; or a gap too long to predict across.
   else if (pred) nextUp.push(pred.state === "later" ? { k: "late", text: periodHead(pred), sub: `Your range ended ${fmt(pred.toIso)} · ${stage === "peri" ? "Irregularity is data too" : "Normal variation happens"} · Calendar →`, action: () => goTab("cal") } : { k: "period", text: periodHead(pred), sub: `${basisLine(pred)} · Calendar →`, action: () => goTab("cal") });
-  else if (predWhy?.kind === "long") nextUp.push({ k: "late", text: `No period on record for ${predWhy.days} days`, sub: `${stage === "peri" ? "Long gaps are common in perimenopause" : "Over 120 days, so Heard Health won't guess"} · Calendar →`, action: () => goTab("cal") });
+  else if (predWhy?.kind === "long") nextUp.push({ k: "late", text: `No period on record for ${predWhy.days} days`, sub: `${stage === "peri" ? "Long gaps are common in perimenopause" : "Over 120 days, so Solia Health won't guess"} · Calendar →`, action: () => goTab("cal") });
   if (upcoming[0]) nextUp.push({ k: "appt", text: `Appointment${upcoming[0].who ? ` with ${upcoming[0].who}` : ""} in ${daysUntil(upcoming[0].date)} day${daysUntil(upcoming[0].date) === 1 ? "" : "s"}`, sub: daysUntil(upcoming[0].date) <= 7 && stage !== "preg" ? "Prep your report →" : fmt(upcoming[0].date), action: daysUntil(upcoming[0].date) <= 7 && stage !== "preg" ? () => goTab("report") : null }); // pregnancy has no Report tab
 
   // The palette (UI) and data-viz custom properties, inline on .cy; data-scheme picks the dark token rule (Shell).
   const style = { ...paletteVars(t), ...vizVars(scheme, stage) };
-  const shell = { style, scheme };
+  const shell = { style, scheme, uiStyle };
 
   /* ---------- agentic intake routing (lib/engine.js routeIntake) ---------- */
   const finishOnboarding = async () => {
@@ -1254,8 +1257,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1529,14 +1532,14 @@ export default function CyraDemo() {
   useLayoutEffect(() => { applyDocumentLocale(document, uiLang); }, [uiLang]);
   useEffect(() => { if (!showSettings) setSettingsFocus(null); }, [showSettings]);
 
-  /* Phone: a backup copy, appointment PDF (heard-health-summary-*.pdf; cyra-* from builds before the Heard Health rename), POTS report or POTS spreadsheet an interrupted share left in the
+  /* Phone: a backup copy, appointment PDF (solia-health-summary-*.pdf; cyra-* and heard-health-* from builds before the renames), POTS report or POTS spreadsheet an interrupted share left in the
      app's cache (app closed or killed while the share sheet was open). Run at every launch,
      before and whether or not the record loads (no share can be under way in a freshly
      started app), and by Delete everything and Start over once they reach this device's
-     clean-up. Only the app's own export names (both prefixes) match; nothing else in the cache is touched. */
+     clean-up. Only the app's own export names (all three prefixes) match; nothing else in the cache is touched. */
   const sweepBackupCache = async () => {
     const { files = [] } = await Filesystem.readdir({ path: "", directory: Directory.Cache });
-    for (const f of files) { const n = typeof f === "string" ? f : f?.name; if (/^(cyra-(backup-.*\.cyra\.json|(report|summary|data)-\d{4}-\d{2}-\d{2}\.(pdf|csv))|heard-health-(backup-\d{4}-\d{2}-\d{2}\.json|(report|summary|data)-\d{4}-\d{2}-\d{2}\.(pdf|csv)))$/.test(n || "")) await Filesystem.deleteFile({ path: n, directory: Directory.Cache }).catch(() => {}); }
+    for (const f of files) { const n = typeof f === "string" ? f : f?.name; if (/^(cyra-(backup-.*\.cyra\.json|(report|summary|data)-\d{4}-\d{2}-\d{2}\.(pdf|csv))|(heard|solia)-health-(backup-\d{4}-\d{2}-\d{2}\.json|(report|summary|data)-\d{4}-\d{2}-\d{2}\.(pdf|csv)))$/.test(n || "")) await Filesystem.deleteFile({ path: n, directory: Directory.Cache }).catch(() => {}); }
   };
   const exportBackup = async (passphrase) => {
     holdLock(); // the download / share sheet hides the page for a moment: not a reason to lock
@@ -1608,7 +1611,7 @@ export default function CyraDemo() {
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
-    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, uiLocale, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount };
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, uiLocale, uiStyle, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount };
     if (account) setCloudAccount(account);
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
@@ -1895,7 +1898,7 @@ export default function CyraDemo() {
       dropEnded();
       if (pushForgot) remindersOff(pushLeft || []); // the rest is still retried until the server confirms
       wipingRef.current = false; tellOtherTabs("cancel");
-      throw Object.assign(new Error("Heard Health couldn't confirm every step — your record wasn't deleted"), { failed, ended });
+      throw Object.assign(new Error("Solia Health couldn't confirm every step — your record wasn't deleted"), { failed, ended });
     }
     await cleanUpHere();
     if (startOver || pulseSent?.week === weekKey()) await storage.setHold(weekKey()); // this week's flags already went (or may have) from this device
@@ -1976,7 +1979,7 @@ export default function CyraDemo() {
       await storage.save({ ...base, reminders: { enabled: !!rem.enabled, endpoint: rem.endpoint || null, pending: stillPending(rem.pending, base.reminders?.pending), rev: Math.max(rem.rev || 0, base.reminders?.rev || 0) }, savedAt: new Date().toISOString() });
     } catch { /* the autosave tries again */ }
   };
-  const offPendingMsg = "Reminders are off and this browser won't show any more. Heard Health's server didn't confirm it erased this browser's reminder address, so Heard Health will ask it again while Heard Health is open and each time you open it, until it does.";
+  const offPendingMsg = "Reminders are off and this browser won't show any more. Solia Health's server didn't confirm it erased this browser's reminder address, so Solia Health will ask it again while Solia Health is open and each time you open it, until it does.";
   const forgetBusy = useRef(false);
   const retryPushForget = async () => {
     const tried = cleanPending(remindersRef.current.pending);
@@ -1997,7 +2000,7 @@ export default function CyraDemo() {
     t = setTimeout(tick, delay);
     return () => { stop = true; clearTimeout(t); };
   }, [pendingCount > 0, hydrated]); // eslint-disable-line
-  const blockedMsg = (r) => (isNative() ? "Notifications for Heard Health are off in your phone's Settings — turn them on there to get reminders" : r.denied ? "Notifications for Heard Health are blocked in this browser's site settings" : "Reminders need your permission — tap Turn on and choose Allow");
+  const blockedMsg = (r) => (isNative() ? "Notifications for Solia Health are off in your phone's Settings — turn them on there to get reminders" : r.denied ? "Notifications for Solia Health are blocked in this browser's site settings" : "Reminders need your permission — tap Turn on and choose Allow");
   const applyReminders = async (enabled, cad = cadence, nudge = quietHours, { prompt = true } = {}) => {
     // A web build without webReminders never subscribes: a switch an earlier build left on is turned off
     // at launch (the browser subscription is cancelled and any known address is asked to be forgotten).
@@ -2047,13 +2050,13 @@ export default function CyraDemo() {
       else if (r.unsupported) keep({ enabled: true, status: "unsupported" });
       else if (r.unavailable) { keep({ enabled: true, status: "unavailable" }); if (prompt) ping("Reminders aren't set up on this server yet"); }
       // worker: this browser's service worker never became active (lib/notifications.js), so the server wasn't asked.
-      else if (r.error) { keep({ enabled: true, status: "error" }); if (prompt) ping(r.worker ? "Couldn't set up reminders in this browser — try turning them on again" : "Heard Health's server couldn't set up reminders — try again later"); }
+      else if (r.error) { keep({ enabled: true, status: "error" }); if (prompt) ping(r.worker ? "Couldn't set up reminders in this browser — try turning them on again" : "Solia Health's server couldn't set up reminders — try again later"); }
       else if (r.superseded) { /* a newer "off" came in meanwhile */ }
       else keep({ enabled: true, status: "off" });
     } catch (e) {
       if (!current()) return;
       setRem((x) => ({ endpoint: x.endpoint || null, pending: cleanPending(x.pending), enabled: true, status: "error", rev: x.rev }));
-      if (prompt) ping(isNative() ? "Couldn't schedule reminders on this phone — try turning them on again" : e?.network ? "Couldn't reach Heard Health's server — try turning reminders on again" : "Couldn't set up reminders in this browser — try turning them on again");
+      if (prompt) ping(isNative() ? "Couldn't schedule reminders on this phone — try turning them on again" : e?.network ? "Couldn't reach Solia Health's server — try turning reminders on again" : "Couldn't set up reminders in this browser — try turning them on again");
     }
   };
   useEffect(() => {
@@ -2078,7 +2081,7 @@ export default function CyraDemo() {
      build without the signin flag (the default: production mounts no oauth module) shows no
      provider buttons and never exchanges a returning #oauth= code. */
   const PROVIDER_LABEL = { apple: "Apple", google: "Google", facebook: "Facebook" };
-  const signInRetry = "Sign-in didn't complete — try again or fill in the form; anything the provider sent is erased from Heard Health's server within 5 minutes.";
+  const signInRetry = "Sign-in didn't complete — try again or fill in the form; anything the provider sent is erased from Solia Health's server within 5 minutes.";
   const startSocial = async (id, label) => {
     if (!FEATURES.signin) return; // a build without signin shows no provider buttons (RegisterScreen)
     setSocialBusy(id);
@@ -2134,8 +2137,8 @@ export default function CyraDemo() {
         const what = [fillName && "name", fillEmail && "email"].filter(Boolean).join(" and ");
         const parts = [];
         if (what) parts.push(`Filled in your ${what} from ${label} — saved only on this device`);
-        if (first && typed) parts.push(`${label} shared your name; Heard Health kept the one you typed`);
-        if (email && typedEmail) parts.push(`${label} shared a verified email; Heard Health kept the one you typed`);
+        if (first && typed) parts.push(`${label} shared your name; Solia Health kept the one you typed`);
+        if (email && typedEmail) parts.push(`${label} shared a verified email; Solia Health kept the one you typed`);
         if (!first && !email) parts.push(`${label} didn't share a name or a verified email — fill in the form if you like`);
         ping(parts.join(". "));
       })
@@ -2271,7 +2274,7 @@ export default function CyraDemo() {
   const installNow = async (from) => {
     const out = await promptInstall();
     setInstallMode(currentInstallMode());
-    if (out === "accepted") { setInstallHint((h) => mergeInstallHint(h, "installed")); ping("Heard Health is installed. Open it from your home screen or app list."); }
+    if (out === "accepted") { setInstallHint((h) => mergeInstallHint(h, "installed")); ping("Solia Health is installed. Open it from your home screen or app list."); }
     else if (out === "dismissed" && from === "tip") setInstallHint((h) => mergeInstallHint(h, "dismissed"));
   };
   const hideInstallTip = () => { setInstallHint((h) => mergeInstallHint(h, "dismissed")); ping("Tip hidden. Install stays in Settings."); };
@@ -2289,7 +2292,7 @@ export default function CyraDemo() {
   const settingsProps = {
     regAnswers, onAnswer: setAnswer, daysLogged, lastBackupAt, todayIso, triggerRef: settingsBtnRef, cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping,
     storageDriver, onExport: exportBackup, onImport: importBackup, onWipe: wipeDevice, keepsWeekNote, reminders, reminderSupport: reminderSupport(), onReminders: (on) => applyReminders(on),
-    research, setResearch: setSharing, stage, stageName, pots, onPotsOn: potsOn, onPotsOff: potsOff, offlineCopy: offlineReady, appearance, onAppearance: chooseAppearance, legacyWear,
+    research, setResearch: setSharing, stage, stageName, pots, onPotsOn: potsOn, onPotsOff: potsOff, offlineCopy: offlineReady, appearance, onAppearance: chooseAppearance, uiStyle, onStyle: chooseStyle, legacyWear,
     flows, flowCtx: { native: isNative(), server: hasServer(), stage }, lock: lockApi, potsOn: potsTab && potsOk, onHandoff: holdLock,
   };
   // On the You tab the same controls are cards on the page, so the sheet is not drawn there (one copy of every id on screen).
@@ -2611,7 +2614,7 @@ export default function CyraDemo() {
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={canFull} onPro={() => setProOpen(true)}
       ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line} meals={mealsOffered ? { on: mealsHere, onToggle: () => { const on = !mealsHere; setBodyPrefs((p) => cleanBodyPrefs({ ...p, mealsOn: on })); ping(on ? "Meal notes on" : "Meal notes off. What you noted is kept"); } } : null} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
       account={ACCOUNTS_HERE ? { can: ACCOUNTS.available(), acct: cloudAccount.acct, sync: cloudSync, todayIso, onCreate: () => setAcctSheet("create"), onSignIn: () => setAcctSheet("signin"), onBackup: () => backupToCloud(), onSignOut: signOut, onDelete: deleteAccount, onUseBackup: resolveUseBackup, onKeepDevice: resolveKeepDevice, onPro: () => setProOpen(true) } : null}
-      care={stage === "preg" ? null : <CareScreen embedded shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: s.id === "midi" ? "habit" : "supp", started: todayIso }]); ping("Added — Heard Health will compare your days before and after"); }} />} />
+      care={stage === "preg" ? null : <CareScreen embedded shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: shelfKind(s), started: todayIso }]); ping(shelfKind(s) === "care" ? "Added to What I'm trying" : "Added — your days before and after will be compared"); }} />} />
   );
   const practicesView = () => <PracticesScreen canFull={canFull} favs={practiceFavs} onOpen={openPractice} onPro={() => setProOpen(true)} featured={{ practice: localPractice(practiceOf("slow")), need: "calm" }} />;
   const journeyView = () => {

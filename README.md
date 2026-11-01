@@ -1,8 +1,8 @@
-# Heard Health
+# Solia Health
 
 *I am Heard.*
 
-Heard Health (formerly Cyra; renamed 2026-10-30) is a calm, low-pressure companion for women's health: a cycle and symptom tracker that finds patterns in her own
+Solia Health (formerly Heard Health, renamed 2026-11-01, and before that Cyra) is a calm, low-pressure companion for women's health: a cycle and symptom tracker that finds patterns in her own
 log and turns them into plain-language notes and a doctor-ready PDF. One life-stage experience at a time — My
 Cycle, Trying to conceive, Pregnancy, Perimenopause, Menopause & beyond — with optional condition modules (PCOS,
 POTS; hair loss is the next slot). Guest first: no account to start, and the health log stays on the device.
@@ -11,14 +11,14 @@ Guidance only, never diagnosis or medical advice.
 **What's in the app**
 - Five tabs and a "+" log sheet: **Home** (cycle day in a ring, Today's small step, Quick log tiles, Body and Mind
   progress, your patterns), **Body** (fast log, calendar, cycles, PCOS signals and lab values she types in),
-  **Mind** (mood check-in, 2–5 minute practices with their evidence and sources, journal and Ask Heard Health), **Patterns**
+  **Mind** (mood check-in, 2–5 minute practices with their evidence and sources, journal and Ask Solia Health), **Patterns**
   (cycle timeline, Body and Mind rings in words, pattern cards, the weekly review with one optional experiment,
-  the Report and PDF) and **You** (stage, privacy and your data, modules, plan, reminders, appearance, Heard Health's AI,
+  the Report and PDF) and **You** (stage, privacy and your data, modules, plan, reminders, appearance, Solia Health's AI,
   account, support & care, about).
 - Tone rules: no streaks, scores, grades or failure language; empty states say "A few more logs will show clearer
   associations"; practices are "wellbeing support, not treatment".
 - Free core forever (logging, calendar, cycles, patterns, weekly review, the basic PDF). Pro (store purchase, not
-  wired to a store yet) adds the full practice library and Heard Health's AI write-up and chat; see docs/MONETIZATION.md.
+  wired to a store yet) adds the full practice library and Solia Health's AI write-up and chat; see docs/MONETIZATION.md.
 - Language support: every screen string goes through `t()` (src/lib/i18n.js) with an English catalogue
   (src/locales/en.js). Dates and numbers are formatted with Intl, `<html lang>`/`dir` follow the language. Only
   English ships, so the You → Language picker stays hidden until a second complete catalogue is added.

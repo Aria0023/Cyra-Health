@@ -1,5 +1,6 @@
 import { fmt } from "../lib/engine.js";
 import { fmtDate } from "../lib/i18n.js";
+import Details from "./Details.jsx";
 
 /* "Your cycles" (Calendar, L5; spec §5.1): the running cycle and up to 12 earlier ones, newest first, from
    lib/engine.js cycleSummary(). Each row is start · length · a decorative bar · her "Don't use" switch; the text
@@ -23,8 +24,11 @@ export default function CycleList({ cyc, peri = false, onUse }) {
   };
   return (
     <>
-      <p>Predictions use up to your last 6 cycles. Tap “Don't use” on one that wasn't typical for you — after stopping the pill, an illness or a pregnancy, for example. Heard Health may point out a cycle that looks unusual, but only you can leave one out.</p>
-      <p>Your Report and insights still count every cycle.</p>
+      <p>Predictions use up to your last 6 cycles. Tap “Don't use” on one that wasn't typical for you.</p>
+      <Details label="When to leave one out">
+        <p>For example after stopping the pill, an illness or a pregnancy. A cycle that looks unusual may be pointed out, but only you can leave one out.</p>
+        <p>Your Report and insights still count every cycle.</p>
+      </Details>
       <ul className="cyclist">
         {cyc.current && (
           <li className="cycrow now">

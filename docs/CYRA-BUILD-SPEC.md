@@ -1,5 +1,15 @@
 # CYRA HEALTH — BUILD SPECIFICATION
 
+> **Renamed to Solia Health (2026-11-01).** The product's visible name is now **Solia Health** (wordmark "Solia" +
+> small-caps "HEALTH", home-screen label "Solia"); the slogan stays **"I am Heard"**. Read every user-facing "Cyra" or
+> "Heard Health" in this spec (including the note below) as "Solia Health". New mark: a soft ring with a half-sun rising
+> from a short horizon inside it and one small dot (`docs/brand/solia-*.svg`, `docs/brand/README.md`); icons are
+> redrawn by `scripts/make-icons.mjs`. Exported files are named `solia-health-…`; restore still accepts backups made by
+> the Cyra and Heard Health builds (it reads the envelope, not the name). Unchanged on purpose: every storage
+> identifier, the backup format id, the account key tags, cache/channel/lock names, the app id / bundle id / package,
+> the plugin names, routes, classes, ids, `data-*` hooks, i18n keys and the build stamp. Privacy wording:
+> docs/PRIVACY-AUDIT.md "Rename to Solia".
+
 > **Renamed to Heard Health (2026-10-30).** The product's visible name is now **Heard Health** (home-screen label
 > "Heard"), with the slogan **"I am Heard"** (the splash tagline, which replaces "One companion for every phase";
 > the PWA manifest and index.html description lead; the You → About & legal card). The body of this spec still says
@@ -1511,6 +1521,47 @@ Validator (`validate_palette.js --ordinal`): light on #FFFFFF and #FAF7F4 all ch
 6°), dark on #1C1F2D all pass (light end 2.68:1, hue spread 4°). FAMILIES, RAMPS and RAMPS_DARK are unchanged and still
 pass on the new dark cards (unit tests).
 
+### 8.6 The Mono style (Solia, 2026-11-01)
+
+You → Appearance has a second choice, **Style: Soft · Mono** (Soft, today's look, is the default). Mono is a calm
+single-colour skin of the same layout, components, spacing and type: neutral warm-grey paper and cards, one soft ink,
+ONE muted slate accent shared by every stage, no pastel wash, the domain tints resolved to one neutral grey, flat cards
+with hairline borders instead of shadows, icon badges and chips outlined instead of filled. Like Appearance it is a
+device preference (`uiStyle`, record.js DEVICE_PREFS): saved with the on-device record, followed by every open tab,
+never in a backup and never taken from one.
+
+- **Implementation.** One token layer: `MONO.light` / `MONO.dark` in lib/constants.js, written by styles.js onto
+  `.cy[data-style="mono"]` and `.cy[data-style="mono"][data-scheme="dark"]` (the seven palette tokens with
+  `!important`, since App.jsx sets them inline), plus five small rules (flat tinted card heads with a hairline, outlined
+  `.ibadge` / `.qtile-ico` / `.vchip`, quieter blobs). Shell puts `data-style` on `.cy`; no screen has style code.
+- **Colours (light | dark).** paper `#F3F2EF` | `#161719`, card `#FBFAF8` | `#1F2023`, ink `#2B2C30` | `#E4E3E0`, soft
+  `#5B5D63` | `#A7A9AE`, line `#808288` | `#72757C`, primary (slate) `#46576B` | `#A8B5C6`, accent (graphite) `#5D636C` |
+  `#B4B8BF`, edge `#DCDAD5` | `#2E3034`, one tint `#ECEBE7` | `#27292C`. The brand mark follows the slate in Mono.
+- **Data viz stays as it is.** FAMILIES, RAMPS / RAMPS_DARK and SOFT_RAMP are untouched, so charts keep their colours;
+  on the Mono cards their contrast is within 0.1 of the Soft cards (e.g. the dark family colours 3.11–5.51:1 on
+  `#1F2023` vs 3.12–5.53:1 on `#1C1F2D`).
+- **Contrast** (WCAG, lib/appearance.test.mjs; all text ≥ 4.5:1, all UI boundaries ≥ 3:1):
+
+| pair | light | dark |
+| --- | --- | --- |
+| ink on paper | 12.46:1 | 13.98:1 |
+| ink on card | 13.37:1 | 12.69:1 |
+| soft on paper | 5.88:1 | 7.63:1 |
+| soft on card | 6.31:1 | 6.93:1 |
+| soft on tint | 5.52:1 | 6.20:1 |
+| primary-text on paper | 7.47:1 | 9.45:1 |
+| primary-text on card | 8.01:1 | 8.58:1 |
+| accent-text on card | 6.76:1 | 8.93:1 |
+| good on card | 7.28:1 | 8.42:1 |
+| bad on card | 6.38:1 | 7.50:1 |
+| on-primary on primary | 7.40:1 | 8.62:1 |
+| line (control edge) on paper | 3.43:1 | 3.89:1 |
+| line (control edge) on card | 3.68:1 | 3.53:1 |
+| line (control edge) on tint | 3.22:1 | 3.16:1 |
+| primary (fill/focus) on card | 7.10:1 | 7.83:1 |
+| ev-mixed-ink on ev-mixed-bg | 7.15:1 | 9.12:1 |
+| primary-text on primary 16% chip | 6.31:1 | 6.20:1 |
+
 ## 9. BACKEND (separate service, optional for v1)
 
 Modular Node/Express. Features load from a config list; each is a folder exporting
@@ -1673,6 +1724,27 @@ backend/scripts/ai-smoke.js against a mock upstream (no real key).
 - Every privacy claim in the UI must be literally true of the shipped build.
 
 ---
+
+
+### 11.x Readability (Solia C, 2026-11-01)
+
+The owner found long text hard on the eyes. Every screen follows five rules:
+1. At most one or two short sentences visible per card; explanations sit behind a disclosure ("How this works", "Why
+   this matters", "How comparing works", "What counts as long"); citations always collapsed under "Source".
+2. Don't repeat the app's name in sentences; prefer plain verbs ("Counted once a cycle ends.").
+3. A status that would repeat on every row becomes a short chip ("Not enough days to compare"); the detail is said
+   once, behind a tap.
+4. Labels and short lists beat paragraphs. Prose in cards, panels, sheets and onboarding is ≥ 16px, line-height 1.55,
+   at most 60ch, with paragraph spacing; text is soft ink, never pure black, and AA in both schemes and both styles.
+5. Disclaimers ("not a diagnosis or medical advice") are one small line, once per screen.
+
+Specific: the PCOS long-cycle card is a big number + label ("1 cycle longer than 35 days"), one calm line and two
+disclosures; "What I'm trying" is a one-line intro, compact rows (name, kind, since, a status chip), and the compare
+rule said once; Care-shelf items get a fitting kind (lib/trying.js: Program, Care, Comfort aid, Supplement) and the
+daily question fits the kind ("Taken today?", "Did it today?", "Used it today?", none for care). Journal: the prompt
+and the box. Privacy sentences moved or reworded: docs/PRIVACY-AUDIT.md "Readability pass"; medical ones:
+docs/CLINICIAN-REVIEW.md "Readability pass". Kept as they were, on purpose: the consent step, the Account card and the
+POTS screens' copy (the suites assert those sentences word for word; they get the typography only).
 
 ## 12. ACCEPTANCE CRITERIA
 

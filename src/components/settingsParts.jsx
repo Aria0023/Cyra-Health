@@ -1,5 +1,5 @@
 import { CADENCE } from "../lib/constants.js";
-import { APPEARANCES } from "../lib/appearance.js";
+import { APPEARANCES, STYLES } from "../lib/appearance.js";
 import { hasServer } from "../lib/api.js";
 import { STAGE_GROUP, flagWords } from "../lib/pulse.js";
 import { FEATURES, remindersInBuild } from "../lib/features.js";
@@ -28,9 +28,9 @@ export const Lab = ({ id, icon, children, style, hide = false }) => (
 export function reminderModel({ reminders, reminderSupport, cadence }) {
   const st = reminders?.status;
   const remindersText = st === "blocked"
-    ? (reminderSupport === "native" ? "Notifications for Heard Health are off in your phone's Settings — turn them on there, then tap Turn on" : reminders.denied ? "Blocked in this browser — allow notifications for Heard Health in site settings, then tap Turn on" : "Waiting for permission — tap Turn on and choose Allow")
+    ? (reminderSupport === "native" ? "Notifications for Solia Health are off in your phone's Settings — turn them on there, then tap Turn on" : reminders.denied ? "Blocked in this browser — allow notifications for Solia Health in site settings, then tap Turn on" : "Waiting for permission — tap Turn on and choose Allow")
     : st === "error" && reminders?.cancelFailed ? "Couldn't cancel the reminders already scheduled on this phone — tap Turn off to try again"
-    : !reminders?.enabled ? (reminders?.pending?.length ? "Off — this browser won't show reminders. Heard Health's server hasn't confirmed it forgot this browser's reminder address yet; Heard Health keeps asking while it's open and each time you open it" : "Off")
+    : !reminders?.enabled ? (reminders?.pending?.length ? "Off — this browser won't show reminders. Solia Health's server hasn't confirmed it forgot this browser's reminder address yet; Solia Health keeps asking while it's open and each time you open it" : "Off")
     : st === "on" ? "On"
     : st === "unsupported" ? "This browser can't show reminders"
     : st === "unavailable" ? "Reminders aren't set up on this server yet"
@@ -46,8 +46,8 @@ export function reminderModel({ reminders, reminderSupport, cadence }) {
   // no switch, a plain "Unavailable". A server that is merely unreachable keeps the switch (it may come back).
   const unavailable = st === "unsupported" || (reminderSupport === "web" && !hasServer());
   const remindersSub = reminderSupport === "native" ? "Scheduled on this phone — no server involved."
-    : webReminders ? "A plain reminder, nothing about your health in it. Heard Health's server keeps this browser's push address and your reminder schedule; turning reminders off erases them. A server update or restart can pause them until you next open Heard Health. No phone number, no texts, ever."
-    : reminderSupport === "web" ? "Reminders aren't available in this version of Heard Health."
+    : webReminders ? "A plain reminder, nothing about your health in it. Solia Health's server keeps this browser's push address and your reminder schedule; turning reminders off erases them. A server update or restart can pause them until you next open Solia Health. No phone number, no texts, ever."
+    : reminderSupport === "web" ? "Reminders aren't available in this version of Solia Health."
     : "This browser can't show reminders.";
   // The nudge time only matters while something will use it: rhythm "When I feel like it" schedules nothing,
   // and while reminders are off (but could be turned on) the time waits. The buttons stay enabled.
@@ -124,14 +124,14 @@ export function CountsBody({ stage, research, setResearch, lead = false, hideLab
           <Details label="Exactly what's sent"><CountsFacts stage={stage} /></Details>
         </>
       ) : (
-        <p className="hint" style={{ margin: "0 0 8px" }}>Weekly counts aren't available in this version of Heard Health, so nothing is shared.</p>
+        <p className="hint" style={{ margin: "0 0 8px" }}>Weekly counts aren't available in this version of Solia Health, so nothing is shared.</p>
       )}
     </>
   );
 }
 
-/** Appearance: System / Light / Dark. */
-export function AppearanceBody({ appearance, onAppearance, hideLab = false }) {
+/** Appearance: System / Light / Dark, then Style: Soft / Mono (Solia; both are this device's display preferences). */
+export function AppearanceBody({ appearance, onAppearance, uiStyle = "soft", onStyle, hideLab = false }) {
   return (
     <>
       <Lab id="set-appearance" icon="moon" hide={hideLab} style={{ margin: "0 0 6px" }}>Appearance</Lab>
@@ -140,7 +140,17 @@ export function AppearanceBody({ appearance, onAppearance, hideLab = false }) {
           <button key={v} className={`mc ${appearance === v ? "on" : ""}`} aria-pressed={appearance === v} onClick={() => onAppearance(v)}>{label}</button>
         ))}
       </div>
-      <p className="rfoot">System follows this device's light or dark setting. Your choice stays on this device and isn't part of a backup.</p>
+      {onStyle && (
+        <>
+          <Lab id="set-style" icon="sun" style={{ margin: "12px 0 6px" }}>Style</Lab>
+          <div className="mcrow seg" role="group" aria-labelledby="set-style">
+            {STYLES.map(([v, label]) => (
+              <button key={v} className={`mc ${uiStyle === v ? "on" : ""}`} aria-pressed={uiStyle === v} onClick={() => onStyle(v)}>{label}</button>
+            ))}
+          </div>
+        </>
+      )}
+      <p className="rfoot">System follows this device's setting. Your {onStyle ? "choices stay" : "choice stays"} on this device and {onStyle ? "aren't" : "isn't"} part of a backup.</p>
     </>
   );
 }
@@ -174,7 +184,7 @@ export function privacyFacts(flows = [], lock = null) {
 export function PrivacyBody({ storageDriver, onExport, onImport, onWipe, ping, keepsWeekNote, daysLogged, lastBackupAt, todayIso, offlineCopy, legacyWear, onHandoff, flows, flowCtx, lock, potsOn, hideLab = false, compact = false }) {
   return (
     <>
-      <DataControls driver={storageDriver} onExport={onExport} onImport={onImport} onWipe={onWipe} ping={ping} keepsWeekNote={keepsWeekNote} daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} offlineCopy={offlineCopy} legacyWear={legacyWear} onHandoff={onHandoff} hideLab={hideLab} compact={compact} facts={compact ? privacyFacts(flows, lock) : []} howLead={compact ? "Your log is yours. Below is everything Heard Health can send, and the tools to back it up, lock it and delete it." : null}>
+      <DataControls driver={storageDriver} onExport={onExport} onImport={onImport} onWipe={onWipe} ping={ping} keepsWeekNote={keepsWeekNote} daysLogged={daysLogged} lastBackupAt={lastBackupAt} todayIso={todayIso} offlineCopy={offlineCopy} legacyWear={legacyWear} onHandoff={onHandoff} hideLab={hideLab} compact={compact} facts={compact ? privacyFacts(flows, lock) : []} howLead={compact ? "Your log is yours. Below is everything Solia Health can send, and the tools to back it up, lock it and delete it." : null}>
         <PrivacyFlows rows={flows} {...flowCtx} />
       </DataControls>
       {lock && <LockSettings lock={lock} potsOn={potsOn} compact={compact} />}

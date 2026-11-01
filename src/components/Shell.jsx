@@ -7,10 +7,11 @@ import { css } from "../styles.js";
    the pill to a left-aligned, rounded block. `repaint` is true for --t-slow after a palette change (or
    an Appearance change) so the chrome crossfades together. `scheme` ("light" | "dark", App.jsx
    resolveScheme) goes on data-scheme, which selects the dark token rule in styles.js; the palette and
-   data-viz variables arrive inline in `style`. */
-export default function Shell({ style, scheme = "light", toast = "", repaint = false, children }) {
+   data-viz variables arrive inline in `style`. `uiStyle` ("soft" | "mono", lib/appearance.js STYLES) goes on
+   data-style; the Mono token layer in styles.js (lib/constants.js MONO) keys off it. */
+export default function Shell({ style, scheme = "light", uiStyle = "soft", toast = "", repaint = false, children }) {
   return (
-    <div className={`cy${repaint ? " repaint" : ""}`} data-scheme={scheme} style={style}>
+    <div className={`cy${repaint ? " repaint" : ""}`} data-scheme={scheme} data-style={uiStyle} style={style}>
       <style>{css}</style>
       {children}
       <div className={`toast${toast ? " show" : ""}${toast.length > 60 ? " long" : ""}`} role="status" aria-live="polite">{toast}</div>

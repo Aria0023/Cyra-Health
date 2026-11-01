@@ -178,7 +178,7 @@ export const stagePalettes = (stage, stageName) => {
 };
 
 export const ORGS = {
-  cyra: { slug: "cyra", name: "Heard", title: "Heard Health", tag: "Health", theme: { primary: "#5B54A6", paper: "#FAF7F4", card: "#FFFFFF", ink: "#1E2132", soft: "#585C72", line: "#8A8DA3", accent: "#A8486E", dark: { paper: "#131520", card: "#1C1F2D", ink: "#E9EAF3", soft: "#A5A9C0", line: "#6D7290", primary: "#B9B3F2", accent: "#F0A3C0" } }, partnerIds: null, plan: "Consumer (D2C)" },
+  cyra: { slug: "cyra", name: "Solia", title: "Solia Health", tag: "Health", theme: { primary: "#5B54A6", paper: "#FAF7F4", card: "#FFFFFF", ink: "#1E2132", soft: "#585C72", line: "#8A8DA3", accent: "#A8486E", dark: { paper: "#131520", card: "#1C1F2D", ink: "#E9EAF3", soft: "#A5A9C0", line: "#6D7290", primary: "#B9B3F2", accent: "#F0A3C0" } }, partnerIds: null, plan: "Consumer (D2C)" },
   bloom: { slug: "bloom", name: "Bloom", title: "Bloom", tag: "by AcmeCare", theme: { primary: "#2F5D50", paper: "#F2F5F1", card: "#FBFDFA", accent: "#C89A5B", ink: "#26332E", soft: "#5F6E67", line: "#DCE3DD", dark: { paper: "#141713", card: "#1E221D", ink: "#E2ECE8", soft: "#9AAFA5", line: "#6F7971", primary: "#8AC2B0", accent: "#D8A96A" } }, partnerIds: ["midi", "restfully"], plan: "Employer benefit (500 seats)" },
 };
 
@@ -200,7 +200,7 @@ export const SCHEME_TOKENS = {
     "--edge": "#ECE7E3", "--wash-a": "rgba(150,120,230,.06)", "--wash-b": "rgba(100,165,235,.06)", "--wash-c": "rgba(240,130,175,.06)",
     "--tint-mind": "#EAF1FB", "--tint-body": "#F5EDF8", "--tint-patterns": "#FDF0E6", "--tint-you": "#F2F0ED",
     "--sh-lift": "0 2px 6px rgba(30,33,50,.06), 0 14px 32px -10px rgba(30,33,50,.24)", "--scrim": "rgba(30,33,50,.34)",
-    // Heard Health rename: the brand mark's colour (docs/brand/README.md), apart from the stage palettes.
+    // Solia Health brand: the mark's colour (docs/brand/README.md), apart from the stage palettes.
     "--brand": "#4A5DB0",
   },
   dark: {
@@ -217,6 +217,37 @@ export const SCHEME_TOKENS = {
   },
 };
 
+
+/* The Mono style (Solia, 2026-11-01): a quieter single-colour skin of the same layout, chosen in You → Appearance →
+   Style (a device preference, lib/appearance.js STYLES). styles.js writes these onto .cy[data-style="mono"] and its
+   dark variant, over the palette (the seven palette tokens, with !important because App.jsx sets those inline) and
+   over SCHEME_TOKENS: neutral warm-grey paper and cards, one soft ink, ONE muted slate accent for every stage (primary;
+   accent is its neutral graphite partner), no pastel wash, domain tints that resolve to one neutral grey, and flat
+   surfaces (no shadows; hairline borders instead). Status hues (--good, --bad) keep their meaning. Data-viz colours
+   (FAMILIES, RAMPS, SOFT_RAMP) are not touched: charts keep their colours. Every text pair is AA (4.5:1) and every
+   UI boundary 3:1 on paper, card and the tint grey in both schemes (lib/appearance.test.mjs; numbers in the
+   docs/CYRA-BUILD-SPEC.md "Mono style" note). */
+export const MONO_PALETTE_KEYS = ["--primary", "--accent", "--paper", "--card", "--ink", "--soft", "--line"];
+export const MONO = {
+  light: {
+    "--primary": "#46576B", "--accent": "#5D636C", "--paper": "#F3F2EF", "--card": "#FBFAF8", "--ink": "#2B2C30", "--soft": "#5B5D63", "--line": "#808288",
+    "--edge": "#DCDAD5", "--wash-a": "transparent", "--wash-b": "transparent", "--wash-c": "transparent",
+    "--tint-mind": "#ECEBE7", "--tint-body": "#ECEBE7", "--tint-patterns": "#ECEBE7", "--tint-you": "#ECEBE7",
+    "--ev-mixed-bg": "#ECEBE7", "--ev-mixed-ink": "#5B4A2E", "--ev-comfort-bg": "#ECEBE7", "--ev-comfort-ink": "#4F5258",
+    "--good": "#3E5A49", "--bad": "#9A3F3F", "--on-primary": "#FFF", "--on-ink": "#FFF", "--toast-dot": "var(--primary)", "--brand": "#46576B",
+    "--sh-card": "none", "--sh-opt": "none", "--sh-meter": "none", "--sh-lift": "0 0 0 1px #D6D4CF", "--sh-sheet": "0 -1px 0 #D6D4CF", "--sh-toast": "none",
+    "--scrim": "rgba(43,44,48,.30)",
+  },
+  dark: {
+    "--primary": "#A8B5C6", "--accent": "#B4B8BF", "--paper": "#161719", "--card": "#1F2023", "--ink": "#E4E3E0", "--soft": "#A7A9AE", "--line": "#72757C",
+    "--edge": "#2E3034", "--wash-a": "transparent", "--wash-b": "transparent", "--wash-c": "transparent",
+    "--tint-mind": "#27292C", "--tint-body": "#27292C", "--tint-patterns": "#27292C", "--tint-you": "#27292C",
+    "--ev-mixed-bg": "#27292C", "--ev-mixed-ink": "#E3C9A0", "--ev-comfort-bg": "#27292C", "--ev-comfort-ink": "#C9CBD0",
+    "--good": "#8FC7A2", "--bad": "#EE9A91", "--on-primary": "var(--paper)", "--on-ink": "var(--paper)", "--toast-dot": "var(--primary)", "--brand": "#A8B5C6",
+    "--sh-card": "none", "--sh-opt": "none", "--sh-meter": "none", "--sh-lift": "0 0 0 1px #3A3C41", "--sh-sheet": "0 -1px 0 #3A3C41", "--sh-toast": "none",
+    "--scrim": "rgba(0,0,0,.55)",
+  },
+};
 
 /* ---- Data viz (kept apart from PALETTES and SCHEME_TOKENS; never derived from a UI palette) ----
    Patterns charts: every symptom belongs to one family, and each family has one fixed data-viz colour

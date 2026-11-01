@@ -1772,3 +1772,95 @@ script check the request list).
   "if Meal notes is on, how many days had each kind of meal and how often your energy was steady, dipped or crashed after a
   meal (counts only, never a meal or a food)". summaryNever is unchanged.
 
+
+## Rename to Solia (Solia Health, 2026-11-01) — no new request, no new record key, nothing new leaves the device
+
+The product is renamed from Heard Health to **Solia Health** (wordmark "Solia", home-screen label "Solia"); the slogan
+stays "I am Heard". Every privacy sentence in the app, the backend's user-visible text, the iOS Health usage text and
+plugin errors and the Android Health Connect rationale changed by **name substitution only** ("Heard Health" →
+"Solia Health", "Heard Health's" → "Solia Health's", a bare "Heard" → "Solia" only where the old copy used a bare
+"Heard": the wordmark, the home-screen label and the iPhone Health settings path), with the exceptions listed below.
+No sentence was dropped, merged or moved in this step; no claim was weakened. The default build's requests are
+unchanged (the new favicon and icons are same-origin files).
+
+**Unchanged on purpose:** everything listed under "Rebrand" above (IndexedDB and phone file names, record and
+preference keys, the backup envelope's `format: "cyra-backup"`, the account key-derivation tags, the `cyra-shell-*`
+cache prefix, BroadcastChannel and Web Lock names, flag names, class names, routes, ids, `data-*` hooks, i18n keys, the
+CyraHealth/CyraAuth plugin names, the app id / bundle id / package `com.cyrahealth.app`, the `cyrahealth://` scheme
+and the build stamp).
+
+**Files she makes** are now named `solia-health-backup-<day>.json`, `solia-health-summary-<day>.pdf`,
+`solia-health-report-<day>.pdf` and `solia-health-data-<day>.csv`. Restore reads the envelope, never the file name, so
+backups made by the Cyra builds (`cyra-backup-<day>.cyra.json`) and the Heard Health builds
+(`heard-health-backup-<day>.json`) restore as before (checked by the rename's restore test with one of each). The
+phone's cache sweep removes leftovers with any of the three prefixes, so "deleted the next time the app opens" stays
+true for a file an interrupted share from an older build left behind.
+
+**Sentences reworded beyond the name, and why:**
+- The app lock's passkey is now created as "Solia Health lock" (relying-party name "Solia Health"). A passkey set up
+  before the update keeps its old name in her password manager, so the three sentences that name it now say
+  ("Cyra lock" or "Heard Health lock" if you set it up before the app was renamed).
+- Removing the app in an Oura, Fitbit, Garmin or Whoop account: those services list the app under the name
+  registered with them, which the build doesn't control. Each removal instruction now says "(it may be listed as Cyra
+  or Heard Health)", "(it may be listed as Cyra, Heard Health or Terra)" where it already named Terra, and "(or Cyra or
+  Heard Health)" in the two "if it still shows" lines (src/App.jsx restoredOuraGone, src/lib/wearables.js
+  SERVER_SILENT follow-up). Same in the two backend error messages (backend/src/modules/integrations/index.js), the
+  LEGACY_WEAR_LINE (src/lib/disclosures.js), DataControls' removal lines and the record-unavailable screen.
+  - Example, before: remove Heard Health (it may be listed as Cyra) in your Oura account's connected apps
+  - After: remove Solia Health (it may be listed as Cyra or Heard Health) in your Oura account's connected apps
+
+## Mono style (Solia, 2026-11-01) — one device preference, no new request, nothing new leaves the device
+
+You → Appearance gains **Style: Soft · Mono**. The choice is a new record key, `uiStyle` ("soft" | "mono", default
+"soft"), and it is a **device preference** exactly like `appearance` and `uiLocale` (record.js DEVICE_PREFS): saved with
+the on-device record (IndexedDB on the web, the app's own file on the phone), followed by every open tab of this
+browser, **never in a backup file** (NOT_IN_BACKUP; exportBackup drops it) and **never taken from one** (importBackup
+keeps this device's value; applySaved skips DEVICE_PREFS). It is never sent anywhere: lib/appearance.js stays pure, and
+the only consumer is Shell's `data-style` attribute, which styles.js reads. No request, font or asset was added.
+
+**Sentences reworded, and why:**
+- Appearance card / Settings sheet footnote (src/components/settingsParts.jsx AppearanceBody), because the card now
+  holds two choices and both stay on this device:
+  - Before: System follows this device's light or dark setting. Your choice stays on this device and isn't part of a backup.
+  - After: System follows this device's light or dark setting. Mono is a quieter, single-colour look. Your choices stay on this device and aren't part of a backup.
+- "What a restore changes" (src/lib/disclosures.js restoreChanges), because a restore keeps this device's style too:
+  - Before: Your settings are replaced too, except this device's choices about …, and appearance (light or dark).
+  - After: Your settings are replaced too, except this device's choices about …, and appearance (light or dark, and the style).
+
+## Readability pass (Solia C, 2026-11-01) — no new record key, no new request, nothing new leaves the device
+
+Screens show one or two short lines per card; explanations sit behind "How this works"-style disclosures (the Details
+component keeps a closed panel in the page, `hidden`, so every sentence is still part of the screen and still read by
+the suites). **No privacy sentence was dropped or weakened.** Each one below is either unchanged and moved behind a
+tap, or reworded only around an unchanged privacy clause.
+
+**Moved behind a disclosure (text unchanged):**
+- Report → Appointment PDF: "In it: … " (what the PDF holds) → "What's in it"; "The same numbers are on this page; the
+  tables are under "The numbers behind this"." → "Where the numbers come from". The file warning ("This file isn't
+  locked. …") and "At the top: your name, your life stage and the dates it covers." stay on the card.
+- Patterns → day-by-day chart: how to read the chart → "How to read this chart" (not a privacy sentence).
+- Body → Calendar: what the estimate rests on → "How this is worked out"; "Estimates — not contraception." stays.
+- Body → Cycles: the "Don't use" explanation → "When to leave one out" (not a privacy sentence).
+
+**Reworded around an unchanged privacy clause:**
+- You → Appearance footnote: "System follows this device's light or dark setting. Mono is a quieter, single-colour
+  look. Your choices stay on this device and aren't part of a backup." → "System follows this device's setting. Your
+  choices stay on this device and aren't part of a backup."
+- Report → email: "A short email your doctor can read in twenty seconds — nothing to log into on their end. Below is
+  exactly what it says. Solia Health itself sends nothing; the text goes only where you take it." → "A short email your
+  doctor can read in twenty seconds. Solia Health itself sends nothing; the text goes only where you take it."
+- Registration → Living with PCOS?: "Optional. A yes adds PCOS symptoms, signals and cycle wording to your log; you can
+  change it anytime in You. Your answer stays on this device, and goes into an encrypted backup only if you save
+  one." → "Optional. A yes adds PCOS tracking, and you can change it in You. Your answer stays on this device, and goes
+  into an encrypted backup only if you save one."
+- Practice sheet: "Your answer stays on this device. Solia Health suggests what helps you more often." → "Your answer
+  stays on this device. What helps you comes up more often." Mind → Today: "Solia Health suggests what helps you more
+  often. Your answers stay on this device." → "What helps you comes up more often. Your answers stay on this device."
+- You → About you (Your answers): "Solia Health uses your typical cycle length and last period for predictions until
+  your own logged cycles take over." → "Used for predictions until your own logged cycles take over." and "Solia
+  Health uses this for your week and your care roadmap." → "Used for your week and your care roadmap." (Both sit
+  under the answers they describe; the ZIP line is unchanged.)
+
+**What I'm trying:** items added from the Care shelf now get a fitting kind (`program`, `care`, `aid`, `supp`; lib/
+trying.js) instead of "supp"/"habit". `meds[].kind` was already free text in the record (record.js RULES), so no
+record key, migration or backup change; old items keep their kind.
