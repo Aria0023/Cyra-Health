@@ -206,6 +206,7 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `appearance` | System / Light / Dark | device preference (DEVICE_PREFS) | **no** (NOT_IN_BACKUP) | never (this device's kept) | yes (same browser, same device) |
 | `uiLocale` | her language choice, null = follow this device (calm R10; the picker shows only with two or more catalogues) | device preference (DEVICE_PREFS) | **no** (NOT_IN_BACKUP) | never (this device's kept) | yes (same browser, same device) |
 | `uiStyle` | the look: Soft (default), Mono, Bloom, Clear or Journal (one token layer each, lib/constants.js STYLE_SHAPE / STYLE_SKINS; unknown values read as Soft) | device preference (DEVICE_PREFS) | **no** (NOT_IN_BACKUP) | never (this device's kept) | yes (same browser, same device) |
+| `visitQuestions` | her own "Questions for my visit" for page 1 of the clinician summary: at most 8, each at most 200 characters (doctor report v2, lib/visitQuestions.js) | health log (her words) | yes | yes (literally) | yes |
 | `reminders` | the switch, this browser's push addresses, a version | bookkeeping | `{ enabled }` only | on the phone only (the web keeps this browser's switch) | own merge (`rev`, the `reminders` message) |
 
 "In the backup file" means inside the encrypted envelope (`lib/backup.js`, PBKDF2-SHA256 600,000

@@ -1884,3 +1884,43 @@ tap, or reworded only around an unchanged privacy clause.
 **What I'm trying:** items added from the Care shelf now get a fitting kind (`program`, `care`, `aid`, `supp`; lib/
 trying.js) instead of "supp"/"habit". `meds[].kind` was already free text in the record (record.js RULES), so no
 record key, migration or backup change; old items keep their kind.
+
+
+## Clinician summary (doctor report v2, 2026-11-02) — one new record key (in backups), no new request, nothing new leaves the device
+
+**What it is.** The Report's Appointment PDF now opens with a one-page clinician summary drawn on this device
+(lib/clinicianSummary.js with the bundled PdfDoc; no font, script or file is fetched to make it), with optional detailed
+pages. The file only leaves the device the way it did before: her own tap on Download PDF (a browser download), Share PDF…
+on the phone (the share sheet, cached file deleted in `finally`, lib/files.js unchanged) or the new web "Share…" button,
+which hands the same in-memory file to the browser's own share sheet (`navigator.share({ files })`, only where the browser
+says it can share files). Solia Health sends nothing; the default build makes zero new requests (flags-e2e).
+
+**What page 1 reads (all already on the device):** day entries (cycles, symptoms, rough nights), `meds` (What I'm trying:
+name, kind, start date), `labs` (values as typed, with dates), `bodyLog` sleep hours and movement, `moodLog` mood words,
+`cycleFlags`, the PCOS module switch, and her questions. Never: registration answers, the journal, Connect, appointments,
+wearable rows, POTS data, weight, meal notes (those only in the detailed pages, ticked), day notes (detailed pages, ticked).
+
+**New persisted key `visitQuestions`** — her own typed "Questions for my visit": `string[]`, at most 8 × 200 characters
+(lib/visitQuestions.js `cleanQuestions`). Record class, **in backups** (the local file and the optional encrypted account
+backup), restored literally (a backup without it clears it), removed by Delete everything. Never sent anywhere.
+
+**Defaults.** Her name is no longer printed unless she ticks "Include my name" (before this change the PDF header carried
+her first name whenever she had given one). "Add the detailed pages", "Include my notes", "Include meal notes" and "Include
+the AI write-up" are off on every visit and never saved. The AI write-up tick only reprints the write-up already stored on
+this device (`aiWeekly`); making the PDF sends nothing.
+
+**New or moved sentences (all literally true of this build):**
+- Card lead: "A one-page clinician summary, made on this device. Free, always."
+- "Off: the PDF is page 1 only." / "Page 2 on: every symptom and lab value, the 30-day tables and day ratings."
+- Notes hint (moved into the detailed pages): "N day notes in these 30 days will be in the PDF, in the detailed pages."
+  (unticked wording unchanged).
+- AI tick: "Your saved write-up goes on its own page, marked as written by the AI. Nothing is sent to make the PDF." /
+  "Your saved AI write-up stays out of the PDF unless this is ticked."
+- Share button sub-line: "the PDF, to Messages, Mail or a portal".
+- Questions card: "Type what you want to ask. They print on page 1 and stay on this device (and in your backups)."; toast
+  "Question saved on this device".
+- "What's in it": "Page 1: your cycles, top symptoms, What I'm trying with before and since counts, lab values you typed,
+  sleep, movement and mood, and your questions. No name unless you tick Include my name." (+ the detailed pages' contents).
+- In the PDF: "Prepared by the patient from her own log. Not a diagnosis.", "Patient-reported data", "Generated <date>".
+- Unchanged: the file warning (FILE_WARNING), the "?" warning, "made on this device".
+

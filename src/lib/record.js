@@ -21,6 +21,7 @@ import { cleanExperiments } from "./experiments.js";
 import { cleanAiPrefs, cleanAiChat, cleanAiWeekly } from "./aiFeatures.js";
 import { cleanCloudAccount } from "./account.js";
 import { cleanLocale } from "./i18n.js";
+import { cleanQuestions } from "./visitQuestions.js";
 
 /* ======================= shapes (documentation only) =======================
    Class tags: [record] the health record and settings (in the backup file, applied by a restore,
@@ -71,6 +72,7 @@ import { cleanLocale } from "./i18n.js";
  * @property {string|null} lastBackupAt [device-only] [not-in-backup] the local day this device last made a backup.
  * @property {null|"dismissed"|"installed"} installHint [device-only] [not-in-backup] whether this browser's install tip stays away (lib/pwa.js).
  * @property {"system"|"light"|"dark"} appearance [device-pref] [not-in-backup] this device's light / dark choice (lib/appearance.js).
+ * @property {string[]} visitQuestions [record] her own "Questions for my visit" for the clinician summary (doctor report v2, lib/visitQuestions.js): at most 8, each at most 200 characters.
  * @property {"soft"|"mono"|"bloom"|"clear"|"journal"} uiStyle [device-pref] [not-in-backup] this device's style: Soft, Mono, Bloom, Clear or Journal (lib/appearance.js STYLES).
  * @property {string|null} uiLocale [device-pref] [not-in-backup] calm R10: this device's language choice (null = follow the device; lib/i18n.js).
  * @property {CycleFlags} cycleFlags [record] cycles she left out of predictions (L5); missing means {}.
@@ -249,8 +251,10 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    restore keeps this device's value; Delete everything removes it with the record (the account's encrypted backup stays
    on Cyra's server until she deletes the account or it expires).
    exportLog (L9) is this month's count of appointment PDFs, { month: "YYYY-MM", n }, written only while plan.js sets a
-   monthly limit (none today, so it stays null): device-only and never in a backup file. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle"]);
+   monthly limit (none today, so it stays null): device-only and never in a backup file.
+   visitQuestions (doctor report v2, lib/visitQuestions.js) is her own typed "Questions for my visit" for page 1 of the
+   clinician summary: record, in backups, restored literally (a backup without it clears it). Never sent anywhere. */
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -494,6 +498,7 @@ export const RULES = Object.freeze({
   installHint: enumRule(INSTALL_HINTS, { nullable: true }),
   appearance: enumRule(APPEARANCES),
   uiStyle: enumRule(["soft", "mono", "bloom", "clear", "journal"]),
+  visitQuestions: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanQuestions(v)) ? [] : [`${p}: expected a list of at most 8 questions, each at most 200 characters, got ${show(v)}`]),
   uiLocale: (v, p) => (v === null || cleanLocale(v) === v ? [] : [`${p}: expected null or a language code, got ${show(v)}`]),
   // Her "Don't use for predictions" choices: a problem whenever cleanCycleFlags would change anything.
   cycleFlags: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanCycleFlags(v)) ? [] : [`${p}: expected { YYYY-MM-DD: { exclude: true|false, … } } (at most 400, no empty entries), got ${show(v)}`]),
