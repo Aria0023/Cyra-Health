@@ -1741,4 +1741,69 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
 .cy[data-style="mono"] .tchip { background:transparent; box-shadow:inset 0 0 0 1px var(--line); }
 .tintro { font-size:16px; line-height:1.55; margin:8px 0 4px; }
 .jprompt { font:600 18px/1.35 var(--ff-display); margin:8px 0 10px; font-style:var(--disp-style); }
+/* Doctor report v2 (2026-11-02): page 1 of the clinician summary as a scaled sheet (ClinicianPreview), its zoom, the
+   PDF options and "Questions for my visit". The sheet is always the light printed page: white paper, near-black ink and
+   the PDF's accent (--cs-acc, her stage colour at AA on white) in every style and scheme; sizes are points of the page
+   (--pt = 1/612 of the sheet's width), so it scales with the card. Helvetica / Arial, like the PDF's built-in fonts. */
+.csscroll { margin:12px 0 0; border-radius:6px; }
+.csscroll.big { overflow-x:auto; overscroll-behavior-x:contain; }
+.csscroll.big:focus-visible { outline:2px solid var(--primary); outline-offset:3px; }
+.cspreview { container-type:inline-size; width:100%; }
+.cspreview.big { width:612px; }
+.cspage { --pt:calc(100cqw / 612); position:relative; aspect-ratio:612 / 792; background:var(--cs-paper); color:var(--cs-ink); box-shadow:0 1px 2px color-mix(in srgb, var(--cs-ink) 18%, transparent), 0 6px 18px color-mix(in srgb, var(--cs-ink) 10%, transparent); border:1px solid var(--cs-hair); border-radius:3px; padding:calc(var(--pt) * 44) calc(var(--pt) * 46) calc(var(--pt) * 40); font-family:Helvetica, Arial, "Liberation Sans", sans-serif; font-size:calc(var(--pt) * 8.6); line-height:1.32; overflow:hidden; text-align:left; font-variant-numeric:tabular-nums; }
+.cspreview[data-paper="a4"] .cspage { aspect-ratio:595 / 842; }
+.cy .cspage p, .cy .cspage span, .cy .cspage b, .cy .cspage li, .cy .cspage small { font-family:inherit; font-style:normal; letter-spacing:0; max-width:none; color:inherit; line-height:1.32; }
+.cy .cspage p { margin:0; font-size:calc(var(--pt) * 8.6); }
+.cspage .soft, .cy .cspage .soft { color:var(--cs-soft); }
+.cshead { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.cy .cspage .cstitle { font-size:calc(var(--pt) * 15); font-weight:700; }
+.cy .cspage .csname { font-size:calc(var(--pt) * 11); font-weight:700; }
+.cy .cspage .csline { font-size:calc(var(--pt) * 8.8); margin-top:calc(var(--pt) * 6); }
+.cy .cspage .csmade { font-size:calc(var(--pt) * 8); color:var(--cs-soft); margin-top:calc(var(--pt) * 2); }
+.csrule { border:0; border-top:calc(var(--pt) * 1.2) solid var(--cs-acc); margin:calc(var(--pt) * 4) 0 0; }
+.cy .cspage .cslab { font-size:calc(var(--pt) * 7.6); font-weight:700; color:var(--cs-acc); text-transform:uppercase; letter-spacing:calc(var(--pt) * .9); border-bottom:calc(var(--pt) * .5) solid var(--cs-hair); padding-bottom:calc(var(--pt) * 3); margin:calc(var(--pt) * 13) 0 calc(var(--pt) * 4); }
+.cy .cspage .cstext { font-size:calc(var(--pt) * 8.6); }
+.cy .cspage .cstext.ind { padding-left:calc(var(--pt) * 10); font-size:calc(var(--pt) * 8.2); }
+.cy .cspage .csnote { font-size:calc(var(--pt) * 7.2); color:var(--cs-soft); margin-top:calc(var(--pt) * 2); }
+.csstrip { display:flex; align-items:center; gap:calc(var(--pt) * 6); margin:calc(var(--pt) * 6) 0 calc(var(--pt) * 6); }
+.cscyc { display:flex; flex-direction:column; align-items:center; justify-content:center; width:calc(var(--pt) * 52); height:calc(var(--pt) * 30); border:calc(var(--pt) * .5) solid var(--cs-hair); }
+.cscyc.long { border:calc(var(--pt) * .9) solid var(--cs-acc); background:var(--cs-tint); }
+.cy .cspage .cscyc b { font-size:calc(var(--pt) * 12); line-height:1.1; }
+.cy .cspage .cscyc small, .cy .cspage .cscur small { font-size:calc(var(--pt) * 6.4); color:var(--cs-soft); }
+.cscur { display:flex; flex-direction:column; margin-left:calc(var(--pt) * 6); }
+.cy .cspage .cscur b { font-size:calc(var(--pt) * 12); color:var(--cs-acc); }
+.cssyms { display:grid; gap:calc(var(--pt) * 2.5); }
+.cssym { display:grid; grid-template-columns:calc(var(--pt) * 132) calc(var(--pt) * 92) calc(var(--pt) * 34) 1fr; align-items:center; column-gap:0; }
+.cy .cspage .cssym > b { text-align:right; padding-right:calc(var(--pt) * 12); font-weight:700; }
+.cy .cspage .cssym > span:last-child { font-size:calc(var(--pt) * 8); }
+.csbar { display:block; height:calc(var(--pt) * 6); background:var(--cs-faint); }
+.csbar > i { display:block; height:100%; background:var(--cs-acc); }
+.cstreat + .cstreat { margin-top:calc(var(--pt) * 3); }
+.cstreathead { display:flex; justify-content:space-between; gap:8px; }
+.cy .cspage .cstreathead b { font-size:calc(var(--pt) * 8.8); }
+.cy .cspage .cstreathead span { font-size:calc(var(--pt) * 8); }
+.cslabrow { display:grid; grid-template-columns:calc(var(--pt) * 104) calc(var(--pt) * 54) 1fr; align-items:center; margin-bottom:calc(var(--pt) * 3); }
+.cy .cspage .cslabrow span { font-size:calc(var(--pt) * 8.2); white-space:pre-wrap; }
+.csspark { display:block; width:calc(var(--pt) * 40); height:calc(var(--pt) * 9); overflow:visible; }
+.csdaily { display:grid; grid-template-columns:calc(var(--pt) * 64) 1fr; row-gap:calc(var(--pt) * 1.5); }
+.csqs { list-style:none; margin:0; padding:0; }
+.csqs li { display:flex; gap:calc(var(--pt) * 6); margin-bottom:calc(var(--pt) * 1.5); }
+.cy .cspage .csqs b { color:var(--cs-acc); min-width:calc(var(--pt) * 8); }
+.cy .cspage .csqs li, .cy .cspage .csqs span { font-size:calc(var(--pt) * 8.8); }
+.csfoot { position:absolute; left:calc(var(--pt) * 46); right:calc(var(--pt) * 46); bottom:calc(var(--pt) * 16); display:flex; justify-content:space-between; border-top:calc(var(--pt) * .4) solid var(--cs-hair); padding-top:calc(var(--pt) * 4); }
+.cy .cspage .csfoot span { font-size:calc(var(--pt) * 7); color:var(--cs-soft); }
+.cszoom { min-height:44px; margin-top:4px; font-size:var(--fs-sm); }
+.pdfopts { margin-top:6px; }
+.qcard { background:var(--card); border:1px solid var(--line); border-radius:var(--r-card); padding:14px 16px; margin:0 0 var(--stack); }
+.qtitle { font:600 var(--fs-lg)/1.2 var(--ff-display); font-style:var(--disp-style); color:var(--ink); margin:0 0 4px; }
+.qlist { list-style:none; margin:10px 0 0; padding:0; }
+.qlist li { display:flex; align-items:flex-start; gap:10px; padding:8px 0; border-top:var(--rule); }
+.qnum { flex:0 0 auto; min-width:24px; height:24px; border-radius:12px; display:inline-flex; align-items:center; justify-content:center; font:700 13px var(--ff-num); color:var(--primary-text); background:color-mix(in srgb, var(--primary) 12%, var(--card)); margin-top:2px; }
+.qtext { flex:1; min-width:0; font-size:16px; line-height:1.5; overflow-wrap:anywhere; }
+.qremove { min-height:44px; min-width:44px; justify-content:center; font-size:var(--fs-sm); }
+.qadd { margin-top:8px; }
+.qinput { width:100%; resize:vertical; min-height:64px; }
+.qaddrow { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:6px; }
+.qaddrow .hint { margin:0; font-size:var(--fs-sm); }
+.qsave { min-height:44px; }
 `;

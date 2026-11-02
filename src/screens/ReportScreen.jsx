@@ -8,7 +8,9 @@ import Details from "../components/Details.jsx";
 import { FertilityFinding } from "../components/FertilitySummary.jsx";
 import { fertSummary } from "../lib/fertility.js";
 import { PdfDoc } from "../lib/pdf.js";
-import { visitPdf, visitTexts, FILE_WARNING, GATE_EMPTY, LOSSY_LINE, SAME_NUMBERS, limitLine } from "../lib/visitReport.js";
+import { visitTexts, FILE_WARNING, GATE_EMPTY, LOSSY_LINE, SAME_NUMBERS, limitLine } from "../lib/visitReport.js";
+import { fitSummary, summaryPdf, summaryTexts, pdfAccent, QUESTIONS_MAX, QUESTION_LEN, addQuestion, removeQuestion } from "../lib/clinicianSummary.js";
+import ClinicianPreview from "../components/ClinicianPreview.jsx";
 import { pdfLossy } from "../lib/potsReport.js";
 import { saveFile } from "../lib/files.js";
 import { isNative } from "../lib/native.js";
@@ -100,7 +102,7 @@ function Meter({ color, any, strong, mounted }) {
 
 const Sec = ({ n, children }) => <p className="rsec"><span className="rnum">{n}</span><span>{children}</span></p>;
 
-export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, showTable, setShowTable, potsOn = false, todayIso = localDay(), appt = null, daysUntil = () => 0, goTab = () => {}, setShowAppts = () => {}, scoreOn = () => null, scoreColor = () => "var(--primary)", scheme = "light", lens6 = null, fert = null, buildVisit = null, pdfLeft = null, onPdfMade = () => {}, pdfLimit = null, onHandoff = null, mealsK = 0 }) {
+export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, showTable, setShowTable, potsOn = false, todayIso = localDay(), appt = null, daysUntil = () => 0, goTab = () => {}, setShowAppts = () => {}, scoreOn = () => null, scoreColor = () => "var(--primary)", scheme = "light", lens6 = null, fert = null, buildVisit = null, pdfLeft = null, onPdfMade = () => {}, pdfLimit = null, onHandoff = null, mealsK = 0, buildSummary = null, hasName = false, accentHex = null, questions = [], setQuestions = () => {}, aiWriteUp = null }) {
   const n = ins.last30.length; // days logged in the last 30 calendar days
   // The last 6 cycle lengths, each marked when she left it out of predictions (L5): the spread still counts every one.
   const lensList = lens6 || ins.lens.map((len) => ({ len, excluded: false }));
@@ -110,6 +112,14 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
   const [withNotes, setWithNotes] = useState(false); // "Include my notes" (L9): UI only, unticked on every visit, never saved
   const [withMeals, setWithMeals] = useState(false); // "Include meal notes" (only offered while Meal notes is on and she has some): UI only, never saved
   const [busy, setBusy] = useState(false); // a PDF is being made or shared
+  // Doctor report v2: "Include my name", "Add the detailed pages" and "Include the AI write-up" are UI only, off on every visit,
+  // never saved. Notes, meal notes and the AI write-up live in the detailed pages, so ticking one of them adds those pages and
+  // unticking the pages unticks them.
+  const [withName, setWithName] = useState(false);
+  const [withDetail, setWithDetail] = useState(false);
+  const [withAi, setWithAi] = useState(false);
+  const [bigPreview, setBigPreview] = useState(false);
+  const [draftQ, setDraftQ] = useState("");
   const copyTimer = useRef(null);
   useEffect(() => { setMounted(true); return () => clearTimeout(copyTimer.current); }, []);
   // Printing wants the numbers table open; beforeprint covers the real dialog, the media query covers previews.
@@ -158,7 +168,10 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
   const pickedScripts = picked.slice().sort((a, b) => a - b).map((i) => scripts[i]).filter(Boolean);
   // The appointment PDF's model (L9): the picked questions and, while ticked, her notes. It is also the one source of the
   // comparison numbers on this page (prevFor), so the screen and the file cannot drift.
-  const visit = buildVisit ? buildVisit({ questions: pickedScripts, includeNotes: withNotes, includeMeals: mealsK > 0 && withMeals }) : null;
+  const visit = buildVisit ? buildVisit({ questions: pickedScripts, includeNotes: withNotes, includeMeals: mealsK > 0 && withMeals, includeName: withName }) : null;
+  // Page 1 (doctor report v2): her questions first, then the suggestions she added; trimmed to one page by a dry run.
+  const summary = buildSummary ? fitSummary(buildSummary({ includeName: withName, appendix: withDetail, picked: pickedScripts }), PdfDoc, accentHex) : null;
+  const accent = pdfAccent(accentHex);
   const prevFor = (c) => (visit && visit.symptoms.prevOk ? visit.symptoms.prevDays[c.id] ?? 0 : null);
   const email = buildEmail(pickedScripts);
   const emailText = `Subject: ${email.subject}\n\n${email.body}`;
@@ -174,56 +187,119 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
 
   // ---- the appointment PDF (L9): made on this device, handed over by lib/files.js, counted only if plan.js ever sets a limit ----
   const limitHit = pdfLeft !== null && pdfLeft <= 0;
+  const canMake = !!visit && (visit.enough || !!summary?.enough);
+  // The OS share sheet with the file itself (web browsers that can share files); the phone's "Share PDF…" already does this.
+  const fileShare = !isNative() && typeof navigator !== "undefined" && typeof File === "function" && !!navigator.canShare?.({ files: [new File([""], "x.pdf", { type: "application/pdf" })] });
+  const sharePdf = async () => {
+    if (busy || !visit || !canMake || limitHit) return;
+    onHandoff?.();
+    setBusy(true);
+    try {
+      const data = summaryPdf({ summary, visit: withDetail ? visit : null, ai: withDetail && withAi ? aiWriteUp : null, accentHex }, PdfDoc);
+      await navigator.share({ title: "Solia Health report", files: [new File([data], summary.files.pdf, { type: "application/pdf" })] });
+      onPdfMade();
+    } catch (e) { if (e?.name !== "AbortError") ping("Couldn't open the share sheet. Use Download PDF instead"); } finally { setBusy(false); }
+  };
+  const setDetail = (on) => { setWithDetail(on); if (!on) { setWithNotes(false); setWithMeals(false); setWithAi(false); } };
+  const tickInDetail = (on, set) => () => { set(!on); if (!on) setWithDetail(true); };
+  const qList = Array.isArray(questions) ? questions : [];
+  const addQ = () => {
+    const r = addQuestion(qList, draftQ);
+    if (!r.ok) { ping(r.why === "full" ? `Page 1 holds ${QUESTIONS_MAX} questions. Remove one to add another` : r.why === "same" ? "That question is already on your list" : "Type a question first"); return; }
+    setQuestions(r.list); setDraftQ(""); ping("Question saved on this device");
+  };
   const firstOfNextMonth = `${addDays(`${todayIso.slice(0, 7)}-01`, 32).slice(0, 7)}-01`; // for limitLine, only if a limit is ever set
   const makePdf = async () => {
-    if (busy || !visit || !visit.enough || limitHit) return;
+    if (busy || !visit || !canMake || limitHit) return;
     onHandoff?.(); // L10: the share sheet / download this tap opens must not lock the app on its own hide
     setBusy(true);
     try {
-      const data = visitPdf(visit, PdfDoc);
+      const data = summaryPdf({ summary, visit: withDetail ? visit : null, ai: withDetail && withAi ? aiWriteUp : null, accentHex }, PdfDoc);
       const r = await saveFile({ name: visit.files.pdf, data, mime: "application/pdf", title: "Solia Health report", onReady: () => ping("PDF ready. Choose where to send it") });
       if (r !== "cancelled") onPdfMade();
       if (r === "downloaded") ping("PDF downloaded. It's in your browser's downloads");
     } catch (e) { ping(e?.message || "Couldn't make the PDF"); } finally { setBusy(false); }
   };
-  const pdfAttrs = !visit || !visit.enough ? { "aria-disabled": "true", "aria-describedby": "pdf-gate" } : limitHit ? { "aria-disabled": "true", "aria-describedby": "pdf-limit" } : busy ? { "aria-disabled": "true" } : {};
+  const pdfAttrs = !visit || !canMake ? { "aria-disabled": "true", "aria-describedby": "pdf-gate" } : limitHit ? { "aria-disabled": "true", "aria-describedby": "pdf-limit" } : busy ? { "aria-disabled": "true" } : {};
   const notesK = visit ? visit.notesInWindow : 0;
-  const pdfCard = visit && can("pdfExport") && (
+  const lossy = visitTexts(visit).some(pdfLossy) || summaryTexts(summary).some(pdfLossy) || (withDetail && withAi && aiWriteUp && pdfLossy(aiWriteUp.writeup));
+  const pdfCard = visit && summary && can("pdfExport") && (
     <section className="pdfcard" aria-labelledby="pdf-h">
       <div className="pdfhead">
         <Icon name="file" size={20} className="pdfico" />
         <div>
           <h2 className="pdftitle" id="pdf-h">Appointment PDF</h2>
-          {visit.enough && <p className="pdfin">{visit.top}</p>}
+          <p className="pdfin">A one-page clinician summary, made on this device. Free, always.</p>
         </div>
       </div>
-      {visit.enough && visit.contents && <Details label="What's in it"><p>{visit.contents}</p></Details>}
-      {notesK > 0 && (
-        <>
-          <CheckRow on={withNotes} onToggle={() => setWithNotes((v) => !v)}>Include my notes</CheckRow>
-          <p className="hint pdfnote">{withNotes ? `${notesK} day note${notesK === 1 ? "" : "s"} in these 30 days will be in the PDF.` : `${notesK} day note${notesK === 1 ? "" : "s"} in these 30 days. They go in only while this is ticked.`}</p>
-        </>
-      )}
-      {mealsK > 0 && (
-        <>
-          <CheckRow on={withMeals} onToggle={() => setWithMeals((v) => !v)}>{t("report.includeMealNotes")}</CheckRow>
-          <p className="hint pdfnote">{withMeals ? t("report.mealNotesIn", { count: mealsK }) : t("report.mealNotesOut", { count: mealsK })}</p>
-        </>
-      )}
-      {visitTexts(visit).some(pdfLossy) && <p className="hint pdfnote">{LOSSY_LINE}</p>}
+      <div className={`csscroll${bigPreview ? " big" : ""}`} {...(bigPreview ? { tabIndex: 0, role: "region", "aria-label": "Page 1 preview, full size" } : {})}>
+        <ClinicianPreview model={summary} accent={accent} big={bigPreview} />
+      </div>
+      <button type="button" className="linkbtn cszoom" aria-pressed={bigPreview} onClick={() => setBigPreview((v) => !v)}>{bigPreview ? "Fit the preview to the screen" : "See page 1 full size"}</button>
       <div className="routes">
         <button type="button" className="route primary" {...pdfAttrs} onClick={makePdf}>{isNative() ? "Share PDF…" : "Download PDF"}<span>made on this device</span></button>
+        {fileShare && <button type="button" className="route" {...pdfAttrs} onClick={sharePdf}>Share…<span>the PDF, to Messages, Mail or a portal</span></button>}
       </div>
-      {!visit.enough && <p className="hint pdfnote" id="pdf-gate">{GATE_EMPTY}</p>}
-      {visit.enough && limitHit && <p className="hint pdfnote" id="pdf-limit">{limitLine(pdfLimit, firstOfNextMonth)}</p>}
+      {!canMake && <p className="hint pdfnote" id="pdf-gate">{GATE_EMPTY}</p>}
+      {canMake && limitHit && <p className="hint pdfnote" id="pdf-limit">{limitLine(pdfLimit, firstOfNextMonth)}</p>}
+      <div className="pdfopts" role="group" aria-label="What goes in the PDF">
+        {hasName && <CheckRow on={withName} onToggle={() => setWithName((v) => !v)}>Include my name</CheckRow>}
+        <CheckRow on={withDetail} onToggle={() => setDetail(!withDetail)}>Add the detailed pages</CheckRow>
+        <p className="hint pdfnote">{withDetail ? `Page 2 on: every symptom and lab value, the 30-day tables and day ratings.` : "Off: the PDF is page 1 only."}</p>
+        {notesK > 0 && (
+          <>
+            <CheckRow on={withNotes} onToggle={tickInDetail(withNotes, setWithNotes)}>Include my notes</CheckRow>
+            <p className="hint pdfnote">{withNotes ? `${notesK} day note${notesK === 1 ? "" : "s"} in these 30 days will be in the PDF, in the detailed pages.` : `${notesK} day note${notesK === 1 ? "" : "s"} in these 30 days. They go in only while this is ticked.`}</p>
+          </>
+        )}
+        {mealsK > 0 && (
+          <>
+            <CheckRow on={withMeals} onToggle={tickInDetail(withMeals, setWithMeals)}>{t("report.includeMealNotes")}</CheckRow>
+            <p className="hint pdfnote">{withMeals ? t("report.mealNotesIn", { count: mealsK }) : t("report.mealNotesOut", { count: mealsK })}</p>
+          </>
+        )}
+        {aiWriteUp && (
+          <>
+            <CheckRow on={withAi} onToggle={tickInDetail(withAi, setWithAi)}>Include the AI write-up</CheckRow>
+            <p className="hint pdfnote">{withAi ? "Your saved write-up goes on its own page, marked as written by the AI. Nothing is sent to make the PDF." : "Your saved AI write-up stays out of the PDF unless this is ticked."}</p>
+          </>
+        )}
+      </div>
+      {lossy && <p className="hint pdfnote">{LOSSY_LINE}</p>}
       <p className="hint pdfnote">{FILE_WARNING}</p>
-      {visit.enough && <Details label="Where the numbers come from"><p className="rfoot pdfacc">{SAME_NUMBERS}</p></Details>}
+      {canMake && <Details label="What's in it"><p>Page 1: your cycles, top symptoms, What I'm trying with before and since counts, lab values you typed, sleep, movement and mood, and your questions.{withName ? " Your name is at the top." : " No name unless you tick Include my name."}</p>{withDetail && visit.contents && <p>Detailed pages: {visit.contents.replace(/^In it: /, "")}</p>}</Details>}
+      {canMake && <Details label="Where the numbers come from"><p className="rfoot pdfacc">{SAME_NUMBERS}</p></Details>}
+    </section>
+  );
+
+  // Her own questions for page 1 (persisted `visitQuestions`, in backups). Her words only: Solia Health suggests none here.
+  const qCard = summary && can("pdfExport") && (
+    <section className="qcard" aria-labelledby="q-h">
+      <h2 className="qtitle" id="q-h">Questions for my visit</h2>
+      <p className="hint">Type what you want to ask. They print on page 1 and stay on this device (and in your backups).</p>
+      {qList.length > 0 && (
+        <ol className="qlist">
+          {qList.map((q, i) => (
+            <li key={q}><span className="qnum" aria-hidden="true">{i + 1}</span><span className="qtext">{q}</span>
+              <button type="button" className="linkbtn qremove" aria-label={`Remove question ${i + 1}`} onClick={() => setQuestions(removeQuestion(qList, i))}>Remove</button></li>
+          ))}
+        </ol>
+      )}
+      {qList.length < QUESTIONS_MAX ? (
+        <div className="qadd">
+          <label className="lab" htmlFor="q-new">Add a question</label>
+          <textarea id="q-new" className="inp qinput" rows={2} maxLength={QUESTION_LEN} value={draftQ} onChange={(e) => setDraftQ(e.target.value)} aria-describedby="q-count" />
+          <div className="qaddrow">
+            <span className="hint" id="q-count">{draftQ.length} of {QUESTION_LEN} characters · {qList.length} of {QUESTIONS_MAX} questions</span>
+            <button type="button" className="ghostbtn qsave" onClick={addQ}>Add question</button>
+          </div>
+        </div>
+      ) : <p className="hint">That's {QUESTIONS_MAX} questions, as many as page 1 holds. Remove one to add another.</p>}
     </section>
   );
 
   const sendAhead = (
     <>
-      {pdfCard}
       <p className="hint" style={{ marginBottom: 10 }}>A short email your doctor can read in twenty seconds. Solia Health itself sends nothing; the text goes only where you take it.</p>
       <p className="rsec">Preview</p>
       <textarea className="inp emailpreview" readOnly rows={emailText.split("\n").length + 1} aria-label="Email preview" value={emailText} onFocus={(e) => e.target.select()} />
@@ -247,6 +323,8 @@ export default function ReportScreen({ ins, stage, stageName, buildEmail, ping, 
           : <button type="button" className="linkbtn" onClick={openAppts}>Add your appointment date</button>}
       </p>
       <p className="hint">Your last 30 days, in a few clear sentences for your doctor.</p>
+      {pdfCard}
+      {qCard}
 
       {/* Cover: how much of the window is logged, as a number and a 30-day strip (decorative twin) tinted by each
           day's score on the stage ramp — the same colour the calendar gives that day. */}

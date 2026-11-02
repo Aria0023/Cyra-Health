@@ -370,6 +370,47 @@ Delete everything. No RECORD_VERSION bump: missing means `{}`.
 
 ---
 
+### 3.5j Clinician summary: one clean page, optional detailed pages (doctor report v2, `lib/clinicianSummary.js`)
+
+Owner, 2026-11-02: a clean doctor's report to bring to appointments, with lab markers over time — Solia Health's own design,
+not a copy of any other app. Code: `src/lib/clinicianSummary.js` (pure; never imports pdf.js), `src/lib/visitQuestions.js`
+(the persisted questions), `src/components/ClinicianPreview.jsx`, the `.pdfcard` / `.qcard` in `src/screens/ReportScreen.jsx`,
+App.jsx `buildClinician`, `src/lib/visitReport.js` `drawVisitBody` (the L9 body, split out of `visitPdf` with byte-identical
+output), `src/lib/pdf.js` `text(..., { spacing })` (letter-spaced small labels). Tests: `src/lib/clinicianSummary.test.mjs`.
+- **Page 1 always fits one printed page** (US Letter and A4). `summaryModel()` covers the last 90 days (or since her first
+  entry): header ("Solia Health · Clinician summary", the dates and days logged, life stage, PCOS module on/off, her name only
+  with "Include my name", "Prepared by the patient from her own log. Not a diagnosis."); Cycles (the last 6 complete lengths
+  oldest to newest, each over 35 days boxed and labelled "over 35 d", ones she left out of predictions labelled "excluded" and
+  not averaged, the current cycle day, average and range; not in Pregnancy or Menopause); Top symptoms (up to 6: days of the
+  logged days, a bar, and the cycle-day bucket where at least 40% and 3 of its days fell — "mostly cycle days 1–5 (k of n)" —
+  else "spread across the cycle"); What she is trying (every item from What I'm trying: kind, start date, and before / since
+  counts over equal windows of at most 90 days for cycle length — complete cycles starting on each side — and for the top
+  symptom's days, 5 logged days each side; otherwise "Not enough days to compare"; words only: "what changed in her log");
+  Lab values over time (from `labs`: by test, newest first, values and units as typed with their dates, a tiny line oldest
+  to newest when there are two or more in the same unit; no ranges, no interpretation); Sleep / Movement / Mood (one line
+  each: hours and nights, rough nights; sessions and minutes a week; check-ins, most common mood word, low days); Questions
+  for my visit (her typed questions, then the suggested ones she added with "Add to email and PDF"). No scores on page 1.
+  Footer: "Patient-reported data · Page n of m · Generated <date>".
+- **Fit.** `fitSummary(model, PdfDoc)` dry-runs page 1 and trims in a fixed order (lab values per test 4→3, questions 6,
+  symptoms 5, treatments 3, …) until it fits; each trimmed list ends "+N more in the detailed pages" (or "+N more not shown"
+  when they are off). The preview shows the same fitted model.
+- **Detailed pages** (off by default, "Add the detailed pages"): every symptom, treatment and lab value, then the L9 pages
+  (cycle table, 30-day symptom table, day-score chart, fertility signs, meal notes if ticked, her day notes if ticked), then
+  her saved AI write-up on its own page if she ticks "Include the AI write-up" (marked as written by the AI; nothing is sent
+  to make the PDF). Ticking notes, meal notes or the AI write-up turns the detailed pages on; unticking them unticks those.
+- **Look.** White page, one accent (her current stage palette's primary, darkened until it is at least 4.5:1 on white,
+  `pdfAccent`), small letter-spaced uppercase section labels with a hairline, hairline tables, tabular figures, 46 pt
+  margins, no decoration. Fonts: the PDF's built-in Helvetica / Helvetica-Bold (PdfDoc does not embed fonts, so the
+  bundled app fonts are not used in the file); every mark in the accent also carries words or numbers, so it reads the
+  same in greyscale. The in-app preview is the same light sheet in every style and scheme (`sheetVars`).
+- **Report screen.** The Appointment PDF card now leads the page: the live preview (one `role="img"` with a summary label;
+  "See page 1 full size" shows it at 612 px in a focusable scroll region), "Download PDF" (phone: "Share PDF…"), "Share…"
+  (web browsers that can share files), the ticks (Include my name · Add the detailed pages · Include my notes · Include meal
+  notes · Include the AI write-up — all off on every visit, never saved), then "Questions for my visit": her list with
+  Remove, a 200-character box and "Add question" (at most 8; saved on the device, in backups). The clinician summary is free
+  (`can("pdfExport")`, unlimited in every plan).
+- **New persisted key `visitQuestions`** (record, in backups, restored literally; RULES via `cleanQuestions`).
+
 ## 4. APPLICATION FLOW (state machine)
 
 ```

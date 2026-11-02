@@ -206,6 +206,14 @@ function drawScoreChart(doc, x, y, w, h, trend, ramp) {
 export function visitPdf(model, PdfDoc) {
   const doc = new PdfDoc({ paper: model.paper });
   doc.page();
+  drawVisitBody(doc, model);
+  doc.footer((n, m, d) => d.text(d.W / 2, d.H - 24, footerText(n, m), { size: 7.5, align: "center", rgb: SOFT }));
+  return doc.bytes();
+}
+
+/** The L9 pages' body, drawn into `doc` from its current page: visitPdf's content, and the clinician summary's detailed
+    pages (lib/clinicianSummary.js summaryPdf, which draws its own footer). Returns the y after the last line. */
+export function drawVisitBody(doc, model) {
   const X = doc.margin, W = doc.W - 2 * doc.margin;
   const ramp = RAMPS[model.stage] || RAMPS.peri;
   let y = doc.top + 4;
@@ -279,7 +287,5 @@ export function visitPdf(model, PdfDoc) {
     section("My day notes", 50);
     table(["Date", "Note"], [0.14, 0.86], model.notes.map((x) => [fmtDay(x.iso), x.text]));
   }
-
-  doc.footer((n, m, d) => d.text(d.W / 2, d.H - 24, footerText(n, m), { size: 7.5, align: "center", rgb: SOFT }));
-  return doc.bytes();
+  return y;
 }

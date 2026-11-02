@@ -384,3 +384,39 @@ a card shows one or two short lines. Every one still renders (in the page, insid
 
 ### meals.pattern detail line (reworded)
 - "Solia Health names a pattern with at least 5 meal notes on each side …" → "A pattern is named with at least 5 meal notes on each side …" (same rule; the meals.pattern entry above now quotes the new wording).
+
+## Clinician summary (doctor report v2, 2026-11-02): page 1 of the appointment PDF
+Code: src/lib/clinicianSummary.js. No new medical claim and no suggested questions; these are the new sentences a clinician
+reads, all descriptive counts. Please check that none reads as a diagnosis or a verdict on a treatment.
+
+### summary.header
+- "Solia Health · Clinician summary"; "Prepared by the patient from her own log. Not a diagnosis."; footer "Patient-reported data".
+- Status: Awaiting clinician sign-off
+
+### summary.cycles
+- Boxes labelled "over 35 d" for cycles longer than 35 days (the same 35-day line as pcos.cycle.definition), "excluded" for
+  cycles she left out of predictions; "Average N days, range a–b, over k cycles. m of n longer than 35 days. j left out of
+  predictions by her (shown, not averaged)."; "Current cycle: day N".
+- Status: Awaiting clinician sign-off
+
+### summary.symptoms
+- "mostly cycle days 20–28 (k of n)" when at least 40% and 3 of a symptom's days fall in one bucket (1–5, 6–12, 13–19,
+  20–28, 29 on); otherwise "spread across the cycle". A count, not a phase claim (no "luteal", no "premenstrual").
+- Status: Awaiting clinician sign-off
+
+### summary.treatment
+- "Cycle length: before 40 d avg (1 cycle); since 30 d avg (2 cycles). Bloating days: before 50 of 71 logged; since 18 of 71
+  logged." or "Not enough days to compare."; footnote "Counts from her log before and since each start date: what changed in
+  her log, not a judgement of the treatment." Equal windows (at most 90 days) either side; no statistics, no causal words.
+- Status: Awaiting clinician sign-off
+
+### summary.labs
+- Values and units exactly as typed, newest first, with dates; a small line oldest to newest; "Values exactly as she typed
+  them, newest first; the small line runs oldest to newest. Not interpreted; no reference ranges." No flags or ranges.
+- Status: Awaiting clinician sign-off
+
+### summary.ai
+- Detailed pages only, when ticked: "Written by the AI from the counts she chose to send on <date>. Not a diagnosis; not
+  reviewed by a clinician." followed by the stored write-up (already registered under "Cyra's AI write-up and chat").
+- Status: Awaiting clinician sign-off
+

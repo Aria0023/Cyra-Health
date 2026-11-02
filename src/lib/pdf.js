@@ -114,11 +114,12 @@ export class PdfDoc {
       else the top of a new page. */
   ensure(y, need) { if (!this.cur) this.page(); if (y + need <= this.bottom) return y; this.page(); return this.top; }
   /** One line of text with its baseline at y. align: "left" | "center" | "right" (x is that edge or the centre). */
-  text(x, y, str, { size = 10, bold = false, rgb = null, align = "left" } = {}) {
+  text(x, y, str, { size = 10, bold = false, rgb = null, align = "left", spacing = 0 } = {}) {
     const enc = winAnsi(str);
     if (!enc) return this;
-    const w = widthOf(enc, size, bold), x0 = align === "center" ? x - w / 2 : align === "right" ? x - w : x;
-    this.op(`BT /${bold ? "F2" : "F1"} ${n2(size)} Tf ${col(rgb)} rg ${n2(x0)} ${n2(this.H - y)} Td (${esc(enc)}) Tj ET`);
+    // spacing: extra points after each character (PDF Tc), e.g. for small letter-spaced section labels; reset before ET.
+    const w = widthOf(enc, size, bold) + (spacing ? spacing * (enc.length - 1) : 0), x0 = align === "center" ? x - w / 2 : align === "right" ? x - w : x;
+    this.op(`BT /${bold ? "F2" : "F1"} ${n2(size)} Tf ${col(rgb)} rg ${spacing ? `${n2(spacing)} Tc ` : ""}${n2(x0)} ${n2(this.H - y)} Td (${esc(enc)}) Tj ${spacing ? "0 Tc " : ""}ET`);
     return this;
   }
   /** Wrapped text in a box `w` wide whose first baseline is at y; breaks pages as needed.

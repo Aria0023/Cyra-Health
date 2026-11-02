@@ -88,6 +88,8 @@ import { fertShown, isTTC, cleanFertPrefs, restoredFertPrefs, defaultTempUnit, F
 import { cleanModules, setModuleOn, isModuleOn, modulesFor } from "./lib/modules.js";
 import { cleanHomeTiles, homeTiles as tilesFor, pcosCycleCand, lastPeriodDay, heroModel, TILE_CATALOG, tileLogged, bodySteps, mindSteps, smallStep, PCOS_SIGNAL_IDS, EMPTY_LINE, dateEyebrow } from "./lib/home.js";
 import { visitModel, paperForLocale } from "./lib/visitReport.js";
+import { summaryModel } from "./lib/clinicianSummary.js";
+import { cleanQuestions } from "./lib/visitQuestions.js";
 import { shelfKind } from "./lib/trying.js";
 import { cycleTimeline, bodyRing, mindRing, ringInputs, sleepCards, cycleCards, pcosCards, trialCards, spreadCard, topCard, rankCards, usualOf, mealCards } from "./lib/patterns.js";
 import { cleanExperiments, settle, startExperiment, skipWeek, markDay, runningOn, experimentStep, reviewWeek, weekCounts, countWords, weekSignals, pickExperiment, experimentFollowUp, lastFinished, experimentOf } from "./lib/experiments.js";
@@ -361,6 +363,8 @@ export default function CyraDemo() {
      bodySheet: which logger sheet is open, { kind: "sleep"|"move"|"meds"|"pcos"|"weight", day } (UI only). */
   const [bodyLog, setBodyLog] = useState({});
   const [labs, setLabs] = useState([]);
+  // Her own "Questions for my visit" for page 1 of the clinician summary (doctor report v2, lib/visitQuestions.js): record, in backups.
+  const [visitQuestions, setVisitQuestions] = useState([]);
   const [bodyPrefs, setBodyPrefs] = useState(() => cleanBodyPrefs(null));
   const [bodySheet, setBodySheet] = useState(null);
   /* Mind (calm R5, lib/mind.js): the mood check-in by day, the practices she ran (with "Which one helped?"), her
@@ -539,14 +543,21 @@ export default function CyraDemo() {
   /* The appointment PDF's model (lib/visitReport.js, L9): the same insights, symptom ids and score scale as the screen,
      her picked questions, day notes only with includeNotes, and L7's fertility sentences only for Trying to conceive
      with signs on (the same rule as the Report's finding and the email line). Nothing else is an input. */
-  const buildVisit = ({ questions = [], includeNotes = false, includeMeals = false } = {}) => {
+  const buildVisit = ({ questions = [], includeNotes = false, includeMeals = false, includeName = false } = {}) => {
     let fertilityLines = null;
     if (ttc && fertOn) {
       const sum = fertSummary(ins.sorted, { from: addDays(todayIso, -29), to: todayIso });
       fertilityLines = sum.logged ? [...fertSummaryLines(sum).map((l) => l.text), ...(sum.bbt.shift ? [bbtShiftSentence(sum.bbt.shift, tempUnit)] : [])] : null;
     }
-    return visitModel({ days, ins, ids: symIds, stage, stageName, name: firstName, today: todayIso, questions, includeNotes, cycleFlags, fertilityLines, ...(mealsHere && includeMeals === true ? { mealLines: mealReportLines(bodyLog, addDays(todayIso, -29), todayIso) } : {}), paper: paperForLocale(typeof navigator !== "undefined" ? navigator.language : "en-US"), scale: SCORE_SCALE[stage] });
+    return visitModel({ days, ins, ids: symIds, stage, stageName, name: includeName === true ? firstName : "", today: todayIso, questions, includeNotes, cycleFlags, fertilityLines, ...(mealsHere && includeMeals === true ? { mealLines: mealReportLines(bodyLog, addDays(todayIso, -29), todayIso) } : {}), paper: paperForLocale(typeof navigator !== "undefined" ? navigator.language : "en-US"), scale: SCORE_SCALE[stage] });
   };
+  /* Page 1 of the clinician summary (doctor report v2, lib/clinicianSummary.js): the same day entries plus What I'm trying,
+     her typed lab values, sleep / movement from the fast log, Mind's mood check-ins and her own questions. Her name only
+     when she ticks "Include my name"; nothing here leaves the device (the PDF is drawn on it). */
+  const buildClinician = ({ includeName = false, appendix = false, picked = [] } = {}) => summaryModel({
+    days, stage, stageName, pcosOn: pcosHere, today: todayIso, name: includeName === true ? firstName : "", meds, labs, bodyLog, moodLog, cycleFlags,
+    questions: visitQuestions, picked, appendix, paper: paperForLocale(typeof navigator !== "undefined" ? navigator.language : "en-US"),
+  });
   // PDFs left this month (null = unlimited, the shipping plan) and the tally after one more (null while unlimited: nothing stored).
   const pdfNow = new Date(todayIso + "T12:00:00");
   const pdfLeft = exportsLeft(exportLog, { now: pdfNow });
@@ -1257,8 +1268,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestions(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1606,6 +1617,8 @@ export default function CyraDemo() {
     Object.assign(restoredBody, { moodLog: cleanMoodLog(saved.moodLog), practiceLog: cleanPracticeLog(saved.practiceLog), practiceFavs: cleanPracticeFavs(saved.practiceFavs) });
     // So is the weekly review's experiment (calm R6).
     restoredBody.experiments = cleanExperiments(saved.experiments);
+    // And her questions for the clinician summary (doctor report v2): a backup without them clears them here.
+    restoredBody.visitQuestions = cleanQuestions(saved.visitQuestions);
     applySaved({ ...saved, pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
     potsBase.current = restoredPots; setPotsHomeLast(null);
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
@@ -2697,7 +2710,9 @@ export default function CyraDemo() {
             )}
             {appIs("cycles") && <CyclesScreen cyc={cyc} stage={stage} onUse={setCycleUse} pcosOn={pcosHere} lens={ins.lens} />}
             {appIs("patterns") && patternsView()}
-            {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} scheme={scheme} fert={ttc && fertOn ? { unit: tempUnit } : null} buildVisit={buildVisit} pdfLeft={pdfLeft} onPdfMade={onPdfMade} pdfLimit={PLAN.pdfExportsPerMonth} onHandoff={holdLock} mealsK={mealsHere ? mealCounts(bodyLog, addDays(todayIso, -29), todayIso).notes : 0} />}
+            {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} scheme={scheme} fert={ttc && fertOn ? { unit: tempUnit } : null} buildVisit={buildVisit} pdfLeft={pdfLeft} onPdfMade={onPdfMade} pdfLimit={PLAN.pdfExportsPerMonth} onHandoff={holdLock} mealsK={mealsHere ? mealCounts(bodyLog, addDays(todayIso, -29), todayIso).notes : 0}
+              buildSummary={buildClinician} hasName={!!firstName} accentHex={(stagePal || org.theme).primary} questions={visitQuestions} setQuestions={setVisitQuestions}
+              aiWriteUp={offer.weekly && aiPrefs.weekly && aiWeekly?.writeup ? aiWeekly : null} />}
             {appIs("mind") && mindView()}
             {appIs("practices") && practicesView()}
             {appIs("ask") && journeyView()}
