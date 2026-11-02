@@ -1521,7 +1521,74 @@ Validator (`validate_palette.js --ordinal`): light on #FFFFFF and #FAF7F4 all ch
 6°), dark on #1C1F2D all pass (light end 2.68:1, hue spread 4°). FAMILIES, RAMPS and RAMPS_DARK are unchanged and still
 pass on the new dark cards (unit tests).
 
-### 8.6 The Mono style (Solia, 2026-11-01)
+### 8.6 Styles: five looks of one layout (Mono 2026-11-01; Bloom, Clear and Journal 2026-11-02)
+
+You → Appearance → **Style** is a small visual picker: five radio cards, each a live mini preview drawn in that style
+(wordmark, a chip, a button and a card corner). **Soft** stays the default. A style changes type, shape, density,
+surfaces and motion; it never changes layout, components, content or behaviour, and there is no per-screen style code
+(Shell puts `data-style` on `.cy`; only the picker's preview cards carry their own `data-style`). The choice is the
+device preference `uiStyle` ("soft" | "mono" | "bloom" | "clear" | "journal"; anything else reads as Soft, lib/appearance.js
+`cleanStyle`): saved with the on-device record, followed by every open tab, never in a backup and never taken from one.
+
+| Style | Feel | Type | Shape | Surfaces | Accent | Motion |
+| --- | --- | --- | --- | --- | --- | --- |
+| Soft | pastel, gentle (default) | Fraunces headings, Karla body | 20px cards, pill chips | pastel wash, domain tints, soft shadows | the stage palette | 200ms, standard easing |
+| Mono | quiet, one colour | as Soft | as Soft | warm-grey, flat, hairlines, outlined badges/chips | one slate for every stage | as Soft |
+| Bloom | warm, editorial ("a calm lifestyle magazine") | Fraunces for headings **and** big labels (buttons, quick tiles, section labels), larger display steps | very round: 28px cards, pill buttons, 24px tiles, 34px sheets | cream paper with a warm gradient wash, tinted cards with a soft inner glow, filled icon badges, roomier spacing | the stage colour warmed toward terracotta / rose (`color-mix`, `BLOOM_WARM`) | 280ms, a gentle overshoot |
+| Clear | crisp, structured ("a well-made medical record") | Atkinson Hyperlegible for everything, tabular numbers | 6–8px radii, squared badges | light neutral paper, white cards, hairlines instead of shadows, card heads ruled off, quiet decoration | deep teal `#0E6168` / `#6CC6C0` | 60–140ms, fades only |
+| Journal | personal, paper-like ("a private notebook") | Fraunces italic headings and section labels, Karla body | 12px cards, 3px stamp chips | warm off-white ruled paper (CSS only), paper-stack card edge instead of a shadow, dashed dividers, outlined ink badges, stamp/label chips | ink blue `#2B4A8B` / `#A5B9EC` | a soft page-turn (fade + slide) between views |
+
+Every style keeps a light and a dark variant with its personality (Bloom dark: warm umber paper and peach accents;
+Clear dark: near-black blue-grey with a light teal; Journal dark: ink-black paper with cream ink). Every 44px target,
+focus style and ARIA attribute is unchanged; motion is off under reduced motion in every style (the global rule); the
+readability rules (body ≥ 16px, line-height ≥ 1.5, measure ≤ 60ch) are unchanged in every style.
+
+- **Token layer.** lib/constants.js `STYLE_SHAPE` (shape tokens per style; `soft` holds the defaults written on every
+  `.cy`) and `STYLE_SKINS` (`mono` = MONO, `bloom`, `clear`, `journal`, each `{ light, dark }` colour sets over the seven
+  palette tokens and SCHEME_TOKENS). styles.js generates one rule per style, `.cy[data-style="<id>"]`, and one for its dark
+  variant (palette tokens `!important`, since App.jsx sets them inline), applied to the picker previews as well, plus a
+  short block of rules a token cannot express (Bloom's glow and filled badges, Clear's ruled card heads, Journal's stamps,
+  section dash and wavy nav underline). `paletteVars` also emits the stage palette as `--st-*`, which no style overrides:
+  Bloom mixes it into its warm accents and the Soft preview card reads it.
+- **Tokens a style may set** (defaults = Soft):
+  - type: `--ff-display`, `--ff-body`, `--ff-num`, `--ff-label` (big UI labels), `--label-wght`, `--disp-style`
+    (normal / italic), `--num-variant`; steps `--fs-xs/-sm/-md/-title/-num`, `--fs-card-title`, `--fs-hero-title`,
+    `--fs-sheet-title`, `--fs-cta`, `--fs-tile`; eyebrow `--eyebrow-ff/-style/-wght/-size/-case/-track`; section labels
+    `--lab-ff/-style/-wght/-size/-case/-track`.
+  - radii: `--r-card`, `--r-inner`, `--r-tile`, `--r-btn`, `--r-ghost`, `--r-chip`, `--r-pbtn` (small pill buttons),
+    `--r-seg` / `--r-seg-in` (segmented control), `--r-nav` (nav pill), `--r-plus` (the "+"), `--r-badge`, `--r-ctl`
+    (inputs, selects), `--r-sheet`.
+  - spacing: `--gap`, `--stack`, `--pad-card`, `--pad-hero`.
+  - surfaces: `--sh-card` (shadow, glow, hairline-only `none`, or Journal's paper-stack edge), `--sh-opt`, `--sh-meter`,
+    `--sh-lift`, `--sh-sheet`, `--sh-cta`, `--edge`, `--rule` (divider: solid or dashed), `--paper-tex` (Journal's ruled
+    lines, `--ruled`), `--wash-a/-b/-c`, `--tint-*`.
+  - motion: `--t-fast`, `--t-base`, `--t-slow`, `--t-sheet`, `--t-view`, `--ease-std`, `--ease-in`, `--view-enter`
+    (`cy-fade-rise`, `cy-bloom-in`, `cy-fade`, `cy-page-turn`).
+- **Fonts.** Fraunces (incl. its italic, same package) and Karla are bundled as before. Atkinson Hyperlegible (Braille
+  Institute, SIL OFL 1.1) is self-hosted: four woff2 files (latin and latin-ext, 400 and 700) and
+  `OFL-AtkinsonHyperlegible.txt` in public/fonts, taken from `@fontsource/atkinson-hyperlegible` 5.2.8 without adding a
+  dependency. It is declared with `@font-face` in styles.js, so the browser fetches it from the app itself only when
+  Clear text is on screen (the Clear style, or its preview card in the picker). It is not precached by the service
+  worker; offline, before it was ever shown, Clear falls back to Karla.
+- **Data viz stays as it is** in every style: FAMILIES, RAMPS / RAMPS_DARK and SOFT_RAMP are not part of any style.
+- **Contrast** (WCAG, lib/appearance.test.mjs, every stage palette for Bloom; text ≥ 4.5:1, UI ≥ 3:1; the lowest value
+  over paper, card and the four domain tints):
+
+| pair (lowest) | Bloom light | Bloom dark | Clear light | Clear dark | Journal light | Journal dark |
+| --- | --- | --- | --- | --- | --- | --- |
+| ink on paper | 13.46 | 14.59 | 15.39 | 15.51 | 13.10 | 14.42 |
+| ink on card | 14.74 | 13.11 | 16.52 | 14.42 | 14.04 | 13.29 |
+| soft (any surface) | 5.87 | 6.88 | 6.49 | 7.15 | 5.86 | 7.37 |
+| primary-text (any surface) | 5.79 | 7.35 | 7.48 | 8.71 | 7.88 | 8.70 |
+| accent-text (any surface) | 5.04 | 7.28 | 7.23 | 9.04 | 6.52 | 8.57 |
+| good (any surface) | 5.85 | 7.26 | 6.43 | 8.51 | 5.92 | 8.38 |
+| bad (any surface) | 5.24 | 6.38 | 5.74 | 7.47 | 5.34 | 7.35 |
+| line, control edge (any surface) | 3.04 | 3.40 | 3.26 | 3.64 | 3.27 | 3.56 |
+| primary fill/focus (any surface) | 4.86 | 6.63 | 6.33 | 7.93 | 7.12 | 8.01 |
+| on-primary on primary | 5.84 | 8.64 | 7.17 | 9.32 | 8.55 | 9.25 |
+| primary-text on 16% chip | 5.33 | 6.21 | 6.62 | 6.94 | 6.90 | 6.60 |
+
+#### 8.6.1 The Mono style (Solia, 2026-11-01)
 
 You → Appearance has a second choice, **Style: Soft · Mono** (Soft, today's look, is the default). Mono is a calm
 single-colour skin of the same layout, components, spacing and type: neutral warm-grey paper and cards, one soft ink,

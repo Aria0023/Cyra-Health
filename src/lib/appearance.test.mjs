@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import {
   APPEARANCES, DEFAULT_APPEARANCE, cleanAppearance, STYLES, DEFAULT_STYLE, cleanStyle, resolveScheme, PALETTE_KEYS, paletteFor, paletteVars, tokenDecls, applyDocumentScheme, strongMeterWord,
 } from "./appearance.js";
-import { MONO, MONO_PALETTE_KEYS, PALETTES, ORGS, SCHEME_TOKENS, FAMILIES, RAMPS, RAMPS_DARK, SOFT_RAMP, stagePalettes, MENO_NAME, famVar, famColor, rampOf, rampVar, vizVars } from "./constants.js";
+import { MONO, MONO_PALETTE_KEYS, STYLE_SHAPE, STYLE_SKINS, BLOOM_WARM, ATKINSON, PALETTES, ORGS, SCHEME_TOKENS, FAMILIES, RAMPS, RAMPS_DARK, SOFT_RAMP, stagePalettes, MENO_NAME, famVar, famColor, rampOf, rampVar, vizVars } from "./constants.js";
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -83,8 +83,11 @@ test("paletteFor / paletteVars (L2): all 11 themes carry a dark set of the same 
     assert.deepEqual(paletteFor(p, "dark"), Object.fromEntries(PALETTE_KEYS.map((k) => [k, p.dark[k]])), name);
   }
   const v = paletteVars(paletteFor(PALETTES.peri[0], "light"));
-  assert.deepEqual(Object.keys(v), ["--primary", "--paper", "--card", "--accent", "--ink", "--soft", "--line"]);
+  assert.deepEqual(Object.keys(v).slice(0, 7), ["--primary", "--paper", "--card", "--accent", "--ink", "--soft", "--line"]);
+  // skins: the same seven again as --st-* (the stage palette, which a style may not override)
+  assert.deepEqual(Object.keys(v).slice(7), PALETTE_KEYS.map((k) => `--st-${k}`));
   assert.equal(v["--primary"], "#6B52A8");
+  assert.equal(v["--st-primary"], "#6B52A8");
 });
 
 test("dark palettes (L2): WCAG AA for text and 3:1 for UI boundaries in every one of the 11", () => {
@@ -316,10 +319,11 @@ test("v2 soft ramp (R1): ordinal, single hue, separate from UI palettes, arrives
 
 /* ---------- Mono style (Solia): a device preference, one token layer, AA in both schemes ---------- */
 test("Mono style: Soft is the default; anything unknown reads as Soft", () => {
-  assert.deepEqual(STYLES.map(([k]) => k), ["soft", "mono"]);
+  assert.deepEqual(STYLES.map(([k]) => k), ["soft", "mono", "bloom", "clear", "journal"]);
   assert.equal(DEFAULT_STYLE, "soft");
-  for (const v of [undefined, null, "", "Mono", "dark", 1]) assert.equal(cleanStyle(v), "soft");
-  assert.equal(cleanStyle("mono"), "mono");
+  for (const v of [undefined, null, "", "Mono", "dark", 1, "Bloom", "clear ", "paper", "__proto__", {}, ["clear"]]) assert.equal(cleanStyle(v), "soft");
+  for (const k of ["soft", "mono", "bloom", "clear", "journal"]) assert.equal(cleanStyle(k), k);
+  for (const [, name, note] of STYLES) { assert.ok(name && note && note.length <= 22, name); }
 });
 
 test("Mono style: every text pair 4.5:1 and every UI boundary 3:1 on paper, card and the tint grey, light and dark", () => {
@@ -344,13 +348,88 @@ test("Mono style: every text pair 4.5:1 and every UI boundary 3:1 on paper, card
   }
 });
 
-test("Mono style: one token layer in styles.js, no per-screen code; data-viz colours untouched", () => {
+test("Styles: one generated token layer per style in styles.js, no per-screen code; data-viz colours untouched", () => {
   const css = readFileSync(join(SRC, "styles.js"), "utf8");
-  assert.ok(css.includes('.cy[data-style="mono"] { ${monoDecls(MONO.light)} }'));
-  assert.ok(css.includes('.cy[data-style="mono"][data-scheme="dark"] { ${monoDecls(MONO.dark)} }'));
-  for (const k of Object.keys(MONO.light)) assert.ok(!k.startsWith("--fam-") && !k.startsWith("--ramp-") && !k.startsWith("--soft-"), k);
+  // one generator writes every style's block (and its dark variant) from lib/constants.js; Soft's tokens sit on .cy
+  assert.ok(css.includes('.cy[data-style="${id}"], .cy .stylepv[data-style="${id}"] { ${skinDecls(STYLE_SKINS[id].light)}'));
+  assert.ok(css.includes('.cy[data-style="${id}"][data-scheme="dark"], .cy[data-scheme="dark"] .stylepv[data-style="${id}"] { ${skinDecls(STYLE_SKINS[id].dark)} }'));
+  assert.ok(css.includes("${tokenDecls(STYLE_SHAPE.soft)}"));
+  assert.deepEqual(Object.keys(STYLE_SKINS).sort(), ["bloom", "clear", "journal", "mono"]);
+  assert.equal(STYLE_SKINS.mono, MONO);
+  for (const id of Object.keys(STYLE_SKINS)) for (const scheme of ["light", "dark"]) for (const k of Object.keys(STYLE_SKINS[id][scheme])) {
+    assert.ok(!k.startsWith("--fam-") && !k.startsWith("--ramp-") && !k.startsWith("--soft-") && !k.startsWith("--st-"), `${id} ${k}`);
+  }
+  for (const id of Object.keys(STYLE_SHAPE)) for (const k of Object.keys(STYLE_SHAPE[id])) assert.ok(!/^--(fam|ramp|soft|st)-/.test(k), `${id} ${k}`);
+  // data-style is written only by Shell (on .cy) and by the Style picker's preview cards
   const users = [];
   const walk = (d) => { for (const f of readdirSync(d)) { const p = join(d, f); if (statSync(p).isDirectory()) walk(p); else if (/\.jsx$/.test(f) && readFileSync(p, "utf8").includes("data-style")) users.push(p.slice(SRC.length + 1)); } };
   walk(SRC);
-  assert.deepEqual(users.sort(), ["components/Shell.jsx"]);
+  assert.deepEqual(users.sort(), ["components/Shell.jsx", "components/settingsParts.jsx"]);
+});
+
+/* ---------- Skins (2026-11-02): Bloom, Clear, Journal ---------- */
+const SHAPE_KEYS = Object.keys(STYLE_SHAPE.soft);
+const OLD_SHAPE = ["--fs-xs", "--fs-sm", "--fs-md", "--fs-title", "--fs-num", "--r-card", "--r-inner", "--r-tile", "--r-btn", "--gap", "--stack", "--t-fast", "--t-base", "--t-slow", "--ease-std", "--ease-in"];
+test("Skins: every shape token a style sets is one Soft defines (no stray names); each new style changes type, shape, spacing and motion", () => {
+  for (const id of ["bloom", "clear", "journal"]) {
+    const t = STYLE_SHAPE[id];
+    for (const k of Object.keys(t)) assert.ok(SHAPE_KEYS.includes(k) || OLD_SHAPE.includes(k), `${id} ${k}`);
+    assert.ok(Object.keys(t).some((k) => /^--(ff|disp|eyebrow|lab|label)-/.test(k)), `${id} type`);
+    assert.ok(Object.keys(t).some((k) => /^--r-/.test(k)), `${id} shape`);
+    assert.ok(Object.keys(t).some((k) => /^--t-|^--ease-|^--view-/.test(k)), `${id} motion`);
+  }
+  assert.deepEqual(STYLE_SHAPE.mono, {});
+  // Clear: one legible sans everywhere, tabular numbers, small radii (6–8px), no card shadow
+  assert.equal(STYLE_SHAPE.clear["--ff-display"], ATKINSON);
+  assert.equal(STYLE_SHAPE.clear["--ff-body"], ATKINSON);
+  assert.match(STYLE_SHAPE.clear["--num-variant"], /tabular-nums/);
+  for (const k of ["--r-card", "--r-btn", "--r-tile"]) assert.ok(parseFloat(STYLE_SHAPE.clear[k]) >= 6 && parseFloat(STYLE_SHAPE.clear[k]) <= 8, k);
+  for (const scheme of ["light", "dark"]) assert.equal(STYLE_SKINS.clear[scheme]["--sh-card"], "none");
+  // Bloom: very round (24–28px cards, pill buttons); Journal: italic display, 12px cards, dashed rule, ruled paper
+  assert.ok(parseFloat(STYLE_SHAPE.bloom["--r-card"]) >= 24 && parseFloat(STYLE_SHAPE.bloom["--r-card"]) <= 28);
+  assert.equal(STYLE_SHAPE.bloom["--r-btn"], "999px");
+  assert.equal(STYLE_SHAPE.journal["--disp-style"], "italic");
+  assert.equal(STYLE_SHAPE.journal["--r-card"], "12px");
+  assert.match(STYLE_SHAPE.journal["--rule"], /dashed/);
+  assert.match(STYLE_SHAPE.journal["--paper-tex"], /repeating-linear-gradient/);
+});
+
+test("Skins: every text pair 4.5:1 and every UI boundary 3:1 on paper, card and each domain tint, light and dark, for every stage palette", () => {
+  const themes = [...Object.values(PALETTES).flat(), ...Object.values(ORGS).map((o) => o.theme)];
+  let pairs = 0;
+  for (const id of ["bloom", "clear", "journal"]) for (const scheme of ["light", "dark"]) {
+    const base = { ...SCHEME_TOKENS[scheme], ...STYLE_SKINS[id][scheme] };
+    for (const k of ["--paper", "--card", "--ink", "--soft", "--line"]) assert.match(base[k], /^#[0-9A-F]{6}$/i, `${id} ${scheme} ${k}`);
+    for (const th of id === "bloom" ? themes : [null]) {
+      const m = { ...base };
+      if (th) {
+        const p = scheme === "dark" ? th.dark : th;
+        for (const k of ["primary", "accent"]) { const [w, share] = BLOOM_WARM[scheme][k]; m[`--${k}`] = mix(p[k], w, share); assert.equal(base[`--${k}`], `color-mix(in srgb, var(--st-${k}) ${Math.round(share * 100)}%, ${w})`); }
+      }
+      const ctx = `${id} ${scheme}${th ? " " + th.id : ""}`;
+      const pText = mix(m["--primary"], m["--ink"], 0.82), aText = mix(m["--accent"], m["--ink"], 0.82);
+      const surfaces = [m["--paper"], m["--card"], ...["mind", "body", "patterns", "you"].map((d) => m[`--tint-${d}`])];
+      for (const bg of surfaces) {
+        for (const [n, c] of Object.entries({ ink: m["--ink"], soft: m["--soft"], primaryText: pText, accentText: aText, good: m["--good"], bad: m["--bad"] })) { pairs++; assert.ok(cr(c, bg) >= 4.5, `${ctx} ${n} on ${bg}: ${cr(c, bg).toFixed(2)}`); }
+        for (const [n, c] of Object.entries({ line: m["--line"], primary: m["--primary"] })) { pairs++; assert.ok(cr(c, bg) >= 3, `${ctx} ${n} on ${bg}: ${cr(c, bg).toFixed(2)}`); }
+      }
+      const onP = m["--on-primary"] === "var(--paper)" ? m["--paper"] : m["--on-primary"];
+      assert.ok(cr(onP, m["--primary"]) >= 4.5, `${ctx} on-primary`);
+      assert.ok(cr(pText, mix(m["--primary"], m["--card"], 0.16)) >= 4.5, `${ctx} supported chip`);
+      assert.ok(cr(m["--primary"], mix(m["--primary"], m["--card"], 0.12)) >= 4.5, `${ctx} selected option`);
+      if (id === "bloom") assert.ok(cr(m["--soft"], mix(m["--primary"], m["--card"], 0.09)) >= 4.5, `${ctx} soft on the glow`);
+      pairs += 3;
+      assert.ok(!/^#(000000|FFFFFF)$/i.test(m["--ink"]), `${ctx} ink is never pure black or white`);
+    }
+  }
+  assert.ok(pairs > 1000);
+});
+
+test("Skins: Atkinson Hyperlegible is self-hosted with its licence, declared lazily, and nothing else is fetched", () => {
+  const css = readFileSync(join(SRC, "styles.js"), "utf8");
+  const pub = join(SRC, "..", "public", "fonts");
+  for (const w of ["400", "700"]) for (const sub of ["latin", "latin-ext"]) assert.ok(statSync(join(pub, `atkinson-hyperlegible-${sub}-${w}-normal.woff2`)).size > 1000);
+  assert.match(readFileSync(join(pub, "OFL-AtkinsonHyperlegible.txt"), "utf8"), /SIL Open Font License/);
+  assert.ok(css.includes("src:url(${FONT_BASE}fonts/atkinson-hyperlegible-"));
+  assert.ok(!/url\(\s*['"]?https?:/i.test(css), "no font or image from another server");
 });

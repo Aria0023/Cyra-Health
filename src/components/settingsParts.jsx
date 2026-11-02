@@ -130,7 +130,7 @@ export function CountsBody({ stage, research, setResearch, lead = false, hideLab
   );
 }
 
-/** Appearance: System / Light / Dark, then Style: Soft / Mono (Solia; both are this device's display preferences). */
+/** Appearance: System / Light / Dark, then Style: the five-card picker (both are this device's display preferences). */
 export function AppearanceBody({ appearance, onAppearance, uiStyle = "soft", onStyle, hideLab = false }) {
   return (
     <>
@@ -143,15 +143,44 @@ export function AppearanceBody({ appearance, onAppearance, uiStyle = "soft", onS
       {onStyle && (
         <>
           <Lab id="set-style" icon="sun" style={{ margin: "12px 0 6px" }}>Style</Lab>
-          <div className="mcrow seg" role="group" aria-labelledby="set-style">
-            {STYLES.map(([v, label]) => (
-              <button key={v} className={`mc ${uiStyle === v ? "on" : ""}`} aria-pressed={uiStyle === v} onClick={() => onStyle(v)}>{label}</button>
-            ))}
-          </div>
+          <StylePicker value={uiStyle} onChange={onStyle} />
         </>
       )}
       <p className="rfoot">System follows this device's setting. Your {onStyle ? "choices stay" : "choice stays"} on this device and {onStyle ? "aren't" : "isn't"} part of a backup.</p>
     </>
+  );
+}
+
+/** The Style picker: a radio group of five cards, each with a live mini preview drawn in that style (wordmark, a chip,
+    a button and a card corner; .stylepv[data-style] takes that style's tokens in styles.js). Radio pattern: one tab stop
+    (the checked card), arrow keys move and choose, Home/End jump; every card is at least 44px tall. The preview is
+    decorative (aria-hidden); each radio's name is the style's name and its description the few words under it. */
+export function StylePicker({ value = "soft", onChange }) {
+  const keys = STYLES.map(([k]) => k);
+  const onKey = (e) => {
+    const i = keys.indexOf(value);
+    const next = { ArrowRight: i + 1, ArrowDown: i + 1, ArrowLeft: i - 1, ArrowUp: i - 1, Home: 0, End: keys.length - 1 }[e.key];
+    if (next === undefined) return;
+    e.preventDefault();
+    const k = keys[(next + keys.length) % keys.length];
+    onChange(k);
+    e.currentTarget.querySelector(`[data-key="${k}"]`)?.focus();
+  };
+  return (
+    <div className="stylepick" role="radiogroup" aria-labelledby="set-style" onKeyDown={onKey}>
+      {STYLES.map(([k, name, note]) => (
+        <button key={k} type="button" role="radio" data-key={k} className="stylecard" aria-checked={value === k} tabIndex={value === k ? 0 : -1} aria-labelledby={`stylename-${k}`} aria-describedby={`stylenote-${k}`} onClick={() => onChange(k)}>
+          <span className="stylepv" data-style={k} aria-hidden="true">
+            <span className="stylepv-mark">Solia</span>
+            <span className="stylepv-chip">Logged</span>
+            <span className="stylepv-btn">Log it</span>
+            <span className="stylepv-card" />
+          </span>
+          <span className="stylecard-name"><span id={`stylename-${k}`}>{name}</span>{value === k && <Icon name="check" size={14} />}</span>
+          <span className="stylecard-note" id={`stylenote-${k}`}>{note}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 
