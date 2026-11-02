@@ -249,6 +249,140 @@ export const MONO = {
   },
 };
 
+/* ---- Styles (skins, 2026-11-02): five looks of the same layout, chosen in You → Appearance → Style (lib/appearance.js
+   STYLES). A style is ONE token layer: shape tokens (type faces and steps, radii, spacing, surfaces, motion; STYLE_SHAPE)
+   plus a light and a dark colour set (STYLE_SKINS). styles.js writes STYLE_SHAPE.soft onto every .cy as the defaults,
+   then each other style onto .cy[data-style="<id>"] (and the same set onto the Style picker's live previews). Palette
+   tokens arrive inline from App.jsx, so a skin's seven palette tokens are written with !important. App.jsx also passes the
+   stage palette as --st-primary / --st-accent / --st-* (paletteVars), which Bloom mixes into its warm accents and the
+   Soft preview card reads. Data-viz colours (FAMILIES, RAMPS, SOFT_RAMP) are never part of a style.
+   Every text pair is AA (4.5:1) and every UI boundary 3:1 on paper, card and each domain tint, in both schemes, for
+   every stage palette (lib/appearance.test.mjs; numbers in docs/CYRA-BUILD-SPEC.md §8.6). ---- */
+const FRAUNCES = "'Fraunces Variable','Fraunces',serif";
+const KARLA = "'Karla Variable','Karla',sans-serif";
+/* Atkinson Hyperlegible (Braille Institute, SIL OFL 1.1) is self-hosted from public/fonts and declared in styles.js; the
+   browser fetches it from the app itself only once text in the Clear style needs it. Karla stays as the fallback. */
+export const ATKINSON = "'Atkinson Hyperlegible','Karla Variable','Karla',sans-serif";
+export const STYLE_SHAPE = {
+  /* Soft: today's look. These are the defaults every style starts from (the older tokens --fs-*, --r-card/-inner/-tile/
+     -btn, --gap, --stack, --t-*, --ease-* stay declared on .cy in styles.js). */
+  soft: {
+    "--ff-display": FRAUNCES, "--ff-body": KARLA, "--ff-num": "var(--ff-display)", "--ff-label": "var(--ff-body)", "--label-wght": "700",
+    "--fs-cta": "14px", "--fs-tile": "12.5px", "--fs-card-title": "18px", "--fs-hero-title": "22px", "--fs-sheet-title": "20px",
+    "--disp-style": "normal", "--num-variant": "normal",
+    "--eyebrow-ff": "var(--ff-body)", "--eyebrow-style": "normal", "--eyebrow-wght": "700", "--eyebrow-size": "var(--fs-xs)", "--eyebrow-case": "uppercase", "--eyebrow-track": ".14em",
+    "--lab-ff": "var(--ff-body)", "--lab-style": "normal", "--lab-wght": "700", "--lab-size": "var(--fs-xs)", "--lab-case": "uppercase", "--lab-track": ".08em",
+    "--r-chip": "999px", "--r-pbtn": "999px", "--r-seg": "999px", "--r-seg-in": "999px", "--r-nav": "999px", "--r-plus": "50%", "--r-badge": "50%", "--r-ctl": "12px", "--r-sheet": "26px", "--r-ghost": "var(--r-card)",
+    "--pad-card": "16px", "--pad-hero": "20px 18px", "--rule": "1px solid var(--edge)", "--paper-tex": "none",
+    "--view-enter": "cy-fade-rise", "--t-view": "var(--t-base)", "--t-sheet": "240ms", "--sh-cta": "0 6px 16px -8px var(--primary)",
+  },
+  /* Mono: same shape as Soft (only colour changes; MONO above). */
+  mono: {},
+  /* Bloom: warm, expressive, editorial. Fraunces for headings and big labels, larger display steps, very round shapes,
+     roomier spacing, a gentle overshoot in motion. */
+  bloom: {
+    "--ff-label": "var(--ff-display)", "--label-wght": "600", "--fs-cta": "16px", "--fs-tile": "14px",
+    "--fs-title": "31px", "--fs-num": "27px", "--fs-card-title": "20.5px", "--fs-hero-title": "25px", "--fs-sheet-title": "23px",
+    "--lab-ff": "var(--ff-display)", "--lab-wght": "600", "--lab-size": "16px", "--lab-case": "none", "--lab-track": "0",
+    "--eyebrow-track": ".16em",
+    "--r-card": "28px", "--r-inner": "18px", "--r-tile": "24px", "--r-btn": "999px", "--r-ctl": "18px", "--r-sheet": "34px", "--r-ghost": "999px",
+    "--gap": "10px", "--stack": "16px", "--pad-card": "20px", "--pad-hero": "24px 22px",
+    "--t-fast": "140ms", "--t-base": "280ms", "--t-slow": "420ms", "--t-sheet": "420ms", "--t-view": "380ms",
+    "--ease-std": "cubic-bezier(.34,1.32,.64,1)", "--ease-in": "cubic-bezier(.22,1.22,.36,1)", "--view-enter": "cy-bloom-in",
+    "--sh-cta": "0 12px 24px -12px var(--primary)",
+  },
+  /* Clear: crisp, structured, best for reading. One highly legible sans for everything, tabular numbers, small radii,
+     hairlines instead of shadows, compact spacing (targets stay 44px), minimal motion. */
+  clear: {
+    "--ff-display": ATKINSON, "--ff-body": ATKINSON, "--ff-num": ATKINSON, "--num-variant": "tabular-nums lining-nums",
+    "--fs-sm": "13px", "--fs-md": "14px", "--fs-xs": "11.5px", "--fs-cta": "15px", "--fs-tile": "13px",
+    "--fs-title": "25px", "--fs-num": "22px", "--fs-card-title": "17px", "--fs-hero-title": "20px", "--fs-sheet-title": "19px",
+    "--eyebrow-track": ".07em", "--lab-track": ".06em",
+    "--r-card": "8px", "--r-inner": "6px", "--r-tile": "8px", "--r-btn": "8px", "--r-chip": "6px", "--r-pbtn": "8px", "--r-seg": "8px", "--r-seg-in": "6px",
+    "--r-nav": "12px", "--r-plus": "12px", "--r-badge": "6px", "--r-ctl": "6px", "--r-sheet": "12px", "--r-ghost": "8px",
+    "--gap": "8px", "--stack": "10px", "--pad-card": "14px 16px", "--pad-hero": "18px 16px",
+    "--t-fast": "60ms", "--t-base": "100ms", "--t-slow": "140ms", "--t-sheet": "140ms", "--t-view": "100ms", "--view-enter": "cy-fade", "--sh-cta": "none",
+  },
+  /* Journal: personal, paper-like. Fraunces italic for headings and section labels, Karla body, ruled paper, paper-stack
+     cards, stamp chips, dashed dividers, medium radii and a soft page-turn between views. */
+  journal: {
+    "--disp-style": "italic",
+    "--eyebrow-ff": "var(--ff-display)", "--eyebrow-style": "italic", "--eyebrow-wght": "500", "--eyebrow-size": "14.5px", "--eyebrow-case": "none", "--eyebrow-track": "0",
+    "--lab-ff": "var(--ff-display)", "--lab-style": "italic", "--lab-wght": "500", "--lab-size": "16px", "--lab-case": "none", "--lab-track": "0",
+    "--r-card": "12px", "--r-inner": "10px", "--r-tile": "12px", "--r-btn": "12px", "--r-chip": "3px", "--r-pbtn": "10px", "--r-seg": "12px", "--r-seg-in": "9px",
+    "--r-nav": "16px", "--r-plus": "14px", "--r-ctl": "10px", "--r-sheet": "16px", "--r-ghost": "12px",
+    "--rule": "1px dashed var(--line)", "--paper-tex": "repeating-linear-gradient(180deg, transparent 0 31px, var(--ruled) 31px 32px)",
+    "--t-sheet": "340ms", "--t-view": "340ms", "--view-enter": "cy-page-turn", "--ease-in": "cubic-bezier(.25,.8,.3,1)",
+    "--sh-cta": "3px 3px 0 0 color-mix(in srgb, var(--primary) 30%, transparent)",
+  },
+};
+/* Bloom's accents: the stage colour pulled most of the way to terracotta / rose, so every stage keeps a hint of its own
+   hue and all of them read warm. [warm base, share of the stage colour] per scheme; styles.js writes
+   color-mix(in srgb, var(--st-primary) <share>%, <base>). */
+export const BLOOM_WARM = { light: { primary: ["#A8462F", 0.28], accent: ["#A0434A", 0.25] }, dark: { primary: ["#F2A58C", 0.22], accent: ["#EDA3A6", 0.3] } };
+const warm = (scheme, k) => `color-mix(in srgb, var(--st-${k}) ${Math.round(BLOOM_WARM[scheme][k][1] * 100)}%, ${BLOOM_WARM[scheme][k][0]})`;
+export const STYLE_SKINS = {
+  mono: MONO,
+  bloom: {
+    light: {
+      "--primary": warm("light", "primary"), "--accent": warm("light", "accent"), "--paper": "#F8EFE6", "--card": "#FFFAF5", "--ink": "#30221E", "--soft": "#685450", "--line": "#9A8078",
+      "--edge": "#EFDDD1", "--wash-a": "rgba(238,150,112,.20)", "--wash-b": "rgba(250,206,160,.18)", "--wash-c": "rgba(226,124,140,.16)",
+      "--tint-mind": "#F7E7EC", "--tint-body": "#FBE6DC", "--tint-patterns": "#FAECD8", "--tint-you": "#F5EAE2",
+      "--good": "#3F604B", "--bad": "#A2403A", "--on-primary": "#FFF", "--toast-dot": "var(--accent)", "--brand": "#A8462F",
+      "--sh-card": "inset 0 1px 0 rgba(255,255,255,.95), inset 0 0 28px rgba(255,226,208,.55), 0 14px 32px -16px rgba(122,62,40,.30)",
+      "--sh-opt": "0 1px 2px rgba(122,62,40,.06)", "--sh-meter": "0 1px 3px rgba(122,62,40,.08)",
+      "--sh-lift": "0 2px 6px rgba(122,62,40,.08), 0 16px 36px -12px rgba(122,62,40,.30)", "--sh-sheet": "0 -2px 8px rgba(122,62,40,.06), 0 20px 52px -12px rgba(122,62,40,.26)",
+      "--scrim": "rgba(48,34,30,.34)",
+    },
+    dark: {
+      "--primary": warm("dark", "primary"), "--accent": warm("dark", "accent"), "--paper": "#1E1715", "--card": "#2A201D", "--ink": "#F4E7DF", "--soft": "#CBB4AA", "--line": "#937A71",
+      "--edge": "#3D2F2A", "--wash-a": "rgba(238,150,112,.10)", "--wash-b": "rgba(250,206,160,.06)", "--wash-c": "rgba(226,124,140,.08)",
+      "--tint-mind": "#35252C", "--tint-body": "#3A2822", "--tint-patterns": "#382C1F", "--tint-you": "#312723",
+      "--good": "#8FCBA4", "--bad": "#F29B91", "--on-primary": "var(--paper)", "--toast-dot": "var(--accent)", "--brand": "#F2A58C",
+      "--sh-card": "inset 0 1px 0 rgba(255,236,224,.06), inset 0 0 26px rgba(242,165,140,.06), 0 1px 2px rgba(0,0,0,.3)",
+      "--sh-opt": "0 1px 2px rgba(0,0,0,.3)", "--sh-meter": "0 1px 3px rgba(0,0,0,.35)",
+      "--sh-lift": "0 2px 6px rgba(0,0,0,.35), 0 14px 32px -10px rgba(0,0,0,.6)", "--sh-sheet": "0 4px 16px rgba(0,0,0,.5)", "--scrim": "rgba(0,0,0,.58)",
+    },
+  },
+  clear: {
+    light: {
+      "--primary": "#0E6168", "--accent": "#3D5B86", "--paper": "#F6F7F7", "--card": "#FFFFFF", "--ink": "#172026", "--soft": "#4A585F", "--line": "#7A878E",
+      "--edge": "#DAE0E3", "--wash-a": "transparent", "--wash-b": "transparent", "--wash-c": "transparent",
+      "--tint-mind": "#EDF3F6", "--tint-body": "#F1F0F5", "--tint-patterns": "#F5F2EC", "--tint-you": "#EFF3F2",
+      "--good": "#2F6046", "--bad": "#A23B3B", "--on-primary": "#FFF", "--toast-dot": "var(--primary)", "--brand": "#0E6168",
+      "--sh-card": "none", "--sh-opt": "none", "--sh-meter": "none", "--sh-lift": "0 0 0 1px #DAE0E3, 0 8px 20px -14px rgba(23,32,38,.35)", "--sh-sheet": "0 -1px 0 #DAE0E3",
+      "--scrim": "rgba(23,32,38,.32)",
+    },
+    dark: {
+      "--primary": "#6CC6C0", "--accent": "#A4BDE2", "--paper": "#0F1315", "--card": "#161B1E", "--ink": "#E5EBED", "--soft": "#A3B0B6", "--line": "#6D7B82",
+      "--edge": "#273035", "--wash-a": "transparent", "--wash-b": "transparent", "--wash-c": "transparent",
+      "--tint-mind": "#1A2329", "--tint-body": "#1F1F28", "--tint-patterns": "#24221D", "--tint-you": "#1C2324",
+      "--good": "#8FCBA4", "--bad": "#F29B91", "--on-primary": "var(--paper)", "--toast-dot": "var(--primary)", "--brand": "#6CC6C0",
+      "--sh-card": "none", "--sh-opt": "none", "--sh-meter": "none", "--sh-lift": "0 0 0 1px #2E383E", "--sh-sheet": "0 -1px 0 #2E383E", "--scrim": "rgba(0,0,0,.6)",
+    },
+  },
+  journal: {
+    light: {
+      "--primary": "#2B4A8B", "--accent": "#9A3F37", "--paper": "#F5F0E4", "--card": "#FBF8F0", "--ink": "#23263A", "--soft": "#565866", "--line": "#858074",
+      "--edge": "#DED5C3", "--wash-a": "transparent", "--wash-b": "transparent", "--wash-c": "transparent", "--ruled": "rgba(43,74,139,.075)",
+      "--tint-mind": "#ECEEF1", "--tint-body": "#F2EAE5", "--tint-patterns": "#F3EBDA", "--tint-you": "#EEEADF",
+      "--good": "#3F5F4B", "--bad": "#A03F3B", "--on-primary": "#FFF", "--toast-dot": "var(--accent)", "--brand": "#2B4A8B",
+      "--sh-card": "3px 3px 0 -1px var(--card), 3px 3px 0 0 #D2C8B4", "--sh-opt": "none", "--sh-meter": "none",
+      "--sh-lift": "3px 3px 0 -1px var(--card), 3px 3px 0 0 #D2C8B4", "--sh-sheet": "0 -1px 0 #D2C8B4, 0 -5px 0 -2px var(--card), 0 -5px 0 -1px #D2C8B4",
+      "--scrim": "rgba(35,38,58,.30)",
+    },
+    dark: {
+      "--primary": "#A5B9EC", "--accent": "#E7A99C", "--paper": "#15161B", "--card": "#1C1E25", "--ink": "#EEE5D1", "--soft": "#BCB19B", "--line": "#7F7867",
+      "--edge": "#33353E", "--wash-a": "transparent", "--wash-b": "transparent", "--wash-c": "transparent", "--ruled": "rgba(238,229,209,.045)",
+      "--tint-mind": "#1F2330", "--tint-body": "#271F23", "--tint-patterns": "#27231B", "--tint-you": "#22211F",
+      "--good": "#8FCBA4", "--bad": "#F29B91", "--on-primary": "var(--paper)", "--toast-dot": "var(--accent)", "--brand": "#A5B9EC",
+      "--sh-card": "3px 3px 0 -1px var(--card), 3px 3px 0 0 #3B3E48", "--sh-opt": "none", "--sh-meter": "none",
+      "--sh-lift": "3px 3px 0 -1px var(--card), 3px 3px 0 0 #3B3E48", "--sh-sheet": "0 -1px 0 #3B3E48, 0 -5px 0 -2px var(--card), 0 -5px 0 -1px #3B3E48",
+      "--scrim": "rgba(0,0,0,.58)",
+    },
+  },
+};
+
 /* ---- Data viz (kept apart from PALETTES and SCHEME_TOKENS; never derived from a UI palette) ----
    Patterns charts: every symptom belongs to one family, and each family has one fixed data-viz colour
    (categorical, separate from the UI palettes). Colours are the reference categorical slots red, blue,

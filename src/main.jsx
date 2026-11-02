@@ -5,6 +5,8 @@ import ReactDOM from "react-dom/client";
    public/fonts/), so starting Cyra contacts no font CDN. Fraunces carries its
    optical-size (opsz) and weight axes; Karla its weight axis. */
 import "@fontsource-variable/fraunces/opsz.css";
+// Fraunces italic (same package): the Journal style's headings and section labels; fetched only when italic text shows.
+import "@fontsource-variable/fraunces/opsz-italic.css";
 import "@fontsource-variable/karla/index.css";
 /* Language support (calm R10): registers the catalogues (English only today), picks the device's best match and
    sets <html lang> and dir before the first render. App.jsx applies a saved choice once the record is read. */

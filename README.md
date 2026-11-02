@@ -178,6 +178,12 @@ template with a note on each). Names only:
   `VITE_FEATURES` (unset = shipping defaults), `VITE_TERMS_URL`, `VITE_PRIVACY_URL`. `VITE_DEMO_WEARABLES` and
   `VITE_DEMO_SEED` are for demo builds only; leave them unset in production.
 
+## Screenshots
+
+For the store listing and this README, one set per style, at 390 × 844 in light and dark: Home, Body → Logs, the log
+sheet ("+"), Patterns, Mind → Practices and You → Appearance (the Style picker). Styles: Soft (default), Mono, Bloom,
+Clear, Journal. The harness shoots them all with `STYLES=soft,mono,bloom,clear,journal SCHEMES=light,dark`.
+
 ## Docs
 - `docs/CYRA-BUILD-SPEC.md` — complete product + technical spec (normative)
 - `docs/ARCHITECTURE.md` — local-first architecture: where the record is stored, its keys and version, derived data, flags and plan hooks

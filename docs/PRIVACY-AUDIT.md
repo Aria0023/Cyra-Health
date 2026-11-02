@@ -1827,6 +1827,26 @@ the only consumer is Shell's `data-style` attribute, which styles.js reads. No r
   - Before: Your settings are replaced too, except this device's choices about …, and appearance (light or dark).
   - After: Your settings are replaced too, except this device's choices about …, and appearance (light or dark, and the style).
 
+## Three more styles: Bloom, Clear and Journal (2026-11-02) — no new data, no new key, nothing new leaves the device
+
+You → Appearance → Style now offers five looks (Soft, Mono, Bloom, Clear, Journal) as a small radio picker with live
+preview cards. **No new data is collected and no new record key exists:** the choice is the existing device preference
+`uiStyle`, which gains the values "bloom", "clear" and "journal" (record.js RULES; anything else reads as Soft). It is
+handled exactly as before: saved with the on-device record, followed by every open tab, **never in a backup file**
+(NOT_IN_BACKUP) and **never taken from one** (importBackup keeps this device's value). It is never sent anywhere; the
+only consumers are Shell's `data-style` attribute and the picker's preview cards, which styles.js reads.
+
+**Fonts: served from the app itself, no request elsewhere.** Clear uses Atkinson Hyperlegible (SIL OFL 1.1; licence in
+public/fonts/OFL-AtkinsonHyperlegible.txt). Its four woff2 files are part of the build (public/fonts), so they come
+from the same place as the app (the static site, or the app's own bundle on the phone); no font service or other host
+is contacted. The browser asks for them only when Clear text is on screen (the Clear style, or its preview card in the
+picker). Journal's italic headings use the Fraunces italic face from the already-bundled `@fontsource-variable/fraunces`
+package. "Fonts are bundled with the app, so no font service is contacted" (README, store answers) stays literally
+true. flags-e2e and the style walk check that no request leaves the app's own origin, fonts included.
+
+**No privacy sentence was added, removed or reworded.** The Appearance footnote ("System follows this device's setting.
+Your choices stay on this device and aren't part of a backup.") is unchanged and still true for the five styles.
+
 ## Readability pass (Solia C, 2026-11-01) — no new record key, no new request, nothing new leaves the device
 
 Screens show one or two short lines per card; explanations sit behind "How this works"-style disclosures (the Details

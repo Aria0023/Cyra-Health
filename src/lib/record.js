@@ -71,7 +71,7 @@ import { cleanLocale } from "./i18n.js";
  * @property {string|null} lastBackupAt [device-only] [not-in-backup] the local day this device last made a backup.
  * @property {null|"dismissed"|"installed"} installHint [device-only] [not-in-backup] whether this browser's install tip stays away (lib/pwa.js).
  * @property {"system"|"light"|"dark"} appearance [device-pref] [not-in-backup] this device's light / dark choice (lib/appearance.js).
- * @property {"soft"|"mono"} uiStyle [device-pref] [not-in-backup] Solia: this device's style, Soft or Mono (lib/appearance.js STYLES).
+ * @property {"soft"|"mono"|"bloom"|"clear"|"journal"} uiStyle [device-pref] [not-in-backup] this device's style: Soft, Mono, Bloom, Clear or Journal (lib/appearance.js STYLES).
  * @property {string|null} uiLocale [device-pref] [not-in-backup] calm R10: this device's language choice (null = follow the device; lib/i18n.js).
  * @property {CycleFlags} cycleFlags [record] cycles she left out of predictions (L5); missing means {}.
  * @property {ExportTally|null} exportLog [device-only] [not-in-backup] appointment PDFs made this month (L9, lib/plan.js ExportTally); null while exports are unlimited.
@@ -264,7 +264,7 @@ export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent",
    they are all the same device), but it is never in a backup file and never taken from one:
    exportBackup deletes it before encryption and importBackup keeps this device's value. Calm R10: uiLocale (null =
    follow this device's language, or a catalogue code from lib/i18n.js) is the same kind of display preference, and so
-   is uiStyle (Solia: "soft" | "mono", lib/appearance.js STYLES). */
+   is uiStyle (Soft, Mono, Bloom, Clear or Journal, lib/appearance.js STYLES). */
 export const DEVICE_PREFS = Object.freeze(["appearance", "uiLocale", "uiStyle"]);
 /* The health record and settings another open tab of this browser can hand over (everything
    saved except the per-device consents and this browser's reminder addresses). */
@@ -493,7 +493,7 @@ export const RULES = Object.freeze({
   lastBackupAt: isoOrNullRule,
   installHint: enumRule(INSTALL_HINTS, { nullable: true }),
   appearance: enumRule(APPEARANCES),
-  uiStyle: enumRule(["soft", "mono"]),
+  uiStyle: enumRule(["soft", "mono", "bloom", "clear", "journal"]),
   uiLocale: (v, p) => (v === null || cleanLocale(v) === v ? [] : [`${p}: expected null or a language code, got ${show(v)}`]),
   // Her "Don't use for predictions" choices: a problem whenever cleanCycleFlags would change anything.
   cycleFlags: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanCycleFlags(v)) ? [] : [`${p}: expected { YYYY-MM-DD: { exclude: true|false, … } } (at most 400, no empty entries), got ${show(v)}`]),
