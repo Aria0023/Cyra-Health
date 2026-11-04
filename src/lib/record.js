@@ -22,6 +22,7 @@ import { cleanAiPrefs, cleanAiChat, cleanAiWeekly } from "./aiFeatures.js";
 import { cleanCloudAccount } from "./account.js";
 import { cleanLocale } from "./i18n.js";
 import { cleanQuestions } from "./visitQuestions.js";
+import { cleanNightSkips, cleanConfirmations, cleanTrackStats, cleanSourceExtras } from "./sources.js";
 
 /* ======================= shapes (documentation only) =======================
    Class tags: [record] the health record and settings (in the backup file, applied by a restore,
@@ -46,8 +47,11 @@ import { cleanQuestions } from "./visitQuestions.js";
  * @property {Object<string, Object<string, boolean>>} medLog [record] taken / not taken, by local day then med id.
  * @property {Appt[]} appts [record] appointments.
  * @property {Object<string, string>} journal [record] journal text by local day.
- * @property {Object<string, Object>} wearSources [record] wearable connections by source id (a restore brings them back unconfirmed).
- * @property {WearRow[]} wearData [record] daily wearable readings.
+ * @property {Object<string, Object>} wearSources [record] wearable connections by source id (a restore brings them back unconfirmed). Passive tracking S1 (lib/sources.js): an entry may carry `prefer` (the metrics this source is the preferred one for), `paused` (true: not synced) and `lastSync` (ms of its last good sync).
+ * @property {WearRow[]} wearData [record] daily wearable readings: one row per wake day and source; never an intraday series (backupCopy strips any `series` / `samples` field).
+ * @property {Object<string, "fever"|"alcohol"|"travel"|"other">} nightSkips [record] passive tracking S1: nights she asked to skip ("Skip this night"), by wake day; the reading stays in wearData, the signals library leaves it out (lib/sources.js cleanNightSkips, at most 400).
+ * @property {Object<string, {at: string, took?: number, via: "app"|"notification"}>} confirmations [record] passive tracking S1: her "Looks right" per wake day — when, how long from the card appearing (ms), and whether from the app or the notification (lib/sources.js cleanConfirmations, at most 400).
+ * @property {{confirmed: number, fast: number, tooks: number[], sourceSince: (string|null), firstConfirm: (string|null)}} trackStats [device-only] [not-in-backup] passive tracking S1: the spike's success numbers (plan §8) — nights confirmed, how many under 15 s, the last 200 timings, the day a source was first connected; shown in You → Data sources → "How this is going"; never in any backup, never sent.
  * @property {Account} acct [record] name and email (empty in Anonymous Mode).
  * @property {boolean} research [device-only] "Share anonymous weekly counts", a consent given on this device.
  * @property {"periods"|"preg"|"peri"|null} stage [record] the one life-stage experience (null while she chooses again).
@@ -183,7 +187,7 @@ import { cleanQuestions } from "./visitQuestions.js";
 /** @typedef {{id: number|string, name: string, kind: string, started: string}} Med What I'm trying: started is YYYY-MM-DD. */
 /** @typedef {{id?: number|string, date: string, who: string, note: string}} Appt */
 /** @typedef {{closeness?: number, desire?: number, friction?: number, load?: number, intimacy?: string|null, after?: string|null}} ConnEntry scales 0–10; intimacy an INTIMACY id, after an AFTER id. */
-/** @typedef {{date: string, temp: number|null, rhr: number|null, hrv: number|null, sleep: number|null, sourceId?: string, demo?: boolean}} WearRow */
+/** @typedef {{date: string, temp: number|null, rhr: number|null, hrv: number|null, sleep: number|null, sourceId?: string, demo?: boolean}} WearRow one wake day from one source (lib/signals.js reads these; no intraday series). */
 /** @typedef {{day: string, stage: "periods"|"preg"|"peri", byDay?: Object<string, string[]>, events: string[]}} PulseQueue byDay: flags per local day (lib/pulse.js); events is their union; an older queue has no byDay. */
 /** @typedef {{week: string, keys: string[]}} PulseSent keys are "stage|event". */
 /** @typedef {{day: string, n: number}} KickTally */
@@ -253,8 +257,13 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    exportLog (L9) is this month's count of appointment PDFs, { month: "YYYY-MM", n }, written only while plan.js sets a
    monthly limit (none today, so it stays null): device-only and never in a backup file.
    visitQuestions (doctor report v2, lib/visitQuestions.js) is her own typed "Questions for my visit" for page 1 of the
-   clinician summary: record, in backups, restored literally (a backup without it clears it). Never sent anywhere. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions"]);
+   clinician summary: record, in backups, restored literally (a backup without it clears it). Never sent anywhere.
+   nightSkips, confirmations (passive tracking S1, lib/sources.js) are her "Skip this night" reasons and her "Looks right"
+   taps, by wake day: record, in backups, restored literally (a backup without them clears them). Never sent anywhere.
+   trackStats (passive tracking S1) is this device's count of confirmed nights, their timings and the day a source was
+   first connected (plan §8, read by the pilot with her present): device-only AND never in any backup file; a restore
+   keeps this device's value; Delete everything removes it with the record. Never sent. */
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -262,7 +271,7 @@ export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "ca
    is whether this browser's Home install tip should stay away (null | "dismissed" |
    "installed", lib/pwa.js), also left out of the backup file; exportLog is this device's count of
    appointment PDFs this month (L9), null while exports are unlimited, also left out of the file. */
-export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount"]);
+export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats"]);
 /* A display preference of this device (L2): appearance ("system" | "light" | "dark", lib/appearance.js).
    It is saved with the record and followed by every open tab of this browser (so it stays in RECORD,
    they are all the same device), but it is never in a backup file and never taken from one:
@@ -277,7 +286,7 @@ export const RECORD = Object.freeze(PERSISTED.filter((k) => !DEVICE_ONLY.include
    lastBackupAt (this device's own note of when it last backed up), installHint (whether this
    device's install tip is hidden), exportLog (this device's PDF count this month, L9) and appearance
    (this device's light/dark choice). */
-export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", ...DEVICE_PREFS]);
+export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", ...DEVICE_PREFS]);
 
 /** The record as it goes into an encrypted backup file, as a new object (the input is not
     changed): every saved key, except that regAnswers loses zip and age (neither is used after
@@ -290,6 +299,8 @@ export function backupCopy(snap) {
   const out = { ...snap };
   if (out.regAnswers && typeof out.regAnswers === "object") { const ra = { ...out.regAnswers }; delete ra.zip; delete ra.age; out.regAnswers = ra; }
   out.reminders = { enabled: !!(snap && snap.reminders && snap.reminders.enabled) };
+  // Passive tracking: a wearable row is one wake day; any intraday series a future source might attach never travels (plan §1.2).
+  if (Array.isArray(out.wearData) && out.wearData.some((r) => isObj(r) && (has(r, "series") || has(r, "samples")))) out.wearData = out.wearData.map((r) => { if (!isObj(r)) return r; const rest = { ...r }; delete rest.series; delete rest.samples; return rest; });
   for (const k of NOT_IN_BACKUP) delete out[k];
   return out;
 }
@@ -427,6 +438,14 @@ const wearRowProblems = (r, p) => {
   if (!isObj(r)) return [`${p}: expected { date, temp, rhr, hrv, sleep }, got ${show(r)}`];
   const out = [...isoProblem(r.date, `${p}.date`)];
   for (const k of ["temp", "rhr", "hrv", "sleep"]) if (r[k] !== undefined && r[k] !== null && !(typeof r[k] === "number" && Number.isFinite(r[k]))) out.push(`${p}.${k}: expected a number or null, got ${show(r[k])}`);
+  if (has(r, "series") || has(r, "samples")) out.push(`${p}: an intraday series never goes into the record (one row per wake day)`);
+  return out;
+};
+/* Passive tracking S1: a wearSources entry's prefer / paused / lastSync must be what cleanSourceExtras keeps. */
+const wearSourcesRule = (v, p) => {
+  if (!isObj(v)) return [`${p}: expected an object, got ${show(v)}`];
+  const out = [];
+  for (const id of Object.keys(v)) if (isObj(v[id]) && JSON.stringify(v[id]) !== JSON.stringify(cleanSourceExtras(v[id]))) out.push(`${p}.${id}: expected prefer (metric ids), paused (true) and lastSync (ms) as lib/sources.js keeps them, got ${show(v[id])}`);
   return out;
 };
 const stringList = (v) => Array.isArray(v) && v.every((x) => typeof x === "string");
@@ -451,7 +470,7 @@ export const RULES = Object.freeze({
   medLog: byDayRule((e, p) => (isObj(e) ? Object.keys(e).filter((k) => typeof e[k] !== "boolean").map((k) => `${p}.${k}: expected true or false, got ${show(e[k])}`) : [`${p}: expected taken (true / false) by medication id, got ${show(e)}`]), "medication days"),
   appts: listRule(apptProblems, "appointments"),
   journal: byDayRule((e, p) => stringRule(e, p), "journal text"),
-  wearSources: objectRule,
+  wearSources: wearSourcesRule,
   wearData: listRule(wearRowProblems, "wearable rows"),
   acct: (v, p) => {
     if (!isObj(v)) return [`${p}: expected { name, email, anon }, got ${show(v)}`];
@@ -499,6 +518,10 @@ export const RULES = Object.freeze({
   appearance: enumRule(APPEARANCES),
   uiStyle: enumRule(["soft", "mono", "bloom", "clear", "journal"]),
   visitQuestions: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanQuestions(v)) ? [] : [`${p}: expected a list of at most 8 questions, each at most 200 characters, got ${show(v)}`]),
+  // Passive tracking S1 (lib/sources.js): a problem whenever the clean function would change anything.
+  nightSkips: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanNightSkips(v)) ? [] : [`${p}: expected { YYYY-MM-DD: fever | alcohol | travel | other } (at most 400), got ${show(v)}`]),
+  confirmations: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanConfirmations(v)) ? [] : [`${p}: expected { YYYY-MM-DD: { at, took?, via: app | notification } } (at most 400), got ${show(v)}`]),
+  trackStats: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanTrackStats(v)) ? [] : [`${p}: expected { confirmed, fast, tooks, sourceSince, firstConfirm } (lib/sources.js), got ${show(v)}`]),
   uiLocale: (v, p) => (v === null || cleanLocale(v) === v ? [] : [`${p}: expected null or a language code, got ${show(v)}`]),
   // Her "Don't use for predictions" choices: a problem whenever cleanCycleFlags would change anything.
   cycleFlags: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanCycleFlags(v)) ? [] : [`${p}: expected { YYYY-MM-DD: { exclude: true|false, … } } (at most 400, no empty entries), got ${show(v)}`]),

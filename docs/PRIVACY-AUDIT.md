@@ -1924,3 +1924,36 @@ this device (`aiWeekly`); making the PDF sends nothing.
 - In the PDF: "Prepared by the patient from her own log. Not a diagnosis.", "Patient-reported data", "Generated <date>".
 - Unchanged: the file warning (FILE_WARNING), the "?" warning, "made on this device".
 
+
+
+## Auto-tracked S1 (passive tracking, 2026-11-04) — two new record keys (in backups), one device-only key never in a backup, no new request, nothing new leaves the device
+
+**What it is.** The pure signals library (`src/lib/signals.js`, tested on synthetic cycles from `src/lib/signalsFixtures.js`)
+and the one adapter seam for sources (`src/lib/sources.js`). Nothing in S1 shows a new screen; it is the foundation
+for S2 (the Home card, the cycle markers, the PDF table) and S3 (the notification confirm, the Data sources screen).
+Every function is a function of the rows already in `wearData`, the day entries and her choices; nothing is fetched
+to compute them and nothing is sent.
+
+**New persisted keys (`src/lib/record.js`):**
+- `nightSkips` — `{ [wakeDay]: "fever" | "alcohol" | "travel" | "other" }`, her "Skip this night" reasons. Record class,
+  **in backups** (the local file and the optional encrypted account backup), restored literally (a backup without it
+  clears it), removed by Delete everything. The reading itself stays in `wearData`; the library leaves it out. Never sent.
+- `confirmations` — `{ [wakeDay]: { at, took?: ms, via: "app" | "notification" } }`, her "Looks right" taps. Record
+  class, **in backups**, restored literally. Never sent; never part of weekly counts, Ask, the AI summary (its allowlist
+  `SUMMARY_PATHS` is unchanged) or the doctor email.
+- `trackStats` — `{ confirmed, fast, tooks: [ms…], sourceSince, firstConfirm }`, the spike's success numbers (plan §8).
+  **Device-only and never in any backup** (DEVICE_ONLY + NOT_IN_BACKUP: `backupCopy` deletes it; a restore keeps this
+  device's value; another tab never takes it over); Delete everything removes it with the record. Never sent. S3 shows
+  it in You → Data sources → "How this is going" with "Kept on this device, never sent." (literally true: the only reader
+  is that screen and the dev gallery).
+- `wearSources[id]` may now carry `prefer` (the metric ids this source is the preferred one for), `paused` (true) and
+  `lastSync` (ms): the same key, so the same class (in backups, a restore brings connections back unconfirmed as before).
+
+**No intraday series in backups (plan §1.2).** A wearable row is one wake day. `backupCopy` strips any `series` or
+`samples` field a future source might attach, and `validateRecord` reports one (unit-tested). None exists in this build.
+
+**Demo readings.** In a `VITE_DEMO_WEARABLES` build, connecting a source now adds 90 days (was 30) of deterministic
+illustrative rows from the fixtures, every row marked `demo`, shaped to her stage; the toast says "Demo mode — … showing
+90 days of illustrative data". Nothing is sent; the privacy row still reads Off with the note `demo`.
+
+**No sentence on screen changed in S1.**

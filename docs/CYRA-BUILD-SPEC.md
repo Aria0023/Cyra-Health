@@ -411,6 +411,34 @@ output), `src/lib/pdf.js` `text(..., { spacing })` (letter-spaced small labels).
   (`can("pdfExport")`, unlimited in every plan).
 - **New persisted key `visitQuestions`** (record, in backups, restored literally; RULES via `cleanQuestions`).
 
+### 3.5k Auto-tracked: the passive-tracking spike (S1–S3, `lib/signals.js`, `lib/sources.js`; docs/PASSIVE-TRACKING-PLAN.md v2)
+
+Owner, 2026-11-04 ("ok do it all"): a two-week spike on the four readings the native plugin already returns (temperature,
+resting heart rate, HRV, sleep; one row per wake day), with the nine improvements of plan v2. No new native permission,
+no background job, no CGM.
+- **S1 — the signals library and the adapter seam.** `src/lib/signals.js` (pure; imports engine.js and fertility.js):
+  `wakeDay` (a night belongs to the local day it ends on), `nightlyValues` / `nightlyTemps` (one value per night, the
+  preferred source first, the others "also from", skipped nights never valid), `excludeOutliers` (a night more than
+  1.0 °C over the mean of the other nights is left out with a note), `ovulationFor` (the three-over-six rule: three
+  consecutive nights at least 0.2 °C above the mean of the six valid nights before them; "not-enough-nights" under 10
+  valid nights in a cycle or without six before a candidate; an LH-positive test within 2 days makes the confidence
+  "clear"; luteal length to the next start), `phaseOf` (menstrual / follicular / ovulatory / luteal from the starts and
+  the rise), `baselines` + `wordFor` (her own mean ± 1 SD per phase, 7 nights a bucket), `readinessWords` (words only:
+  "at your usual", "lower than usual", "lower, usual for your luteal days", "a few more nights will show your usual"),
+  `cycleTable` (newest first, at most 12: length · bleeding days · rise · luteal), `skippedSummary`, `hrvBeforeRise` +
+  `reviewSentence` ("Temperature rose on day 32; HRV was lower in the 5 days before."), `SIGNAL_COPY` (every fixed
+  sentence, tested against `FERT_BANNED` and `contraOk`). Synthetic fixtures in `src/lib/signalsFixtures.js`
+  (regular 28, irregular 45 with a late rise, anovulatory, four skipped nights, a fever night, two sources for one night,
+  a wake-day boundary across a time zone; `demoRows` for demo builds and the gallery). Tests: `signals.test.mjs`.
+  `src/lib/sources.js` (pure): `sourceMeta`, `makeAdapters({ sync, platform, demo })` → `{ demo, healthkit, oura,
+  terra }`, each `{ id, name, viaServer, onDevice, read({ fromIso, toIso, state }) }`; `mergeSourceRows` (by day AND
+  source); `preferredSources` / `setPreferred` / `contestedMetrics`; `syncedRecently` (36 h); the record helpers for
+  `nightSkips`, `confirmations` and `trackStats` (§3 keys; docs/ARCHITECTURE.md §4). App.jsx syncs through the seam and
+  stamps `wearSources[id].lastSync`. Tests: `sources.test.mjs`.
+- **New persisted keys:** `nightSkips`, `confirmations` (record, in backups, restored literally), `trackStats`
+  (device-only, never in a backup, never sent). `wearSources[id]` gains `prefer`, `paused`, `lastSync`.
+- S2 and S3 add their parts to this section when they land.
+
 ## 4. APPLICATION FLOW (state machine)
 
 ```

@@ -69,7 +69,8 @@ import { SYMS, GSYM, ALL_SYM, ENERGY_ID, SCORE_SCALE, SHELF, stagePalettes, ORGS
 import { seed, fmt, addDays, routeIntake, insights, predict, whyNoPrediction, cycleSummary, cleanCycleFlags, toggleExclude, periodHead, basisLine, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick, scoreRgb, scoreColorOf, inkOn } from "./lib/engine.js";
 import { DEFAULT_APPEARANCE, DEFAULT_STYLE, SYSTEM_DARK_QUERY, cleanAppearance, cleanStyle, resolveScheme, paletteFor, paletteVars, applyDocumentScheme } from "./lib/appearance.js";
 import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
-import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource, drainTerra, mergeRows, disconnectHelp } from "./lib/wearables.js";
+import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource, drainTerra, disconnectHelp } from "./lib/wearables.js";
+import { makeAdapters, mergeSourceRows as mergeRows, cleanNightSkips, cleanConfirmations, cleanTrackStats, cleanSourceExtras, noteSource } from "./lib/sources.js";
 import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue, pruneQueue, mergeQueues, localDay, weekKey } from "./lib/pulse.js";
 import { answerLocally, RED_FLAGS } from "./lib/askLibrary.js";
 import { storage } from "./lib/storage.js";
@@ -224,6 +225,10 @@ export default function CyraDemo() {
   const [wearSources, setWearSources] = useState({});
   const [terraOff, setTerraOff] = useState([]); // unconfirmed Fitbit/Garmin/Whoop disconnects, asked again until confirmed
   const [wearData, setWearData] = useState([]);
+  // Passive tracking S1 (lib/sources.js): her "Skip this night" reasons and "Looks right" taps (record, in backups) and this device's confirm counts (device-only, never in a backup).
+  const [nightSkips, setNightSkips] = useState({});
+  const [confirmations, setConfirmations] = useState({});
+  const [trackStats, setTrackStats] = useState(() => cleanTrackStats(null));
   const [showWear, setShowWear] = useState(false);
   const [regStep, setRegStep] = useState(0);
   const [regTouched, setRegTouched] = useState({});
@@ -984,37 +989,23 @@ export default function CyraDemo() {
     return { ...m, ready: true, before: av(before), after: av(afterArr) };
   });
 
-  /* ---- Wearables: Apple Watch / Oura / Terra. DEMO seeding (build flag only) is shaped by
-     stage and every seeded row is marked demo; production ingests real HealthKit/Health
-     Connect readings on the phone and Oura/Terra through the integrations hub. ---- */
-  const seedWear = (sourceId) => {
-    const out = [];
-    const cycleLen = pred ? pred.avgLen : 28;
-    const lastStart = ins.starts.length ? new Date(ins.starts[ins.starts.length - 1] + "T12:00:00") : new Date();
-    const nz = (i, s, amp) => ((Math.sin(i * 12.9898 + s * 78.233) * 43758.5453) % 1) * amp;
-    for (let i = 30; i >= 1; i--) {
-      const d = new Date(); d.setDate(d.getDate() - i); const iso = localDay(d);
-      const cd = (((Math.round((d - lastStart) / 86400000)) % cycleLen) + cycleLen) % cycleLen;
-      let temp, rhr, hrv, sleep;
-      if (stage === "periods") { const lut = i <= 12; temp = (lut ? 0.32 : 0.02) + nz(i, 1, 0.07); rhr = (lut ? 64 : 60) + nz(i, 2, 2); hrv = (lut ? 38 : 46) + nz(i, 3, 4); sleep = 74 + nz(i, 4, 8); }
-      else if (isMeno) { temp = 0.03 + nz(i, 1, 0.06); rhr = 63 + nz(i, 2, 2); hrv = 36 + nz(i, 3, 4); sleep = 70 + nz(i, 4, 9); }
-      else if (stage === "peri") { const poor = (days.find((x) => x.date === iso) || {}).sleepQ === "poor"; temp = (poor ? 0.38 : 0.08) + nz(i, 1, 0.1); rhr = 62 + (poor ? 4 : 0) + nz(i, 2, 2); hrv = (poor ? 30 : 40) + nz(i, 3, 4); sleep = (poor ? 54 : 72) + nz(i, 4, 7); }
-      else { temp = 0.25 + nz(i, 1, 0.06); rhr = 73 + nz(i, 2, 2); hrv = 32 + nz(i, 3, 3); sleep = 66 + nz(i, 4, 8); }
-      out.push({ date: iso, sourceId, demo: true, temp: +temp.toFixed(2), rhr: Math.round(rhr), hrv: Math.round(hrv), sleep: Math.round(sleep) });
-    }
-    return out;
-  };
+  /* ---- Wearables: Apple Watch / Oura / Terra. DEMO rows (build flag only) come from the demo adapter's deterministic
+     fixtures (lib/signalsFixtures.js), shaped by stage and every row marked demo; production ingests real HealthKit /
+     Health Connect readings on the phone and Oura/Terra through the integrations hub. ---- */
   const [wearBusy, setWearBusy] = useState(null);
   const [wearConfirm, setWearConfirm] = useState(null); // a server-mediated source whose disclosure card is open
+  // The adapter seam (passive tracking S1, lib/sources.js): every re-sync reads through it; the demo adapter shapes its rows to her stage.
+  const adapters = useMemo(() => makeAdapters({ sync: syncSource, platform: isNative() ? platform() : "web", demo: { stage, isMeno } }), [stage, isMeno]);
   const restoredOuraGone = "The Oura connection in the backup no longer works, so it was removed from this device. Tap Connect to reconnect; if Solia Health (or Cyra or Heard Health) still shows in your Oura account's connected apps, you can remove it there.";
   const connectWear = async (id, label, { confirmed = false } = {}) => {
     if (!FEATURES.wearables || wearBusy) return;
     if (DEMO_WEARABLES) { // illustrative data, build-flag only; the UI says so
       if (wearSources[id]) return ping(`Demo mode — ${label} is already showing illustrative data`);
       if (wearData.length) return ping("Demo mode — no device connected; nothing was added");
-      setWearSources((s) => ({ ...s, [id]: { connectedAt: Date.now(), demo: true } }));
-      setWearData(seedWear(id));
-      return ping(`Demo mode — ${label} isn't really connected; showing 30 days of illustrative data`);
+      const nowMs = Date.now();
+      setWearSources((s) => ({ ...s, [id]: { connectedAt: nowMs, lastSync: nowMs, demo: true } }));
+      adapters.demo.read({ fromIso: addDays(todayIso, -89), toIso: todayIso, sourceId: id }).then((r) => setWearData((d) => mergeRows(d, r.rows)));
+      return ping(`Demo mode — ${label} isn't really connected; showing 90 days of illustrative data`);
     }
     const existing = wearSources[id];
     // Oura and Terra go through Cyra's server: say exactly what that means before every first connect.
@@ -1023,8 +1014,11 @@ export default function CyraDemo() {
     setWearBusy(id);
     try {
       // No await before connectSource: on the web its sign-in popup must open inside this tap.
-      const result = existing ? await syncSource(id, existing) : await connectSource(id, { onStatus: ping, onPending: (st) => setWearSources((s) => ({ ...s, [id]: st })) });
-      setWearSources((s) => ({ ...s, [id]: result.state }));
+      // A re-sync goes through the adapter seam (lib/sources.js); a first connect through lib/wearables.js connectSource (OAuth windows).
+      const result = existing ? await adapters[id].read({ fromIso: addDays(todayIso, -29), toIso: todayIso, state: existing }) : await connectSource(id, { onStatus: ping, onPending: (st) => setWearSources((s) => ({ ...s, [id]: st })) });
+      const nowMs = Date.now();
+      setWearSources((s) => ({ ...s, [id]: cleanSourceExtras({ ...(existing || {}), ...result.state, ...(result.rows.length || !existing ? { lastSync: nowMs } : {}) }) }));
+      if (!existing) setTrackStats((t) => noteSource(t, todayIso));
       setWearData((d) => mergeRows(d, result.rows));
       const n = result.rows.length;
       let msg = n ? `${label}: ${n} day${n === 1 ? "" : "s"} imported.` : existing ? `${label}: no new readings found.`
@@ -1268,8 +1262,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestions(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestions(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1619,6 +1613,8 @@ export default function CyraDemo() {
     restoredBody.experiments = cleanExperiments(saved.experiments);
     // And her questions for the clinician summary (doctor report v2): a backup without them clears them here.
     restoredBody.visitQuestions = cleanQuestions(saved.visitQuestions);
+    // Passive tracking S1: her skipped nights and confirmations come back literally too (a backup without them clears them); trackStats stays this device's (DEVICE_ONLY).
+    restoredBody.nightSkips = cleanNightSkips(saved.nightSkips); restoredBody.confirmations = cleanConfirmations(saved.confirmations);
     applySaved({ ...saved, pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
     potsBase.current = restoredPots; setPotsHomeLast(null);
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
