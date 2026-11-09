@@ -437,7 +437,21 @@ no background job, no CGM.
   stamps `wearSources[id].lastSync`. Tests: `sources.test.mjs`.
 - **New persisted keys:** `nightSkips`, `confirmations` (record, in backups, restored literally), `trackStats`
   (device-only, never in a backup, never sent). `wearSources[id]` gains `prefer`, `paused`, `lastSync`.
-- S2 and S3 add their parts to this section when they land.
+- **S2 — Looks right, cycle markers and the cycle table** (`src/lib/autoTracked.js`, `src/components/AutoTrackedCard.jsx`).
+  Home: "Today's auto-tracked" above the Quick log while a non-demo source synced in the last 36 h (or in a demo build):
+  source name + synced time; Sleep / Temperature / HRV / Resting HR as words against her phase baseline (`readinessWords`);
+  **Looks right** writes `confirmations[day]` with `took` (ms since the card appeared) and `via: "app"`, marks the day on the
+  today line and the Body rail, and never writes a day entry; **Add anything else?** opens the symptom logger; **Skip this
+  night** → Fever or illness · Alcohol · Travel · Other → `nightSkips`; "No readings since <day>" with the Health app's link
+  on iPhone (`x-apple-health://`), "Sync now" on Android, nothing to tap on the web. The phone reminder body becomes
+  "Confirm today (10 s)" while synced (`CONFIRM_BODY`; `lib/notifications.js` `REMINDER_BODY` otherwise). Body → Cycles: a
+  marker per cycle from `ovulationFor` with the luteal length, "How the temperature rise is read", and the TTC line once.
+  Patterns: `wearCards` (lower-than-usual sleep nights vs her top symptom; lower-than-usual HRV nights vs low mood or energy)
+  and the weekly review's `reviewSentence`. Clinician PDF: the cycle TABLE (newest first, at most 12, trimmed to 6 first by
+  `fitSummary`) when temperature nights exist, the strip otherwise; the appendix lists the skipped nights. The demo adapter
+  shapes its rows to her logged period starts. Dev gallery: the card. Tests: `autoTracked.test.mjs`, `patterns.test.mjs`
+  (wearCards), `clinicianSummary.test.mjs` (table), `home.test.mjs` (the rail), e2e `auto.spec.mjs`.
+- S3 adds its part to this section when it lands.
 
 ## 4. APPLICATION FLOW (state machine)
 

@@ -1957,3 +1957,42 @@ illustrative rows from the fixtures, every row marked `demo`, shaped to her stag
 90 days of illustrative data". Nothing is sent; the privacy row still reads Off with the note `demo`.
 
 **No sentence on screen changed in S1.**
+
+## Auto-tracked S2 (passive tracking, 2026-11-09) — the Home card, cycle markers, the PDF table; no new request, one reminder sentence changed
+
+**What it is.** The screens on top of S1's library: "Today's auto-tracked" on Home (`src/components/AutoTrackedCard.jsx`,
+model in `src/lib/autoTracked.js`), the per-cycle temperature-rise marker in Body → Cycles, two pattern cards and the weekly
+review's sentence, and the cycle table on page 1 of the clinician PDF. Everything is computed on render from `wearData`, the
+day entries and her choices (`signalsFor`); nothing is fetched and nothing is sent.
+
+**What her taps write (record keys from S1, no new key).**
+- "Looks right" → `confirmations[day] = { at, took, via: "app" }` (record, in backups) and `trackStats` (device-only, never in a
+  backup; `noteConfirmation`). It never writes a day entry: the day reading, the patterns and the counts see nothing new
+  (e2e: "75 days logged" before and after). Toast: "Looks right — noted for <day>. Nothing was added to your log."
+- "Skip this night" → `nightSkips[day]` (record, in backups); the reading stays in `wearData` and leaves every baseline and the
+  rise test. "Undo" removes the key.
+- "Add anything else?" opens the existing symptom logger; nothing is written until she saves as before.
+
+**Demo build.** The card, the markers and the table read demo rows only when `VITE_DEMO_WEARABLES=true` (`signalsFor({ demo })`);
+a production build ignores rows marked `demo`. The demo adapter now shapes its rows to her own logged period starts (so the
+markers match her cycles) and the card says "Illustrative readings from this demo build. Nothing is sent." Nothing is sent.
+
+**The clinician PDF (user-started file, no network).** Page 1's Cycles section becomes a table when temperature nights exist;
+the appendix adds the skipped-nights count. The file still goes only where she saves or sends it (lib/files.js).
+
+**Sentences changed or added (every one literally true of the build):**
+- Phone reminders, You → Privacy → Reminders → Details: "The reminder only says \"Time for your 30-second check-in.\"" →
+  "The reminder only says \"Time for your 30-second check-in.\" or, while a wearable has synced in the last 36 hours,
+  \"Confirm today (10 s)\"." (`lib/privacyFlows.js` `FLOW_COPY.details.phoneReminders2`; the body comes from
+  `lib/notifications.js` `REMINDER_BODY` / `lib/autoTracked.js` `CONFIRM_BODY`, scheduled on the phone, no server). The web push
+  payload is unchanged (the server sends the plain reminder it always did).
+- Home card: "Illustrative readings from this demo build. Nothing is sent." (demo builds only); "Looks right only notes that you
+  saw this; it never adds a symptom or a day to your log."; `SIGNAL_COPY.guidance` "From your own nightly temperatures, read on
+  this device. Guidance for a conversation with your clinician, not a diagnosis."
+- Body → Cycles: "From your wearable's nightly temperatures, read on this device."; the PDF note "… from her wearable's nightly
+  readings, read on her device."
+- Home "From your wearable" (builds with wearables): reworded to guidance (CLINICIAN-REVIEW auto.rise); no privacy claim in it.
+
+**Verification.** `npm run e2e` (privacy.spec.mjs: no request leaves the app's origin in this build, zero /api calls; auto.spec.mjs:
+the card, Looks right without a day entry, the markers, the table) and `npm run e2e:axe` (0 violations, the card and the skip
+picker included) on the demo-wearables build.

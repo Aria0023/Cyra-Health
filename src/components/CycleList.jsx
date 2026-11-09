@@ -1,6 +1,7 @@
 import { fmt } from "../lib/engine.js";
 import { fmtDate } from "../lib/i18n.js";
 import Details from "./Details.jsx";
+import { t } from "../lib/i18n.js";
 
 /* "Your cycles" (Calendar, L5; spec §5.1): the running cycle and up to 12 earlier ones, newest first, from
    lib/engine.js cycleSummary(). Each row is start · length · a decorative bar · her "Don't use" switch; the text
@@ -10,7 +11,10 @@ import Details from "./Details.jsx";
 const longDay = (iso) => fmtDate(iso, { weekday: "long", month: "long", day: "numeric" });
 const pct = (n, scale) => `${Math.round(Math.min(1, n / scale) * 1000) / 10}%`;
 
-export default function CycleList({ cyc, peri = false, onUse }) {
+/* Passive tracking S2: `marks` ({ [start]: { text, detail, luteal, status } }, lib/autoTracked.js signalsFor) adds one line per
+   cycle from her wearable's nightly temperatures: "Temperature rise seen · day 14", "No sustained rise seen this cycle" or
+   "Not enough nights", with the luteal length when known. Guidance only (lib/signals.js riseWords), never a confirmation. */
+export default function CycleList({ cyc, peri = false, onUse, marks = null }) {
   const rows = cyc.rows || [];
   const longest = Math.max(0, ...rows.filter((r) => r.counted).map((r) => r.len));
   const scale = Math.min(120, Math.max(40, cyc.current ? cyc.current.day : 0, longest));
@@ -35,6 +39,7 @@ export default function CycleList({ cyc, peri = false, onUse }) {
             <span className="cycstart"><span className="sr-only">Started </span>{fmt(cyc.current.start)}</span>
             <span className="cyclen">day {cyc.current.day} so far</span>
             <span className="cycbar" aria-hidden="true"><i style={{ width: pct(cyc.current.day, scale) }} /></span>
+            {marks && marks[cyc.current.start] && <p className="cycmark">{marks[cyc.current.start].text}</p>}
           </li>
         )}
         {rows.map((r) => {
@@ -50,6 +55,7 @@ export default function CycleList({ cyc, peri = false, onUse }) {
                 </button>
               )}
               {text && <p className="cycwhy">{r.counted && r.unusual && <span className="statechip flag">Unusual</span>}{text}</p>}
+              {marks && marks[r.start] && <p className="cycmark">{marks[r.start].text}{marks[r.start].luteal != null ? ` · ${t("cycles.luteal", { n: marks[r.start].luteal })}` : ""}</p>}
             </li>
           );
         })}

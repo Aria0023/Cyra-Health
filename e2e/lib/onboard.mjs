@@ -14,7 +14,7 @@ export async function register(page, { url = process.env.E2E_URL, stage = "My Cy
   await next(page);
   // PCOS (cycle stages only)
   if (!["Pregnant", "Menopause & beyond"].includes(stage)) {
-    if (pcos) await page.getByRole("button", { name: PCOS[pcos] || pcos }).click();
+    if (pcos) await page.getByRole("button", { name: PCOS[pcos] || pcos, exact: true }).click();
     await next(page);
   }
   // Device: name and email are optional

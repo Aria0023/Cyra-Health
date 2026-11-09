@@ -4,6 +4,8 @@ import Icon from "../components/Icon.jsx";
 import { Card, IBadge, QuickTile, StepRail, Ring, TwoBar, Chip, NavPill, Sheet, EmptyNote } from "../components/ui/index.js";
 import { stagePalettes, vizVars } from "../lib/constants.js";
 import { paletteFor, paletteVars, applyDocumentScheme, SYSTEM_DARK_QUERY, STYLES, cleanStyle } from "../lib/appearance.js";
+import AutoTrackedCard from "../components/AutoTrackedCard.jsx";
+import { localDay } from "../lib/engine.js";
 
 /* The design-system gallery (calm R1): every v2 component in the stage accent picked here, light or dark. Present
    only in a build whose VITE_FEATURES names devGallery (or "all"): main.jsx imports this file behind the build-time
@@ -19,6 +21,11 @@ export const GALLERY_STAGES = [
 const TABS = [{ id: "home", label: "Home", icon: "home" }, { id: "body", label: "Body", icon: "body" }, { id: "mind", label: "Mind", icon: "mind" }, { id: "patterns", label: "Patterns", icon: "patterns" }, { id: "you", label: "You", icon: "user" }];
 const LOG_ITEMS = [["pulse", "Symptoms"], ["drop", "Period"], ["moon", "Sleep"], ["smile", "Mood"], ["move", "Move"], ["pill", "Meds"], ["note", "Note"]];
 const BARS = [2, 3, 2, 4, 3, 1, 2, 3, 4, 4, 2, 3, 1, 2];
+const row = (metric, label, word, phrase, extra = {}) => ({ metric, label, word, phrase, phase: "luteal", also: [], note: null, present: true, ...extra });
+const AUTO_DEMO = {
+  sourceId: "healthkit", sourceName: "Apple Watch · Health app", onDevice: true, syncedAt: Date.now() - 2 * 3600000, fresh: true, demo: true, platform: "web",
+  rows: [row("sleep", "Sleep", "usual", "at your usual"), row("temp", "Temperature", "usual", "at your usual", { also: ["Oura Ring"] }), row("hrv", "HRV", "lower", "lower, usual for your luteal days"), row("rhr", "Resting HR", "usual", "at your usual")],
+};
 
 const readHash = () => {
   const q = new URLSearchParams((window.location.hash.split("?")[1]) || "");
@@ -33,6 +40,8 @@ export default function DevGallery() {
   const [tab, setTab] = useState("home");
   const [sheet, setSheet] = useState(false);
   const [tiles, setTiles] = useState({ Sleep: true });
+  const [autoDone, setAutoDone] = useState(false);
+  const [autoSkip, setAutoSkip] = useState(null);
   useEffect(() => { const on = () => setView(readHash()); window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
   const set = (next) => { const v = { stage, scheme, style: uiStyle, ...next }; window.location.hash = `#/dev/ui?stage=${v.stage}&scheme=${v.scheme}&style=${v.style}`; };
   const [, stageLabel, stageId, stageName] = GALLERY_STAGES.find(([k]) => k === stage);
@@ -62,6 +71,11 @@ export default function DevGallery() {
             {STYLES.map(([k, l]) => <button key={k} type="button" className={`mc${k === uiStyle ? " on" : ""}`} aria-pressed={k === uiStyle} onClick={() => set({ style: k })}>{l}</button>)}
           </div>
         </div>
+
+        {/* Passive tracking S2: "Today's auto-tracked" with illustrative words (lib/signals.js readinessWords shape); Looks right and
+            Skip this night work on this page's own state only. */}
+        <h2 className="section-lab">Today's auto-tracked</h2>
+        <AutoTrackedCard m={{ ...AUTO_DEMO, day: localDay(), confirmed: autoDone, skipped: autoSkip }} onConfirm={() => setAutoDone(true)} onAddMore={() => setSheet(true)} onSkip={(d, r) => setAutoSkip(r)} onUnskip={() => setAutoSkip(null)} />
 
         <Card level={2} hero eyebrow="Today's small step" title="A two-minute breathing practice" icon="breath" tint="mind" badge={<Chip variant="pro" />}>
           <p style={{ margin: "0 0 12px", color: "var(--soft)" }}>You logged a rough night. Slow breathing can make the afternoon feel steadier.</p>

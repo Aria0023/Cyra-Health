@@ -23,6 +23,9 @@ import { isNative, LocalNotifications } from "./native.js";
 import { whenActive } from "./pwa.js";
 
 export const NUDGE_TIME = { morning: [9, 0], midday: [12, 30], evening: [19, 0] };
+/** The phone reminder's body. Passive tracking S2: while a source synced in the last 36 h App.jsx passes lib/autoTracked.js
+    CONFIRM_BODY ("Confirm today (10 s)") instead; the web push stays the server's plain reminder. */
+export const REMINDER_BODY = "Time for your 30-second check-in.";
 const DAYS = { daily: [1, 2, 3, 4, 5, 6, 7], weekdays: [2, 3, 4, 5, 6], "3x": [2, 4, 6], weekly: [2], me: [] }; // Capacitor weekday: 1 = Sunday
 const REMINDER_IDS = [1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007]; // 1000 + weekday; 1000 never used, cancelled anyway
 const native = () => (isNative() ? LocalNotifications : null);
@@ -113,7 +116,7 @@ export function syncReminders(settings, opts = {}) {
   chain = run.catch(() => {});
   return run;
 }
-async function syncNow({ cadence, nudge }, { prompt = true, timeoutMs, known = [], server = true } = {}) {
+async function syncNow({ cadence, nudge, body = REMINDER_BODY }, { prompt = true, timeoutMs, known = [], server = true } = {}) {
   if (!wantsReminders(cadence, nudge)) return cancelAll({ timeoutMs, known, server });
   const ln = native();
   if (ln) {
@@ -124,7 +127,7 @@ async function syncNow({ cadence, nudge }, { prompt = true, timeoutMs, known = [
     // Inexact on purpose: a gentle check-in may land a few minutes late, whereas exact (the plugin's default) makes Android 12+ open the "Alarms & reminders" settings screen.
     // allowWhileIdle (Android only; iOS ignores both options) lets each weekday's first alarm fire during Doze. The plugin re-arms later weeks
     // without it, so those can be held back in Doze until the app next opens and runs this again (App.jsx re-applies reminders after loading).
-    await ln.schedule({ notifications: DAYS[cadence].map((weekday) => ({ id: 1000 + weekday, title: "Solia Health", body: "Time for your 30-second check-in.", schedule: { on: { weekday, hour, minute }, allowWhileIdle: true }, isExactNotification: false })) });
+    await ln.schedule({ notifications: DAYS[cadence].map((weekday) => ({ id: 1000 + weekday, title: "Solia Health", body: body || REMINDER_BODY, schedule: { on: { weekday, hour, minute }, allowWhileIdle: true }, isExactNotification: false })) });
     return { active: true };
   }
   if (!webSupported()) return { active: false, unsupported: true };

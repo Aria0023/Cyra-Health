@@ -420,3 +420,63 @@ reads, all descriptive counts. Please check that none reads as a diagnosis or a 
   reviewed by a clinician." followed by the stored write-up (already registered under "Cyra's AI write-up and chat").
 - Status: Awaiting clinician sign-off
 
+
+## Auto-tracked (passive tracking S2, 2026-11-09): the Home card, the cycle markers, the clinician table, two pattern cards
+Code: src/lib/signals.js (the rules and every fixed sentence, `SIGNAL_COPY`), src/lib/autoTracked.js, src/components/AutoTrackedCard.jsx,
+src/components/CycleList.jsx, src/lib/clinicianSummary.js, src/lib/patterns.js `wearCards`. Plan: docs/PASSIVE-TRACKING-PLAN.md §1.6, §2.1,
+§2.2, §2.7, §7. Every sentence is worded as an observation from her own device's nightly readings; none says ovulation happened or
+was confirmed (`FERT_BANNED` is unit-tested over `SIGNAL_COPY` and the markers) and contraception is named only as "Solia Health is
+not a contraceptive." for Trying to conceive. Please check that nothing reads as a diagnosis, a fertility verdict or a score.
+
+### auto.words (Home → "Today's auto-tracked")
+- "Sleep · at your usual", "Temperature · lower than usual" / "higher than usual", "HRV · lower, usual for your luteal days",
+  "a few more nights will show your usual", "no reading", "left out". Method: her own mean ± 1 standard deviation per cycle
+  phase (period · follicular · ovulatory · luteal), each phase needing 7 of her nights, else all her nights; fewer than 7 in all
+  gives the "few more nights" line. Notes: "Left out: much higher than your other nights" (a night more than 1.0 °C over the mean
+  of her other nights, fever-like), "Skipped: fever or illness / alcohol / travel / other". Never a number, never a score.
+- Details: "Each reading is compared with your own nights in the same cycle phase … A phase needs 7 of your nights before it
+  speaks …", "A night more than 1 °C above your other nights is left out as fever-like …", "Looks right only notes that you saw
+  this; it never adds a symptom or a day to your log.", and `SIGNAL_COPY.guidance`: "From your own nightly temperatures, read on
+  this device. Guidance for a conversation with your clinician, not a diagnosis."
+- Status: Awaiting clinician sign-off
+
+### auto.rise (Body → Cycles markers; the Report preview; the PDF table; the Home "From your wearable" card)
+- Per cycle: "Temperature rise seen · day 14" (+ " · luteal 14 days" when the next start is known), "No sustained rise seen this
+  cycle", "Not enough nights". Rule (three-over-six): three consecutive valid nights each at least 0.2 °C above the mean of the six
+  valid nights before them; nothing is said under 10 valid nights in the cycle or without six before a candidate; a positive LH
+  test within 2 days makes the confidence "clear" (the table says "(LH)"), else "possible". Skipped and fever-like nights never count.
+- Explanations: "A rise consistent with ovulation, from your own nightly temperatures: three nights in a row at least 0.2 °C above
+  the six before. An observation, not a confirmation." / "N nights read, none held 0.2 °C above the six before for three nights in a
+  row." / "Nights read: N. The rise test needs 10 valid nights in a cycle, with 6 before any candidate."
+- Home (My Cycle, builds with wearables, replaces the earlier "Ovulated" card): "A temperature rise consistent with ovulation
+  began on cycle day N (date): three nights in a row at least 0.2 °C above the six before, from your own nightly readings. An
+  observation after the fact, the way basal-temperature charting works; it can't predict next month." TTC advice: "If you're trying
+  to conceive, the days most often fertile were the ~5 before and the day of that rise." Without a rise: "No sustained temperature
+  rise yet this cycle — which fits: based on your usual N-day cycle, a rise would be expected around day N−14. Solia Health will say
+  so once one holds for three nights." Milestone label: "Temperature rise seen in a cycle" (was "Ovulation confirmed by temperature").
+- Trying to conceive, once under the list: "Solia Health is not a contraceptive."
+- Status: Awaiting clinician sign-off
+
+### auto.table (clinician PDF page 1, "Cycles · newest first", when temperature nights exist)
+- Columns start · length · bleeding days · temperature rise ("seen, day 14", "seen, day 14 (LH)", "no sustained rise", "not enough
+  nights") · luteal length; at most 12 cycles, trimmed to 6 before anything else when page 1 is full; the strip stays without
+  temperature nights. Note: "Temperature rise: three nights in a row at least 0.2 °C above the six before, from her wearable's
+  nightly readings, read on her device. An observation consistent with ovulation, not a confirmation." Appendix: "Auto-tracked
+  nights" → "Nights she marked as not usable: N (fever or illness 2, travel 1)." / "No nights marked as not usable." and "A night she
+  marked as not usable stays out of every baseline and of the temperature-rise test."
+- Status: Awaiting clinician sign-off
+
+### auto.patterns (Patterns → "What you're learning", two cards; `PATTERN_RULES` thresholds)
+- "Nights with lower-than-usual sleep lined up with more <top symptom> the next day in your log." / "Days after a lower-than-usual
+  HRV night lined up with more low mood or low energy in your log." (Supported pattern), the "still showing up together … without
+  a clear gap yet" variants, and "A few more logs will show clearer associations." Detail: the counts on each side, "\"Lower than
+  usual\" means more than one standard deviation under your own average, from at least 7 nights. Nights you skipped are left
+  out.", and the usual threshold sentence. Associations in her log, never causes.
+- Weekly review, when a rise was seen: "Temperature rose on day 32." or "Temperature rose on day 32; HRV was lower in the 5 days
+  before." (the second clause only when at least 3 of the 5 nights before the rise read lower than her usual).
+- Status: Awaiting clinician sign-off
+
+### auto.reminder (phone reminder body while a source synced in the last 36 h)
+- "Confirm today (10 s)" instead of "Time for your 30-second check-in." (lib/autoTracked.js `CONFIRM_BODY`); the Home card shows the
+  same line above Looks right. No health content.
+- Status: Awaiting clinician sign-off

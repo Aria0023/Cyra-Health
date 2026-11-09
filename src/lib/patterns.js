@@ -7,6 +7,7 @@
 import { addDays, isPeriodDay, median } from "./engine.js";
 import { MODULES, MODULE_FRAMING, longCycleCount } from "./modules.js";
 import { bodyDay, moveTotals, cleanBodyLog } from "./bodylog.js";
+import { wordFor } from "./signals.js";
 
 /* The empty-state line (plan §7) and the not-medical-advice line shown near every list of insights. */
 export const EMPTY_LINE = "A few more logs will show clearer associations.";
@@ -278,6 +279,89 @@ export function questionSides(q, { entries = [], bodyLog = {}, from, to, level =
   }
   return { exp, other };
 }
+/* ---------- auto-tracked (passive tracking S2, plan §7): two cards over the wearable nights ----------
+   The nights come from lib/signals.js (buildNightly + baselines): a night is "lower" when its reading sits more than one
+   standard deviation under her own mean (wordFor against the overall baseline, 7 nights at least). Each card compares the
+   days after those nights with the days after her other nights, with PATTERN_RULES' thresholds, over the last
+   PATTERN_RULES.days days. Words only, an association in her log, never a verdict or a score. */
+/** Sides for a wearable metric: a = wake days whose night read "lower" than her usual, b = wake days with any other valid
+    reading; `hit(iso)` says whether the outcome happened that day (null = unknown, the day is left out). */
+export function wearSides({ metric, nightly, base, from, to, hit, wordOf = wordFor }) {
+  const a = { n: 0, hits: 0 }, b = { n: 0, hits: 0 };
+  const bucket = base && base[metric] ? base[metric].overall : null;
+  for (const n of (nightly && nightly[metric]) || []) {
+    if (!n.valid || n.day < from || n.day > to) continue;
+    const w = wordOf(n.value, bucket);
+    if (w == null) continue; // not enough nights for a baseline yet
+    const h = hit(n.day);
+    if (h == null) continue;
+    const side = w === "lower" ? a : b;
+    side.n++;
+    if (h) side.hits++;
+  }
+  return { lower: a, other: b };
+}
+/**
+ * The two auto-tracked cards: nights with lower-than-usual sleep against her top symptom the next day, and
+ * lower-than-usual HRV nights against low mood or low energy that day. entries: check-in entries; moodLog: the Mind
+ * check-ins; topSym: { id, label } (insights counts[0]) or null; energyId: the "Low energy" symptom id.
+ */
+export function wearCards({ nightly, base, entries = [], moodLog = {}, topSym = null, energyId = "eng", todayIso, days = PATTERN_RULES.days, level = PATTERN_RULES.level }) {
+  if (!nightly || !base) return [];
+  const from = addDays(todayIso, -(days - 1));
+  const byDate = new Map((entries || []).map((e) => [e.date, e]));
+  const out = [];
+  if (topSym && topSym.id) {
+    const L = topSym.label, lc = lc1(L);
+    const { lower, other } = wearSides({ metric: "sleep", nightly, base, from, to: todayIso, hit: (iso) => { const e = byDate.get(iso); return e && e.sym ? (e.sym[topSym.id] || 0) >= level : null; } });
+    const st = statusOf(lower, other);
+    if (st !== "none") {
+      const sentence = st === "supported" ? `Nights with lower-than-usual sleep lined up with more ${lc} the next day in your log.`
+        : st === "still" ? `Lower-than-usual sleep and ${lc} the next day are still showing up together in your log, without a clear gap yet.` : EMPTY_LINE;
+      out.push(card({
+        key: `wear:sleep:${topSym.id}`, kind: "wear", topic: `Sleep (auto-tracked) and ${lc}`, status: st, sentence, family: "sleep",
+        bars: lower.n && other.n ? { a: bar("After a lower-than-usual night", lower, L), b: bar("After your other nights", other, L) } : null,
+        ...(st === "notenough" ? { diff: null } : diffOf(lower, other, "as often after a lower-than-usual night")),
+        strength: lower.n && other.n ? Math.abs(lower.hits / lower.n - other.hits / other.n) : 0,
+        detail: {
+          question: `Do nights your device read as lower-than-usual sleep line up with more ${lc} the next day?`,
+          lines: [
+            `${L} moderate or strong on ${lower.hits} of ${lower.n} ${dayW(lower.n)} after a night your device read as lower-than-usual sleep, and ${other.hits} of ${other.n} after your other nights.`,
+            "\"Lower than usual\" means more than one standard deviation under your own average, from at least 7 nights. Nights you skipped are left out.",
+            `A pattern is named with at least ${PATTERN_RULES.minEach} days on each side and ${PATTERN_RULES.minHits} days with ${lc} in all.`,
+          ],
+          askId: null,
+        },
+      }));
+    }
+  }
+  {
+    const low = (iso) => { const m = moodLog && moodLog[iso], e = byDate.get(iso); const mood = m && Number.isInteger(m.mood) ? m.mood <= 2 : null; const energy = e && e.sym ? (e.sym[energyId] || 0) >= level : null; if (mood == null && energy == null) return null; return !!(mood || energy); };
+    const { lower, other } = wearSides({ metric: "hrv", nightly, base, from, to: todayIso, hit: low });
+    const st = statusOf(lower, other);
+    if (st !== "none") {
+      const sentence = st === "supported" ? "Days after a lower-than-usual HRV night lined up with more low mood or low energy in your log."
+        : st === "still" ? "Lower-than-usual HRV nights and low mood or low energy are still showing up together in your log, without a clear gap yet." : EMPTY_LINE;
+      out.push(card({
+        key: "wear:hrv:mood", kind: "wear", topic: "HRV (auto-tracked) and how you felt", status: st, sentence, family: "mind",
+        bars: lower.n && other.n ? { a: bar("After a lower-than-usual HRV night", lower, "Low mood or energy"), b: bar("After your other nights", other, "Low mood or energy") } : null,
+        ...(st === "notenough" ? { diff: null } : diffOf(lower, other, "as often after a lower-than-usual HRV night")),
+        strength: lower.n && other.n ? Math.abs(lower.hits / lower.n - other.hits / other.n) : 0,
+        detail: {
+          question: "Do nights your device read as lower-than-usual HRV line up with low mood or low energy that day?",
+          lines: [
+            `A low or very low mood face, or Low energy moderate or strong, on ${lower.hits} of ${lower.n} ${dayW(lower.n)} after a lower-than-usual HRV night, and ${other.hits} of ${other.n} after your other nights.`,
+            "\"Lower than usual\" means more than one standard deviation under your own average HRV, from at least 7 nights. Nights you skipped are left out.",
+            `A pattern is named with at least ${PATTERN_RULES.minEach} days on each side and ${PATTERN_RULES.minHits} days with low mood or energy in all.`,
+          ],
+          askId: null,
+        },
+      }));
+    }
+  }
+  return out;
+}
+
 /** The PCOS module's cards (only when the module is on). lens: her counted cycle lengths, oldest first. */
 /* ---------- meal notes (only while Meal notes is on): energy after meals ----------
    One card comparing how often energy "Dipped" or "Crashed" after meals she noted as "Mostly carbs or sweet" against her

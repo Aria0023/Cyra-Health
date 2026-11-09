@@ -9,8 +9,8 @@ restart can pick up where the last session stopped. Dates are 2026-11-09 unless 
 | --- | --- | --- |
 | S1 — signals library + source adapter | 63acff7 (WIP body; not the tip, so its body is not rewritten: the verification is recorded here) | done, verified below |
 | Brief | af3ff2d | in the repo |
-| E2E — in-repo Playwright harness | this commit | done, verified below |
-| S2 — Looks right, cycle markers, cycle table | — | next |
+| E2E — in-repo Playwright harness | d091607 | done, verified below |
+| S2 — Looks right, cycle markers, cycle table | this commit | done, verified below |
 | S3 — confirm from the notification, Data sources, deviceSync | — | after S2 |
 
 ## S1 verification (run 2026-11-09 on 63acff7 + the E2E commit's tree)
@@ -43,6 +43,29 @@ No sentence changed meaning.
 Observation (not fixed, outside the spike): opening the "+" sheet from the You tab right after a tab switch can leave
 focus on the page's h1 instead of the sheet heading, so Escape does not close it; the helper closes with the Close
 button. Worth a look in a later a11y pass.
+
+## S2 commit
+
+What landed: `src/lib/autoTracked.js` (signalsFor: cycles, nightly words, baselines, the rise per cycle, markers, PDF table,
+review sentence; autoCardModel; CONFIRM_BODY), `src/components/AutoTrackedCard.jsx` (words per metric, Looks right with
+`took` from the card's appearance, Add anything else?, Skip this night → reason picker, "No readings since" with the Health app
+link / Sync now / nothing on web, demo note, "How these words are worked out"), HomeScreen slot above Quick log + the today line
+and Body rail (`home.js` bodySteps `auto`), CycleList/CyclesScreen markers + "How the temperature rise is read" + the TTC line
+once, `patterns.js` wearCards (sleep vs top symptom, HRV vs low mood/energy) + the review sentence in the weekly notes,
+`clinicianSummary.js` cycle table (newest first, ≤ 12, trimmed to 6 first) + appendix skipped nights + ClinicianPreview table,
+`notifications.js` REMINDER_BODY / body option ("Confirm today (10 s)" while synced; re-applied when the window flips),
+`privacyFlows.js` phoneReminders2 sentence, `signalsFixtures.js` demoRows shaped to her starts (+ the demo adapter), the Home
+"From your wearable" card and the milestone reworded to guidance (no "confirmed"), en-ui `auto.*` / `cycles.*` strings, the
+gallery card, docs (CLINICIAN-REVIEW "Auto-tracked", PRIVACY-AUDIT "Auto-tracked S2", SPEC 3.5k S2, ARCHITECTURE), tests
+(autoTracked.test.mjs, patterns, clinicianSummary, home) and e2e auto.spec.mjs S2 (+ axe on the card, the skip picker and
+Cycles).
+
+Deviations: none from the brief. The S1 wording in App.jsx's older "Ovulated" card and "Ovulation confirmed by temperature"
+milestone were reworded (they predate S1 and broke the no-"confirmed" rule); registered in CLINICIAN-REVIEW auto.rise.
+
+Verification (2026-11-09): build + stamp once; ESLint 0 errors (29 warnings, unused directives / unused vars, pre-existing);
+unit 559/559; backend smoke:all passed; e2e 6/6; e2e:axe 4/4 (36 audits, 0 violations). Looked at: PDF page 1 (table of 2 cycles,
+"seen, day 15", luteal 23 d, one page), the card in Soft light / Clear dark / Bloom light, the Cycles markers.
 
 ## Owner to-do (unchanged from the brief)
 

@@ -49,7 +49,7 @@ export function sourceMeta(id, platform = "web") {
 export function makeAdapters({ sync = async (id, state) => ({ rows: [], state }), platform = "web", demo = { stage: "periods", isMeno: false } } = {}) {
   const wrap = (id) => ({ ...sourceMeta(id, platform), read: async ({ state = null } = {}) => { const r = await sync(id, state); return { rows: (r?.rows || []).map((x) => ({ ...x, sourceId: id })), state: r?.state ?? state, notice: r?.notice ?? null }; } });
   return {
-    demo: { ...sourceMeta("demo", platform), read: async ({ fromIso, toIso, state = null, sourceId = "healthkit" } = {}) => ({ rows: demoRows({ fromIso, toIso, sourceId, stage: demo?.stage || "periods", isMeno: !!demo?.isMeno }), state: state || { connectedAt: 0, demo: true } }) },
+    demo: { ...sourceMeta("demo", platform), read: async ({ fromIso, toIso, state = null, sourceId = "healthkit", starts = null } = {}) => ({ rows: demoRows({ fromIso, toIso, sourceId, stage: demo?.stage || "periods", isMeno: !!demo?.isMeno, starts }), state: state || { connectedAt: 0, demo: true } }) },
     healthkit: wrap("healthkit"),
     oura: wrap("oura"),
     terra: wrap("terra"),

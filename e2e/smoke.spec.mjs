@@ -4,9 +4,7 @@ import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 import { register } from "./lib/onboard.mjs";
 import { gotoTab, gotoSegment, openLog, closeSheet, TABS } from "./lib/nav.mjs";
-
-/** Pages in a PDF: its /Type /Page objects (not /Pages). */
-export const pdfPages = (bytes) => (Buffer.from(bytes).toString("latin1").match(/\/Type\s*\/Page(?![s])/g) || []).length;
+import { pdfPages } from "./lib/pdf.mjs";
 
 test("register (My Cycle, PCOS on), the five tabs, the log sheet, the one-page PDF, the build stamp", async ({ page }) => {
   await register(page, { stage: "My Cycle", pcos: "yes", name: "Maya" });

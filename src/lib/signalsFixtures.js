@@ -82,10 +82,24 @@ export const FIXTURES = Object.freeze({
 /** Illustrative rows for [fromIso, toIso], shaped to the stage: cycle stages get 28-day cycles with a rise on day 15,
     the current cycle 20 days old at `toIso` (so the last rise is visible); perimenopause gets 35-day cycles with a
     rise some cycles and none others; pregnancy and menopause get a flat run. Every row is marked demo. */
-export function demoRows({ fromIso, toIso, sourceId = "healthkit", stage = "periods", isMeno = false } = {}) {
+export function demoRows({ fromIso, toIso, sourceId = "healthkit", stage = "periods", isMeno = false, starts = null } = {}) {
   const span = daysBetween(fromIso, toIso) + 1;
   let rows = [];
-  if (stage === "periods") {
+  const own = Array.isArray(starts) ? [...new Set(starts.filter((d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)))].sort() : [];
+  if ((stage === "periods" || (stage === "peri" && !isMeno)) && own.length) {
+    // S2: shaped to HER logged period starts, so the cycle markers and the table read the same cycles as Body → Cycles.
+    // Each cycle runs from its start to the next start (the running one to toIso); a rise on day 15 (perimenopause: every
+    // other cycle has none), nothing before 10 nights; the lead-in before her first start is a flat run.
+    const first = own[0];
+    if (first > fromIso) rows.push(...syntheticCycle({ start: fromIso, length: daysBetween(fromIso, first), riseDay: null, rise: 0, jitter: 0.05, sourceId, seed: 5, demo: true }));
+    own.forEach((st, i) => {
+      const next = own[i + 1] || addDays(toIso, 1);
+      const length = daysBetween(st, next);
+      if (length <= 0) return;
+      const riseDay = stage === "peri" && i % 2 ? null : 15;
+      rows.push(...syntheticCycle({ start: st, length, riseDay: length > riseDay + 2 || riseDay == null ? riseDay : null, sourceId, seed: 7 + i, demo: true }));
+    });
+  } else if (stage === "periods") {
     const len = 28, curStart = addDays(toIso, -19);
     const first = addDays(curStart, -len * Math.ceil(span / len));
     rows = syntheticLog({ start: first, n: Math.ceil(span / len) + 1, sourceId, demo: true, seed: 7 }).rows;

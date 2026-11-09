@@ -394,6 +394,10 @@ Trying to conceive with signs on, L7's fertility sentences; the PDF is drawn wit
 days ago to today, phone only, never sent anywhere (it leaves the phone only inside an encrypted backup
 she exports).
 
+**The signals bundle (passive tracking S2, `lib/autoTracked.js`).** `signalsFor({ rows, sources, skips, days, demo })` turns the
+wearable rows into one per-render object (cycles, nightly words, baselines, the rise per cycle, the markers, the PDF table, the
+review sentence) and `autoCardModel()` into the Home card's model; App.jsx memoises both and passes them down. Nothing is stored.
+
 **The adapter seam (passive tracking S1, `lib/sources.js`).** Every re-sync goes through one adapter shape,
 `{ id, name, viaServer, onDevice, read({ fromIso, toIso, state }) → { rows, state, notice? } }`, built by
 `makeAdapters({ sync, platform, demo })` for demo (the deterministic fixtures of `lib/signalsFixtures.js`, demo builds

@@ -1116,6 +1116,30 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .stepcard .bodypanel.more { border:none; padding:2px 0 4px; }
 .stepcard .bodypanel.more p { margin:0 0 6px; }
 .stepcard .stepsrc { font-size:var(--fs-xs); color:var(--soft); }
+/* Passive tracking S2: "Today's auto-tracked" (components/AutoTrackedCard.jsx) — words per metric, the two actions, the skip picker. */
+.autocard { margin-bottom:var(--stack); }
+.autocard .v2card-title { font-size:17px; }
+.autorows { list-style:none; margin:2px 0 10px; padding:0; display:grid; grid-template-columns:1fr 1fr; gap:8px var(--gap); }
+.autorow { display:flex; flex-direction:column; gap:1px; padding:9px 11px; border-radius:var(--r-inner); background:color-mix(in srgb, var(--primary) 6%, var(--card)); box-shadow:inset 0 0 0 1px var(--edge); min-width:0; }
+.autolab { font-size:var(--fs-xs); font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--soft); }
+.autoword { font-size:var(--fs-md); font-weight:700; color:var(--ink); line-height:1.3; }
+.autorow.w-missing .autoword, .autorow.w-none .autoword { color:var(--soft); font-weight:600; }
+.autonote { font-size:var(--fs-xs); color:var(--soft); line-height:1.4; }
+.autohint { margin:0 0 8px; font-size:var(--fs-sm); color:var(--soft); }
+.autoacts { display:flex; flex-wrap:wrap; gap:8px; }
+.autook.done { background:color-mix(in srgb, var(--primary) 16%, var(--card)); color:var(--primary-text); box-shadow:none; }
+.autook:disabled { cursor:default; }
+.autoskip { margin:10px 0 2px; } .autoskip .linkbtn { min-height:44px; font-size:var(--fs-sm); }
+.autopick { margin:10px 0 2px; } .autopick .lab { margin:0 0 6px; } .autopick .mc { font-size:var(--fs-sm); }
+.autoskipped { margin:4px 0 2px; font-size:var(--fs-sm); color:var(--soft); line-height:1.5; } .autoskipped .linkbtn { min-height:44px; margin-left:4px; }
+.autosince { margin:0 0 8px; font-size:var(--fs-md); color:var(--ink); }
+.autoopen { display:block; text-align:center; text-decoration:none; }
+.autodemo { margin-top:10px; }
+.autocard .morewrap { margin:8px 0 -6px; }
+.autocard .disclosure.more { border:none; border-top:var(--rule); border-radius:0; background:none; padding:8px 0; color:var(--primary-text); justify-content:space-between; }
+.autocard .bodypanel.more { border:none; padding:2px 0 4px; } .autocard .bodypanel.more p { margin:0 0 6px; font-size:var(--fs-sm); line-height:1.5; }
+.cycmark { flex-basis:100%; margin:0 0 2px; font-size:var(--fs-sm); color:var(--primary-text); font-weight:700; line-height:1.45; }
+.cycttc { margin-top:8px; }
 .railcards { display:grid; gap:var(--gap); margin-bottom:var(--stack); }
 .railcard { display:grid; grid-template-columns:72px minmax(0, 1fr); align-items:center; gap:8px; padding:14px 12px 12px 16px; margin:0; }
 .railcard[data-tint] { background:linear-gradient(120deg, var(--tintc) 0, color-mix(in srgb, var(--tintc) 55%, var(--card)) 60%, var(--card) 100%); }
@@ -1772,6 +1796,9 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
 .cy .cspage .cscyc small, .cy .cspage .cscur small { font-size:calc(var(--pt) * 6.4); color:var(--cs-soft); }
 .cscur { display:flex; flex-direction:column; margin-left:calc(var(--pt) * 6); }
 .cy .cspage .cscur b { font-size:calc(var(--pt) * 12); color:var(--cs-acc); }
+.cstable { width:100%; border-collapse:collapse; margin:calc(var(--pt) * 2) 0 calc(var(--pt) * 4); font-size:calc(var(--pt) * 7.8); }
+.cy .cspage .cstable th { text-align:left; font-weight:700; background:var(--cs-faint); padding:calc(var(--pt) * 2.4) calc(var(--pt) * 3); border-bottom:calc(var(--pt) * .5) solid var(--cs-hair); font-size:calc(var(--pt) * 7.8); }
+.cy .cspage .cstable td { padding:calc(var(--pt) * 2.4) calc(var(--pt) * 3); border-bottom:calc(var(--pt) * .5) solid var(--cs-hair); font-size:calc(var(--pt) * 7.8); vertical-align:top; }
 .cssyms { display:grid; gap:calc(var(--pt) * 2.5); }
 .cssym { display:grid; grid-template-columns:calc(var(--pt) * 132) calc(var(--pt) * 92) calc(var(--pt) * 34) 1fr; align-items:center; column-gap:0; }
 .cy .cspage .cssym > b { text-align:right; padding-right:calc(var(--pt) * 12); font-weight:700; }

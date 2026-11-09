@@ -70,7 +70,9 @@ import { seed, fmt, addDays, routeIntake, insights, predict, whyNoPrediction, cy
 import { DEFAULT_APPEARANCE, DEFAULT_STYLE, SYSTEM_DARK_QUERY, cleanAppearance, cleanStyle, resolveScheme, paletteFor, paletteVars, applyDocumentScheme } from "./lib/appearance.js";
 import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
 import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource, drainTerra, disconnectHelp } from "./lib/wearables.js";
-import { makeAdapters, mergeSourceRows as mergeRows, cleanNightSkips, cleanConfirmations, cleanTrackStats, cleanSourceExtras, noteSource } from "./lib/sources.js";
+import { makeAdapters, mergeSourceRows as mergeRows, cleanNightSkips, cleanConfirmations, cleanTrackStats, cleanSourceExtras, noteSource, skipNight, unskipNight, confirmDay, isConfirmed, noteConfirmation } from "./lib/sources.js";
+import { signalsFor, autoCardModel, skipLabel, CONFIRM_BODY } from "./lib/autoTracked.js";
+import AutoTrackedCard from "./components/AutoTrackedCard.jsx";
 import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue, pruneQueue, mergeQueues, localDay, weekKey } from "./lib/pulse.js";
 import { answerLocally, RED_FLAGS } from "./lib/askLibrary.js";
 import { storage } from "./lib/storage.js";
@@ -92,7 +94,7 @@ import { visitModel, paperForLocale } from "./lib/visitReport.js";
 import { summaryModel } from "./lib/clinicianSummary.js";
 import { cleanQuestions } from "./lib/visitQuestions.js";
 import { shelfKind } from "./lib/trying.js";
-import { cycleTimeline, bodyRing, mindRing, ringInputs, sleepCards, cycleCards, pcosCards, trialCards, spreadCard, topCard, rankCards, usualOf, mealCards } from "./lib/patterns.js";
+import { cycleTimeline, bodyRing, mindRing, ringInputs, sleepCards, cycleCards, pcosCards, trialCards, spreadCard, topCard, rankCards, usualOf, mealCards, wearCards } from "./lib/patterns.js";
 import { cleanExperiments, settle, startExperiment, skipWeek, markDay, runningOn, experimentStep, reviewWeek, weekCounts, countWords, weekSignals, pickExperiment, experimentFollowUp, lastFinished, experimentOf } from "./lib/experiments.js";
 import { PLAN, can, exportsLeft, noteExport, planFor } from "./lib/plan.js";
 import { cleanMoodLog, cleanPracticeLog, cleanPracticeFavs, setMoodDay, toggleFeeling, addRun, setHelped, runsOn, toggleFav, nextPractice, practiceOf, moodByCycle, stripSentence, moodStrip, STRIP_MIN, unlocked as practiceUnlocked } from "./lib/mind.js";
@@ -562,6 +564,8 @@ export default function CyraDemo() {
   const buildClinician = ({ includeName = false, appendix = false, picked = [] } = {}) => summaryModel({
     days, stage, stageName, pcosOn: pcosHere, today: todayIso, name: includeName === true ? firstName : "", meds, labs, bodyLog, moodLog, cycleFlags,
     questions: visitQuestions, picked, appendix, paper: paperForLocale(typeof navigator !== "undefined" ? navigator.language : "en-US"),
+    // Passive tracking S2 (plan §2.7): the cycle table and the skipped-nights count, only when temperature nights exist.
+    wear: signals && signals.hasTemps ? { cycles: signals.table, skipped: signals.skipped } : null,
   });
   // PDFs left this month (null = unlimited, the shipping plan) and the tally after one more (null while unlimited: nothing stored).
   const pdfNow = new Date(todayIso + "T12:00:00");
@@ -1004,7 +1008,7 @@ export default function CyraDemo() {
       if (wearData.length) return ping("Demo mode — no device connected; nothing was added");
       const nowMs = Date.now();
       setWearSources((s) => ({ ...s, [id]: { connectedAt: nowMs, lastSync: nowMs, demo: true } }));
-      adapters.demo.read({ fromIso: addDays(todayIso, -89), toIso: todayIso, sourceId: id }).then((r) => setWearData((d) => mergeRows(d, r.rows)));
+      adapters.demo.read({ fromIso: addDays(todayIso, -89), toIso: todayIso, sourceId: id, starts: ins.starts }).then((r) => setWearData((d) => mergeRows(d, r.rows)));
       return ping(`Demo mode — ${label} isn't really connected; showing 90 days of illustrative data`);
     }
     const existing = wearSources[id];
@@ -1112,18 +1116,36 @@ export default function CyraDemo() {
   const has = (v) => typeof v === "number" && Number.isFinite(v);
   const wAvg = (k) => { const vals = wearData.map((m) => m[k]).filter(has); return vals.length ? Math.round((vals.reduce((a, v) => a + v, 0) / vals.length) * (k === "temp" ? 100 : 1)) / (k === "temp" ? 100 : 1) : null; };
 
+  /* ---- Passive tracking S2 (lib/autoTracked.js, lib/signals.js): the nights as words, the cycle markers, the PDF table
+     and the Home card, all worked out here on render from the rows already on this device; nothing is fetched or sent.
+     Her taps write three record keys only: confirmations (Looks right: when, how long the card had been up, from the app),
+     nightSkips (Skip this night) and trackStats (device-only counts). A Looks right NEVER writes a day entry. ---- */
+  const wearOn = FEATURES.wearables;
+  const signals = useMemo(() => (wearOn && wearData.length ? signalsFor({ rows: wearData, sources: wearSources, skips: nightSkips, days, demo: DEMO_WEARABLES }) : null), [wearOn, wearData, wearSources, nightSkips, days]);
+  const autoModel = useMemo(() => (signals ? autoCardModel({ signals, rows: wearData, sources: wearSources, skips: nightSkips, confirmations, todayIso, nowMs: Date.now(), demo: DEMO_WEARABLES, platform: isNative() ? platform() : "web" }) : null), [signals, wearData, wearSources, nightSkips, confirmations, todayIso]);
+  const autoSynced = !!autoModel; // a source synced in the last 36 h (or the demo build): the phone reminder says "Confirm today (10 s)" (plan §2.5)
+  const autoSyncedRef = useRef(autoSynced); autoSyncedRef.current = autoSynced;
+  const confirmNight = (day, { took = null, via = "app" } = {}) => {
+    if (isConfirmed(confirmations, day)) return;
+    setConfirmations((c) => confirmDay(c, day, { at: new Date().toISOString(), took, via }));
+    setTrackStats((st) => noteConfirmation(st, { day, took }));
+    ping(`Looks right — noted for ${fmt(day)}. Nothing was added to your log.`);
+  };
+  const skipNightFor = (day, reason) => { setNightSkips((sk) => skipNight(sk, day, reason)); ping(`${fmt(day)} skipped: ${skipLabel(reason).toLowerCase()}. That night stays out of your baselines and the rise test.`); };
+  const unskipNightFor = (day) => { setNightSkips((sk) => unskipNight(sk, day)); ping(`${fmt(day)} counts again.`); };
+
   // A build without the wearables flag keeps the rows (and backups carry them) but shows nothing from them.
   const wearInsights = (() => {
     if (!FEATURES.wearables || !wearData.length) return [];
     const out = [];
     const sorted = [...wearData].sort((a, b) => a.date.localeCompare(b.date));
     if (stage === "periods") {
-      let ovu = null, riseAt = null;
-      for (let i = 1; i < sorted.length - 2; i++) {
-        if (has(sorted[i - 1].temp) && has(sorted[i].temp) && has(sorted[i + 1].temp) && has(sorted[i + 2].temp) && sorted[i - 1].temp < 0.12 && sorted[i].temp >= 0.2 && sorted[i + 1].temp >= 0.2 && sorted[i + 2].temp >= 0.2) { ovu = sorted[i - 1].date; riseAt = sorted[i].date; break; }
-      }
-      if (ovu) out.push({ num: "Ovulated", text: `A sustained temperature rise began ${fmt(riseAt)} and held — consistent with ovulation around ${fmt(ovu)}. This confirms it after the fact, the way basal-temperature charting does. It can't predict next month, and it isn't contraception.`, advice: stageName === "Trying to Conceive" ? "If you're trying to conceive, the fertile days were the ~5 before and the day of that rise — Solia Health will use this to sharpen next month's estimate." : null, urgency: "self" });
-      else if (pred && pred.cycleDay < pred.avgLen - 14) out.push({ num: `Day ${pred.cycleDay}`, text: `No temperature shift yet this cycle — which fits: based on your usual ${pred.avgLen}-day cycle, ovulation would be expected around day ${pred.avgLen - 14}. Solia Health will flag the rise when it holds for three days.`, urgency: "self", advice: stageName === "Trying to Conceive" ? `Your estimated fertile window opens around day ${Math.max(1, pred.fertileDay)} — the temperature rise confirms it only afterwards, so pair it with other signs if timing matters.` : null });
+      // Passive tracking S2: the rise read comes from lib/signals.js (the three-over-six rule on the running cycle), worded as
+      // guidance: "a rise consistent with ovulation", never a confirmation, never contraception.
+      const curStart = signals && signals.cycles.length ? signals.cycles[signals.cycles.length - 1].start : null;
+      const ov = curStart ? signals.ovulations[curStart] : null;
+      if (ov && ov.status === "rise-seen") out.push({ num: `Day ${ov.day}`, text: `A temperature rise consistent with ovulation began on cycle day ${ov.day} (${fmt(ov.date)}): three nights in a row at least 0.2 °C above the six before, from your own nightly readings. An observation after the fact, the way basal-temperature charting works; it can't predict next month.`, advice: stageName === "Trying to Conceive" ? "If you're trying to conceive, the days most often fertile were the ~5 before and the day of that rise." : null, urgency: "self" });
+      else if (pred && pred.cycleDay < pred.avgLen - 14) out.push({ num: `Day ${pred.cycleDay}`, text: `No sustained temperature rise yet this cycle — which fits: based on your usual ${pred.avgLen}-day cycle, a rise would be expected around day ${pred.avgLen - 14}. Solia Health will say so once one holds for three nights.`, urgency: "self", advice: stageName === "Trying to Conceive" ? `Your estimated fertile window opens around day ${Math.max(1, pred.fertileDay)} — a temperature rise shows only afterwards, so pair it with other signs if timing matters.` : null });
       const lut = sorted.filter((s) => has(s.temp) && s.temp >= 0.2), fol = sorted.filter((s) => has(s.temp) && s.temp < 0.12);
       if (lut.length >= 4 && fol.length >= 4) {
         const av = (a, k) => { const v = a.map((y) => y[k]).filter(has); return v.length >= 4 ? Math.round(v.reduce((x, y) => x + y, 0) / v.length) : null; };
@@ -1155,7 +1177,7 @@ export default function CyraDemo() {
     if (stage === "periods") {
       ms.push({ done: di.lens.length >= 1, label: "First full cycle logged" });
       ms.push({ done: di.lens.length >= 3, label: "3 cycles — predictions sharpen" });
-      if (FEATURES.wearables && wearData.length) ms.push({ done: wearInsights.some((w) => w.num === "Ovulated"), label: "Ovulation confirmed by temperature" });
+      if (FEATURES.wearables && wearData.length) ms.push({ done: !!(signals && Object.values(signals.ovulations).some((o) => o.status === "rise-seen")), label: "Temperature rise seen in a cycle" });
     }
     if (stage === "peri") {
       const lastP = di.starts[di.starts.length - 1];
@@ -2045,7 +2067,7 @@ export default function CyraDemo() {
       return;
     }
     try {
-      const r = await syncReminders({ cadence: cad, nudge }, { prompt, known });
+      const r = await syncReminders({ cadence: cad, nudge, body: autoSyncedRef.current ? CONFIRM_BODY : undefined }, { prompt, known });
       if (!current()) return;
       const keep = (patch) => setRem((x) => ({ endpoint: x.endpoint || null, pending: cleanPending(x.pending), rev: x.rev, ...patch }));
       if (r.active) { if (r.endpoint) forgotten.current.delete(r.endpoint); markForgotten(known.filter((e) => e !== r.endpoint), r.pending); setRem((x) => ({ enabled: true, status: "on", endpoint: r.endpoint || null, pending: cleanPending(r.pending), rev: x.rev })); }
@@ -2079,7 +2101,7 @@ export default function CyraDemo() {
         .then((r) => { if (!isNative()) markForgotten(tried, r.pending); if (gen === remGen.current) setReminders((x) => ({ ...x, endpoint: null, pending: cleanPending(r.pending), ...(x.cancelFailed ? { status: "off", cancelFailed: false } : {}) })); })
         .catch(() => { /* nothing to cancel */ });
     }
-  }, [cadence, quietHours, hydrated]); // eslint-disable-line
+  }, [cadence, quietHours, hydrated, autoSynced]); // eslint-disable-line
 
   /* ---------- "fill in your name and email from" Apple / Google / Facebook ----------
      Not an account: real OAuth through the backend only to prefill step 1, kept on this
@@ -2351,7 +2373,9 @@ export default function CyraDemo() {
       step={homeStepSkip && homeStepSkip.day === todayIso ? null : (stage !== "preg" && experimentStep(experiments, todayIso)) || smallStep({ stage, entry: todayEntryNow, pcosOn: pcosHere, todayIso, skip: homeStepSkip })}
       onStep={(a) => { if (a.exp) { setExperiments((s) => markDay(s, todayIso, a.exp === "done")); ping(a.exp === "done" ? "Ticked for today" : "Unticked for today"); focusSel([".stepcard .stepgo"]); } else if (a.practice) setPracticeOpen({ id: a.practice, need: null }); else if (a.log) pickLog(a.log); else if (a.go) goTab(a.go); else if (a.open === "appts") setShowAppts(true); }}
       onSkipStep={() => { const st = (stage !== "preg" && experimentStep(experiments, todayIso)) || smallStep({ stage, entry: todayEntryNow, pcosOn: pcosHere, todayIso }); setHomeStepSkip({ day: todayIso, id: st ? st.id : "" }); ping("Okay, not today"); }}
-      bodyRail={bodySteps({ entry: todayEntryNow, moveCount: tileCtx.moveCount, moveMin: potsMoves ? 0 : moveToday.min, preg: stage === "preg", sleepH: tileCtx.sleepH })}
+      bodyRail={bodySteps({ entry: todayEntryNow, moveCount: tileCtx.moveCount, moveMin: potsMoves ? 0 : moveToday.min, preg: stage === "preg", sleepH: tileCtx.sleepH, auto: autoModel && autoModel.fresh ? { confirmed: autoModel.confirmed } : null })}
+      autoCard={autoModel ? <AutoTrackedCard m={autoModel} onConfirm={confirmNight} onAddMore={() => pickLog("symptoms")} onSkip={skipNightFor} onUnskip={unskipNightFor} onSync={autoModel.platform === "android" ? () => connectWear("healthkit", "Health Connect") : null} /> : null}
+      autoConfirmed={!!(autoModel && autoModel.fresh && autoModel.confirmed)}
       mindRail={mindSteps({ moodDone: tileLogged("mood", tileCtx), readReady: !!todayEntryNow && !homeInsight.empty })} todayIso={todayIso} homeInsight={homeInsight} patternsCard={patternsCard} wearInsights={wearInsights} milestones={milestones} justReached={justReached} nextUp={nextUp} pulse={FEATURES.counts ? pulse : null}
       todayEntry={todayEntryNow} scoreIds={stage === "preg" ? Object.keys(GSYM) : symIds} scoreLabels={stage === "preg" ? GSYM : symMap}
       recap={recap} showRecap={showRecap} setShowRecap={setShowRecap}
@@ -2573,6 +2597,7 @@ export default function CyraDemo() {
       ...(found ? sleepCards(found.links) : []), ...(found ? cycleCards(found.links) : []),
       ...(pcosHere ? pcosCards({ entries: ins.sorted, bodyLog, todayIso, lens: (cyc.lens6 || []).map((x) => x.len) }) : []),
       ...(mealsHere ? mealCards({ bodyLog, todayIso }) : []),
+      ...(signals ? wearCards({ nightly: signals.nightly, base: signals.base, entries: ins.sorted, moodLog, topSym: ins.counts[0] || null, energyId: ENERGY_ID, todayIso }) : []),
       ...trialCards({ meds, scoreOn, usual: usualOf(sixty || []), todayIso }),
       stage === "periods" ? topCard(ins.counts[0]) : null,
     ].filter(Boolean));
@@ -2583,7 +2608,7 @@ export default function CyraDemo() {
     const weekly = {
       week: wk,
       counts: countWords(weekCounts({ entries: ins.sorted, moodLog, bodyLog, practiceLog, from: wk.from, to: wk.to })),
-      notes: cards.filter((c) => c.status === "supported" && c.kind !== "marker").slice(0, 2).map((c) => c.sentence),
+      notes: [...(signals && signals.review ? [signals.review] : []), ...cards.filter((c) => c.status === "supported" && c.kind !== "marker").slice(0, 2).map((c) => c.sentence)],
       running, skipped: exS.skip === wk.key,
       offer: running ? null : pickExperiment({ signals: weekSignals({ entries: ins.sorted, moodLog, bodyLog, from: wk.from, to: wk.to }), pcosOn: pcosHere, state: exS, weekKey: wk.key, todayIso }),
       last: lf && experimentOf(lf.id) ? { x: experimentOf(lf.id), target: lf.target, done: lf.days.length, fu: experimentFollowUp(lf, { entries: ins.sorted, moodLog, bodyLog }) } : null,
@@ -2704,7 +2729,7 @@ export default function CyraDemo() {
             {appIs("cal") && (
               <CalendarScreen pred={pred} predWhy={predWhy} cyc={cyc} onCycles={() => showView("cycles")} stage={stage} isMeno={isMeno} days={days} symIds={symIds} symMap={symMap} dayScore={scoreDay} scoreColor={scoreColor} scoreInk={scoreInk} scoreLabel={scoreLabel} todayIso={todayIso} selDay={selDay} setSelDay={setSelDay} onEdit={startEdit} fertOn={fertOn} tempUnit={tempUnit} mealLine={mealsHere ? (iso) => mealDayWords(bodyLog, iso) : null} />
             )}
-            {appIs("cycles") && <CyclesScreen cyc={cyc} stage={stage} onUse={setCycleUse} pcosOn={pcosHere} lens={ins.lens} />}
+            {appIs("cycles") && <CyclesScreen cyc={cyc} stage={stage} onUse={setCycleUse} pcosOn={pcosHere} lens={ins.lens} marks={signals ? signals.marks : null} ttc={ttc} />}
             {appIs("patterns") && patternsView()}
             {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} scheme={scheme} fert={ttc && fertOn ? { unit: tempUnit } : null} buildVisit={buildVisit} pdfLeft={pdfLeft} onPdfMade={onPdfMade} pdfLimit={PLAN.pdfExportsPerMonth} onHandoff={holdLock} mealsK={mealsHere ? mealCounts(bodyLog, addDays(todayIso, -29), todayIso).notes : 0}
               buildSummary={buildClinician} hasName={!!firstName} accentHex={(stagePal || org.theme).primary} questions={visitQuestions} setQuestions={setVisitQuestions}

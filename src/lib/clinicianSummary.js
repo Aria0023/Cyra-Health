@@ -43,6 +43,10 @@ export const moreLine = (n, appendix) => (n > 0 ? `+${n} more ${appendix ? "in t
 export const PERIOD_DAYS = 90;      // "a typical 3-month log"
 export const CYCLES_SHOWN = 6;
 export const LONG_CYCLE = 35;       // longer than this is marked
+export const CYCLE_ROWS_MAX = 12;   // the auto-tracked cycle table (passive tracking S2): at most 12 cycles, trimmed to 6 first
+export const CYCLE_ROWS_FIT = 6;
+export const TABLE_NOTE = "Temperature rise: three nights in a row at least 0.2 °C above the six before, from her wearable's nightly readings, read on her device. An observation consistent with ovulation, not a confirmation.";
+export const SKIPPED_HEAD = "Auto-tracked nights";
 export const TOP_SYMPTOMS = 6;
 export const LAB_VALUES_SHOWN = 4;  // per test, newest first
 export const COMPARE_DAYS = 90;     // each side of a start date, at most
@@ -192,7 +196,7 @@ function dailyPart(win, from, today, bodyLog, moodLog) {
  * "Include my name"; meds: What I'm trying; labs; bodyLog; moodLog; cycleFlags; questions: her typed questions;
  * picked: the suggested questions she added with "Add to email and PDF" (listed after her own).
  */
-export function summaryModel({ days = [], stage = "periods", stageName = "", pcosOn = false, today, name = "", meds = [], labs = [], bodyLog = {}, moodLog = {}, cycleFlags = {}, questions = [], picked = [], paper = "a4", appendix = false } = {}) {
+export function summaryModel({ days = [], stage = "periods", stageName = "", pcosOn = false, today, name = "", meds = [], labs = [], bodyLog = {}, moodLog = {}, cycleFlags = {}, questions = [], picked = [], paper = "a4", appendix = false, wear = null } = {}) {
   const sorted = (Array.isArray(days) ? days : []).filter((e) => isObj(e) && typeof e.date === "string" && ISO.test(e.date) && e.date <= today).slice().sort((a, b) => a.date.localeCompare(b.date));
   const first = sorted.length ? sorted[0].date : today;
   const from = addDays(today, -(PERIOD_DAYS - 1)) > first ? addDays(today, -(PERIOD_DAYS - 1)) : first;
@@ -202,6 +206,16 @@ export function summaryModel({ days = [], stage = "periods", stageName = "", pco
   const here = stage !== "preg" && stageWords !== "Menopause";
   const cycles = cyclesPart(sorted, today, cycleFlags, here);
   const starts = cycles.starts || [];
+  /* Passive tracking S2 (plan §2.7): with temperature nights from a wearable, page 1's Cycles section is a TABLE (newest
+     first, at most CYCLE_ROWS_MAX) of start · length · bleeding days · temperature rise · luteal length; the strip stays
+     when there are no temperature nights. wear: { cycles: lib/signals.js cycleTable() rows, skipped: skippedSummary() }. */
+  const tableRows = here && wear && Array.isArray(wear.cycles) && wear.cycles.some((r) => r && r.rise && r.rise.nights > 0)
+    ? wear.cycles.filter((r) => r && typeof r.start === "string").slice(0, CYCLE_ROWS_MAX).map((r) => ({
+      start: r.start, startText: fmtDay(r.start), length: r.running ? `day ${daysBetween(r.start, today) + 1} so far` : r.length != null ? `${r.length} d` : "–",
+      bleeding: String(r.bleeding ?? 0), rise: r.riseText || "not enough nights", luteal: r.luteal != null ? `${r.luteal} d` : "–", running: !!r.running,
+    })) : null;
+  if (tableRows) { cycles.table = tableRows; cycles.tableNote = TABLE_NOTE; }
+  const skipped = wear && wear.skipped && typeof wear.skipped.text === "string" ? wear.skipped : null;
   const labels = stage === "preg" ? GSYM : ALL_SYM;
   const symAll = symptomsPart(win, labels, starts, here);
   const treatments = treatmentsPart(meds, sorted, starts, symAll[0] || null, today, here);
@@ -219,8 +233,8 @@ export function summaryModel({ days = [], stage = "periods", stageName = "", pco
       stage: `${stageWords}${stage === "preg" ? "" : ` · PCOS module ${pcosOn ? "on" : "off"}`}`,
       made: SUMMARY_MADE,
     },
-    cycles, symptoms: { rows: symAll, logged }, treatments, labs: labRows, daily, questions: qs,
-    limits: { symptoms: TOP_SYMPTOMS, labValues: LAB_VALUES_SHOWN, treatments: treatments.length, questions: qs.length },
+    cycles, symptoms: { rows: symAll, logged }, treatments, labs: labRows, daily, questions: qs, skipped,
+    limits: { symptoms: TOP_SYMPTOMS, labValues: LAB_VALUES_SHOWN, treatments: treatments.length, questions: qs.length, cycleRows: tableRows ? tableRows.length : 0 },
     enough: logged > 0 || labRows.length > 0 || treatments.length > 0,
     files: { pdf: `solia-health-summary-${today}.pdf` },
   };
@@ -232,9 +246,10 @@ export function pageOne(model) {
   const ap = model.appendix;
   const sym = model.symptoms.rows.slice(0, L.symptoms);
   const labs = model.labs.map((t) => ({ ...t, shown: t.values.slice(0, L.labValues), more: moreLine(t.values.length - Math.min(t.values.length, L.labValues), ap) }));
+  const cyc = model.cycles.table ? model.cycles.table.slice(0, L.cycleRows) : null;
   return {
     symptoms: sym, symMore: moreLine(model.symptoms.rows.length - sym.length, ap),
-    labs,
+    labs, cycleRows: cyc, cycMore: cyc ? moreLine(model.cycles.table.length - cyc.length, ap) : null,
     treatments: model.treatments.slice(0, L.treatments), treatMore: moreLine(model.treatments.length - Math.min(model.treatments.length, L.treatments), ap),
     questions: model.questions.slice(0, L.questions), qMore: moreLine(model.questions.length - Math.min(model.questions.length, L.questions), ap),
   };
@@ -246,6 +261,8 @@ export function summaryTexts(model) {
   const p = pageOne(model);
   return [model.header.title, model.header.name, model.header.period, model.header.stage, model.header.made,
     model.cycles.line, model.cycles.currentLine, ...model.cycles.strip.map((c) => String(c.len)),
+    ...(model.cycles.table ? model.cycles.table.flatMap((r) => [r.startText, r.length, r.bleeding, r.rise, r.luteal]) : []), model.cycles.tableNote, p.cycMore,
+    ...(model.skipped ? [SKIPPED_HEAD, model.skipped.text] : []),
     ...model.symptoms.rows.flatMap((r) => [r.label, r.cluster]), p.symMore,
     ...model.treatments.flatMap((t) => [t.name, t.kind, t.startLine, t.line]), p.treatMore, TREAT_NOTE,
     ...model.labs.flatMap((t) => [t.label, ...t.values.map((v) => v.cell)]), LABS_NOTE, LABS_NOTE_ALL,
@@ -304,7 +321,17 @@ function drawPageOne(doc, model, accent) {
   y += 2;
 
   // Cycles
-  if (model.cycles.shown) {
+  if (model.cycles.shown && p.cycleRows) {
+    // Passive tracking S2: the cycle table (newest first) in place of the strip.
+    label("Cycles · newest first");
+    const cols = [{ label: "Start", w: W * 0.2 }, { label: "Length", w: W * 0.17 }, { label: "Bleeding", w: W * 0.14 }, { label: "Temperature rise", w: W * 0.32 }, { label: "Luteal", w: W * 0.17 }];
+    const yEnd = doc.table(X, y - 6, cols, p.cycleRows.map((r) => [r.startText, r.length, r.bleeding, r.rise, r.luteal]), { size: 7.8, pad: 2.4 });
+    if (doc.pages.length > 1) over = true;
+    y = yEnd + 8; room(0);
+    if (p.cycMore) para(p.cycMore, { size: 7.4, rgb: SOFT });
+    para(model.cycles.line);
+    para(model.cycles.tableNote, { size: 7.2, rgb: SOFT });
+  } else if (model.cycles.shown) {
     label("Cycles");
     const strip = model.cycles.strip;
     if (strip.length) {
@@ -410,6 +437,7 @@ function drawPageOne(doc, model, accent) {
     went to the detailed pages. */
 export function fitSummary(model, PdfDoc, accentHex = null) {
   const steps = [
+    (l) => (l.cycleRows > CYCLE_ROWS_FIT ? { ...l, cycleRows: CYCLE_ROWS_FIT } : null), // the auto-tracked table to 6 rows before anything else (plan §2.7)
     (l) => (l.labValues > 3 ? { ...l, labValues: 3 } : null),
     (l) => (l.questions > 6 ? { ...l, questions: 6 } : null),
     (l) => (l.symptoms > 5 ? { ...l, symptoms: 5 } : null),
@@ -459,6 +487,17 @@ function drawFullLists(doc, model, accent) {
     y = doc.table(X, y, [{ label: "Test", w: W * 0.3 }, { label: "Date", w: W * 0.3 }, { label: "Value as typed", w: W * 0.4 }],
       model.labs.flatMap((t) => t.values.map((v) => [t.label, fmtDayY(v.date), v.text])), { size: 8.2 }) + 11;
     y = doc.wrap(X, y, W, LABS_NOTE_ALL, { size: 7.4, rgb: SOFT });
+  }
+  if (model.cycles.table && model.cycles.table.length > pageOne(model).cycleRows.length) {
+    head("Every cycle in the table");
+    y = doc.table(X, y, [{ label: "Start", w: W * 0.2 }, { label: "Length", w: W * 0.17 }, { label: "Bleeding", w: W * 0.14 }, { label: "Temperature rise", w: W * 0.32 }, { label: "Luteal", w: W * 0.17 }],
+      model.cycles.table.map((r) => [r.startText, r.length, r.bleeding, r.rise, r.luteal]), { size: 8.2 }) + 11;
+    y = doc.wrap(X, y, W, model.cycles.tableNote, { size: 7.4, rgb: SOFT });
+  }
+  if (model.skipped) {
+    head(SKIPPED_HEAD);
+    y = doc.wrap(X, y, W, model.skipped.text, { size: 8.6, rgb: INK });
+    y = doc.wrap(X, y + 2, W, "A night she marked as not usable stays out of every baseline and of the temperature-rise test.", { size: 7.4, rgb: SOFT });
   }
   if (model.questions.length > pageOne(model).questions.length) {
     head("Questions for my visit (all)");
