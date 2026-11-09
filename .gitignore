@@ -11,3 +11,7 @@ dist-*/
 backend/data-*/
 backend/config/app.*.json
 backend/data-push-tls/
+# the e2e harness (e2e/): its screenshots, Playwright's results and report; docs/plans/auto-tracked-shots/ is the curated, committed set
+e2e/shots/
+e2e/test-results/
+e2e/report/

@@ -122,7 +122,7 @@ export const nightlyTemps = (rows, opts = {}) => excludeOutliers(nightlyValues(r
 /** Only the nights a rule may read. */
 export const validNights = (nights) => (nights || []).filter((n) => n.valid);
 /** The note shown under a temperature row the rules left out, or null. */
-export const nightNote = (n) => (!n ? null : n.skipped ? `Skipped: ${(SKIP_REASONS.find(([id]) => id === n.skipped) || [, "other"])[1].toLowerCase()}` : n.outlier ? "Left out: much higher than your other nights" : null);
+export const nightNote = (n) => (!n ? null : n.skipped ? `Skipped: ${(SKIP_REASONS.find(([id]) => id === n.skipped) || [null, "other"])[1].toLowerCase()}` : n.outlier ? "Left out: much higher than your other nights" : null);
 
 /* ---------- cycles ---------- */
 /** The cycle day of `day` in a cycle that starts on `start` (1 on the start day). */
