@@ -21,6 +21,7 @@
 import { API_BASE, apiFetch, apiPost } from "./api.js";
 import { isNative, LocalNotifications } from "./native.js";
 import { whenActive } from "./pwa.js";
+import { CONFIRM_ID, CONFIRM_ACTION_TYPE, CONFIRM_ACTIONS, CONFIRM_TITLE, CONFIRM_TEXT, CONFIRM_AT, confirmDueAt } from "./confirmNight.js";
 
 export const NUDGE_TIME = { morning: [9, 0], midday: [12, 30], evening: [19, 0] };
 /** The phone reminder's body. Passive tracking S2: while a source synced in the last 36 h App.jsx passes lib/autoTracked.js
@@ -28,6 +29,9 @@ export const NUDGE_TIME = { morning: [9, 0], midday: [12, 30], evening: [19, 0] 
 export const REMINDER_BODY = "Time for your 30-second check-in.";
 const DAYS = { daily: [1, 2, 3, 4, 5, 6, 7], weekdays: [2, 3, 4, 5, 6], "3x": [2, 4, 6], weekly: [2], me: [] }; // Capacitor weekday: 1 = Sunday
 const REMINDER_IDS = [1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007]; // 1000 + weekday; 1000 never used, cancelled anyway
+/* Passive tracking S3 (plan §2.6): the one morning "Last night synced. Looks right?" notification on the phone. Its id, action type
+   and words live in lib/confirmNight.js (pure), re-exported here for the callers that already import this file. */
+export { CONFIRM_ID, CONFIRM_ACTION_TYPE, CONFIRM_ACTIONS, CONFIRM_TITLE, CONFIRM_TEXT, CONFIRM_AT, confirmDueAt };
 const native = () => (isNative() ? LocalNotifications : null);
 const webSupported = () => typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
@@ -84,12 +88,14 @@ export async function unsubscribeBrowser() {
 
 /** Cancel every reminder this app set up. Never registers anything new.
     known: push addresses this device used before (kept by App.jsx), deleted on the server too.
-    server:false skips the server (Delete everything already did that step). */
-async function cancelAll({ timeoutMs = 15000, known = [], server = true } = {}) {
+    server:false skips the server (Delete everything already did that step).
+    all:true (Delete everything) also cancels the confirm-night notification, which a reminder change otherwise leaves alone. */
+async function cancelAll({ timeoutMs = 15000, known = [], server = true, all = false } = {}) {
   const ln = native();
   if (ln) {
     const pending = await ln.getPending().catch(() => ({ notifications: [] }));
-    const ids = new Set([...REMINDER_IDS, ...(pending.notifications || []).map((n) => n.id)]);
+    const ids = new Set([...REMINDER_IDS, ...(pending.notifications || []).map((n) => n.id).filter((id) => all || id !== CONFIRM_ID)]);
+    if (all) ids.add(CONFIRM_ID);
     await ln.cancel({ notifications: [...ids].map((id) => ({ id })) });
     return { active: false, pending: [] };
   }
@@ -110,14 +116,15 @@ let chain = Promise.resolve();
 let offs = 0; // bumped by every "off": a subscribe queued before it gives up
 export function syncReminders(settings, opts = {}) {
   const off = !wantsReminders(settings.cadence, settings.nudge);
+  if (off && opts.all) confirmSeen = null;
   if (off) offs++;
   const mine = offs;
   const run = chain.then(() => (!off && mine !== offs ? { active: false, superseded: true } : syncNow(settings, opts)));
   chain = run.catch(() => {});
   return run;
 }
-async function syncNow({ cadence, nudge, body = REMINDER_BODY }, { prompt = true, timeoutMs, known = [], server = true } = {}) {
-  if (!wantsReminders(cadence, nudge)) return cancelAll({ timeoutMs, known, server });
+async function syncNow({ cadence, nudge, body = REMINDER_BODY, confirm = false }, { prompt = true, timeoutMs, known = [], server = true, all = false } = {}) {
+  if (!wantsReminders(cadence, nudge)) return cancelAll({ timeoutMs, known, server, all });
   const ln = native();
   if (ln) {
     await cancelAll(); // the old schedule goes first, whatever happens next
@@ -140,19 +147,59 @@ async function syncNow({ cadence, nudge, body = REMINDER_BODY }, { prompt = true
   if (!(await whenActive(reg))) return { active: false, error: true, worker: true };
   const existing = await reg.pushManager.getSubscription();
   const tz = tzNow();
-  if (existing && lastSynced && lastSynced.endpoint === existing.endpoint && lastSynced.cadence === cadence && lastSynced.nudge === nudge && lastSynced.tz === tz) return { active: true, endpoint: existing.endpoint, pending: await forgetOnServer(known.filter((e) => e !== existing.endpoint), { timeoutMs }) };
+  const confirmFlag = !!confirm;
+  if (existing && lastSynced && lastSynced.endpoint === existing.endpoint && lastSynced.cadence === cadence && lastSynced.nudge === nudge && lastSynced.tz === tz && lastSynced.confirm === confirmFlag) return { active: true, endpoint: existing.endpoint, pending: await forgetOnServer(known.filter((e) => e !== existing.endpoint), { timeoutMs }) };
   const r = await apiFetch("/api/push/vapid");
   if (r.status === 503) return { active: false, unavailable: true };
   if (!r.ok) return { active: false, error: true };
   const { publicKey } = await r.json();
   const sub = existing || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toKey(publicKey) });
   let out;
-  try { out = await apiPost("/api/push/subscribe", { subscription: sub.toJSON ? sub.toJSON() : sub, cadence, nudge, tz }); }
+  // Passive tracking S3: `confirm` (true while a wearable synced in the last 36 h) asks the server for the confirm-night
+  // payload instead of the plain reminder; the server keeps the flag beside the cadence, nothing else (plan §2.6).
+  try { out = await apiPost("/api/push/subscribe", { subscription: sub.toJSON ? sub.toJSON() : sub, cadence, nudge, tz, ...(confirmFlag ? { confirm: true } : {}) }); }
   catch (e) { if (e?.status === 503) return { active: false, unavailable: true }; if (e?.status) return { active: false, error: true }; throw e; }
-  lastSynced = { endpoint: sub.endpoint, cadence, nudge, tz };
+  lastSynced = { endpoint: sub.endpoint, cadence, nudge, tz, confirm: confirmFlag };
   // An older address of this device (a browser that replaced its subscription) is forgotten too.
   const pending = await forgetOnServer(known.filter((e) => e !== sub.endpoint), { timeoutMs });
   return { active: !!out.active, endpoint: sub.endpoint, pending };
+}
+
+/* ---------- Passive tracking S3: the phone's confirm-night notification ---------- */
+let confirmSeen = null; // the schedule this app last set: { day, at }, so re-applying it sends nothing
+/** Registers the action type once (phone). Resolves false where there is no plugin. */
+export async function registerConfirmActions() {
+  const ln = native();
+  if (!ln) return false;
+  try { await ln.registerActionTypes({ types: [{ id: CONFIRM_ACTION_TYPE, actions: CONFIRM_ACTIONS.map((a) => ({ id: a.id, title: a.title })) }] }); return true; } catch { return false; }
+}
+/** Schedules (or cancels, with atMs null) the one confirm notification for `day` (the wake day it is about). Resolves what it did. */
+export async function scheduleConfirm({ day, atMs }) {
+  const ln = native();
+  if (!ln) return { scheduled: false };
+  if (atMs == null) {
+    if (confirmSeen) { await ln.cancel({ notifications: [{ id: CONFIRM_ID }] }).catch(() => {}); confirmSeen = null; }
+    return { scheduled: false };
+  }
+  if (confirmSeen && confirmSeen.day === day && confirmSeen.at === atMs) return { scheduled: true, same: true };
+  const perm = await ln.checkPermissions().catch(() => ({ display: "denied" }));
+  if (perm.display !== "granted") return { scheduled: false, blocked: true };
+  await ln.cancel({ notifications: [{ id: CONFIRM_ID }] }).catch(() => {});
+  await ln.schedule({ notifications: [{ id: CONFIRM_ID, title: CONFIRM_TITLE, body: CONFIRM_TEXT, actionTypeId: CONFIRM_ACTION_TYPE, extra: { day, at: atMs }, schedule: { at: new Date(atMs), allowWhileIdle: true }, isExactNotification: false }] });
+  confirmSeen = { day, at: atMs };
+  return { scheduled: true };
+}
+/** Listens for the notification's actions (phone): cb({ actionId: "ok" | "open" | "tap", day, at }). Resolves a remove() function. */
+export async function onConfirmAction(cb) {
+  const ln = native();
+  if (!ln) return () => {};
+  const h = await ln.addListener("localNotificationActionPerformed", (ev) => {
+    const n = ev && ev.notification;
+    if (!n || n.id !== CONFIRM_ID) return;
+    const extra = n.extra || {};
+    cb({ actionId: ev.actionId === "ok" || ev.actionId === "open" ? ev.actionId : "tap", day: typeof extra.day === "string" ? extra.day : null, at: typeof extra.at === "number" ? extra.at : null });
+  });
+  return () => { try { h.remove(); } catch { /* gone */ } };
 }
 
 function toKey(b64u) { const pad = "=".repeat((4 - (b64u.length % 4)) % 4); const raw = atob((b64u + pad).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(raw, (c) => c.charCodeAt(0)); }

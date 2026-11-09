@@ -438,7 +438,8 @@ leaves no trace in the UI and makes no request.
 
 | Flag | What it adds in the app | Backend module (`FEATURE_MODULE`) | What the module keeps | Default |
 |---|---|---|---|---|
-| `wearables` | Home's Wearables door and panel, the "From your wearable" cards and milestones, Oura and Fitbit/Garmin/Whoop (Terra) connections, on the phone Apple Health / Health Connect, POTS watch/ring rows | `integrations` | Oura tokens in memory for at most 5 minutes during a connect; Fitbit/Garmin/Whoop readings in memory for at most 7 days until the device collects them | off |
+| `wearables` | Oura and Fitbit/Garmin/Whoop (Terra) connections through the server (Home's Wearables door, You → Data sources), and with them the auto-tracked screens below | `integrations` | Oura tokens in memory for at most 5 minutes during a connect; Fitbit/Garmin/Whoop readings in memory for at most 7 days until the device collects them | off |
+| `deviceSync` (S3) | the on-phone source (Apple Health / Health Connect, read by the app on the phone) and everything built on wearable rows: the Wearables door, "Today's auto-tracked", the cycle markers, the PDF table, the two pattern cards, You → Data sources, the confirm-night notification; nothing in a browser | none | nothing: no server is involved | **on** |
 | `counts` | "You're not alone" on Home (one read per launch), "Share anonymous weekly counts" (consent and Settings) | `pulse` | weekly totals only: `{week, stage, event, count}` | off |
 | `ai` | "Also ask Cyra's AI when the library has no answer" on Ask | `ai` | nothing (it forwards the question to Anthropic) | on |
 | `webReminders` | check-in reminders in a browser (rhythm, nudge and Reminders in Settings, "Remind me" on the consent step); phones always have reminders | `push` | the browser's push address and keys, reminder days, time, time zone, the last day one was sent | on |

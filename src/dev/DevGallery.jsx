@@ -75,7 +75,22 @@ export default function DevGallery() {
         {/* Passive tracking S2: "Today's auto-tracked" with illustrative words (lib/signals.js readinessWords shape); Looks right and
             Skip this night work on this page's own state only. */}
         <h2 className="section-lab">Today's auto-tracked</h2>
-        <AutoTrackedCard m={{ ...AUTO_DEMO, day: localDay(), confirmed: autoDone, skipped: autoSkip }} onConfirm={() => setAutoDone(true)} onAddMore={() => setSheet(true)} onSkip={(d, r) => setAutoSkip(r)} onUnskip={() => setAutoSkip(null)} />
+        <AutoTrackedCard id="auto-demo" m={{ ...AUTO_DEMO, day: localDay(), confirmed: autoDone, skipped: autoSkip }} onConfirm={() => setAutoDone(true)} onAddMore={() => setSheet(true)} onSkip={(d, r) => setAutoSkip(r)} onUnskip={() => setAutoSkip(null)} />
+        {/* S3: the same card in every style at once (each wrapper wears one style's tokens), and the morning notification as a mock. */}
+        <h2 className="section-lab">The card in every style</h2>
+        <div className="dgstyles">
+          {STYLES.map(([k, name]) => (
+            <div key={k} className="cy" data-style={k} data-scheme={scheme} style={style} aria-label={`${name} style`}>
+              <AutoTrackedCard id={`auto-style-${k}`} m={{ ...AUTO_DEMO, day: localDay(), sourceName: `${name} · Apple Watch`, confirmed: false, skipped: null }} onConfirm={() => {}} onAddMore={() => {}} onSkip={() => {}} onUnskip={() => {}} />
+            </div>
+          ))}
+        </div>
+        <h2 className="section-lab">The morning notification (mock)</h2>
+        <div className="dgnotif" role="group" aria-label="Notification mock">
+          <div className="dgnotif-head"><span>Solia Health</span><span>7:00 AM</span></div>
+          <p className="dgnotif-body">Last night synced. Looks right?</p>
+          <div className="dgnotif-acts"><button type="button" className="mc" onClick={() => setAutoDone(true)}>Looks right</button><button type="button" className="mc">Open</button></div>
+        </div>
 
         <Card level={2} hero eyebrow="Today's small step" title="A two-minute breathing practice" icon="breath" tint="mind" badge={<Chip variant="pro" />}>
           <p style={{ margin: "0 0 12px", color: "var(--soft)" }}>You logged a rough night. Slow breathing can make the afternoon feel steadier.</p>

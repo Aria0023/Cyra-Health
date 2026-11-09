@@ -17,14 +17,14 @@ import { skipLabel } from "../lib/autoTracked.js";
    With no night since the day before yesterday: "No readings since <day>" and the platform's own way to bring them
    (the Health app's link on iPhone, "Sync now" on Android, nothing to tap on the web). m: lib/autoTracked.js autoCardModel. */
 const HEALTH_APP_URL = "x-apple-health://";
-export default function AutoTrackedCard({ m, onConfirm, onAddMore, onSkip, onUnskip, onSync = null }) {
+export default function AutoTrackedCard({ m, onConfirm, onAddMore, onSkip, onUnskip, onSync = null, id = "auto-tracked" }) {
   const shownAt = useRef(Date.now()); // when the card appeared: the "took" of a Looks right (plan §8)
   const [picking, setPicking] = useState(false);
   const when = m.syncedAt ? (new Date(m.syncedAt).toDateString() === new Date().toDateString() ? t("auto.synced", { source: m.sourceName, time: new Date(m.syncedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) }) : t("auto.syncedDay", { source: m.sourceName, day: fmt(new Date(m.syncedAt)) })) : m.sourceName;
   const confirm = () => { onConfirm(m.day, { took: Math.max(0, Date.now() - shownAt.current) }); };
   const pick = (id) => { setPicking(false); onSkip(m.day, id); };
   return (
-    <Card id="auto-tracked" className="autocard" tint="body" icon="pulse" eyebrow={t("auto.eyebrow")} title={when} level={2} badge={m.confirmed ? <Chip variant="logged">{t("auto.confirmedChip")}</Chip> : null}>
+    <Card id={id} className="autocard" tint="body" icon="pulse" eyebrow={t("auto.eyebrow")} title={when} level={2} badge={m.confirmed ? <Chip variant="logged">{t("auto.confirmedChip")}</Chip> : null}>
       {!m.fresh ? (
         <>
           <p className="autosince">{t("auto.noReadings", { day: fmt(m.day) })}</p>
@@ -54,8 +54,8 @@ export default function AutoTrackedCard({ m, onConfirm, onAddMore, onSkip, onUns
                 <button type="button" className="stepskip" onClick={onAddMore}>{t("auto.addMore")}</button>
               </div>
               {picking ? (
-                <div className="autopick" role="group" aria-labelledby="auto-skipwhy">
-                  <p className="lab" id="auto-skipwhy">{t("auto.skipWhy")}</p>
+                <div className="autopick" role="group" aria-labelledby={`${id}-skipwhy`}>
+                  <p className="lab" id={`${id}-skipwhy`}>{t("auto.skipWhy")}</p>
                   <div className="mcrow">
                     {SKIP_REASONS.map(([id, label]) => <button key={id} type="button" className="mc" onClick={() => pick(id)}>{label}</button>)}
                     <button type="button" className="mc" onClick={() => setPicking(false)}>{t("auto.keepNight")}</button>

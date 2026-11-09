@@ -480,3 +480,14 @@ not a contraceptive." for Trying to conceive. Please check that nothing reads as
 - "Confirm today (10 s)" instead of "Time for your 30-second check-in." (lib/autoTracked.js `CONFIRM_BODY`); the Home card shows the
   same line above Looks right. No health content.
 - Status: Awaiting clinician sign-off
+
+### auto.notification (S3; phone local notification and web push, `lib/confirmNight.js`, `public/sw.js`, backend push)
+- "Last night synced. Looks right?" with the actions "Looks right" and "Open". Only fires at 07:00 local after an overnight sync,
+  never before 07:00, never when the night is confirmed; no reading, number or word about her body is in it.
+- Status: Awaiting clinician sign-off
+
+### auto.sources (S3; You → Data sources, `src/components/DataSourcesCard.jsx`, `lib/sources.js` statsView)
+- No medical sentence: source names, what each reads, where it goes, Pause / Disconnect, and the spike's counts ("3 nights
+  confirmed with Looks right since 2026-10-02.", "Typically 9 seconds from the card appearing to the tap (67% under 15
+  seconds).", "A source has been connected since … (30 days)."). Counts of her own taps, never a score or a grade.
+- Status: Awaiting clinician sign-off (for the record; no claim about a condition)

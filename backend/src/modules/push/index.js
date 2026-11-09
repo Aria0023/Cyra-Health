@@ -25,7 +25,10 @@
 // stalls can hold up the scheduler.
 //
 //   GET    /api/push/vapid                → { publicKey } (unconfigured → 503)
-//   POST   /api/push/subscribe {subscription, cadence, nudge, tz} → { ok, active }
+//   POST   /api/push/subscribe {subscription, cadence, nudge, tz, confirm?} → { ok, active }
+//     confirm (passive tracking S3, plan §2.6): true while the app has a wearable that synced in the last 36 h; the
+//     reminder then carries type "confirm-night" and the service worker shows "Looks right" / "Open" buttons. The
+//     flag is kept beside the cadence; nothing about the readings or the device reaches this server.
 //   DELETE /api/push/subscribe {endpoint} → { ok, removed }
 // Phones don't use this: the native build schedules local notifications on-device.
 import crypto from "crypto";
@@ -38,6 +41,10 @@ export const NUDGES = { morning: [9, 0], midday: [12, 30], evening: [19, 0], nev
 const DAYS = { daily: [0, 1, 2, 3, 4, 5, 6], weekdays: [1, 2, 3, 4, 5], "3x": [1, 3, 5], weekly: [1], me: [] };
 // Hosts of the push services browsers hand out subscriptions for (a host matches itself or any subdomain).
 export const PUSH_HOSTS = ["fcm.googleapis.com", "android.googleapis.com", "push.services.mozilla.com", "push.apple.com", "notify.windows.com"];
+/** The reminder a row gets: the plain check-in, or (row.confirm) the confirm-night prompt with its two actions. Pure. */
+export const PLAIN_PAYLOAD = Object.freeze({ title: "Solia Health", body: "Time for your 30-second check-in.", tag: "cyra-checkin" });
+export const CONFIRM_PAYLOAD = Object.freeze({ title: "Solia Health", body: "Last night synced. Looks right?", tag: "cyra-confirm", type: "confirm-night", actions: Object.freeze([Object.freeze({ action: "ok", title: "Looks right" }), Object.freeze({ action: "open", title: "Open" })]) });
+export const payloadFor = (row) => (row && row.confirm === true ? { ...CONFIRM_PAYLOAD, actions: CONFIRM_PAYLOAD.actions.map((a) => ({ ...a })) } : { ...PLAIN_PAYLOAD });
 const B64URL = /^[A-Za-z0-9_-]+={0,2}$/;
 /** Is this a browser push-service endpoint we will POST to? https only, on an allowed host, at most 2048 chars. */
 export function endpointAllowed(endpoint, hosts = PUSH_HOSTS) {
@@ -83,7 +90,7 @@ export function mount(router, ctx, { intervalMs = 60_000, agent, clock = () => n
   router.post("/subscribe", async (req, res) => {
     if (!on) return res.status(503).json({ error: "push is not configured on this server" });
     if (!allow(req.ip)) return res.status(429).json({ error: "too many requests — try again in a minute" });
-    const { subscription, cadence, nudge, tz } = req.body || {};
+    const { subscription, cadence, nudge, tz, confirm } = req.body || {};
     const k = subscription?.keys || {};
     if (!endpointAllowed(subscription?.endpoint, hosts) || typeof k.p256dh !== "string" || k.p256dh.length > 128 || !B64URL.test(k.p256dh) || typeof k.auth !== "string" || k.auth.length > 64 || !B64URL.test(k.auth)) return res.status(400).json({ error: "a browser push subscription is required" });
     if (!CADENCES.includes(cadence) || !(nudge in NUDGES)) return res.status(400).json({ error: "cadence or nudge invalid" });
@@ -93,7 +100,7 @@ export function mount(router, ctx, { intervalMs = 60_000, agent, clock = () => n
     const prev = await store.findOne("push", (r) => r.id === id);
     if (!prev && (await store.find("push")).length >= maxRows) return res.status(507).json({ error: "reminders are full on this server — try again later" });
     // lastSentDay survives a re-subscribe or a new time: a day that already had its reminder never gets a second one.
-    const row = { id, endpoint: subscription.endpoint, keys: { p256dh: String(subscription.keys.p256dh), auth: String(subscription.keys.auth) }, cadence, nudge, tz: typeof tz === "string" ? tz.slice(0, 64) : "UTC", lastSentDay: prev?.lastSentDay ?? null };
+    const row = { id, endpoint: subscription.endpoint, keys: { p256dh: String(subscription.keys.p256dh), auth: String(subscription.keys.auth) }, cadence, nudge, tz: typeof tz === "string" ? tz.slice(0, 64) : "UTC", lastSentDay: prev?.lastSentDay ?? null, confirm: confirm === true };
     // A new row inside today's send window may be one a restart lost after today's reminder went: skip today.
     if (!prev) { const now = clock(); if (due(row, now)) row.lastSentDay = localParts(now, row.tz).day; }
     if (prev) await store.update("push", (r) => r.id === id, row); else await store.insert("push", row);
@@ -112,7 +119,7 @@ export function mount(router, ctx, { intervalMs = 60_000, agent, clock = () => n
   const send = (s) => {
     let timer;
     const deadline = new Promise((resolve) => { timer = setTimeout(() => resolve(DEADLINE), sendDeadlineMs); timer.unref?.(); });
-    const req = webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, JSON.stringify({ title: "Solia Health", body: "Time for your 30-second check-in.", tag: "cyra-checkin" }), { TTL: 60 * 60, urgency: "normal", timeout: sendTimeoutMs, ...(agent ? { agent } : {}) });
+    const req = webpush.sendNotification({ endpoint: s.endpoint, keys: s.keys }, JSON.stringify(payloadFor(s)), { TTL: 60 * 60, urgency: "normal", timeout: sendTimeoutMs, ...(agent ? { agent } : {}) });
     return Promise.race([req, deadline]).finally(() => clearTimeout(timer));
   };
   const tick = async (now = new Date()) => {

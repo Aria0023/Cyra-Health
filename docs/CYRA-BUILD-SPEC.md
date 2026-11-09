@@ -451,7 +451,23 @@ no background job, no CGM.
   `fitSummary`) when temperature nights exist, the strip otherwise; the appendix lists the skipped nights. The demo adapter
   shapes its rows to her logged period starts. Dev gallery: the card. Tests: `autoTracked.test.mjs`, `patterns.test.mjs`
   (wearCards), `clinicianSummary.test.mjs` (table), `home.test.mjs` (the rail), e2e `auto.spec.mjs`.
-- S3 adds its part to this section when it lands.
+- **S3 — confirm from the notification, Data sources, and device-only sync in production** (`src/lib/confirmNight.js`,
+  `src/components/DataSourcesCard.jsx`, `lib/notifications.js`, `public/sw.js`, `backend/src/modules/push`). Phone: a
+  LocalNotifications action type `confirm-night` (Looks right / Open; id 1100), scheduled for 07:00 local only when a sync
+  landed overnight before 07:00 and the night is not confirmed (`confirmDueAt`), cancelled otherwise;
+  `localNotificationActionPerformed` → `confirmations[day]` with `via: "notification"` and no screen; Open → Home; a
+  reminder change leaves it alone, Delete everything cancels it. Web: the subscription carries `confirm: true` while a
+  source synced in 36 h; the server keeps the boolean and sends `{ type: "confirm-night", actions }`; the service worker
+  shows the two buttons, posts `{ type: "confirm-night", day }` to an open page or opens `#/confirm/<day>`, which writes
+  the confirmation on load; users without a source get the plain reminder as before. You → **Data sources**: per source
+  status · what it reads · "Where it goes" · last sync · nights, Connect / Sync, Pause / Resume (`paused`), Disconnect with
+  "Delete its readings from this device too" (default on; `dropSourceRows`), the preferred-source picker per contested
+  metric (`prefer`), a "Demo readings" switch in demo builds, and "How this is going" (`trackStats` → `statsView`, "Kept on
+  this device, never sent."). The seventh flag **`deviceSync`** (default ON, no backend module) gates the on-phone sources
+  and everything built on their rows; Oura and Terra stay behind `wearables`; `lib/wearables.js` SOURCES follows both
+  flags and `SOURCES_HERE` says whether any source exists in this build. Dev gallery: the card in all five styles and the
+  notification mock. Tests: `notifications.test.mjs`, `sw.test.mjs`, `autoTracked.test.mjs`, `features.test.mjs`,
+  `disclosures.test.mjs`, backend `push-smoke.js`, e2e `auto.spec.mjs` S3.
 
 ## 4. APPLICATION FLOW (state machine)
 

@@ -1138,6 +1138,25 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .autocard .morewrap { margin:8px 0 -6px; }
 .autocard .disclosure.more { border:none; border-top:var(--rule); border-radius:0; background:none; padding:8px 0; color:var(--primary-text); justify-content:space-between; }
 .autocard .bodypanel.more { border:none; padding:2px 0 4px; } .autocard .bodypanel.more p { margin:0 0 6px; font-size:var(--fs-sm); line-height:1.5; }
+/* Passive tracking S3: You → Data sources (components/DataSourcesCard.jsx). */
+.srclist .modrow:first-child { border-top:none; padding-top:4px; }
+.srcstatus { font-variant-numeric:tabular-nums; }
+.srcrow.st-connected .srcstatus::before, .srcrow.st-paused .srcstatus::before, .srcrow.st-pending .srcstatus::before { content:""; display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background:var(--primary); vertical-align:middle; }
+.srcrow.st-paused .srcstatus::before { background:var(--soft); }
+.srcrow.st-pending .srcstatus::before { background:var(--accent); }
+.youpage .srcwhat, .youpage .srcwhere, .youpage .srcpaused { margin-left:0; color:var(--soft); } .youpage .srcwhat b, .youpage .srcwhere b { color:var(--ink); font-weight:700; }
+.srcacts { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.srcclose { margin:10px 0 2px; } .srcclose .plain { margin:0 0 8px; } .srcclose .consentopt { margin-bottom:8px; } .srcclose .srcgo, .srcclose .srcno { width:auto; margin:0; padding:11px 16px; }
+.srcprefer { margin:12px 0 2px; padding-top:10px; border-top:var(--rule); } .srcprefer .lab { margin:0 0 4px; } .srcprefer .hint { margin:0 0 8px; }
+.srcpick { display:grid; gap:4px; margin:0 0 8px; } .srcpick-lab { font-size:var(--fs-sm); font-weight:700; color:var(--ink); } .srcpick .mc { font-size:var(--fs-sm); }
+.srcgoing { margin:0 0 8px; padding-left:18px; font-size:var(--fs-sm); line-height:1.55; }
+.srckept { display:flex; align-items:center; gap:6px; margin:0; }
+/* the dev gallery's five-style strip and the notification mock */
+.dgstyles { display:grid; gap:var(--gap); } .dgstyles > .cy { position:static; min-height:0; padding:10px; border-radius:var(--r-card); background:var(--paper); box-shadow:inset 0 0 0 1px var(--line); } .dgstyles .autocard { margin:0; }
+.dgnotif { display:flex; flex-direction:column; gap:8px; padding:12px 14px; border-radius:18px; background:color-mix(in srgb, var(--ink) 6%, var(--card)); box-shadow:inset 0 0 0 1px var(--line); max-width:360px; }
+.dgnotif-head { display:flex; justify-content:space-between; font-size:var(--fs-xs); color:var(--soft); text-transform:uppercase; letter-spacing:.06em; }
+.dgnotif-body { margin:0; font-size:var(--fs-md); color:var(--ink); }
+.dgnotif-acts { display:flex; gap:8px; } .dgnotif-acts .mc { flex:1; font-size:var(--fs-sm); }
 .cycmark { flex-basis:100%; margin:0 0 2px; font-size:var(--fs-sm); color:var(--primary-text); font-weight:700; line-height:1.45; }
 .cycttc { margin-top:8px; }
 .railcards { display:grid; gap:var(--gap); margin-bottom:var(--stack); }

@@ -73,3 +73,27 @@ test("autoCardModel: a demo build shows the card from demo rows without a live s
   assert.deepEqual(reg.cycles.map((c) => s.marks[c.start].text), ["Temperature rise seen · day 15", "Temperature rise seen · day 15", "Temperature rise seen · day 15"]);
   assert.equal(signalsFor({ rows, sources: {}, days: reg.days }).hasTemps, false, "a production build never reads demo rows");
 });
+
+/* Passive tracking S3: You → Data sources. */
+test("sourceRows / preferRows / howGoing: a row per offered or connected source, the picker only for contested metrics, the stats lines", async () => {
+  const { sourceRows, preferRows, howGoing, METRIC_WORDS } = await import("./autoTracked.js");
+  const offered = [{ id: "healthkit" }, { id: "oura" }, { id: "terra" }];
+  const two = FIXTURES.twoSources();
+  const sources = { healthkit: { connectedAt: NOW - 86400000, lastSync: NOW - 3600000 }, oura: { connectedAt: NOW - 86400000, paused: true }, terra: { pending: true, key: "k" } };
+  const rows = sourceRows({ offered, sources, rows: two.rows, platform: "ios" });
+  assert.deepEqual(rows.map((r) => [r.id, r.status, r.onDevice, r.viaServer, r.nights]), [["healthkit", "connected", true, false, 28], ["oura", "paused", false, true, 28], ["terra", "pending", false, true, 0]]);
+  assert.equal(rows[0].name, "Apple Watch · Health app"); assert.match(rows[0].where, /^This phone only/); assert.match(rows[1].where, /^Through Solia Health's server/);
+  assert.equal(rows[0].lastSync, NOW - 3600000); assert.equal(rows[1].lastSync, NOW - 86400000, "connectedAt stands in for a source that never synced again");
+  // a source the record holds but this build no longer offers still gets a row (so it can be disconnected), marked not offered
+  const legacy = sourceRows({ offered: [{ id: "healthkit" }], sources: { oura: { connectedAt: NOW } }, rows: [], platform: "web" });
+  assert.deepEqual(legacy.map((r) => [r.id, r.status, r.offered]), [["healthkit", "off", true], ["oura", "connected", false]]);
+  assert.deepEqual(sourceRows({ offered: [], sources: {}, rows: [] }), []);
+  // the picker: every metric both sources read, with her choice
+  const pr = preferRows({ sources: { ...sources, oura: { ...sources.oura, prefer: ["temp"] } }, rows: two.rows });
+  assert.deepEqual(pr.map((p) => [p.metric, p.label, p.options, p.chosen]), [["temp", "Temperature", ["healthkit", "oura"], "oura"], ["rhr", "Resting HR", ["healthkit", "oura"], null], ["hrv", "HRV", ["healthkit", "oura"], null], ["sleep", "Sleep", ["healthkit", "oura"], null]]);
+  assert.deepEqual(preferRows({ sources, rows: reg.rows }), [], "one source: nothing to pick");
+  assert.deepEqual(METRIC_WORDS, { temp: "Temperature", rhr: "Resting HR", hrv: "HRV", sleep: "Sleep" });
+  const g = howGoing({ confirmed: 3, fast: 2, tooks: [4000, 9000, 20000], sourceSince: "2026-10-01", firstConfirm: "2026-10-02" }, "2026-10-31");
+  assert.equal(g.kept, "Kept on this device, never sent.");
+  assert.deepEqual(g.lines, ["3 nights confirmed with Looks right since 2026-10-02.", "Typically 9 seconds from the card appearing to the tap (67% under 15 seconds).", "A source has been connected since 2026-10-01 (30 days)."]);
+});

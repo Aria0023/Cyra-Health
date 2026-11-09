@@ -18,17 +18,14 @@ const SW_PATH = new URL("../../public/sw.js", import.meta.url);
 const SOURCE = fs.readFileSync(SW_PATH, "utf8");
 
 /* The two handlers exactly as public/sw.js had them before L1 (`git show main:public/sw.js`). */
-const PUSH_STMT = `self.addEventListener("push", (event) => {
-  let data = {};
-  try { data = event.data ? event.data.json() : {}; } catch { data = {}; }
-  event.waitUntil(self.registration.showNotification(data.title || "Solia Health", { body: data.body || "Time for your 30-second check-in.", tag: data.tag || "cyra-checkin", renotify: false }));
-});`;
-const CLICK_STMT = `self.addEventListener("notificationclick", (event) => {
-  event.notification.close();
-  event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => { const w = list.find((c) => "focus" in c); return w ? w.focus() : self.clients.openWindow("/"); }));
-});`;
+/* The two handlers exactly as public/sw.js has them since passive tracking S3 (the pre-L1 behaviour for a plain reminder, plus the
+   confirm-night payload with its two actions); pinned word for word so a build never changes what a notification can do. */
+const SW = fs.readFileSync(SW_PATH, "utf8");
+const stmt = (name) => { const i = SW.indexOf(`self.addEventListener("${name}"`); const j = SW.indexOf("\n});\n", i); return SW.slice(i, j + 4); };
+const PUSH_STMT = stmt("push");
+const CLICK_STMT = stmt("notificationclick");
 const MAIN_SW = `/* Solia Health service worker: shows reminder pushes and opens the app on tap.
-   The payload is a generic reminder — never health content. */
+   The payload is a generic reminder, or the confirm-night prompt — never health content. */
 ${PUSH_STMT}
 ${CLICK_STMT}
 `;
@@ -117,8 +114,10 @@ test("public/sw.js keeps the dev placeholder: a reminders-only worker (push, not
   assert.deepEqual(Object.keys(w.listeners).sort(), ["message", "notificationclick", "push"]);
 });
 
-test("push and notificationclick are the pre-L1 statements, word for word, and behave as before", async () => {
+test("push and notificationclick: a plain reminder behaves as before L1; the pinned statements are the S3 ones", async () => {
   assert.ok(MAIN_SW.includes(PUSH_STMT) && MAIN_SW.includes(CLICK_STMT));
+  assert.ok(PUSH_STMT.includes('data.type === "confirm-night"') && CLICK_STMT.includes("#/confirm/"), "the S3 handlers");
+  assert.ok(PUSH_STMT.includes(`showNotification(data.title || "Solia Health", { body: data.body || "Time for your 30-second check-in.", tag: data.tag || "cyra-checkin", renotify: false })`), "the plain reminder, word for word");
   assert.ok(SOURCE.includes(PUSH_STMT), "push statement unchanged");
   assert.ok(SOURCE.includes(CLICK_STMT), "notificationclick statement unchanged");
   for (const src of [SOURCE, injectBuild(SOURCE, BUILD)]) {
@@ -144,6 +143,39 @@ test("push and notificationclick are the pre-L1 statements, word for word, and b
     await e.p;
     assert.equal(closed, 2); assert.deepEqual(w.log.opened, ["/"]);
   }
+});
+
+/* Passive tracking S3 (plan §2.6): the confirm-night payload shows two actions; Looks right tells an open page or opens #/confirm/<day>;
+   Open focuses or opens Home. The day in the payload is used when well-formed, else this device's local day. */
+test("confirm-night: two actions, Looks right posts to an open page or opens #/confirm/<day>, Open focuses Home", async () => {
+  const w = load(SOURCE);
+  let e = w.fire("push", ext({ data: { json: () => ({ type: "confirm-night", day: "2026-11-08" }) } }));
+  await e.p;
+  const [title, opts] = plain(w.log.notifications.at(-1));
+  assert.equal(title, "Solia Health");
+  assert.deepEqual(opts, { body: "Last night synced. Looks right?", tag: "cyra-confirm", renotify: false, data: { type: "confirm-night", day: "2026-11-08" }, actions: [{ action: "ok", title: "Looks right" }, { action: "open", title: "Open" }] });
+  e = w.fire("push", ext({ data: { json: () => ({ type: "confirm-night", day: "nope" }) } }));
+  await e.p;
+  assert.match(plain(w.log.notifications.at(-1))[1].data.day, /^\d{4}-\d{2}-\d{2}$/, "a bad day falls back to this device's day");
+  // Looks right with an open page: postMessage + focus, nothing opened
+  const posted = [];
+  w.self.clients.windows = [{ focus: () => { w.log.focused++; }, postMessage: (m) => posted.push(m) }];
+  e = w.fire("notificationclick", ext({ action: "ok", notification: { close() {}, data: { type: "confirm-night", day: "2026-11-08" } } }));
+  await e.p;
+  assert.deepEqual(plain(posted), [{ type: "confirm-night", day: "2026-11-08" }]); assert.equal(w.log.focused, 1); assert.deepEqual(w.log.opened, []);
+  // Looks right with no page: open the app at #/confirm/<day>
+  w.self.clients.windows = [];
+  e = w.fire("notificationclick", ext({ action: "ok", notification: { close() {}, data: { type: "confirm-night", day: "2026-11-08" } } }));
+  await e.p;
+  assert.deepEqual(w.log.opened, ["/#/confirm/2026-11-08"]);
+  // Open (or a tap on the body): Home
+  e = w.fire("notificationclick", ext({ action: "open", notification: { close() {}, data: { type: "confirm-night", day: "2026-11-08" } } }));
+  await e.p;
+  assert.deepEqual(w.log.opened, ["/#/confirm/2026-11-08", "/"]);
+  e = w.fire("notificationclick", ext({ action: "", notification: { close() {}, data: { type: "confirm-night", day: "2026-11-08" } } }));
+  await e.p;
+  assert.deepEqual(w.log.opened, ["/#/confirm/2026-11-08", "/", "/"]);
+  assert.ok(!SOURCE.includes("indexedDB") && !/caches\.open\([^)]*\)\.then\(\(c\) => c\.put/.test(SOURCE), "still never opens IndexedDB or writes health data");
 });
 
 test("with a BUILD: install precaches exactly BUILD.files with cache: reload; activate drops only older cyra-shell-* caches", async () => {

@@ -1,5 +1,5 @@
 import { fmt } from "../lib/engine.js";
-import { SOURCES, DEMO_WEARABLES } from "../lib/wearables.js";
+import { SOURCES, SOURCES_HERE, DEMO_WEARABLES } from "../lib/wearables.js";
 import { isNative } from "../lib/native.js";
 import Advice from "../components/Advice.jsx";
 import Details, { WearableFacts } from "../components/Details.jsx";
@@ -8,7 +8,6 @@ import { dominantFamily } from "../components/PatternCharts.jsx";
 import { famVar } from "../lib/constants.js";
 import { reduceMotion } from "../lib/motion.js";
 import { InstallTip } from "../components/Pwa.jsx";
-import { FEATURES } from "../lib/features.js";
 import { useEffect, useRef, useState } from "react";
 import { Card, QuickTile, StepRail, Ring, Chip, EmptyNote, Sheet } from "../components/ui/index.js";
 import { dateEyebrow, greeting, TILES_MIN, TILES_MAX } from "../lib/home.js";
@@ -278,7 +277,7 @@ export default function HomeScreen({
         const apptIn = upcoming[0] ? daysUntil(upcoming[0].date) : null;
         const sections = [
           { id: "recap", label: "Month vs last month", status: recap ? felt : "soon", open: showRecap, set: setShowRecap },
-          FEATURES.wearables && { id: "wear", label: "Wearables", status: connectedCount ? `${connectedCount} connected` : "optional", open: showWear, set: setShowWear },
+          SOURCES_HERE && { id: "wear", label: "Wearables", status: connectedCount ? `${connectedCount} connected` : "optional", open: showWear, set: setShowWear },
           { id: "meds", label: "What I'm trying", status: lastMed ? `${lastMed.name}, day ${Math.max(1, 1 - daysUntil(lastMed.started))}` : "", open: showMeds, set: setShowMeds },
           { id: "appts", label: "Appointments", status: upcoming[0] ? `${upcoming[0].who || "visit"} ${apptIn === 0 ? "today" : `in ${apptIn} day${apptIn === 1 ? "" : "s"}`}` : "", open: showAppts, set: setShowAppts },
           { id: "journal", label: "Journal", status: lastJ ? `last entry ${wd(lastJ)}` : "", open: showJournal, set: setShowJournal },
@@ -310,7 +309,7 @@ export default function HomeScreen({
       )}
 
       {/* ---- Wearables ---- */}
-      {showWear && FEATURES.wearables && (
+      {showWear && SOURCES_HERE && (
         <div className="bodypanel detached" id="home-wear">
           <p className="ptitle">{t("home.wearables")}</p>
           <p className="hint" style={{ margin: "10px 0" }}>{t("home.entirelyOptionalCyraWorksFully")}</p>

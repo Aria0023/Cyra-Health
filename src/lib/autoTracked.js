@@ -5,7 +5,7 @@
 import { daysBetween } from "./engine.js";
 import { cyclesFrom } from "./record.js";
 import { buildNightly, baselines, cycleOvulations, readinessWords, lhPositiveDays, riseWords, riseDetail, validNights, RECENT_HOURS, SKIP_REASONS, hrvBeforeRise, reviewSentence, cycleTable, skippedSummary } from "./signals.js";
-import { preferredSources, syncedRecently, latestRow, sourceMeta, isConfirmed } from "./sources.js";
+import { preferredSources, syncedRecently, latestRow, sourceMeta, isConfirmed, contestedMetrics, statsView, STATS_KEPT_LINE } from "./sources.js";
 
 /** The reminder body while a source synced in the last 36 h (plan §2.5): the daily promise becomes "confirm in 10 s". */
 export const CONFIRM_BODY = "Confirm today (10 s)";
@@ -58,3 +58,30 @@ export function autoCardModel({ signals, rows = [], sources = {}, skips = {}, co
   const isDemo = demo && rows.some((r) => r && r.date === night.day && r.demo);
   return { sourceId, sourceName: meta.name, onDevice: !!meta.onDevice, syncedAt, day: night.day, fresh, rows: words, confirmed: isConfirmed(confirmations, night.day), skipped: skips && typeof skips[night.day] === "string" ? skips[night.day] : null, demo: isDemo, platform };
 }
+
+/* ---------- You → Data sources (plan §2.4, S3) ---------- */
+/** The metric labels the preferred-source picker uses. */
+export const METRIC_WORDS = Object.freeze({ temp: "Temperature", rhr: "Resting HR", hrv: "HRV", sleep: "Sleep" });
+/**
+ * One row per source this build offers plus any connected source the record still holds:
+ * { id, name, what, where, viaServer, onDevice, offered, connected, pending, paused, demo, lastSync (ms | null), nights (rows from it),
+ *   status: "connected" | "paused" | "pending" | "off" }. offered: [{ id }] (lib/wearables.js SOURCES); sources: wearSources; rows: wearData.
+ */
+export function sourceRows({ offered = [], sources = {}, rows = [], platform = "web" } = {}) {
+  const ids = [...new Set([...offered.map((s) => s.id), ...Object.keys(sources || {}).filter((id) => sources[id] && typeof sources[id] === "object")])];
+  return ids.map((id) => {
+    const meta = sourceMeta(id, platform);
+    const st = (sources && sources[id]) || null;
+    const connected = !!st && !st.pending;
+    const nights = (Array.isArray(rows) ? rows : []).filter((r) => r && r.sourceId === id).length;
+    const status = !st ? "off" : st.pending ? "pending" : st.paused ? "paused" : "connected";
+    return { id, name: meta.name, what: meta.what, where: meta.where, viaServer: !!meta.viaServer, onDevice: !!meta.onDevice, offered: offered.some((s) => s.id === id), connected, pending: !!(st && st.pending), paused: !!(st && st.paused), demo: !!(st && st.demo), lastSync: st && typeof st.lastSync === "number" ? st.lastSync : st && typeof st.connectedAt === "number" ? st.connectedAt : null, nights, status };
+  });
+}
+/** The preferred-source picker's rows: only metrics two connected sources both cover. [{ metric, label, options: [id], chosen: id | null }]. */
+export function preferRows({ sources = {}, rows = [] } = {}) {
+  const prefer = preferredSources(sources);
+  return contestedMetrics(rows).map((m) => ({ metric: m, label: METRIC_WORDS[m], options: [...new Set((rows || []).filter((r) => r && r[m] != null && typeof r.sourceId === "string").map((r) => r.sourceId))].sort(), chosen: prefer[m] }));
+}
+/** "How this is going": statsView's lines and the one sentence that must stay literally true. */
+export const howGoing = (stats, todayIso) => ({ ...statsView(stats, todayIso), kept: STATS_KEPT_LINE });

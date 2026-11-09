@@ -10,8 +10,8 @@ restart can pick up where the last session stopped. Dates are 2026-11-09 unless 
 | S1 — signals library + source adapter | 63acff7 (WIP body; not the tip, so its body is not rewritten: the verification is recorded here) | done, verified below |
 | Brief | af3ff2d | in the repo |
 | E2E — in-repo Playwright harness | d091607 | done, verified below |
-| S2 — Looks right, cycle markers, cycle table | this commit | done, verified below |
-| S3 — confirm from the notification, Data sources, deviceSync | — | after S2 |
+| S2 — Looks right, cycle markers, cycle table | 003f11e | done, verified below |
+| S3 — confirm from the notification, Data sources, deviceSync | this commit | done, verified below |
 
 ## S1 verification (run 2026-11-09 on 63acff7 + the E2E commit's tree)
 
@@ -67,7 +67,41 @@ Verification (2026-11-09): build + stamp once; ESLint 0 errors (29 warnings, unu
 unit 559/559; backend smoke:all passed; e2e 6/6; e2e:axe 4/4 (36 audits, 0 violations). Looked at: PDF page 1 (table of 2 cycles,
 "seen, day 15", luteal 23 d, one page), the card in Soft light / Clear dark / Bloom light, the Cycles markers.
 
+## S3 commit
+
+What landed: the seventh flag `deviceSync` (features.js, default ON, FEATURE_MODULE null; lib/wearables.js SOURCES follows
+deviceSync for the on-phone source and wearables for Oura/Terra, SOURCES_HERE; App.jsx `wearOn`; the Home door; the
+Apple Health access line in wipeMore follows deviceSync); `src/lib/confirmNight.js` (pure: id 1100, action type, the two
+actions, the text, confirmDueAt) + lib/notifications.js (registerConfirmActions, scheduleConfirm, onConfirmAction,
+cancelAll keeps the confirm notification unless `all`, the web subscribe carries `confirm`); App.jsx schedules / cancels
+it from autoModel, handles the action (via "notification", no screen; Open → Home), listens for the service worker's
+`{ type: "confirm-night", day }` and the `#/confirm/<day>` hash; public/sw.js shows the two actions and routes them
+(sw.test.mjs pins the new handlers); backend push stores `confirm` and sends `payloadFor(row)` (push-smoke pins the row
+keys and the payload); `src/components/DataSourcesCard.jsx` on You (status · what it reads · Where it goes · last sync ·
+nights, Connect/Sync, Pause/Resume, Disconnect + "Delete its readings from this device too" default on, preferred-source
+picker, Demo readings switch, "How this is going" + "Kept on this device, never sent.") with lib/autoTracked.js sourceRows /
+preferRows / howGoing; the gallery's five-style strip and notification mock; en-ui `sources.*`; .env.example, render.yaml,
+NATIVE.md, ARCHITECTURE flag table, SPEC 3.5k S3, PRIVACY-AUDIT "Auto-tracked S3", CLINICIAN-REVIEW auto.notification /
+auto.sources; tests notifications.test.mjs, autoTracked (sourceRows…), features, disclosures (OFF_RE.deviceSync), appearance
+(the gallery may write data-style), sw; e2e auto.spec.mjs S3 + gallery, axe on Data sources (disconnect open) and the gallery.
+
+Deviations: none from the brief. Notes: in the demo build "How this is going" says "No source connected on this device yet"
+because trackStats.sourceSince counts real connects only (as the plan's pilot numbers intend). Pause is offered on every
+connected source, demo included. The on-phone schedule can only be exercised on a phone (the plugin); its rule is unit-tested
+and the web path is covered end to end (#/confirm/<day>, the service worker in sw.test.mjs).
+
+Verification (2026-11-09): build + stamp once (features: ai, webReminders, deviceSync); ESLint 0 errors (26 warnings,
+pre-existing); unit 563/563; backend smoke:all passed (push: confirm flag + payload); e2e 8/8; e2e:axe 5/5 (0 violations:
+28 screens × 4 + the card, the skip picker, Cycles, Data sources, the gallery light and dark). Looked at: PDF page 1, the card
+in three styles, the Cycles markers, Data sources, the five-style strip, the notification mock. Curated shots:
+docs/plans/auto-tracked-shots/ (9 PNGs, 8–195 KB each, README.md indexes them).
+
 ## Owner to-do (unchanged from the brief)
 
-Play Console Health Connect declaration; clinician sign-off of the "Auto-tracked" CLINICIAN-REVIEW entries; pilot
-measurement protocol (plan §8); privacy review before marketing.
+- Play Console Health Connect declaration (the on-phone source now ships by default on Android: `deviceSync`).
+- Clinician sign-off of the "Auto-tracked" CLINICIAN-REVIEW entries (auto.words, auto.rise, auto.table, auto.patterns,
+  auto.reminder, auto.notification, auto.sources).
+- Pilot measurement protocol (plan §8): read "How this is going" with the person present.
+- Privacy review before marketing (and before Oura/Terra leave the `wearables` flag).
+- Merge decision for `feature/auto-tracked` (nothing pushed or merged by the agent); on main, Render redeploys the static site.
+- On the phones: run a real device through the 07:00 confirm notification once (the rule is unit-tested, the plugin path is not).

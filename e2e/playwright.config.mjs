@@ -26,6 +26,7 @@ export default defineConfig({
     isMobile: false, // a plain viewport: no touch emulation, so clicks are ordinary clicks
     hasTouch: false,
     viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2, // crisp, and the curated shots stay small
     contextOptions: { reducedMotion: "reduce" },
     acceptDownloads: true,
     screenshot: "only-on-failure",

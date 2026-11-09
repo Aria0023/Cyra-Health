@@ -10,7 +10,7 @@ import crypto from "crypto";
 import webpush from "web-push";
 import express from "express";
 import { JsonStore } from "../src/core/store.js";
-import { mount, due, endpointAllowed } from "../src/modules/push/index.js";
+import { mount, due, endpointAllowed, payloadFor, PLAIN_PAYLOAD, CONFIRM_PAYLOAD } from "../src/modules/push/index.js";
 const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode = 1; } else console.log("ok  ", m); };
 
 const keys = webpush.generateVAPIDKeys();
@@ -42,7 +42,17 @@ try {
   let r = await fetch(`${B}/api/push/subscribe`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ subscription: { ...subscription, endpoint: "https://127.0.0.1:3996/push/abc" }, cadence: "weekdays", nudge: "morning", tz: "America/Los_Angeles", name: "LEAK", days: [{ sym: 1 }] }) });
   assert(r.status === 200 && (await r.json()).active === true, "subscribe: stored with cadence weekdays / morning / LA");
   const row = JSON.parse(fs.readFileSync("data-push-test/push.json"))[0];
-  assert(Object.keys(row).sort().join() === "cadence,endpoint,id,keys,lastSentDay,nudge,tz", `store: subscription + preferences only — no name, no health data, no timestamp (${Object.keys(row).sort().join()})`);
+  assert(Object.keys(row).sort().join() === "cadence,confirm,endpoint,id,keys,lastSentDay,nudge,tz", `store: subscription + preferences only — no name, no health data, no timestamp (${Object.keys(row).sort().join()})`);
+  assert(row.confirm === false, "subscribe: confirm defaults to false (the plain reminder)");
+  // passive tracking S3: the confirm flag and the payload kind
+  r = await fetch(`${B}/api/push/subscribe`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ subscription: { ...subscription, endpoint: "https://127.0.0.1:3996/push/abc" }, cadence: "weekdays", nudge: "morning", tz: "America/Los_Angeles", confirm: true }) });
+  assert(r.status === 200 && JSON.parse(fs.readFileSync("data-push-test/push.json"))[0].confirm === true, "subscribe: confirm: true is kept beside the cadence");
+  r = await fetch(`${B}/api/push/subscribe`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ subscription: { ...subscription, endpoint: "https://127.0.0.1:3996/push/abc" }, cadence: "weekdays", nudge: "morning", tz: "America/Los_Angeles", confirm: "yes" }) });
+  assert(r.status === 200 && JSON.parse(fs.readFileSync("data-push-test/push.json"))[0].confirm === false, "subscribe: anything but true means the plain reminder");
+  assert(JSON.stringify(payloadFor({ confirm: false })) === JSON.stringify(PLAIN_PAYLOAD) && JSON.stringify(payloadFor(null)) === JSON.stringify(PLAIN_PAYLOAD), "payload: plain reminder by default");
+  const cp = payloadFor({ confirm: true });
+  assert(cp.type === "confirm-night" && cp.body === "Last night synced. Looks right?" && cp.tag === "cyra-confirm" && cp.actions.map((a) => a.action).join() === "ok,open" && cp.actions.map((a) => a.title).join() === "Looks right,Open", "payload: confirm-night with the two actions");
+  assert(!JSON.stringify(cp).match(/temp|hrv|sleep|rhr|reading|\d\d:\d\d/i) && JSON.stringify(CONFIRM_PAYLOAD) === JSON.stringify(cp), "payload: no health content, frozen copy");
   r = await fetch(`${B}/api/push/subscribe`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ subscription, cadence: "sometimes", nudge: "morning" }) });
   assert(r.status === 400, "subscribe: invalid cadence → 400");
   // due() — pure scheduling rules

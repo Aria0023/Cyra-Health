@@ -69,10 +69,12 @@ import { SYMS, GSYM, ALL_SYM, ENERGY_ID, SCORE_SCALE, SHELF, stagePalettes, ORGS
 import { seed, fmt, addDays, routeIntake, insights, predict, whyNoPrediction, cycleSummary, cleanCycleFlags, toggleExclude, periodHead, basisLine, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick, scoreRgb, scoreColorOf, inkOn } from "./lib/engine.js";
 import { DEFAULT_APPEARANCE, DEFAULT_STYLE, SYSTEM_DARK_QUERY, cleanAppearance, cleanStyle, resolveScheme, paletteFor, paletteVars, applyDocumentScheme } from "./lib/appearance.js";
 import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
-import { DEMO_WEARABLES, VIA_SERVER, connectSource, syncSource, disconnectSource, drainTerra, disconnectHelp } from "./lib/wearables.js";
-import { makeAdapters, mergeSourceRows as mergeRows, cleanNightSkips, cleanConfirmations, cleanTrackStats, cleanSourceExtras, noteSource, skipNight, unskipNight, confirmDay, isConfirmed, noteConfirmation } from "./lib/sources.js";
-import { signalsFor, autoCardModel, skipLabel, CONFIRM_BODY } from "./lib/autoTracked.js";
+import { DEMO_WEARABLES, VIA_SERVER, SOURCES, SOURCES_HERE, SERVER_IDS, connectSource, syncSource, disconnectSource, drainTerra, disconnectHelp } from "./lib/wearables.js";
+import { makeAdapters, mergeSourceRows as mergeRows, cleanNightSkips, cleanConfirmations, cleanTrackStats, cleanSourceExtras, noteSource, skipNight, unskipNight, confirmDay, isConfirmed, noteConfirmation, setPreferred, dropSourceRows, liveSources } from "./lib/sources.js";
+import { signalsFor, autoCardModel, skipLabel, CONFIRM_BODY, sourceRows, preferRows, howGoing } from "./lib/autoTracked.js";
+import { confirmDueAt } from "./lib/confirmNight.js";
 import AutoTrackedCard from "./components/AutoTrackedCard.jsx";
+import DataSourcesCard from "./components/DataSourcesCard.jsx";
 import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue, pruneQueue, mergeQueues, localDay, weekKey } from "./lib/pulse.js";
 import { answerLocally, RED_FLAGS } from "./lib/askLibrary.js";
 import { storage } from "./lib/storage.js";
@@ -98,7 +100,7 @@ import { cycleTimeline, bodyRing, mindRing, ringInputs, sleepCards, cycleCards, 
 import { cleanExperiments, settle, startExperiment, skipWeek, markDay, runningOn, experimentStep, reviewWeek, weekCounts, countWords, weekSignals, pickExperiment, experimentFollowUp, lastFinished, experimentOf } from "./lib/experiments.js";
 import { PLAN, can, exportsLeft, noteExport, planFor } from "./lib/plan.js";
 import { cleanMoodLog, cleanPracticeLog, cleanPracticeFavs, setMoodDay, toggleFeeling, addRun, setHelped, runsOn, toggleFav, nextPractice, practiceOf, moodByCycle, stripSentence, moodStrip, STRIP_MIN, unlocked as practiceUnlocked } from "./lib/mind.js";
-import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport } from "./lib/notifications.js";
+import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport, registerConfirmActions, scheduleConfirm, onConfirmAction } from "./lib/notifications.js";
 import { isNative, hasPlugin, Haptics, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pots/ui.js";
@@ -721,6 +723,7 @@ export default function CyraDemo() {
   const focusHead = useRef(false);
   const pendingFocus = useRef(null); // selectors for the log sheet's target control, tried in order after the view renders
   const showView = (v, { head = true } = {}) => { setPotsOpen(false); focusHead.current = head; goTab(v); };
+  const showViewRef = useRef(showView); showViewRef.current = showView; // the notification handlers below call the latest one
   const selectTab = (t) => showView(viewForTab(t, lastByTab.current, navOpts));
   useEffect(() => {
     if (!focusHead.current && !pendingFocus.current) return;
@@ -1000,9 +1003,12 @@ export default function CyraDemo() {
   const [wearConfirm, setWearConfirm] = useState(null); // a server-mediated source whose disclosure card is open
   // The adapter seam (passive tracking S1, lib/sources.js): every re-sync reads through it; the demo adapter shapes its rows to her stage.
   const adapters = useMemo(() => makeAdapters({ sync: syncSource, platform: isNative() ? platform() : "web", demo: { stage, isMeno } }), [stage, isMeno]);
+  // Passive tracking S3: whether this build offers any source at all (lib/wearables.js SOURCES: the on-phone source behind
+  // deviceSync, Oura and Fitbit/Garmin/Whoop behind wearables). The server-only flows below keep checking FEATURES.wearables.
+  const wearOn = SOURCES_HERE;
   const restoredOuraGone = "The Oura connection in the backup no longer works, so it was removed from this device. Tap Connect to reconnect; if Solia Health (or Cyra or Heard Health) still shows in your Oura account's connected apps, you can remove it there.";
   const connectWear = async (id, label, { confirmed = false } = {}) => {
-    if (!FEATURES.wearables || wearBusy) return;
+    if (!wearOn || wearBusy) return;
     if (DEMO_WEARABLES) { // illustrative data, build-flag only; the UI says so
       if (wearSources[id]) return ping(`Demo mode — ${label} is already showing illustrative data`);
       if (wearData.length) return ping("Demo mode — no device connected; nothing was added");
@@ -1012,6 +1018,7 @@ export default function CyraDemo() {
       return ping(`Demo mode — ${label} isn't really connected; showing 90 days of illustrative data`);
     }
     const existing = wearSources[id];
+    if (existing && existing.paused) { ping(`${label} is paused — resume it in You → Data sources to sync again.`); return; }
     // Oura and Terra go through Cyra's server: say exactly what that means before every first connect.
     if (!existing && VIA_SERVER.has(id) && !confirmed && API_BASE) { setWearConfirm(id); return; }
     setWearConfirm(null);
@@ -1045,7 +1052,7 @@ export default function CyraDemo() {
      confirm is kept in terraOff and asked again until it confirms (retryTerraOff). */
   const disconnectWear = async (id, label) => {
     const st = wearSources[id];
-    if (!FEATURES.wearables || wearBusy || !st) return;
+    if (!wearOn || wearBusy || !st) return;
     setWearBusy(`${id}:off`);
     try {
       if (id === "terra" && st.key) { try { const rows = await drainTerra(st.key); if (rows.length) setWearData((d) => mergeRows(d, rows)); } catch { /* nothing collected */ } }
@@ -1120,7 +1127,6 @@ export default function CyraDemo() {
      and the Home card, all worked out here on render from the rows already on this device; nothing is fetched or sent.
      Her taps write three record keys only: confirmations (Looks right: when, how long the card had been up, from the app),
      nightSkips (Skip this night) and trackStats (device-only counts). A Looks right NEVER writes a day entry. ---- */
-  const wearOn = FEATURES.wearables;
   const signals = useMemo(() => (wearOn && wearData.length ? signalsFor({ rows: wearData, sources: wearSources, skips: nightSkips, days, demo: DEMO_WEARABLES }) : null), [wearOn, wearData, wearSources, nightSkips, days]);
   const autoModel = useMemo(() => (signals ? autoCardModel({ signals, rows: wearData, sources: wearSources, skips: nightSkips, confirmations, todayIso, nowMs: Date.now(), demo: DEMO_WEARABLES, platform: isNative() ? platform() : "web" }) : null), [signals, wearData, wearSources, nightSkips, confirmations, todayIso]);
   const autoSynced = !!autoModel; // a source synced in the last 36 h (or the demo build): the phone reminder says "Confirm today (10 s)" (plan §2.5)
@@ -1133,10 +1139,89 @@ export default function CyraDemo() {
   };
   const skipNightFor = (day, reason) => { setNightSkips((sk) => skipNight(sk, day, reason)); ping(`${fmt(day)} skipped: ${skipLabel(reason).toLowerCase()}. That night stays out of your baselines and the rise test.`); };
   const unskipNightFor = (day) => { setNightSkips((sk) => unskipNight(sk, day)); ping(`${fmt(day)} counts again.`); };
+  const confirmNightRef = useRef(confirmNight); confirmNightRef.current = confirmNight;
+  /* ---- Passive tracking S3: You → Data sources (plan §2.4). Pause keeps the connection and stops syncing; Disconnect ends it
+     (the server sources through disconnectWear, the on-phone and demo ones here) and, with "Delete readings too" (the default),
+     drops that source's rows from this device; the preferred source per metric is her choice; the demo switch exists in
+     demo builds only. trackStats.sourceSince is cleared when no real source is left. ---- */
+  const platformNow = isNative() ? platform() : "web";
+  const demoOn = DEMO_WEARABLES && Object.values(wearSources).some((v) => v && v.demo);
+  const sourcesModel = useMemo(() => ({
+    rows: sourceRows({ offered: SOURCES, sources: wearSources, rows: wearData, platform: platformNow }),
+    prefer: preferRows({ sources: wearSources, rows: wearData }),
+    going: howGoing(trackStats, todayIso),
+    demo: DEMO_WEARABLES && SOURCES_HERE ? { on: demoOn } : null,
+    web: !isNative(),
+  }), [wearSources, wearData, trackStats, todayIso, platformNow, demoOn]);
+  const pauseSource = (id, paused) => {
+    setWearSources((s) => (s[id] ? { ...s, [id]: cleanSourceExtras({ ...s[id], paused }) } : s));
+    ping(paused ? "Paused. Nothing is read or synced until you resume; what is already here still shows." : "Resumed. The next sync reads again.");
+  };
+  const disconnectAny = async (id, label, { deleteRows = true } = {}) => {
+    const st = wearSources[id];
+    if (!st || wearBusy) return;
+    if (SERVER_IDS.includes(id) && !st.demo && FEATURES.wearables && API_BASE) await disconnectWear(id, label); // Cyra's server ends it first, as the Home door does
+    else { setWearSources(({ [id]: _gone, ...rest }) => rest); ping(`${label} disconnected.${deleteRows ? " Its readings were removed from this device." : " Readings already read stay on this device."}`); }
+    if (deleteRows) setWearData((d) => dropSourceRows(d, id));
+    const left = liveSources(Object.fromEntries(Object.entries(wearSources).filter(([k]) => k !== id)));
+    if (!left.length) setTrackStats((t) => noteSource(t, null));
+  };
+  const preferSource = (metric, id) => { setWearSources((s) => setPreferred(s, metric, id)); ping(`${label2(metric)} now comes from ${sourcesModel.rows.find((r) => r.id === id)?.name || id} when both have it.`); };
+  const label2 = (metric) => ({ temp: "Temperature", rhr: "Resting HR", hrv: "HRV", sleep: "Sleep" })[metric] || metric;
+  const setDemo = (on) => {
+    if (!DEMO_WEARABLES) return;
+    if (on) { const first = SOURCES[0]; if (first) connectWear(first.id, first.name); return; }
+    setWearSources((s) => Object.fromEntries(Object.entries(s).filter(([, v]) => !(v && v.demo))));
+    setWearData((d) => d.filter((r) => !(r && r.demo)));
+    ping("Demo readings removed from this device.");
+  };
+  /* ---- Passive tracking S3: confirm from the notification (plan §2.6) ----
+     Phone: the action type is registered once; the one notification is scheduled for 07:00 local only when a sync landed before
+     07:00 and the night is not confirmed yet (lib/confirmNight.js confirmDueAt), and cancelled otherwise; its Looks right writes the
+     confirmation with via "notification" without opening a screen, Open opens Home. Web: the service worker posts
+     { type: "confirm-night", day } to this page, or opens #/confirm/<day>, which writes it on load. Users without a source
+     never get either: the schedule needs a synced source, the push flag follows the same 36 h window. */
+  useEffect(() => {
+    if (!isNative() || !hydrated) return;
+    registerConfirmActions().catch(() => {});
+    let off = () => {};
+    onConfirmAction(({ actionId, day, at }) => {
+      const d = day || localDay();
+      if (actionId === "ok") confirmNightRef.current(d, { via: "notification", took: at ? Math.max(0, Date.now() - at) : null });
+      else showViewRef.current("home");
+    }).then((fn) => { off = fn; }).catch(() => {});
+    return () => off();
+  }, [hydrated]);
+  useEffect(() => {
+    if (!isNative() || !hydrated) return;
+    const st = autoModel ? wearSources[autoModel.sourceId] : null;
+    const lastSync = st ? (typeof st.lastSync === "number" ? st.lastSync : typeof st.connectedAt === "number" ? st.connectedAt : null) : null;
+    const atMs = autoModel && autoModel.fresh && !autoModel.demo ? confirmDueAt({ nowMs: Date.now(), lastSyncMs: lastSync, confirmed: autoModel.confirmed }) : null;
+    scheduleConfirm({ day: autoModel ? autoModel.day : todayIso, atMs }).catch(() => {});
+  }, [hydrated, autoModel, todayIso]); // eslint-disable-line
+  useEffect(() => {
+    if (isNative() || typeof navigator === "undefined" || !navigator.serviceWorker) return;
+    const on = (e) => { const d = e && e.data; if (d && d.type === "confirm-night") confirmNightRef.current(typeof d.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d.day) ? d.day : localDay(), { via: "notification" }); };
+    navigator.serviceWorker.addEventListener("message", on);
+    return () => navigator.serviceWorker.removeEventListener("message", on);
+  }, []);
+  useEffect(() => {
+    if (!hydrated || phase !== "app" || !stage) return;
+    const apply = () => {
+      const m = /^#\/confirm\/(\d{4}-\d{2}-\d{2})$/.exec(window.location.hash || "");
+      if (!m) return;
+      try { history.replaceState(history.state, "", window.location.pathname + window.location.search); } catch { /* keep the hash */ }
+      confirmNightRef.current(m[1], { via: "notification" });
+      showViewRef.current("home");
+    };
+    apply();
+    window.addEventListener("hashchange", apply);
+    return () => window.removeEventListener("hashchange", apply);
+  }, [hydrated, phase, stage]);
 
   // A build without the wearables flag keeps the rows (and backups carry them) but shows nothing from them.
   const wearInsights = (() => {
-    if (!FEATURES.wearables || !wearData.length) return [];
+    if (!wearOn || !wearData.length) return [];
     const out = [];
     const sorted = [...wearData].sort((a, b) => a.date.localeCompare(b.date));
     if (stage === "periods") {
@@ -1177,7 +1262,7 @@ export default function CyraDemo() {
     if (stage === "periods") {
       ms.push({ done: di.lens.length >= 1, label: "First full cycle logged" });
       ms.push({ done: di.lens.length >= 3, label: "3 cycles — predictions sharpen" });
-      if (FEATURES.wearables && wearData.length) ms.push({ done: !!(signals && Object.values(signals.ovulations).some((o) => o.status === "rise-seen")), label: "Temperature rise seen in a cycle" });
+      if (wearOn && wearData.length) ms.push({ done: !!(signals && Object.values(signals.ovulations).some((o) => o.status === "rise-seen")), label: "Temperature rise seen in a cycle" });
     }
     if (stage === "peri") {
       const lastP = di.starts[di.starts.length - 1];
@@ -1186,7 +1271,7 @@ export default function CyraDemo() {
       ms.push({ done: monthsSince != null && monthsSince >= 12, label: `12 months without a period — menopause${monthsSince != null ? ` · ${Math.min(12, monthsSince)} of 12` : ""}`, progress: monthsSince != null ? Math.min(1, monthsSince / 12) : 0 });
     }
     if (stage === "preg") { ms.push({ done: pregWeek >= 13, label: "Second trimester" }); ms.push({ done: pregWeek >= 22, label: "Anatomy scan window" }); ms.push({ done: pregWeek >= 28, label: "Third trimester" }); }
-    if (FEATURES.wearables) ms.push({ done: Object.values(wearSources).some((w) => w && !w.pending), label: "Wearable connected" });
+    if (wearOn) ms.push({ done: Object.values(wearSources).some((w) => w && !w.pending), label: "Wearable connected" });
     ms.push({ done: meds.length > 0, label: "Trying something new — a med, supplement or habit" });
     ms.push({ done: appts.some((a) => a.note), label: "First visit written up" });
     return ms;
@@ -1877,7 +1962,7 @@ export default function CyraDemo() {
   const tellOtherTabs = (phase) => { try { channel.current?.postMessage({ type: "wipe", phase }); } catch { /* single tab */ } };
   const cleanUpHere = async () => {
     const step = async (fn) => { try { await fn(); } catch { /* best effort: the next step still runs */ } };
-    await step(() => syncReminders({ cadence: "me", nudge: "never" }, { server: false }));
+    await step(() => syncReminders({ cadence: "me", nudge: "never" }, { server: false, all: true }));
     if (!isNative() && "serviceWorker" in navigator) await step(async () => { for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister(); });
     if (!isNative()) await step(clearShellCaches); // the offline copy of Cyra's own files (spec A14.1); the splash never registers again
     if (isNative()) await step(sweepBackupCache);
@@ -2067,7 +2152,7 @@ export default function CyraDemo() {
       return;
     }
     try {
-      const r = await syncReminders({ cadence: cad, nudge, body: autoSyncedRef.current ? CONFIRM_BODY : undefined }, { prompt, known });
+      const r = await syncReminders({ cadence: cad, nudge, body: autoSyncedRef.current ? CONFIRM_BODY : undefined, confirm: autoSyncedRef.current }, { prompt, known });
       if (!current()) return;
       const keep = (patch) => setRem((x) => ({ endpoint: x.endpoint || null, pending: cleanPending(x.pending), rev: x.rev, ...patch }));
       if (r.active) { if (r.endpoint) forgotten.current.delete(r.endpoint); markForgotten(known.filter((e) => e !== r.endpoint), r.pending); setRem((x) => ({ enabled: true, status: "on", endpoint: r.endpoint || null, pending: cleanPending(r.pending), rev: x.rev })); }
@@ -2260,7 +2345,7 @@ export default function CyraDemo() {
   const keepsWeekNote = pulseSent?.week === weekKey() || holdWeek === weekKey();
   /* A build without wearables can't end a connection an earlier build (or a restored backup) left in the
      record, so Delete everything says where to remove it (DataControls, LEGACY_WEAR_LINE). Demo rows don't count. */
-  const legacyWear = !FEATURES.wearables && (Object.values(wearSources).some((s) => s && typeof s === "object" && !s.demo) || terraOff.length > 0);
+  const legacyWear = !FEATURES.wearables && (SERVER_IDS.some((id) => wearSources[id] && typeof wearSources[id] === "object" && !wearSources[id].demo) || terraOff.length > 0);
   /* The lock screen (L10): before the splash, intake and running-takeover branches, so no header, chip, tab, sheet,
      screen or runner renders behind it; the base theme only (never the stage palette) and no toast. */
   if (locked) {
@@ -2411,7 +2496,7 @@ export default function CyraDemo() {
       sections={potsOk ? {
         today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => { setPotsSec("stand"); setPotsFocus("stand"); }} onReport={() => setPotsSec("report")} storageDriver={storageDriver} syncDay={syncDay} />,
         report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={firstName} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} onHandoff={holdLock} />,
-        patterns: <PotsPatterns pots={pots} stage={stage} stageName={stageName} todayIso={todayIso} starts={ins.starts} checkin={potsCheckin} wearData={FEATURES.wearables ? wearData : NO_ROWS} connected={FEATURES.wearables ? potsWearConnected : NO_ROWS} />,
+        patterns: <PotsPatterns pots={pots} stage={stage} stageName={stageName} todayIso={todayIso} starts={ins.starts} checkin={potsCheckin} wearData={wearOn ? wearData : NO_ROWS} connected={wearOn ? potsWearConnected : NO_ROWS} />,
         stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focus={potsFocus === "stand"} onFocused={potsFocused} cyc={potsCyc}
           onStart={() => setPotsRun({ kind: "test", id: null, phase: "safety", phaseStart: Date.now(), standAt: null, done: [], interrupt: null })} />,
         move: <MovePlan pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} focus={potsFocus === "move"} onFocused={potsFocused}
@@ -2648,6 +2733,7 @@ export default function CyraDemo() {
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={canFull} onPro={() => setProOpen(true)}
       ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line} meals={mealsOffered ? { on: mealsHere, onToggle: () => { const on = !mealsHere; setBodyPrefs((p) => cleanBodyPrefs({ ...p, mealsOn: on })); ping(on ? "Meal notes on" : "Meal notes off. What you noted is kept"); } } : null} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
       account={ACCOUNTS_HERE ? { can: ACCOUNTS.available(), acct: cloudAccount.acct, sync: cloudSync, todayIso, onCreate: () => setAcctSheet("create"), onSignIn: () => setAcctSheet("signin"), onBackup: () => backupToCloud(), onSignOut: signOut, onDelete: deleteAccount, onUseBackup: resolveUseBackup, onKeepDevice: resolveKeepDevice, onPro: () => setProOpen(true) } : null}
+      dataSources={SOURCES_HERE || sourcesModel.rows.length ? <DataSourcesCard m={sourcesModel} busy={wearBusy} onConnect={connectWear} onPause={pauseSource} onDisconnect={disconnectAny} onPrefer={preferSource} onDemo={setDemo} /> : null}
       care={stage === "preg" ? null : <CareScreen embedded shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: shelfKind(s), started: todayIso }]); ping(shelfKind(s) === "care" ? "Added to What I'm trying" : "Added — your days before and after will be compared"); }} />} />
   );
   const practicesView = () => <PracticesScreen canFull={canFull} favs={practiceFavs} onOpen={openPractice} onPro={() => setProOpen(true)} featured={{ practice: localPractice(practiceOf("slow")), need: "calm" }} />;
