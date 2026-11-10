@@ -8,13 +8,36 @@
    BUILD is filled in by vite.config.js (cyraServiceWorker) at build time; in `vite dev` it
    stays empty and the worker only handles reminders, as before. */
 const BUILD = {"version":"dev","base":"/","entry":null,"index":"/index.html","files":[]}; // @cyra-build
+/* Passive tracking S3 (plan §2.6): a payload with type "confirm-night" carries two action buttons, Looks right and Open. The
+   local day is this device's (the night ends on the wake day). Everything else is the plain reminder as before. */
+const localDay = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 self.addEventListener("push", (event) => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch { data = {}; }
+  if (data.type === "confirm-night") {
+    const day = typeof data.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(data.day) ? data.day : localDay();
+    event.waitUntil(self.registration.showNotification(data.title || "Solia Health", { body: data.body || "Last night synced. Looks right?", tag: "cyra-confirm", renotify: false, data: { type: "confirm-night", day }, actions: [{ action: "ok", title: "Looks right" }, { action: "open", title: "Open" }] }));
+    return;
+  }
   event.waitUntil(self.registration.showNotification(data.title || "Solia Health", { body: data.body || "Time for your 30-second check-in.", tag: data.tag || "cyra-checkin", renotify: false }));
 });
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  const data = (event.notification && event.notification.data) || {};
+  if (data.type === "confirm-night") {
+    // Looks right: tell an open Solia Health page (it writes the confirmation), or open the page at #/confirm/<day>, which
+    // writes it on load. Open (or a tap on the body): focus or open Home.
+    const day = typeof data.day === "string" ? data.day : localDay();
+    event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      const w = list.find((c) => "focus" in c);
+      if (event.action === "ok") {
+        if (w && typeof w.postMessage === "function") { w.postMessage({ type: "confirm-night", day }); return w.focus(); }
+        return self.clients.openWindow(`/#/confirm/${day}`);
+      }
+      return w ? w.focus() : self.clients.openWindow("/");
+    }));
+    return;
+  }
   event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => { const w = list.find((c) => "focus" in c); return w ? w.focus() : self.clients.openWindow("/"); }));
 });
 

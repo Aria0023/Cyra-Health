@@ -97,10 +97,12 @@ const SLEPT = { good: "Slept well", fair: "So-so", poor: "Rough night" };
 export const railStates = (done, opt = []) => { let cur = false; return done.map((d, i) => (d ? "done" : cur || opt[i] ? "todo" : ((cur = true), "current"))); };
 /* moveCount: movement sessions today (the general Move logger plus POTS sessions); moveMin: their minutes (calm R4);
    sleepH: hours from the body log. Pregnancy shows Sleep once hours are logged (its check-in has no sleep row). */
-export function bodySteps({ entry = null, moveCount = 0, moveMin = 0, preg = false, sleepH = null } = {}) {
+export function bodySteps({ entry = null, moveCount = 0, moveMin = 0, preg = false, sleepH = null, auto = null } = {}) {
   const nSym = Object.values(entry?.sym || {}).filter((v) => v > 0).length;
   const hrs = sleepH != null ? `${Math.floor(sleepH)}${sleepH % 1 ? "½" : ""}h` : "";
   const steps = [
+    // Passive tracking S2: while the "Today's auto-tracked" card shows, its night leads the rail ("Looks right" ticks it).
+    ...(auto ? [{ label: "Auto-tracked", sub: auto.confirmed ? "Looks right" : "Confirm", done: !!auto.confirmed }] : []),
     ...(preg && sleepH == null ? [] : [{ label: "Sleep", sub: entry?.sleepQ || hrs ? [hrs, entry?.sleepQ ? SLEPT[entry.sleepQ] : ""].filter(Boolean).join(" · ") : "Last night", done: !!entry?.sleepQ || sleepH != null }]),
     { label: "Movement", sub: moveCount > 0 ? (moveMin > 0 ? `${moveMin} min` : `${moveCount} session${moveCount === 1 ? "" : "s"}`) : "Optional", done: moveCount > 0 },
     { label: "Symptoms", sub: entry ? (nSym ? `${nSym} logged` : "None today") : "Today", done: !!entry },

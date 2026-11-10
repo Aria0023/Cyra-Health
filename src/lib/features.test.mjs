@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { FEATURE_NAMES, DEFAULT_FEATURES, FEATURE_MODULE, FEATURES, parseFeatures, unknownFeatures, feature, remindersInBuild, DEV_FLAG_NAMES, DEV_FLAGS, parseDevFlags } from "./features.js";
 
-const DEFAULTS = { wearables: false, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: false };
+const DEFAULTS = { wearables: false, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: false, deviceSync: true };
 const only = (...on) => Object.fromEntries(FEATURE_NAMES.map((n) => [n, on.includes(n)]));
 
 test("features: unset, empty or blank gives a fresh copy of the shipping defaults", () => {
@@ -27,7 +27,9 @@ test("features: all, none, lists replace the defaults, case-insensitive, unknown
   assert.deepEqual(parseFeatures("bogus"), only());
   assert.deepEqual(parseFeatures("ai,bogus"), only("ai"));
   assert.deepEqual(parseFeatures(",,signin,,"), only("signin"));
-  assert.deepEqual(Object.keys(parseFeatures("none")), [...FEATURE_NAMES], "always all six keys");
+  assert.deepEqual(Object.keys(parseFeatures("none")), [...FEATURE_NAMES], "always all seven keys");
+  assert.equal(parseFeatures("none").deviceSync, false, "none turns the on-phone sources off too");
+  assert.equal(parseFeatures("ai").deviceSync, false, "a list replaces the defaults, deviceSync included");
 });
 
 test("features: unknownFeatures names only the words that are neither a feature nor all/none", () => {
@@ -52,7 +54,8 @@ test("features: remindersInBuild — phones always, the web only with webReminde
   assert.equal(remindersInBuild(false), true, "defaults to this build's FEATURES");
 });
 
-test("features: FEATURE_MODULE maps exactly the six flags; the source has no import", () => {
+test("features: FEATURE_MODULE maps exactly the seven flags (deviceSync has no module); the source has no import", () => {
+  assert.equal(FEATURE_MODULE.deviceSync, null);
   assert.deepEqual(Object.keys(FEATURE_MODULE).sort(), [...FEATURE_NAMES].sort());
   assert.ok(Object.isFrozen(FEATURE_MODULE) && Object.isFrozen(FEATURE_NAMES));
   const src = readFileSync(new URL("./features.js", import.meta.url), "utf8");
@@ -63,11 +66,11 @@ test("features: FEATURE_MODULE maps exactly the six flags; the source has no imp
 test("features: the production backend mirrors the default build (D2)", () => {
   const prod = JSON.parse(readFileSync(new URL("../../backend/config/app.json", import.meta.url), "utf8"));
   const dev = JSON.parse(readFileSync(new URL("../../backend/config/app-dev.json", import.meta.url), "utf8"));
-  const want = FEATURE_NAMES.filter((n) => DEFAULT_FEATURES[n]).map((n) => FEATURE_MODULE[n]).sort();
+  const want = FEATURE_NAMES.filter((n) => DEFAULT_FEATURES[n] && FEATURE_MODULE[n]).map((n) => FEATURE_MODULE[n]).sort();
   assert.deepEqual([...prod.modules].sort(), want);
   assert.deepEqual(want, ["ai", "push"]);
   assert.ok(!prod.modules.includes("backup"), "the backup module is not mounted in production");
-  for (const m of Object.values(FEATURE_MODULE)) assert.ok(dev.modules.includes(m), `app-dev.json lists ${m}`);
+  for (const m of Object.values(FEATURE_MODULE)) if (m) assert.ok(dev.modules.includes(m), `app-dev.json lists ${m}`);
 });
 
 test("dev flags (calm R1): devGallery is off by default, on when named or with all, and never changes the product flags", () => {

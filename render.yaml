@@ -13,9 +13,9 @@ services:
         value: "22"
       - key: VITE_API_BASE
         value: https://cyra-backend.onrender.com
-      # VITE_FEATURES unset = the shipping defaults (Ask Cyra's AI and browser reminders). To offer more
-      # (wearables, counts, signin, cloudBackup; .env.example), set it here AND add the matching module to
-      # backend/config/app.json.
+      # VITE_FEATURES unset = the shipping defaults (Ask Cyra's AI, browser reminders, and deviceSync: the on-phone
+      # Apple Health / Health Connect sources in the phone app, no server module). To offer more (wearables, counts,
+      # signin, cloudBackup; .env.example), set it here AND add the matching module to backend/config/app.json.
       # Published Terms and Privacy Policy (https://…), linked from the consent step. Public, not
       # secret, but set per deployment: paste them under this service's Environment tab.
       # Unset = the build warns and the app says the documents "aren't published yet". When set, the build fetches each URL and fails unless it serves a document.

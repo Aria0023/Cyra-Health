@@ -129,7 +129,8 @@ export function wipeMore(f, native) {
     : f.wearables ? "Readings Terra already collected stay under Terra's policy."
     : null;
   const li2 = on([f.counts && "Anonymous counts you already shared stay counted.", tail]).join(" ") || null;
-  const li3 = native && f.wearables ? "Apple Health or Health Connect access stays on until you turn it off in your phone's settings." : null;
+  // Passive tracking S3: the on-phone sources are offered by deviceSync (lib/wearables.js SOURCES), so this line follows that flag.
+  const li3 = native && f.deviceSync ? "Apple Health or Health Connect access stays on until you turn it off in your phone's settings." : null;
   return on([li1, li2, li3, "Report files you already saved or shared aren't on this device's record. Delete them wherever you put them."]);
 }
 

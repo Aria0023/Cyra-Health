@@ -6,8 +6,10 @@ import fs from "node:fs";
 import {
   PATTERN_RULES, statusOf, EMPTY_LINE, NOT_ADVICE, usualOf, bandOf, bandCounts, bandWords, bandTrend, bodyRing, mindRing, RING_RULES, ringInputs,
   cycleTimeline, sleepCards, cycleCards, questionSides, pcosCards, trialCards, rankCards, TRIAL_MIN, BAND,
-  mealCards, mealSides, MEAL_SRC,
+  mealCards, mealSides, MEAL_SRC, wearCards, wearSides,
 } from "./patterns.js";
+import { FIXTURES } from "./signalsFixtures.js";
+import { buildNightly, baselines } from "./signals.js";
 import {
   EXPERIMENTS, cleanExperiments, settle, startExperiment, skipWeek, markDay, stopExperiment, runningOn, experimentStep, reviewWeek, weekCounts, countWords,
   weekSignals, pickExperiment, experimentFollowUp, lastFinished, experimentSources, EXP_DAYS,
@@ -217,4 +219,35 @@ test("meal notes card: energy after meals, only with enough notes, worded as an 
   assert.match(l.sentence, /less often/);
   // tone: no advice, no food verdicts, no weight, no calories
   for (const x of [c, o, l]) for (const t of [x.sentence, x.topic, x.detail.question, ...x.detail.lines]) assert.ok(!/\b(should|avoid|cut|good food|bad food|unhealthy|calorie|weight|diet plan|try eating|eat less|eat more)\b/i.test(t), t);
+});
+
+/* Passive tracking S2: the two auto-tracked cards over the wearable nights (lib/signals.js words, PATTERN_RULES thresholds). */
+test("wearCards: lower-than-usual sleep nights vs her top symptom, lower HRV nights vs low mood or energy; honest when thin", () => {
+  const f = FIXTURES.regular28();
+  const todayIso = f.nextStart;
+  // Make the last 20 nights of the log alternate: 10 clearly low sleep / low HRV nights, 10 usual.
+  const rows = f.rows.map((r, i) => (i >= f.rows.length - 20 && i % 2 === 0 ? { ...r, sleep: 40, hrv: 20 } : r));
+  const nightly = buildNightly(rows), base = baselines(nightly, f.cycles, {});
+  const lowDays = new Set(rows.filter((r) => r.sleep === 40).map((r) => r.date));
+  const entries = rows.map((r) => ({ date: r.date, sym: { hda: lowDays.has(r.date) ? 2 : 0 } }));
+  const moodLog = Object.fromEntries(rows.map((r) => [r.date, { mood: lowDays.has(r.date) ? 1 : 4 }]));
+  const cards = wearCards({ nightly, base, entries, moodLog, topSym: { id: "hda", label: "Headaches" }, todayIso });
+  assert.deepEqual(cards.map((c) => c.key), ["wear:sleep:hda", "wear:hrv:mood"]);
+  assert.equal(cards[0].status, "supported"); assert.equal(cards[1].status, "supported");
+  assert.match(cards[0].sentence, /^Nights with lower-than-usual sleep lined up with more headaches the next day/);
+  assert.match(cards[1].sentence, /lower-than-usual HRV night lined up with more low mood or low energy/);
+  assert.equal(cards[0].kind, "wear"); assert.equal(cards[0].family, "sleep"); assert.equal(cards[1].family, "mind");
+  assert.ok(cards[0].bars.a.days >= PATTERN_RULES.minEach && cards[0].bars.b.days >= PATTERN_RULES.minEach);
+  for (const c of cards) { assert.ok(!/\b(score|grade|out of 100|%)/i.test(c.sentence + c.detail.lines.join(" ")), c.key); assert.ok(c.detail.lines.some((l) => /standard deviation/.test(l))); }
+  // the sides: only valid nights with a baseline word and a known outcome count
+  const sides = wearSides({ metric: "sleep", nightly, base, from: addDays(todayIso, -59), to: todayIso, hit: (iso) => (lowDays.has(iso) ? true : false) });
+  assert.equal(sides.lower.hits, sides.lower.n, "every low night had the outcome");
+  // no top symptom → only the HRV card; no mood or energy → that card says not enough
+  assert.deepEqual(wearCards({ nightly, base, entries, moodLog, topSym: null, todayIso }).map((c) => c.key), ["wear:hrv:mood"]);
+  const thin = wearCards({ nightly, base, entries: [], moodLog: {}, topSym: { id: "hda", label: "Headaches" }, todayIso });
+  for (const c of thin) { assert.equal(c.status, "notenough"); assert.equal(c.sentence, EMPTY_LINE); }
+  // the other direction (more symptom after usual nights) is never a card
+  const flipped = rows.map((r) => ({ date: r.date, sym: { hda: lowDays.has(r.date) ? 0 : 2 } }));
+  assert.deepEqual(wearCards({ nightly, base, entries: flipped, moodLog: {}, topSym: { id: "hda", label: "Headaches" }, todayIso }).filter((c) => c.key.startsWith("wear:sleep")), []);
+  assert.deepEqual(wearCards({ nightly: null, base: null, todayIso }), []);
 });

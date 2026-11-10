@@ -360,11 +360,11 @@ test("Styles: one generated token layer per style in styles.js, no per-screen co
     assert.ok(!k.startsWith("--fam-") && !k.startsWith("--ramp-") && !k.startsWith("--soft-") && !k.startsWith("--st-"), `${id} ${k}`);
   }
   for (const id of Object.keys(STYLE_SHAPE)) for (const k of Object.keys(STYLE_SHAPE[id])) assert.ok(!/^--(fam|ramp|soft|st)-/.test(k), `${id} ${k}`);
-  // data-style is written only by Shell (on .cy) and by the Style picker's preview cards
+  // data-style is written only by Shell (on .cy), by the Style picker's preview cards and by the dev gallery's five-style strip (S3)
   const users = [];
   const walk = (d) => { for (const f of readdirSync(d)) { const p = join(d, f); if (statSync(p).isDirectory()) walk(p); else if (/\.jsx$/.test(f) && readFileSync(p, "utf8").includes("data-style")) users.push(p.slice(SRC.length + 1)); } };
   walk(SRC);
-  assert.deepEqual(users.sort(), ["components/Shell.jsx", "components/settingsParts.jsx"]);
+  assert.deepEqual(users.sort(), ["components/Shell.jsx", "components/settingsParts.jsx", "dev/DevGallery.jsx"]);
 });
 
 /* ---------- Skins (2026-11-02): Bloom, Clear, Journal ---------- */

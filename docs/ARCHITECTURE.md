@@ -182,7 +182,7 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `stageName` | its label | setting | yes | yes | yes |
 | `welcome` | welcome sentence | setting | yes | yes | yes |
 | `acct` | name and email (empty in Anonymous Mode) | setting | yes | yes | yes |
-| `wearSources` | wearable connections | connection | yes | yes, unconfirmed (`pending` + `restored`) and merged with this device's; a Terra connection this device is disconnecting is left out | yes |
+| `wearSources` | wearable connections; an entry may carry `prefer` (the metrics it is the preferred source for), `paused` and `lastSync` (passive tracking S1, lib/sources.js) | connection | yes | yes, unconfirmed (`pending` + `restored`) and merged with this device's; a Terra connection this device is disconnecting is left out | yes |
 | `terraOff` | unconfirmed Fitbit / Garmin / Whoop disconnects | device-only | yes | no (this device's kept) | no |
 | `research` | "Share anonymous weekly counts" | consent, device-only | yes | no (this device's kept) | through the pulse merge (`pulseRev`) |
 | `askAI` | "Also ask Cyra's AI" | consent, device-only | yes | no (this device's kept) | no |
@@ -207,6 +207,9 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `uiLocale` | her language choice, null = follow this device (calm R10; the picker shows only with two or more catalogues) | device preference (DEVICE_PREFS) | **no** (NOT_IN_BACKUP) | never (this device's kept) | yes (same browser, same device) |
 | `uiStyle` | the look: Soft (default), Mono, Bloom, Clear or Journal (one token layer each, lib/constants.js STYLE_SHAPE / STYLE_SKINS; unknown values read as Soft) | device preference (DEVICE_PREFS) | **no** (NOT_IN_BACKUP) | never (this device's kept) | yes (same browser, same device) |
 | `visitQuestions` | her own "Questions for my visit" for page 1 of the clinician summary: at most 8, each at most 200 characters (doctor report v2, lib/visitQuestions.js) | health log (her words) | yes | yes (literally) | yes |
+| `nightSkips` | nights she asked to skip ("Skip this night"), `{ [wakeDay]: "fever" \| "alcohol" \| "travel" \| "other" }` (passive tracking S1, lib/sources.js); the reading stays in `wearData`, lib/signals.js leaves it out | health log (her choice) | yes | yes (literally; a backup without it clears it) | yes |
+| `confirmations` | her "Looks right" per wake day, `{ [day]: { at, took?: ms, via: "app" \| "notification" } }` (passive tracking S1) | health log (her tap) | yes | yes (literally) | yes |
+| `trackStats` | this device's count of confirmed nights, how many under 15 s, the last 200 timings and the day a source was first connected (`{ confirmed, fast, tooks, sourceSince, firstConfirm }`, plan §8; shown in You → Data sources → "How this is going") | device-only | **no** (NOT_IN_BACKUP) | no (this device keeps its own) | no |
 | `reminders` | the switch, this browser's push addresses, a version | bookkeeping | `{ enabled }` only | on the phone only (the web keeps this browser's switch) | own merge (`rev`, the `reminders` message) |
 
 "In the backup file" means inside the encrypted envelope (`lib/backup.js`, PBKDF2-SHA256 600,000
@@ -391,6 +394,18 @@ Trying to conceive with signs on, L7's fertility sentences; the PDF is drawn wit
 days ago to today, phone only, never sent anywhere (it leaves the phone only inside an encrypted backup
 she exports).
 
+**The signals bundle (passive tracking S2, `lib/autoTracked.js`).** `signalsFor({ rows, sources, skips, days, demo })` turns the
+wearable rows into one per-render object (cycles, nightly words, baselines, the rise per cycle, the markers, the PDF table, the
+review sentence) and `autoCardModel()` into the Home card's model; App.jsx memoises both and passes them down. Nothing is stored.
+
+**The adapter seam (passive tracking S1, `lib/sources.js`).** Every re-sync goes through one adapter shape,
+`{ id, name, viaServer, onDevice, read({ fromIso, toIso, state }) → { rows, state, notice? } }`, built by
+`makeAdapters({ sync, platform, demo })` for demo (the deterministic fixtures of `lib/signalsFixtures.js`, demo builds
+only), healthkit (the plugin, through `syncSource`), oura and terra (through the server, through `syncSource`). A future
+source adds one entry there. `lib/signals.js` (pure) turns the rows into words and cycle markers: one value per night
+with the preferred source first (`wearSources[id].prefer`), skipped nights and fever-like outliers left out, her own
+baseline by cycle phase, the three-over-six rise rule per cycle, the cycle table for the clinician PDF.
+
 **Plug-in point (planned).** An adapter beside it in `lib/wearables.js` (or a new
 `lib/healthSync.js`) that extends the bridge contract, for example `readCycle({ from, to })`:
 
@@ -423,7 +438,8 @@ leaves no trace in the UI and makes no request.
 
 | Flag | What it adds in the app | Backend module (`FEATURE_MODULE`) | What the module keeps | Default |
 |---|---|---|---|---|
-| `wearables` | Home's Wearables door and panel, the "From your wearable" cards and milestones, Oura and Fitbit/Garmin/Whoop (Terra) connections, on the phone Apple Health / Health Connect, POTS watch/ring rows | `integrations` | Oura tokens in memory for at most 5 minutes during a connect; Fitbit/Garmin/Whoop readings in memory for at most 7 days until the device collects them | off |
+| `wearables` | Oura and Fitbit/Garmin/Whoop (Terra) connections through the server (Home's Wearables door, You → Data sources), and with them the auto-tracked screens below | `integrations` | Oura tokens in memory for at most 5 minutes during a connect; Fitbit/Garmin/Whoop readings in memory for at most 7 days until the device collects them | off |
+| `deviceSync` (S3) | the on-phone source (Apple Health / Health Connect, read by the app on the phone) and everything built on wearable rows: the Wearables door, "Today's auto-tracked", the cycle markers, the PDF table, the two pattern cards, You → Data sources, the confirm-night notification; nothing in a browser | none | nothing: no server is involved | **on** |
 | `counts` | "You're not alone" on Home (one read per launch), "Share anonymous weekly counts" (consent and Settings) | `pulse` | weekly totals only: `{week, stage, event, count}` | off |
 | `ai` | "Also ask Cyra's AI when the library has no answer" on Ask | `ai` | nothing (it forwards the question to Anthropic) | on |
 | `webReminders` | check-in reminders in a browser (rhythm, nudge and Reminders in Settings, "Remind me" on the consent step); phones always have reminders | `push` | the browser's push address and keys, reminder days, time, time zone, the last day one was sent | on |

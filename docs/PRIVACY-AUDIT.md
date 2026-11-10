@@ -1924,3 +1924,123 @@ this device (`aiWeekly`); making the PDF sends nothing.
 - In the PDF: "Prepared by the patient from her own log. Not a diagnosis.", "Patient-reported data", "Generated <date>".
 - Unchanged: the file warning (FILE_WARNING), the "?" warning, "made on this device".
 
+
+
+## Auto-tracked S1 (passive tracking, 2026-11-04) — two new record keys (in backups), one device-only key never in a backup, no new request, nothing new leaves the device
+
+**What it is.** The pure signals library (`src/lib/signals.js`, tested on synthetic cycles from `src/lib/signalsFixtures.js`)
+and the one adapter seam for sources (`src/lib/sources.js`). Nothing in S1 shows a new screen; it is the foundation
+for S2 (the Home card, the cycle markers, the PDF table) and S3 (the notification confirm, the Data sources screen).
+Every function is a function of the rows already in `wearData`, the day entries and her choices; nothing is fetched
+to compute them and nothing is sent.
+
+**New persisted keys (`src/lib/record.js`):**
+- `nightSkips` — `{ [wakeDay]: "fever" | "alcohol" | "travel" | "other" }`, her "Skip this night" reasons. Record class,
+  **in backups** (the local file and the optional encrypted account backup), restored literally (a backup without it
+  clears it), removed by Delete everything. The reading itself stays in `wearData`; the library leaves it out. Never sent.
+- `confirmations` — `{ [wakeDay]: { at, took?: ms, via: "app" | "notification" } }`, her "Looks right" taps. Record
+  class, **in backups**, restored literally. Never sent; never part of weekly counts, Ask, the AI summary (its allowlist
+  `SUMMARY_PATHS` is unchanged) or the doctor email.
+- `trackStats` — `{ confirmed, fast, tooks: [ms…], sourceSince, firstConfirm }`, the spike's success numbers (plan §8).
+  **Device-only and never in any backup** (DEVICE_ONLY + NOT_IN_BACKUP: `backupCopy` deletes it; a restore keeps this
+  device's value; another tab never takes it over); Delete everything removes it with the record. Never sent. S3 shows
+  it in You → Data sources → "How this is going" with "Kept on this device, never sent." (literally true: the only reader
+  is that screen and the dev gallery).
+- `wearSources[id]` may now carry `prefer` (the metric ids this source is the preferred one for), `paused` (true) and
+  `lastSync` (ms): the same key, so the same class (in backups, a restore brings connections back unconfirmed as before).
+
+**No intraday series in backups (plan §1.2).** A wearable row is one wake day. `backupCopy` strips any `series` or
+`samples` field a future source might attach, and `validateRecord` reports one (unit-tested). None exists in this build.
+
+**Demo readings.** In a `VITE_DEMO_WEARABLES` build, connecting a source now adds 90 days (was 30) of deterministic
+illustrative rows from the fixtures, every row marked `demo`, shaped to her stage; the toast says "Demo mode — … showing
+90 days of illustrative data". Nothing is sent; the privacy row still reads Off with the note `demo`.
+
+**No sentence on screen changed in S1.**
+
+## Auto-tracked S2 (passive tracking, 2026-11-09) — the Home card, cycle markers, the PDF table; no new request, one reminder sentence changed
+
+**What it is.** The screens on top of S1's library: "Today's auto-tracked" on Home (`src/components/AutoTrackedCard.jsx`,
+model in `src/lib/autoTracked.js`), the per-cycle temperature-rise marker in Body → Cycles, two pattern cards and the weekly
+review's sentence, and the cycle table on page 1 of the clinician PDF. Everything is computed on render from `wearData`, the
+day entries and her choices (`signalsFor`); nothing is fetched and nothing is sent.
+
+**What her taps write (record keys from S1, no new key).**
+- "Looks right" → `confirmations[day] = { at, took, via: "app" }` (record, in backups) and `trackStats` (device-only, never in a
+  backup; `noteConfirmation`). It never writes a day entry: the day reading, the patterns and the counts see nothing new
+  (e2e: "75 days logged" before and after). Toast: "Looks right — noted for <day>. Nothing was added to your log."
+- "Skip this night" → `nightSkips[day]` (record, in backups); the reading stays in `wearData` and leaves every baseline and the
+  rise test. "Undo" removes the key.
+- "Add anything else?" opens the existing symptom logger; nothing is written until she saves as before.
+
+**Demo build.** The card, the markers and the table read demo rows only when `VITE_DEMO_WEARABLES=true` (`signalsFor({ demo })`);
+a production build ignores rows marked `demo`. The demo adapter now shapes its rows to her own logged period starts (so the
+markers match her cycles) and the card says "Illustrative readings from this demo build. Nothing is sent." Nothing is sent.
+
+**The clinician PDF (user-started file, no network).** Page 1's Cycles section becomes a table when temperature nights exist;
+the appendix adds the skipped-nights count. The file still goes only where she saves or sends it (lib/files.js).
+
+**Sentences changed or added (every one literally true of the build):**
+- Phone reminders, You → Privacy → Reminders → Details: "The reminder only says \"Time for your 30-second check-in.\"" →
+  "The reminder only says \"Time for your 30-second check-in.\" or, while a wearable has synced in the last 36 hours,
+  \"Confirm today (10 s)\"." (`lib/privacyFlows.js` `FLOW_COPY.details.phoneReminders2`; the body comes from
+  `lib/notifications.js` `REMINDER_BODY` / `lib/autoTracked.js` `CONFIRM_BODY`, scheduled on the phone, no server). The web push
+  payload is unchanged (the server sends the plain reminder it always did).
+- Home card: "Illustrative readings from this demo build. Nothing is sent." (demo builds only); "Looks right only notes that you
+  saw this; it never adds a symptom or a day to your log."; `SIGNAL_COPY.guidance` "From your own nightly temperatures, read on
+  this device. Guidance for a conversation with your clinician, not a diagnosis."
+- Body → Cycles: "From your wearable's nightly temperatures, read on this device."; the PDF note "… from her wearable's nightly
+  readings, read on her device."
+- Home "From your wearable" (builds with wearables): reworded to guidance (CLINICIAN-REVIEW auto.rise); no privacy claim in it.
+
+**Verification.** `npm run e2e` (privacy.spec.mjs: no request leaves the app's origin in this build, zero /api calls; auto.spec.mjs:
+the card, Looks right without a day entry, the markers, the table) and `npm run e2e:axe` (0 violations, the card and the skip
+picker included) on the demo-wearables build.
+
+## Auto-tracked S3 (passive tracking, 2026-11-09) — confirm from the notification, Data sources, the deviceSync flag; one new field in the push row, no new data leaves the device
+
+**The seventh flag, `deviceSync` (on by default).** The on-phone sources (Apple Health / Health Connect, read by the app on
+the phone through its own plugin) and everything built on their rows (the Home card, the cycle markers, the PDF table,
+You → Data sources) now follow `deviceSync` (`src/lib/features.js`, `FEATURE_MODULE.deviceSync = null`: no backend module,
+nothing sent). Oura and Fitbit/Garmin/Whoop stay behind `wearables`, off in production. In a browser `deviceSync` offers
+nothing (`lib/wearables.js` SOURCES is empty there without `wearables`), so the default web build is unchanged. The
+production backend still mounts push and ai only (`features.test.mjs` pins it).
+
+**Confirm from the notification (plan §2.6).**
+- Phone: one local notification, id 1100, action type `confirm-night`, "Last night synced. Looks right?" with Looks right
+  and Open, scheduled for 07:00 local only when a sync landed overnight before 07:00 and the night is not confirmed
+  (`lib/confirmNight.js` `confirmDueAt`, unit-tested), cancelled otherwise; never before 07:00. Looks right writes
+  `confirmations[day]` with `via: "notification"` (and `took` from the scheduled time) without opening a screen; Open opens
+  Home. No server is involved; the text carries nothing about the readings. Reminder changes leave it alone; Delete
+  everything cancels it (`cancelAll({ all: true })`).
+- Web: the push subscription gains `confirm: true` while a wearable synced in the last 36 h (`lib/notifications.js` sends
+  `{ subscription, cadence, nudge, tz, confirm }`); the server keeps the boolean beside the cadence (`backend/src/modules/push`
+  row: `cadence, confirm, endpoint, id, keys, lastSentDay, nudge, tz`, pinned by `push-smoke.js`) and sends
+  `{ type: "confirm-night", title, body: "Last night synced. Looks right?", tag, actions }` instead of the plain reminder —
+  still nothing about her health, and the server still learns nothing about the readings (the flag says only that the app
+  has a source). The service worker (`public/sw.js`, tested in `sw.test.mjs`) shows the two buttons; Looks right posts
+  `{ type: "confirm-night", day }` to an open Solia Health page, which writes the confirmation, or opens the page at
+  `#/confirm/<day>`, which writes it on load and clears the hash; Open focuses or opens Home. Users without a source get
+  the plain reminder exactly as before (`confirm` false; the phone schedule needs a synced source).
+
+**You → Data sources (`src/components/DataSourcesCard.jsx`, model `lib/autoTracked.js` sourceRows / preferRows / howGoing).**
+Per source: status, what it reads, **"Where it goes"** (`sourceMeta().where`: "This phone only. Read by the Solia Health app
+from the Health app; never sent anywhere." / "Through Solia Health's server: each sync it fetches your readings from Oura and
+passes them to this device without keeping them." / "Through Solia Health's server: Terra sends your daily readings there,
+where they wait in memory (at most 7 days) until this device collects them." / demo: "Nowhere: made up on this device for the
+demo build."), last sync, nights on this device, Connect / Sync, Pause (the connection stays, nothing is read or synced;
+`wearSources[id].paused`), Disconnect with "Delete its readings from this device too" on by default (`dropSourceRows`; the
+server sources are ended through the same `disconnectWear` flow the Home door uses), a preferred-source picker only when
+two sources cover the same nights (`wearSources[id].prefer`), and a "Demo readings" switch in demo builds only. **"How this
+is going"** shows `trackStats` as sentences with "Kept on this device, never sent." — literally true: the only readers are
+this card and the dev gallery; the key is DEVICE_ONLY and NOT_IN_BACKUP (S1). Every sentence above names only what this
+build does.
+
+**Sentences changed.** `wipeMore` (More about deleting, phone): "Apple Health or Health Connect access stays on until you turn
+it off in your phone's settings." now follows `deviceSync` (the flag that offers those sources) instead of `wearables`; with
+the default build it is shown on the phone, as it must be. `.env.example` and `render.yaml` describe the flag.
+
+**Verification.** `npm run e2e` (auto.spec.mjs S3: the card, the demo switch, "How this is going" before and after a Looks
+right, Pause / Resume, Disconnect with delete, `#/confirm/<day>`; the gallery) and `npm run e2e:axe` (Data sources with the
+disconnect confirm open, the gallery in light and dark: 0 violations); `cd backend && npm run smoke:all` (push: the confirm
+flag and payload); `sw.test.mjs`, `notifications.test.mjs`, `autoTracked.test.mjs`, `features.test.mjs`, `disclosures.test.mjs`.

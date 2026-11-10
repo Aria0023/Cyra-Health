@@ -7,8 +7,11 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import {
   summaryModel, fitSummary, summaryPdf, summaryTexts, pageOne, pdfAccent, onWhite, sheetVars, moreLine,
-  cleanQuestions, addQuestion, removeQuestion, QUESTIONS_MAX, QUESTION_LEN, LONG_CYCLE, TOP_SYMPTOMS, NOT_ENOUGH, SUMMARY_TITLE, SUMMARY_MADE,
+  cleanQuestions, addQuestion, removeQuestion, QUESTIONS_MAX, QUESTION_LEN, LONG_CYCLE, TOP_SYMPTOMS, NOT_ENOUGH, SUMMARY_TITLE, SUMMARY_MADE, CYCLE_ROWS_FIT, CYCLE_ROWS_MAX, TABLE_NOTE, SKIPPED_HEAD,
 } from "./clinicianSummary.js";
+import { cycleTable, skippedSummary, nightlyTemps } from "./signals.js";
+import { syntheticLog } from "./signalsFixtures.js";
+import { cyclesFrom } from "./record.js";
 import { PdfDoc } from "./pdf.js";
 import { addDays, insights } from "./engine.js";
 import { ALL_SYM, SCORE_SCALE, PALETTES } from "./constants.js";
@@ -223,4 +226,48 @@ test("source: pure, no pdf.js import, no network or storage; pdftotext reads pag
   writeFileSync(f, summaryPdf({ summary: fitSummary(base({ labs: [{ id: "a", kind: "hba1c", value: 5.6, unit: "%", date: "2026-10-28" }] }), PdfDoc) }, PdfDoc));
   const txt = execFileSync("/usr/bin/pdftotext", ["-layout", f, "-"]).toString();
   for (const w of ["Solia Health · Clinician summary", "CYCLES", "TOP SYMPTOMS", "LAB VALUES OVER TIME", "5.6% (Oct 28)", "QUESTIONS FOR MY VISIT", "Patient-reported data"]) assert.ok(txt.includes(w), w);
+});
+
+/* Passive tracking S2 (plan §2.7): the cycle table in place of the strip when temperature nights exist; one page on Letter and A4. */
+test("cycle table: with temperature nights page 1 shows a table (newest first, at most 12, trimmed to 6 first); without them the strip stays", () => {
+  // Nine 28-day cycles with a rise on day 15, ending today: the log's days are the fixture's period days, filled in with check-ins.
+  const f = syntheticLog({ start: addDays(TODAY, -(28 * 9) - 10), n: 9, running: false });
+  const days = f.days.filter((d) => d.date <= TODAY);
+  const sym = log([300, 268, 238, 196, 166, 126, 98, 60, 20], () => ({ crm: 2, hda: 1 })).filter((d) => !d.period).map((d) => ({ ...d, period: false }));
+  const all = [...days, ...sym.filter((d) => !days.some((x) => x.date === d.date))];
+  const cycles = cyclesFrom(days);
+  const temps = nightlyTemps(f.rows);
+  const wear = { cycles: cycleTable(cycles, temps, days), skipped: skippedSummary({ [addDays(TODAY, -3)]: "fever", [addDays(TODAY, -9)]: "travel" }) };
+  const m = summaryModel({ days: all, today: TODAY, wear, questions: ["One?", "Two?"], meds: [{ id: 1, name: "Magnesium", kind: "supp", started: addDays(TODAY, -40) }] });
+  assert.ok(m.cycles.table, "a table");
+  assert.ok(m.cycles.table.length >= 6 && m.cycles.table.length <= CYCLE_ROWS_MAX);
+  assert.ok(m.cycles.table[0].start > m.cycles.table[1].start, "newest first");
+  assert.ok(m.cycles.table.some((r) => /^seen, day 15/.test(r.rise)), JSON.stringify(m.cycles.table.map((r) => r.rise)));
+  assert.ok(m.cycles.table.some((r) => r.luteal === "14 d"));
+  assert.equal(m.cycles.tableNote, TABLE_NOTE);
+  assert.equal(m.limits.cycleRows, m.cycles.table.length);
+  assert.match(m.skipped.text, /^Nights she marked as not usable: 2 \(fever or illness 1, travel 1\)\.$/);
+  for (const paper of ["letter", "a4"]) {
+    const fit = fitSummary({ ...m, paper }, PdfDoc, PALETTES.periods[0].primary);
+    assert.ok(fit.fitted, `${paper}: fits one page`);
+    assert.ok(fit.limits.cycleRows <= CYCLE_ROWS_FIT || fit.limits.cycleRows === m.cycles.table.length, `${paper}: the table is trimmed to ${CYCLE_ROWS_FIT} rows first when it has to be`);
+    const bytes = summaryPdf({ summary: fit }, PdfDoc);
+    assert.equal(pages(latin1(bytes)), 1, `${paper}: one page`);
+    const p1 = pageOne(fit);
+    assert.ok(p1.cycleRows.length <= fit.limits.cycleRows);
+    if (p1.cycleRows.length < m.cycles.table.length) assert.match(p1.cycMore, /^\+\d+ more not shown$/);
+  }
+  const texts = summaryTexts(m);
+  assert.ok(texts.includes(TABLE_NOTE) && texts.includes(SKIPPED_HEAD) && texts.includes(m.skipped.text));
+  for (const tx of texts) assert.ok(!/ovulation (is |was )?confirmed|contracept/i.test(tx), tx);
+  // the appendix carries every row and the skipped-nights count
+  const withApp = summaryPdf({ summary: fitSummary({ ...m, appendix: true }, PdfDoc) }, PdfDoc);
+  assert.ok(pages(latin1(withApp)) >= 2);
+  // without temperature nights, or without wear at all: the strip
+  const noTemps = { cycles: cycleTable(cycles, [], days), skipped: skippedSummary({}) };
+  assert.equal(summaryModel({ days: all, today: TODAY, wear: noTemps }).cycles.table, undefined);
+  assert.equal(summaryModel({ days: all, today: TODAY }).cycles.table, undefined);
+  assert.equal(summaryModel({ days: all, today: TODAY }).skipped, null);
+  // never in pregnancy
+  assert.equal(summaryModel({ days: [], stage: "preg", stageName: "Pregnancy", today: TODAY, wear }).cycles.table, undefined);
 });

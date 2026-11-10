@@ -33,6 +33,7 @@ const DEFAULTS = () => ({
   bodyLog: {}, labs: [], bodyPrefs: { weightOn: false, weightUnit: null, glucoseUnit: null, hba1cUnit: null, waistUnit: null },
   moodLog: {}, practiceLog: [], practiceFavs: [], practiceHaptics: false, experiments: { active: null, skip: null, past: [] },
   aiPrefs: { weekly: false, chat: false, labs: false }, aiChat: [], aiWeekly: null, cloudAccount: { rev: 0, acct: null }, uiLocale: null, uiStyle: "soft", visitQuestions: [],
+  nightSkips: {}, confirmations: {}, trackStats: { confirmed: 0, fast: 0, tooks: [], sourceSince: null, firstConfirm: null },
 });
 const appRecord = (over = {}) => {
   const d = { ...DEFAULTS(), ...over };
@@ -108,10 +109,10 @@ test("migrate: a missing, throwing or non-advancing step returns the input (all 
 
 test("key lists are the ones App.jsx used before L3 (pinned)", () => {
   // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags, L6 symPrefs and L7 fertSigns (record keys: in RECORD and in backups); calm R1 appended modules (record, in backups); calm R3 appended homeTiles (record, in backups) and homeStepSkip (device-only, not in backups); calm R4 appended bodyLog, labs and bodyPrefs (record, in backups); calm R5 appended moodLog, practiceLog, practiceFavs (record, in backups) and practiceHaptics (device-only, not in backups); calm R6 appended experiments (record, in backups); calm R8 appended aiPrefs (device-only consent, in the file, never applied), aiChat and aiWeekly (device-only, not in backups); doctor report v2 appended visitQuestions (record, in backups).
-  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions"]);
-  assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount"]);
+  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats"]);
+  assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats"]);
   assert.deepEqual([...DEVICE_PREFS], ["appearance", "uiLocale", "uiStyle"]);
-  assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "appearance", "uiLocale", "uiStyle"]);
+  assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "appearance", "uiLocale", "uiStyle"]);
   assert.deepEqual([...RECORD], PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders"));
   for (const k of NOT_IN_BACKUP) { assert.ok(PERSISTED.includes(k), `${k} persisted`); assert.ok(DEVICE_ONLY.includes(k) || DEVICE_PREFS.includes(k), `${k} device-only or a device pref`); }
   for (const k of DEVICE_ONLY) assert.ok(PERSISTED.includes(k), `${k} persisted`);
@@ -150,6 +151,7 @@ test("backupCopy matches the transform exportBackup used before L3", () => {
     delete snap.practiceHaptics; // calm R5: this phone's vibration choice never travels
     delete snap.aiChat; delete snap.aiWeekly; // calm R8: the AI chat and write-up stay on this device
     delete snap.cloudAccount; // calm R9: the account's keys never go into a backup
+    delete snap.trackStats; // passive tracking S1: this device's confirm counts and timings never travel
     for (const k of ["appearance", "uiLocale", "uiStyle"]) delete snap[k];
     return snap;
   };
@@ -437,7 +439,7 @@ test("daysLogged", () => {
 
 // record.js may import only these pure leaf modules. A later slice may add one (L6 './daylog.js',
 // L7 './fertility.js'); none of them may import record.js back.
-const RECORD_IMPORTS = ["./engine.js", "./constants.js", "./daylog.js", "./fertility.js", "./modules.js", "./home.js", "./bodylog.js", "./mind.js", "./experiments.js", "./aiFeatures.js", "./account.js", "./i18n.js", "./visitQuestions.js"];
+const RECORD_IMPORTS = ["./engine.js", "./constants.js", "./daylog.js", "./fertility.js", "./modules.js", "./home.js", "./bodylog.js", "./mind.js", "./experiments.js", "./aiFeatures.js", "./account.js", "./i18n.js", "./visitQuestions.js", "./sources.js"];
 const importsOf = (code) => [...code.matchAll(/^\s*import\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]);
 
 test("layering and no I/O", () => {
@@ -521,4 +523,29 @@ test("uiStyle (skins): the record accepts the five styles and flags anything els
   assert.deepEqual(STYLE_KEYS, ["soft", "mono", "bloom", "clear", "journal"]);
   for (const k of STYLE_KEYS) assert.deepEqual(validateRecord(appRecord({ uiStyle: k })), [], k);
   for (const bad of ["Bloom", "paper", "", null]) assert.equal(validateRecord(appRecord({ uiStyle: bad })).length, 1, String(bad));
+});
+
+/* ---------- passive tracking S1: nightSkips, confirmations, trackStats, wearSources extras, no intraday series ---------- */
+
+test("S1: nightSkips and confirmations are record keys in backups; trackStats is device-only and never in a backup", () => {
+  for (const k of ["nightSkips", "confirmations"]) assert.ok(RECORD.includes(k) && !DEVICE_ONLY.includes(k) && !NOT_IN_BACKUP.includes(k), k);
+  assert.ok(DEVICE_ONLY.includes("trackStats") && NOT_IN_BACKUP.includes("trackStats") && !RECORD.includes("trackStats"));
+  const rec = appRecord({ trackStats: { confirmed: 3, fast: 2, tooks: [9000, 12000, 30000], sourceSince: iso(10), firstConfirm: iso(3) }, nightSkips: { [iso(2)]: "fever" }, confirmations: { [iso(1)]: { at: new Date().toISOString(), took: 8000, via: "app" } } });
+  const copy = backupCopy(rec);
+  assert.ok(!("trackStats" in copy), "trackStats is not in the file");
+  assert.deepEqual(copy.nightSkips, rec.nightSkips); assert.deepEqual(copy.confirmations, rec.confirmations);
+  assert.deepEqual(validateRecord(rec), []);
+  assert.ok(validateRecord(appRecord({ nightSkips: { [iso(2)]: "hangover" } })).some((p) => p.startsWith("nightSkips")));
+  assert.ok(validateRecord(appRecord({ confirmations: { [iso(2)]: { at: "x", via: "app" } } })).some((p) => p.startsWith("confirmations")));
+  assert.ok(validateRecord(appRecord({ trackStats: { confirmed: -1 } })).some((p) => p.startsWith("trackStats")));
+});
+
+test("S1: wearSources entries may carry prefer / paused / lastSync as lib/sources.js keeps them; a row never carries an intraday series", () => {
+  assert.deepEqual(validateRecord(appRecord({ wearSources: { healthkit: { connectedAt: 1, prefer: ["temp"], lastSync: 5 }, oura: { connectedAt: 2, paused: true } } })), []);
+  assert.ok(validateRecord(appRecord({ wearSources: { healthkit: { connectedAt: 1, prefer: ["glucose"] } } })).some((p) => p.startsWith("wearSources.healthkit")));
+  const rec = appRecord({ wearData: [{ date: iso(1), temp: 0.2, rhr: 61, hrv: 40, sleep: 74, sourceId: "healthkit", series: [[1, 2]] }] });
+  assert.ok(validateRecord(rec).some((p) => /intraday series/.test(p)));
+  const copy = backupCopy(rec);
+  assert.ok(!("series" in copy.wearData[0]) && copy.wearData[0].temp === 0.2, "the series is stripped from the file, the day row kept");
+  assert.ok("series" in rec.wearData[0], "the input is not changed");
 });

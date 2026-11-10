@@ -69,6 +69,10 @@ test("rails: ticks for what is logged, the next step current, the rest neutral",
   assert.deepEqual(some.map((s) => [s.state, s.sub]), [["done", "Slept well"], ["todo", "Optional"], ["done", "2 logged"]]); // Movement is optional: never "next"
   assert.deepEqual(railStates([false, false], [true, false]), ["todo", "current"]);
   assert.deepEqual(bodySteps({ preg: true }).map((s) => s.label), ["Movement", "Symptoms"]);
+  // Passive tracking S2: the auto-tracked night leads the rail while the Home card shows; Looks right ticks it.
+  assert.deepEqual(bodySteps({ auto: { confirmed: false } }).map((s) => [s.label, s.sub, s.state]), [["Auto-tracked", "Confirm", "current"], ["Sleep", "Last night", "todo"], ["Movement", "Optional", "todo"], ["Symptoms", "Today", "todo"]]);
+  assert.deepEqual(bodySteps({ auto: { confirmed: true } }).map((s) => [s.label, s.sub, s.state]).slice(0, 2), [["Auto-tracked", "Looks right", "done"], ["Sleep", "Last night", "current"]]);
+  assert.deepEqual(bodySteps({ auto: null }).map((s) => s.label), ["Sleep", "Movement", "Symptoms"]);
   assert.deepEqual(mindSteps({ moodDone: true, readReady: true }).map((s) => s.state), ["done", "done"]);
   assert.deepEqual(mindSteps({}).map((s) => s.state), ["current", "todo"]);
 });

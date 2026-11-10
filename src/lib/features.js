@@ -17,13 +17,18 @@
      signin      → oauth        (Apple / Google / Facebook name-and-email prefill)
    signin is a sixth flag beside the five D2 names: production no longer mounts oauth (D2: push + ai), so
    the default build must not offer sign-in buttons that could not work.
+   deviceSync (passive tracking S3, plan W9) is the seventh: the on-phone sources (Apple Health / Health Connect, read
+   by the app on the phone, never through a server) and everything built on their rows (the Home card, the cycle
+   markers, the PDF table, You → Data sources). ON by default, since it needs no backend module (FEATURE_MODULE null)
+   and sends nothing; it offers nothing in a browser. Oura and Fitbit/Garmin/Whoop stay behind `wearables`.
 
    Pure, with NO imports: Node (unit tests, vite.config.js) imports this file, where import.meta.env is
    undefined; the optional chaining below keeps it importable there, and Vite still inlines the value. */
 
-export const FEATURE_NAMES = Object.freeze(["wearables", "counts", "ai", "webReminders", "cloudBackup", "signin"]);
-export const DEFAULT_FEATURES = Object.freeze({ wearables: false, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: false });
-export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts: "pulse", ai: "ai", webReminders: "push", cloudBackup: "backup", signin: "oauth" });
+export const FEATURE_NAMES = Object.freeze(["wearables", "counts", "ai", "webReminders", "cloudBackup", "signin", "deviceSync"]);
+export const DEFAULT_FEATURES = Object.freeze({ wearables: false, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: false, deviceSync: true });
+/** The backend module each server feature needs; null for a feature that never touches a server (deviceSync). */
+export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts: "pulse", ai: "ai", webReminders: "push", cloudBackup: "backup", signin: "oauth", deviceSync: null });
 
 const words = (raw) => String(raw).split(",").map((w) => w.trim()).filter(Boolean);
 const known = (w) => FEATURE_NAMES.find((n) => n.toLowerCase() === w.toLowerCase());
@@ -40,7 +45,7 @@ const known = (w) => FEATURE_NAMES.find((n) => n.toLowerCase() === w.toLowerCase
 export const DEV_FLAG_NAMES = Object.freeze(["devGallery", "proDev"]);
 const devWord = (w) => DEV_FLAG_NAMES.some((n) => n.toLowerCase() === w.toLowerCase());
 
-/** raw VITE_FEATURES → a fresh plain object with all six flags (dev words are ignored here). */
+/** raw VITE_FEATURES → a fresh plain object with all seven flags (dev words are ignored here). */
 export function parseFeatures(raw) {
   if (raw == null || !String(raw).trim()) return { ...DEFAULT_FEATURES };
   const list = words(raw).filter((w) => !devWord(w));

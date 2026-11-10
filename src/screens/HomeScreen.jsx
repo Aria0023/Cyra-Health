@@ -1,5 +1,5 @@
 import { fmt } from "../lib/engine.js";
-import { SOURCES, DEMO_WEARABLES } from "../lib/wearables.js";
+import { SOURCES, SOURCES_HERE, DEMO_WEARABLES } from "../lib/wearables.js";
 import { isNative } from "../lib/native.js";
 import Advice from "../components/Advice.jsx";
 import Details, { WearableFacts } from "../components/Details.jsx";
@@ -8,7 +8,6 @@ import { dominantFamily } from "../components/PatternCharts.jsx";
 import { famVar } from "../lib/constants.js";
 import { reduceMotion } from "../lib/motion.js";
 import { InstallTip } from "../components/Pwa.jsx";
-import { FEATURES } from "../lib/features.js";
 import { useEffect, useRef, useState } from "react";
 import { Card, QuickTile, StepRail, Ring, Chip, EmptyNote, Sheet } from "../components/ui/index.js";
 import { dateEyebrow, greeting, TILES_MIN, TILES_MAX } from "../lib/home.js";
@@ -64,6 +63,7 @@ export default function HomeScreen({
   potsCard = null,
   installTip = null,
   fertRead = null,
+  autoCard = null, autoConfirmed = false,
 }) {
   const hour = new Date().getHours();
   const connectedCount = Object.values(wearSources).filter((w) => w && !w.pending).length;
@@ -71,12 +71,14 @@ export default function HomeScreen({
   const [picking, setPicking] = useState(false);
   // Today's line under the hero once today is logged: sleep and the two strongest symptoms, in words (no score).
   const todayLine = (() => {
-    if (!todayEntry) return null;
+    // Passive tracking S2: a confirmed auto-tracked night shows on the line even before today's check-in (no entry is written).
+    if (!todayEntry) return autoConfirmed ? { text: `Today · ${t("home.todayAutoConfirmed")}`, color: "var(--line)" } : null;
     const syms = scoreIds.filter((k) => (todayEntry.sym?.[k] || 0) > 0).sort((a, b) => todayEntry.sym[b] - todayEntry.sym[a]);
     const fam = dominantFamily(todayEntry, scoreIds);
     const parts = ["Today", ...(todayEntry.sleepQ ? [`slept ${SLEPT[todayEntry.sleepQ] || todayEntry.sleepQ}`] : [])];
     if (syms.length) parts.push(`${syms.slice(0, 2).map((k) => scoreLabels[k] || k).join(", ")}${syms.length > 2 ? ` +${syms.length - 2}` : ""}`);
     else parts.push("no symptoms logged");
+    if (autoConfirmed) parts.push(t("home.todayAutoConfirmed"));
     return { text: fertRead || parts.join(" · "), color: fam ? famVar(fam) : "var(--line)" };
   })();
   // Milestones: the reached ones first on the dot rail; the list under "All milestones" keeps the spec order.
@@ -144,6 +146,8 @@ export default function HomeScreen({
       {potsCard}
       {/* The install tip (web only, spec A14.1): hiding it hands focus back to the check-in button. */}
       {installTip && <InstallTip tip={installTip} returnFocusRef={ctaRef} />}
+      {/* Passive tracking S2: "Today's auto-tracked" sits above the Quick log while a source synced in the last 36 h (App.jsx). */}
+      {autoCard}
 
       {/* ---- Quick log: 2–4 tiles (her choice, You can change them here); each opens its logger. ---- */}
       <section className="quicklog" aria-labelledby="quicklog-t">
@@ -273,7 +277,7 @@ export default function HomeScreen({
         const apptIn = upcoming[0] ? daysUntil(upcoming[0].date) : null;
         const sections = [
           { id: "recap", label: "Month vs last month", status: recap ? felt : "soon", open: showRecap, set: setShowRecap },
-          FEATURES.wearables && { id: "wear", label: "Wearables", status: connectedCount ? `${connectedCount} connected` : "optional", open: showWear, set: setShowWear },
+          SOURCES_HERE && { id: "wear", label: "Wearables", status: connectedCount ? `${connectedCount} connected` : "optional", open: showWear, set: setShowWear },
           { id: "meds", label: "What I'm trying", status: lastMed ? `${lastMed.name}, day ${Math.max(1, 1 - daysUntil(lastMed.started))}` : "", open: showMeds, set: setShowMeds },
           { id: "appts", label: "Appointments", status: upcoming[0] ? `${upcoming[0].who || "visit"} ${apptIn === 0 ? "today" : `in ${apptIn} day${apptIn === 1 ? "" : "s"}`}` : "", open: showAppts, set: setShowAppts },
           { id: "journal", label: "Journal", status: lastJ ? `last entry ${wd(lastJ)}` : "", open: showJournal, set: setShowJournal },
@@ -305,7 +309,7 @@ export default function HomeScreen({
       )}
 
       {/* ---- Wearables ---- */}
-      {showWear && FEATURES.wearables && (
+      {showWear && SOURCES_HERE && (
         <div className="bodypanel detached" id="home-wear">
           <p className="ptitle">{t("home.wearables")}</p>
           <p className="hint" style={{ margin: "10px 0" }}>{t("home.entirelyOptionalCyraWorksFully")}</p>

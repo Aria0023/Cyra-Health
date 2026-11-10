@@ -78,7 +78,7 @@ export const FLOW_COPY = Object.freeze({
   }),
   details: Object.freeze({
     phoneReminders1: "Solia Health asks this phone to show one reminder on the days and at the time you chose. No server is involved.",
-    phoneReminders2: "The reminder only says \"Time for your 30-second check-in.\"",
+    phoneReminders2: "The reminder only says \"Time for your 30-second check-in.\" or, while a wearable has synced in the last 36 hours, \"Confirm today (10 s)\".",
     countsRead: "Whether or not you share, Solia Health loads last week's totals once each time it opens. That request carries nothing about you except, like any request, your device's internet address and app or browser type.",
     aiWhere: "Turn it on or off on the Ask tab.",
     summaryFields: "The summary holds your life stage; how many days you checked in; your recent cycle lengths and today's cycle day; how many days each logged symptom came up, by cycle day; sleep hours and rough nights; movement per week; mood check-ins and feeling tags as counts; PCOS signals as counts if the PCOS module is on; if Meal notes is on, how many days had each kind of meal and how often your energy was steady, dipped or crashed after a meal (counts only, never a meal or a food); your experiment's ticked days; and, only if you tick \"Include lab values\", your latest lab values rounded and without dates.",

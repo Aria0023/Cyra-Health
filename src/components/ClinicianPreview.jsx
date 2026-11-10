@@ -22,7 +22,7 @@ function Spark({ values }) {
 export default function ClinicianPreview({ model, accent, big = false }) {
   const p = pageOne(model);
   const n = Math.max(1, model.symptoms.logged);
-  const label = `Preview of page 1: ${model.header.title}, ${model.header.period}. Cycles, ${p.symptoms.length} top symptoms, ${model.treatments.length} things she is trying, ${model.labs.length} lab tests and ${p.questions.length} questions.`;
+  const label = `Preview of page 1: ${model.header.title}, ${model.header.period}. ${p.cycleRows ? `A table of ${p.cycleRows.length} cycles with the temperature rise, ` : "Cycles, "}${p.symptoms.length} top symptoms, ${model.treatments.length} things she is trying, ${model.labs.length} lab tests and ${p.questions.length} questions.`;
   return (
     <div className={`cspreview${big ? " big" : ""}`} data-paper={model.paper}>
       <div className="cspage" role="img" aria-label={label} style={sheetVars(accent)}>
@@ -34,8 +34,15 @@ export default function ClinicianPreview({ model, accent, big = false }) {
         <p className="csmade">{model.header.made}</p>
         <hr className="csrule" />
 
-        <p className="cslab">Cycles</p>
-        {model.cycles.shown && model.cycles.strip.length > 0 && (
+        <p className="cslab">{p.cycleRows ? "Cycles · newest first" : "Cycles"}</p>
+        {p.cycleRows && (
+          <table className="cstable">
+            <thead><tr><th>Start</th><th>Length</th><th>Bleeding</th><th>Temperature rise</th><th>Luteal</th></tr></thead>
+            <tbody>{p.cycleRows.map((r) => <tr key={r.start}><td>{r.startText}</td><td>{r.length}</td><td>{r.bleeding}</td><td>{r.rise}</td><td>{r.luteal}</td></tr>)}</tbody>
+          </table>
+        )}
+        {p.cycMore && <p className="csnote">{p.cycMore}</p>}
+        {!p.cycleRows && model.cycles.shown && model.cycles.strip.length > 0 && (
           <div className="csstrip">
             {model.cycles.strip.map((c) => (
               <span key={c.start} className={`cscyc${c.long ? " long" : ""}`}><b>{c.len}</b><small>{c.excluded ? "excluded" : c.long ? `over ${LONG_CYCLE} d` : "days"}</small></span>
@@ -43,8 +50,9 @@ export default function ClinicianPreview({ model, accent, big = false }) {
             {model.cycles.current != null && <span className="cscur"><small>Current cycle</small><b>day {model.cycles.current}</b></span>}
           </div>
         )}
-        {model.cycles.shown && !model.cycles.strip.length && model.cycles.currentLine && <p className="cstext">{model.cycles.currentLine}</p>}
+        {!p.cycleRows && model.cycles.shown && !model.cycles.strip.length && model.cycles.currentLine && <p className="cstext">{model.cycles.currentLine}</p>}
         <p className={`cstext${model.cycles.shown ? "" : " soft"}`}>{model.cycles.line}</p>
+        {p.cycleRows && <p className="csnote">{model.cycles.tableNote}</p>}
 
         <p className="cslab">Top symptoms · days, of {model.symptoms.logged} logged</p>
         {p.symptoms.length === 0 ? <p className="cstext soft">No symptoms logged in this period.</p> : (

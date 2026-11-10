@@ -156,7 +156,8 @@ test("disclosures: the shipping defaults (ai, webReminders), web and phone", () 
     "Questions already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms.",
     PRE.wipeMoreWeb[2],
   ]);
-  assert.deepEqual(wipeMore(DEF, true), ["Questions already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms.", PRE.wipeMoreWeb[2]]);
+  // S3: the default build offers the on-phone sources (deviceSync), so the phone's Apple Health / Health Connect line is here too.
+  assert.deepEqual(wipeMore(DEF, true), ["Questions already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms.", PRE.appleHealth, PRE.wipeMoreWeb[2]]);
   assert.equal(intakeHint(DEF), "Four quick taps. Your answers shape the whole app — one experience, built for where you are. Your answers stay on this device.");
   assert.equal(startOverText(DEF), " This deletes this phone's record for good and turns off reminders. Solia Health keeps no copy of your record on its servers, so the only way back is an encrypted backup you saved — you can restore one on the next screen.");
   assert.equal(potsTodayFoot(DEF), "Saved on this device as you tap. Solia Health's server never gets your POTS log.");
@@ -228,7 +229,8 @@ test("disclosures: singular forms for one feature", () => {
    form says Solia Health sends NO medicine or drink reminders) and startOverText (a phone-only screen, and phones always
    have reminders). LEGACY_WEAR_LINE is a constant for wearables-off builds, not a builder. */
 const OFF_RE = {
-  wearables: /Oura|Fitbit|Garmin|Whoop|Terra|wearable|watch, ring|Apple Health|Health Connect/,
+  wearables: /Oura|Fitbit|Garmin|Whoop|Terra|wearable|watch, ring/,
+  deviceSync: /Apple Health|Health Connect/, // passive tracking S3: the on-phone sources' access line follows this flag
   counts: /weekly counts|[Aa]nonymous counts|counts you|weekly totals/,
   ai: /Solia Health's AI|Anthropic/,
   signin: /Sign-in|Apple(?! Health)|Google|Facebook/,

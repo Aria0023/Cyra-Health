@@ -24,11 +24,13 @@ export default function BodyLog({ actions = [], strip = [], onPickDay, title, ro
           <h2 id="logcard-t" className="v2card-title">{title}</h2>
         </div>
         <div className="daystrip" role="group" aria-label={t("bodyLog.pickADay")} ref={stripRef}>
+          {/* Each day's name is the button's own text (WCAG 2.5.3, label in name): the visible letter and number, then the
+              full date and state for screen readers, so what is spoken starts with what is seen. */}
           {strip.map((d) => (
-            <button key={d.iso} type="button" className={`dayb${d.sel ? " sel" : ""}${d.today ? " today" : ""}`} aria-pressed={d.sel}
-              aria-label={`${d.long}${d.today ? ", today" : ""}${d.logged ? ", logged" : ""}`} onClick={() => onPickDay(d.iso)}>
-              <span className="dayb-wd" aria-hidden="true">{d.wd}</span>
-              <span className="dayb-dn" aria-hidden="true">{d.dn}</span>
+            <button key={d.iso} type="button" className={`dayb${d.sel ? " sel" : ""}${d.today ? " today" : ""}`} aria-pressed={d.sel} onClick={() => onPickDay(d.iso)}>
+              <span className="dayb-wd">{d.wd}</span>
+              <span className="dayb-dn">{d.dn}</span>
+              <span className="sr-only">{`, ${d.long}${d.today ? ", today" : ""}${d.logged ? ", logged" : ""}`}</span>
               <span className={`dayb-dot${d.logged ? " on" : ""}`} aria-hidden="true" />
             </button>
           ))}
@@ -36,10 +38,11 @@ export default function BodyLog({ actions = [], strip = [], onPickDay, title, ro
         <ul className="logrows">
           {rows.map((r) => (
             <li key={r.id} className={`logrow-li${r.logged ? " is-logged" : ""}`}>
-              <button type="button" className="logrow" data-row={r.id} onClick={() => onRow(r.id)} aria-label={`${r.label}: ${r.value || "nothing yet"}. ${r.logged ? "Edit" : "Add"}`}>
+              {/* The row's name is its own text (WCAG 2.5.3): label, value, then "Logged" (plus "edit" for screen readers) or "Add". */}
+              <button type="button" className="logrow" data-row={r.id} onClick={() => onRow(r.id)}>
                 <IBadge icon={r.icon} tint={r.tint} size={34} />
                 <span className="logrow-txt"><b>{r.label}</b>{r.value ? <span className="logrow-val">{r.value}</span> : <span className="logrow-val none">{t("bodyLog.nothingYet")}</span>}</span>
-                {r.logged ? <Chip variant="logged" /> : <span className="logrow-add" aria-hidden="true"><Icon name="plus" size={14} />{t("bodyLog.add")}</span>}
+                {r.logged ? <><Chip variant="logged" /><span className="sr-only">, edit</span></> : <span className="logrow-add"><Icon name="plus" size={14} />{t("bodyLog.add")}</span>}
               </button>
               {r.id === "meds" && meds.length > 0 && (
                 <div className="medquick" role="group" aria-label={t("bodyLog.taken")}>

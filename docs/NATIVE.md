@@ -354,6 +354,15 @@ commit the change.
 
 ## 7. Reminders on the phone
 
+**Confirm from the notification (passive tracking S3, plan §2.6).** Besides the reminders, the phone app may schedule
+one more local notification, id 1100, action type `confirm-night` ("Last night synced. Looks right?" with the actions
+Looks right and Open; `src/lib/confirmNight.js`, `src/lib/notifications.js`). It is scheduled for 07:00 local only when a
+sync landed overnight before 07:00 and the night is not yet confirmed, never earlier, and cancelled otherwise; in this
+build the app syncs only while it runs, so it fires when the app resumed early (iOS background delivery and an Android
+job come later, plan W2). Looks right fires `localNotificationActionPerformed`, which writes `confirmations[day]` with
+`via: "notification"` and opens no screen; Open opens Home. A reminder change leaves it alone; Delete everything cancels
+it. No server, no reading in the text.
+
 Reminders are off until the person turns them on. They are local notifications: one
 weekly-repeating notification per chosen weekday, at the chosen time, with a generic text
 ("Time for your 30-second check-in."). Turning reminders off, choosing "When I feel like

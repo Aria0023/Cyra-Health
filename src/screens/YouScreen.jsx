@@ -52,7 +52,7 @@ const StageArt = () => (
     <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
   </svg>
 );
-export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, account = null, language = null, meals = null }) {
+export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, account = null, language = null, meals = null, dataSources = null }) {
   const offer = ai.offer || { any: false, weekly: false, chat: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
@@ -99,6 +99,9 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
           </Details>
         </Card>
       )}
+
+      {/* Passive tracking S3: Data sources (components/DataSourcesCard.jsx), where she manages every source and reads the spike's numbers. */}
+      {dataSources}
 
       <Card id="you-plan" tint="patterns" icon="sparkle" eyebrow={PLAN_COPY.eyebrow} title={planUnlocked ? PLAN_COPY.test : PLAN_COPY.free} level={2} className="youplan" badge={<Chip variant="pro" />}>
         <p>{PLAN_COPY.body}</p>

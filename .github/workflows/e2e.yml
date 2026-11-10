@@ -1,0 +1,39 @@
+# Unit tests, the production build, the backend smoke tests and the in-repo Playwright harness (e2e/) on every push to
+# main and every pull request. Chromium is installed HERE with `npx playwright install --with-deps chromium`
+# (never in the development container, where the browser is pre-installed and downloads are off).
+name: e2e
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CYRA_SKIP_POLICY_FETCH: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run test:unit
+      - run: npm run build
+      - name: build stamp
+        run: test "$(cat dist/assets/index-*.js | grep -o 'BUILD 2026\.10\.07-D' | wc -l)" = "1"
+      - name: backend smoke
+        run: cd backend && npm ci && npm run smoke:all
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - run: npm run e2e:axe
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-results
+          path: |
+            e2e/test-results
+            e2e/report
+          if-no-files-found: ignore

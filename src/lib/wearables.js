@@ -29,17 +29,25 @@
    Every source yields the same per-day row: { date, temp (°C deviation), rhr, hrv, sleep }. */
 import { API_BASE, apiPost, apiFetch } from "./api.js";
 import { isNative, platform, hasPlugin, CyraHealth, appReturnUrl, newAppVerifier, waitForAppUrl } from "./native.js";
+import { FEATURES } from "./features.js";
 
-/** The sources this build can offer. Apple Health / Health Connect only exist in the phone app. */
+/** The sources this build can offer. Apple Health / Health Connect only exist in the phone app, behind the deviceSync flag
+    (on by default, passive tracking S3); Oura and Fitbit/Garmin/Whoop go through Solia Health's server and stay behind `wearables`. */
+export const ON_PHONE_ID = "healthkit";
+export const SERVER_IDS = Object.freeze(["oura", "terra"]);
 export const SOURCES = [
-  ...(isNative()
+  ...(isNative() && FEATURES.deviceSync
     ? [platform() === "android"
       ? { id: "healthkit", name: "Health Connect", what: "skin temperature, resting heart rate, HRV, sleep · read on this phone" }
       : { id: "healthkit", name: "Apple Watch · Health app", what: "wrist temperature, resting heart rate, HRV, sleep · read on this phone" }]
     : []),
-  { id: "oura", name: "Oura Ring", what: "temperature, resting heart rate, HRV, sleep score · passes through Solia Health's server, readings not stored", viaServer: true },
-  { id: "terra", name: "Fitbit · Garmin · Whoop", what: "through Terra, a health-data service · waits on Solia Health's server up to 7 days", viaServer: true },
+  ...(FEATURES.wearables ? [
+    { id: "oura", name: "Oura Ring", what: "temperature, resting heart rate, HRV, sleep score · passes through Solia Health's server, readings not stored", viaServer: true },
+    { id: "terra", name: "Fitbit · Garmin · Whoop", what: "through Terra, a health-data service · waits on Solia Health's server up to 7 days", viaServer: true },
+  ] : []),
 ];
+/** Whether this build offers any source at all (the Wearables door, the signals, You → Data sources). */
+export const SOURCES_HERE = SOURCES.length > 0;
 /** Sources that go through Cyra's server, need a disclosure before connecting, and can be disconnected. */
 export const VIA_SERVER = new Set(SOURCES.filter((s) => s.viaServer).map((s) => s.id));
 export const DEMO_WEARABLES = import.meta.env.VITE_DEMO_WEARABLES === "true";
