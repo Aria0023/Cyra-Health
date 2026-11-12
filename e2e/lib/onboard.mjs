@@ -37,6 +37,9 @@ export async function register(page, { url = process.env.E2E_URL, stage = "My Cy
     if (lastPeriod) await page.locator('input[type="date"]').fill(lastPeriod);
     await next(page);
   }
+  // Connect a device? (Task 2, builds that offer a device): optional, so Continue moves on
+  await expect(page.getByRole("heading", { name: /^(Connect a device\?|Your data and your choices)$/ })).toBeVisible();
+  if (await page.getByRole("heading", { name: "Connect a device?" }).isVisible()) await next(page);
   // Consent: only the agreement box is required; nothing is pre-ticked
   await page.getByRole("checkbox", { name: /I agree to/ }).click();
   await page.getByRole("button", { name: "Enter Solia Health" }).click();

@@ -48,15 +48,18 @@ export const STEP_COPY = {
   account: { short: "Device", title: "Set up Solia Health on this device", sub: "There's no Solia Health account. Your name, email and answers are saved on this device. Lose the device or clear the browser and you lose them, unless you saved an encrypted backup, which keeps most of them." },
   cycle: { short: "Cycle", title: "Your cycle history", sub: "So predictions can start from day one. These answers stay on this device, and go into an encrypted backup only if you save one." },
   pregnancy: { short: "Pregnancy", title: "Your pregnancy", sub: "So your week and your care roadmap start in the right place. Your due date stays on this device, and goes into an encrypted backup only if you save one." },
+  devices: { short: "Devices", title: "Connect a device?", sub: "Optional: you can skip this and connect one later from Home or You. Each one says what it reads and where its readings go." },
   consent: { short: "Consent", title: "Your data and your choices", sub: "What Solia Health does with your data today — and choices you can change later in Settings." },
 };
 
 /** The steps for a stage card label (null before she picks one): 5 for the cycle stages (with the optional PCOS step),
     4 for Pregnant, 3 for Menopause & beyond. Before a stage is picked the cycle flow is shown (the most common). */
-export function regSteps(stageLabel, { signin = false } = {}) {
-  const steps = stageLabel === "Pregnant" ? ["stage", "account", "pregnancy", "consent"]
+export function regSteps(stageLabel, { signin = false, devices = false } = {}) {
+  const base = stageLabel === "Pregnant" ? ["stage", "account", "pregnancy", "consent"]
     : stageLabel === "Menopause & beyond" ? ["stage", "account", "consent"]
     : ["stage", "pcos", "account", "cycle", "consent"];
+  // Task 2: "Connect a device?" (optional) right after Cycle / Pregnancy, before Consent, in a build that offers a device.
+  const steps = devices ? [...base.slice(0, -1), "devices", "consent"] : base;
   // Sign-in (Task 1, lib/signin.js): in a build that offers it, "Create your account" comes first, before the stage.
   return signin ? ["signin", ...steps] : steps;
 }

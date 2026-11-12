@@ -16,7 +16,7 @@ services:
       # Sign-in is required by default (VITE_REQUIRE_SIGNIN unset = "true"); set "false" to offer it with a skip.
       - key: VITE_REQUIRE_SIGNIN
         value: "true"
-      # VITE_FEATURES unset = the shipping defaults (Ask Cyra's AI, browser reminders, sign-in, and deviceSync: the on-phone
+      # VITE_FEATURES unset = the shipping defaults (Ask Cyra's AI, browser reminders, sign-in, wearables, and deviceSync: the on-phone
       # Apple Health / Health Connect sources in the phone app, no server module). To offer more (wearables, counts,
       # signin, cloudBackup; .env.example), set it here AND add the matching module to backend/config/app.json.
       # Published Terms and Privacy Policy (https://…), linked from the consent step. Public, not
@@ -72,8 +72,8 @@ services:
       - key: AUTH_SECRET
         sync: false
       # Sign-in (required since 2026-11-12): config/app.json mounts oauth and accounts, so the Apple / Google /
-      # Facebook keys below and RESEND_API_KEY + EMAIL_FROM are needed in production. Oura and Terra keys are used only
-      # when config/app.json mounts integrations.
+      # Facebook keys below and RESEND_API_KEY + EMAIL_FROM are needed in production. config/app.json also mounts
+      # integrations (wearables on by default), so the Oura and Terra keys are needed for those rows to connect.
       - key: RESEND_API_KEY
         sync: false
       - key: EMAIL_FROM

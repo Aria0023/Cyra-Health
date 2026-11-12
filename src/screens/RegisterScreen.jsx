@@ -18,6 +18,7 @@ import Details, { WebReminderFacts } from "../components/Details.jsx";
 import { ChipRow } from "../components/AnswerChips.jsx";
 import Icon from "../components/Icon.jsx";
 import SignInStep from "../components/SignInStep.jsx";
+import { DeviceList } from "../components/Devices.jsx";
 import { t } from "../lib/i18n.js";
 import { stepCopy } from "../locales/index.js";
 
@@ -50,8 +51,8 @@ import { stepCopy } from "../locales/index.js";
 // The icon beside each data fact on the consent step (decorative; the sentence is unchanged).
 const FACT_ICONS = ["lock", "share", "heart", "clipboard", "trash", "file"];
 
-export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTouched, setRegTouched, cadence, setCadence, finishReg, onBackToSplash, scheme = "light", signinStep = null }) {
-  const steps = regSteps(reg.stage, { signin: !!signinStep });
+export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTouched, setRegTouched, cadence, setCadence, finishReg, onBackToSplash, scheme = "light", signinStep = null, devicesStep = null }) {
+  const steps = regSteps(reg.stage, { signin: !!signinStep, devices: !!devicesStep });
   const key = steps[Math.min(regStep, steps.length - 1)];
   // A build with sign-in and a server has accounts: the Device step's "There's no Solia Health account" can't be said there.
   const copyKey = key === "account" && signinStep && hasServer() ? "deviceSignin" : key;
@@ -65,6 +66,8 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
     window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
     headRef.current?.focus({ preventScroll: true });
   }, [regStep]);
+  // The device list asks the server which connections it can make only once she reaches that step.
+  useEffect(() => { if (key === "devices") devicesStep?.onShow?.(); }, [key]); // eslint-disable-line
   const miss = missingFor(key, reg);
   const bad = (k) => !!regTouched[key] && miss.includes(k);
   const rup = (k, v) => setReg((x) => ({ ...x, [k]: v }));
@@ -178,6 +181,9 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
           <p className="rfoot">{t("onb.notSureYetLeaveIt")}</p>
         </>
       )}
+
+      {/* Task 2: optional; the nav's Continue moves on whether or not she connects anything. */}
+      {key === "devices" && devicesStep && <DeviceList {...devicesStep} />}
 
       {key === "consent" && (
         <>

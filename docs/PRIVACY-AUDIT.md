@@ -2097,3 +2097,21 @@ flag and payload); `sw.test.mjs`, `notifications.test.mjs`, `autoTracked.test.mj
 - **For counsel:** the privacy policy draft's account row, processors (Resend) and CCPA table are updated (still Draft,
   noindex); the terms draft's "Accounts and sign-in" now says the app asks for an account.
 
+## Connect your devices (owner decision 2026-11-12, Task 2) — the Oura / Terra pass-through is now ON by default
+
+- **What is new:** one "Connect your devices" list (registration step, a dismissible Home card, You → Data sources).
+  The `wearables` flag is on by default and the production backend mounts `integrations`.
+- **Owner decision, recorded:** the server-mediated sources (Oura, Fitbit/Garmin/Whoop through Terra) were off by default
+  pending a privacy review of the pass-through. The owner turned them on (2026-11-12). **The earlier privacy-review
+  recommendation still stands** and should be done before a public launch: Terra keeps its own copy under its policy,
+  and the server holds Terra's daily readings in memory for up to 7 days.
+- **What leaves the device:** unchanged from the existing flows, and only after her tap on Connect: Oura's sign-in and
+  each sync's token (readings pass through, not stored); Terra's mailbox key (readings wait in server memory up to 7 days).
+  Opening the list asks the server `GET /api/integrations/sources` (which sources it can serve; nothing about her).
+  Apple Health / Health Connect are read on the phone and never sent.
+- **Sentences checked against the code:** the brief's shorthand "pass through Solia Health's server, not kept" is true
+  for Oura only. The Terra row says the server holds the daily readings until this device collects them, 7 days at most,
+  and that Terra keeps its own copy (`devices.test.mjs` pins both). Every flag-dependent sentence in
+  `lib/disclosures.js` already had its wearables wording (it now shows in the default build).
+- **New device-only key:** `devicesHint` ("hidden" after Not now), never in a backup.
+

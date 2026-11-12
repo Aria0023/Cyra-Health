@@ -4,12 +4,15 @@
    wearable connection, sign-in prefill) still starts off until she turns it on, and says exactly what
    it sends before she does. A feature that is off leaves no trace in the app and makes no request.
 
-   VITE_FEATURES: unset or empty = the shipping defaults (ai, webReminders, signin, deviceSync); a comma list REPLACES the
+   VITE_FEATURES: unset or empty = the shipping defaults (ai, webReminders, signin, deviceSync, wearables); a comma list REPLACES the
    defaults ("counts,ai" offers only those two); "all" = every feature; "none" = none. Names are matched
    without regard to case; an unknown name is ignored (vite.config.js warns about it at build time).
 
    Each server feature also needs its backend module listed in backend/config/app.json ("modules"):
-     wearables   → integrations (Oura, Fitbit/Garmin/Whoop via Terra; on the phone also Apple Health / Health Connect)
+     wearables   → integrations (Oura, Fitbit/Garmin/Whoop via Terra; on the phone also Apple Health / Health Connect).
+                                 ON by default since 2026-11-12 (owner decision, Task 2): one "Connect your devices"
+                                 list (lib/devices.js); the earlier privacy-review recommendation for the pass-through
+                                 still stands (docs/PRIVACY-AUDIT.md).
      counts      → pulse        (anonymous weekly counts, "You're not alone")
      ai          → ai           ("Also ask Cyra's AI")
      webReminders→ push         (reminders in a browser; phones schedule local notifications and need no server)
@@ -28,7 +31,7 @@
    undefined; the optional chaining below keeps it importable there, and Vite still inlines the value. */
 
 export const FEATURE_NAMES = Object.freeze(["wearables", "counts", "ai", "webReminders", "cloudBackup", "signin", "deviceSync"]);
-export const DEFAULT_FEATURES = Object.freeze({ wearables: false, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: true, deviceSync: true });
+export const DEFAULT_FEATURES = Object.freeze({ wearables: true, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: true, deviceSync: true });
 /** The backend module each server feature needs; null for a feature that never touches a server (deviceSync). */
 export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts: "pulse", ai: "ai", webReminders: "push", cloudBackup: "backup", signin: "accounts", deviceSync: null });
 /** Further backend modules a server feature also needs: sign-in with Apple, Google or Facebook runs through oauth. */

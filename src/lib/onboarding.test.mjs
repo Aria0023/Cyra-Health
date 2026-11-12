@@ -157,3 +157,12 @@ test("regSteps with sign-in: Create your account comes first for every stage; a 
   assert.ok(!/no Solia Health account/i.test(STEP_COPY.deviceSignin.sub), "the Device step in a sign-in build never says there is no account");
 });
 
+test("regSteps with devices (Task 2): Connect a device? sits right before Consent, after Cycle or Pregnancy", () => {
+  for (const l of [null, ...Object.keys(REG_STAGE)]) {
+    const st = regSteps(l, { signin: true, devices: true });
+    assert.deepEqual(st, [...regSteps(l, { signin: true }).slice(0, -1), "devices", "consent"]);
+    assert.equal(missingFor("devices", {}).length, 0, "optional");
+  }
+  assert.deepEqual(regSteps("Pregnant", { devices: true }), ["stage", "account", "pregnancy", "devices", "consent"]);
+});
+

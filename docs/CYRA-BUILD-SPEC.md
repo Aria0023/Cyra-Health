@@ -2199,6 +2199,20 @@ the Oura check after a restore, Delete everything's wearable steps). Recorded ro
 travel in backups; Delete everything shows "Cyra can't end a wearable connection from this version. …" when the record
 still holds a real one.
 
+### A9.1 Connect your devices (owner request 2026-11-12; docs/plans/account-wearables-evidence.md Task 2)
+One list (`lib/devices.js deviceRows`, `components/Devices.jsx`) in three places: the optional registration step
+"Connect a device?" right after Cycle / Pregnancy (before Consent; Continue skips), a dismissible Home card ("Connect a
+device", shown until a source is connected or she taps Not now; `devicesHint` is device-only, never in a backup) that opens
+the "Connect your devices" sheet, and a "Connect a device" button at the top of You → Data sources.
+Rows, in order: Apple Health (iPhone app), Health Connect (Android app), Oura Ring, Fitbit · Garmin · Whoop (via Terra).
+Each says what it reads and where its readings go, as the code does it: on-phone sources are read on the phone and never
+sent; Oura passes through the server without being kept; Terra's daily readings wait in server memory until the phone
+collects them, 7 days at most, and Terra keeps its own copy. One tap connects (the row is the disclosure). In a browser
+the on-phone rows say "In the iPhone app" / "In the Android app" (no dead button); a server source whose keys the server
+doesn't have (`GET /api/integrations/sources`) says "Not set up yet". Connected rows: "Connected · synced <today | yesterday
+| n days ago>" and Disconnect (readings already imported stay). `wearables` is on by default and production mounts
+`integrations`. Tests: `src/lib/devices.test.mjs`, `e2e/devices.spec.mjs`, `e2e/devices-axe.spec.mjs`.
+
 ## A10. Milestones (Home)
 Usage: first week, full month, wearable connected, started a trial, first visit debriefed.
 Clinical by stage — Cycle: first full cycle, 3 cycles, ovulation confirmed by temperature.

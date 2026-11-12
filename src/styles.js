@@ -448,6 +448,20 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 .signin-done { display:flex; align-items:center; gap:8px; font-size:16px; font-weight:700; color:var(--ink); margin:14px 0 6px; }
 .signin-done svg { color:var(--primary); flex-shrink:0; }
 .signincard .acctwho { overflow-wrap:anywhere; }
+.devlist { list-style:none; margin:12px 0 0; padding:0; display:grid; gap:12px; }
+.devrow { border:1px solid var(--line); border-radius:var(--r-card); background:var(--card); padding:14px; }
+.devrow-main { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.devinfo { display:grid; gap:2px; min-width:0; }
+.devinfo b { font-size:16px; color:var(--ink); }
+.devstatus { font-size:15px; color:var(--soft); }
+.devrow.st-connected .devstatus { color:var(--ink); font-weight:600; }
+.devrow .takebtn { min-height:44px; flex-shrink:0; }
+.devline { font-size:16px; line-height:1.45; color:var(--soft); margin:8px 0 0; }
+.devline b { color:var(--ink); font-weight:600; }
+.devlead { margin-top:0; }
+.devhome-acts { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin-top:10px; }
+.devhome-acts .linkbtn { min-height:44px; }
+.srcdevices { display:inline-flex; align-items:center; gap:8px; margin:4px 0 10px; min-height:44px; }
 .socialdot { width:12px; height:12px; border-radius:50%; }
 /* ---- UI O1: onboarding. Splash motif + promise rows; step 1 providers 3-up (Apple leftmost, inline marks); the stage
    cards carry their palette swatch and the chosen one a check; the consent cadence is a two-column grid; each step slides

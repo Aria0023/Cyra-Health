@@ -13,5 +13,9 @@ Baseline (2026-11-12, before any change): lint 0 errors (26 warnings), unit 574/
 - e2e harness now builds a second bundle (dist-e2e-api) with VITE_API_BASE=https://api.solia.test, answered by
   e2e/lib/api.mjs (page.route); the walker's `signin` option handles the new first step.
 
-## Task 2: Easy wearable setup: not started
+## Task 2: Easy wearable setup: DONE (commit "Devices: one place to connect wearables, from onboarding, Home and You")
+- lib/devices.js + components/Devices.jsx: one list; registration step "devices" (before Consent), Home card
+  (devicesHint, device-only), sheet, You → Data sources button; wearables on by default; production mounts integrations
+- Terra row wording follows the code (held up to 7 days), not the brief's "not kept" (Oura only)
+- Verified: lint 0 errors (25 warnings); unit 585/585; backend 13/13; smoke:all passed; build stamp once; e2e 15/15; axe 17/17
 ## Task 3: Pro = evidence-based AI: not started

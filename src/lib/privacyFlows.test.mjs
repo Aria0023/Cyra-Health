@@ -72,7 +72,7 @@ test("privacyFlows: cloud is 'na' unless the flag and the plan allow it; every i
   // D2 / D3 acceptance: the rows a build renders (state ≠ na)
   const shown = (c) => flowRows(c).filter((r) => r.state !== "na").map((r) => r.name);
   assert.deepEqual(shown({ ...base, server: false, flags: DEF }), ["Backups and files you make"]);
-  assert.deepEqual(shown({ ...base, server: true, flags: DEF }), ["Browser reminders", "Ask Solia Health's AI", "Backups and files you make"]);
+  assert.deepEqual(shown({ ...base, server: true, flags: DEF }), ["Browser reminders", "Ask Solia Health's AI", "Wearable connections", "Backups and files you make"], "Task 2: wearables on by default");
   assert.deepEqual(shown({ ...base, server: true, flags: ALL }), ["Browser reminders", "Weekly counts", "Ask Solia Health's AI", "Wearable connections", "Backups and files you make"]);
 });
 

@@ -68,6 +68,7 @@ import { cleanNightSkips, cleanConfirmations, cleanTrackStats, cleanSourceExtras
  * @property {{weekly: boolean, chat: boolean, labs: boolean}} aiPrefs [device-only] calm R8: her switches for Cyra's weekly write-up and chat (Pro) and "Include lab values".
  * @property {Array<{role: "me"|"cyra", text: string, kind?: "urgent", ask?: string}>} aiChat [device-only, not-in-backup] calm R8: the chat about her log, on this device only.
  * @property {{writeup: string, ask: string|null, day: string|null}|null} aiWeekly [device-only, not-in-backup] calm R8: the last weekly write-up, on this device only.
+ * @property {null|"hidden"} devicesHint [device-only, not-in-backup] Task 2: Home's "Connect a device" card hidden with Not now.
  * @property {null|{token: string, id: string, provider: "apple"|"google"|"facebook"|"email", email: string, name: string, createdAt: string}} signin [device-only, not-in-backup] Task 1: this device's session with her Solia Health account (lib/signin.js); never in any backup.
  * @property {{rev: number, acct: null|{email: string, lookup: string, token: string, salt: string, key: string, version: number|null, at: string|null, since: string|null}}} cloudAccount [device-only, not-in-backup] calm R9: the optional account this device is signed in to (lib/account.js); holds the backup key, so it never goes into any backup.
  * @property {RegAnswers|null} regAnswers [record] registration and About you answers (in the backup file without zip and age).
@@ -267,8 +268,10 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    keeps this device's value; Delete everything removes it with the record. Never sent.
    signin (Task 1, lib/signin.js) is this device's session with her Solia Health account: { token, id, provider, email,
    name, createdAt } or null. Device-only AND never in any backup; a restore keeps this device's value; Delete everything
-   deletes the account on the server first, then removes it with the record. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin"]);
+   deletes the account on the server first, then removes it with the record.
+   devicesHint (Task 2, lib/devices.js) is "hidden" once she taps Not now on Home's "Connect a device" card, else null:
+   device-only and never in a backup. */
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -276,7 +279,7 @@ export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "ca
    is whether this browser's Home install tip should stay away (null | "dismissed" |
    "installed", lib/pwa.js), also left out of the backup file; exportLog is this device's count of
    appointment PDFs this month (L9), null while exports are unlimited, also left out of the file. */
-export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin"]);
+export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint"]);
 /* A display preference of this device (L2): appearance ("system" | "light" | "dark", lib/appearance.js).
    It is saved with the record and followed by every open tab of this browser (so it stays in RECORD,
    they are all the same device), but it is never in a backup file and never taken from one:
@@ -291,7 +294,7 @@ export const RECORD = Object.freeze(PERSISTED.filter((k) => !DEVICE_ONLY.include
    lastBackupAt (this device's own note of when it last backed up), installHint (whether this
    device's install tip is hidden), exportLog (this device's PDF count this month, L9) and appearance
    (this device's light/dark choice). */
-export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", ...DEVICE_PREFS]);
+export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", ...DEVICE_PREFS]);
 
 /** The record as it goes into an encrypted backup file, as a new object (the input is not
     changed): every saved key, except that regAnswers loses zip and age (neither is used after
@@ -498,6 +501,7 @@ export const RULES = Object.freeze({
   aiChat: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanAiChat(v)) ? [] : [`${p}: expected a list of { role: me|cyra, text } (at most 40), got ${show(v)}`]),
   aiWeekly: (v, p) => (v === null || JSON.stringify(v) === JSON.stringify(cleanAiWeekly(v)) ? [] : [`${p}: expected null or { writeup, ask, day }, got ${show(v)}`]),
   cloudAccount: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanCloudAccount(v)) ? [] : [`${p}: expected { rev, acct } (lib/account.js), got ${show(v)}`]),
+  devicesHint: (v, p) => (v === null || v === undefined || v === "hidden" ? [] : [`${p}: expected null or "hidden", got ${show(v)}`]),
   signin: (v, p) => (v === null || v === undefined || JSON.stringify(v) === JSON.stringify(cleanSignin(v)) ? [] : [`${p}: expected null or { token, id, provider, email, name, createdAt } (lib/signin.js), got a value that isn't a session`]),
   regAnswers: (v, p) => {
     if (v === null) return [];

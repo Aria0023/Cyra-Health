@@ -285,3 +285,16 @@ export async function disconnectSource(id, state, { timeoutMs = 15000 } = {}) {
   }
   return true;
 }
+
+/** Which server-mediated sources this server can connect (GET /api/integrations/sources → { oura, terra }); null when it
+    couldn't be asked. Nothing about her is sent. Task 2: the device list says "Not set up yet" for one that is false. */
+export async function fetchServerSources() {
+  if (!API_BASE) return null;
+  try {
+    const r = await apiFetch("/api/integrations/sources", { method: "GET" }, { timeoutMs: 10000 });
+    if (!r.ok) return r.status === 404 ? { oura: false, terra: false } : null;
+    const j = await r.json();
+    return { oura: j?.oura === true, terra: j?.terra === true };
+  } catch { return null; }
+}
+

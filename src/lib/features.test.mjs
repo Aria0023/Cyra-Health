@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { FEATURE_NAMES, DEFAULT_FEATURES, FEATURE_MODULE, FEATURE_ALSO, FEATURES, parseFeatures, unknownFeatures, feature, remindersInBuild, DEV_FLAG_NAMES, DEV_FLAGS, parseDevFlags } from "./features.js";
 
-const DEFAULTS = { wearables: false, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: true, deviceSync: true };
+const DEFAULTS = { wearables: true, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: true, deviceSync: true };
 const only = (...on) => Object.fromEntries(FEATURE_NAMES.map((n) => [n, on.includes(n)]));
 
 test("features: unset, empty or blank gives a fresh copy of the shipping defaults", () => {
@@ -12,8 +12,8 @@ test("features: unset, empty or blank gives a fresh copy of the shipping default
     const f = parseFeatures(raw);
     assert.deepEqual(f, DEFAULTS, `parseFeatures(${JSON.stringify(raw)})`);
     assert.notEqual(f, DEFAULT_FEATURES);
-    f.wearables = true;
-    assert.equal(DEFAULT_FEATURES.wearables, false, "mutating the copy leaves the defaults alone");
+    f.counts = true;
+    assert.equal(DEFAULT_FEATURES.counts, false, "mutating the copy leaves the defaults alone");
   }
   assert.deepEqual({ ...DEFAULT_FEATURES }, DEFAULTS);
   assert.ok(Object.isFrozen(DEFAULT_FEATURES));
@@ -43,7 +43,8 @@ test("features: in Node (no import.meta.env) FEATURES is the frozen default set"
   assert.deepEqual({ ...FEATURES }, DEFAULTS);
   assert.ok(Object.isFrozen(FEATURES));
   assert.equal(feature("ai"), true);
-  assert.equal(feature("wearables"), false);
+  assert.equal(feature("wearables"), true, "Task 2: wearables on by default");
+  assert.equal(feature("counts"), false);
   assert.equal(feature("nope"), false);
 });
 
@@ -68,7 +69,7 @@ test("features: the production backend mirrors the default build (D2)", () => {
   const dev = JSON.parse(readFileSync(new URL("../../backend/config/app-dev.json", import.meta.url), "utf8"));
   const want = FEATURE_NAMES.filter((n) => DEFAULT_FEATURES[n] && FEATURE_MODULE[n]).flatMap((n) => [FEATURE_MODULE[n], ...(FEATURE_ALSO[n] || [])]).sort();
   assert.deepEqual([...prod.modules].sort(), want);
-  assert.deepEqual(want, ["accounts", "ai", "oauth", "push"]);
+  assert.deepEqual(want, ["accounts", "ai", "integrations", "oauth", "push"]);
   assert.ok(!prod.modules.includes("backup"), "the backup module is not mounted in production");
   for (const m of [...Object.values(FEATURE_MODULE), ...Object.values(FEATURE_ALSO).flat()]) if (m) assert.ok(dev.modules.includes(m), `app-dev.json lists ${m}`);
 });

@@ -211,6 +211,7 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `confirmations` | her "Looks right" per wake day, `{ [day]: { at, took?: ms, via: "app" \| "notification" } }` (passive tracking S1) | health log (her tap) | yes | yes (literally) | yes |
 | `trackStats` | this device's count of confirmed nights, how many under 15 s, the last 200 timings and the day a source was first connected (`{ confirmed, fast, tooks, sourceSince, firstConfirm }`, plan §8; shown in You → Data sources → "How this is going") | device-only | **no** (NOT_IN_BACKUP) | no (this device keeps its own) | no |
 | `signin` | this device's session with her Solia Health account (`{ token, id, provider, email, name, createdAt }`, Task 1, `lib/signin.js`); the server keeps the account record, never her log | device-only | **no** (NOT_IN_BACKUP) | no (this device keeps its own) | no |
+| `devicesHint` | `"hidden"` once she taps Not now on Home's "Connect a device" card, else null (Task 2, `lib/devices.js`) | device-only | **no** (NOT_IN_BACKUP) | no (this device keeps its own) | no |
 | `reminders` | the switch, this browser's push addresses, a version | bookkeeping | `{ enabled }` only | on the phone only (the web keeps this browser's switch) | own merge (`rev`, the `reminders` message) |
 
 "In the backup file" means inside the encrypted envelope (`lib/backup.js`, PBKDF2-SHA256 600,000
