@@ -26,10 +26,10 @@ test("mood check-in: five faces in words, clean days, tags in library order, lev
   assert.ok(FEELING_IDS.length >= 8);
 });
 
-test("library: five needs, every practice in at least one, 2–5 minutes, 4–5 free, each with an evidence line and a support or comfort line", () => {
+test("library: five needs, every practice in at least one, 2–5 minutes, every one free (Task 3), each with an evidence line and a support or comfort line", () => {
   assert.deepEqual(NEEDS.map((n) => n.label), ["Feel calmer", "Ease worry", "Clear brain fog", "Lift low energy", "Wind down & rest"]);
   for (const n of NEED_IDS) assert.ok(practicesFor(n).length >= 2, n);
-  assert.ok(FREE_PRACTICES.length >= 4 && FREE_PRACTICES.length <= 5, FREE_PRACTICES.join());
+  assert.deepEqual(FREE_PRACTICES, PRACTICES.map((p) => p.id), "Task 3: every practice is free");
   for (const n of NEED_IDS) assert.ok(practicesFor(n).some((p) => p.free), `a free practice for ${n}`);
   for (const p of PRACTICES) {
     assert.ok(p.min >= 2 && p.min <= 5, p.id);
@@ -97,7 +97,7 @@ test("practice log: runs, Which one helped?, today's list, favourites", () => {
   assert.deepEqual(cleanPracticeFavs(["x", "box", "box"]), ["box"]);
 });
 
-test("your next practice: from today's check-in, unlocked only, preferring what helped", () => {
+test("your next practice: from today's check-in, preferring what helped", () => {
   assert.equal(needFrom({ fog: 3 }, 10).need, "fog");
   assert.equal(needFrom({ tags: ["anxious"] }, 10).need, "worry");
   assert.equal(needFrom({ mood: 1 }, 10).need, "low");
@@ -109,10 +109,9 @@ test("your next practice: from today's check-in, unlocked only, preferring what 
   assert.equal(nextPractice({ day: { tags: ["anxious"] }, hour: 10 }).practice.id, "ground");
   assert.equal(nextPractice({ day: { fog: 3 }, hour: 10 }).practice.id, "move");
   assert.equal(nextPractice({ day: {}, hour: 23 }).practice.id, "winddown");
-  // A locked practice she marked helpful is skipped on the free plan and preferred with Pro.
+  // Task 3: every practice is free, so one she marked helpful is preferred on every plan.
   const log = setHelped(addRun([], { id: "a", p: "reframe", day: "2026-10-28", sec: 200, done: true }), "a", "yes");
-  assert.equal(nextPractice({ day: { tags: ["anxious"] }, hour: 10, log }).practice.id, "ground");
-  assert.equal(nextPractice({ day: { tags: ["anxious"] }, hour: 10, log, canFull: true }).practice.id, "reframe");
+  assert.equal(nextPractice({ day: { tags: ["anxious"] }, hour: 10, log }).practice.id, "reframe");
   for (const d of [{}, { mood: 1 }, { fog: 3 }, { tags: ["overwhelmed"] }, { energy: 1 }]) for (const h of [3, 10, 22]) assert.ok(unlocked(nextPractice({ day: d, hour: h }).practice, false));
 });
 

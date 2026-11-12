@@ -123,7 +123,8 @@ const breath = (inS, holdIn, outS, holdOut) => Object.freeze([
 const step = (text, s) => Object.freeze({ text, s });
 
 /** The library. kind "breath": `pattern` repeats for `min` minutes; kind "steps": each step shows for its seconds.
-    free: in the free plan (the rest need plan.js can("fullPractices")). caution: shown before Start when present. */
+    free: every practice is free since 2026-11-12 (owner request, Task 3: practices are no longer part of Pro; plan.js has no
+    fullPractices). The field stays so a later paid practice would need an explicit decision. caution: shown before Start when present. */
 export const PRACTICES = Object.freeze([
   Object.freeze({
     id: "slow", title: "Slow breathing", short: "In for 4, out for 6: about six breaths a minute.", min: 3, kind: "breath", needs: ["calm", "rest"], free: true, icon: "breath",
@@ -132,7 +133,7 @@ export const PRACTICES = Object.freeze([
     strength: "moderate", src: ["zaccaro2018", "fincham2023"], line: SUPPORT_LINE,
   }),
   Object.freeze({
-    id: "box", title: "Box breathing", short: "In 4, hold 4, out 4, hold 4.", min: 3, kind: "breath", needs: ["calm"], free: false, icon: "breath",
+    id: "box", title: "Box breathing", short: "In 4, hold 4, out 4, hold 4.", min: 3, kind: "breath", needs: ["calm"], free: true, icon: "breath",
     pattern: breath(4, 4, 4, 4),
     evidence: "In a one-month randomised trial with healthy adults, five minutes a day of structured breathing, box breathing among them, lifted mood; practices with a long, slow out-breath did best.",
     strength: "limited", src: ["balban2023"], line: SUPPORT_LINE, caution: "If holding your breath feels uncomfortable, skip the holds and just breathe slowly.",
@@ -144,13 +145,13 @@ export const PRACTICES = Object.freeze([
     strength: "comfort", src: [], line: COMFORT_LINE,
   }),
   Object.freeze({
-    id: "reframe", title: "Reframe one thought", short: "Catch a worry, look at it, find a kinder way to see it.", min: 4, kind: "steps", needs: ["worry"], free: false, icon: "note",
+    id: "reframe", title: "Reframe one thought", short: "Catch a worry, look at it, find a kinder way to see it.", min: 4, kind: "steps", needs: ["worry"], free: true, icon: "note",
     steps: Object.freeze([step("Name the thought that keeps coming back, in a few words.", 40), step("What makes it feel true? What doesn't quite fit?", 50), step("What would you say to a friend who had this thought?", 50), step("Try a more balanced version of it. It doesn't need to be positive, just fair.", 50), step("Notice how strongly you believe the first thought now.", 30)]),
     evidence: "Noticing and re-weighing thoughts is a core skill of cognitive behavioural therapy (CBT). NICE recommends guided self-help based on CBT as a first option for less severe depression. This short exercise is one piece of that, not a full course.",
     strength: "moderate", src: ["nice2022"], line: SUPPORT_LINE,
   }),
   Object.freeze({
-    id: "pause", title: "Three-minute pause", short: "Breath, body, then the room: a short mindful reset.", min: 3, kind: "steps", needs: ["worry", "fog"], free: false, icon: "mind",
+    id: "pause", title: "Three-minute pause", short: "Breath, body, then the room: a short mindful reset.", min: 3, kind: "steps", needs: ["worry", "fog"], free: true, icon: "mind",
     steps: Object.freeze([step("Sit comfortably. Notice what's on your mind right now, without changing it.", 60), step("Bring your attention to your breathing. Follow a few breaths in and out.", 60), step("Widen your attention to your whole body, then to the sounds around you.", 60)]),
     evidence: "Reviews of brief mindfulness training find a small easing of stress, worry and low mood compared with control activities; the effect is modest and some studies may be unpublished.",
     strength: "modest", src: ["schumer2018"], line: SUPPORT_LINE,
@@ -168,19 +169,19 @@ export const PRACTICES = Object.freeze([
     strength: "moderate", src: ["loy2013", "chang2012"], line: SUPPORT_LINE, caution: "Keep it gentle. Sit down and stop if you feel dizzy, short of breath or unwell.",
   }),
   Object.freeze({
-    id: "gratitude", title: "Three good things", short: "Bring to mind three things that went well, however small.", min: 3, kind: "steps", needs: ["energy"], free: false, icon: "heart",
+    id: "gratitude", title: "Three good things", short: "Bring to mind three things that went well, however small.", min: 3, kind: "steps", needs: ["energy"], free: true, icon: "heart",
     steps: Object.freeze([step("Think of one thing that went well today or recently, however small.", 50), step("A second thing. What made it good?", 50), step("A third. Who or what helped it happen?", 50), step("Stay with the feeling for a moment.", 30)]),
     evidence: "Reviews find gratitude exercises give a small lift to wellbeing at most, and little change in low mood or anxiety compared with other activities. Offered as a comfort.",
     strength: "comfort", src: ["davis2016", "cregg2021"], line: COMFORT_LINE,
   }),
   Object.freeze({
-    id: "pmr", title: "Short muscle relaxation", short: "Tense, then release, one area at a time.", min: 4, kind: "steps", needs: ["rest"], free: false, icon: "body",
+    id: "pmr", title: "Short muscle relaxation", short: "Tense, then release, one area at a time.", min: 4, kind: "steps", needs: ["rest"], free: true, icon: "body",
     steps: Object.freeze([step("Make fists and squeeze for five seconds. Let go and feel the difference.", 30), step("Lift your shoulders to your ears, hold, then let them drop.", 30), step("Scrunch your face gently, hold, then soften your jaw and forehead.", 30), step("Press your feet into the floor and tense your legs, hold, then release.", 30), step("Tense your belly and back gently, hold, then let go.", 30), step("Now let your whole body be heavy. Breathe out slowly a few times.", 60)]),
     evidence: "Progressive muscle relaxation reduced stress, anxiety and low mood in adults across many studies, often alongside other approaches; study quality varies.",
     strength: "modest", src: ["khir2024"], line: SUPPORT_LINE, caution: "Skip any area that hurts, and tense gently.",
   }),
   Object.freeze({
-    id: "scan", title: "Body scan", short: "Move your attention slowly from your feet to your head.", min: 5, kind: "steps", needs: ["rest"], free: false, icon: "body",
+    id: "scan", title: "Body scan", short: "Move your attention slowly from your feet to your head.", min: 5, kind: "steps", needs: ["rest"], free: true, icon: "body",
     steps: Object.freeze([step("Lie or sit comfortably. Let your breathing settle on its own.", 40), step("Notice your feet and legs: warmth, weight, tingling, or nothing at all.", 60), step("Move up to your hips, belly and back. Let them soften if they want to.", 60), step("Notice your hands, arms and shoulders.", 50), step("Notice your neck, jaw, face and head.", 50), step("Feel your whole body breathing for a few breaths.", 40)]),
     evidence: "The body scan is one of the brief mindfulness practices; reviews of brief mindfulness training find a small easing of stress and low mood, a modest effect.",
     strength: "modest", src: ["schumer2018"], line: SUPPORT_LINE,
@@ -197,7 +198,7 @@ export const practiceOf = (id) => PRACTICES.find((p) => p.id === id) || null;
 export const FREE_PRACTICES = Object.freeze(PRACTICES.filter((p) => p.free).map((p) => p.id));
 /** Practices for one need, in library order. */
 export const practicesFor = (need) => PRACTICES.filter((p) => p.needs.includes(need));
-/** Whether a practice can be started on this plan (canFull = plan.js can("fullPractices")). */
+/** Whether a practice can be started: every practice is free (Task 3). canFull is ignored and kept only for old callers. */
 export const unlocked = (p, canFull = false) => !!p && (p.free || !!canFull);
 /** The named sources of a practice, as { title, body, year }. */
 export const sourcesOf = (p) => (p?.src || []).map((k) => SOURCES[k]).filter(Boolean);
@@ -250,7 +251,7 @@ export function addRun(log, { id, p, day, sec = 0, done = false }) {
 export function setHelped(log, id, helped) {
   return cleanPracticeLog(cleanPracticeLog(log).map((r) => {
     if (r.id !== id) return r;
-    const { helped: _old, ...rest } = r; // eslint-disable-line no-unused-vars
+    const { helped: _old, ...rest } = r;
     return HELPED.includes(helped) ? { ...rest, helped } : rest;
   }));
 }

@@ -11,10 +11,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`\\])\/\/[^\n]*/g, "$1");
 
 test("FREE_PLAN is the D1 entitlements object", () => {
-  assert.deepEqual(FREE_PLAN, { tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false, fullPractices: false, aiChat: false });
+  assert.deepEqual(FREE_PLAN, { tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false, aiChat: false, aiEvidence: false });
   assert.ok(Object.isFrozen(FREE_PLAN));
   assert.equal(PLAN, FREE_PLAN);
-  assert.deepEqual([...PLAN_FEATURES], ["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup", "fullPractices", "aiChat"]);
+  assert.deepEqual([...PLAN_FEATURES], ["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup", "aiChat", "aiEvidence"]);
   assert.ok(Object.isFrozen(PLAN_FEATURES));
 });
 
@@ -97,16 +97,17 @@ test("plan.js imports nothing and does no I/O", () => {
   for (const w of ["fetch", "XMLHttpRequest", "sendBeacon", "indexedDB", "localStorage", "sessionStorage", "import.meta"]) assert.ok(!code.includes(w), `plan.js mentions ${w}`);
 });
 
-test("calm R5: fullPractices is Pro only; the proDev dev flag picks DEV_PRO_PLAN, nothing else does", () => {
-  assert.equal(can("fullPractices"), false);
-  assert.equal(can("fullPractices", { ...FREE_PLAN, fullPractices: "yes" }), false, "fails closed");
+test("Task 3: aiEvidence is Pro only, practices are no longer a plan feature; the proDev dev flag picks DEV_PRO_PLAN, nothing else does", () => {
+  assert.equal(can("aiEvidence"), false);
+  assert.equal(can("aiEvidence", { ...FREE_PLAN, aiEvidence: "yes" }), false, "fails closed");
+  assert.equal(can("fullPractices", PRO_PLAN), false, "fullPractices is gone (every practice is free)");
   assert.equal(planFor({}), PLAN);
   assert.equal(planFor(), PLAN);
   assert.equal(planFor({ proDev: "true" }), PLAN);
   assert.equal(planFor({ devGallery: true }), PLAN);
   assert.equal(planFor({ proDev: true }), DEV_PRO_PLAN);
   assert.ok(Object.isFrozen(DEV_PRO_PLAN));
-  assert.equal(can("fullPractices", DEV_PRO_PLAN), true);
+  assert.equal(can("aiEvidence", DEV_PRO_PLAN), true);
   assert.equal(can("cloudBackup", DEV_PRO_PLAN), true, "calm R9: the QA unlock covers the account (it still needs the flag and a server: lib/cloudBackup.js)");
   assert.equal(DEV_PRO_PLAN.pdfExportsPerMonth, null, "the basic PDF stays free and unlimited");
 });
@@ -120,7 +121,7 @@ test("calm R8: PRO_PLAN from an owned purchase; proDev wins; aiChat fails closed
   assert.equal(planFor({ proDev: true }, false), DEV_PRO_PLAN);
   assert.ok(Object.isFrozen(PRO_PLAN));
   for (const p of [PRO_PLAN, DEV_PRO_PLAN]) {
-    for (const f of ["aiChat", "aiPatternReports", "fullPractices"]) assert.equal(can(f, p), true, `${p.tier} ${f}`);
+    for (const f of ["aiChat", "aiPatternReports", "aiEvidence"]) assert.equal(can(f, p), true, `${p.tier} ${f}`);
     assert.equal(can("pdfExport", p), true, "the basic PDF stays free");
     assert.equal(p.pdfExportsPerMonth, null);
     assert.equal(can("cloudBackup", p), true, "calm R9: the encrypted account backup is part of Pro");

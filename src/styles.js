@@ -461,6 +461,18 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 .devlead { margin-top:0; }
 .devhome-acts { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin-top:10px; }
 .devhome-acts .linkbtn { min-height:44px; }
+.evcard .inp { margin-bottom:10px; }
+.evout { margin-top:14px; border-top:1px solid var(--line); padding-top:12px; }
+.evout:focus { outline:none; }
+.evout:focus-visible { outline:2px solid var(--primary); outline-offset:4px; border-radius:8px; }
+.evmark { font-size:14px; font-weight:700; color:var(--primary); text-decoration:none; padding:0 1px; vertical-align:super; line-height:1; }
+.evmark:focus-visible { outline:2px solid var(--primary); outline-offset:2px; border-radius:4px; }
+.evsrcs { margin:6px 0 10px; padding-left:24px; display:grid; gap:6px; }
+.evsrcs li { font-size:16px; line-height:1.4; color:var(--soft); }
+.evsrc { display:inline-flex; align-items:center; min-height:44px; font-size:16px; text-align:left; padding:0; overflow-wrap:anywhere; }
+.evhost { display:block; font-size:14px; color:var(--soft); }
+.evnote { margin-top:10px; }
+.psh-voicenote { margin:6px 0 0; text-align:center; }
 .srcdevices { display:inline-flex; align-items:center; gap:8px; margin:4px 0 10px; min-height:44px; }
 .socialdot { width:12px; height:12px; border-radius:50%; }
 /* ---- UI O1: onboarding. Splash motif + promise rows; step 1 providers 3-up (Apple leftmost, inline marks); the stage

@@ -331,7 +331,6 @@ export const UI = {
   "practices.beginMin": "Begin · {min} min",
   "practices.yours": "Yours",
   "practices.favourites": "Favourites",
-  "practices.practicesMarkedProArePart": "Tap a Pro practice to see what Pro adds.",
   "practices.practicesAreWellbeingSupportNot": "Practices are wellbeing support, not treatment. If low mood or worry is staying with you, or you feel unsafe, talk to your doctor, or call your local emergency number.",
   "journey.mind": "Mind",
   "journey.journey": "Journey",

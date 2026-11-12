@@ -25,7 +25,7 @@ import { t } from "../lib/i18n.js";
    Everything is worked out on this device on render (App.jsx), never saved or sent. */
 export default function PatternsScreen({
   ins, symIds, symMap, isMeno = false, todayIso, potsOn = false, popIso = null, onGo, onAsk, onPots = null, scoreScale, fert = null,
-  timeline = null, rings, cards = [], checked = [], weekly = null, onStart, onSkip, onPractice, onPro, onHistory, onReport, aiWriteUp = null, historyLabel = "History",
+  timeline = null, rings, cards = [], checked = [], weekly = null, onStart, onSkip, onPractice, onPro, onHistory, onReport, aiWriteUp = null, aiEvidence = null, historyLabel = "History",
 }) {
   const [all, setAll] = useState(false);
   const [view, setView] = useState(null);
@@ -86,6 +86,7 @@ export default function PatternsScreen({
       </section>
 
       {aiWriteUp}
+      {aiEvidence}
 
       {weekly && !weekly.week.shows && review}
 

@@ -2213,6 +2213,20 @@ doesn't have (`GET /api/integrations/sources`) says "Not set up yet". Connected 
 | n days ago>" and Disconnect (readings already imported stay). `wearables` is on by default and production mounts
 `integrations`. Tests: `src/lib/devices.test.mjs`, `e2e/devices.spec.mjs`, `e2e/devices-axe.spec.mjs`.
 
+### A9.2 Pro = evidence-based AI; practices free with voice (owner request 2026-11-12; Task 3)
+- Every Mind practice is free (`lib/mind.js`), no Pro chip; `plan.js` drops `fullPractices` and adds `aiEvidence` (Pro).
+- **Voice guide** on the practice sheet (`lib/voice.js`): an optional switch (only where `speechSynthesis` exists) that
+  speaks each step, or "Breathe in… and out" cues timed to the orb, at rate 0.9 with an English voice; remembered in the
+  device-only key `practiceVoice`; stops on pause, stop and close. No claim of recorded or human voices.
+- **Ask with evidence** (`components/ai/EvidenceCard.jsx`, in Mind → Journey and on Patterns; Pro + the ai flag + a
+  server): her question (and, if ticked, the pseudonymized summary) previewed in "What Solia Health will send", then
+  `POST /api/ai/evidence` (backend `ai/evidence.js`: web_search_20260209, max_uses 5, allowed_domains = the evidence
+  sites; model from config; effort medium; refusal and search-error handling; per-minute rate limit). The answer shows
+  numbered source links. Red flags are answered on the device and never sent.
+- ProSheet leads with Ask with evidence, then the write-up and chat, then the encrypted backup where offered.
+- Tests: `src/lib/evidence.test.mjs`, `backend/scripts/evidence-smoke.js`, `e2e/evidence.spec.mjs`, axe in
+  `e2e/evidence-axe.spec.mjs`.
+
 ## A10. Milestones (Home)
 Usage: first week, full month, wearable connected, started a trial, first visit debriefed.
 Clinical by stage — Cycle: first full cycle, 3 cycles, ovulation confirmed by temperature.

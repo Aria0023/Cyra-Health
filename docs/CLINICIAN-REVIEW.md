@@ -491,3 +491,32 @@ not a contraceptive." for Trying to conceive. Please check that nothing reads as
   confirmed with Looks right since 2026-10-02.", "Typically 9 seconds from the card appearing to the tap (67% under 15
   seconds).", "A source has been connected since … (30 days)."). Counts of her own taps, never a score or a grade.
 - Status: Awaiting clinician sign-off (for the record; no claim about a condition)
+
+## Ask with evidence (Pro, Task 3, 2026-11-12): the system prompt and the app's fixed lines
+
+### evidence.system (backend/src/modules/ai/evidence.js `EVIDENCE_SYSTEM`, sent with every question)
+- Must use the web_search tool, limited to PubMed, NCBI, MedlinePlus, NIH, CDC, ACOG, WHO, NICE, the Cochrane Library,
+  the Endocrine Society and the FDA (at most 5 searches), and base the answer only on what it finds.
+- Plain language at about an 8th-grade reading level, at most 220 words; cite every medical claim (uncited claims are not
+  allowed); say plainly when evidence is weak, mixed, early or only from small studies; guidance, never a diagnosis;
+  never doses or dosing advice, never start/stop/change a medicine or supplement; never contraception claims; suggest
+  her clinician and end with one question to ask them; red-flag symptoms → care now and the emergency line (911 / 988 US),
+  without searching. A pseudonymized summary of her logs, if she included it, may be related to the evidence but never
+  interpreted as a diagnosis.
+- The server withholds any answer with no source at all ("No sources could be found for that just now, so there's no
+  answer."), and only links on those domains are shown.
+- Status: Awaiting clinician sign-off
+
+### evidence.app (src/lib/evidence.js `EVIDENCE_COPY`)
+- Under every answer: "Guidance, not a diagnosis or dosing advice. Bring what you read to your clinician."
+- A red-flag question, answered on the device and never sent: "What you're describing needs care now, not an app. Please
+  call your local emergency number (911 in the US) or go to urgent care. If you are thinking about harming yourself, call
+  or text 988 (US) or your local crisis line. Your question wasn't sent anywhere."
+- A model refusal: "This one can't be answered here. Please ask your clinician."
+- Status: Awaiting clinician sign-off
+
+### practices.voice (src/lib/voice.js, free)
+- Breathing cues spoken by the device's built-in voice: "Breathe in", "Hold", "and out", "Rest"; step practices speak each
+  step's existing text. No new medical claim.
+- Status: Awaiting clinician sign-off (for the record)
+

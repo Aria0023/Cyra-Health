@@ -105,7 +105,7 @@ import { shelfKind } from "./lib/trying.js";
 import { cycleTimeline, bodyRing, mindRing, ringInputs, sleepCards, cycleCards, pcosCards, trialCards, spreadCard, topCard, rankCards, usualOf, mealCards, wearCards } from "./lib/patterns.js";
 import { cleanExperiments, settle, startExperiment, skipWeek, markDay, runningOn, experimentStep, reviewWeek, weekCounts, countWords, weekSignals, pickExperiment, experimentFollowUp, lastFinished, experimentOf } from "./lib/experiments.js";
 import { PLAN, can, exportsLeft, noteExport, planFor } from "./lib/plan.js";
-import { cleanMoodLog, cleanPracticeLog, cleanPracticeFavs, setMoodDay, toggleFeeling, addRun, setHelped, runsOn, toggleFav, nextPractice, practiceOf, moodByCycle, stripSentence, moodStrip, STRIP_MIN, unlocked as practiceUnlocked } from "./lib/mind.js";
+import { cleanMoodLog, cleanPracticeLog, cleanPracticeFavs, setMoodDay, toggleFeeling, addRun, setHelped, runsOn, toggleFav, nextPractice, practiceOf, moodByCycle, stripSentence, moodStrip, STRIP_MIN } from "./lib/mind.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport, registerConfirmActions, scheduleConfirm, onConfirmAction } from "./lib/notifications.js";
 import { isNative, hasPlugin, Haptics, Purchases, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
@@ -190,7 +190,9 @@ import ProSheet from "./components/ProSheet.jsx";
 import { AiSendSheet, WriteUpCard, ChatCard } from "./components/ai/AiParts.jsx";
 import { buildSummary, checkSummary, summaryLines, weeklyBody, chatBody } from "./lib/aiSummary.js";
 import { cleanAiPrefs, cleanAiChat, cleanAiWeekly, aiOffer, AI_COPY } from "./lib/aiFeatures.js";
-import { aiStatus, aiSend } from "./lib/aiClient.js";
+import { aiStatus, aiSend, askEvidence } from "./lib/aiClient.js";
+import EvidenceCard from "./components/ai/EvidenceCard.jsx";
+import { evidenceBody, evidenceOffer, cleanSources, EVIDENCE_COPY } from "./lib/evidence.js";
 import { storeFor, restorePurchases, proOwned, startStore } from "./lib/purchase.js";
 import { WEB_PRICE_LINE } from "./lib/pricing.js";
 import ConnectScreen from "./screens/ConnectScreen.jsx";
@@ -290,6 +292,12 @@ export default function CyraDemo() {
   const [aiSendOpen, setAiSendOpen] = useState(null); // { kind: "weekly" | "chat", body, lines, then? } | null
   const [aiBusy, setAiBusy] = useState(null); // "weekly" | "chat" | null
   const [aiNote, setAiNote] = useState({ weekly: null, chat: null });
+  /* Ask with evidence (Pro, Task 3): the last answer, a note, busy, and the "What Solia Health will send" sheet. UI only:
+     the answer is not saved anywhere (it leaves with the screen). */
+  const [evOut, setEvOut] = useState(null);
+  const [evNote, setEvNote] = useState(null);
+  const [evBusy, setEvBusy] = useState(false);
+  const [evSendOpen, setEvSendOpen] = useState(null); // { body, lines }
   const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine !== false);
   useEffect(() => {
     const on = () => setOnline(true), off = () => setOnline(false);
@@ -400,6 +408,7 @@ export default function CyraDemo() {
   const [practiceLog, setPracticeLog] = useState([]);
   const [practiceFavs, setPracticeFavs] = useState([]);
   const [practiceHaptics, setPracticeHaptics] = useState(false);
+  const [practiceVoice, setPracticeVoice] = useState(false); // Task 3: the voice guide, remembered on this device
   const [practiceOpen, setPracticeOpen] = useState(null); // { id, need } | null
   const [proOpen, setProOpen] = useState(false);
   /* Whether the store says Pro is active (device-only, UI state; re-asked at every launch, never in a backup). */
@@ -1409,8 +1418,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestions(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)), signin: (v) => setSignin((cur) => cur || cleanSignin(v)), devicesHint: (v) => setDevicesHint(cleanDevicesHint(v)) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats, signin, devicesHint };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestions(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)), signin: (v) => setSignin((cur) => cur || cleanSignin(v)), devicesHint: (v) => setDevicesHint(cleanDevicesHint(v)), practiceVoice: (v) => setPracticeVoice(v === true) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats, signin, devicesHint, practiceVoice };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1770,7 +1779,7 @@ export default function CyraDemo() {
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
-    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, uiLocale, uiStyle, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount, signin, devicesHint };
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, uiLocale, uiStyle, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount, signin, devicesHint, practiceVoice };
     if (account) setCloudAccount(account);
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
@@ -2676,7 +2685,8 @@ export default function CyraDemo() {
   };
   /* ---------- Mind (calm R5, lib/mind.js): Today (check-in, next practice, which one helped), Practices, Journey ---------- */
   const plan = planLive;
-  const canFull = can("fullPractices", plan);
+  // Task 3: every practice is free; "Pro is on" (a purchase or the proDev test build) is now read from aiEvidence.
+  const proOn = can("aiEvidence", plan);
   /* ---------- Cyra's weekly write-up and chat (calm R8) ----------
      Offered only with the ai flag, a server and Pro (aiOffer); each runs only while her switch is on. The summary is
      built on this device (lib/aiSummary.js), proved by checkSummary, shown verbatim in "What Cyra will send", and
@@ -2732,6 +2742,32 @@ export default function CyraDemo() {
       o.then?.();
     }
   };
+  /* Ask with evidence (Task 3): a red-flag question is answered here and never sent; otherwise "What Solia Health will
+     send" shows the exact body (her question, and the summary only if she ticked it) and nothing goes until Send. */
+  const ev = evidenceOffer({ flag: FEATURES.ai, server: hasServer(), pro: can("aiEvidence", plan) });
+  const prepareEvidence = (question, include) => {
+    setEvNote(null);
+    if (RED_FLAGS.test(question)) { setEvOut({ question, answer: EVIDENCE_COPY.urgentLocal, urgent: true, sources: [] }); return; }
+    const s = include ? summaryNow() : null;
+    if (s && checkSummary(s).length) { setEvNote(AI_COPY.refused); return; }
+    const body = evidenceBody(question, s);
+    setEvSendOpen({ body, lines: [["Your question", body.question], ...EVIDENCE_COPY.sendLines(!!s), ...(s ? summaryLines(s) : [])] });
+  };
+  const sendEvidence = async () => {
+    const o = evSendOpen;
+    if (!o || evBusy || !ev.open) return;
+    setEvSendOpen(null); setEvBusy(true); setEvOut(null);
+    const r = await askEvidence(o.body);
+    setEvBusy(false);
+    if (!r.ok) { setEvNote(r.why === "unset" ? EVIDENCE_COPY.notSetUp : r.why === "busy" ? EVIDENCE_COPY.tooMany : r.why === "offline" ? EVIDENCE_COPY.offline : r.why === "nosources" ? EVIDENCE_COPY.noSources : EVIDENCE_COPY.noAnswer); return; }
+    const d = r.data || {};
+    if (d.refused) { setEvNote(EVIDENCE_COPY.refused); return; }
+    if (d.urgent) { setEvOut({ question: o.body.question, answer: d.answer || EVIDENCE_COPY.urgentLocal, urgent: true, sources: [] }); return; }
+    const sources = cleanSources(d.sources);
+    if (typeof d.answer !== "string" || !d.answer.trim() || !sources.length) { setEvNote(EVIDENCE_COPY.noSources); return; }
+    setEvOut({ question: o.body.question, answer: d.answer, sources });
+  };
+  const evidenceCard = (id) => (ev.shown ? <EvidenceCard id={id} open={ev.open} onPro={() => setProOpen(true)} summaryOk={stage != null} busy={evBusy} out={evOut} note={evNote} onPrepare={prepareEvidence} /> : null);
   const store = STORE;
   const onRestore = async () => { const r = await restorePurchases(store); if (r.ok) setProOwnedNow(r.owned); ping(r.line); };
   const buzz = !isNative() ? null : hasPlugin("Haptics") ? () => { Haptics.impact({ style: "LIGHT" }).catch(() => {}); } : typeof navigator !== "undefined" && typeof navigator.vibrate === "function" ? () => { try { navigator.vibrate(30); } catch { /* no vibration here */ } } : null;
@@ -2772,13 +2808,14 @@ export default function CyraDemo() {
         onStart={(id) => { setExperiments((s) => startExperiment(s, id, todayIso)); ping("Experiment started. Tick the days you do it on Home."); focusSel([".wrexp"]); }}
         onSkip={() => { setExperiments((s) => skipWeek(s, wk.key)); ping("Skipped for this week"); focusSel([".wrexp"]); }}
         onPractice={(id) => openPractice(id)} onPro={() => setProOpen(true)}
+        aiEvidence={evidenceCard("ai-evidence-p")}
         aiWriteUp={offer.weekly && aiPrefs.weekly ? <WriteUpCard status={online ? aiState : "offline"} last={aiWeekly} busy={aiBusy === "weekly"} note={aiNote.weekly} onCheck={checkAi} onPrepare={() => prepareAi("weekly")} /> : null}
         historyLabel={isMeno ? "Calendar" : "History"}
         onHistory={() => showView(isMeno ? "cal" : "cycles")}
         onReport={(pdf) => { pendingFocus.current = pdf ? ["button.route.primary", ".viewpanel main h1"] : [".viewpanel main h1"]; showView("report", { head: true }); }} />
     );
   };
-  const openPractice = (id, need = null) => { const pr = practiceOf(id); if (!pr) return; if (!practiceUnlocked(pr, canFull)) { setProOpen(true); return; } setLogOpen(false); setPracticeOpen({ id, need }); };
+  const openPractice = (id, need = null) => { const pr = practiceOf(id); if (!pr) return; setLogOpen(false); setPracticeOpen({ id, need }); };
   /* The Mind views are built only while one of them is showing (functions, called in the render below), so the rest of
      the app (the POTS stand test's tick, say) re-renders no slower for them. */
   const mindView = () => (
@@ -2786,20 +2823,20 @@ export default function CyraDemo() {
       onMood={(v) => { firstMood(moodLog); setMoodLog((l) => setMoodDay(l, todayIso, { mood: v })); }}
       onTag={(id) => { firstMood(moodLog); setMoodLog((l) => toggleFeeling(l, todayIso, id)); }}
       onLevel={(k, v) => { firstMood(moodLog); setMoodLog((l) => setMoodDay(l, todayIso, { [k]: v })); }}
-      next={(() => { const n = nextPractice({ day: moodToday, hour: new Date().getHours(), log: practiceLog, canFull }); return n ? { ...n, practice: localPractice(n.practice) } : n; })()} onOpen={openPractice} onMore={() => showView("practices", { head: true })}
+      next={(() => { const n = nextPractice({ day: moodToday, hour: new Date().getHours(), log: practiceLog }); return n ? { ...n, practice: localPractice(n.practice) } : n; })()} onOpen={openPractice} onMore={() => showView("practices", { head: true })}
       runs={runsOn(practiceLog, todayIso).map((r) => ({ ...r, title: localPractice(practiceOf(r.p))?.title || r.p }))}
       onHelped={(rid, v) => setPracticeLog((l) => setHelped(l, rid, l.find((r) => r.id === rid)?.helped === v ? null : v))} />
   );
   const youView = (
     <YouScreen acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
-      pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={canFull} proOwned={proOwnedNow} storeReady={STORE.available} onPro={() => setProOpen(true)}
+      pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={proOn} proOwned={proOwnedNow} storeReady={STORE.available} onPro={() => setProOpen(true)}
       ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line || (isNative() ? null : WEB_PRICE_LINE)} meals={mealsOffered ? { on: mealsHere, onToggle: () => { const on = !mealsHere; setBodyPrefs((p) => cleanBodyPrefs({ ...p, mealsOn: on })); ping(on ? "Meal notes on" : "Meal notes off. What you noted is kept"); } } : null} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
       signedIn={signin ? { s: signin, required: REQUIRE_SIGNIN, onSignOut: signOutAccount, onDelete: deleteSignedInAccount } : null}
       account={ACCOUNTS_HERE ? { can: ACCOUNTS.available(), acct: cloudAccount.acct, sync: cloudSync, todayIso, onCreate: () => setAcctSheet("create"), onSignIn: () => setAcctSheet("signin"), onBackup: () => backupToCloud(), onSignOut: signOut, onDelete: deleteAccount, onUseBackup: resolveUseBackup, onKeepDevice: resolveKeepDevice, onPro: () => setProOpen(true) } : null}
       dataSources={SOURCES_HERE || sourcesModel.rows.length ? <DataSourcesCard m={sourcesModel} busy={wearBusy} onDevices={openDevices} onConnect={connectWear} onPause={pauseSource} onDisconnect={disconnectAny} onPrefer={preferSource} onDemo={setDemo} /> : null}
       care={stage === "preg" ? null : <CareScreen embedded shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: shelfKind(s), started: todayIso }]); ping(shelfKind(s) === "care" ? "Added to What I'm trying" : "Added — your days before and after will be compared"); }} />} />
   );
-  const practicesView = () => <PracticesScreen canFull={canFull} favs={practiceFavs} onOpen={openPractice} onPro={() => setProOpen(true)} featured={{ practice: localPractice(practiceOf("slow")), need: "calm" }} />;
+  const practicesView = () => <PracticesScreen favs={practiceFavs} onOpen={openPractice} featured={{ practice: localPractice(practiceOf("slow")), need: "calm" }} />;
   const journeyView = () => {
     const stripNow = moodStrip(moodLog, [], todayIso, 35);
     const connDays = Object.keys(connLog || {}).sort();
@@ -2810,6 +2847,7 @@ export default function CyraDemo() {
       conn={{ line: connDays.length ? `Last logged ${fmt(connDays[connDays.length - 1])}. Private, on this device.` : "How connected you feel, not just sex. Private, on this device." }}
       onConnect={() => showView("connect", { head: true })}
       chat={offer.chat && aiPrefs.chat ? <ChatCard status={aiState} online={online} chat={aiChat} busy={aiBusy === "chat"} note={aiNote.chat} onCheck={checkAi} onPrepare={(q, clear) => prepareAi("chat", q, clear)} onClear={() => { setAiChat([]); ping("Chat cleared from this device"); }} /> : null}
+      evidence={evidenceCard("ai-evidence")}
       ask={<AskScreen embedded org={org} stage={stage} askQ={askQ} setAskQ={setAskQ} runAsk={runAsk} askBusy={askBusy} askOut={askOut} askAI={askAI} setAskAI={setAskAI} aiAvailable={aiAvailable} potsOn={potsTab && potsOk} ping={ping} />} />
     );
   };
@@ -2817,6 +2855,7 @@ export default function CyraDemo() {
     <PracticeSheet key={practiceOpen.id} practice={localPractice(practiceOf(practiceOpen.id))} need={practiceOpen.need}
       fav={practiceFavs.includes(practiceOpen.id)} onFav={() => { const on = !practiceFavs.includes(practiceOpen.id); setPracticeFavs((f) => toggleFav(f, practiceOpen.id)); ping(on ? "Added to your favourites" : "Removed from your favourites"); }}
       haptics={practiceHaptics} onHaptics={() => setPracticeHaptics((h) => !h)} buzz={buzz}
+      voice={practiceVoice} onVoice={() => setPracticeVoice((v) => !v)}
       onRun={({ sec, done }) => { const rid = `r${Date.now().toString(36)}`; setPracticeLog((l) => addRun(l, { id: rid, p: practiceOpen.id, day: todayIso, sec, done })); return rid; }}
       onHelped={(rid, v) => setPracticeLog((l) => setHelped(l, rid, v))}
       onClose={() => setPracticeOpen(null)} />
@@ -2898,8 +2937,9 @@ export default function CyraDemo() {
       {bodySheetView}
       {practiceSheet}
       {devicesOpen && <DevicesSheet {...devList} onClose={() => setDevicesOpen(false)} />}
-      {proOpen && <ProSheet unlocked={canFull} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} onClose={() => setProOpen(false)} />}
+      {proOpen && <ProSheet unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} onClose={() => setProOpen(false)} />}
       {acctSheetView}
+      {evSendOpen && <AiSendSheet kind="evidence" body={evSendOpen.body} lines={evSendOpen.lines} busy={evBusy} onSend={sendEvidence} onClose={() => setEvSendOpen(null)} />}
       {aiSendOpen && <AiSendSheet kind={aiSendOpen.kind} body={aiSendOpen.body} lines={aiSendOpen.lines} busy={!!aiBusy} onSend={sendAi} onClose={() => setAiSendOpen(null)} />}
     </Shell>
   );

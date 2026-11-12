@@ -2115,3 +2115,18 @@ flag and payload); `sw.test.mjs`, `notifications.test.mjs`, `autoTracked.test.mj
   `lib/disclosures.js` already had its wearables wording (it now shows in the default build).
 - **New device-only key:** `devicesHint` ("hidden" after Not now), never in a backup.
 
+## Pro = evidence-based AI; practices free with voice (owner request 2026-11-12, Task 3)
+
+- **Voice guide (free):** the device's own speech (speechSynthesis) reads practice steps and breathing cues. Nothing is
+  recorded or sent; the on/off is the device-only key `practiceVoice`, never in a backup. The switch shows only where the
+  device can speak; the copy claims no recorded or human voice ("your device's built-in voice").
+- **Ask with evidence (Pro):** `POST /api/ai/evidence`. What leaves the device, only after she taps Send in "What Solia
+  Health will send" (the exact JSON): her typed question, and the pseudonymized summary (`lib/aiSummary.js`, re-checked
+  by the server's `checkSummary`) only if she ticked "Include a summary of my log". It goes through Solia Health's server
+  to Anthropic; Anthropic's search provider runs the web search, limited to the evidence domains. The sheet discloses
+  both. Solia Health's server stores and logs nothing from it (`evidence-smoke.js` checks the log). A red-flag question
+  is answered on the device and never sent (and the server answers it without forwarding, as a second check).
+- **What the app keeps:** nothing new. The answer lives only in the screen's state and is gone when she leaves.
+- **Sentences changed:** the ProSheet no longer offers "The full practices library"; "Free stays free" now names every
+  guided practice with its voice guide; the Practices page no longer says "Tap a Pro practice to see what Pro adds".
+

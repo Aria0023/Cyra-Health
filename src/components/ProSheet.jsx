@@ -16,16 +16,20 @@ import { TERMS_URL, PRIVACY_URL, POLICY_LINKS_READY, TIP_URL, openExternal } fro
    - a phone without a connected store: the store's honest line, no price at all;
    - the web: what Pro costs in the apps (WEB_PRICE_LINE), and a tip link only when VITE_TIP_URL is set;
    - Pro already on: what it includes and how to manage it. A dev build (proDev) says it is a test build.
-   Every line under "What Pro adds" is something this build really opens for Pro (lib/plan.js). */
-export const PRO_ADDS = Object.freeze([
-  ["mind", "The full practices library", "Every guided practice, not only the core set."],
-]);
+   Every line under "What Pro adds" is something this build really opens for Pro (lib/plan.js). Task 3: Ask with evidence
+   leads, then the weekly write-up and chat, then the encrypted backup where the build has it. */
+/* Task 3 (owner request 2026-11-12): Pro is AI with evidence. Every practice is free (with an optional voice guide), so
+   "The full practices library" is gone. Each line shows only where this build really opens it: the AI lines need the
+   ai flag and a server (`ai`), the backup line the optional account (`cloud`). */
+export const PRO_EVIDENCE = Object.freeze(["book", "Ask with evidence", "Answers that cite their sources, with links: PubMed, MedlinePlus, CDC, NIH, ACOG, WHO, NICE and others. You see exactly what is sent first, and only your question goes, plus a summary of your log if you tick it."]);
 export const PRO_AI = Object.freeze(["note", "A weekly write-up and chat about your log, only if you turn them on", "Written by Solia Health's AI from a summary of your log with no dates, notes or anything that names you. Each shows exactly what it would send before anything is sent."]);
 export const PRO_PLANNED = Object.freeze(["Your own experiments, beyond the starter ones", "Medicine and supplement reminders", "A richer PDF with trends and the write-up"]);
-export const FREE_KEEPS = "Free stays free: logging, the calendar, cycles, every pattern Solia Health finds, your weekly review, a core set of practices, safety guidance and the basic doctor-ready PDF.";
+export const FREE_KEEPS = "Free stays free: logging, the calendar, cycles, every pattern Solia Health finds, your weekly review, every guided practice with its voice guide, safety guidance and the basic doctor-ready PDF.";
 /** Calm R9: only in a build that offers the optional account (lib/cloudBackup.js ACCOUNTS_HERE). */
 export const PRO_CLOUD = Object.freeze(["shield", "An encrypted backup to Solia Health's server, if you make an account", "Bring your log back on a new phone or browser with your email and passphrase. It's encrypted on your device first; Solia Health can't read it."]);
-export const proAddsFor = (ai, cloud = false) => [...PRO_ADDS, ...(ai ? [PRO_AI] : []), ...(cloud ? [PRO_CLOUD] : [])];
+/** Said when this build has none of Pro's parts (no AI server and no account backup): nothing is claimed that isn't here. */
+export const PRO_NONE = "In this version Pro adds nothing yet: its features need Solia Health's server.";
+export const proAddsFor = (ai, cloud = false) => [...(ai ? [PRO_EVIDENCE, PRO_AI] : []), ...(cloud ? [PRO_CLOUD] : [])];
 
 export default function ProSheet({ onClose, unlocked = false, owned = false, ai = false, cloud = false, store = null, native = false, onOwned, onRestore, ping }) {
   const selling = !!(store && store.available) && !owned;
@@ -62,6 +66,7 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
 
   return (
     <Sheet id="pro-sheet" title={owned ? t("pro.proIsOn") : t("pro.whatProAdds")} onClose={onClose} closeLabel={t("pro.closeWhatProAdds")} className="prosheet">
+      {!proAddsFor(ai, cloud).length && <p className="hint pronone">{PRO_NONE}</p>}
       <ul className="prolist" aria-label={t("pro.whatProAddsInThis")}>
         {proAddsFor(ai, cloud).map(([icon, tv, d]) => (
           <li key={tv}><span className="prolist-ico" aria-hidden="true"><Icon name={icon} size={16} /></span><span><b>{tv}</b><span className="prolist-d">{d}</span></span></li>

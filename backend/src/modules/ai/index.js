@@ -1,4 +1,6 @@
 // AI proxy: the app never talks to Anthropic directly and never holds a key.
+// Task 3 adds POST /api/ai/evidence {question, summary?} (Pro "Ask with evidence": the web search tool limited to
+// evidence sites, answers with numbered sources; evidence.js).
 // Calm R8 adds POST /api/ai/weekly {summary} and POST /api/ai/chat {summary, question, history?}
 // (Pro, her own switch, the exact body previewed in the app before every send; see tasks.js),
 // and GET /api/ai/status → {ready} (true when a key is set; it reads nothing from the request).
@@ -22,6 +24,7 @@
 // malformed output, the deterministic library answers (HTTP 200, provider: "rules").
 import Anthropic from "@anthropic-ai/sdk";
 import { TASKS } from "./tasks.js";
+import { mountEvidence } from "./evidence.js";
 import { rateLimiter } from "../../core/memory.js";
 
 export const basePath = "/api/ai";
@@ -53,6 +56,12 @@ export function mount(router, ctx) {
 
   // Whether this server can reach Cyra's AI at all (the app shows "AI isn't set up on this server yet" when not).
   router.get("/status", (req, res) => { res.set("cache-control", "no-store"); res.json({ ready: !!client }); });
+
+  // Task 3, "Ask with evidence" (Pro): its own client (a web-searching answer takes longer than the 12 s ask: 60 s, one
+  // attempt) and its own, tighter rate limit. See evidence.js.
+  const evTimeout = Number(config.ai?.evidenceTimeoutMs) > 0 ? Number(config.ai.evidenceTimeoutMs) : 60_000;
+  const evClient = key ? new Anthropic({ apiKey: key, timeout: evTimeout, maxRetries: 0 }) : null;
+  mountEvidence(router, { client: evClient, model, allow: rateLimiter({ perMinute: config.ai?.evidencePerMinute || 6 }) });
 
   for (const [name, task] of Object.entries(TASKS)) {
     router.post(`/${name}`, async (req, res) => {

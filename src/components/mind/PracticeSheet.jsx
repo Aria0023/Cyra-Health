@@ -5,6 +5,7 @@ import Details from "../Details.jsx";
 import BreathOrb from "./BreathOrb.jsx";
 import { practiceAt, practiceSeconds, sourcesOf } from "../../lib/mind.js";
 import { t } from "../../lib/i18n.js";
+import { voiceSupported, voiceCue, speak, hush } from "../../lib/voice.js";
 
 /* One practice (calm R5): the guided run and what the evidence says, in one sheet. The orb (BreathOrb) leads; under it
    the phase word or the step, a timer, then Start → Pause / Resume and Stop. At the end she can say whether it helped
@@ -12,13 +13,16 @@ import { t } from "../../lib/i18n.js";
    button keeps focus as it becomes Pause; a polite live region announces each change of phase or step (not each
    second); the timer is role="timer"; at the end focus moves to "Did that help?". The run pauses when the app is
    hidden. Haptics: `buzz` (a function, or null when this device can't vibrate) is called at each change while
-   `haptics` is on. Nothing here is sent anywhere.
+   `haptics` is on. Voice guide (Task 3, lib/voice.js): while `voice` is on, this device's built-in voice speaks each step,
+   or a short cue for each breath phase, timed to the orb; it stops on pause, stop and close. The switch shows only
+   where the device can speak. Nothing here is sent anywhere.
 
    Props: practice; need (the need it was opened from, for the eyebrow); fav, onFav; haptics, onHaptics, buzz;
    onRun({ sec, done }) → run id (App saves the run when it ends: finished, or stopped after 10 seconds or more);
    onHelped(runId, "yes" | "no"); onClose. */
 const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.max(0, Math.floor(s % 60))).padStart(2, "0")}`;
-export default function PracticeSheet({ practice: p, need = null, fav = false, onFav, haptics = false, onHaptics, buzz = null, onRun, onHelped, onClose }) {
+export default function PracticeSheet({ practice: p, need = null, fav = false, onFav, haptics = false, onHaptics, buzz = null, voice = false, onVoice, onRun, onHelped, onClose }) {
+  const canSpeak = voiceSupported();
   const total = practiceSeconds(p);
   const [status, setStatus] = useState("ready"); // ready | running | paused | done
   const [elapsed, setElapsed] = useState(0); // ms
@@ -36,7 +40,10 @@ export default function PracticeSheet({ practice: p, need = null, fav = false, o
   useEffect(() => { if (status === "running" && at.done) finish(true); });
   // A change of phase or step: one gentle vibration, if she turned it on.
   const lastKey = useRef("");
-  useEffect(() => { if (status === "running" && key !== lastKey.current) { lastKey.current = key; if (haptics && buzz) buzz(); } }, [key, status]);
+  useEffect(() => { if (status === "running" && key !== lastKey.current) { lastKey.current = key; if (haptics && buzz) buzz(); if (voice && canSpeak) speak(voiceCue(p.kind, at)); } }, [key, status]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The voice stops whenever the run isn't going, when she turns it off, and when the sheet closes.
+  useEffect(() => { if (status !== "running" || !voice) hush(); }, [status, voice]);
+  useEffect(() => () => hush(), []);
   // Hidden app → pause.
   useEffect(() => {
     const onVis = () => { if (document.hidden && status === "running") pause(); };
@@ -102,7 +109,9 @@ export default function PracticeSheet({ practice: p, need = null, fav = false, o
       <div className="psh-tools">
         <button type="button" className={`psh-tool${fav ? " on" : ""}`} aria-pressed={fav} onClick={onFav}><Icon name="star" size={16} />{t("practiceSheet.favourite")}</button>
         {buzz && <button type="button" className={`psh-tool${haptics ? " on" : ""}`} aria-pressed={haptics} onClick={onHaptics}><Icon name="pulse" size={16} />{t("practiceSheet.gentleVibration")}</button>}
+        {canSpeak && onVoice && <button type="button" role="switch" aria-checked={voice} aria-describedby="psh-voice-d" className={`psh-tool${voice ? " on" : ""}`} onClick={() => { if (voice) hush(); else if (status === "running") speak(voiceCue(p.kind, at)); onVoice(); }}><Icon name="breath" size={16} />Voice guide</button>}
       </div>
+      {canSpeak && onVoice && <p className="rfoot psh-voicenote" id="psh-voice-d">{voice ? "Your device's built-in voice reads each step aloud. Nothing is recorded or sent." : "Have each step read aloud by your device's built-in voice."}</p>}
       <section className="psh-ev" aria-labelledby="psh-ev-t">
         <div className="psh-evhead"><h3 id="psh-ev-t" className="psh-evtitle">{t("practiceSheet.whatTheEvidenceSays")}</h3><span className={`psh-strength s-${p.strength}`}>{t(`strength.${p.strength}`)}</span></div>
         <p className="psh-evtext">{p.evidence}</p>

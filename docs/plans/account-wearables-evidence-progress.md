@@ -18,4 +18,11 @@ Baseline (2026-11-12, before any change): lint 0 errors (26 warnings), unit 574/
   (devicesHint, device-only), sheet, You → Data sources button; wearables on by default; production mounts integrations
 - Terra row wording follows the code (held up to 7 days), not the brief's "not kept" (Oura only)
 - Verified: lint 0 errors (25 warnings); unit 585/585; backend 13/13; smoke:all passed; build stamp once; e2e 15/15; axe 17/17
-## Task 3: Pro = evidence-based AI: not started
+## Task 3: Pro = evidence-based AI: DONE (commit "Pro: evidence-based answers with sources; all practices free with voice guidance")
+- every practice free (mind.js, plan.js drops fullPractices, adds aiEvidence); voice guide (lib/voice.js, practiceVoice key)
+- backend ai/evidence.js POST /api/ai/evidence (web_search_20260209, allowed_domains, max_uses 5, effort medium, refusal,
+  search-error and pause_turn handling, rate limit), scripts/evidence-smoke.js in smoke:all
+- EvidenceCard (Mind → Journey, Patterns), preview via AiSendSheet, red flags on device; ProSheet leads with it
+- Verified: lint 0 errors (23 warnings); unit 589/589; backend 13/13; smoke:all passed; build stamp once; e2e 18/18; axe 21/21
+
+All three tasks done. Nothing left from the brief; see the final report for owner actions (env vars, persistent disk).

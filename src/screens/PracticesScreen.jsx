@@ -1,29 +1,27 @@
-import { Card, Chip, IBadge } from "../components/ui/index.js";
+import { Card, IBadge } from "../components/ui/index.js";
 import Icon from "../components/Icon.jsx";
 import BreathOrb from "../components/mind/BreathOrb.jsx";
-import { NEEDS, practicesFor, practiceOf, unlocked } from "../lib/mind.js";
+import { NEEDS, practicesFor, practiceOf } from "../lib/mind.js";
 import { localPractice } from "../locales/index.js";
 import { t } from "../lib/i18n.js";
 
 /* Mind → Practices (calm R5, spec §3.5c): short guided practices grouped by need, each with its minutes and how strong
-   its evidence is; favourites first. A practice opens its sheet (PracticeSheet: the run and the evidence). On the free
-   plan the core set opens; the others show a "Pro" chip and their row opens "See what Pro adds" (plan §7: never
-   blocking, never nagging). Practices are wellbeing support, not treatment; the closing line says where to turn
-   when it's more than a practice can hold.
+   its evidence is; favourites first. A practice opens its sheet (PracticeSheet: the run, the optional voice guide and the
+   evidence). Task 3 (2026-11-12): every practice is free, with no Pro chip. Practices are wellbeing support, not treatment;
+   the closing line says where to turn when it's more than a practice can hold.
 
-   Props: canFull (plan.js can("fullPractices")), favs [ids], onOpen(id, need), onPro(), featured { practice, need }. */
-export default function PracticesScreen({ canFull = false, favs = [], onOpen, onPro, featured = null }) {
+   Props: favs [ids], onOpen(id, need), featured { practice, need }. */
+export default function PracticesScreen({ favs = [], onOpen, featured = null }) {
   const row = (p, need) => {
-    const open = unlocked(p, canFull);
     return (
       <li key={`${need}-${p.id}`}>
-        <button type="button" className={`prow-btn${open ? "" : " locked"}`} data-practice={p.id} onClick={() => (open ? onOpen(p.id, need) : onPro())} aria-describedby={open ? undefined : "pro-why"}>
+        <button type="button" className="prow-btn" data-practice={p.id} onClick={() => onOpen(p.id, need)}>
           <IBadge icon={p.icon} tint={NEEDS.find((n) => n.id === need)?.tint} size={38} />
           <span className="prow-txt">
             <b>{p.title}</b>
             <span className="prow-sub">{t("practices.min", { min: p.min, v0: t(`strength.${p.strength}`) })}</span>
           </span>
-          {open ? <Icon name="arrow-right" size={16} className="prow-go" /> : <Chip variant="pro" />}
+          <Icon name="arrow-right" size={16} className="prow-go" />
         </button>
       </li>
     );
@@ -59,7 +57,6 @@ export default function PracticesScreen({ canFull = false, favs = [], onOpen, on
           <ul className="prows">{practicesFor(n.id).map((p) => row(localPractice(p), n.id))}</ul>
         </Card>
       ))}
-      {!canFull && <p className="hint prowhy" id="pro-why">{t("practices.practicesMarkedProArePart")}</p>}
       <p className="rfoot practfoot">{t("practices.practicesAreWellbeingSupportNot")}</p>
     </main>
   );
