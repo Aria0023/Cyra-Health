@@ -14,7 +14,8 @@
     "cap:android": "npm run cap:sync && cap open android",
     "lint": "eslint src e2e vite.config.js",
     "e2e": "playwright test --config e2e/playwright.config.mjs --project app",
-    "e2e:axe": "playwright test --config e2e/playwright.config.mjs --project axe"
+    "e2e:axe": "playwright test --config e2e/playwright.config.mjs --project axe",
+    "voice": "node scripts/make-voice.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",

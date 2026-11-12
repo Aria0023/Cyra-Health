@@ -2130,3 +2130,19 @@ flag and payload); `sw.test.mjs`, `notifications.test.mjs`, `autoTracked.test.mj
 - **Sentences changed:** the ProSheet no longer offers "The full practices library"; "Free stays free" now names every
   guided practice with its voice guide; the Practices page no longer says "Tap a Pro practice to see what Pro adds".
 
+
+## Voice guide: recorded calm voice (2026-11-12)
+
+- **What changed:** the practice voice guide plays recorded clips of a calm, natural female voice when the build ships
+  them in `public/voice/` (made once by `scripts/make-voice.mjs` with ElevenLabs, a developer step). Lines without a
+  clip, and builds without clips, use the device's own voice, now the most natural female English voice it has, slower
+  and lower.
+- **Statements checked:** "A calm recorded voice guides each step. It plays from the app, and nothing you do is recorded
+  or sent." True: the clips are static files fetched from the app's own site like its fonts; the request carries no
+  user data, and the microphone is never used. The app never calls ElevenLabs; only the developer's one-time script
+  does, and it sends only the practice wording. Shown only when the manifest loaded. Otherwise the earlier device-voice
+  sentence stays, and stays true.
+- **The shipped clips:** made with Kokoro v1.0 (open-source, Apache-2.0, commercial use allowed), voice af_heart, on a
+  developer machine by `scripts/make-voice-kokoro.py`, with no account and no network call at run time. 48 clips,
+  1.6 MB; a unit test checks every line has one. `scripts/make-voice.mjs` (ElevenLabs, paid plan for commercial use)
+  stays as an alternative.
