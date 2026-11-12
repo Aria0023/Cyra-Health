@@ -1452,6 +1452,20 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .prolist-d { display:block; font-size:var(--fs-sm); color:var(--soft); margin-top:2px; }
 .profree { margin:0 0 6px; font-size:var(--fs-sm); color:var(--ink); }
 .pronote { margin:0 0 12px; }
+.proplans { margin:4px 0 12px; }
+.proplanopts { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0 0 12px; }
+.proplanopt { display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-height:44px; text-align:left; padding:12px; border:1px solid var(--line); border-radius:var(--r-inner); background:var(--card); color:var(--ink); cursor:pointer; font:inherit; }
+.proplanopt.on { border-color:var(--primary); box-shadow:inset 0 0 0 1px var(--primary); }
+.proplanopt b { font:600 15px var(--ff-body); }
+.proplanprice { font-size:var(--fs-sm); color:var(--ink); }
+.proplannote { font-size:var(--fs-sm); color:var(--soft); }
+.probuy { margin:0 0 8px; }
+.proterms { margin:0 0 8px; }
+.prolinks { display:flex; flex-wrap:wrap; gap:4px 16px; margin:4px 0 12px; }
+.protips { margin:12px 0; padding-top:12px; border-top:var(--rule); }
+.protipopts { display:flex; flex-wrap:wrap; gap:8px; }
+.protip { min-height:44px; }
+.protip span { color:var(--soft); font-weight:400; }
 @media (max-width:359px) { .moodlab { font-size:10.5px; } .nextbody { gap:10px; } .breathhero .orb { --orb:100px !important; } }
 
 /* ---- calm R6: Patterns — cycle timeline, Body and Mind rings, pattern cards, weekly review, Share ---- */

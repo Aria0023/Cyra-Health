@@ -5,6 +5,22 @@ import { Card, IBadge, QuickTile, StepRail, Ring, TwoBar, Chip, NavPill, Sheet, 
 import { stagePalettes, vizVars } from "../lib/constants.js";
 import { paletteFor, paletteVars, applyDocumentScheme, SYSTEM_DARK_QUERY, STYLES, cleanStyle } from "../lib/appearance.js";
 import AutoTrackedCard from "../components/AutoTrackedCard.jsx";
+import ProSheet from "../components/ProSheet.jsx";
+import { storeFor } from "../lib/purchase.js";
+
+/* A pretend store for the Pro sheet preview (dev gallery only): the store's answers in the shape RevenueCat gives them,
+   with the owner's US prices. Nothing is bought, charged or sent. */
+const demoPkg = (type, id, priceString, price) => ({ identifier: `$rc_${type.toLowerCase()}`, packageType: type, product: { identifier: id, priceString, price } });
+const DEMO_PLUGIN = {
+  configure: async () => {},
+  getCustomerInfo: async () => ({ customerInfo: { entitlements: { active: {} } } }),
+  getOfferings: async () => ({ current: { availablePackages: [demoPkg("MONTHLY", "solia_pro_monthly", "$4.99", 4.99), demoPkg("ANNUAL", "solia_pro_annual", "$29.99", 29.99)] } }),
+  getProducts: async ({ productIdentifiers }) => ({ products: productIdentifiers.map((id, i) => ({ identifier: id, priceString: ["$1.99", "$4.99", "$9.99"][i], price: [1.99, 4.99, 9.99][i] })) }),
+  purchasePackage: async () => { throw Object.assign(new Error("demo"), { userCancelled: true, code: "1" }); },
+  purchaseStoreProduct: async () => { throw Object.assign(new Error("demo"), { userCancelled: true, code: "1" }); },
+  restorePurchases: async () => ({ customerInfo: { entitlements: { active: {} } } }),
+};
+const DEMO_STORE = storeFor({ platform: "ios", plugin: DEMO_PLUGIN, apiKey: "demo" });
 import { localDay } from "../lib/engine.js";
 
 /* The design-system gallery (calm R1): every v2 component in the stage accent picked here, light or dark. Present
@@ -42,6 +58,7 @@ export default function DevGallery() {
   const [tiles, setTiles] = useState({ Sleep: true });
   const [autoDone, setAutoDone] = useState(false);
   const [autoSkip, setAutoSkip] = useState(null);
+  const [proDemo, setProDemo] = useState(false);
   useEffect(() => { const on = () => setView(readHash()); window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
   const set = (next) => { const v = { stage, scheme, style: uiStyle, ...next }; window.location.hash = `#/dev/ui?stage=${v.stage}&scheme=${v.scheme}&style=${v.style}`; };
   const [, stageLabel, stageId, stageName] = GALLERY_STAGES.find(([k]) => k === stage);
@@ -154,6 +171,7 @@ export default function DevGallery() {
         </Card>
 
         <button type="button" className="cta" aria-haspopup="dialog" onClick={() => setSheet(true)}>Open the log sheet</button>
+        <button type="button" className="ghostbtn" aria-haspopup="dialog" style={{ marginTop: 8 }} onClick={() => setProDemo(true)}>Open the Pro sheet (pretend store)</button>
         <p className="rfoot" style={{ textAlign: "center" }}>Illustrative data. Nothing on this page is saved or sent.</p>
       </main>
       <NavPill tabs={TABS} current={tab} onSelect={setTab} onPlus={() => setSheet(true)} plusExpanded={sheet} label="Gallery sections" />
@@ -165,6 +183,7 @@ export default function DevGallery() {
           <p className="rfoot" style={{ marginTop: 4 }}>One tap opens the right logger.</p>
         </Sheet>
       )}
+      {proDemo && <ProSheet store={DEMO_STORE} native ai onRestore={() => {}} ping={() => {}} onClose={() => setProDemo(false)} />}
     </Shell>
   );
 }

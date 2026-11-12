@@ -29,6 +29,11 @@ export const CyraHealth = registerPlugin("CyraHealth");
    dependency); App.jsx calls it only when hasPlugin("Haptics") says it is there, else falls back to the web
    view's navigator.vibrate on the phone, else offers no vibration at all. */
 export const Haptics = registerPlugin("Haptics");
+/* Pro subscriptions and tips (owner decision D4): RevenueCat's Capacitor plugin. The npm package
+   (@revenuecat/purchases-capacitor) is a dependency so `cap sync` bundles its native code into the phone builds; the
+   JS side is reached here through the bridge like every other plugin, so the web bundle never loads it. Used only
+   through lib/purchase.js and only when hasPlugin("Purchases") is true. It is told nothing about her. */
+export const Purchases = registerPlugin("Purchases");
 
 /* Sign-in and connect flows on the phone run outside the web view and come back
    through the app's own link: cyrahealth://auth/<oauth|oura|terra>?a=<attempt>#…

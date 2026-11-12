@@ -101,7 +101,7 @@ import { cleanExperiments, settle, startExperiment, skipWeek, markDay, runningOn
 import { PLAN, can, exportsLeft, noteExport, planFor } from "./lib/plan.js";
 import { cleanMoodLog, cleanPracticeLog, cleanPracticeFavs, setMoodDay, toggleFeeling, addRun, setHelped, runsOn, toggleFav, nextPractice, practiceOf, moodByCycle, stripSentence, moodStrip, STRIP_MIN, unlocked as practiceUnlocked } from "./lib/mind.js";
 import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, knownEndpoints, unsubscribeBrowser, support as reminderSupport, registerConfirmActions, scheduleConfirm, onConfirmAction } from "./lib/notifications.js";
-import { isNative, hasPlugin, Haptics, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
+import { isNative, hasPlugin, Haptics, Purchases, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pots/ui.js";
 import { REG_STAGE, STAGE_LABELS, ANSWER_BLANK, pruneForStage, socialReturnStep, pregWeekFrom, pcosModuleFrom } from "./lib/onboarding.js";
@@ -112,11 +112,21 @@ const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
 const backupFile = fileTransport({ isNative, Filesystem, Directory, Encoding, Share });
 // A stable empty list for what a build without a feature passes down (PotsPatterns' memo doesn't recompute).
 const NO_ROWS = Object.freeze([]);
-/* The plan (lib/plan.js): Pro only from a store purchase (lib/purchase.js: none in this version) or the proDev QA flag. */
+/* The plan (lib/plan.js): Pro only from a store purchase or the proDev QA flag. PLAN_NOW is the launch plan (before the
+   store answers); the live plan inside the app is planFor(DEV_FLAGS, proOwnedNow). */
 const PLAN_NOW = planFor(DEV_FLAGS, proOwned());
+/* The app store (lib/purchase.js; owner decision D4): RevenueCat on a phone build that bundles it and has the platform's
+   public SDK key; on the web, none. Nothing about her is ever given to it. */
+const STORE = (() => {
+  const plat = isNative() ? platform() : "web";
+  const apiKey = plat === "ios" ? import.meta.env.VITE_REVENUECAT_IOS_KEY : plat === "android" ? import.meta.env.VITE_REVENUECAT_ANDROID_KEY : "";
+  return storeFor({ platform: plat, plugin: plat !== "web" && hasPlugin("Purchases") ? Purchases : null, apiKey: apiKey || "" });
+})();
 /* The optional account (calm R9, lib/account.js): its transport for this plan. Fail-closed: without the cloudBackup flag,
    a server and Pro (plan.can("cloudBackup")) every call is refused before any request. */
-const ACCOUNTS = cloudAccountsFor(PLAN_NOW);
+/* The account gate reads the live plan through planRef (set from planLive after each render). */
+const planRef = { current: PLAN_NOW };
+const ACCOUNTS = cloudAccountsFor(() => planRef.current);
 const CLOUD_DEBOUNCE_MS = 8000; // the automatic back-up waits this long after the last saved change
 const recordSig = (o) => JSON.stringify(RECORD.map((k) => o?.[k] ?? null));
 const ZERO_SCALES = { fatigue: 0, pain: 0, moodq: 0, stress: 0 };
@@ -175,7 +185,8 @@ import { AiSendSheet, WriteUpCard, ChatCard } from "./components/ai/AiParts.jsx"
 import { buildSummary, checkSummary, summaryLines, weeklyBody, chatBody } from "./lib/aiSummary.js";
 import { cleanAiPrefs, cleanAiChat, cleanAiWeekly, aiOffer, AI_COPY } from "./lib/aiFeatures.js";
 import { aiStatus, aiSend } from "./lib/aiClient.js";
-import { storeFor, restorePurchases, proOwned } from "./lib/purchase.js";
+import { storeFor, restorePurchases, proOwned, startStore } from "./lib/purchase.js";
+import { WEB_PRICE_LINE } from "./lib/pricing.js";
 import ConnectScreen from "./screens/ConnectScreen.jsx";
 import PregTodayScreen from "./screens/PregTodayScreen.jsx";
 import PregCalendarScreen from "./screens/PregCalendarScreen.jsx";
@@ -385,6 +396,11 @@ export default function CyraDemo() {
   const [practiceHaptics, setPracticeHaptics] = useState(false);
   const [practiceOpen, setPracticeOpen] = useState(null); // { id, need } | null
   const [proOpen, setProOpen] = useState(false);
+  /* Whether the store says Pro is active (device-only, UI state; re-asked at every launch, never in a backup). */
+  const [proOwnedNow, setProOwnedNow] = useState(false);
+  useEffect(() => { let live = true; startStore(STORE).then((r) => { if (live && r.ok) setProOwnedNow(r.owned); }); return () => { live = false; }; }, []);
+  const planLive = planFor(DEV_FLAGS, proOwnedNow);
+  useEffect(() => { planRef.current = planLive; }, [planLive]);
   /* The optional account (calm R9): cloudAccount { rev, acct } is device-only and never in any backup (it holds the
      backup key and write token; lib/account.js). cloudSync, acctSheet and acctChoice are UI only. */
   const [cloudAccount, setCloudAccount] = useState(NO_ACCOUNT);
@@ -2331,7 +2347,7 @@ export default function CyraDemo() {
 
   /* The privacy dashboard's rows (L10, lib/privacyFlows.js): each flow this build can use, with its live state from the
      flags, the plan, the server setting, the platform and her settings. */
-  const flows = useMemo(() => flowRows({ native: isNative(), server: hasServer(), flags: { wearables: feature("wearables"), counts: feature("counts"), ai: feature("ai"), webReminders: feature("webReminders"), cloudBackup: feature("cloudBackup"), signin: feature("signin") }, planCloud: can("cloudBackup", PLAN_NOW), cloudOn: !!cloudAccount.acct, reminderSupport: reminderSupport(), reminders, research, askAI, aiPlan: { weekly: can("aiPatternReports", PLAN_NOW), chat: can("aiChat", PLAN_NOW) }, aiPrefs, wearLive: Object.entries(wearSources).filter(([k, v]) => VIA_SERVER.has(k) && v && !v.demo).length, terraOff: terraOff.length, demoWear: DEMO_WEARABLES }), [reminders, research, askAI, aiPrefs, wearSources, terraOff, cloudAccount]); // eslint-disable-line
+  const flows = useMemo(() => flowRows({ native: isNative(), server: hasServer(), flags: { wearables: feature("wearables"), counts: feature("counts"), ai: feature("ai"), webReminders: feature("webReminders"), cloudBackup: feature("cloudBackup"), signin: feature("signin") }, planCloud: can("cloudBackup", planLive), cloudOn: !!cloudAccount.acct, reminderSupport: reminderSupport(), reminders, research, askAI, aiPlan: { weekly: can("aiPatternReports", planLive), chat: can("aiChat", planLive) }, aiPrefs, wearLive: Object.entries(wearSources).filter(([k, v]) => VIA_SERVER.has(k) && v && !v.demo).length, terraOff: terraOff.length, demoWear: DEMO_WEARABLES }), [reminders, research, askAI, aiPrefs, wearSources, terraOff, cloudAccount, planLive]); // eslint-disable-line
 
   if (!hydrated) {
     // Start over runs the same clean-up as Delete everything, minus the wearable disconnects:
@@ -2613,7 +2629,7 @@ export default function CyraDemo() {
     else if (id === "meds" || id === "move" || id === "pcos" || id === "meals") openSheet(id);
   };
   /* ---------- Mind (calm R5, lib/mind.js): Today (check-in, next practice, which one helped), Practices, Journey ---------- */
-  const plan = PLAN_NOW;
+  const plan = planLive;
   const canFull = can("fullPractices", plan);
   /* ---------- Cyra's weekly write-up and chat (calm R8) ----------
      Offered only with the ai flag, a server and Pro (aiOffer); each runs only while her switch is on. The summary is
@@ -2670,8 +2686,8 @@ export default function CyraDemo() {
       o.then?.();
     }
   };
-  const store = storeFor({ platform: isNative() ? platform() : "web" });
-  const onRestore = async () => { const r = await restorePurchases(store); ping(r.line); };
+  const store = STORE;
+  const onRestore = async () => { const r = await restorePurchases(store); if (r.ok) setProOwnedNow(r.owned); ping(r.line); };
   const buzz = !isNative() ? null : hasPlugin("Haptics") ? () => { Haptics.impact({ style: "LIGHT" }).catch(() => {}); } : typeof navigator !== "undefined" && typeof navigator.vibrate === "function" ? () => { try { navigator.vibrate(30); } catch { /* no vibration here */ } } : null;
   const moodToday = moodLog[todayIso] || {};
   const firstMood = (log) => { if (!Object.keys(log[todayIso] || {}).length) ping("Check-in saved on this device"); };
@@ -2730,8 +2746,8 @@ export default function CyraDemo() {
   );
   const youView = (
     <YouScreen acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
-      pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={canFull} onPro={() => setProOpen(true)}
-      ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line} meals={mealsOffered ? { on: mealsHere, onToggle: () => { const on = !mealsHere; setBodyPrefs((p) => cleanBodyPrefs({ ...p, mealsOn: on })); ping(on ? "Meal notes on" : "Meal notes off. What you noted is kept"); } } : null} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
+      pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={canFull} proOwned={proOwnedNow} storeReady={STORE.available} onPro={() => setProOpen(true)}
+      ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line || (isNative() ? null : WEB_PRICE_LINE)} meals={mealsOffered ? { on: mealsHere, onToggle: () => { const on = !mealsHere; setBodyPrefs((p) => cleanBodyPrefs({ ...p, mealsOn: on })); ping(on ? "Meal notes on" : "Meal notes off. What you noted is kept"); } } : null} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
       account={ACCOUNTS_HERE ? { can: ACCOUNTS.available(), acct: cloudAccount.acct, sync: cloudSync, todayIso, onCreate: () => setAcctSheet("create"), onSignIn: () => setAcctSheet("signin"), onBackup: () => backupToCloud(), onSignOut: signOut, onDelete: deleteAccount, onUseBackup: resolveUseBackup, onKeepDevice: resolveKeepDevice, onPro: () => setProOpen(true) } : null}
       dataSources={SOURCES_HERE || sourcesModel.rows.length ? <DataSourcesCard m={sourcesModel} busy={wearBusy} onConnect={connectWear} onPause={pauseSource} onDisconnect={disconnectAny} onPrefer={preferSource} onDemo={setDemo} /> : null}
       care={stage === "preg" ? null : <CareScreen embedded shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: shelfKind(s), started: todayIso }]); ping(shelfKind(s) === "care" ? "Added to What I'm trying" : "Added — your days before and after will be compared"); }} />} />
@@ -2834,7 +2850,7 @@ export default function CyraDemo() {
       {logOpen && <LogSheet items={localItems(logItems)} onPick={pickLog} onClose={() => setLogOpen(false)} />}
       {bodySheetView}
       {practiceSheet}
-      {proOpen && <ProSheet unlocked={canFull} ai={offer.any} cloud={ACCOUNTS_HERE} onClose={() => setProOpen(false)} />}
+      {proOpen && <ProSheet unlocked={canFull} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} onClose={() => setProOpen(false)} />}
       {acctSheetView}
       {aiSendOpen && <AiSendSheet kind={aiSendOpen.kind} body={aiSendOpen.body} lines={aiSendOpen.lines} busy={!!aiBusy} onSend={sendAi} onClose={() => setAiSendOpen(null)} />}
     </Shell>
