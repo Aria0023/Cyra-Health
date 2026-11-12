@@ -4,13 +4,13 @@ The app's code for Pro is done and tested (`src/lib/purchase.js`, `src/lib/prici
 `src/components/ProSheet.jsx`). It sells nothing until the products below exist in the stores and
 RevenueCat, and the two public keys are set. Everything here needs the owner's developer accounts.
 
-**Prices:** $4.99 a month · $29.99 a year with a 7-day free trial · optional tips $1.99 / $4.99 / $9.99.
+**Prices:** $9.95 a month · $100 a year with a 7-day free trial · optional tips $1.99 / $4.99 / $9.99.
 **Product ids are a contract with the code. Type them exactly.**
 
 | What | Product id | Type | Price (US) | Notes |
 |---|---|---|---|---|
-| Pro monthly | `solia_pro_monthly` | auto-renewable subscription | $4.99 / month | no trial |
-| Pro yearly | `solia_pro_annual` | auto-renewable subscription | $29.99 / year | 7-day free trial (introductory offer) |
+| Pro monthly | `solia_pro_monthly` | auto-renewable subscription | $9.95 / month | no trial |
+| Pro yearly | `solia_pro_annual` | auto-renewable subscription | $100.00 / year | 7-day free trial (introductory offer) |
 | Tip, small | `solia_tip_small` | consumable | $1.99 | unlocks nothing |
 | Tip, medium | `solia_tip_medium` | consumable | $4.99 | unlocks nothing |
 | Tip, large | `solia_tip_large` | consumable | $9.99 | unlocks nothing |
@@ -33,7 +33,7 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
 ## 1. App Store Connect (iPhone)
 
 - [ ] My Apps → Solia Health → **Subscriptions** → create a subscription group "Solia Health Pro".
-- [ ] Add `solia_pro_monthly` (1 month, $4.99) and `solia_pro_annual` (1 year, $29.99) to that group.
+- [ ] Add `solia_pro_monthly` (1 month, $9.95) and `solia_pro_annual` (1 year, $100.00) to that group.
       Give each a display name and description, and a review screenshot of the Pro sheet.
 - [ ] On `solia_pro_annual` → **Introductory Offers** → Free → 1 week, all territories.
 - [ ] **In-App Purchases** → add the three tips as **Consumable** with the ids and prices above.
@@ -44,7 +44,7 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
 ## 2. Google Play Console (Android)
 
 - [ ] Monetize → Products → **Subscriptions** → create `solia_pro_monthly` with a base plan
-      (auto-renewing, monthly, $4.99) and `solia_pro_annual` with a base plan (yearly, $29.99).
+      (auto-renewing, monthly, $9.95) and `solia_pro_annual` with a base plan (yearly, $100.00).
 - [ ] On the yearly base plan → **Add offer** → free trial, 7 days, eligibility "new customers".
 - [ ] Monetize → Products → **In-app products** → add the three tips (managed products; RevenueCat
       consumes them).

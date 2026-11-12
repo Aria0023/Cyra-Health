@@ -6,7 +6,7 @@ import { loadOffer, buyPro, sendTip, STORE_LINES } from "../lib/purchase.js";
 import { PRO_PLAN_IDS, PRO_PRODUCTS, TIP_PRODUCTS, WEB_PRICE_LINE, planLines, CANCEL_LINES, KEEP_LINE } from "../lib/pricing.js";
 import { TERMS_URL, PRIVACY_URL, POLICY_LINKS_READY, TIP_URL, openExternal } from "../lib/links.js";
 
-/* "What Pro adds" (calm R5, plan §7 "Premium (Pro)"; owner decision D4: $4.99 a month or $29.99 a year, 7-day free
+/* "What Pro adds" (calm R5, plan §7 "Premium (Pro)"; owner decision D4: $9.95 a month or $100 a year, 7-day free
    trial on the yearly plan, optional tips). One calm sheet, opened only when she taps "See what Pro adds" or a Pro
    chip: never on its own, never blocking anything free, no countdown and no pressure words.
 

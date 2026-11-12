@@ -22,7 +22,7 @@ function fakePlugin({ owned = false, buy = "ok", restore = owned, offerings = tr
     calls,
     async configure(a) { calls.push(["configure", a]); },
     async getCustomerInfo() { calls.push(["getCustomerInfo"]); return { customerInfo: owned ? PRO_INFO : NO_INFO }; },
-    async getOfferings() { calls.push(["getOfferings"]); return { current: offerings ? { availablePackages: [pkg("MONTHLY", "solia_pro_monthly", "$4.99", 4.99), pkg("ANNUAL", "solia_pro_annual", "$29.99", 29.99)] } : null }; },
+    async getOfferings() { calls.push(["getOfferings"]); return { current: offerings ? { availablePackages: [pkg("MONTHLY", "solia_pro_monthly", "$9.95", 9.95), pkg("ANNUAL", "solia_pro_annual", "$100.00", 100)] } : null }; },
     async getProducts(a) { calls.push(["getProducts", a]); return { products: a.productIdentifiers.map((id, i) => ({ identifier: id, priceString: ["$1.99", "$4.99", "$9.99"][i], price: 1 })) }; },
     async purchasePackage(a) {
       calls.push(["purchasePackage", a]);
@@ -66,8 +66,8 @@ test("loadOffer returns the store's own prices; buyPro buys a plan and opens Pro
   const plugin = fakePlugin();
   const s = storeFor({ platform: "android", plugin, apiKey: "goog_pub" });
   const offer = await loadOffer(s, { tipIds: TIP_PRODUCTS.map((x) => x.id) });
-  assert.equal(offer.plans.annual.priceString, "$29.99");
-  assert.equal(offer.plans.monthly.priceString, "$4.99");
+  assert.equal(offer.plans.annual.priceString, "$100.00");
+  assert.equal(offer.plans.monthly.priceString, "$9.95");
   assert.deepEqual(offer.tips.map((x) => x.id), TIP_PRODUCTS.map((x) => x.id));
   const b = await buyPro(s, "annual", offer);
   assert.deepEqual({ ok: b.ok, owned: b.owned, line: b.line }, { ok: true, owned: true, line: STORE_LINES.bought });
@@ -117,8 +117,8 @@ test("ownsPro reads only an active pro entitlement; the sync default owns nothin
 });
 
 test("pricing: the owner's prices, store prices on phones, honest terms", () => {
-  assert.equal(PRO_PRODUCTS.monthly.ref, "$4.99");
-  assert.equal(PRO_PRODUCTS.annual.ref, "$29.99");
+  assert.equal(PRO_PRODUCTS.monthly.ref, "$9.95");
+  assert.equal(PRO_PRODUCTS.annual.ref, "$100");
   assert.equal(PRO_PRODUCTS.annual.trialDays, 7);
   assert.match(WEB_PRICE_LINE, /in the iPhone and Android apps/);
   const a = planLines("annual", { priceString: "€32,99", price: 32.99 });
@@ -126,11 +126,12 @@ test("pricing: the owner's prices, store prices on phones, honest terms", () => 
   assert.equal(a.button, "Start 7-day free trial");
   assert.match(a.terms, /^Free for 7 days, then €32,99 a year\. Renews every year until you cancel\./);
   assert.equal(a.note, "About €2.74 a month");
-  const m = planLines("monthly", { priceString: "$4.99", price: 4.99 });
-  assert.equal(m.button, "Subscribe for $4.99 a month");
+  const m = planLines("monthly", { priceString: "$9.95", price: 9.95 });
+  assert.equal(m.button, "Subscribe for $9.95 a month");
   assert.equal(m.note, null);
   assert.equal(planLines("annual", {}), null, "no store price → no line at all");
   assert.equal(perMonthOf(29.99, "$29.99"), "$2.49");
+  assert.equal(perMonthOf(100, "$100.00"), "$8.33");
   assert.equal(perMonthOf(29.99, "29.99"), null, "no currency symbol → no claim");
   for (const k of ["app-store", "play"]) assert.match(CANCEL_LINES[k], /Cancel any time/);
   assert.match(KEEP_LINE, /nothing you logged is locked/);
