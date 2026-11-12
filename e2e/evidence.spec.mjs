@@ -29,6 +29,28 @@ test("practices: every one opens (no Pro chip), and the voice guide speaks the b
   await expect.poll(() => page.evaluate(() => window.__spoken)).toContain("Breathe in");
 });
 
+test("voice guide plays the recorded calm voice when this build ships clips", async ({ page }) => {
+  const { clipId } = await import("../src/lib/voice.js");
+  const inId = clipId("Breathe in");
+  await page.route("**/voice/manifest.json", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ voice: "Recorded calm voice", clips: { [inId]: `${inId}.mp3` } }) }));
+  await page.addInitScript(() => {
+    window.__played = []; window.__spoken = [];
+    window.Audio = function (src) { this.src = src; this.play = () => { window.__played.push(src); return Promise.resolve(); }; this.pause = () => {}; };
+    if (window.speechSynthesis) window.speechSynthesis.speak = (u) => { window.__spoken.push(u.text); };
+  });
+  await register(page, { stage: "Perimenopause" });
+  await gotoTab(page, "Mind"); await gotoSegment(page, "Practices");
+  await page.locator('.prow-btn[data-practice="slow"]').first().click();
+  const sheet = page.locator("#practice-sheet");
+  const voice = sheet.getByRole("switch", { name: "Voice guide" });
+  await voice.click();
+  await expect(sheet).toContainText("A calm recorded voice guides each step.");
+  await sheet.getByRole("button", { name: "Start" }).click();
+  await expect.poll(() => page.evaluate(() => window.__played)).toEqual(expect.arrayContaining([expect.stringContaining(`voice/${inId}.mp3`)]));
+  // "and out" has no clip in this manifest, so the device voice speaks it.
+  await expect.poll(() => page.evaluate(() => window.__spoken), { timeout: 15000 }).toContain("and out");
+});
+
 test("Ask with evidence: preview, send only what was shown, numbered sources; a red flag is never sent", async ({ page }) => {
   const state = newApiState({ evidence: () => ({ status: 200, json: ANSWER }) });
   await mockApi(page, state);

@@ -5,7 +5,7 @@ import Details from "../Details.jsx";
 import BreathOrb from "./BreathOrb.jsx";
 import { practiceAt, practiceSeconds, sourcesOf } from "../../lib/mind.js";
 import { t } from "../../lib/i18n.js";
-import { voiceSupported, voiceCue, speak, hush } from "../../lib/voice.js";
+import { voiceSupported, voiceCue, speak, hush, loadClips, clipsReady } from "../../lib/voice.js";
 
 /* One practice (calm R5): the guided run and what the evidence says, in one sheet. The orb (BreathOrb) leads; under it
    the phase word or the step, a timer, then Start → Pause / Resume and Stop. At the end she can say whether it helped
@@ -13,7 +13,8 @@ import { voiceSupported, voiceCue, speak, hush } from "../../lib/voice.js";
    button keeps focus as it becomes Pause; a polite live region announces each change of phase or step (not each
    second); the timer is role="timer"; at the end focus moves to "Did that help?". The run pauses when the app is
    hidden. Haptics: `buzz` (a function, or null when this device can't vibrate) is called at each change while
-   `haptics` is on. Voice guide (Task 3, lib/voice.js): while `voice` is on, this device's built-in voice speaks each step,
+   `haptics` is on. Voice guide (Task 3, lib/voice.js): while `voice` is on, a recorded calm voice (public/voice/, when this build ships
+   clips) or else this device's built-in voice speaks each step,
    or a short cue for each breath phase, timed to the orb; it stops on pause, stop and close. The switch shows only
    where the device can speak. Nothing here is sent anywhere.
 
@@ -22,7 +23,9 @@ import { voiceSupported, voiceCue, speak, hush } from "../../lib/voice.js";
    onHelped(runId, "yes" | "no"); onClose. */
 const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.max(0, Math.floor(s % 60))).padStart(2, "0")}`;
 export default function PracticeSheet({ practice: p, need = null, fav = false, onFav, haptics = false, onHaptics, buzz = null, voice = false, onVoice, onRun, onHelped, onClose }) {
-  const canSpeak = voiceSupported();
+  const [recorded, setRecorded] = useState(clipsReady());
+  useEffect(() => { let live = true; loadClips().then(() => { if (live) setRecorded(clipsReady()); }); return () => { live = false; }; }, []);
+  const canSpeak = recorded || voiceSupported();
   const total = practiceSeconds(p);
   const [status, setStatus] = useState("ready"); // ready | running | paused | done
   const [elapsed, setElapsed] = useState(0); // ms
@@ -111,7 +114,7 @@ export default function PracticeSheet({ practice: p, need = null, fav = false, o
         {buzz && <button type="button" className={`psh-tool${haptics ? " on" : ""}`} aria-pressed={haptics} onClick={onHaptics}><Icon name="pulse" size={16} />{t("practiceSheet.gentleVibration")}</button>}
         {canSpeak && onVoice && <button type="button" role="switch" aria-checked={voice} aria-describedby="psh-voice-d" className={`psh-tool${voice ? " on" : ""}`} onClick={() => { if (voice) hush(); else if (status === "running") speak(voiceCue(p.kind, at)); onVoice(); }}><Icon name="breath" size={16} />Voice guide</button>}
       </div>
-      {canSpeak && onVoice && <p className="rfoot psh-voicenote" id="psh-voice-d">{voice ? "Your device's built-in voice reads each step aloud. Nothing is recorded or sent." : "Have each step read aloud by your device's built-in voice."}</p>}
+      {canSpeak && onVoice && <p className="rfoot psh-voicenote" id="psh-voice-d">{recorded ? (voice ? "A calm recorded voice guides each step. It plays from the app, and nothing you do is recorded or sent." : "Have a calm recorded voice guide each step.") : (voice ? "Your device's built-in voice reads each step aloud. Nothing is recorded or sent." : "Have each step read aloud by your device's built-in voice.")}</p>}
       <section className="psh-ev" aria-labelledby="psh-ev-t">
         <div className="psh-evhead"><h3 id="psh-ev-t" className="psh-evtitle">{t("practiceSheet.whatTheEvidenceSays")}</h3><span className={`psh-strength s-${p.strength}`}>{t(`strength.${p.strength}`)}</span></div>
         <p className="psh-evtext">{p.evidence}</p>
