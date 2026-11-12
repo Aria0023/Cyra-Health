@@ -9,6 +9,8 @@ import { mockApi, newApiState } from "./lib/api.mjs";
 const ANSWER = { provider: "claude-opus-5-5", answer: "Several non-hormonal options reduce hot flashes. [1][2]\n\nThe evidence for supplements is mixed. [3]", sources: [{ n: 1, title: "Hot flashes | MedlinePlus", url: "https://medlineplus.gov/hotflashes.html" }, { n: 2, title: "Fezolinetant trial", url: "https://pubmed.ncbi.nlm.nih.gov/123/" }, { n: 3, title: "Black cohosh", url: "https://www.ncbi.nlm.nih.gov/books/1/" }] };
 
 test("practices: every one opens (no Pro chip), and the voice guide speaks the breathing cues", async ({ page }) => {
+  // A build without recorded clips: the device voice speaks.
+  await page.route("**/voice/manifest.json", (r) => r.fulfill({ status: 404, body: "" }));
   await page.addInitScript(() => {
     window.__spoken = [];
     if (window.speechSynthesis) window.speechSynthesis.speak = (u) => { window.__spoken.push(u.text); };

@@ -36,3 +36,14 @@ test("pickVoice prefers natural female English voices over the default", () => {
   assert.equal(pickVoice([v("Fred", "en-US", { default: true }), v("Thomas", "fr-FR")]).name, "Fred");
   assert.equal(pickVoice([v("Thomas", "fr-FR")]), null);
 });
+
+test("the shipped recordings cover every line the guide can speak", async () => {
+  const { readFile, access } = await import("node:fs/promises");
+  const m = cleanManifest(JSON.parse(await readFile(new URL("../../public/voice/manifest.json", import.meta.url), "utf8")));
+  assert.ok(m, "public/voice/manifest.json is well formed");
+  for (const line of VOICE_LINES) {
+    const file = m.clips[clipId(line)];
+    assert.ok(file, `a clip for: ${line}`);
+    await access(new URL(`../../public/voice/${file}`, import.meta.url));
+  }
+});
