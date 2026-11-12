@@ -14,7 +14,7 @@ const demoPkg = (type, id, priceString, price) => ({ identifier: `$rc_${type.toL
 const DEMO_PLUGIN = {
   configure: async () => {},
   getCustomerInfo: async () => ({ customerInfo: { entitlements: { active: {} } } }),
-  getOfferings: async () => ({ current: { availablePackages: [demoPkg("MONTHLY", "solia_pro_monthly", "$4.99", 4.99), demoPkg("ANNUAL", "solia_pro_annual", "$29.99", 29.99)] } }),
+  getOfferings: async () => ({ current: { availablePackages: [demoPkg("MONTHLY", "solia_pro_monthly", "$9.95", 9.95), demoPkg("ANNUAL", "solia_pro_annual", "$100.00", 100)] } }),
   getProducts: async ({ productIdentifiers }) => ({ products: productIdentifiers.map((id, i) => ({ identifier: id, priceString: ["$1.99", "$4.99", "$9.99"][i], price: [1.99, 4.99, 9.99][i] })) }),
   purchasePackage: async () => { throw Object.assign(new Error("demo"), { userCancelled: true, code: "1" }); },
   purchaseStoreProduct: async () => { throw Object.assign(new Error("demo"), { userCancelled: true, code: "1" }); },

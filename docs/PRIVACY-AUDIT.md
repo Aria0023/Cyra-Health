@@ -2048,7 +2048,7 @@ flag and payload); `sw.test.mjs`, `notifications.test.mjs`, `autoTracked.test.mj
 ## Pro subscriptions and tips (owner decision D4, 2026-11-12) — no health data leaves the device; the app store and RevenueCat learn only of a purchase
 
 - **What is new:** on a phone build with RevenueCat's plugin and a public SDK key, the Pro sheet loads the store's
-  offerings and can buy Pro ($4.99/month, $29.99/year with a 7-day trial) or a one-time tip; "Restore purchases" asks
+  offerings and can buy Pro ($9.95/month, $100/year with a 7-day trial; prices changed 2026-11-12) or a one-time tip; "Restore purchases" asks
   the store. At launch the app asks the store whether the "pro" entitlement is active. The web sells nothing.
 - **What leaves the device, and to whom:** to Apple or Google, the purchase itself (as for any app). To RevenueCat, the
   store receipt and an anonymous app user id that RevenueCat generates. `configure()` receives only the public key;

@@ -1,4 +1,4 @@
-/* Pro pricing (owner decision D4, 2026-11-12): $4.99 a month or $29.99 a year, a 7-day free trial on the yearly
+/* Pro pricing (owner decision D4, 2026-11-12; prices changed by the owner the same day): $9.95 a month or $100 a year, a 7-day free trial on the yearly
    plan, plus optional one-time tips. Pure: no imports, no storage, no network.
 
    Where a price may appear (App Store Review Guideline 3.1.2 and Google Play's subscription policy):
@@ -12,8 +12,8 @@ export const ENTITLEMENT = "pro";
 
 /** The two Pro subscriptions. `ref` is the owner's US reference price (web wording only). */
 export const PRO_PRODUCTS = Object.freeze({
-  monthly: Object.freeze({ id: "solia_pro_monthly", packageType: "MONTHLY", ref: "$4.99", per: "month", trialDays: 0 }),
-  annual: Object.freeze({ id: "solia_pro_annual", packageType: "ANNUAL", ref: "$29.99", per: "year", trialDays: 7 }),
+  monthly: Object.freeze({ id: "solia_pro_monthly", packageType: "MONTHLY", ref: "$9.95", per: "month", trialDays: 0 }),
+  annual: Object.freeze({ id: "solia_pro_annual", packageType: "ANNUAL", ref: "$100", per: "year", trialDays: 7 }),
 });
 export const PRO_PLAN_IDS = Object.freeze(["annual", "monthly"]);
 

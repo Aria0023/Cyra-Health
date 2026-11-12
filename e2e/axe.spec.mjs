@@ -59,12 +59,12 @@ test("the Pro sheet: the store's prices, the trial, the renewal terms and tips (
     await page.getByRole("button", { name: "Open the Pro sheet (pretend store)" }).click();
     const sheet = page.locator("#pro-sheet");
     await expect(sheet.getByRole("button", { name: "Start 7-day free trial" })).toBeVisible();
-    await expect(sheet.locator("#pro-terms")).toContainText("Free for 7 days, then $29.99 a year. Renews every year until you cancel.");
+    await expect(sheet.locator("#pro-terms")).toContainText("Free for 7 days, then $100.00 a year. Renews every year until you cancel.");
     await expect(sheet.locator("#pro-terms")).toContainText("Cancel any time in Settings");
     await expect(sheet.getByRole("button", { name: /\$9\.99/ })).toBeVisible();
     await audit(page, `Pro sheet, yearly picked, ${scheme}`);
     await sheet.getByRole("button", { name: /^Monthly/ }).click();
-    await expect(sheet.getByRole("button", { name: "Subscribe for $4.99 a month" })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: "Subscribe for $9.95 a month" })).toBeVisible();
     await expect(sheet.getByRole("button", { name: /^Monthly/ })).toHaveAttribute("aria-pressed", "true");
     await audit(page, `Pro sheet, monthly picked, ${scheme}`);
     await sheet.getByRole("button", { name: "Done" }).click();
@@ -79,7 +79,7 @@ test("the Pro sheet on the web sells nothing: it names the price in the apps", a
   await gotoTab(page, "You");
   await page.locator("#you-plan").getByRole("button", { name: "See what Pro adds" }).click();
   const sheet = page.locator("#pro-sheet");
-  await expect(sheet).toContainText("Pro is $4.99 a month or $29.99 a year in the iPhone and Android apps");
+  await expect(sheet).toContainText("Pro is $9.95 a month or $100 a year in the iPhone and Android apps");
   await expect(sheet.getByRole("button", { name: /free trial|Subscribe/ })).toHaveCount(0);
   await audit(page, "Pro sheet on the web");
   await ctx.close();

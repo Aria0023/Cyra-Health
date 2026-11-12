@@ -36,7 +36,7 @@ countdown or upgrade button, and a dev build (proDev) says it is a test build. R
 
 ## 1a. Owner decision D4 (2026-11-12): Pro is sold in the phone apps
 
-- **Price:** $4.99 a month or $29.99 a year (about $2.50 a month), with a 7-day free trial on the yearly plan only.
+- **Price:** $9.95 a month or $100 a year (about $8.33 a month, two months free), with a 7-day free trial on the yearly plan only.
   Optional one-time tips ("Support Solia Health"): $1.99, $4.99, $9.99. A tip unlocks nothing and never changes the plan.
 - **Where:** iPhone and Android, through the App Store and Google Play, via RevenueCat's Capacitor plugin
   (`src/lib/purchase.js`; the decision record and product ids are `src/lib/pricing.js`; setup is `docs/STORE-SETUP.md`).
