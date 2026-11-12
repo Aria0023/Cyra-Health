@@ -14,6 +14,9 @@ const clean = (v) => {
 export const TERMS_URL = clean(import.meta.env.VITE_TERMS_URL);
 export const PRIVACY_URL = clean(import.meta.env.VITE_PRIVACY_URL);
 export const POLICY_LINKS_READY = !!(TERMS_URL && PRIVACY_URL);
+/* An optional tip page for the web only (a Stripe Payment Link or similar, VITE_TIP_URL). Never shown in the phone apps,
+   where tips go through the app store (lib/purchase.js sendTip). */
+export const TIP_URL = clean(import.meta.env.VITE_TIP_URL);
 
 export function openExternal(url) {
   if (!url) return;

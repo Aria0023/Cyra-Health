@@ -2044,3 +2044,26 @@ the default build it is shown on the phone, as it must be. `.env.example` and `r
 right, Pause / Resume, Disconnect with delete, `#/confirm/<day>`; the gallery) and `npm run e2e:axe` (Data sources with the
 disconnect confirm open, the gallery in light and dark: 0 violations); `cd backend && npm run smoke:all` (push: the confirm
 flag and payload); `sw.test.mjs`, `notifications.test.mjs`, `autoTracked.test.mjs`, `features.test.mjs`, `disclosures.test.mjs`.
+
+## Pro subscriptions and tips (owner decision D4, 2026-11-12) — no health data leaves the device; the app store and RevenueCat learn only of a purchase
+
+- **What is new:** on a phone build with RevenueCat's plugin and a public SDK key, the Pro sheet loads the store's
+  offerings and can buy Pro ($4.99/month, $29.99/year with a 7-day trial) or a one-time tip; "Restore purchases" asks
+  the store. At launch the app asks the store whether the "pro" entitlement is active. The web sells nothing.
+- **What leaves the device, and to whom:** to Apple or Google, the purchase itself (as for any app). To RevenueCat, the
+  store receipt and an anonymous app user id that RevenueCat generates. `configure()` receives only the public key;
+  no name, email, attributes, device identifiers for attribution, or health data are ever passed
+  (`src/lib/purchase.test.mjs` checks the source for every such call). No request carries anything from her log.
+- **What is stored:** no new record key and nothing in a backup. Whether Pro is active is UI state, re-asked from the
+  store at every launch (`proOwnedNow` in App.jsx); RevenueCat's SDK keeps its own cache on the device.
+- **Statements checked true in every configuration:** "Pro is sold in the iPhone and Android apps"; "If Pro ends,
+  nothing you logged is locked, changed or deleted, and everything free stays free" (`plan.js` only opens features;
+  nothing deletes or hides data when Pro ends); "A one-time tip … doesn't change your plan" (`sendTip` returns no
+  entitlement; tested). On a phone, every price shown is the store's own string; the web names the US price as
+  "in the iPhone and Android apps".
+- **For counsel:** add RevenueCat (and Apple / Google as payment processors) to the Privacy Policy's list of
+  processors; add the subscription terms (auto-renewal, trial, cancellation) to the Terms; the App Store privacy
+  label gains "Purchases — not linked to you, not used for tracking".
+- **Verified:** ESLint 0 errors; unit tests 568 pass (7 new in `purchase.test.mjs`); e2e 8/8; e2e:axe 7/7 with
+  0 violations, including two new runs of the Pro sheet (pretend store, light and dark, both plans; and the web, which
+  sells nothing); `privacy.spec.mjs` still finds no request leaving the app's own origin on the web.

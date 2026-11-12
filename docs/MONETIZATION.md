@@ -34,6 +34,27 @@ Calm R7: You has one quiet Plan card ("Cyra Free", the free-forever sentence, a 
 same `ProSheet`, and "There's nothing to buy in this version."). It never opens anything on its own, has no price, trial,
 countdown or upgrade button, and a dev build (proDev) says it is a test build. R8 changes its copy when purchases exist.
 
+## 1a. Owner decision D4 (2026-11-12): Pro is sold in the phone apps
+
+- **Price:** $4.99 a month or $29.99 a year (about $2.50 a month), with a 7-day free trial on the yearly plan only.
+  Optional one-time tips ("Support Solia Health"): $1.99, $4.99, $9.99. A tip unlocks nothing and never changes the plan.
+- **Where:** iPhone and Android, through the App Store and Google Play, via RevenueCat's Capacitor plugin
+  (`src/lib/purchase.js`; the decision record and product ids are `src/lib/pricing.js`; setup is `docs/STORE-SETUP.md`).
+  The web sells nothing: the Pro sheet and the Plan card name the US price "in the iPhone and Android apps". An optional
+  web tip page (`VITE_TIP_URL`) is shown on the web only, never inside the phone apps.
+- **Prices on a phone come only from the store** (`product.priceString`, her currency). Until the store answers, no price
+  is shown at all. The sheet shows the plan length, price per period, auto-renewal, how to cancel, Restore purchases and
+  the Terms and Privacy links (App Store Review Guideline 3.1.2).
+- **What RevenueCat is told:** nothing about her. `configure()` gets no app user id (RevenueCat makes an anonymous one);
+  no attributes, email, name or health data are ever set; `purchase.test.mjs` fails if the code calls any of those.
+  RevenueCat receives the store receipt and the anonymous id, as any subscription processor must. It is a payment
+  processor, not analytics or advertising (§6), and must be listed as a processor in the Privacy Policy and the App
+  Store privacy label ("Purchases", not linked to identity).
+- **What Pro opens** is unchanged: `PRO_PLAN` in `src/lib/plan.js`. Everything in §2 stays free.
+- **Status:** the code path is built and tested with a fake store and a pretend-store preview (dev gallery). It sells
+  nothing until the products exist in App Store Connect / Play Console / RevenueCat and the two public keys are set.
+  Still open: a server-side receipt check for the cloud backup entitlement (§3, `cloudBackup`).
+
 ## 2. The free core, forever
 
 A feature that ships free stays free.

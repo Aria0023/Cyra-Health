@@ -155,7 +155,7 @@ test("account: wiring — the account key is device-only and never in a backup; 
   assert.match(rec, /DEVICE_ONLY = Object\.freeze\(\[[^\]]*"cloudAccount"/);
   const cb = readFileSync(new URL("./cloudBackup.js", import.meta.url), "utf8");
   assert.match(cb, /export const ACCOUNTS_HERE = accountsInBuild\(FEATURES, hasServer\(\)\);/);
-  assert.match(cb, /gate: \(\) => FEATURES\.cloudBackup && can\("cloudBackup", plan\)/);
+  assert.match(cb, /gate: \(\) => FEATURES\.cloudBackup && can\("cloudBackup", typeof plan === "function" \? plan\(\) : plan\)/);
   assert.equal(DEF.cloudBackup, false, "the default build has no cloudBackup flag");
   const app = readFileSync(new URL("../App.jsx", import.meta.url), "utf8");
   assert.ok(app.includes("encryptWithKey(snap, acct)") && app.includes("const snap = backupCopy(cloudRef.current.snap());"), "the automatic back-up encrypts backupCopy(snapshot()) like a file backup");

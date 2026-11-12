@@ -3,8 +3,8 @@
    - MODULE_ADDS: the one-line "what it adds" under each module switch on You. Each sentence names only what that
      module does in this build (PCOS: the signals sheet, the long-cycle count, the pattern questions; POTS: the tools
      the POTS page has; fertility signs: the Today group). Listed in docs/CLINICIAN-REVIEW.md.
-   - PLAN_COPY: the Plan card. Free is the whole app today; Pro is described, never sold here. Calm R8: "Restore purchases"
-     asks lib/purchase.js, which has no store connected in this version and says so; "nothing to buy" stays true.
+   - PLAN_COPY: the Plan card. Free stays free; Pro (owner decision D4) is sold only in the phone apps through the app
+     store (lib/purchase.js), described calmly, never pushed. The web names the price "in the iPhone and Android apps".
    - ACCOUNT_LINES / NOT_MEDICAL / AI_OFF_LINE: sentences that must stay literally true of the build. */
 export const BUILD_STAMP = "BUILD 2026.10.07-D";
 
@@ -18,10 +18,14 @@ export const MODULE_ADDS_IDS = Object.freeze(Object.keys(MODULE_ADDS));
 export const PLAN_COPY = Object.freeze({
   eyebrow: "Your plan",
   free: "Solia Health Free",
+  pro: "Solia Health Pro",
   test: "Solia Health Pro (test build)",
   body: "Logging, your cycle and a clear summary for appointments are free. Pro adds more depth.",
+  bodyOn: "Thank you for supporting Solia Health. Everything free stays free, and Pro adds more depth.",
   see: "See what Pro adds",
-  none: "There's nothing to buy in this version.",
+  seePlans: "See Pro plans",
+  optional: "Pro is optional. Nothing free is ever moved behind it.",
+  on: "Pro renews through your app store until you cancel. Ending it never locks or deletes anything you logged.",
   testNote: "This is a test build: Pro's parts are unlocked here for checking. Nothing is bought.",
   restore: "Restore purchases",
 });

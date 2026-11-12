@@ -20,4 +20,5 @@ import { accountsInBuild } from "./disclosures.js";
 export const ACCOUNTS_HERE = accountsInBuild(FEATURES, hasServer());
 export const cloudBackup = cloudTransport({ request: apiFetch, enabled: hasServer(), gate: () => FEATURES.cloudBackup && can("cloudBackup") });
 /** The account transport for a plan (lib/plan.js planFor()). */
-export const cloudAccountsFor = (plan = PLAN) => accountTransport({ request: apiFetch, enabled: ACCOUNTS_HERE, gate: () => FEATURES.cloudBackup && can("cloudBackup", plan) });
+/* `plan` may be a plan or a function returning the live plan (a store purchase can open Pro after launch). */
+export const cloudAccountsFor = (plan = PLAN) => accountTransport({ request: apiFetch, enabled: ACCOUNTS_HERE, gate: () => FEATURES.cloudBackup && can("cloudBackup", typeof plan === "function" ? plan() : plan) });
