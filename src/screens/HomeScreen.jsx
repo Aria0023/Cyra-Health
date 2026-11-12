@@ -63,7 +63,7 @@ export default function HomeScreen({
   potsCard = null,
   installTip = null,
   fertRead = null,
-  autoCard = null, autoConfirmed = false,
+  autoCard = null, autoConfirmed = false, devicesCard = null,
 }) {
   const hour = new Date().getHours();
   const connectedCount = Object.values(wearSources).filter((w) => w && !w.pending).length;
@@ -148,6 +148,7 @@ export default function HomeScreen({
       {installTip && <InstallTip tip={installTip} returnFocusRef={ctaRef} />}
       {/* Passive tracking S2: "Today's auto-tracked" sits above the Quick log while a source synced in the last 36 h (App.jsx). */}
       {autoCard}
+      {devicesCard}
 
       {/* ---- Quick log: 2–4 tiles (her choice, You can change them here); each opens its logger. ---- */}
       <section className="quicklog" aria-labelledby="quicklog-t">

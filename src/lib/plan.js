@@ -1,8 +1,8 @@
 /* Entitlements (owner decision D1): the one place Cyra decides whether an optional paid feature is
    available. There is one plan on sale, "free", and no way to buy another yet: no paywall, no purchase code and no
    entitlement check over the network. Calm R5 (plan §7 "Premium (Pro)", which replaces D1's "never show upgrade UI"):
-   gated parts carry a one-line "Pro" chip and a "See what Pro adds" sheet, never an interruption; fullPractices gates
-   the practices beyond the free core set (lib/mind.js FREE_PRACTICES). DEV_PRO_PLAN is the dev/QA unlock, chosen by
+   gated parts carry a one-line "Pro" chip and a "See what Pro adds" sheet, never an interruption. Task 3 (2026-11-12):
+   every practice is free (fullPractices is gone); Pro is AI with evidence: aiEvidence, aiPatternReports, aiChat. DEV_PRO_PLAN is the dev/QA unlock, chosen by
    planFor() only when the build's VITE_FEATURES names the dev flag proDev (or "all"). Calm R8: PRO_PLAN is what a store
    purchase unlocks (lib/purchase.js reports whether one is owned; in this version no store is connected, so nothing is
    ever owned and only proDev opens Pro). aiPatternReports gates Cyra's weekly write-up and aiChat the chat about her
@@ -23,7 +23,9 @@
  * @property {boolean} aiPatternReports advanced AI pattern reports (per-report consent).
  * @property {boolean} extraCustomisation customisation beyond the free favourites and palettes.
  * @property {boolean} cloudBackup end-to-end-encrypted cloud backup and sync.
- * @property {boolean} fullPractices the whole Mind practices library (calm R5); the free plan has the core set.
+ * @property {boolean} aiEvidence "Ask with evidence" (Task 3): answers with numbered sources from PubMed, MedlinePlus, CDC, NIH,
+ *   ACOG, WHO, NICE and others, through Solia Health's server (also needs the ai flag and a server). Every Mind practice is
+ *   free since 2026-11-12, so there is no fullPractices any more.
  * @property {boolean} aiChat chat with Cyra's AI about her log (calm R8; previewed summary, her switch).
  */
 /**
@@ -34,20 +36,20 @@
  */
 
 /** @type {Readonly<Plan>} */
-export const FREE_PLAN = Object.freeze({ tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false, fullPractices: false, aiChat: false });
+export const FREE_PLAN = Object.freeze({ tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false, aiChat: false, aiEvidence: false });
 /** The plan this build runs on unless a dev unlock applies (planFor). */
 export const PLAN = FREE_PLAN;
 /** The dev/QA unlock (dev flag proDev): Pro's in-app parts on, with the free plan's PDF rule. cloudBackup on too (calm R9;
     it still needs the build's cloudBackup flag and a server, so QA tests the account against a local backend). */
-export const DEV_PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro-dev", aiPatternReports: true, extraCustomisation: true, fullPractices: true, aiChat: true, cloudBackup: true });
+export const DEV_PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro-dev", aiPatternReports: true, extraCustomisation: true, aiChat: true, cloudBackup: true, aiEvidence: true });
 /** What a Pro purchase unlocks (calm R8). The basic PDF stays free and unlimited. Calm R9: cloudBackup (the optional
     account's encrypted backup, the first paid server feature: docs/MONETIZATION.md D3) is part of Pro; it also needs the
     build's cloudBackup flag and a server with the backup module (lib/cloudBackup.js). */
-export const PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro", aiPatternReports: true, extraCustomisation: true, fullPractices: true, aiChat: true, cloudBackup: true });
+export const PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro", aiPatternReports: true, extraCustomisation: true, aiChat: true, cloudBackup: true, aiEvidence: true });
 /** The plan for this build's dev flags ({ proDev }) and whether a store purchase of Pro is owned (`owned`, from
     lib/purchase.js; only a real true counts): DEV_PRO_PLAN when proDev is on, PRO_PLAN when owned, else PLAN. */
 export const planFor = (devFlags = {}, owned = false) => (devFlags && devFlags.proDev === true ? DEV_PRO_PLAN : owned === true ? PRO_PLAN : PLAN);
-export const PLAN_FEATURES = Object.freeze(["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup", "fullPractices", "aiChat"]);
+export const PLAN_FEATURES = Object.freeze(["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup", "aiChat", "aiEvidence"]);
 
 /** Whether `feature` is available on `plan`. The PDF export is free core (off only when a plan
     allows 0); the paid extensions need an explicit true; anything else is false (fails closed).
@@ -58,8 +60,8 @@ export function can(feature, plan = PLAN) {
     case "aiPatternReports":
     case "extraCustomisation":
     case "cloudBackup":
-    case "fullPractices":
-    case "aiChat": return plan[feature] === true;
+    case "aiChat":
+    case "aiEvidence": return plan[feature] === true;
     default: return false;
   }
 }

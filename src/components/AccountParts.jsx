@@ -7,6 +7,7 @@ import { isEmail, ACCOUNT_COPY as C } from "../lib/account.js";
 import { ACCOUNT_LINES, accountLine } from "../lib/about.js";
 import { relDay } from "../lib/engine.js";
 import { t } from "../lib/i18n.js";
+import { SIGNIN_COPY as S, whoLine } from "../lib/signin.js";
 
 /* The optional account (calm R9): You → Account and its two sheets. Shown only in a build that offers it (lib/cloudBackup.js
    ACCOUNTS_HERE: the cloudBackup flag and a server); otherwise YouScreen keeps R7's "No account needed" card unchanged.
@@ -172,3 +173,34 @@ export function AccountSheet({ mode, onClose, onSubmit, onUse, onKeep, choice = 
 }
 
 export { accountLine };
+
+/** You → Account for the sign-in account (Task 1): who is signed in, Sign out and Delete account (with a confirm that says
+    the log on this device isn't touched). si = { s: session, required, onSignOut, onDelete }; both handlers throw a
+    plain-words error when the server can't confirm, and the card shows it. */
+export function SignedInCard({ si }) {
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(null); // "out" | "del" | null
+  const [err, setErr] = useState("");
+  const run = async (kind, fn) => { setBusy(kind); setErr(""); try { await fn(); } catch (e) { setErr(e?.message || S.errSignOut); } finally { setBusy(null); } };
+  return (
+    <Card id="you-signin" tint="you" icon="shield" eyebrow={S.eyebrow} title={S.cardTitle} level={2} className="youaccount signincard">
+      <p className="acctwho"><b>{S.cardWho(whoLine(si.s))}</b></p>
+      <p className="hint">{S.cardHolds}</p>
+      <div className="acctacts">
+        <button type="button" className="ghostbtn signout" disabled={!!busy} onClick={() => run("out", si.onSignOut)}>{busy === "out" ? S.signingOut : S.signOut}</button>
+      </div>
+      {!confirm ? (
+        <button type="button" className="linkbtn danger acctdel" aria-expanded={false} aria-controls="signin-del" disabled={!!busy} onClick={() => setConfirm(true)}>{S.deleteAcct}</button>
+      ) : (
+        <div className="plaincard acctdelcard" id="signin-del" role="group" aria-labelledby="signin-del-h">
+          <p className="plain"><b id="signin-del-h">{S.deleteQ}</b> {S.deleteBody}{si.required ? S.deleteBodyRequired : ""}</p>
+          <div className="acctacts">
+            <button type="button" className="cta danger signindelgo" disabled={!!busy} onClick={() => run("del", si.onDelete)}>{busy === "del" ? S.deleting : S.deleteGo}</button>
+            <button type="button" className="ghostbtn" disabled={!!busy} onClick={() => setConfirm(false)}>{S.cancel}</button>
+          </div>
+        </div>
+      )}
+      {err && <p className="errhint" role="alert">{err}</p>}
+    </Card>
+  );
+}

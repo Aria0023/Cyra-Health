@@ -433,6 +433,47 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 .social { display:grid; gap:var(--gap); }
 .socialbtn { min-height:44px; display:flex; align-items:center; justify-content:center; gap:9px; border:1px solid var(--line); background:var(--card); border-radius:var(--r-card); padding:12px; font:700 14px var(--ff-body); color:var(--ink); cursor:pointer; }
 .socialbtn:disabled { opacity:.6; }
+.signin { display:grid; gap:12px; margin-top:14px; }
+.signin-list { display:grid; gap:10px; }
+.signinbtn { min-height:52px; display:flex; align-items:center; justify-content:center; gap:10px; width:100%; border:1.5px solid var(--line); background:var(--card); border-radius:var(--r-card); padding:12px 16px; font:700 16px var(--ff-body); color:var(--ink); cursor:pointer; }
+.signinbtn.apple { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+.signinbtn:disabled { opacity:.55; cursor:not-allowed; }
+.signinbtn svg { flex-shrink:0; }
+.signin-email { display:grid; gap:10px; margin-top:4px; }
+.signin-code { font-size:22px; letter-spacing:.3em; text-align:center; font-variant-numeric:tabular-nums; }
+.signin-again { display:flex; flex-wrap:wrap; gap:4px 14px; }
+.signin-again .linkbtn, .signin-skip .ghostbtn { min-height:44px; }
+.signin-skip { display:grid; gap:8px; }
+.signin-off { margin:0; }
+.signin-done { display:flex; align-items:center; gap:8px; font-size:16px; font-weight:700; color:var(--ink); margin:14px 0 6px; }
+.signin-done svg { color:var(--primary); flex-shrink:0; }
+.signincard .acctwho { overflow-wrap:anywhere; }
+.devlist { list-style:none; margin:12px 0 0; padding:0; display:grid; gap:12px; }
+.devrow { border:1px solid var(--line); border-radius:var(--r-card); background:var(--card); padding:14px; }
+.devrow-main { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.devinfo { display:grid; gap:2px; min-width:0; }
+.devinfo b { font-size:16px; color:var(--ink); }
+.devstatus { font-size:15px; color:var(--soft); }
+.devrow.st-connected .devstatus { color:var(--ink); font-weight:600; }
+.devrow .takebtn { min-height:44px; flex-shrink:0; }
+.devline { font-size:16px; line-height:1.45; color:var(--soft); margin:8px 0 0; }
+.devline b { color:var(--ink); font-weight:600; }
+.devlead { margin-top:0; }
+.devhome-acts { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin-top:10px; }
+.devhome-acts .linkbtn { min-height:44px; }
+.evcard .inp { margin-bottom:10px; }
+.evout { margin-top:14px; border-top:1px solid var(--line); padding-top:12px; }
+.evout:focus { outline:none; }
+.evout:focus-visible { outline:2px solid var(--primary); outline-offset:4px; border-radius:8px; }
+.evmark { font-size:14px; font-weight:700; color:var(--primary); text-decoration:none; padding:0 1px; vertical-align:super; line-height:1; }
+.evmark:focus-visible { outline:2px solid var(--primary); outline-offset:2px; border-radius:4px; }
+.evsrcs { margin:6px 0 10px; padding-left:24px; display:grid; gap:6px; }
+.evsrcs li { font-size:16px; line-height:1.4; color:var(--soft); }
+.evsrc { display:inline-flex; align-items:center; min-height:44px; font-size:16px; text-align:left; padding:0; overflow-wrap:anywhere; }
+.evhost { display:block; font-size:14px; color:var(--soft); }
+.evnote { margin-top:10px; }
+.psh-voicenote { margin:6px 0 0; text-align:center; }
+.srcdevices { display:inline-flex; align-items:center; gap:8px; margin:4px 0 10px; min-height:44px; }
 .socialdot { width:12px; height:12px; border-radius:50%; }
 /* ---- UI O1: onboarding. Splash motif + promise rows; step 1 providers 3-up (Apple leftmost, inline marks); the stage
    cards carry their palette swatch and the chosen one a check; the consent cadence is a two-column grid; each step slides

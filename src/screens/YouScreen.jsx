@@ -17,7 +17,7 @@ import { FREE_KEEPS } from "../components/ProSheet.jsx";
 import { AI_DISCLOSURE } from "./AskScreen.jsx";
 import { AI_COPY } from "../lib/aiFeatures.js";
 import { FLOW_COPY } from "../lib/privacyFlows.js";
-import { AccountCard } from "../components/AccountParts.jsx";
+import { AccountCard, SignedInCard } from "../components/AccountParts.jsx";
 import { t } from "../lib/i18n.js";
 
 /* You (calm R7, spec "You tab"): one calm scrolling page of v2 Cards. It is where she controls her data, so the
@@ -31,7 +31,8 @@ import { t } from "../lib/i18n.js";
      version has no store connected and says so (nothing is checked or sent); no price, no nagging;
    - Check-ins, Reminders, (weekly counts where the build has them), Appearance, (Install), Cyra's AI, About you:
      the same controls, ids and sentences the Settings sheet has (components/settingsParts.jsx);
-   - Account: R7's "No account needed" card, unchanged, in a build without the optional account; calm R9: where the
+   - Account: Task 1's sign-in card (who is signed in, Sign out, Delete account) while this device is signed in;
+     otherwise R7's "No account needed" card, unchanged, in a build without the optional account; calm R9: where the
      build offers it (`account`, lib/cloudBackup.js ACCOUNTS_HERE) the AccountCard (guest by default; create, sign in,
      back up now, sign out, delete, and the "backup is newer" choice); Support & care (the care shelf), About & legal (not a medical device, links, build).
    - Cyra's AI (calm R8): with Pro, the ai flag and a server, the weekly write-up and chat switches (off by default) and
@@ -52,7 +53,7 @@ const StageArt = () => (
     <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
   </svg>
 );
-export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, account = null, language = null, meals = null, dataSources = null }) {
+export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, account = null, signedIn = null, language = null, meals = null, dataSources = null }) {
   const offer = ai.offer || { any: false, weekly: false, chat: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
@@ -205,7 +206,9 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
         <AboutBody hideLab compact regAnswers={sp.regAnswers} onAnswer={sp.onAnswer} stage={sp.stage} stageName={sp.stageName} todayIso={sp.todayIso} />
       </Card>
 
-      {account ? <AccountCard a={account} person={acct} /> : (
+      {/* Task 1: the sign-in account, when this device is signed in (the "No account needed" card would no longer be true). */}
+      {signedIn && <SignedInCard si={signedIn} />}
+      {account ? <AccountCard a={account} person={acct} /> : !signedIn && (
         <Card id="you-account" tint="you" icon="user" eyebrow={t("you.account")} title={t("you.noAccountNeeded")} level={2} className="youaccount">
           <p>{accountLine(acct)}</p>
           <p className="rfoot">{ACCOUNT_LINES.more}</p>

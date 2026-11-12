@@ -5,6 +5,7 @@ import Icon from "./Icon.jsx";
 import { fmt } from "../lib/engine.js";
 import { t } from "../lib/i18n.js";
 import { METRIC_WORDS } from "../lib/autoTracked.js";
+import { DEVICE_COPY } from "../lib/devices.js";
 
 /* You → Data sources (passive tracking S3, plan §2.4): the manage surface for every source this build offers. One row per
    source: status (Connected · Paused · Waiting to finish · Not connected), what it reads, "Where it goes" (this phone only /
@@ -14,13 +15,15 @@ import { METRIC_WORDS } from "../lib/autoTracked.js";
    trackStats with "Kept on this device, never sent." Nothing on this card sends anything; Connect / Sync / Disconnect for
    Oura and Fitbit/Garmin/Whoop run the same server flows the Home door runs (App.jsx), and the on-phone source never
    touches a server. m: { rows: sourceRows(), prefer: preferRows(), going: howGoing(), demo: { on } | null, web }. */
-export default function DataSourcesCard({ m, onConnect, onPause, onDisconnect, onPrefer, onDemo, busy = null }) {
+export default function DataSourcesCard({ m, onConnect, onPause, onDisconnect, onPrefer, onDemo, onDevices = null, busy = null }) {
   const [closing, setClosing] = useState(null); // { id, deleteToo }
   const when = (ms) => (ms ? (new Date(ms).toDateString() === new Date().toDateString() ? new Date(ms).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : fmt(new Date(ms))) : null);
   const rows = m.rows;
   const anyRow = rows.length > 0;
   return (
     <Card id="you-sources" tint="body" icon="pulse" eyebrow={t("sources.eyebrow")} title={t("sources.title")} level={2} className="youset yousources">
+      {/* Task 2: the one "Connect your devices" list, at the top. */}
+      {onDevices && <button type="button" className="ghostbtn srcdevices" aria-haspopup="dialog" onClick={onDevices}><Icon name="watch" size={18} />{DEVICE_COPY.youOpen}</button>}
       <p className="hint yousum">{anyRow ? t("sources.lead") : m.web ? t("sources.noneWeb") : t("sources.none")}</p>
       {anyRow && (
         <ul className="modlist srclist">

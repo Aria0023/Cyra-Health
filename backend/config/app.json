@@ -1,8 +1,14 @@
 {
-  "_note": "Production (NODE_ENV=production): push and ai — what the app's default build (VITE_FEATURES unset) calls. oauth, integrations, pulse and backup are in the code and in config/app-dev.json; list one here to serve a build whose VITE_FEATURES turns it on (signin → oauth, wearables → integrations, counts → pulse, cloudBackup → backup). ADMIN_KEY and AUTH_SECRET come from the environment; the server refuses to start without real values.",
+  "_note": "Production (NODE_ENV=production): push, ai, oauth, accounts and integrations — what the app's default build calls (sign-in is required and wearables are on: owner request 2026-11-12). pulse and backup are in the code and in config/app-dev.json; list one here to serve a build whose VITE_FEATURES turns it on (counts → pulse, cloudBackup → backup). ADMIN_KEY and AUTH_SECRET come from the environment; the server refuses to start without real values. Sign-in providers need APPLE_*/GOOGLE_*/FACEBOOK_* and email needs RESEND_API_KEY + EMAIL_FROM; a provider without its keys is reported as not configured and the app offers the others. Oura needs OURA_CLIENT_ID/SECRET and Fitbit/Garmin/Whoop need TERRA_API_KEY/DEV_ID/SIGNING_SECRET; without them the app shows those rows as \"Not set up yet\".",
   "baseUrl": "http://localhost:3000",
   "port": 3000,
-  "modules": ["push", "ai"],
+  "modules": [
+    "push",
+    "ai",
+    "oauth",
+    "accounts",
+    "integrations"
+  ],
   "storage": {
     "driver": "json",
     "dir": "./data"

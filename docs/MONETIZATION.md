@@ -55,6 +55,22 @@ countdown or upgrade button, and a dev build (proDev) says it is a test build. R
   nothing until the products exist in App Store Connect / Play Console / RevenueCat and the two public keys are set.
   Still open: a server-side receipt check for the cloud backup entitlement (§3, `cloudBackup`).
 
+## 1b. Owner request 2026-11-12 (Task 3): Pro is evidence-based AI; every practice is free
+
+- **Every Mind practice is free**, with an optional **voice guide** (the device's built-in speech, free, nothing sent):
+  `lib/mind.js` marks all eleven free, `plan.js` no longer has `fullPractices`, and no practice carries a Pro chip.
+  This supersedes the R5 "free core set" above.
+- **Pro now leads with "Ask with evidence"** (`plan.js` `aiEvidence`): her question answered by Claude with the server
+  web search tool limited to PubMed, NCBI, MedlinePlus, NIH, CDC, ACOG, WHO, NICE, the Cochrane Library, the Endocrine
+  Society and the FDA, with numbered source links; then the weekly write-up and chat about her log; then the encrypted
+  backup where the build offers the account. The ProSheet lists only what the build really opens (the AI lines need the
+  ai flag and a server); a build with none of them says so.
+- **Evidence services considered and set aside (revisit if a consumer licence appears):**
+  - **OpenEvidence:** no public API; the app is restricted to verified US clinicians (NPI). Not usable for a consumer app.
+  - **UpToDate (Wolters Kluwer):** an enterprise "Expert AI" API through UpToDate Connect, bring-your-own-licence (each
+    user needs a clinician subscription), sold by demo request. Not usable for a consumer app today.
+  Until one offers a consumer licence, Ask with evidence searches only public, authoritative sites.
+
 ## 2. The free core, forever
 
 A feature that ships free stays free.

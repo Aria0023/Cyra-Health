@@ -72,16 +72,16 @@ test("privacyFlows: cloud is 'na' unless the flag and the plan allow it; every i
   // D2 / D3 acceptance: the rows a build renders (state ≠ na)
   const shown = (c) => flowRows(c).filter((r) => r.state !== "na").map((r) => r.name);
   assert.deepEqual(shown({ ...base, server: false, flags: DEF }), ["Backups and files you make"]);
-  assert.deepEqual(shown({ ...base, server: true, flags: DEF }), ["Browser reminders", "Ask Solia Health's AI", "Backups and files you make"]);
+  assert.deepEqual(shown({ ...base, server: true, flags: DEF }), ["Browser reminders", "Ask Solia Health's AI", "Wearable connections", "Backups and files you make"], "Task 2: wearables on by default");
   assert.deepEqual(shown({ ...base, server: true, flags: ALL }), ["Browser reminders", "Weekly counts", "Ask Solia Health's AI", "Wearable connections", "Backups and files you make"]);
 });
 
 test("privacyFlows: otherConnections — the server bullet only with a server flow, sign-in only with its flag", () => {
   assert.deepEqual(otherConnections({ native: false, server: false, flags: DEF }), ["web"]);
-  assert.deepEqual(otherConnections({ native: false, server: true, flags: DEF }), ["web", "server"]);
+  assert.deepEqual(otherConnections({ native: false, server: true, flags: DEF }), ["web", "server", "signin"], "Task 1: sign-in is in the default build");
   assert.deepEqual(otherConnections({ native: false, server: true, flags: ALL }), ["web", "server", "signin"]);
   assert.deepEqual(otherConnections({ native: false, server: true, flags: NONE }), ["web"]);
-  assert.deepEqual(otherConnections({ native: true, server: true, flags: DEF }), ["server"], "the phone default build still has Solia Health's AI");
+  assert.deepEqual(otherConnections({ native: true, server: true, flags: DEF }), ["server", "signin"], "the phone default build has Solia Health's AI and sign-in");
   assert.deepEqual(otherConnections({ native: true, server: true, flags: parseFeatures("webReminders") }), [], "a phone with only web reminders has no server flow");
   assert.deepEqual(otherConnections({ native: true, server: true, flags: ALL }), ["server", "signin"]);
   assert.deepEqual(otherConnections({ native: true, server: false, flags: ALL }), []);

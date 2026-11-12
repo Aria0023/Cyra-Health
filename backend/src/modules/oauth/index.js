@@ -1,5 +1,8 @@
-// Social sign-in: real authorization-code OAuth for Apple, Google and Facebook. It only
-// fills in the registration form on the device — Cyra has no accounts.
+// Social sign-in: real authorization-code OAuth for Apple, Google and Facebook. Since 2026-11-12 (owner request,
+// docs/plans/account-wearables-evidence.md) it is how she signs in to her Solia Health account: the accounts module
+// (src/modules/accounts) takes the one-time code below through ctx.oauth.take() and keeps the account record
+// (provider, verified email, name, and a keyed hash of the provider's account id). /exchange still hands the
+// identity to a device for the older name-and-email prefill.
 //
 //   GET  /api/oauth/providers                   which providers are configured
 //   GET  /api/oauth/:provider/start?return=URL[&app_challenge=C]  → 302 to the provider
@@ -14,8 +17,8 @@
 // no such signal, so its email is never passed on. Account ids, access tokens and every
 // other claim are dropped as soon as the callback has read them. A failed sign-in logs
 // only the provider and a fixed category, never text the provider sent.
-// What it keeps: no account record. The identity waits in memory under a one-time code
-// until the device collects it, and a timer deletes it 5 minutes after the callback
+// What it keeps: nothing on disk. The identity (plus, for the accounts module, a keyed HMAC of the provider's
+// account id — never the id itself) waits in memory under a one-time code until the device collects it, and a timer deletes it 5 minutes after the callback
 // whether or not anyone collects it (plus a sweep every 30 seconds as a backstop).
 // Health data never comes near this module.
 //
@@ -39,6 +42,7 @@ import crypto from "crypto";
 import { verifyIdToken, appleClientSecret, pkceVerifier, pkceChallenge } from "./jwt.js";
 import { checkReturn, startChallenge, codeRedeemable } from "./returns.js";
 import { stateKey, sealState, openState } from "./state.js";
+import { accountKeys, lookupKey } from "../accounts/index.js";
 import { expiringMap } from "../../core/memory.js";
 
 export const basePath = "/api/oauth";
@@ -99,6 +103,13 @@ export function mount(router, ctx, { handoffTtlMs = 5 * 60_000, sweepMs = 30_000
   sweeper.unref?.();
   ctx.oauthHandoffCount = () => handoffs.size; // tests: proves uncollected identities are gone on time
   const back = (res, ret, frag) => res.redirect(302, `${ret}#${frag}`);
+  // The provider's account id becomes a keyed hash at once (the accounts module's lookup key); the raw id is dropped.
+  const subjectKey = (() => { const k = accountKeys(config.authSecret).lookup; return (id, sub) => (sub ? lookupKey(k, id, String(sub)) : null); })();
+  // For the accounts module: which providers work here, and the one-time code taken (single use) with its subject.
+  ctx.oauth = {
+    configured: () => Object.fromEntries(Object.entries(providers()).map(([id, p]) => [id, p.configured()])),
+    take: (code, verifier) => { const h = handoffs.take(String(code || "")); return codeRedeemable(h, verifier) ? { identity: h.identity, subject: h.subject } : null; },
+  };
 
   router.get("/providers", (req, res) => {
     const P = providers();
@@ -127,6 +138,7 @@ export function mount(router, ctx, { handoffTtlMs = 5 * 60_000, sweepMs = 30_000
     const st = openState(q.state, key, "oauth");
     if (!st || st.p !== id) return res.status(400).send("Sign-in link expired or invalid. Please go back to the app and try again.");
     if (q.error || !q.code) return back(res, st.ret, `oauth_error=${encodeURIComponent(String(q.error || "no_code").slice(0, 64))}`);
+    let subject = null;
     try {
       const tokenRes = await fetch(p.token, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" }, body: form({ grant_type: "authorization_code", code: q.code, redirect_uri: `${publicBase()}/api/oauth/${id}/callback`, client_id: p.clientId, client_secret: p.secret(), code_verifier: st.verifier }) });
       const tok = await tokenRes.json();
@@ -135,6 +147,7 @@ export function mount(router, ctx, { handoffTtlMs = 5 * 60_000, sweepMs = 30_000
       if (p.idToken) {
         const claims = await verifyIdToken(tok.id_token, { jwksUrl: p.jwks, issuer: p.issuer, audience: p.clientId, nonce: st.nonce });
         identity = identityFromClaims(id, claims, id === "apple" ? q.user : null);
+        subject = subjectKey(id, claims.sub);
         // Apple: end the grant straight away (best effort, not awaited), so Cyra isn't left authorized
         // under her Apple ID and her next Apple sign-in is a first authorization again (Apple sends the
         // name only then). Only the status is logged, never the token or Apple's answer.
@@ -144,12 +157,13 @@ export function mount(router, ctx, { handoffTtlMs = 5 * 60_000, sweepMs = 30_000
             .then((r) => { if (!r.ok) console.warn(`[cyra] oauth/apple: revoke answered ${r.status}`); }, () => console.warn("[cyra] oauth/apple: revoke failed (network)"));
         }
       } else {
-        // Facebook: ask for name and email only. Facebook gives no "verified" signal, so the
-        // email is read but never passed on; the account id it always adds is dropped here too.
+        // Facebook: ask for the account id, name and email. Facebook gives no "verified" signal, so the
+        // email is read but never passed on; the account id becomes a keyed hash (subject) and is dropped.
         const proof = crypto.createHmac("sha256", p.clientSecret).update(tok.access_token).digest("hex");
-        const me = await (await fetch(`${p.userinfo}?${form({ fields: "name,email", access_token: tok.access_token, appsecret_proof: proof })}`)).json();
+        const me = await (await fetch(`${p.userinfo}?${form({ fields: "id,name,email", access_token: tok.access_token, appsecret_proof: proof })}`)).json();
         if (me.error) throw Object.assign(new Error("userinfo"), { cat: "userinfo failed" });
         identity = { provider: id, email: "", emailVerified: false, name: text(me.name, 200) };
+        subject = subjectKey(id, me.id);
       }
       // Only `identity` (provider, name, and the email if the provider verified it) is kept, in
       // memory under the one-time code below, until /exchange or 5 minutes. tok (access token,
@@ -157,7 +171,7 @@ export function mount(router, ctx, { handoffTtlMs = 5 * 60_000, sweepMs = 30_000
       // the Apple grant), the raw claims, Apple's user JSON and Facebook's /me answer (with its
       // account id) are not stored or logged.
       const code = crypto.randomBytes(24).toString("hex");
-      handoffs.set(code, { identity, ac: st.ac || null });
+      handoffs.set(code, { identity, ac: st.ac || null, subject });
       return back(res, st.ret, `oauth=${code}`);
     } catch (e) {
       console.warn(`[cyra] oauth/${id}: sign-in failed (${failCategory(e)})`); // a fixed category, never provider text

@@ -12,7 +12,7 @@ import { t } from "../lib/i18n.js";
    Props: rows (lib/mind.js moodByCycle), enough (bool: ≥ STRIP_MIN check-ins), sentence, journal { iso: text },
    jDraft, setJDraft, onJournal(text), fmt(iso), conn { line } | null, onConnect(), ask (the embedded Ask section),
    chat (calm R8: Cyra's chat about her log, only for Pro with her switch on; it shows what it sends before every send). */
-export default function JourneyScreen({ rows = [], enough = false, sentence, journal = {}, jDraft = "", setJDraft, onJournal, fmt = (x) => x, conn = null, onConnect, ask, chat = null }) {
+export default function JourneyScreen({ rows = [], enough = false, sentence, journal = {}, jDraft = "", setJDraft, onJournal, fmt = (x) => x, conn = null, onConnect, ask, chat = null, evidence = null }) {
   const [writing, setWriting] = useState(false);
   const entries = Object.keys(journal).sort().reverse().slice(0, 3);
   const cycled = rows.length > 0 && rows[0].key !== "recent";
@@ -65,6 +65,7 @@ export default function JourneyScreen({ rows = [], enough = false, sentence, jou
         </Card>
       )}
 
+      {evidence}
       {chat}
 
       {ask}

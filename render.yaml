@@ -13,7 +13,10 @@ services:
         value: "22"
       - key: VITE_API_BASE
         value: https://cyra-backend.onrender.com
-      # VITE_FEATURES unset = the shipping defaults (Ask Cyra's AI, browser reminders, and deviceSync: the on-phone
+      # Sign-in is required by default (VITE_REQUIRE_SIGNIN unset = "true"); set "false" to offer it with a skip.
+      - key: VITE_REQUIRE_SIGNIN
+        value: "true"
+      # VITE_FEATURES unset = the shipping defaults (Ask Cyra's AI, browser reminders, sign-in, wearables, and deviceSync: the on-phone
       # Apple Health / Health Connect sources in the phone app, no server module). To offer more (wearables, counts,
       # signin, cloudBackup; .env.example), set it here AND add the matching module to backend/config/app.json.
       # Published Terms and Privacy Policy (https://…), linked from the consent step. Public, not
@@ -68,8 +71,13 @@ services:
         sync: false
       - key: AUTH_SECRET
         sync: false
-      # The Apple / Google / Facebook, Oura and Terra keys below are used only when config/app.json mounts
-      # oauth or integrations (not by default).
+      # Sign-in (required since 2026-11-12): config/app.json mounts oauth and accounts, so the Apple / Google /
+      # Facebook keys below and RESEND_API_KEY + EMAIL_FROM are needed in production. config/app.json also mounts
+      # integrations (wearables on by default), so the Oura and Terra keys are needed for those rows to connect.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
       - key: APPLE_CLIENT_ID
         sync: false
       - key: APPLE_TEAM_ID
@@ -102,7 +110,9 @@ services:
         sync: false
       - key: VAPID_SUBJECT
         sync: false
-      # Where the backend keeps data/push.json (web reminder subscriptions) and, only when the pulse
+      # Where the backend keeps data/push.json (web reminder subscriptions), data/accounts.json and
+      # data/account_sessions.json (sign-in accounts: on an ephemeral disk every account is lost on each deploy, so set
+      # this to a persistent disk before launch) and, only when the pulse
       # module is listed in config/app.json, data/pulse.json (weekly counts). Unset = ./data on the
       # instance's own disk, which Render wipes on every deploy and restart. Set it to a persistent
       # disk's mount path (a disk needs a paid instance) once one is attached; until then, those

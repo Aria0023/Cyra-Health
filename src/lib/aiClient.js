@@ -28,3 +28,18 @@ export async function aiSend(kind, body) {
     return { ok: false, why: "error" };
   }
 }
+
+/** Task 3, Ask with evidence (Pro): POST the shown body. → { ok: true, data } | { ok: false, why: "unset" | "busy" | "offline" | "nosources" | "error" }.
+    A web-searching answer takes longer, so this waits up to 75 seconds. */
+export async function askEvidence(body) {
+  try {
+    const data = await apiPost("/api/ai/evidence", body, { timeoutMs: 75000 });
+    return { ok: true, data };
+  } catch (e) {
+    if (e?.status === 503) return { ok: false, why: "unset" };
+    if (e?.status === 429) return { ok: false, why: "busy" };
+    if (e?.status === 502) return { ok: false, why: "nosources" };
+    if (e?.network) return { ok: false, why: "offline" };
+    return { ok: false, why: "error" };
+  }
+}

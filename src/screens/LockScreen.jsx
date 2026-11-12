@@ -15,7 +15,7 @@ import { LOCK_COPY as T, FREE_TRIES, fmtWait, waitWords } from "../lib/lock.js";
    a request, and the BUILD stamp is not rendered. */
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
-export default function LockScreen({ cfg = null, unreadable = false, passkeyOk = false, onPin, onPasskey, onRetryRead, onOpenBackup, onCancelBackup, onRestore, onWipe, keepsWeekNote = false, wipeAlso = "", legacyWear = false, offlineCopy = false }) {
+export default function LockScreen({ hasAccount = false, cfg = null, unreadable = false, passkeyOk = false, onPin, onPasskey, onRetryRead, onOpenBackup, onCancelBackup, onRestore, onWipe, keepsWeekNote = false, wipeAlso = "", legacyWear = false, offlineCopy = false }) {
   const [view, setView] = useState("pin"); // "pin" | "forgot" (unreadable replaces "pin" while the slot can't be read)
   const [pane, setPane] = useState(null); // forgot: null | "restore" | "erase"
   const [restoreStep, setRestoreStep] = useState(1);
@@ -108,7 +108,7 @@ export default function LockScreen({ cfg = null, unreadable = false, passkeyOk =
       <h1 id="lock-title" className="disp" tabIndex={-1} ref={titleRef}>{T.title}</h1>
       {view === "forgot" ? (
         <>
-          <p className="plain" style={{ textAlign: "left" }}><b>{T.forgotHead}</b>{ACCOUNTS_HERE ? T.forgotBodyAccount : T.forgotBody}</p>
+          <p className="plain" style={{ textAlign: "left" }}><b>{T.forgotHead}</b>{ACCOUNTS_HERE || hasAccount ? T.forgotBodyAccount : T.forgotBody}</p>
           {forgotLinks}
           <button type="button" className="linkbtn lockforgot" onClick={backToPin}>{T.back}</button>
         </>

@@ -60,18 +60,20 @@ export function RestoreForm({ onImport, onDone, compact = false, onPick = null }
 /* What Delete everything couldn't confirm, in plain words, worded for why it failed:
    network (no answer from Cyra's server), refused (the server answered, but it — or Oura or
    Terra — didn't confirm), nokey (this device holds nothing that could end it). */
-const STEP = { reminders: "remove this browser's reminder details", terra: "disconnect Fitbit, Garmin or Whoop", oura: "disconnect Oura" };
+const STEP = { account: "delete your Solia Health account", reminders: "remove this browser's reminder details", terra: "disconnect Fitbit, Garmin or Whoop", oura: "disconnect Oura" };
 const WHO = { terra: "Terra (the service Solia Health uses for Fitbit, Garmin and Whoop)", oura: "Oura" };
-const ENDED = { oura: "Oura is disconnected and removed from this device", terra: "Fitbit, Garmin or Whoop is disconnected and removed from this device (Solia Health first tried to collect readings waiting on its server; any it couldn't collect were deleted there)", reminders: "Solia Health's server erased this browser's reminder details, and reminders are off" };
+const ENDED = { account: "your Solia Health account is deleted", oura: "Oura is disconnected and removed from this device", terra: "Fitbit, Garmin or Whoop is disconnected and removed from this device (Solia Health first tried to collect readings waiting on its server; any it couldn't collect were deleted there)", reminders: "Solia Health's server erased this browser's reminder details, and reminders are off" };
 const failLine = (kind, steps) => {
   const names = andList(steps.map((k) => STEP[k] || k));
   if (kind === "network") return `Solia Health didn't get an answer from its server to ${names}, so it can't tell whether that happened. Try again when you're online.`;
   if (kind === "nokey") return `This device doesn't hold what Solia Health needs to ${names} itself — ${steps.map((k) => (k === "terra" ? "remove Solia Health (it may be listed as Cyra, Heard Health or Terra) under connected apps in that account" : "remove Solia Health (it may be listed as Cyra or Heard Health) in your Oura account's connected apps")).join("; ")}.`;
   const wear = steps.filter((k) => WHO[k]), rem = steps.includes("reminders");
   return [wear.length && `Solia Health's server asked ${andList(wear.map((k) => WHO[k]))} to end the connection, but it didn't confirm. Try again, or remove Solia Health (it may be listed as Cyra or Heard Health) in that account's connected apps.`,
-    rem && "Solia Health's server didn't confirm it removed this browser's reminder details. Try again."].filter(Boolean).join(" ");
+    rem && "Solia Health's server didn't confirm it removed this browser's reminder details. Try again.",
+    steps.includes("account") && "Solia Health's server didn't confirm it deleted your account. Try again."].filter(Boolean).join(" ");
 };
 const STAYS = {
+  account: "your Solia Health account (how you signed in, your email and name) stays on Solia Health's server; sign in again the same way and delete it in You → Account",
   oura: "Oura stays connected to Solia Health until you remove Solia Health (it may be listed as Cyra or Heard Health) in your Oura account's connected apps",
   terra: "your Fitbit, Garmin or Whoop account stays connected until you remove Solia Health (it may be listed as Cyra, Heard Health or Terra) in that account's connected apps; until then Terra keeps sending that account's new readings to Solia Health's server, where each day waits up to 7 days for a device that will never collect it and is then deleted",
   reminders: "Solia Health's server keeps this browser's push address and its keys, the reminder days and time you chose, your time zone and the last day it sent a reminder, until the browser's push service reports the address gone (no reminder will be shown here)",

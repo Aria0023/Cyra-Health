@@ -2067,3 +2067,66 @@ flag and payload); `sw.test.mjs`, `notifications.test.mjs`, `autoTracked.test.mj
 - **Verified:** ESLint 0 errors; unit tests 568 pass (7 new in `purchase.test.mjs`); e2e 8/8; e2e:axe 7/7 with
   0 violations, including two new runs of the Pro sheet (pretend store, light and dark, both plans; and the web, which
   sells nothing); `privacy.spec.mjs` still finds no request leaving the app's own origin on the web.
+
+## Sign-in required (owner request 2026-11-12, Task 1) — a new server-side account record; no health data leaves the device
+
+- **What is new:** registration starts with "Create your account" (Apple, Google, Facebook, email code; Apple first).
+  The production backend now mounts `oauth` and `accounts`. Existing users are asked to sign in once.
+- **What leaves the device, and to whom:** to Solia Health's server: an email address and a 6-digit code (email
+  sign-in), or a provider's one-time code; afterwards a session token on sign-out, delete and Delete everything. To
+  Resend (email provider): the address and the code, in the email. To Apple, Google or Facebook: that she signs in to
+  Solia Health (the usual OAuth exchange). Never anything from her log (`e2e/account.spec.mjs` checks every request body
+  holds only email, code or verifier).
+- **What the server keeps:** the account record (id, provider, keyed hash of the provider account id or email, sign-in
+  email, display name, created date) and one session row per device, in the JSON store under `DATA_DIR`, until she deletes
+  the account. Codes live only in memory as a salted hash. Logs hold fixed categories, never an email, code, token or name
+  (`accounts-smoke.js` checks the log). A raw provider account id is never stored (checked on disk).
+- **What the device keeps:** the record key `signin` ({ token, id, provider, email, name, createdAt }), device-only and
+  never in any backup file (`record.test.mjs` pins the lists).
+- **Sentences changed so they stay literally true** (each was true only while no account existed): the splash's "No account
+  needed. There's no Solia Health account to make" (sign-in builds now say what the account holds); "What Solia Health's
+  server sees" ("keep no account" → what the account keeps; "Anonymous Mode skips your name and email entirely" → it keeps
+  them off this device's record, the account still has the sign-in email; "Sign-in prefill …" → what a provider's answer
+  waits in memory for); the Device step's "There's no Solia Health account"; the lock screen's "There's no account and no
+  back door" (signed-in devices use "your account can't reset it either"); the "Other connections" sign-in line; Delete
+  everything ("It deletes your Solia Health account too, if you made one"). Builds without a server keep the old sentences,
+  which stay true there. The "No account needed" card on You shows only while this device is not signed in.
+- **App Review 5.1.1:** in-app account deletion is in You → Account and in Delete everything. Forcing sign-in before
+  non-account features is an App Review risk; `VITE_REQUIRE_SIGNIN=false` is the one-line fallback (sign-in stays offered,
+  with "Continue without an account").
+- **For counsel:** the privacy policy draft's account row, processors (Resend) and CCPA table are updated (still Draft,
+  noindex); the terms draft's "Accounts and sign-in" now says the app asks for an account.
+
+## Connect your devices (owner decision 2026-11-12, Task 2) — the Oura / Terra pass-through is now ON by default
+
+- **What is new:** one "Connect your devices" list (registration step, a dismissible Home card, You → Data sources).
+  The `wearables` flag is on by default and the production backend mounts `integrations`.
+- **Owner decision, recorded:** the server-mediated sources (Oura, Fitbit/Garmin/Whoop through Terra) were off by default
+  pending a privacy review of the pass-through. The owner turned them on (2026-11-12). **The earlier privacy-review
+  recommendation still stands** and should be done before a public launch: Terra keeps its own copy under its policy,
+  and the server holds Terra's daily readings in memory for up to 7 days.
+- **What leaves the device:** unchanged from the existing flows, and only after her tap on Connect: Oura's sign-in and
+  each sync's token (readings pass through, not stored); Terra's mailbox key (readings wait in server memory up to 7 days).
+  Opening the list asks the server `GET /api/integrations/sources` (which sources it can serve; nothing about her).
+  Apple Health / Health Connect are read on the phone and never sent.
+- **Sentences checked against the code:** the brief's shorthand "pass through Solia Health's server, not kept" is true
+  for Oura only. The Terra row says the server holds the daily readings until this device collects them, 7 days at most,
+  and that Terra keeps its own copy (`devices.test.mjs` pins both). Every flag-dependent sentence in
+  `lib/disclosures.js` already had its wearables wording (it now shows in the default build).
+- **New device-only key:** `devicesHint` ("hidden" after Not now), never in a backup.
+
+## Pro = evidence-based AI; practices free with voice (owner request 2026-11-12, Task 3)
+
+- **Voice guide (free):** the device's own speech (speechSynthesis) reads practice steps and breathing cues. Nothing is
+  recorded or sent; the on/off is the device-only key `practiceVoice`, never in a backup. The switch shows only where the
+  device can speak; the copy claims no recorded or human voice ("your device's built-in voice").
+- **Ask with evidence (Pro):** `POST /api/ai/evidence`. What leaves the device, only after she taps Send in "What Solia
+  Health will send" (the exact JSON): her typed question, and the pseudonymized summary (`lib/aiSummary.js`, re-checked
+  by the server's `checkSummary`) only if she ticked "Include a summary of my log". It goes through Solia Health's server
+  to Anthropic; Anthropic's search provider runs the web search, limited to the evidence domains. The sheet discloses
+  both. Solia Health's server stores and logs nothing from it (`evidence-smoke.js` checks the log). A red-flag question
+  is answered on the device and never sent (and the server answers it without forwarding, as a second check).
+- **What the app keeps:** nothing new. The answer lives only in the screen's state and is gone when she leaves.
+- **Sentences changed:** the ProSheet no longer offers "The full practices library"; "Free stays free" now names every
+  guided practice with its voice guide; the Practices page no longer says "Tap a Pro practice to see what Pro adds".
+

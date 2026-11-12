@@ -17,6 +17,8 @@ import { serverSees, consentDeleteFact, consentDetails, consentBackupFact } from
 import Details, { WebReminderFacts } from "../components/Details.jsx";
 import { ChipRow } from "../components/AnswerChips.jsx";
 import Icon from "../components/Icon.jsx";
+import SignInStep from "../components/SignInStep.jsx";
+import { DeviceList } from "../components/Devices.jsx";
 import { t } from "../lib/i18n.js";
 import { stepCopy } from "../locales/index.js";
 
@@ -27,13 +29,13 @@ import { stepCopy } from "../locales/index.js";
    regularity, reproductive history, health background, goals, sleep, activity) live in Settings → About you
    (components/AboutYou.jsx) and are never asked here. Red state appears only after the user taps Continue with
    required fields missing; optional fields never turn red.
-   There is no Cyra account: every answer is stored only on this device (App.jsx finishReg). Registration data
+   Task 1 (owner request 2026-11-12): in a build with the signin flag, "Create your account" (components/SignInStep.jsx)
+   comes first: Apple, Google, Facebook or an email code; no skip while sign-in is required and the server has one, else
+   "Continue without an account" with the reason. The account holds how she signed in, her email and name; every answer
+   on these steps is still stored only on this device (App.jsx finishReg), never in the account. Registration data
    reaches Cyra's server only through opt-ins: the check-in cadence (sent for web push along with the Settings
    reminder time and the browser's time zone); the coarse life-stage group in anonymous weekly counts; and, with
-   Apple/Google/Facebook prefill, the name and email the provider sends, which the server holds in memory under a
-   one-time code until the device collects them, or 5 minutes at most. A native sign-in returns to the step after
-   Device; a web sign-in redirect returns to the stage step, because the page restarts and nothing is carried across
-   it (no session or local storage is written before finishReg). Answers also leave inside an encrypted backup the
+   a sign-in, the account record above. A finished sign-in (native or after a web redirect) lands on the stage step. Answers also leave inside an encrypted backup the
    user saves (minus the ZIP and the age band). No registration answer goes into a POTS report or spreadsheet
    (lib/potsReport.js reads POTS data and app state only; tested). The first name is added only if she ticks it.
    UI O1: the short path first (inputs, then Anonymous Mode, then the providers 3-up with Apple leftmost, both
@@ -49,10 +51,12 @@ import { stepCopy } from "../locales/index.js";
 // The icon beside each data fact on the consent step (decorative; the sentence is unchanged).
 const FACT_ICONS = ["lock", "share", "heart", "clipboard", "trash", "file"];
 
-export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTouched, setRegTouched, cadence, setCadence, socialBusy, startSocial, finishReg, onBackToSplash, scheme = "light" }) {
-  const steps = regSteps(reg.stage);
+export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTouched, setRegTouched, cadence, setCadence, finishReg, onBackToSplash, scheme = "light", signinStep = null, devicesStep = null }) {
+  const steps = regSteps(reg.stage, { signin: !!signinStep, devices: !!devicesStep });
   const key = steps[Math.min(regStep, steps.length - 1)];
-  const rs = stepCopy(key, STEP_COPY[key]);
+  // A build with sign-in and a server has accounts: the Device step's "There's no Solia Health account" can't be said there.
+  const copyKey = key === "account" && signinStep && hasServer() ? "deviceSignin" : key;
+  const rs = stepCopy(copyKey, STEP_COPY[copyKey]);
   const uid = useId();
   const labId = (k) => `${uid}-${k}`;
   const [dir, setDir] = useState("fwd"); // which way the step slides in
@@ -62,6 +66,8 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
     window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
     headRef.current?.focus({ preventScroll: true });
   }, [regStep]);
+  // The device list asks the server which connections it can make only once she reaches that step.
+  useEffect(() => { if (key === "devices") devicesStep?.onShow?.(); }, [key]); // eslint-disable-line
   const miss = missingFor(key, reg);
   const bad = (k) => !!regTouched[key] && miss.includes(k);
   const rup = (k, v) => setReg((x) => ({ ...x, [k]: v }));
@@ -112,6 +118,8 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
       <h1 className="disp" tabIndex={-1} ref={headRef}>{rs.title}</h1>
       <p className="hint">{rs.sub}</p>
 
+      {key === "signin" && signinStep && <SignInStep {...signinStep} onSkip={() => go(regStep + 1, "fwd")} />}
+
       {key === "stage" && (
         <div className={`regcards ${bad("stage") ? "err" : ""}`}>
           {STAGE_CARDS.map(([lbl, d]) => (
@@ -152,29 +160,9 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
             </>
           )}
           <button className="ghostbtn quiet" aria-pressed={!!reg.anon} onClick={toggleAnon}>{reg.anon ? t("onb.anonymousModeOn") : t("onb.continueInAnonymousModeInstead")}</button>
-          {!reg.anon && FEATURES.signin && (
-            <>
-              <div className="orline"><span>{t("onb.orFillInYourName")}</span></div>
-              <div className="social">
-                {[["apple", "Apple"], ["google", "Google"], ["facebook", "Facebook"]].map(([id, label]) => (
-                  <button key={id} className="socialbtn" disabled={!!socialBusy} onClick={() => startSocial(id, label)}>
-                    <Icon name={id} size={18} />{socialBusy === id ? t("onb.connecting") : label}
-                  </button>
-                ))}
-              </div>
-              <p className="rfoot">{t("onb.appleGoogleOrFacebookWill")}</p>
-            </>
-          )}
           <Details label={t("onb.whatCyrasServerSees")}>
             <ul>{serverSees(FEATURES, hasServer(), ACCOUNTS_HERE).map((tv) => <li key={tv}>{tv}</li>)}</ul>
           </Details>
-          {!reg.anon && FEATURES.signin && (
-            <Details label={t("onb.exactlyWhatsShared")}>
-              <p>{t("onb.theySendCyrasServerSign")}</p>
-              <p>{t("onb.onlyYourNamePlusYour")}</p>
-              <p>{t("onb.withAppleTheServerThen")}</p>
-            </Details>
-          )}
         </>
       )}
 
@@ -193,6 +181,9 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
           <p className="rfoot">{t("onb.notSureYetLeaveIt")}</p>
         </>
       )}
+
+      {/* Task 2: optional; the nav's Continue moves on whether or not she connects anything. */}
+      {key === "devices" && devicesStep && <DeviceList {...devicesStep} />}
 
       {key === "consent" && (
         <>
@@ -266,7 +257,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
 
       <div className="nav">
         <button className="back" onClick={back}>{t("onb.back")}</button>
-        <button className="cta" onClick={advance}>{regStep < steps.length - 1 ? t("onb.continue") : (miss.length ? t("onb.completeRequiredFields") : t("onb.enterCyra"))}</button>
+        {(key !== "signin" || signinStep?.signedIn) && <button className="cta" onClick={advance}>{regStep < steps.length - 1 ? t("onb.continue") : (miss.length ? t("onb.completeRequiredFields") : t("onb.enterCyra"))}</button>}
       </div>
     </main>
   );

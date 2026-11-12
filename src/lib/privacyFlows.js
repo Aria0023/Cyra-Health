@@ -95,7 +95,7 @@ export const FLOW_COPY = Object.freeze({
   other: Object.freeze({
     web: "Solia Health's app files come from Solia Health's website when you open or update it online. Like any request, that shows your device's internet address and browser type, and nothing about your health.",
     server: "Any request to Solia Health's server shows your device's internet address and app or browser type. Solia Health's own code doesn't keep the address.",
-    signin: "If you used Apple, Google or Facebook to fill in your name at setup, your name and email passed through Solia Health's server, which erases them within 5 minutes.",
+    signin: "Your Solia Health account: when you sign in, Solia Health's server keeps how you signed in, your email and your name if the service shared it, and when you made the account. Never your health log. Apple, Google or Facebook learns that you signed in to Solia Health. Sign out or delete the account in You → Account.",
   }),
   detailsLabel: "Details",
 });
