@@ -12,6 +12,13 @@ import {
 } from "./disclosures.js";
 
 const ALL = parseFeatures("all"), DEF = parseFeatures(undefined), NONE = parseFeatures("none");
+/* Task 1 (sign-in required): with the signin flag and a server, bullets 2, 3 and the prefill bullet say there is an account. */
+const SIGNIN = {
+  anon: "Anonymous Mode keeps your name and email off this device's record. Your account still has the email you signed in with, if the service shared one.",
+  keeps: "If you sign in, Solia Health's server keeps your account: how you signed in, your email and your name if the service shares it. It keeps no profile of you: no age, health history or check-ins.",
+  memAll: "Signing in with Apple, Google or Facebook, and Oura connect, leave what the service sent there in memory for 5 minutes at most, until this device collects it.",
+  mem: "Signing in with Apple, Google or Facebook leaves what the service sent there in memory for 5 minutes at most, until your account is made.",
+};
 
 /* ---- the pre-L4 literals (RegisterScreen, DataControls, IntakeScreen, RecordUnavailableScreen, POTS) ---- */
 const PRE = {
@@ -105,15 +112,17 @@ test("disclosures: list helpers", () => {
 
 test("disclosures: with every flag on, web and phone, each builder is the pre-L4 text byte for byte", () => {
   for (const native of [false, true]) {
-    assert.deepEqual(serverSees(ALL), PRE.serverSees);
-    assert.deepEqual(serverSees(ALL, true), PRE.serverSees);
-    assert.equal(consentDeleteFact(ALL, native), PRE.consentDeleteFact);
+    // Task 1 changed three serverSees bullets on purpose (sign-in makes an account); the rest stay byte for byte.
+    const signed = [PRE.serverSees[0], SIGNIN.anon, SIGNIN.keeps, ...PRE.serverSees.slice(3, 7), SIGNIN.memAll, PRE.serverSees[8]];
+    assert.deepEqual(serverSees(ALL), signed);
+    assert.deepEqual(serverSees(ALL, true), signed);
+    assert.equal(consentDeleteFact(ALL, native), `${PRE.consentDeleteFact} It deletes your Solia Health account too, if you made one.`, "Task 1 adds the account sentence");
     assert.deepEqual(consentDetails(ALL, native), PRE.consentDetails);
     assert.equal(WEAR_RESTORE_LINE, PRE.wearRestore);
     assert.equal(filesSentence(ALL), PRE.filesSentence);
     assert.equal(restoreFoot(ALL), PRE.restoreFoot);
     assert.deepEqual(restoreChanges(ALL), PRE.restoreChanges);
-    assert.equal(wipeConfirm(ALL, native), PRE.wipeConfirm);
+    assert.equal(wipeConfirm(ALL, native), PRE.wipeConfirm.replace(" Solia Health's servers keep", " It deletes your Solia Health account too, if you made one. Solia Health's servers keep"), "Task 1 adds the account sentence");
     assert.deepEqual(wipeMore(ALL, native), native ? [PRE.wipeMoreWeb[0], PRE.wipeMoreWeb[1], PRE.appleHealth, PRE.wipeMoreWeb[2]] : PRE.wipeMoreWeb);
     assert.equal(intakeHint(ALL), PRE.intakeHint);
     assert.equal(startOverText(ALL), PRE.startOver);
@@ -129,17 +138,18 @@ test("disclosures: with every flag on, web and phone, each builder is the pre-L4
 
 test("disclosures: the shipping defaults (ai, webReminders), web and phone", () => {
   const sees = [
-    PRE.serverSees[0], PRE.serverSees[1], PRE.serverSees[2],
+    PRE.serverSees[0], SIGNIN.anon, SIGNIN.keeps,
     "A few optional choices send a little to Solia Health's server, and each one says exactly what before you turn it on.",
     "One of them keeps a little there while it's on. Browser reminders: this browser's push address and its encryption keys, your reminder days, time and time zone, and the last day a reminder went out.",
     "Turning it off erases it from Solia Health's server. If the server can't be reached then, Solia Health keeps asking until it confirms.",
+    SIGNIN.mem,
     PRE.serverSees[8],
   ];
   assert.deepEqual(serverSees(DEF, true), sees);
   assert.deepEqual(serverSees(DEF, false), PRE.serverSees.slice(0, 3), "no server: no optional choice can reach one");
   for (const native of [false, true]) {
-    assert.equal(consentDeleteFact(DEF, native), "Delete everything from Settings, anytime. It also turns off reminders.");
-    assert.equal(wipeConfirm(DEF, native), " Every check-in, POTS log, note, appointment and setting goes for good. This also turns off reminders. Solia Health's servers keep no copy of your log, so it can't be recovered unless you saved a backup.");
+    assert.equal(consentDeleteFact(DEF, native), "Delete everything from Settings, anytime. It also turns off reminders. It deletes your Solia Health account too, if you made one.");
+    assert.equal(wipeConfirm(DEF, native), " Every check-in, POTS log, note, appointment and setting goes for good. This also turns off reminders. It deletes your Solia Health account too, if you made one. Solia Health's servers keep no copy of your log, so it can't be recovered unless you saved a backup.");
   }
   assert.deepEqual(consentDetails(DEF, false), [
     "A feature that sends something: Solia Health's AI. It tells you what it sends before you turn it on.",
@@ -191,8 +201,9 @@ test("disclosures: none — the minimal outputs", () => {
 
 test("disclosures: restoreChanges and serverSees for all, default and none, with and without a server", () => {
   for (const server of [true, false]) {
-    assert.deepEqual(serverSees(ALL, server), server ? PRE.serverSees : PRE.serverSees.slice(0, 3));
-    assert.equal(serverSees(DEF, server).length, server ? 7 : 3);
+    assert.deepEqual(serverSees(ALL, server), server ? [PRE.serverSees[0], SIGNIN.anon, SIGNIN.keeps, ...PRE.serverSees.slice(3, 7), SIGNIN.memAll, PRE.serverSees[8]] : PRE.serverSees.slice(0, 3));
+    assert.equal(serverSees(DEF, server).length, server ? 8 : 3);
+    for (const line of serverSees(ALL, server)) if (server) assert.doesNotMatch(line, /keep no account|prefill/, "a sign-in build never says there's no account");
     assert.deepEqual(serverSees(NONE, server), PRE.serverSees.slice(0, 3));
   }
   // restoreChanges names this device's choices, which a restore keeps whether or not the build has a server.
@@ -218,7 +229,7 @@ test("disclosures: singular forms for one feature", () => {
   const wear = parseFeatures("wearables");
   assert.equal(serverSees(wear)[5], "Turning it off erases it from Solia Health's server. If the server can't be reached then, Solia Health keeps asking until it confirms, and Delete everything tells you if anything stays connected.");
   assert.ok(serverSees(wear).includes("Oura connect leaves your Oura access there for 5 minutes at most."));
-  assert.ok(serverSees(parseFeatures("signin")).includes("Sign-in prefill leaves your name and email there for 5 minutes at most."));
+  assert.ok(serverSees(parseFeatures("signin")).includes(SIGNIN.mem));
   assert.equal(consentDetails(wear, false)[2], "If Delete everything can't confirm that Oura and Fitbit/Garmin/Whoop are disconnected, Solia Health tells you what did and didn't happen, and keeps your record on this device until you choose.");
   assert.equal(wipeMore(wear, false)[1], "Readings Terra already collected stay under Terra's policy.");
 });

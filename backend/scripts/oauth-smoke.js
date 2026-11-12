@@ -4,7 +4,7 @@
 // failure paths, plus the native app's flow: a cyrahealth://auth/oauth?a=<attempt>
 // return link with an app_challenge whose verifier the exchange demands (both or
 // neither), and the return allowlists. Also: least data (verified-only email, Facebook asks
-// for name,email and never passes the email on, exactly four identity fields), sealed state
+// for id,name,email (the id only to become the accounts module's keyed hash) and never passes the email on, exactly four identity fields), sealed state
 // the provider can't read, strict app returns, and handoffs deleted by timers.
 // Usage: node scripts/oauth-smoke.js
 import http from "http";
@@ -60,7 +60,7 @@ try {
   for (let i = 0; i < 20 && !mockSrv.seen.revoked.length; i++) await new Promise((r) => setTimeout(r, 50)); // the revoke is not awaited by the callback
   { const rv = mockSrv.seen.revoked;
     assert(rv.length === 1 && rv[0].provider === "apple" && /^apple-refresh-/.test(rv[0].token) && rv[0].hint === "refresh_token" && rv[0].client_id && rv[0].has_secret, `apple: the refresh token is revoked at Apple right after sign-in, with the client secret; no other provider's (${JSON.stringify(rv.map((x) => [x.provider, x.hint]))})`); }
-  assert(mockSrv.seen.meFields.length > 0 && mockSrv.seen.meFields.every((f) => f === "name,email"), `facebook: /me asked for fields=name,email only (${mockSrv.seen.meFields.join(" | ")})`);
+  assert(mockSrv.seen.meFields.length > 0 && mockSrv.seen.meFields.every((f) => f === "id,name,email"), `facebook: /me asked for fields=id,name,email only (${mockSrv.seen.meFields.join(" | ")})`);
 
   // Google: an id_token whose email is not verified → the email never reaches the device
   { let u = await go(`${B}/api/oauth/google/start?return=${encodeURIComponent(RET)}`); const a = new URL(u.headers.get("location")); a.searchParams.set("mock_email_verified", "false");

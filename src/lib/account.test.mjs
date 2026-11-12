@@ -124,7 +124,10 @@ test("disclosures (calm R9): accounts builds name the encrypted account backup; 
   assert.equal(accountsInBuild(ALL, true), true); assert.equal(accountsInBuild(ALL, false), false); assert.equal(accountsInBuild(DEF, true), false);
   assert.deepEqual(serverSees(ALL, true), serverSees(ALL, true, false));
   const s = serverSees(ALL, true, true);
-  assert.ok(!s.some((t) => /keep no account/.test(t)) && s.some((t) => /optional account, they keep only your encrypted backup/.test(t)));
+  // Task 1: ALL has sign-in, so the sentence names the sign-in account and then the optional backup account.
+  assert.ok(!s.some((t) => /keep no account/.test(t)) && s.some((t) => /optional backup account, it keeps your encrypted backup/.test(t)));
+  const noSignin = serverSees({ ...ALL, signin: false }, true, true);
+  assert.ok(noSignin.some((t) => /optional account, they keep only your encrypted backup/.test(t)));
   assert.deepEqual(serverSees(ALL, false, true), serverSees(ALL, false), "no server, no account");
   assert.match(wipeConfirm(ALL, false, true), /keep no readable copy/); assert.match(wipeConfirm(ALL, false, true), /until you delete the account or it expires/);
   assert.equal(wipeConfirm(ALL, false), wipeConfirm(ALL, false, false));

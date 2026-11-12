@@ -68,7 +68,7 @@ import { flushSync } from "react-dom";
 import { SYMS, GSYM, ALL_SYM, ENERGY_ID, SCORE_SCALE, SHELF, stagePalettes, ORGS, SYM_FAMILY, PRENATAL, vizVars, rampOf } from "./lib/constants.js";
 import { seed, fmt, addDays, routeIntake, insights, predict, whyNoPrediction, cycleSummary, cleanCycleFlags, toggleExclude, periodHead, basisLine, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick, scoreRgb, scoreColorOf, inkOn } from "./lib/engine.js";
 import { DEFAULT_APPEARANCE, DEFAULT_STYLE, SYSTEM_DARK_QUERY, cleanAppearance, cleanStyle, resolveScheme, paletteFor, paletteVars, applyDocumentScheme } from "./lib/appearance.js";
-import { API_BASE, apiFetch, apiPost, hasServer } from "./lib/api.js";
+import { API_BASE, apiPost, hasServer } from "./lib/api.js";
 import { DEMO_WEARABLES, VIA_SERVER, SOURCES, SOURCES_HERE, SERVER_IDS, connectSource, syncSource, disconnectSource, drainTerra, disconnectHelp } from "./lib/wearables.js";
 import { makeAdapters, mergeSourceRows as mergeRows, cleanNightSkips, cleanConfirmations, cleanTrackStats, cleanSourceExtras, noteSource, skipNight, unskipNight, confirmDay, isConfirmed, noteConfirmation, setPreferred, dropSourceRows, liveSources } from "./lib/sources.js";
 import { signalsFor, autoCardModel, skipLabel, CONFIRM_BODY, sourceRows, preferRows, howGoing } from "./lib/autoTracked.js";
@@ -85,6 +85,9 @@ import { encryptBackup, decryptBackup, fileTransport, backupFileName, backupKey,
 import { ACCOUNTS_HERE, cloudAccountsFor } from "./lib/cloudBackup.js";
 import { ACCOUNT_ERRORS, credentialsFor, cleanCloudAccount, mergeCloudAccount, nextCloudAccount, normEmail, contentSum, NO_ACCOUNT, ACCOUNT_COPY } from "./lib/account.js";
 import { AccountSheet } from "./components/AccountParts.jsx";
+import SignInStep, { SignInGate } from "./components/SignInStep.jsx";
+import { signinMode, signinInBuild, gateNeeded, sessionFrom, cleanSignin, firstNameOf, whoLine, SIGNIN_COPY, REQUIRE_SIGNIN } from "./lib/signin.js";
+import { accountsConfig, emailStart, emailVerify, providerFinish, signOutServer, deleteAccountServer } from "./lib/signinClient.js";
 import { FEATURES, DEV_FLAGS, feature, remindersInBuild } from "./lib/features.js";
 import { fertPrivacyLine, deleteAlso } from "./lib/disclosures.js";
 import { cleanLock, hashPin, checkPin, newLock, afterFail, afterSuccess, awayMs, shouldLock, passkeyAvailable, createPasskey, verifyPasskey, forgotPinRecord, GRACE_MS, LOCK_COPY } from "./lib/lock.js";
@@ -104,7 +107,7 @@ import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, known
 import { isNative, hasPlugin, Haptics, Purchases, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pots/ui.js";
-import { REG_STAGE, STAGE_LABELS, ANSWER_BLANK, pruneForStage, socialReturnStep, pregWeekFrom, pcosModuleFrom } from "./lib/onboarding.js";
+import { REG_STAGE, STAGE_LABELS, ANSWER_BLANK, pruneForStage, pregWeekFrom, pcosModuleFrom } from "./lib/onboarding.js";
 import { registerWorker, whenActive, hasShellCache, checkForUpdate, applyUpdate, clearShellCaches, displayStandalone, currentInstallMode, listenForInstall, promptInstall, cleanInstallHint, mergeInstallHint, showInstallHint, offersInstall } from "./lib/pwa.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
@@ -404,6 +407,12 @@ export default function CyraDemo() {
   /* The optional account (calm R9): cloudAccount { rev, acct } is device-only and never in any backup (it holds the
      backup key and write token; lib/account.js). cloudSync, acctSheet and acctChoice are UI only. */
   const [cloudAccount, setCloudAccount] = useState(NO_ACCOUNT);
+  /* Sign-in (Task 1, lib/signin.js): signin is this device's session with her Solia Health account (device-only, never in
+     a backup); signinCfg is what the server said it offers (null until asked, "offline" when it couldn't be reached). */
+  const [signin, setSignin] = useState(null);
+  const signinRef = useRef(null); signinRef.current = signin;
+  const signedOutHere = useRef(false); // this tab signed out or deleted the account: another tab's copy must not come back
+  const [signinCfg, setSigninCfg] = useState(null);
   const [cloudSync, setCloudSync] = useState({ state: "idle", conflict: null, error: null });
   const [acctSheet, setAcctSheet] = useState(null); // "create" | "signin" | null
   const [acctChoice, setAcctChoice] = useState(null); // { saved, acct } while a sign-in waits for "Use the backup / Keep this device's log"
@@ -1385,8 +1394,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestions(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestions(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)), signin: (v) => setSignin((cur) => cur || cleanSignin(v)) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats, signin };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1504,6 +1513,9 @@ export default function CyraDemo() {
         // The account (calm R9): another tab's newer sign-in, sign-out or back-up wins (higher rev), so a stale tab can't undo it.
         const ca = mergeCloudAccount(out.cloudAccount, latest?.cloudAccount);
         if (ca.rev !== cleanCloudAccount(out.cloudAccount).rev) { out = { ...out, cloudAccount: ca }; setCloudAccount(ca); }
+        // Sign-in (Task 1): a session another tab made is kept, so a tab opened before it can't sign her out by saving.
+        const si = cleanSignin(latest?.signin);
+        if (!out.signin && si && !signedOutHere.current) { out = { ...out, signin: si }; setSignin(si); }
         const pm = mergePots(latest && latest.v === RECORD_VERSION ? latest.pots : undefined, out.pots, potsBase.current);
         if (!samePots(pm, out.pots)) { const mine = out.pots; out = { ...out, pots: pm }; setPots((cur) => (cur === mine ? pm : mergePots(pm, cur, mine))); }
       }
@@ -1743,7 +1755,7 @@ export default function CyraDemo() {
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
-    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, uiLocale, uiStyle, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount };
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, uiLocale, uiStyle, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount, signin };
     if (account) setCloudAccount(account);
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
@@ -1992,6 +2004,7 @@ export default function CyraDemo() {
     let pushLeft = null, pushForgot = false, terraLiveEnded = false;
     const terraOffDone = [];
     const dropEnded = () => {
+      if (ended.includes("account")) { signedOutHere.current = true; setSignin(null); }
       const gone = [...ended.filter((k) => k !== "reminders"), ...(terraLiveEnded ? ["terra"] : [])];
       if (gone.length) setWearSources((s) => Object.fromEntries(Object.entries(s).filter(([k]) => !gone.includes(k))));
       if (terraOffDone.length) setTerraOff((p) => cleanTerraOff(p).filter((x) => !terraOffDone.includes(offId(x))));
@@ -2002,6 +2015,8 @@ export default function CyraDemo() {
       const serverStep = async (name, fn) => { try { await fn(); ended.push(name); } catch (e) { failed.push({ name, kind: kindOf(e) }); } };
       // Wearables: only a build that has them asks Cyra's server to end a connection (otherwise Delete everything
       // shows LEGACY_WEAR_LINE for one an earlier build or a backup left in the record).
+      // Task 1: Delete everything also deletes her Solia Health account (the record on the server), first.
+      if (signinRef.current?.token) await serverStep("account", () => deleteAccountServer(signinRef.current.token, { timeoutMs: 8000 }));
       if (FEATURES.wearables && sources.oura && !sources.oura.demo) await serverStep("oura", () => disconnectSource("oura", sources.oura, { timeoutMs: 8000 }));
       if (!isNative()) {
         const all = await knownEndpoints(pushKnown);
@@ -2204,32 +2219,36 @@ export default function CyraDemo() {
     }
   }, [cadence, quietHours, hydrated, autoSynced]); // eslint-disable-line
 
-  /* ---------- "fill in your name and email from" Apple / Google / Facebook ----------
-     Not an account: real OAuth through the backend only to prefill step 1, kept on this
-     device. Web: a full-page redirect that comes back as #oauth=<code>. Phone app: a sign-in
-     window (iOS: ASWebAuthenticationSession; Android: the system browser), back through
-     cyrahealth://auth/oauth?a=<attempt>#oauth=<code>, redeemable only with this
-     attempt's one-time verifier. A build without a server makes no request at all, and a
-     build without the signin flag (the default: production mounts no oauth module) shows no
-     provider buttons and never exchanges a returning #oauth= code. */
-  const PROVIDER_LABEL = { apple: "Apple", google: "Google", facebook: "Facebook" };
-  const signInRetry = "Sign-in didn't complete — try again or fill in the form; anything the provider sent is erased from Solia Health's server within 5 minutes.";
+  /* ---------- sign-in (Task 1): Apple, Google, Facebook or an email code → her Solia Health account ----------
+     Real OAuth through the backend (src/modules/oauth), finished by the accounts module, which keeps the account
+     record (how she signed in, the verified email, the name the service sent) and hands this device a session token.
+     Web: a full-page redirect that comes back as #oauth=<code>. Phone app: a sign-in window (iOS:
+     ASWebAuthenticationSession; Android: the system browser), back through cyrahealth://auth/oauth?a=<attempt>#oauth=<code>,
+     redeemable only with this attempt's one-time verifier. Email: a 6-digit code (lib/signinClient.js). A build without
+     the signin flag or a server makes none of these requests, and never redeems a returning #oauth= code.
+     Nothing from her log goes with any of them. */
+  const SIGNIN_BUILD = signinInBuild(FEATURES, hasServer());
+  const signMode = signinMode({ build: FEATURES.signin, server: hasServer(), config: signinCfg });
+  const askSigninConfig = () => { setSigninCfg(null); accountsConfig().then(setSigninCfg); };
+  const phaseRef = useRef(phase); phaseRef.current = phase;
+  const regRef = useRef(reg); regRef.current = reg;
+  // A session arrived: keep it, fill in the Device step's name and email (never over what she typed, never in
+  // Anonymous Mode) and, during registration, move on from "Create your account".
+  const adoptSession = (s) => {
+    if (!s) throw new Error("no session");
+    signedOutHere.current = false;
+    setSignin(s);
+    if (phaseRef.current !== "app") {
+      const first = firstNameOf(s);
+      setReg((x) => (x.anon ? x : { ...x, name: x.name || first, email: x.email || s.email || "" }));
+      setPhase("register"); setRegStep((n) => (n === 0 ? 1 : n));
+    }
+    ping(SIGNIN_COPY.signedIn(whoLine(s)));
+  };
   const startSocial = async (id, label) => {
-    if (!FEATURES.signin) return; // a build without signin shows no provider buttons (RegisterScreen)
+    if (!SIGNIN_BUILD) return;
     setSocialBusy(id);
-    if (!hasServer()) { ping(`Sign-in isn't available in this version — fill in the form or use Anonymous Mode; your profile stays on this ${isNative() ? "phone" : "device"}.`); setSocialBusy(null); return; }
     try {
-      const r = await apiFetch("/api/oauth/providers", {}, { timeoutMs: 10000 });
-      let available = null;
-      if (r.ok) { try { available = await r.json(); } catch { /* not the providers list */ } }
-      if (available?.[id] !== true) {
-        ping(available?.[id] === false ? `${label} sign-in isn't set up on this server yet` : "Couldn't reach the sign-in service — try again in a moment");
-        setSocialBusy(null); return;
-      }
-      // The provider learns that this account is signing in to Cyra (plus the usual IP and
-      // browser details) and nothing about her health. The backend holds the verified email
-      // and name in memory under a one-time code for at most 5 minutes, hands them to this
-      // device, and writes nothing to disk.
       if (isNative()) {
         const { verifier, challenge } = await newAppVerifier();
         const ret = appReturnUrl("oauth"); // this attempt's own link
@@ -2239,49 +2258,47 @@ export default function CyraDemo() {
         finishSocial(back && !back.has("oauth_error") && back.get("oauth") ? { code: back.get("oauth"), verifier } : { error: true });
         return;
       }
+      if (phaseRef.current === "app") await settleSaves(); // the page is about to unload: what she logged is saved first
       window.location.assign(`${API_BASE}/api/oauth/${id}/start?return=${encodeURIComponent(window.location.origin + window.location.pathname)}`);
     } catch {
-      ping("Couldn't reach the sign-in service — try again in a moment"); setSocialBusy(null);
+      ping(`Couldn't open ${label} sign-in. Try again in a moment.`); setSocialBusy(null);
     }
   };
-  // Shared by both returns: exchange the one-time code, prefill, move on from the Device step. Only a
-  // verified email is filled in (the server drops unverified and Facebook emails and every
-  // other provider field). The toast says what was filled in, and that a name or email she
-  // had typed was kept. Anonymous Mode, if she turned it on meanwhile, wins: nothing is
-  // filled in.
-  const regRef = useRef(reg); regRef.current = reg;
+  // Shared by both returns: the one-time code becomes a session on the accounts module.
   const finishSocial = ({ code, verifier, error }) => {
-    setPhase("register");
-    if (error) { ping(signInRetry); return; }
-    apiPost("/api/oauth/exchange", verifier ? { code, verifier } : { code })
-      .then((idn) => {
-        const label = PROVIDER_LABEL[idn?.provider] || "the provider";
-        if (regRef.current.anon) { ping(`Anonymous Mode is on, so nothing from ${label} was filled in`); return; }
-        const email = idn?.emailVerified === true && typeof idn.email === "string" ? idn.email.trim() : "";
-        const first = (typeof idn?.name === "string" ? idn.name.trim() : "").split(/\s+/)[0] || "";
-        const typed = !!regRef.current.name, typedEmail = !!regRef.current.email;
-        const fillName = !!first && !typed, fillEmail = !!email && !typedEmail;
-        setReg((x) => (x.anon ? x : { ...x, email: x.email || email, name: x.name || first }));
-        // A native return lands on the step after Device (L11). A web redirect restarted the page, so the stage is
-        // unknown and she lands on the stage step, with her name and email waiting on the Device step; nothing is
-        // carried across the redirect (no session or local storage is written before finishReg).
-        setRegStep(socialReturnStep(regRef.current.stage));
-        const what = [fillName && "name", fillEmail && "email"].filter(Boolean).join(" and ");
-        const parts = [];
-        if (what) parts.push(`Filled in your ${what} from ${label} — saved only on this device`);
-        if (first && typed) parts.push(`${label} shared your name; Solia Health kept the one you typed`);
-        if (email && typedEmail) parts.push(`${label} shared a verified email; Solia Health kept the one you typed`);
-        if (!first && !email) parts.push(`${label} didn't share a name or a verified email — fill in the form if you like`);
-        ping(parts.join(". "));
-      })
-      .catch(() => ping(signInRetry));
+    if (error) { ping(SIGNIN_COPY.errProvider); return; }
+    providerFinish(code, verifier).then((r) => adoptSession(sessionFrom(r))).catch(() => ping(SIGNIN_COPY.errProvider));
   };
+  const onEmailVerify = async (email, code) => adoptSession(sessionFrom(await emailVerify(email, code)));
+  // A web return is finished once the record (if any) is loaded, so the phase is known: a new user lands on
+  // registration's second step, an existing one in the app.
+  const pendingOauth = useRef(null);
   useEffect(() => {
     const m = /^#oauth(_error)?=(.+)$/.exec(window.location.hash || "");
     if (!m) return;
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
-    if (FEATURES.signin) finishSocial(m[1] ? { error: true } : { code: decodeURIComponent(m[2]) }); // otherwise just dropped: no exchange request
-  }, []);
+    if (SIGNIN_BUILD) pendingOauth.current = m[1] ? { error: true } : { code: decodeURIComponent(m[2]) }; // otherwise just dropped: no request
+  }, []); // eslint-disable-line
+  useEffect(() => {
+    if (!hydrated || !pendingOauth.current) return;
+    const p = pendingOauth.current; pendingOauth.current = null;
+    if (phaseRef.current !== "app") { setPhase("register"); setRegStep(0); }
+    finishSocial(p);
+  }, [hydrated]); // eslint-disable-line
+  // Ask the server which sign-ins it has: on registration's first step, and at launch for a record with no session.
+  const onSigninStep = phase === "register" && regStep === 0 && FEATURES.signin;
+  const needsGateCheck = hydrated && phase === "app" && SIGNIN_BUILD && !signin;
+  useEffect(() => { if (SIGNIN_BUILD && signinCfg == null && (onSigninStep || needsGateCheck)) accountsConfig().then(setSigninCfg); }, [onSigninStep, needsGateCheck]); // eslint-disable-line
+  // You → Account: sign out (this device's session) and delete the account (the record on the server). Both need the
+  // server's confirmation; then this device forgets the session. Her log is not touched.
+  const signOutAccount = async () => {
+    try { await signOutServer(signin.token); } catch { throw new Error(SIGNIN_COPY.errSignOut); }
+    signedOutHere.current = true; setSignin(null); ping(SIGNIN_COPY.signedOutToast);
+  };
+  const deleteSignedInAccount = async () => {
+    try { await deleteAccountServer(signin.token); } catch { throw new Error(SIGNIN_COPY.errDelete); }
+    signedOutHere.current = true; setSignin(null); ping(SIGNIN_COPY.deletedToast);
+  };
   // After a forgotten-PIN restore (L10): #restored / #restored=rem say so once the restored record is loaded; #restore
   // means the device was emptied but the backup couldn't be written, so the splash opens on its restore form.
   useEffect(() => {
@@ -2368,7 +2385,7 @@ export default function CyraDemo() {
     const also = deleteAlso(FEATURES, isNative());
     return (
       <Shell {...shell} style={{ ...paletteVars(lockT), ...vizVars(scheme, stage) }}>
-        <LockScreen cfg={lockCfg?.unreadable ? null : lockCfg} unreadable={!!lockCfg?.unreadable} passkeyOk={passkeyOk} onPin={onLockPin} onPasskey={unlockWithPasskey} onRetryRead={retryLockRead}
+        <LockScreen hasAccount={!!signin} cfg={lockCfg?.unreadable ? null : lockCfg} unreadable={!!lockCfg?.unreadable} passkeyOk={passkeyOk} onPin={onLockPin} onPasskey={unlockWithPasskey} onRetryRead={retryLockRead}
           onOpenBackup={openForgotBackup} onCancelBackup={() => { forgotBackup.current = null; }} onRestore={onForgotRestore} onWipe={wipeDevice}
           keepsWeekNote={keepsWeekNote} legacyWear={legacyWear} offlineCopy={offlineReady} wipeAlso={also ? `This also ${also}.` : ""} />
       </Shell>
@@ -2381,11 +2398,22 @@ export default function CyraDemo() {
       onSubmit={acctSheet === "create" ? createAccount : signIn}
       onUse={() => adoptAccountBackup(acctChoice.saved, acctChoice.acct)} onKeep={() => keepDeviceLog(acctChoice.acct)} />
   );
+  /* Sign-in required (Task 1): a record already on this device signs in once before the app opens. Only once the server
+     has said sign-in is required here; offline, or while it is being asked, the app opens as before. */
+  if (phase === "app" && gateNeeded({ mode: signMode, signedIn: !!signin })) {
+    return (
+      <Shell {...shell} toast={toast}>
+        <SignInGate>
+          <SignInStep mode={signMode} providers={signinCfg?.providers || {}} busy={socialBusy} signedIn={signin} onProvider={startSocial} onEmailStart={emailStart} onEmailVerify={onEmailVerify} onRetry={askSigninConfig} />
+        </SignInGate>
+      </Shell>
+    );
+  }
   if (phase === "splash") {
     return (
       <Shell {...shell} toast={toast}>
         <SplashScreen onStart={() => setPhase("register")} onImport={async (f, p) => { await importBackup(f, p); clearStaleLock(); }} initialRestore={initialRestore}
-          accounts={ACCOUNTS_HERE} onSignIn={ACCOUNTS.available() ? () => setAcctSheet("signin") : null} />
+          accounts={ACCOUNTS_HERE} signin={SIGNIN_BUILD} onSignIn={ACCOUNTS.available() ? () => setAcctSheet("signin") : null} />
         {acctSheetView}
       </Shell>
     );
@@ -2394,7 +2422,8 @@ export default function CyraDemo() {
   if (phase === "register") {
     return (
       <Shell {...shell} toast={toast} repaint={repaint}>
-        <RegisterScreen reg={reg} setReg={setReg} regStep={regStep} setRegStep={setRegStep} regTouched={regTouched} setRegTouched={setRegTouched} cadence={cadence} setCadence={setCadence} socialBusy={socialBusy} startSocial={startSocial} finishReg={finishReg} onBackToSplash={() => setPhase("splash")} scheme={scheme} />
+        <RegisterScreen reg={reg} setReg={setReg} regStep={regStep} setRegStep={setRegStep} regTouched={regTouched} setRegTouched={setRegTouched} cadence={cadence} setCadence={setCadence} finishReg={finishReg} onBackToSplash={() => setPhase("splash")} scheme={scheme}
+          signinStep={FEATURES.signin ? { mode: signMode, providers: signinCfg?.providers || {}, busy: socialBusy, signedIn: signin, onProvider: startSocial, onEmailStart: emailStart, onEmailVerify, onRetry: askSigninConfig } : null} />
       </Shell>
     );
   }
@@ -2748,6 +2777,7 @@ export default function CyraDemo() {
     <YouScreen acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={canFull} proOwned={proOwnedNow} storeReady={STORE.available} onPro={() => setProOpen(true)}
       ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line || (isNative() ? null : WEB_PRICE_LINE)} meals={mealsOffered ? { on: mealsHere, onToggle: () => { const on = !mealsHere; setBodyPrefs((p) => cleanBodyPrefs({ ...p, mealsOn: on })); ping(on ? "Meal notes on" : "Meal notes off. What you noted is kept"); } } : null} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
+      signedIn={signin ? { s: signin, required: REQUIRE_SIGNIN, onSignOut: signOutAccount, onDelete: deleteSignedInAccount } : null}
       account={ACCOUNTS_HERE ? { can: ACCOUNTS.available(), acct: cloudAccount.acct, sync: cloudSync, todayIso, onCreate: () => setAcctSheet("create"), onSignIn: () => setAcctSheet("signin"), onBackup: () => backupToCloud(), onSignOut: signOut, onDelete: deleteAccount, onUseBackup: resolveUseBackup, onKeepDevice: resolveKeepDevice, onPro: () => setProOpen(true) } : null}
       dataSources={SOURCES_HERE || sourcesModel.rows.length ? <DataSourcesCard m={sourcesModel} busy={wearBusy} onConnect={connectWear} onPause={pauseSource} onDisconnect={disconnectAny} onPrefer={preferSource} onDemo={setDemo} /> : null}
       care={stage === "preg" ? null : <CareScreen embedded shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: shelfKind(s), started: todayIso }]); ping(shelfKind(s) === "care" ? "Added to What I'm trying" : "Added — your days before and after will be compared"); }} />} />

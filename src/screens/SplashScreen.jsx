@@ -19,7 +19,7 @@ import { t } from "../lib/i18n.js";
    from your account" button sits under the file restore. */
 /* Brand: the Solia mark (BrandMark) sits where the three-circle motif was, the wordmark is
    "Solia" with "HEALTH" beside it (as the header), and the tagline is the slogan "I am Heard". */
-export default function SplashScreen({ onStart, onImport, initialRestore = false, accounts = false, onSignIn = null }) {
+export default function SplashScreen({ onStart, onImport, initialRestore = false, accounts = false, signin = false, onSignIn = null }) {
   const [restore, setRestore] = useState(initialRestore);
   return (
     <main className="splash">
@@ -37,7 +37,7 @@ export default function SplashScreen({ onStart, onImport, initialRestore = false
       <h2 className="section-lab splashpromise-h" id="splash-promise">{t("splash.yourPrivacyPlainly")}</h2>
       <ul className="splashpromise" aria-labelledby="splash-promise">
         <li><Icon name="lock" size={16} />{t("splash.yourHealthLogLivesOn")}</li>
-        <li><Icon name="user" size={16} />{splashAccountLine(accounts)}</li>
+        <li><Icon name="user" size={16} />{splashAccountLine(accounts, signin)}</li>
         <li><Icon name="book" size={16} />{t("splash.guidanceNeverADiagnosisFor")}</li>
       </ul>
       <button className="cta" onClick={onStart}>{t("splash.getStarted")}</button>

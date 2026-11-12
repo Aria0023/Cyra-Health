@@ -15,7 +15,12 @@ import { fileURLToPath } from "node:url";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const DIST = process.env.E2E_DIST || "dist-e2e";
-export const BUILD_ENV = Object.freeze({ VITE_DEMO_WEARABLES: "true", VITE_DEMO_SEED: "true", VITE_FEATURES: "wearables,devGallery,proDev", CYRA_SKIP_POLICY_FETCH: "1" });
+export const BUILD_ENV = Object.freeze({ VITE_DEMO_WEARABLES: "true", VITE_DEMO_SEED: "true", VITE_FEATURES: "wearables,signin,devGallery,proDev", CYRA_SKIP_POLICY_FETCH: "1" });
+/* The second bundle (dist-e2e-api/, Task 1-3 specs): the shipping defaults plus proDev, with a backend at API_BASE, a host that
+   never resolves. Every request to it is answered by the spec itself (page.route, e2e/lib/api.mjs), so no real server runs. */
+export const API_BASE = "https://api.solia.test";
+export const API_DIST = process.env.E2E_API_DIST || "dist-e2e-api";
+export const API_BUILD_ENV = Object.freeze({ VITE_API_BASE: API_BASE, VITE_FEATURES: "proDev", CYRA_SKIP_POLICY_FETCH: "1" });
 const npx = process.platform === "win32" ? "npx.cmd" : "npx";
 
 const freePort = () => new Promise((resolve, reject) => {
@@ -33,17 +38,17 @@ const run = (cmd, args, env) => new Promise((resolve, reject) => {
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Builds (unless E2E_SKIP_BUILD) and serves; resolves { url, stop }. */
-export async function startServer() {
-  const dist = path.join(ROOT, DIST);
+export async function startServer({ distName = DIST, env = BUILD_ENV } = {}) {
+  const dist = path.join(ROOT, distName);
   if (process.env.E2E_SKIP_BUILD !== "1" || !fs.existsSync(path.join(dist, "index.html"))) {
-    const out = await run(npx, ["vite", "build", "--outDir", DIST], BUILD_ENV);
+    const out = await run(npx, ["vite", "build", "--outDir", distName], env);
     const bundle = fs.readdirSync(path.join(dist, "assets")).filter((f) => /^index-.*\.js$/.test(f));
     const stamps = bundle.map((f) => (fs.readFileSync(path.join(dist, "assets", f), "utf8").match(/BUILD 2026\.10\.07-D/g) || []).length).reduce((a, b) => a + b, 0);
     if (stamps !== 1) throw new Error(`expected the build stamp exactly once in the bundle, found ${stamps}\n${out}`);
   }
   const port = await freePort();
   const url = `http://127.0.0.1:${port}`;
-  const proc = spawn(npx, ["vite", "preview", "--outDir", DIST, "--host", "127.0.0.1", "--port", String(port), "--strictPort"], { cwd: ROOT, env: { ...process.env }, stdio: ["ignore", "pipe", "pipe"] });
+  const proc = spawn(npx, ["vite", "preview", "--outDir", distName, "--host", "127.0.0.1", "--port", String(port), "--strictPort"], { cwd: ROOT, env: { ...process.env }, stdio: ["ignore", "pipe", "pipe"] });
   let log = "";
   proc.stdout.on("data", (d) => { log += d; });
   proc.stderr.on("data", (d) => { log += d; });
@@ -61,8 +66,10 @@ export async function startServer() {
 
 /* Playwright globalSetup: start, publish the URL, return the teardown. */
 export default async function globalSetup() {
-  const { url, stop } = await startServer();
-  process.env.E2E_URL = url;
+  const a = await startServer();
+  const b = await startServer({ distName: API_DIST, env: API_BUILD_ENV });
+  process.env.E2E_URL = a.url;
+  process.env.E2E_API_URL = b.url;
   fs.mkdirSync(path.join(ROOT, "e2e", "shots"), { recursive: true });
-  return stop;
+  return async () => { await a.stop(); await b.stop(); };
 }

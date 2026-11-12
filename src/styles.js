@@ -433,6 +433,21 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 .social { display:grid; gap:var(--gap); }
 .socialbtn { min-height:44px; display:flex; align-items:center; justify-content:center; gap:9px; border:1px solid var(--line); background:var(--card); border-radius:var(--r-card); padding:12px; font:700 14px var(--ff-body); color:var(--ink); cursor:pointer; }
 .socialbtn:disabled { opacity:.6; }
+.signin { display:grid; gap:12px; margin-top:14px; }
+.signin-list { display:grid; gap:10px; }
+.signinbtn { min-height:52px; display:flex; align-items:center; justify-content:center; gap:10px; width:100%; border:1.5px solid var(--line); background:var(--card); border-radius:var(--r-card); padding:12px 16px; font:700 16px var(--ff-body); color:var(--ink); cursor:pointer; }
+.signinbtn.apple { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+.signinbtn:disabled { opacity:.55; cursor:not-allowed; }
+.signinbtn svg { flex-shrink:0; }
+.signin-email { display:grid; gap:10px; margin-top:4px; }
+.signin-code { font-size:22px; letter-spacing:.3em; text-align:center; font-variant-numeric:tabular-nums; }
+.signin-again { display:flex; flex-wrap:wrap; gap:4px 14px; }
+.signin-again .linkbtn, .signin-skip .ghostbtn { min-height:44px; }
+.signin-skip { display:grid; gap:8px; }
+.signin-off { margin:0; }
+.signin-done { display:flex; align-items:center; gap:8px; font-size:16px; font-weight:700; color:var(--ink); margin:14px 0 6px; }
+.signin-done svg { color:var(--primary); flex-shrink:0; }
+.signincard .acctwho { overflow-wrap:anywhere; }
 .socialdot { width:12px; height:12px; border-radius:50%; }
 /* ---- UI O1: onboarding. Splash motif + promise rows; step 1 providers 3-up (Apple leftmost, inline marks); the stage
    cards carry their palette swatch and the chosen one a check; the consent cadence is a two-column grid; each step slides

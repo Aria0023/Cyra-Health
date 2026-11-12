@@ -2234,6 +2234,36 @@ has no "or fill in your name and email from" line, no provider buttons, no note 
 returning `#oauth=` code is dropped without an exchange, and no third-party login is offered at all. When shown,
 Apple stays first.
 
+### A11.1 Sign-in required (owner request 2026-11-12; docs/plans/account-wearables-evidence.md Task 1)
+Supersedes the prefill above. Registration starts with **"Create your account"** (`components/SignInStep.jsx`, step key
+`signin`, `lib/onboarding.js regSteps(stage, { signin })`): Continue with Apple, Continue with Google, Continue with
+Facebook, Continue with email, **in that order (Apple first)**. Email is a 6-digit one-time code (10 minutes, 5 tries,
+3 codes per address per 10 minutes, per-client rate limits), sent through Resend's HTTPS API with fetch
+(`RESEND_API_KEY`, `EMAIL_FROM`); a development server without a key writes the code to its console and the app says
+so. Apple/Google/Facebook run through `backend/src/modules/oauth` and finish at `POST /api/accounts/provider`.
+- **Server keeps the account record only** (`backend/src/modules/accounts`): id, provider, a keyed hash of the provider's
+  account id (or of the email), the sign-in email (Apple may give a relay address; Facebook none, since it gives no
+  "verified" signal), the display name if sent, created date; one session row per device. Never health data. Stored in
+  the JSON store under `DATA_DIR`. Endpoints: `GET /config`, `POST /email/start`, `POST /email/verify`,
+  `POST /provider`, `GET /me`, `POST /sign-out`, `DELETE /me`.
+- **Session token** (HMAC with a key derived from `AUTH_SECRET`, 180 days, revocable): kept on the device in the record key
+  `signin`, device-only and never in a backup (`lib/record.js`).
+- **REQUIRE switch** `VITE_REQUIRE_SIGNIN` (default "true", `lib/signin.js signinMode`): required + a configured sign-in
+  → no skip. `false`, no server, or a server reporting no sign-in configured → "Continue without an account", with the
+  reason in plain words. Offline → Try again (no skip).
+- **Existing users** (a record already on the device, no session) see "Sign in to keep going" once at launch when the
+  server says sign-in is required; their log stays. Offline or while asking, the app opens as before.
+- **You → Account** (`SignedInCard`): who is signed in, Sign out, Delete account (confirm; says the log on the device is
+  not touched unless she also uses Delete everything). **Delete everything** deletes the account first (a failure keeps
+  the record and says so, like the wearable steps).
+- Flag `signin` is **on by default** (`lib/features.js`); production mounts `oauth` and `accounts`.
+- Privacy sentences changed so each stays true: `disclosures.js serverSees` / `splashAccountLine` / `consentDeleteFact` /
+  `wipeConfirm`, the Device step copy (`STEP_COPY.deviceSignin`), the lock screen's forgot-PIN line, the "Other connections"
+  sign-in line, the privacy and terms drafts. docs/PRIVACY-AUDIT.md "Sign-in required".
+- Tests: `backend/test/accounts.test.mjs` (code expiry, attempts, single use, tokens, sign-out, delete),
+  `backend/scripts/accounts-smoke.js` (mock provider + mock Resend), `src/lib/signin.test.mjs`, `e2e/account.spec.mjs`
+  (mocked backend), `e2e/signin-axe.spec.mjs` (light + dark).
+
 ## A12. Production checklist (what the demo simulates)
 - [ ] Proxy all Anthropic calls through the backend; no API key in client code.
 - [ ] Real OAuth for Apple/Google/Facebook.

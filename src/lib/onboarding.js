@@ -2,7 +2,7 @@
    registration steps and Settings → About you share. Pure: no React, Capacitor, api, storage or features
    import, no network and no browser storage. Every answer here is kept only on the device (App.jsx regAnswers,
    which goes into encrypted backups without zip and age); nothing in this module sends anything anywhere.
-   Registration is phase-first and short: Stage → (PCOS, optional: My Cycle, Trying to conceive, Perimenopause; calm R2)
+   Registration is phase-first and short: (Create your account, in a build with sign-in: Task 1) → Stage → (PCOS, optional: My Cycle, Trying to conceive, Perimenopause; calm R2)
    → Device → Cycle (cycle stages) | Pregnancy (Pregnant) | nothing (Menopause & beyond) → Consent. The remaining answers (age band, ZIP, regularity, reproductive history, health
    background, goals, sleep, activity) are optional and live in Settings → About you (components/AboutYou.jsx). */
 
@@ -42,6 +42,9 @@ export const PCOS_STAGES = ["My Cycle", "Trying to conceive", "Perimenopause"];
 export const STEP_COPY = {
   stage: { short: "Stage", title: "Where are you right now?", sub: "This shapes your entire experience. You can change it anytime." },
   pcos: { short: "PCOS", title: "Living with PCOS?", sub: "Optional. A yes adds PCOS tracking, and you can change it in You. Your answer stays on this device, and goes into an encrypted backup only if you save one." },
+  signin: { short: "Account", title: "Create your account", sub: "Sign in so Solia Health knows it's you. Your health log stays on this device, and your account never holds it." },
+  // The Device step in a build with sign-in (signin flag and a server): the account exists, so the "no account" sentence goes.
+  deviceSignin: { short: "Device", title: "Set up Solia Health on this device", sub: "Your name, email and answers here are saved on this device, not in your account. Lose the device or clear the browser and you lose them, unless you saved an encrypted backup, which keeps most of them." },
   account: { short: "Device", title: "Set up Solia Health on this device", sub: "There's no Solia Health account. Your name, email and answers are saved on this device. Lose the device or clear the browser and you lose them, unless you saved an encrypted backup, which keeps most of them." },
   cycle: { short: "Cycle", title: "Your cycle history", sub: "So predictions can start from day one. These answers stay on this device, and go into an encrypted backup only if you save one." },
   pregnancy: { short: "Pregnancy", title: "Your pregnancy", sub: "So your week and your care roadmap start in the right place. Your due date stays on this device, and goes into an encrypted backup only if you save one." },
@@ -50,10 +53,12 @@ export const STEP_COPY = {
 
 /** The steps for a stage card label (null before she picks one): 5 for the cycle stages (with the optional PCOS step),
     4 for Pregnant, 3 for Menopause & beyond. Before a stage is picked the cycle flow is shown (the most common). */
-export function regSteps(stageLabel) {
-  if (stageLabel === "Pregnant") return ["stage", "account", "pregnancy", "consent"];
-  if (stageLabel === "Menopause & beyond") return ["stage", "account", "consent"];
-  return ["stage", "pcos", "account", "cycle", "consent"];
+export function regSteps(stageLabel, { signin = false } = {}) {
+  const steps = stageLabel === "Pregnant" ? ["stage", "account", "pregnancy", "consent"]
+    : stageLabel === "Menopause & beyond" ? ["stage", "account", "consent"]
+    : ["stage", "pcos", "account", "cycle", "consent"];
+  // Sign-in (Task 1, lib/signin.js): in a build that offers it, "Create your account" comes first, before the stage.
+  return signin ? ["signin", ...steps] : steps;
 }
 
 /** A PCOS answer as kept: one of the PCOS_ANSWERS ids, or null. */
@@ -75,8 +80,10 @@ export function missingFor(stepKey, reg) {
 }
 
 /** Where a sign-in return lands: the step after Device when the stage is known (a native return), else the stage step
-    (a web redirect restarted the page, so nothing is known). */
-export function socialReturnStep(stageLabel) {
+    (a web redirect restarted the page, so nothing is known). With sign-in as the first step, a finished sign-in lands
+    on the step after it (the stage step), whatever the stage. */
+export function socialReturnStep(stageLabel, { signin = false } = {}) {
+  if (signin) return 1;
   return stageLabel ? regSteps(stageLabel).indexOf("account") + 1 : 0;
 }
 

@@ -32,10 +32,14 @@ export const deleteAlso = (f, native) => on([remindersInBuild(native, f) && "tur
 /** The bullets. With no server (VITE_API_BASE unset) no optional choice can reach one, so only the
     three that hold in every build remain. */
 export function serverSees(f, server = true, accounts = false) {
+  // Task 1: a build with sign-in and a server has accounts, so "no account" can't be said there.
+  const signin = !!f.signin && !!server;
   const out = [
     "An encrypted backup keeps your name, email and other sign-up answers, except your ZIP and age band.",
-    "Anonymous Mode skips your name and email entirely.",
-    accounts && server
+    signin ? "Anonymous Mode keeps your name and email off this device's record. Your account still has the email you signed in with, if the service shared one." : "Anonymous Mode skips your name and email entirely.",
+    signin
+      ? `If you sign in, Solia Health's server keeps your account: how you signed in, your email and your name if the service shares it. It keeps no profile of you: no age, health history or check-ins.${accounts ? " If you also make the optional backup account, it keeps your encrypted backup, which it can't read, and a one-way hash of that email." : ""}`
+      : accounts && server
       ? "Solia Health's servers keep no profile of you in either mode: no age, health history or check-ins. If you later make the optional account, they keep only your encrypted backup, which they can't read, and a one-way hash of your email."
       : "Solia Health's servers keep no account and no profile of you in either mode: no age, health history or check-ins.",
   ];
@@ -55,8 +59,8 @@ export function serverSees(f, server = true, accounts = false) {
     out.push(`Turning it off erases it from Solia Health's server. If the server can't be reached then, Solia Health keeps asking until it confirms${f.wearables ? ", and Delete everything tells you if anything stays connected." : "."}`);
   }
   if (f.counts) out.push("If you choose to share weekly counts, they're added to anonymous weekly totals that stay on the server.");
-  if (f.signin && f.wearables) out.push("Sign-in prefill and Oura connect leave your name and email, or your Oura access, there for 5 minutes at most.");
-  else if (f.signin) out.push("Sign-in prefill leaves your name and email there for 5 minutes at most.");
+  if (f.signin && f.wearables) out.push("Signing in with Apple, Google or Facebook, and Oura connect, leave what the service sent there in memory for 5 minutes at most, until this device collects it.");
+  else if (f.signin) out.push("Signing in with Apple, Google or Facebook leaves what the service sent there in memory for 5 minutes at most, until your account is made.");
   else if (f.wearables) out.push("Oura connect leaves your Oura access there for 5 minutes at most.");
   if (n >= 1) out.push("Like any app that goes online, our server and its host see your device's internet address and app or browser type when the app connects. Solia Health's own code doesn't keep the address.");
   return out;
@@ -64,9 +68,11 @@ export function serverSees(f, server = true, accounts = false) {
 
 /* ---------- registration, consent step ---------- */
 /** The fifth fact on the consent card. */
+/** Task 1: Delete everything also deletes her Solia Health account (App.jsx wipe), in a build that offers sign-in. */
+export const ACCOUNT_DELETE_LINE = "It deletes your Solia Health account too, if you made one.";
 export function consentDeleteFact(f, native) {
   const also = deleteAlso(f, native);
-  return `Delete everything from Settings, anytime.${also ? ` It also ${also}.` : ""}`;
+  return `Delete everything from Settings, anytime.${also ? ` It also ${also}.` : ""}${f.signin ? ` ${ACCOUNT_DELETE_LINE}` : ""}`;
 }
 
 /** "The details" under the consent card (nulls dropped). */
@@ -113,7 +119,7 @@ export function wipeConfirm(f, native, accounts = false) {
   const tail = accounts
     ? " Solia Health's servers keep no readable copy of your log. An encrypted account backup, if you made one, stays on Solia Health's server until you delete the account or it expires; otherwise your log can't be recovered unless you saved a backup."
     : " Solia Health's servers keep no copy of your log, so it can't be recovered unless you saved a backup.";
-  return ` Every check-in, POTS log, note, appointment and setting goes for good.${also ? ` This also ${also}.` : ""}${tail}`;
+  return ` Every check-in, POTS log, note, appointment and setting goes for good.${also ? ` This also ${also}.` : ""}${f.signin ? ` ${ACCOUNT_DELETE_LINE}` : ""}${tail}`;
 }
 
 /** The storage line's last sentence in Privacy & your data. */
@@ -165,8 +171,11 @@ export const potsNeverSent = (f, accounts = false) => {
 };
 
 /* ---------- the splash, the lock screen and the registration consent card (calm R9) ---------- */
-/** The splash promise's second item. */
-export const splashAccountLine = (accounts = false) => (accounts
+/** The splash promise's second item. Task 1: in a build with sign-in (signin flag and a server) she signs in, so "no
+    account" can't be said; the line says what the account holds instead. */
+export const splashAccountLine = (accounts = false, signin = false) => (signin
+  ? "You sign in with Apple, Google, Facebook or email. Your account holds how you sign in, never your health log."
+  : accounts
   ? "No account needed. An account is optional and only keeps an encrypted backup, and your name and email are optional too."
   : "No account needed. There's no Solia Health account to make, and your name and email are optional.");
 /** The consent card's backup fact. */

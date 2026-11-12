@@ -2,9 +2,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { FEATURE_NAMES, DEFAULT_FEATURES, FEATURE_MODULE, FEATURES, parseFeatures, unknownFeatures, feature, remindersInBuild, DEV_FLAG_NAMES, DEV_FLAGS, parseDevFlags } from "./features.js";
+import { FEATURE_NAMES, DEFAULT_FEATURES, FEATURE_MODULE, FEATURE_ALSO, FEATURES, parseFeatures, unknownFeatures, feature, remindersInBuild, DEV_FLAG_NAMES, DEV_FLAGS, parseDevFlags } from "./features.js";
 
-const DEFAULTS = { wearables: false, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: false, deviceSync: true };
+const DEFAULTS = { wearables: false, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: true, deviceSync: true };
 const only = (...on) => Object.fromEntries(FEATURE_NAMES.map((n) => [n, on.includes(n)]));
 
 test("features: unset, empty or blank gives a fresh copy of the shipping defaults", () => {
@@ -66,11 +66,11 @@ test("features: FEATURE_MODULE maps exactly the seven flags (deviceSync has no m
 test("features: the production backend mirrors the default build (D2)", () => {
   const prod = JSON.parse(readFileSync(new URL("../../backend/config/app.json", import.meta.url), "utf8"));
   const dev = JSON.parse(readFileSync(new URL("../../backend/config/app-dev.json", import.meta.url), "utf8"));
-  const want = FEATURE_NAMES.filter((n) => DEFAULT_FEATURES[n] && FEATURE_MODULE[n]).map((n) => FEATURE_MODULE[n]).sort();
+  const want = FEATURE_NAMES.filter((n) => DEFAULT_FEATURES[n] && FEATURE_MODULE[n]).flatMap((n) => [FEATURE_MODULE[n], ...(FEATURE_ALSO[n] || [])]).sort();
   assert.deepEqual([...prod.modules].sort(), want);
-  assert.deepEqual(want, ["ai", "push"]);
+  assert.deepEqual(want, ["accounts", "ai", "oauth", "push"]);
   assert.ok(!prod.modules.includes("backup"), "the backup module is not mounted in production");
-  for (const m of Object.values(FEATURE_MODULE)) if (m) assert.ok(dev.modules.includes(m), `app-dev.json lists ${m}`);
+  for (const m of [...Object.values(FEATURE_MODULE), ...Object.values(FEATURE_ALSO).flat()]) if (m) assert.ok(dev.modules.includes(m), `app-dev.json lists ${m}`);
 });
 
 test("dev flags (calm R1): devGallery is off by default, on when named or with all, and never changes the product flags", () => {

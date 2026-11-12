@@ -4,7 +4,7 @@
    wearable connection, sign-in prefill) still starts off until she turns it on, and says exactly what
    it sends before she does. A feature that is off leaves no trace in the app and makes no request.
 
-   VITE_FEATURES: unset or empty = the shipping defaults (ai, webReminders); a comma list REPLACES the
+   VITE_FEATURES: unset or empty = the shipping defaults (ai, webReminders, signin, deviceSync); a comma list REPLACES the
    defaults ("counts,ai" offers only those two); "all" = every feature; "none" = none. Names are matched
    without regard to case; an unknown name is ignored (vite.config.js warns about it at build time).
 
@@ -14,9 +14,11 @@
      ai          → ai           ("Also ask Cyra's AI")
      webReminders→ push         (reminders in a browser; phones schedule local notifications and need no server)
      cloudBackup → backup       (encrypted cloud backup: a scaffold, no screen uses it yet)
-     signin      → oauth        (Apple / Google / Facebook name-and-email prefill)
-   signin is a sixth flag beside the five D2 names: production no longer mounts oauth (D2: push + ai), so
-   the default build must not offer sign-in buttons that could not work.
+     signin      → accounts + oauth (sign in to a Solia Health account with Apple, Google, Facebook or an
+                                 email code; owner request 2026-11-12: ON by default, and required unless
+                                 VITE_REQUIRE_SIGNIN=false or the server has no sign-in configured; lib/signin.js)
+   signin is a sixth flag beside the five D2 names. It needs a server: a build without VITE_API_BASE offers no
+   sign-in and says so on the first registration step.
    deviceSync (passive tracking S3, plan W9) is the seventh: the on-phone sources (Apple Health / Health Connect, read
    by the app on the phone, never through a server) and everything built on their rows (the Home card, the cycle
    markers, the PDF table, You → Data sources). ON by default, since it needs no backend module (FEATURE_MODULE null)
@@ -26,9 +28,11 @@
    undefined; the optional chaining below keeps it importable there, and Vite still inlines the value. */
 
 export const FEATURE_NAMES = Object.freeze(["wearables", "counts", "ai", "webReminders", "cloudBackup", "signin", "deviceSync"]);
-export const DEFAULT_FEATURES = Object.freeze({ wearables: false, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: false, deviceSync: true });
+export const DEFAULT_FEATURES = Object.freeze({ wearables: false, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: true, deviceSync: true });
 /** The backend module each server feature needs; null for a feature that never touches a server (deviceSync). */
-export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts: "pulse", ai: "ai", webReminders: "push", cloudBackup: "backup", signin: "oauth", deviceSync: null });
+export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts: "pulse", ai: "ai", webReminders: "push", cloudBackup: "backup", signin: "accounts", deviceSync: null });
+/** Further backend modules a server feature also needs: sign-in with Apple, Google or Facebook runs through oauth. */
+export const FEATURE_ALSO = Object.freeze({ signin: Object.freeze(["oauth"]) });
 
 const words = (raw) => String(raw).split(",").map((w) => w.trim()).filter(Boolean);
 const known = (w) => FEATURE_NAMES.find((n) => n.toLowerCase() === w.toLowerCase());
