@@ -9,7 +9,7 @@ import { allFlagGroups } from "../lib/pulse.js";
 import { reduceMotion } from "../lib/motion.js";
 import { paletteFor } from "../lib/appearance.js";
 import { localDay } from "../lib/engine.js";
-import { REG_STAGE, STAGE_LABELS, STAGE_CARDS, STEP_COPY, CYCLE_LENS, PCOS_ANSWERS, regSteps, missingFor, dueDateBounds } from "../lib/onboarding.js";
+import { REG_STAGE, STAGE_LABELS, STAGE_CARDS, STEP_COPY, CYCLE_LENS, PCOS_ANSWERS, regSteps, missingFor, dueDateBounds, toggleStage, primaryStage, cleanStages, stageSummary } from "../lib/onboarding.js";
 import { MODULE_FRAMING } from "../lib/modules.js";
 import { IBadge } from "../components/ui/index.js";
 import { FEATURES, remindersInBuild } from "../lib/features.js";
@@ -18,12 +18,11 @@ import Details, { WebReminderFacts } from "../components/Details.jsx";
 import { ChipRow } from "../components/AnswerChips.jsx";
 import Icon from "../components/Icon.jsx";
 import SignInStep from "../components/SignInStep.jsx";
-import { DeviceList } from "../components/Devices.jsx";
 import { t } from "../lib/i18n.js";
 import { stepCopy } from "../locales/index.js";
 
 /* Phase 2: registration (L11, spec §4.2) — phase-first, 4 steps (3 for Menopause & beyond), routed by
-   lib/onboarding.js regSteps(stage): Stage → Device → Cycle (My Cycle, Trying to conceive, Perimenopause) |
+   lib/onboarding.js regSteps(primary stage): Stage (pick all that fit) → Device → Cycle (My Cycle, Trying to conceive, Perimenopause) |
    Pregnancy (Pregnant) | nothing (Menopause & beyond) → Consent. Required: a stage, a typical cycle length (cycle
    stages only) and the consent box. Everything else can be skipped; the remaining answers (age band, ZIP,
    regularity, reproductive history, health background, goals, sleep, activity) live in Settings → About you
@@ -51,8 +50,8 @@ import { stepCopy } from "../locales/index.js";
 // The icon beside each data fact on the consent step (decorative; the sentence is unchanged).
 const FACT_ICONS = ["lock", "share", "heart", "clipboard", "trash", "file"];
 
-export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTouched, setRegTouched, cadence, setCadence, finishReg, onBackToSplash, scheme = "light", signinStep = null, devicesStep = null }) {
-  const steps = regSteps(reg.stage, { signin: !!signinStep, devices: !!devicesStep });
+export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTouched, setRegTouched, cadence, setCadence, finishReg, onBackToSplash, scheme = "light", signinStep = null }) {
+  const steps = regSteps(reg.stage, { signin: !!signinStep });
   const key = steps[Math.min(regStep, steps.length - 1)];
   // A build with sign-in and a server has accounts: the Device step's "There's no Solia Health account" can't be said there.
   const copyKey = key === "account" && signinStep && hasServer() ? "deviceSignin" : key;
@@ -66,11 +65,16 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
     window.scrollTo({ top: 0, behavior: reduceMotion() ? "auto" : "smooth" });
     headRef.current?.focus({ preventScroll: true });
   }, [regStep]);
-  // The device list asks the server which connections it can make only once she reaches that step.
-  useEffect(() => { if (key === "devices") devicesStep?.onShow?.(); }, [key]); // eslint-disable-line
   const miss = missingFor(key, reg);
   const bad = (k) => !!regTouched[key] && miss.includes(k);
   const rup = (k, v) => setReg((x) => ({ ...x, [k]: v }));
+  // Stage cards are multi-pick (lib/onboarding.js toggleStage); reg.stage is always the one primary card.
+  const picked = cleanStages(reg.stages && reg.stages.length ? reg.stages : reg.stage ? [reg.stage] : []);
+  const pickStage = (lbl) => setReg((x) => {
+    const stages = toggleStage(x.stages && x.stages.length ? x.stages : x.stage ? [x.stage] : [], lbl);
+    return { ...x, stages, stage: primaryStage(stages) };
+  });
+  const summary = stageSummary(picked);
   // Anonymous Mode on: the name and email go, and their fields and the providers are hidden.
   const toggleAnon = () => setReg((x) => (x.anon ? { ...x, anon: false } : { ...x, anon: true, name: "", email: "" }));
 
@@ -121,15 +125,21 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
       {key === "signin" && signinStep && <SignInStep {...signinStep} onSkip={() => go(regStep + 1, "fwd")} />}
 
       {key === "stage" && (
-        <div className={`regcards ${bad("stage") ? "err" : ""}`}>
-          {STAGE_CARDS.map(([lbl, d]) => (
-            <button key={lbl} aria-pressed={reg.stage === lbl} className={`stagecard ${reg.stage === lbl ? "on" : ""}`} onClick={() => rup("stage", lbl)}>
-              <b>{lbl}</b><span>{d}</span>
-              <span className="swatch-dot" aria-hidden="true" style={{ background: paletteFor(stagePalettes(REG_STAGE[lbl], STAGE_LABELS[lbl])[0], scheme).primary }} />
-              {reg.stage === lbl && <Icon name="check" size={18} className="stagecheck" />}
-            </button>
-          ))}
-        </div>
+        <>
+          <div role="group" aria-label={t("onb.stagesPickAll")} className={`regcards ${bad("stage") ? "err" : ""}`}>
+            {STAGE_CARDS.map(([lbl, d]) => {
+              const on = picked.includes(lbl);
+              return (
+                <button key={lbl} type="button" aria-pressed={on} className={`stagecard ${on ? "on" : ""}`} onClick={() => pickStage(lbl)}>
+                  <b>{lbl}</b><span>{d}</span>
+                  <span className="swatch-dot" aria-hidden="true" style={{ background: paletteFor(stagePalettes(REG_STAGE[lbl], STAGE_LABELS[lbl])[0], scheme).primary }} />
+                  {on && <Icon name="check" size={18} className="stagecheck" />}
+                </button>
+              );
+            })}
+          </div>
+          <p className="hint stagesummary" aria-live="polite">{summary || t("onb.stagesAloneNote")}</p>
+        </>
       )}
 
       {/* Calm R2: "Living with PCOS?" — optional (Continue works with nothing picked); a second tap clears the answer.
@@ -181,9 +191,6 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
           <p className="rfoot">{t("onb.notSureYetLeaveIt")}</p>
         </>
       )}
-
-      {/* Task 2: optional; the nav's Continue moves on whether or not she connects anything. */}
-      {key === "devices" && devicesStep && <DeviceList {...devicesStep} />}
 
       {key === "consent" && (
         <>

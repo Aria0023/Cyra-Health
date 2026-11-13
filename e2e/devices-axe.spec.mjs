@@ -1,4 +1,4 @@
-/* axe-core on Task 2's screens, light and dark: the optional "Connect a device?" registration step (API build, mocked:
+/* axe-core on Task 2's screens, light and dark: the "Connect your devices" sheet in the API build (mocked:
    Oura set up, Terra not), the Home card, and the "Connect your devices" sheet with a connected (demo) row. 0 violations. */
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -13,7 +13,7 @@ const audit = async (page, name) => {
 };
 
 for (const scheme of ["light", "dark"]) {
-  test(`device step, Home card and sheet, ${scheme}`, async ({ browser }) => {
+  test(`devices sheet (API build), Home card and sheet, ${scheme}`, async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });
     const page = await ctx.newPage();
     await mockApi(page, newApiState({ sources: { healthkit: "on-device", oura: true, terra: false } }));
@@ -23,9 +23,12 @@ for (const scheme of ["light", "dark"]) {
     await page.locator(".stagecard", { hasText: "Menopause & beyond" }).click();
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page.getByRole("button", { name: "Continue", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Connect a device?" })).toBeVisible();
-    await expect(page.locator('.devrow[data-device="terra"]')).toContainText("Not set up yet");
-    await audit(page, `device step ${scheme}`);
+    await expect(page.getByRole("heading", { name: "Your data and your choices" })).toBeVisible(); // no device step
+    await page.getByRole("checkbox", { name: /I agree to/ }).click();
+    await page.getByRole("button", { name: "Enter Solia Health" }).click();
+    await page.locator("#home-devices").getByRole("button", { name: "See devices" }).click();
+    await expect(page.locator('#devices-sheet .devrow[data-device="terra"]')).toContainText("Not set up yet");
+    await audit(page, `devices sheet, API build ${scheme}`);
     await ctx.close();
 
     const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });

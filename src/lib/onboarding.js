@@ -13,6 +13,48 @@ export const REG_STAGE = { "My Cycle": "periods", "Trying to conceive": "periods
 export const STAGE_LABELS = { "My Cycle": "My Cycle", "Trying to conceive": "Trying to Conceive", "Pregnant": "Pregnancy", "Perimenopause": "Perimenopause", "Menopause & beyond": "Menopause" };
 export const STAGE_CARDS = [["My Cycle", "periods & PMS"], ["Trying to conceive", "fertility"], ["Pregnant", "week by week"], ["Perimenopause", "changing cycles"], ["Menopause & beyond", "post-transition"]];
 
+/* Several stage cards can be true at once (owner decision 2026-11-12): she can still have periods in perimenopause, or be
+   trying to conceive in her forties. She picks every card that fits; the app is still built around exactly one
+   experience (the primary card below), and each other card she picked goes into her goals.
+   - Pregnant and Menopause & beyond each stand alone: picking one clears the others, and picking another clears it.
+   - The primary is the first picked card in PRIMARY_ORDER (Trying to conceive leads because fertility timing matters
+     most when she has that goal; Perimenopause leads over My Cycle because its flow tracks periods as well). */
+export const STAGE_ALONE = Object.freeze(["Pregnant", "Menopause & beyond"]);
+export const PRIMARY_ORDER = Object.freeze(["Pregnant", "Menopause & beyond", "Trying to conceive", "Perimenopause", "My Cycle"]);
+/* The goal each combinable card adds (labels from GOALS below). */
+export const STAGE_GOAL = Object.freeze({ "My Cycle": "Predict my cycle", "Trying to conceive": "Get pregnant", "Perimenopause": "Track the transition" });
+
+/** The picked cards, cleaned: known labels only, in card order, and a stand-alone card only on its own. */
+export function cleanStages(list) {
+  const known = Array.isArray(list) ? STAGE_CARDS.map(([l]) => l).filter((l) => list.includes(l)) : [];
+  const alone = known.find((l) => STAGE_ALONE.includes(l));
+  return alone ? [alone] : known;
+}
+
+/** Tap a stage card: toggles it, with Pregnant and Menopause & beyond standing alone. Never mutates its input. */
+export function toggleStage(list, label) {
+  const cur = cleanStages(list);
+  if (!STAGE_CARDS.some(([l]) => l === label)) return cur;
+  if (cur.includes(label)) return cur.filter((l) => l !== label);
+  if (STAGE_ALONE.includes(label)) return [label];
+  return cleanStages([...cur.filter((l) => !STAGE_ALONE.includes(l)), label]);
+}
+
+/** The one card her experience is built around, or null when nothing is picked. */
+export const primaryStage = (list) => PRIMARY_ORDER.find((l) => cleanStages(list).includes(l)) || null;
+
+/** The goals the picked cards add (every combinable card she picked, primary included). */
+export const goalsForStages = (list) => cleanStages(list).map((l) => STAGE_GOAL[l]).filter(Boolean);
+
+/** The sentence under the cards: which experience she gets, and what her other picks become. Null with nothing picked. */
+export function stageSummary(list) {
+  const p = primaryStage(list);
+  if (!p) return null;
+  const extra = cleanStages(list).filter((l) => l !== p).map((l) => `\u201c${STAGE_GOAL[l]}\u201d`);
+  const and = extra.length > 1 ? `${extra.slice(0, -1).join(", ")} and ${extra[extra.length - 1]}` : extra[0];
+  return `Your app will be set up for ${STAGE_LABELS[p]}${extra.length ? `, with ${and} added to your goals` : ""}.`;
+}
+
 // Option lists (unchanged wording from the registration steps they came from).
 export const AGE_BANDS = ["Under 25", "25–34", "35–44", "45–54", "55+"];
 export const CYCLE_LENS = ["Under 24 days", "24–31 days", "Over 31 days", "Irregular", "Not sure"];
@@ -29,7 +71,7 @@ export const ACTIVITY = ["Low", "Moderate", "High"];
 
 /* Every regAnswers answer key at its empty value. No name, email or anon key: a Settings → About you edit spreads
    this under the saved answers, so it can never put identity back into an Anonymous Mode record. */
-export const ANSWER_BLANK = Object.freeze({ age: null, zip: "", stage: null, pcos: null, cycleLen: null, cycleReg: null, lastPeriod: "", dueDate: "", preg: null, births: null, contra: null, conditions: [], familyHx: [], meds: null, goals: [], sleep: null, activity: null });
+export const ANSWER_BLANK = Object.freeze({ age: null, zip: "", stage: null, stages: [], pcos: null, cycleLen: null, cycleReg: null, lastPeriod: "", dueDate: "", preg: null, births: null, contra: null, conditions: [], familyHx: [], meds: null, goals: [], sleep: null, activity: null });
 
 /* "Living with PCOS?" (calm R2): one optional step after Stage for the stages the PCOS module serves. Nothing is
    required; Yes or "I suspect it" turns the PCOS module on (lib/modules.js), which she can turn off in You → Modules.
@@ -40,7 +82,7 @@ const PCOS_IDS = new Set(PCOS_ANSWERS.map(([id]) => id));
 export const PCOS_STAGES = ["My Cycle", "Trying to conceive", "Perimenopause"];
 
 export const STEP_COPY = {
-  stage: { short: "Stage", title: "Where are you right now?", sub: "This shapes your entire experience. You can change it anytime." },
+  stage: { short: "Stage", title: "Where are you right now?", sub: "Pick all that fit, like having periods and being in perimenopause. You can change it anytime." },
   pcos: { short: "PCOS", title: "Living with PCOS?", sub: "Optional. A yes adds PCOS tracking, and you can change it in You. Your answer stays on this device, and goes into an encrypted backup only if you save one." },
   signin: { short: "Account", title: "Create your account", sub: "Sign in so Solia Health knows it's you. Your health log stays on this device, and your account never holds it." },
   // The Device step in a build with sign-in (signin flag and a server): the account exists, so the "no account" sentence goes.
@@ -48,18 +90,17 @@ export const STEP_COPY = {
   account: { short: "Device", title: "Set up Solia Health on this device", sub: "There's no Solia Health account. Your name, email and answers are saved on this device. Lose the device or clear the browser and you lose them, unless you saved an encrypted backup, which keeps most of them." },
   cycle: { short: "Cycle", title: "Your cycle history", sub: "So predictions can start from day one. These answers stay on this device, and go into an encrypted backup only if you save one." },
   pregnancy: { short: "Pregnancy", title: "Your pregnancy", sub: "So your week and your care roadmap start in the right place. Your due date stays on this device, and goes into an encrypted backup only if you save one." },
-  devices: { short: "Devices", title: "Connect a device?", sub: "Optional: you can skip this and connect one later from Home or You. Each one says what it reads and where its readings go." },
   consent: { short: "Consent", title: "Your data and your choices", sub: "What Solia Health does with your data today — and choices you can change later in Settings." },
 };
 
-/** The steps for a stage card label (null before she picks one): 5 for the cycle stages (with the optional PCOS step),
-    4 for Pregnant, 3 for Menopause & beyond. Before a stage is picked the cycle flow is shown (the most common). */
-export function regSteps(stageLabel, { signin = false, devices = false } = {}) {
-  const base = stageLabel === "Pregnant" ? ["stage", "account", "pregnancy", "consent"]
+/** The steps for the primary stage card label (null before she picks one): 5 for the cycle stages (with the optional
+    PCOS step), 4 for Pregnant, 3 for Menopause & beyond. Before a stage is picked the cycle flow is shown (the most common).
+    Wearables are never asked about during registration (owner decision 2026-11-12: too early); she connects one later
+    from the Home card or You → Data sources. */
+export function regSteps(stageLabel, { signin = false } = {}) {
+  const steps = stageLabel === "Pregnant" ? ["stage", "account", "pregnancy", "consent"]
     : stageLabel === "Menopause & beyond" ? ["stage", "account", "consent"]
     : ["stage", "pcos", "account", "cycle", "consent"];
-  // Task 2: "Connect a device?" (optional) right after Cycle / Pregnancy, before Consent, in a build that offers a device.
-  const steps = devices ? [...base.slice(0, -1), "devices", "consent"] : base;
   // Sign-in (Task 1, lib/signin.js): in a build that offers it, "Create your account" comes first, before the stage.
   return signin ? ["signin", ...steps] : steps;
 }
@@ -103,6 +144,9 @@ export function toggleMulti(list, v) {
 /** A copy of the answers with the ones typed on a step that is no longer in her flow emptied. */
 export function pruneForStage(answers) {
   const a = { ...(answers || {}) };
+  // The picked cards and the primary agree: an older record with only a stage gets that one card.
+  a.stages = cleanStages(Array.isArray(a.stages) && a.stages.length ? a.stages : a.stage ? [a.stage] : []);
+  if (a.stages.length) a.stage = primaryStage(a.stages);
   if (a.stage !== "Pregnant") a.dueDate = "";
   a.pcos = PCOS_STAGES.includes(a.stage) ? cleanPcosAnswer(a.pcos) : null;
   if (a.stage === "Pregnant" || a.stage === "Menopause & beyond") { a.cycleLen = null; a.lastPeriod = ""; }

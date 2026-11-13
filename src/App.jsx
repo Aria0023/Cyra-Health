@@ -110,7 +110,7 @@ import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, known
 import { isNative, hasPlugin, Haptics, Purchases, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pots/ui.js";
-import { REG_STAGE, STAGE_LABELS, ANSWER_BLANK, pruneForStage, pregWeekFrom, pcosModuleFrom } from "./lib/onboarding.js";
+import { REG_STAGE, STAGE_LABELS, ANSWER_BLANK, pruneForStage, pregWeekFrom, pcosModuleFrom, goalsForStages } from "./lib/onboarding.js";
 import { registerWorker, whenActive, hasShellCache, checkForUpdate, applyUpdate, clearShellCaches, displayStandalone, currentInstallMode, listenForInstall, promptInstall, cleanInstallHint, mergeInstallHint, showInstallHint, offersInstall } from "./lib/pwa.js";
 
 const DEMO_SEED = import.meta.env.VITE_DEMO_SEED === "true";
@@ -267,7 +267,7 @@ export default function CyraDemo() {
   // optional and are kept nowhere, not even on this device, in Anonymous Mode.
   const [reg, setReg] = useState({
     name: "", email: "", anon: false, age: null, zip: "",
-    stage: null, pcos: null, cycleLen: null, cycleReg: null, lastPeriod: "", dueDate: "",
+    stage: null, stages: [], pcos: null, cycleLen: null, cycleReg: null, lastPeriod: "", dueDate: "",
     preg: null, births: null, contra: null,
     conditions: [], familyHx: [], meds: null,
     goals: [], sleep: null, activity: null,
@@ -2351,6 +2351,8 @@ export default function CyraDemo() {
     // Answers typed on a step that left her flow when she changed stage are not saved (lib/onboarding.js). The due
     // date (Pregnant) stays in regAnswers: on this device and in encrypted backups, sent nowhere.
     const answers = pruneForStage({ ...reg });
+    // Every combinable stage card she picked becomes a goal (lib/onboarding.js goalsForStages); the experience is the primary one.
+    answers.goals = [...new Set([...(answers.goals || []), ...goalsForStages(answers.stages)])];
     if (anon) { delete answers.name; delete answers.email; }
     setRegAnswers(answers);
     setFertSigns((p) => ({ ...p, on: null })); // a new registration starts fertility signs at its stage's default (L7)
@@ -2447,7 +2449,6 @@ export default function CyraDemo() {
     return (
       <Shell {...shell} toast={toast} repaint={repaint}>
         <RegisterScreen reg={reg} setReg={setReg} regStep={regStep} setRegStep={setRegStep} regTouched={regTouched} setRegTouched={setRegTouched} cadence={cadence} setCadence={setCadence} finishReg={finishReg} onBackToSplash={() => setPhase("splash")} scheme={scheme}
-          devicesStep={SOURCES_HERE ? { ...devList, onShow: askServerSources } : null}
           signinStep={FEATURES.signin ? { mode: signMode, providers: signinCfg?.providers || {}, busy: socialBusy, signedIn: signin, onProvider: startSocial, onEmailStart: emailStart, onEmailVerify, onRetry: askSigninConfig } : null} />
       </Shell>
     );

@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { REG_STAGE, STAGE_LABELS, STAGE_CARDS, ANSWER_BLANK, PCOS_ANSWERS, PCOS_STAGES, STEP_COPY, cleanPcosAnswer, pcosModuleFrom, regSteps, missingFor, socialReturnStep, toggleMulti, pruneForStage, sanitizeZip, pregWeekFrom, dueDateBounds } from "./onboarding.js";
+import { REG_STAGE, STAGE_LABELS, STAGE_CARDS, ANSWER_BLANK, PCOS_ANSWERS, PCOS_STAGES, STEP_COPY, cleanPcosAnswer, pcosModuleFrom, regSteps, missingFor, socialReturnStep, toggleMulti, pruneForStage, cleanStages, toggleStage, primaryStage, goalsForStages, stageSummary, STAGE_ALONE, STAGE_GOAL, GOALS, sanitizeZip, pregWeekFrom, dueDateBounds } from "./onboarding.js";
 import { PHASES } from "./record.js";
 
 const CYCLE = ["stage", "pcos", "account", "cycle", "consent"];
@@ -138,7 +138,7 @@ test("ANSWER_BLANK carries no identity and includes dueDate", () => {
   for (const k of ["name", "email", "anon"]) assert.equal(k in ANSWER_BLANK, false);
   assert.equal(ANSWER_BLANK.dueDate, "");
   assert.equal(ANSWER_BLANK.pcos, null);
-  assert.deepEqual(Object.keys(ANSWER_BLANK), ["age", "zip", "stage", "pcos", "cycleLen", "cycleReg", "lastPeriod", "dueDate", "preg", "births", "contra", "conditions", "familyHx", "meds", "goals", "sleep", "activity"]);
+  assert.deepEqual(Object.keys(ANSWER_BLANK), ["age", "zip", "stage", "stages", "pcos", "cycleLen", "cycleReg", "lastPeriod", "dueDate", "preg", "births", "contra", "conditions", "familyHx", "meds", "goals", "sleep", "activity"]);
 });
 
 test("onboarding.js makes no network call, touches no browser storage and imports nothing impure", () => {
@@ -157,12 +157,49 @@ test("regSteps with sign-in: Create your account comes first for every stage; a 
   assert.ok(!/no Solia Health account/i.test(STEP_COPY.deviceSignin.sub), "the Device step in a sign-in build never says there is no account");
 });
 
-test("regSteps with devices (Task 2): Connect a device? sits right before Consent, after Cycle or Pregnancy", () => {
+test("registration never asks about wearables: no device step for any stage, with or without sign-in", () => {
   for (const l of [null, ...Object.keys(REG_STAGE)]) {
-    const st = regSteps(l, { signin: true, devices: true });
-    assert.deepEqual(st, [...regSteps(l, { signin: true }).slice(0, -1), "devices", "consent"]);
-    assert.equal(missingFor("devices", {}).length, 0, "optional");
+    for (const signin of [false, true]) assert.equal(regSteps(l, { signin, devices: true }).includes("devices"), false, `${l} ${signin}`);
   }
-  assert.deepEqual(regSteps("Pregnant", { devices: true }), ["stage", "account", "pregnancy", "devices", "consent"]);
+  assert.equal("devices" in STEP_COPY, false);
+});
+
+test("stage cards are multi-pick: periods and perimenopause together, Pregnant and Menopause & beyond alone", () => {
+  let s = toggleStage([], "My Cycle");
+  s = toggleStage(s, "Perimenopause");
+  assert.deepEqual(s, ["My Cycle", "Perimenopause"]);
+  assert.equal(primaryStage(s), "Perimenopause", "one experience: peri, which tracks periods too");
+  assert.deepEqual(toggleStage(s, "My Cycle"), ["Perimenopause"], "a second tap clears a card");
+  assert.deepEqual(toggleStage(s, "Pregnant"), ["Pregnant"], "Pregnant stands alone");
+  assert.deepEqual(toggleStage(["Pregnant"], "My Cycle"), ["My Cycle"], "another card clears Pregnant");
+  assert.deepEqual(toggleStage(["Perimenopause"], "Menopause & beyond"), ["Menopause & beyond"]);
+  assert.deepEqual(toggleStage(["My Cycle"], "Not a stage"), ["My Cycle"]);
+  assert.equal(primaryStage(["Trying to conceive", "Perimenopause"]), "Trying to conceive");
+  assert.equal(primaryStage(["My Cycle", "Trying to conceive"]), "Trying to conceive");
+  assert.equal(primaryStage([]), null);
+  assert.deepEqual(cleanStages(["Perimenopause", "My Cycle", "x"]), ["My Cycle", "Perimenopause"], "card order, known only");
+  assert.deepEqual(cleanStages(["My Cycle", "Pregnant"]), ["Pregnant"]);
+  for (const l of STAGE_ALONE) assert.ok(REG_STAGE[l]);
+  for (const g of Object.values(STAGE_GOAL)) assert.ok(GOALS.includes(g), g);
+  assert.deepEqual(goalsForStages(["My Cycle", "Perimenopause"]), ["Predict my cycle", "Track the transition"]);
+  assert.deepEqual(goalsForStages(["Pregnant"]), []);
+});
+
+test("the stage summary names the one experience and what the other picks become", () => {
+  assert.equal(stageSummary([]), null);
+  assert.equal(stageSummary(["Pregnant"]), "Your app will be set up for Pregnancy.");
+  assert.equal(stageSummary(["My Cycle", "Perimenopause"]), "Your app will be set up for Perimenopause, with \u201cPredict my cycle\u201d added to your goals.");
+  assert.equal(stageSummary(["My Cycle", "Trying to conceive", "Perimenopause"]), "Your app will be set up for Trying to Conceive, with \u201cPredict my cycle\u201d and \u201cTrack the transition\u201d added to your goals.");
+});
+
+test("pruneForStage keeps the picked cards and the primary in step; an older record with one stage still works", () => {
+  const a = pruneForStage({ ...ANSWER_BLANK, stages: ["Perimenopause", "My Cycle"], stage: "My Cycle", cycleLen: "Irregular", lastPeriod: "2026-11-01" });
+  assert.deepEqual(a.stages, ["My Cycle", "Perimenopause"]);
+  assert.equal(a.stage, "Perimenopause");
+  assert.equal(a.lastPeriod, "2026-11-01", "peri keeps the period date");
+  const old = pruneForStage({ stage: "Pregnant", dueDate: "2027-03-01" });
+  assert.deepEqual(old.stages, ["Pregnant"]);
+  assert.equal(old.stage, "Pregnant");
+  assert.deepEqual(ANSWER_BLANK.stages, []);
 });
 

@@ -435,6 +435,8 @@ export const UI = {
   "onb.setUpProgress": "Set-up progress",
   "onb.stepOf": "Step {v0} of {length} · {short}",
   "onb.livingWithPcosOptional": "Living with PCOS? (optional)",
+  "onb.stagesPickAll": "Where are you right now? Pick all that fit",
+  "onb.stagesAloneNote": "Pick every one that fits. Pregnant and Menopause & beyond are chosen on their own.",
   "onb.firstNameOptional": "First name (optional)",
   "onb.emailOptional": "Email (optional)",
   "onb.emailOptionalKeptOnlyOn": "Email (optional, kept only on this device and in backups you save)",
