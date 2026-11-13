@@ -109,6 +109,25 @@ export default function HomeScreen({
     if (opened) document.getElementById(`home-${opened}`)?.scrollIntoView?.({ block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" });
   }, [showRecap, showWear, showMeds, showAppts, showJournal]);
 
+  /* Today's small step card. Getting started (lib/guide.js, ids gs-…) sits right under the hero so a newcomer sees it
+     first; any other small step keeps its place under Quick log. */
+  const guideStep = !!(step && typeof step.id === "string" && step.id.startsWith("gs-"));
+  const stepCard = step ? (
+        <Card className="stepcard" eyebrow={step.eyebrow || t("home.todaysSmallStep")} title={step.title} icon={step.id === "breathe" ? "breath" : "sparkle"} tint="patterns" level={2}>
+          <p className="stepbody">{step.body}</p>
+          <div className="stepacts">
+            {step.action && <button type="button" className="stepgo" onClick={() => onStep(step.action)}>{step.action.label}</button>}
+            <button type="button" className="stepskip" onClick={onSkipStep}>{t("home.notToday")}</button>
+          </div>
+          {/* calm R6: an experiment from the weekly review may offer its practice as a second, quieter action */}
+          {step.alt && <p className="stepalt"><button type="button" className="linkbtn" onClick={() => onStep(step.alt)}>{step.alt.label} →</button></p>}
+          <Details label={t("home.why")}>
+            <p>{step.why}</p>
+            {step.src && <p className="stepsrc">{t("home.source", { title: step.src.title, body: step.src.body, year: step.src.year })}</p>}
+          </Details>
+        </Card>
+  ) : null;
+
   return (
     <main className="homev2">
       {/* The free week (lib/trial.js): one calm line with a way to see plans, only where the gate is on and Pro isn't. */}
@@ -149,6 +168,8 @@ export default function HomeScreen({
         {todayLine && <button type="button" className="todayline" onClick={() => goTab("today")}><i className="fdot" aria-hidden="true" style={{ background: todayLine.color }} />{todayLine.text}</button>}
       </div>
 
+      {guideStep && stepCard}
+
       {/* POTS add-on (App.jsx): the "POTS today" card while it's on, or the one-time offer card. Never replaces Today's insight. */}
       {potsCard}
       {/* The install tip (web only, spec A14.1): hiding it hands focus back to the check-in button. */}
@@ -169,21 +190,7 @@ export default function HomeScreen({
       </section>
 
       {/* ---- Today's small step: one optional suggestion from her log and stage, a Why line, and "Not today". ---- */}
-      {step && (
-        <Card className="stepcard" eyebrow={step.eyebrow || t("home.todaysSmallStep")} title={step.title} icon={step.id === "breathe" ? "breath" : "sparkle"} tint="patterns" level={2}>
-          <p className="stepbody">{step.body}</p>
-          <div className="stepacts">
-            {step.action && <button type="button" className="stepgo" onClick={() => onStep(step.action)}>{step.action.label}</button>}
-            <button type="button" className="stepskip" onClick={onSkipStep}>{t("home.notToday")}</button>
-          </div>
-          {/* calm R6: an experiment from the weekly review may offer its practice as a second, quieter action */}
-          {step.alt && <p className="stepalt"><button type="button" className="linkbtn" onClick={() => onStep(step.alt)}>{step.alt.label} →</button></p>}
-          <Details label={t("home.why")}>
-            <p>{step.why}</p>
-            {step.src && <p className="stepsrc">{t("home.source", { title: step.src.title, body: step.src.body, year: step.src.year })}</p>}
-          </Details>
-        </Card>
-      )}
+      {step && !guideStep && stepCard}
 
       {/* ---- Body and Mind: dotted step rails, a tick for what is logged today; untouched steps stay neutral. ---- */}
       <div className="railcards">
