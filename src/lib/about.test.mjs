@@ -26,7 +26,8 @@ test("module lines are short, plain and say PCOS is not diagnosed", () => {
 
 test("the plan copy is honest: Pro is optional, ending it keeps her data, no pressure words", () => {
   assert.match(PLAN_COPY.optional, /optional/);
-  assert.match(PLAN_COPY.on, /never locks or deletes/);
+  assert.match(PLAN_COPY.on, /never changes or deletes/);
+  assert.match(PLAN_COPY.optionalTrial, /open, export or delete/);
   for (const t of Object.values(PLAN_COPY)) assert.ok(!/\b(upgrade|limited time|unlock now|don't miss|hurry|only \$)/i.test(t), t);
 });
 

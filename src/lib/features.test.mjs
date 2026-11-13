@@ -75,9 +75,12 @@ test("features: the production backend mirrors the default build (D2)", () => {
 });
 
 test("dev flags (calm R1): devGallery is off by default, on when named or with all, and never changes the product flags", () => {
-  assert.deepEqual([...DEV_FLAG_NAMES], ["devGallery", "proDev"]);
+  assert.deepEqual([...DEV_FLAG_NAMES], ["devGallery", "proDev", "trialGate"]);
   assert.ok(Object.isFrozen(DEV_FLAG_NAMES) && Object.isFrozen(DEV_FLAGS));
-  assert.deepEqual(DEV_FLAGS, { devGallery: false, proDev: false }, "the unit-test run has no VITE_FEATURES");
+  assert.deepEqual(DEV_FLAGS, { devGallery: false, proDev: false, trialGate: false }, "the unit-test run has no VITE_FEATURES");
+  for (const raw of ["trialGate", "all"]) assert.equal(parseDevFlags(raw).trialGate, true, raw);
+  assert.equal(parseDevFlags("proDev").trialGate, false, "proDev never turns the free-week gate on");
+  assert.deepEqual(parseFeatures("trialGate"), { ...DEFAULT_FEATURES }, "trialGate is not a product feature");
   for (const raw of [undefined, "", "ai", "devGallery", "none"]) assert.equal(parseDevFlags(raw).proDev, false, String(raw));
   for (const raw of ["proDev", "PRODEV", "all", "ai,proDev"]) assert.equal(parseDevFlags(raw).proDev, true, raw);
   assert.deepEqual(parseFeatures("proDev"), { ...DEFAULT_FEATURES }, "proDev is not a product feature");

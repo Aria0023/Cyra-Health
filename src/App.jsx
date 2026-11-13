@@ -110,6 +110,7 @@ import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, known
 import { isNative, hasPlugin, Haptics, Purchases, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pots/ui.js";
+import { canLog, cleanTrialStart, trialLine } from "./lib/trial.js";
 import { REG_STAGE, STAGE_LABELS, ANSWER_BLANK, pruneForStage, pregWeekFrom, pcosModuleFrom, goalsForStages } from "./lib/onboarding.js";
 import { registerWorker, whenActive, hasShellCache, checkForUpdate, applyUpdate, clearShellCaches, displayStandalone, currentInstallMode, listenForInstall, promptInstall, cleanInstallHint, mergeInstallHint, showInstallHint, offersInstall } from "./lib/pwa.js";
 
@@ -128,6 +129,9 @@ const STORE = (() => {
   const apiKey = plat === "ios" ? import.meta.env.VITE_REVENUECAT_IOS_KEY : plat === "android" ? import.meta.env.VITE_REVENUECAT_ANDROID_KEY : "";
   return storeFor({ platform: plat, plugin: plat !== "web" && hasPlugin("Purchases") ? Purchases : null, apiKey: apiKey || "" });
 })();
+/* The free week (lib/trial.js, owner decision 2026-11-12): the gate is on only where she can pay (a connected store) or
+   in a QA build with the dev flag trialGate. Nobody is locked out of logging with no way to subscribe. */
+const TRIAL_GATE = STORE.available || DEV_FLAGS.trialGate === true;
 /* The optional account (calm R9, lib/account.js): its transport for this plan. Fail-closed: without the cloudBackup flag,
    a server and Pro (plan.can("cloudBackup")) every call is refused before any request. */
 /* The account gate reads the live plan through planRef (set from planLive after each render). */
@@ -226,21 +230,34 @@ export default function CyraDemo() {
   const [intimacy, setIntimacy] = useState(null);
   const [after, setAfter] = useState(null);
   const [relationship, setRelationship] = useState(null);
-  const [connLog, setConnLog] = useState({});
+  /* The free week's write guard (lib/trial.js). After the free week, without Pro, the health-log setters below refuse a
+     change and open "Your free week is over" instead. Loading, restoring, cross-tab adoption and Delete everything use
+     the raw setters (the `setters` map), so nothing she already logged is ever touched, hidden or blocked from export. */
+  const [trialStart, setTrialStart] = useState(null);
+  const [trialSheet, setTrialSheet] = useState(false);
+  const logOkRef = useRef(true);
+  const blockedAt = useRef(0); // a refused save also silences the toast its caller would show ("Added", "Saved")
+  const guardLog = (set) => (v) => { if (logOkRef.current) { set(v); return true; } blockedAt.current = Date.now(); setTrialSheet(true); return false; };
+  const [connLog, setConnLogRaw] = useState({});
+  const setConnLog = useMemo(() => guardLog(setConnLogRaw), []);
   const [cadence, setCadence] = useState("daily");
   const [quietHours, setQuietHours] = useState("evening");
   const [showSettings, setShowSettings] = useState(false);
   const settingsBtnRef = useRef(null), palBtnRef = useRef(null); // the header buttons a closed sheet hands focus back to (UI S1)
   const [quickMode, setQuickMode] = useState(true);
   const [expanded, setExpanded] = useState(false); // Today: "more detail" opened the full form for this visit (UI state only, never saved; quickMode is the preference)
-  const [meds, setMeds] = useState([]);
-  const [medLog, setMedLog] = useState({});
+  const [meds, setMedsRaw] = useState([]);
+  const setMeds = useMemo(() => guardLog(setMedsRaw), []);
+  const [medLog, setMedLogRaw] = useState({});
+  const setMedLog = useMemo(() => guardLog(setMedLogRaw), []);
   const [newMed, setNewMed] = useState({ name: "", kind: "supp", started: localDay() });
   const [showMeds, setShowMeds] = useState(false);
-  const [appts, setAppts] = useState([]);
+  const [appts, setApptsRaw] = useState([]);
+  const setAppts = useMemo(() => guardLog(setApptsRaw), []);
   const [newAppt, setNewAppt] = useState({ date: "", who: "", note: "" });
   const [showAppts, setShowAppts] = useState(false);
-  const [journal, setJournal] = useState({});
+  const [journal, setJournalRaw] = useState({});
+  const setJournal = useMemo(() => guardLog(setJournalRaw), []);
   const [jDraft, setJDraft] = useState("");
   const [showJournal, setShowJournal] = useState(false);
   const [showRecap, setShowRecap] = useState(false);
@@ -334,14 +351,16 @@ export default function CyraDemo() {
   const [obBusy, setObBusy] = useState(false);
   const [welcome, setWelcome] = useState("");
   const [appTab, setAppTab] = useState("patterns");
-  const [days, setDays] = useState(() => (DEMO_SEED ? seed() : []));
+  const [days, setDaysRaw] = useState(() => (DEMO_SEED ? seed() : []));
+  const setDays = useMemo(() => guardLog(setDaysRaw), []);
   const [draft, setDraft] = useState({});
   const [dayNote, setDayNote] = useState(""); // the check-in form's day note (L6), saved on the entry as note
   const [sleepQ, setSleepQ] = useState(null);
   const [kicks, setKicks] = useState(0);
   const [kickTally, setKickTally] = useState(null); // { day, n }: today's kick count, kept on the device between taps (before Save today)
   const [pregTab, setPregTab] = useState("home");
-  const [pregLog, setPregLog] = useState({});
+  const [pregLog, setPregLogRaw] = useState({});
+  const setPregLog = useMemo(() => guardLog(setPregLogRaw), []);
   const [pregSel, setPregSel] = useState(null);
   const [scales, setScales] = useState({ fatigue: 0, pain: 0, moodq: 0, stress: 0 });
   const [flow, setFlow] = useState(null);
@@ -395,16 +414,20 @@ export default function CyraDemo() {
   /* The fast log's second half (calm R4, lib/bodylog.js): hours slept, movement, PCOS day chips and an optional weight
      by day; dated values she types; her units and the weight switch. Record keys, in backups, never sent anywhere.
      bodySheet: which logger sheet is open, { kind: "sleep"|"move"|"meds"|"pcos"|"weight", day } (UI only). */
-  const [bodyLog, setBodyLog] = useState({});
-  const [labs, setLabs] = useState([]);
+  const [bodyLog, setBodyLogRaw] = useState({});
+  const setBodyLog = useMemo(() => guardLog(setBodyLogRaw), []);
+  const [labs, setLabsRaw] = useState([]);
+  const setLabs = useMemo(() => guardLog(setLabsRaw), []);
   // Her own "Questions for my visit" for page 1 of the clinician summary (doctor report v2, lib/visitQuestions.js): record, in backups.
-  const [visitQuestions, setVisitQuestions] = useState([]);
+  const [visitQuestions, setVisitQuestionsRaw] = useState([]);
+  const setVisitQuestions = useMemo(() => guardLog(setVisitQuestionsRaw), []);
   const [bodyPrefs, setBodyPrefs] = useState(() => cleanBodyPrefs(null));
   const [bodySheet, setBodySheet] = useState(null);
   /* Mind (calm R5, lib/mind.js): the mood check-in by day, the practices she ran (with "Which one helped?"), her
      favourite practices (record keys, in backups) and this phone's vibration choice (device-only). practiceOpen and
      proOpen are UI only. */
-  const [moodLog, setMoodLog] = useState({});
+  const [moodLog, setMoodLogRaw] = useState({});
+  const setMoodLog = useMemo(() => guardLog(setMoodLogRaw), []);
   const [practiceLog, setPracticeLog] = useState([]);
   const [practiceFavs, setPracticeFavs] = useState([]);
   const [practiceHaptics, setPracticeHaptics] = useState(false);
@@ -435,7 +458,8 @@ export default function CyraDemo() {
   const [acctChoice, setAcctChoice] = useState(null); // { saved, acct } while a sign-in waits for "Use the backup / Keep this device's log"
   /* Patterns (calm R6, lib/experiments.js): the weekly review's experiment — the one running, the week whose offer she
      skipped and the ones she finished (record key, in backups). */
-  const [experiments, setExperiments] = useState(() => cleanExperiments(null));
+  const [experiments, setExperimentsRaw] = useState(() => cleanExperiments(null));
+  const setExperiments = useMemo(() => guardLog(setExperimentsRaw), []);
   const [exportLog, setExportLog] = useState(null); // { month: "YYYY-MM", n }: appointment PDFs made this month. Written only while plan.js sets a monthly limit (none today), so the shipping app keeps no count; device-only, never in a backup file.
   const [fert, setFert] = useState(FERT_FORM_EMPTY);
   const fertOn = fertShown(stage, stageName, fertSigns.on);
@@ -449,6 +473,8 @@ export default function CyraDemo() {
      read-only (isLockedPots). Every POTS write goes through a functional updater with a
      lib/pots.js action, each of which leaves a locked record unchanged. */
   const [pots, setPots] = useState(POTS_EMPTY);
+  // Her own POTS logging goes through the guard; the add-on's system updates (load, merge, turn on or off) keep setPots.
+  const setPotsLog = useMemo(() => guardLog(setPots), []);
   const [potsSec, setPotsSec] = useState("today"); // the POTS tools page's section (UI only, not saved)
   const [potsOpen, setPotsOpen] = useState(false); // POTS tools open as a page under the current tab (UI only)
   const [potsHomeLast, setPotsHomeLast] = useState(null); // Home "POTS today": the dose ("Took it") or drink ("+ Add") it just logged, for its Undo row (UI only)
@@ -505,6 +531,13 @@ export default function CyraDemo() {
      pause while a device sleeps) and whenever the app comes back (visible, focused, resumed or
      restored), so nothing logged after midnight is filed under the day before. */
   const [todayIso, setTodayIso] = useState(() => localDay());
+  // The free week: today counts as day one until the start is known; the start is set once she is in the app.
+  const logOk = canLog({ gateOn: TRIAL_GATE, owned: proOwnedNow, startIso: trialStart || todayIso, todayIso });
+  logOkRef.current = logOk;
+  const trialNow = trialLine({ gateOn: TRIAL_GATE, owned: proOwnedNow, startIso: trialStart || todayIso, todayIso });
+  // The free week starts the first day she is in the app with a stage (a new registration, or the first launch of this
+  // version for someone already registered). It is kept in her record, so a restored backup keeps its start.
+  useEffect(() => { if (hydrated && phase === "app" && stage != null && !trialStart) setTrialStart(todayIso); }, [hydrated, phase, stage, trialStart, todayIso]);
   const syncDay = () => { const now = localDay(); setTodayIso((cur) => (cur === now ? cur : now)); return now; };
   const isMeno = phaseOf(stage, stageName) === "meno";
   /* Summaries and links in her log (L8, lib/insights.js): worked out here on render from the on-device record, never
@@ -551,7 +584,7 @@ export default function CyraDemo() {
      sentence shows for 3.5s, 180 characters for 7.3s), capped at 8s: the web-live suite waits 10s for a toast
      to clear and the native suite reads the toast about 4s after a 70-character one appears. */
   const setFertOn = (on) => { setFertSigns((p) => ({ ...p, on })); ping(on ? FERT_COPY.toastOn : FERT_COPY.toastOff); };
-  const ping = (m) => { clearTimeout(toastTimer.current); setToast(m); const ms = Math.min(8000, Math.max(2600, 1000 + m.length * 35)); toastTimer.current = setTimeout(() => setToast(""), ms); };
+  const ping = (m) => { if (Date.now() - blockedAt.current < 1500) return; clearTimeout(toastTimer.current); setToast(m); const ms = Math.min(8000, Math.max(2600, 1000 + m.length * 35)); toastTimer.current = setTimeout(() => setToast(""), ms); };
   /* ---------- the app lock: show, hide, grace (L10) ----------
      holdLock: a hand-off Cyra starts itself (backup share, file picker, passkey prompt, a Report or POTS share) hides
      the page for a moment; the hide inside GRACE_MS is graced and locks only after GRACE_MAX_MS away (lib/lock.js).
@@ -1418,8 +1451,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLog, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMeds, medLog: setMedLog, appts: setAppts, journal: setJournal, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDays, pregLog: setPregLog, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestions(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLog(cleanBodyLog(v)), labs: (v) => setLabs(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLog(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperiments(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)), signin: (v) => setSignin((cur) => cur || cleanSignin(v)), devicesHint: (v) => setDevicesHint(cleanDevicesHint(v)), practiceVoice: (v) => setPracticeVoice(v === true) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats, signin, devicesHint, practiceVoice };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLogRaw, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMedsRaw, medLog: setMedLogRaw, appts: setApptsRaw, journal: setJournalRaw, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDaysRaw, pregLog: setPregLogRaw, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestionsRaw(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLogRaw(cleanBodyLog(v)), labs: (v) => setLabsRaw(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLogRaw(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperimentsRaw(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)), signin: (v) => setSignin((cur) => cur || cleanSignin(v)), devicesHint: (v) => setDevicesHint(cleanDevicesHint(v)), practiceVoice: (v) => setPracticeVoice(v === true), trialStart: (v) => setTrialStart(cleanTrialStart(v)) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats, signin, devicesHint, practiceVoice, trialStart };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -2522,6 +2555,7 @@ export default function CyraDemo() {
   const tileCtx = { entry: todayEntryNow, medDay: medLog[todayIso] || null, moveCount: moveToday.n + potsMoves, pcosIds: PCOS_SIGNAL_IDS, sleepH: bodyDay(bodyLog, todayIso).sleepH ?? null, pcosDay: pcosHere ? bodyDay(bodyLog, todayIso).pcos || [] : [], moodDay: moodLog[todayIso] || null, mealCount: mealsHere ? (bodyDay(bodyLog, todayIso).meals || []).length : 0 };
   const homeView = (
     <HomeScreen
+      trial={trialNow ? { line: trialNow, onPlans: () => setProOpen(true) } : null}
       acct={acct} stage={stage} stageName={stageName} goTab={goTab}
       hero={heroModel({ stage, isMeno, pred, predWhy, pregWeek, tri, dueDate, lastPeriodIso: isMeno ? lastPeriodDay(ins.sorted) : null, todayIso, pcosOn: pcosHere })}
       tiles={homeTileIds.map((id) => ({ ...TILE_CATALOG.find((t) => t.id === id), logged: tileLogged(id, tileCtx) }))} onTile={(id) => pickLog(id)}
@@ -2545,13 +2579,13 @@ export default function CyraDemo() {
       potsCard={potsTab && potsOk
         ? <PotsHome pots={pots} totals={potsTotals} todayIso={todayIso} onQuickLog={() => openPots(true)} onStandTest={openStandTest} onOpen={() => openPots()}
             last={potsHomeLive}
-            onUndo={() => { const l = potsHomeLive; setPotsHomeLast(null); if (!l) return; setPots((p) => removePotsItem(p, l.day, l.id)); ping(`Removed: ${l.text}`); }}
-            onTook={(med, slot) => { const day = syncDay(), t = nowHHMM(), id = newPotsId(); setPots((p) => logDose(p, day, { id, medId: med.id, slot, state: "taken", t })); setPotsHomeLast({ id, day, kind: "dose", text: `${med.name} ${slot.replace(/^0/, "")} at ${t.replace(/^0/, "")}` }); ping(`${med.name} logged at ${t.replace(/^0/, "")}`); }}
+            onUndo={() => { const l = potsHomeLive; setPotsHomeLast(null); if (!l) return; setPotsLog((p) => removePotsItem(p, l.day, l.id)); ping(`Removed: ${l.text}`); }}
+            onTook={(med, slot) => { const day = syncDay(), t = nowHHMM(), id = newPotsId(); setPotsLog((p) => logDose(p, day, { id, medId: med.id, slot, state: "taken", t })); setPotsHomeLast({ id, day, kind: "dose", text: `${med.name} ${slot.replace(/^0/, "")} at ${t.replace(/^0/, "")}` }); ping(`${med.name} logged at ${t.replace(/^0/, "")}`); }}
             onDrink={(pr) => {
               if (asksSodium(pr)) { openPots(); return; }
               const day = syncDay(), t = nowHHMM(), id = newPotsId(), units = pots.settings.units;
               const item = { id, t, kind: pr.kind, label: pr.label, ml: pr.ml, naMg: pr.naMg, presetId: pr.id };
-              setPots((p) => addIntake(p, day, item));
+              setPotsLog((p) => addIntake(p, day, item));
               setPotsHomeLast({ id, day, kind: "intake", text: `${potsIntakeText(item, units)} at ${potsAmpm(t)}` });
               ping(intakeToast(item, day === todayIso ? potsTotals : dayTotals(pots, day), pots.settings.goals, units));
             }} />
@@ -2564,21 +2598,21 @@ export default function CyraDemo() {
   const potsConditions = Array.isArray(regAnswers?.conditions) ? regAnswers.conditions : [];
   const POTS_SHOWS = ["test", "fluid", "sym", "meds", "move"];
   const potsView = (
-    <PotsScreen onBack={() => setPotsOpen(false)} pots={pots} setPots={setPots} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"} storageDriver={storageDriver}
+    <PotsScreen onBack={() => setPotsOpen(false)} pots={pots} setPots={setPotsLog} locked={!potsOk} potsSec={potsSec} setPotsSec={setPotsSec} shows={POTS_SHOWS} preg={stage === "preg"} storageDriver={storageDriver}
       sections={potsOk ? {
-        today: <PotsToday pots={pots} setPots={setPots} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => { setPotsSec("stand"); setPotsFocus("stand"); }} onReport={() => setPotsSec("report")} storageDriver={storageDriver} syncDay={syncDay} />,
-        report: <PotsReport pots={pots} setPots={setPots} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={firstName} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} onHandoff={holdLock} />,
+        today: <PotsToday pots={pots} setPots={setPotsLog} day={potsDay} todayIso={todayIso} setDay={setPotsDate} ping={ping} stage={stage} stageName={stageName} checkin={entryOn(potsDay)} symMap={stage === "preg" ? GSYM : symMap} conditions={potsConditions} onStandTest={() => { setPotsSec("stand"); setPotsFocus("stand"); }} onReport={() => setPotsSec("report")} storageDriver={storageDriver} syncDay={syncDay} />,
+        report: <PotsReport pots={pots} setPots={setPotsLog} stage={stage} stageName={stageName} todayIso={todayIso} ping={ping} firstName={firstName} checkin={potsCheckin} checkinLabels={stage === "preg" ? GSYM : symMap} starts={ins.starts} locale={typeof navigator !== "undefined" ? navigator.language : "en-US"} onHandoff={holdLock} />,
         patterns: <PotsPatterns pots={pots} stage={stage} stageName={stageName} todayIso={todayIso} starts={ins.starts} checkin={potsCheckin} wearData={wearOn ? wearData : NO_ROWS} connected={wearOn ? potsWearConnected : NO_ROWS} />,
-        stand: <StandSection pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focus={potsFocus === "stand"} onFocused={potsFocused} cyc={potsCyc}
+        stand: <StandSection pots={pots} setPots={setPotsLog} stage={stage} todayIso={todayIso} ping={ping} running={potsRun} focus={potsFocus === "stand"} onFocused={potsFocused} cyc={potsCyc}
           onStart={() => setPotsRun({ kind: "test", id: null, phase: "safety", phaseStart: Date.now(), standAt: null, done: [], interrupt: null })} />,
-        move: <MovePlan pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} focus={potsFocus === "move"} onFocused={potsFocused}
+        move: <MovePlan pots={pots} setPots={setPotsLog} stage={stage} todayIso={todayIso} ping={ping} focus={potsFocus === "move"} onFocused={potsFocused}
           onStart={() => setPotsRun({ kind: "session", id: null, day: todayIso, phase: "setup", phaseStart: Date.now(), plan: null, paused: null, pausedMs: 0 })} />,
       } : {}}
-      settings={potsOk ? ({ headRef, onBack }) => <PotsSettings pots={pots} setPots={setPots} stage={stage} stageName={stageName} conditions={potsConditions} ping={ping} shows={POTS_SHOWS} today={todayIso} headRef={headRef} onBack={onBack} /> : null}
+      settings={potsOk ? ({ headRef, onBack }) => <PotsSettings pots={pots} setPots={setPotsLog} stage={stage} stageName={stageName} conditions={potsConditions} ping={ping} shows={POTS_SHOWS} today={todayIso} headRef={headRef} onBack={onBack} /> : null}
       setupCards={potsOk ? [
         { id: "goals", title: "Any goals from your clinician?", skip: { label: "No goals yet, just track", big: true },
-          body: (saveRef) => <GoalSheet setup pots={pots} setPots={setPots} units={pots.settings.units} conditions={potsConditions} preg={stage === "preg"} today={todayIso} saveRef={saveRef} /> },
-        { id: "meds", title: "Any POTS medicines or supports?", skip: { label: "Skip, add later" }, body: (saveRef) => <MedSetup setPots={setPots} saveRef={saveRef} /> },
+          body: (saveRef) => <GoalSheet setup pots={pots} setPots={setPotsLog} units={pots.settings.units} conditions={potsConditions} preg={stage === "preg"} today={todayIso} saveRef={saveRef} /> },
+        { id: "meds", title: "Any POTS medicines or supports?", skip: { label: "Skip, add later" }, body: (saveRef) => <MedSetup setPots={setPotsLog} saveRef={saveRef} /> },
       ] : []} />
   );
   /* Running takeover (design 3.3-7): while a stand test or a guided movement session runs, the
@@ -2590,9 +2624,9 @@ export default function CyraDemo() {
       <Shell {...shell} toast={toast}>
         <header className="mast"><span className="mark">{org.name}<span className="sub">{org.tag}</span></span></header>
         {potsRun.kind === "session"
-          ? <SessionRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping}
+          ? <SessionRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPotsLog} stage={stage} todayIso={todayIso} ping={ping}
               onEnd={() => { setPotsRun(null); setPotsSec("move"); setPotsFocus("move"); }} />
-          : <StandRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPots} stage={stage} todayIso={todayIso} ping={ping} cyc={potsCyc}
+          : <StandRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPotsLog} stage={stage} todayIso={todayIso} ping={ping} cyc={potsCyc}
               onEnd={() => { setPotsRun(null); setPotsSec("stand"); setPotsFocus("stand"); }} />}
       </Shell>
     );
@@ -2829,7 +2863,7 @@ export default function CyraDemo() {
       onHelped={(rid, v) => setPracticeLog((l) => setHelped(l, rid, l.find((r) => r.id === rid)?.helped === v ? null : v))} />
   );
   const youView = (
-    <YouScreen acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
+    <YouScreen trial={{ gateOn: TRIAL_GATE && !proOwnedNow, line: trialNow }} acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={proOn} proOwned={proOwnedNow} storeReady={STORE.available} onPro={() => setProOpen(true)}
       ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line || (isNative() ? null : WEB_PRICE_LINE)} meals={mealsOffered ? { on: mealsHere, onToggle: () => { const on = !mealsHere; setBodyPrefs((p) => cleanBodyPrefs({ ...p, mealsOn: on })); ping(on ? "Meal notes on" : "Meal notes off. What you noted is kept"); } } : null} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
       signedIn={signin ? { s: signin, required: REQUIRE_SIGNIN, onSignOut: signOutAccount, onDelete: deleteSignedInAccount } : null}
@@ -2938,7 +2972,8 @@ export default function CyraDemo() {
       {bodySheetView}
       {practiceSheet}
       {devicesOpen && <DevicesSheet {...devList} onClose={() => setDevicesOpen(false)} />}
-      {proOpen && <ProSheet unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} onClose={() => setProOpen(false)} />}
+      {proOpen && <ProSheet gateOn={TRIAL_GATE} unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} onClose={() => setProOpen(false)} />}
+      {trialSheet && !proOpen && <ProSheet gateOn={TRIAL_GATE} trialOver unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} onClose={() => setTrialSheet(false)} />}
       {acctSheetView}
       {evSendOpen && <AiSendSheet kind="evidence" body={evSendOpen.body} lines={evSendOpen.lines} busy={evBusy} onSend={sendEvidence} onClose={() => setEvSendOpen(null)} />}
       {aiSendOpen && <AiSendSheet kind={aiSendOpen.kind} body={aiSendOpen.body} lines={aiSendOpen.lines} busy={!!aiBusy} onSend={sendAi} onClose={() => setAiSendOpen(null)} />}

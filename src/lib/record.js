@@ -9,6 +9,7 @@
    Object.hasOwn (Object.prototype.hasOwnProperty.call instead). docs/ARCHITECTURE.md §4 describes
    every key; a new key is added here (PERSISTED, its class, a RULES entry and a typedef), in
    record.test.mjs's pinned lists and in App.jsx's setters and values. */
+import { cleanTrialStart } from "./trial.js";
 import { localDay, isPeriodDay, cycleStarts, cycleSpans, cleanCycleFlags } from "./engine.js";
 import { PALETTES, CADENCE, FLOW, DISCHARGE, ODOR, BODYODOR, RELATIONSHIP, INTIMACY, AFTER } from "./constants.js";
 import { cleanSymPrefs, NOTE_MAX } from "./daylog.js";
@@ -95,6 +96,7 @@ import { cleanNightSkips, cleanConfirmations, cleanTrackStats, cleanSourceExtras
  * @property {{active: ({id: string, start: string, done: string[]}|null), skip: (string|null), past: {id: string, start: string, days: string[], target: number}[]}} experiments [record] the weekly review's small experiment (calm R6, lib/experiments.js): the one running and the days she ticked, the week whose offer she skipped, the ones she finished.
  * @property {boolean} practiceHaptics [device-only] [not-in-backup] gentle vibration at each change of a practice, on this phone (calm R5).
  * @property {boolean} practiceVoice [device-only] [not-in-backup] Task 3: the voice guide (this device's built-in voice reads each step), remembered on this device.
+ * @property {(string|null)} trialStart [record] the first day of her free week (lib/trial.js, owner decision 2026-11-12), a local YYYY-MM-DD; in backups so a restore keeps it; null until she is in the app.
  * @property {Object<string, {on: boolean, since: (string|null)}>} modules [record] condition modules switched on or off (calm R1, lib/modules.js), POTS excepted (it stays in `pots`); missing means {} (all off).
  */
 
@@ -273,7 +275,7 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    practiceVoice (Task 3, lib/voice.js) is whether this device reads practices aloud: device-only, never in a backup file.
    devicesHint (Task 2, lib/devices.js) is "hidden" once she taps Not now on Home's "Connect a device" card, else null:
    device-only and never in a backup. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice"]);
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice", "trialStart"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -558,6 +560,8 @@ export const RULES = Object.freeze({
   practiceFavs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanPracticeFavs(v)) ? [] : [`${p}: expected practice ids in library order, got ${show(v)}`]),
   practiceHaptics: (v, p) => (typeof v === "boolean" ? [] : [`${p}: expected true or false, got ${show(v)}`]),
   practiceVoice: (v, p) => (v === undefined || typeof v === "boolean" ? [] : [`${p}: expected true or false, got ${show(v)}`]),
+  // The free week (lib/trial.js): missing (a record from before it) or null, or a real local date.
+  trialStart: (v, p) => (v == null || cleanTrialStart(v) === v ? [] : [`${p}: expected a YYYY-MM-DD date or null, got ${show(v)}`]),
   experiments: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanExperiments(v)) ? [] : [`${p}: expected { active: { id, start, done: [days] } | null, skip: day | null, past: [{ id, start, days, target }] }, got ${show(v)}`]),
   symPrefs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanSymPrefs(v)) ? [] : [`${p}: expected { periods|peri|preg: { order, hidden, added } } (lists of symptom ids, at most 40 each, no empty stages), got ${show(v)}`]),
 });

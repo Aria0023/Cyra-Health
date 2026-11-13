@@ -103,7 +103,7 @@ export default function PregTodayScreen({ onPots = null, pregWeek, trimester, sc
         // Her day note (D7), trimmed and only when there is one; contribute() below never gets it.
         const note = cleanNote(dayNote);
         const entry = { sym: { ...draft }, kicks, scales: { ...scales }, odor, bodyOdor, ...(note ? { note } : {}) };
-        setPregLog((l) => ({ ...l, [target]: entry }));
+        if (setPregLog((l) => ({ ...l, [target]: entry })) === false) return; // free week over without Pro (App.jsx guardLog)
         ping(editDate ? `${fmt(target)} updated` : "Saved to your pregnancy journal — see Calendar");
         contribute({ sym: draft, kicks }, target);
         if (editDate) onEndEdit(entry, target); else setDayNote(note);

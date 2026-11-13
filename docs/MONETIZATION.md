@@ -71,6 +71,21 @@ countdown or upgrade button, and a dev build (proDev) says it is a test build. R
     user needs a clinician subscription), sold by demo request. Not usable for a consumer app today.
   Until one offers a consumer licence, Ask with evidence searches only public, authoritative sites.
 
+## 1c. Owner decision 2026-11-12: a free week, then Pro to keep logging
+
+Supersedes "free core, forever" (§2) wherever the gate is on. `src/lib/trial.js`:
+- Everyone gets 7 days of the whole app with saving, counted on the device from the first day in the app
+  (`trialStart`, in the record and in backups). No card, no account.
+- After that, without Pro, the health-log setters in `App.jsx` (`guardLog`) refuse any new or changed entry and open
+  "Your free week is over". Load, restore, cross-tab adoption and Delete everything use the raw setters.
+- Always free, whatever the plan: opening and reading what she logged, every export (PDF, spreadsheet, encrypted
+  backup file), Delete everything, safety guidance and the guided practices. Privacy law (CCPA, MHMDA access and
+  deletion rights) and the App Store require the first three.
+- The gate is on only where she can pay: a phone build with a connected store, or the dev flag `trialGate`
+  (QA, the e2e harness, and the web once Pro can be bought there). `proDev` never opens it.
+- The yearly plan's own 7-day store trial still exists in the stores; decide whether to keep it (it is a second free
+  week for people who pick yearly) or remove the introductory offer in App Store Connect and Play Console.
+
 ## 2. The free core, forever
 
 A feature that ships free stays free.

@@ -134,7 +134,7 @@ test("pricing: the owner's prices, store prices on phones, honest terms", () => 
   assert.equal(perMonthOf(100, "$100.00"), "$8.33");
   assert.equal(perMonthOf(29.99, "29.99"), null, "no currency symbol → no claim");
   for (const k of ["app-store", "play"]) assert.match(CANCEL_LINES[k], /Cancel any time/);
-  assert.match(KEEP_LINE, /nothing you logged is locked/);
+  assert.match(KEEP_LINE, /nothing you logged is changed or deleted, and you can always open, export or delete it/);
 });
 
 test("purchase.js imports nothing, stores nothing, has no network of its own, sets nothing about her", () => {

@@ -29,7 +29,7 @@ export const STORE_LINES = Object.freeze({
   cancelled: "Nothing was bought.",
   failed: "The store couldn't finish that. Nothing was charged. Try again in a moment.",
   noPrice: "The store hasn't answered with a price yet. Nothing can be bought until it does.",
-  tipThanks: "Thank you. Your tip helps keep Solia Health free for everyone.",
+  tipThanks: "Thank you. Your tip helps keep Solia Health going.",
 });
 
 export const ENTITLEMENT_ID = "pro";

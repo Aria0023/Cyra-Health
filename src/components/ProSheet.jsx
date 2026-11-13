@@ -4,6 +4,7 @@ import Icon from "./Icon.jsx";
 import { t } from "../lib/i18n.js";
 import { loadOffer, buyPro, sendTip, STORE_LINES } from "../lib/purchase.js";
 import { PRO_PLAN_IDS, PRO_PRODUCTS, TIP_PRODUCTS, WEB_PRICE_LINE, planLines, CANCEL_LINES, KEEP_LINE } from "../lib/pricing.js";
+import { TRIAL_COPY } from "../lib/trial.js";
 import { TERMS_URL, PRIVACY_URL, POLICY_LINKS_READY, TIP_URL, openExternal } from "../lib/links.js";
 
 /* "What Pro adds" (calm R5, plan §7 "Premium (Pro)"; owner decision D4: $9.95 a month or $100 a year, 7-day free
@@ -25,13 +26,18 @@ export const PRO_EVIDENCE = Object.freeze(["book", "Ask with evidence", "Answers
 export const PRO_AI = Object.freeze(["note", "A weekly write-up and chat about your log, only if you turn them on", "Written by Solia Health's AI from a summary of your log with no dates, notes or anything that names you. Each shows exactly what it would send before anything is sent."]);
 export const PRO_PLANNED = Object.freeze(["Your own experiments, beyond the starter ones", "Medicine and supplement reminders", "A richer PDF with trends and the write-up"]);
 export const FREE_KEEPS = "Free stays free: logging, the calendar, cycles, every pattern Solia Health finds, your weekly review, every guided practice with its voice guide, safety guidance and the basic doctor-ready PDF.";
+/* The free week (lib/trial.js, owner decision 2026-11-12), only where the gate is on (a store to pay in, or the dev flag
+   trialGate): logging after the first 7 days needs Pro, so FREE_KEEPS can't be said there. */
+export const FREE_KEEPS_TRIAL = "Your first 7 days include everything. After that, without Pro, everything you logged stays yours to open, export as a PDF, spreadsheet or backup, or delete, and safety guidance and every guided practice stay free.";
+export const freeKeepsFor = (gateOn) => (gateOn ? FREE_KEEPS_TRIAL : FREE_KEEPS);
+export const PRO_LOG = Object.freeze(["check", "Keep logging after your free week", "Check-ins, periods, symptoms, medicines, notes and everything else you track, with your patterns and predictions kept up to date."]);
 /** Calm R9: only in a build that offers the optional account (lib/cloudBackup.js ACCOUNTS_HERE). */
 export const PRO_CLOUD = Object.freeze(["shield", "An encrypted backup to Solia Health's server, if you make an account", "Bring your log back on a new phone or browser with your email and passphrase. It's encrypted on your device first; Solia Health can't read it."]);
 /** Said when this build has none of Pro's parts (no AI server and no account backup): nothing is claimed that isn't here. */
 export const PRO_NONE = "In this version Pro adds nothing yet: its features need Solia Health's server.";
-export const proAddsFor = (ai, cloud = false) => [...(ai ? [PRO_EVIDENCE, PRO_AI] : []), ...(cloud ? [PRO_CLOUD] : [])];
+export const proAddsFor = (ai, cloud = false, gateOn = false) => [...(gateOn ? [PRO_LOG] : []), ...(ai ? [PRO_EVIDENCE, PRO_AI] : []), ...(cloud ? [PRO_CLOUD] : [])];
 
-export default function ProSheet({ onClose, unlocked = false, owned = false, ai = false, cloud = false, store = null, native = false, onOwned, onRestore, ping }) {
+export default function ProSheet({ onClose, unlocked = false, owned = false, ai = false, cloud = false, gateOn = false, trialOver = false, store = null, native = false, onOwned, onRestore, ping }) {
   const selling = !!(store && store.available) && !owned;
   const [offer, setOffer] = useState(null); // null while the store hasn't answered
   const [pick, setPick] = useState("annual");
@@ -65,16 +71,17 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
   const cancelLine = store && CANCEL_LINES[store.kind];
 
   return (
-    <Sheet id="pro-sheet" title={owned ? t("pro.proIsOn") : t("pro.whatProAdds")} onClose={onClose} closeLabel={t("pro.closeWhatProAdds")} className="prosheet">
-      {!proAddsFor(ai, cloud).length && <p className="hint pronone">{PRO_NONE}</p>}
+    <Sheet id="pro-sheet" title={owned ? t("pro.proIsOn") : trialOver ? TRIAL_COPY.sheetTitle : t("pro.whatProAdds")} onClose={onClose} closeLabel={t("pro.closeWhatProAdds")} className="prosheet">
+      {trialOver && !owned && <p className="protrial">{TRIAL_COPY.sheetBody}</p>}
+      {!proAddsFor(ai, cloud, gateOn).length && <p className="hint pronone">{PRO_NONE}</p>}
       <ul className="prolist" aria-label={t("pro.whatProAddsInThis")}>
-        {proAddsFor(ai, cloud).map(([icon, tv, d]) => (
+        {proAddsFor(ai, cloud, gateOn).map(([icon, tv, d]) => (
           <li key={tv}><span className="prolist-ico" aria-hidden="true"><Icon name={icon} size={16} /></span><span><b>{tv}</b><span className="prolist-d">{d}</span></span></li>
         ))}
       </ul>
       <p className="section-lab proplanned-lab" id="pro-planned">{t("pro.plannedForProNotIn")}</p>
       <ul className="proplanned" aria-labelledby="pro-planned">{PRO_PLANNED.map((tv) => <li key={tv}>{tv}</li>)}</ul>
-      <p className="profree">{FREE_KEEPS}</p>
+      <p className="profree">{freeKeepsFor(gateOn)}</p>
 
       {owned && <p className="hint pronote">{t("pro.ownedNote")} {cancelLine}</p>}
 
