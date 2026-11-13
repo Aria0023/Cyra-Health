@@ -10,6 +10,7 @@
    every key; a new key is added here (PERSISTED, its class, a RULES entry and a typedef), in
    record.test.mjs's pinned lists and in App.jsx's setters and values. */
 import { cleanTrialStart } from "./trial.js";
+import { cleanGuide } from "./guide.js";
 import { localDay, isPeriodDay, cycleStarts, cycleSpans, cleanCycleFlags } from "./engine.js";
 import { PALETTES, CADENCE, FLOW, DISCHARGE, ODOR, BODYODOR, RELATIONSHIP, INTIMACY, AFTER } from "./constants.js";
 import { cleanSymPrefs, NOTE_MAX } from "./daylog.js";
@@ -96,6 +97,7 @@ import { cleanNightSkips, cleanConfirmations, cleanTrackStats, cleanSourceExtras
  * @property {{active: ({id: string, start: string, done: string[]}|null), skip: (string|null), past: {id: string, start: string, days: string[], target: number}[]}} experiments [record] the weekly review's small experiment (calm R6, lib/experiments.js): the one running and the days she ticked, the week whose offer she skipped, the ones she finished.
  * @property {boolean} practiceHaptics [device-only] [not-in-backup] gentle vibration at each change of a practice, on this phone (calm R5).
  * @property {boolean} practiceVoice [device-only] [not-in-backup] Task 3: the voice guide (this device's built-in voice reads each step), remembered on this device.
+ * @property {{seen: string[], off: boolean, replay: (string|null)}} guide [device-only] [not-in-backup] finding her way around (lib/guide.js): tips seen, Getting started hidden, the day of a replay.
  * @property {(string|null)} trialStart [record] the first day of her free week (lib/trial.js, owner decision 2026-11-12), a local YYYY-MM-DD; in backups so a restore keeps it; null until she is in the app.
  * @property {Object<string, {on: boolean, since: (string|null)}>} modules [record] condition modules switched on or off (calm R1, lib/modules.js), POTS excepted (it stays in `pots`); missing means {} (all off).
  */
@@ -275,7 +277,7 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    practiceVoice (Task 3, lib/voice.js) is whether this device reads practices aloud: device-only, never in a backup file.
    devicesHint (Task 2, lib/devices.js) is "hidden" once she taps Not now on Home's "Connect a device" card, else null:
    device-only and never in a backup. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice", "trialStart"]);
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice", "trialStart", "guide"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -283,7 +285,7 @@ export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "ca
    is whether this browser's Home install tip should stay away (null | "dismissed" |
    "installed", lib/pwa.js), also left out of the backup file; exportLog is this device's count of
    appointment PDFs this month (L9), null while exports are unlimited, also left out of the file. */
-export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice"]);
+export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "guide"]);
 /* A display preference of this device (L2): appearance ("system" | "light" | "dark", lib/appearance.js).
    It is saved with the record and followed by every open tab of this browser (so it stays in RECORD,
    they are all the same device), but it is never in a backup file and never taken from one:
@@ -298,7 +300,7 @@ export const RECORD = Object.freeze(PERSISTED.filter((k) => !DEVICE_ONLY.include
    lastBackupAt (this device's own note of when it last backed up), installHint (whether this
    device's install tip is hidden), exportLog (this device's PDF count this month, L9) and appearance
    (this device's light/dark choice). */
-export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", ...DEVICE_PREFS]);
+export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "guide", ...DEVICE_PREFS]);
 
 /** The record as it goes into an encrypted backup file, as a new object (the input is not
     changed): every saved key, except that regAnswers loses zip and age (neither is used after
@@ -560,6 +562,8 @@ export const RULES = Object.freeze({
   practiceFavs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanPracticeFavs(v)) ? [] : [`${p}: expected practice ids in library order, got ${show(v)}`]),
   practiceHaptics: (v, p) => (typeof v === "boolean" ? [] : [`${p}: expected true or false, got ${show(v)}`]),
   practiceVoice: (v, p) => (v === undefined || typeof v === "boolean" ? [] : [`${p}: expected true or false, got ${show(v)}`]),
+  // Finding her way around (lib/guide.js): missing (an older record) or exactly what cleanGuide keeps.
+  guide: (v, p) => (v === undefined || JSON.stringify(v) === JSON.stringify(cleanGuide(v)) ? [] : [`${p}: expected { seen: [view ids], off: true|false, replay: YYYY-MM-DD|null }, got ${show(v)}`]),
   // The free week (lib/trial.js): missing (a record from before it) or null, or a real local date.
   trialStart: (v, p) => (v == null || cleanTrialStart(v) === v ? [] : [`${p}: expected a YYYY-MM-DD date or null, got ${show(v)}`]),
   experiments: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanExperiments(v)) ? [] : [`${p}: expected { active: { id, start, done: [days] } | null, skip: day | null, past: [{ id, start, days, target }] }, got ${show(v)}`]),

@@ -53,7 +53,7 @@ const StageArt = () => (
     <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
   </svg>
 );
-export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, account = null, signedIn = null, language = null, meals = null, dataSources = null }) {
+export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, language = null, meals = null, dataSources = null }) {
   const offer = ai.offer || { any: false, weekly: false, chat: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
@@ -103,6 +103,13 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
 
       {/* Passive tracking S3: Data sources (components/DataSourcesCard.jsx), where she manages every source and reads the spike's numbers. */}
       {dataSources}
+
+      {onTour && (
+        <Card id="you-tour" tint="you" icon="sparkle" eyebrow="Finding your way" title="New here, or a bit lost?" level={2}>
+          <p>Bring back Getting started on Home and the short tip at the top of each screen.</p>
+          <button type="button" className="ghostbtn" onClick={onTour}>Show me around again</button>
+        </Card>
+      )}
 
       <Card id="you-plan" tint="patterns" icon="sparkle" eyebrow={PLAN_COPY.eyebrow} title={proOwned ? PLAN_COPY.pro : planUnlocked ? PLAN_COPY.test : PLAN_COPY.free} level={2} className="youplan" badge={<Chip variant="pro" />}>
         <p>{proOwned ? PLAN_COPY.bodyOn : trial?.gateOn ? PLAN_COPY.bodyTrial : PLAN_COPY.body}</p>

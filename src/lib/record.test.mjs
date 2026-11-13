@@ -33,7 +33,7 @@ const DEFAULTS = () => ({
   bodyLog: {}, labs: [], bodyPrefs: { weightOn: false, weightUnit: null, glucoseUnit: null, hba1cUnit: null, waistUnit: null },
   moodLog: {}, practiceLog: [], practiceFavs: [], practiceHaptics: false, experiments: { active: null, skip: null, past: [] },
   aiPrefs: { weekly: false, chat: false, labs: false }, aiChat: [], aiWeekly: null, cloudAccount: { rev: 0, acct: null }, uiLocale: null, uiStyle: "soft", visitQuestions: [],
-  nightSkips: {}, confirmations: {}, trackStats: { confirmed: 0, fast: 0, tooks: [], sourceSince: null, firstConfirm: null }, signin: null, devicesHint: null, practiceVoice: false, trialStart: null,
+  nightSkips: {}, confirmations: {}, trackStats: { confirmed: 0, fast: 0, tooks: [], sourceSince: null, firstConfirm: null }, signin: null, devicesHint: null, practiceVoice: false, trialStart: null, guide: { seen: [], off: false, replay: null },
 });
 const appRecord = (over = {}) => {
   const d = { ...DEFAULTS(), ...over };
@@ -109,10 +109,10 @@ test("migrate: a missing, throwing or non-advancing step returns the input (all 
 
 test("key lists are the ones App.jsx used before L3 (pinned)", () => {
   // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags, L6 symPrefs and L7 fertSigns (record keys: in RECORD and in backups); calm R1 appended modules (record, in backups); calm R3 appended homeTiles (record, in backups) and homeStepSkip (device-only, not in backups); calm R4 appended bodyLog, labs and bodyPrefs (record, in backups); calm R5 appended moodLog, practiceLog, practiceFavs (record, in backups) and practiceHaptics (device-only, not in backups); calm R6 appended experiments (record, in backups); calm R8 appended aiPrefs (device-only consent, in the file, never applied), aiChat and aiWeekly (device-only, not in backups); doctor report v2 appended visitQuestions (record, in backups).
-  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice", "trialStart"]);
-  assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice"]);
+  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice", "trialStart", "guide"]);
+  assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "guide"]);
   assert.deepEqual([...DEVICE_PREFS], ["appearance", "uiLocale", "uiStyle"]);
-  assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "appearance", "uiLocale", "uiStyle"]);
+  assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "guide", "appearance", "uiLocale", "uiStyle"]);
   assert.deepEqual([...RECORD], PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders"));
   for (const k of NOT_IN_BACKUP) { assert.ok(PERSISTED.includes(k), `${k} persisted`); assert.ok(DEVICE_ONLY.includes(k) || DEVICE_PREFS.includes(k), `${k} device-only or a device pref`); }
   for (const k of DEVICE_ONLY) assert.ok(PERSISTED.includes(k), `${k} persisted`);
@@ -155,6 +155,7 @@ test("backupCopy matches the transform exportBackup used before L3", () => {
     delete snap.signin; // Task 1: the sign-in session never travels
     delete snap.devicesHint; // Task 2: this device's hidden Home card never travels
     delete snap.practiceVoice; // Task 3: this device's voice-guide choice never travels
+    delete snap.guide; // guidance: which tips this device showed never travels
     for (const k of ["appearance", "uiLocale", "uiStyle"]) delete snap[k];
     return snap;
   };
@@ -442,7 +443,7 @@ test("daysLogged", () => {
 
 // record.js may import only these pure leaf modules. A later slice may add one (L6 './daylog.js',
 // L7 './fertility.js'); none of them may import record.js back.
-const RECORD_IMPORTS = ["./trial.js", "./signin.js", "./engine.js", "./constants.js", "./daylog.js", "./fertility.js", "./modules.js", "./home.js", "./bodylog.js", "./mind.js", "./experiments.js", "./aiFeatures.js", "./account.js", "./i18n.js", "./visitQuestions.js", "./sources.js"];
+const RECORD_IMPORTS = ["./guide.js", "./trial.js", "./signin.js", "./engine.js", "./constants.js", "./daylog.js", "./fertility.js", "./modules.js", "./home.js", "./bodylog.js", "./mind.js", "./experiments.js", "./aiFeatures.js", "./account.js", "./i18n.js", "./visitQuestions.js", "./sources.js"];
 const importsOf = (code) => [...code.matchAll(/^\s*import\b[^;]*?\bfrom\s*["']([^"']+)["']/gm)].map((m) => m[1]);
 
 test("layering and no I/O", () => {

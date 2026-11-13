@@ -1498,6 +1498,10 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 /* The free week (lib/trial.js): one calm line on Home and in You, and the lead line of "Your free week is over". */
 .trialbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 12px; margin:0 0 12px; padding:6px 6px 6px 14px; border:1px solid var(--line); border-radius:var(--r-inner); background:var(--card); font-size:var(--fs-sm); color:var(--ink); }
 .trialbar .linkbtn { min-height:44px; padding:0 10px; font-size:var(--fs-sm); }
+/* One-time tip at the top of a view (lib/guide.js). */
+.viewtip { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin:0 0 12px; padding:10px 8px 10px 14px; border:1px solid var(--line); border-left:3px solid var(--primary); border-radius:var(--r-inner); background:var(--card); font-size:var(--fs-sm); color:var(--ink); }
+.viewtip p { margin:0; line-height:1.45; } .viewtip b { margin-right:4px; }
+.viewtip .linkbtn { flex:none; min-height:44px; padding:0 10px; font-size:var(--fs-sm); }
 .youtrial { margin:6px 0 0; font-size:var(--fs-sm); color:var(--ink); font-weight:600; }
 .protrial { margin:0 0 12px; color:var(--ink); }
 .proplanopts { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0 0 12px; }
