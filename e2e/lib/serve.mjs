@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const DIST = process.env.E2E_DIST || "dist-e2e";
-export const BUILD_ENV = Object.freeze({ VITE_DEMO_WEARABLES: "true", VITE_DEMO_SEED: "true", VITE_FEATURES: "wearables,signin,devGallery,proDev", CYRA_SKIP_POLICY_FETCH: "1" });
+export const BUILD_ENV = Object.freeze({ VITE_DEMO_WEARABLES: "true", VITE_DEMO_SEED: "true", VITE_FEATURES: "wearables,signin,devGallery,proDev,trialGate", CYRA_SKIP_POLICY_FETCH: "1" });
 /* The second bundle (dist-e2e-api/, Task 1-3 specs): the shipping defaults plus proDev, with a backend at API_BASE, a host that
    never resolves. Every request to it is answered by the spec itself (page.route, e2e/lib/api.mjs), so no real server runs. */
 export const API_BASE = "https://api.solia.test";

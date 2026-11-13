@@ -152,7 +152,8 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
         const note = cleanNote(dayNote);
         const entry = { date: target, sleepQ: sleepQ || "fair", period: editDate ? !!editPeriod : bleeding, scales: { ...scales }, flow, disch, odor, bodyOdor, sym, ...(note ? { note } : {}), ...fo.fields };
         const next = upsertDay(days, entry);
-        setDays((d) => upsertDay(d, entry));
+        // After the free week without Pro the save is refused (App.jsx guardLog opens the plans), and nothing else happens.
+        if (setDays((d) => upsertDay(d, entry)) === false) return;
         ping(editDate ? `${fmt(target)} updated` : "Saved — check Patterns");
         // App compares milestones before and after this save (the "Milestone reached" moment); it may replace the toast above.
         onSaved?.(next, editDate ? null : target);

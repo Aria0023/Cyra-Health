@@ -21,11 +21,14 @@ export const PLAN_COPY = Object.freeze({
   pro: "Solia Health Pro",
   test: "Solia Health Pro (test build)",
   body: "Logging, your cycle and a clear summary for appointments are free. Pro adds more depth.",
-  bodyOn: "Thank you for supporting Solia Health. Everything free stays free, and Pro adds more depth.",
+  bodyOn: "Thank you for supporting Solia Health. Pro is on.",
+  // The free week (lib/trial.js), only where the gate is on.
+  bodyTrial: "Your first 7 days include everything. After that, Pro keeps your log going.",
+  optionalTrial: "Without Pro, everything you logged stays yours to open, export or delete.",
   see: "See what Pro adds",
   seePlans: "See Pro plans",
   optional: "Pro is optional. Nothing free is ever moved behind it.",
-  on: "Pro renews through your app store until you cancel. Ending it never locks or deletes anything you logged.",
+  on: "Pro renews through your app store until you cancel. Ending it never changes or deletes anything you logged.",
   testNote: "This is a test build: Pro's parts are unlocked here for checking. Nothing is bought.",
   restore: "Restore purchases",
 });

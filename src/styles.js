@@ -1495,6 +1495,11 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .profree { margin:0 0 6px; font-size:var(--fs-sm); color:var(--ink); }
 .pronote { margin:0 0 12px; }
 .proplans { margin:4px 0 12px; }
+/* The free week (lib/trial.js): one calm line on Home and in You, and the lead line of "Your free week is over". */
+.trialbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 12px; margin:0 0 12px; padding:6px 6px 6px 14px; border:1px solid var(--line); border-radius:var(--r-inner); background:var(--card); font-size:var(--fs-sm); color:var(--ink); }
+.trialbar .linkbtn { min-height:44px; padding:0 10px; font-size:var(--fs-sm); }
+.youtrial { margin:6px 0 0; font-size:var(--fs-sm); color:var(--ink); font-weight:600; }
+.protrial { margin:0 0 12px; color:var(--ink); }
 .proplanopts { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0 0 12px; }
 .proplanopt { display:flex; flex-direction:column; align-items:flex-start; gap:2px; min-height:44px; text-align:left; padding:12px; border:1px solid var(--line); border-radius:var(--r-inner); background:var(--card); color:var(--ink); cursor:pointer; font:inherit; }
 .proplanopt.on { border-color:var(--primary); box-shadow:inset 0 0 0 1px var(--primary); }

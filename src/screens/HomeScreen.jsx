@@ -52,7 +52,7 @@ const SLEPT = { good: "well", fair: "so-so", poor: "poorly" };
 const delta = (a, b, goodUp = true) => { const d = b - a; if (d === 0) return <span className="flat">{t("home.unchanged")}</span>; const good = goodUp ? d > 0 : d < 0; return <span className={good ? "up" : "down"}>{d > 0 ? "+" : ""}{d}</span>; };
 
 export default function HomeScreen({
-  acct, stage, stageName, goTab, todayIso, homeInsight, patternsCard = null, wearInsights, milestones, justReached = null, nextUp, pulse,
+  trial = null, acct, stage, stageName, goTab, todayIso, homeInsight, patternsCard = null, wearInsights, milestones, justReached = null, nextUp, pulse,
   todayEntry = null, scoreIds = [], scoreLabels = {},
   hero, tiles = [], onTile, tilePicker = null, step = null, onStep, onSkipStep, bodyRail = [], mindRail = [],
   recap, showRecap, setShowRecap,
@@ -111,6 +111,13 @@ export default function HomeScreen({
 
   return (
     <main className="homev2">
+      {/* The free week (lib/trial.js): one calm line with a way to see plans, only where the gate is on and Pro isn't. */}
+      {trial && trial.line && (
+        <div className="trialbar" role="status">
+          <span>{trial.line}</span>
+          <button type="button" className="linkbtn" aria-haspopup="dialog" onClick={trial.onPlans}>See plans</button>
+        </div>
+      )}
       {/* ---- Hero: the date, her greeting, and the cycle-day ring (pregnancy: the week; menopause: days since the last
           period or the calm "no period tracking needed" state) with the prediction line and its uncertainty. ---- */}
       <div className="homehero" data-kind={hero.kind} data-len={String(hero.center).length > 7 ? "long" : String(hero.center).length > 6 ? "mid" : undefined}>

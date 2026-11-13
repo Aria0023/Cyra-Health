@@ -48,8 +48,11 @@ const known = (w) => FEATURE_NAMES.find((n) => n.toLowerCase() === w.toLowerCase
                   __CYRA_DEV_GALLERY__, so a build without it leaves the gallery code out of the bundle entirely.
      proDev     → the dev/QA unlock of Pro (calm R5, plan §7): lib/plan.js planFor(DEV_FLAGS) returns DEV_PRO_PLAN, so the
                   Pro-gated parts (the full practice library) can be tested before store purchases exist (R8). Default
-                  off; "all" turns it on, so the harness builds test the unlocked paths. Nothing is bought or sent. */
-export const DEV_FLAG_NAMES = Object.freeze(["devGallery", "proDev"]);
+                  off; "all" turns it on, so the harness builds test the unlocked paths. Nothing is bought or sent.
+     trialGate  → turns on the free-week gate (lib/trial.js) in a build with no connected store: QA and the e2e harness,
+                  and the web once Pro can be bought there. Phone builds with a connected store have the gate anyway.
+                  proDev never opens the gate: only a real purchase or the free week does. */
+export const DEV_FLAG_NAMES = Object.freeze(["devGallery", "proDev", "trialGate"]);
 const devWord = (w) => DEV_FLAG_NAMES.some((n) => n.toLowerCase() === w.toLowerCase());
 
 /** raw VITE_FEATURES → a fresh plain object with all seven flags (dev words are ignored here). */

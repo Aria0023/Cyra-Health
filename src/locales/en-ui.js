@@ -681,7 +681,7 @@ export const UI = {
   "pro.termsOfUse": "Terms of Use",
   "pro.privacyPolicy": "Privacy Policy",
   "pro.supportSolia": "Support Solia Health",
-  "pro.tipsHelp": "A one-time tip helps keep Solia Health free for everyone. It doesn't change your plan.",
+  "pro.tipsHelp": "A one-time tip helps keep Solia Health going. It doesn't change your plan.",
   "pro.leaveATip": "Leave a tip",
   "patternCard.sourceLab": "Source",
   "patternCard.difference": "difference",

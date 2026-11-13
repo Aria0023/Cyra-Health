@@ -62,4 +62,4 @@ export const CANCEL_LINES = Object.freeze({
 });
 
 /** The promise that ending Pro keeps (docs/MONETIZATION.md §6). */
-export const KEEP_LINE = "If Pro ends, nothing you logged is locked, changed or deleted, and everything free stays free.";
+export const KEEP_LINE = "If Pro ends, nothing you logged is changed or deleted, and you can always open, export or delete it.";
