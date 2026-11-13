@@ -111,6 +111,7 @@ import { isNative, hasPlugin, Haptics, Purchases, platform, appReturnUrl, newApp
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pots/ui.js";
 import { canLog, cleanTrialStart, trialLine } from "./lib/trial.js";
+import { SAVED_LINE } from "./lib/saved.js";
 import { cleanGuide, hintFor, markSeen, replayGuide, gettingStarted } from "./lib/guide.js";
 import { REG_STAGE, STAGE_LABELS, ANSWER_BLANK, pruneForStage, pregWeekFrom, pcosModuleFrom, goalsForStages } from "./lib/onboarding.js";
 import { registerWorker, whenActive, hasShellCache, checkForUpdate, applyUpdate, clearShellCaches, displayStandalone, currentInstallMode, listenForInstall, promptInstall, cleanInstallHint, mergeInstallHint, showInstallHint, offersInstall } from "./lib/pwa.js";
@@ -2690,19 +2691,19 @@ export default function CyraDemo() {
       title={logDay === todayIso ? "Today's log" : `Log for ${fmt(logDay)}`}
       rows={logRows({ moodDay: moodLog[logDay] || null, preg: stage === "preg", entry: logEntry, day: bodyDay(bodyLog, logDay), medDay: medLog[logDay] || null, meds, pcosOn: pcosHere, weightOn: bodyPrefs.weightOn, mealsOn: mealsHere, symLabel: (id) => (stage === "preg" ? GSYM[id] : symMap[id] || ALL_SYM[id] || id), periodDay: stage === "preg" ? 0 : periodDayOf(days, logDay, isPeriodDay) })}
       onRow={goLogger} meds={meds} medDay={medLog[logDay] || null}
-      onToggleMed={(mid) => setMedLog((l) => ({ ...l, [logDay]: { ...(l[logDay] || {}), [mid]: !(l[logDay] || {})[mid] } }))}
+      onToggleMed={(mid) => savedIf(setMedLog((l) => ({ ...l, [logDay]: { ...(l[logDay] || {}), [mid]: !(l[logDay] || {})[mid] } })))}
       weightOff={!bodyPrefs.weightOn} onWeightOn={() => openSheet("weight")}
     />
   );
   const sheetDay = bodySheet?.day || todayIso;
   const sheetWord = sheetDay === todayIso ? "today" : `on ${shortDay(sheetDay)}`;
   const bodySheetView = !bodySheet ? null
-    : bodySheet.kind === "sleep" ? <SleepSheet day={sheetDay} dayWord={sheetWord} log={bodyLog} onSet={(h) => setBodyLog((l) => setSleepH(l, sheetDay, h))} onClose={closeSheet} />
+    : bodySheet.kind === "sleep" ? <SleepSheet day={sheetDay} dayWord={sheetWord} log={bodyLog} onSet={(h) => savedIf(setBodyLog((l) => setSleepH(l, sheetDay, h)))} onClose={closeSheet} />
     : bodySheet.kind === "move" ? <MoveSheet day={sheetDay} dayWord={sheetWord} log={bodyLog} lastType={lastMoveType} onClose={closeSheet}
         onAdd={(m) => { const r = addMove(bodyLog, sheetDay, m); if (r.ok) { setBodyLog(r.log); ping(`Movement added: ${m.min} min`); } else ping("That's as many as one day holds"); }}
         onRemove={(mid) => setBodyLog((l) => removeMove(l, sheetDay, mid))} />
     : bodySheet.kind === "meds" ? <MedsSheet day={sheetDay} dayWord={sheetWord} todayIso={todayIso} meds={meds} medDay={medLog[sheetDay] || null} onClose={closeSheet}
-        onToggle={(mid) => setMedLog((l) => ({ ...l, [sheetDay]: { ...(l[sheetDay] || {}), [mid]: !(l[sheetDay] || {})[mid] } }))}
+        onToggle={(mid) => savedIf(setMedLog((l) => ({ ...l, [sheetDay]: { ...(l[sheetDay] || {}), [mid]: !(l[sheetDay] || {})[mid] } })))}
         onAdd={(m) => { setMeds((x) => [...x, { id: Date.now(), ...m }]); ping("Added to your list"); }}
         onRemove={(mid) => setMeds((x) => x.filter((m) => m.id !== mid))} />
     : bodySheet.kind === "weight" ? <WeightSheet day={sheetDay} dayWord={sheetWord} log={bodyLog} unit={units.weightUnit} on={bodyPrefs.weightOn} onClose={closeSheet}
@@ -2711,10 +2712,10 @@ export default function CyraDemo() {
         onOff={() => { setBodyPrefs((p) => ({ ...cleanBodyPrefs(p), weightOn: false })); ping("Weight is off your log. What you saved is kept"); closeSheet(); }} />
     : bodySheet.kind === "meals" && mealsHere ? <MealsSheet day={sheetDay} dayWord={sheetWord} log={bodyLog} onClose={closeSheet}
         onAdd={(meal) => { const r = addMeal(bodyLog, sheetDay, { meal }); if (r.ok) { setBodyLog(r.log); ping("Meal note added"); return r.id; } ping("That's as many as one day holds"); return null; }}
-        onSet={(mid, patch) => setBodyLog((l) => setMeal(l, sheetDay, mid, patch))}
+        onSet={(mid, patch) => savedIf(setBodyLog((l) => setMeal(l, sheetDay, mid, patch)))}
         onRemove={(mid) => setBodyLog((l) => removeMeal(l, sheetDay, mid))} />
     : bodySheet.kind === "pcos" ? <PcosSheet day={sheetDay} dayWord={sheetWord} todayIso={todayIso} log={bodyLog} labs={labs} units={units} onClose={closeSheet}
-        onToggle={(pid) => setBodyLog((l) => togglePcos(l, sheetDay, pid))}
+        onToggle={(pid) => savedIf(setBodyLog((l) => togglePcos(l, sheetDay, pid)))}
         onAddLab={(x) => { const r = addLab(labs, x); if (r.ok) { setLabs(r.labs); ping("Added on this device"); } return r; }}
         onRemoveLab={(lid) => setLabs((x) => removeLab(x, lid))}
         onUnit={(pref, u) => setBodyPrefs((p) => ({ ...cleanBodyPrefs(p), [pref]: u }))} />
@@ -2820,7 +2821,9 @@ export default function CyraDemo() {
   const onRestore = async () => { const r = await restorePurchases(store); if (r.ok) setProOwnedNow(r.owned); ping(r.line); };
   const buzz = !isNative() ? null : hasPlugin("Haptics") ? () => { Haptics.impact({ style: "LIGHT" }).catch(() => {}); } : typeof navigator !== "undefined" && typeof navigator.vibrate === "function" ? () => { try { navigator.vibrate(30); } catch { /* no vibration here */ } } : null;
   const moodToday = moodLog[todayIso] || {};
-  const firstMood = (log) => { if (!Object.keys(log[todayIso] || {}).length) ping("Check-in saved on this device"); };
+  // Every tap that saves on the spot says so (owner request 2026-11-12): the same short line each time. A refused save
+  // (free week over, App.jsx guardLog) returns false and says nothing; the plans sheet explains instead.
+  const savedIf = (r) => { if (r !== false) ping(SAVED_LINE); };
   /* Patterns (calm R6): built only while the view shows (R5: per-view work stays lazy). */
   const patternsView = () => {
     const cards = rankCards([
@@ -2868,9 +2871,9 @@ export default function CyraDemo() {
      the app (the POTS stand test's tick, say) re-renders no slower for them. */
   const mindView = () => (
     <MindTodayScreen eyebrow={dateEyebrow(todayIso)} day={moodToday}
-      onMood={(v) => { firstMood(moodLog); setMoodLog((l) => setMoodDay(l, todayIso, { mood: v })); }}
-      onTag={(id) => { firstMood(moodLog); setMoodLog((l) => toggleFeeling(l, todayIso, id)); }}
-      onLevel={(k, v) => { firstMood(moodLog); setMoodLog((l) => setMoodDay(l, todayIso, { [k]: v })); }}
+      onMood={(v) => savedIf(setMoodLog((l) => setMoodDay(l, todayIso, { mood: v })))}
+      onTag={(id) => savedIf(setMoodLog((l) => toggleFeeling(l, todayIso, id)))}
+      onLevel={(k, v) => savedIf(setMoodLog((l) => setMoodDay(l, todayIso, { [k]: v })))}
       next={(() => { const n = nextPractice({ day: moodToday, hour: new Date().getHours(), log: practiceLog }); return n ? { ...n, practice: localPractice(n.practice) } : n; })()} onOpen={openPractice} onMore={() => showView("practices", { head: true })}
       runs={runsOn(practiceLog, todayIso).map((r) => ({ ...r, title: localPractice(practiceOf(r.p))?.title || r.p }))}
       onHelped={(rid, v) => setPracticeLog((l) => setHelped(l, rid, l.find((r) => r.id === rid)?.helped === v ? null : v))} />

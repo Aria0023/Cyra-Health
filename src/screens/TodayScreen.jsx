@@ -1,3 +1,4 @@
+import { CHECKIN_SAVED } from "../lib/saved.js";
 import { useEffect, useRef, useState } from "react";
 import { flagWords } from "../lib/pulse.js";
 import Details from "../components/Details.jsx";
@@ -154,7 +155,7 @@ export default function TodayScreen({ onPots = null, pred, stage, welcome, editD
         const next = upsertDay(days, entry);
         // After the free week without Pro the save is refused (App.jsx guardLog opens the plans), and nothing else happens.
         if (setDays((d) => upsertDay(d, entry)) === false) return;
-        ping(editDate ? `${fmt(target)} updated` : "Saved — check Patterns");
+        ping(editDate ? `${fmt(target)} updated` : CHECKIN_SAVED);
         // App compares milestones before and after this save (the "Milestone reached" moment); it may replace the toast above.
         onSaved?.(next, editDate ? null : target);
         // Weekly counts: a symptom still at the value a combined quick question gave it adds no flag,
