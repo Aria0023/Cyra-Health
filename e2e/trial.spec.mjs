@@ -18,7 +18,9 @@ test("free week: days left on Home; after it, saving opens 'Your free week is ov
   // Inside the free week a check-in saves.
   await gotoTab(page, "Body");
   await page.getByRole("button", { name: "Save today's check-in" }).click();
-  await expect(toast(page)).toContainText("Saved");
+  // (the toast can be replaced by a milestone note, so check the check-in's own saved line)
+  await gotoTab(page, "Body");
+  await expect(page.locator(".savedline")).toContainText("Today's check-in is saved.");
 
   // Let the autosave run (it waits 400 ms), then eight days later, without Pro
   await page.clock.runFor(2000);
@@ -31,7 +33,7 @@ test("free week: days left on Home; after it, saving opens 'Your free week is ov
   await expect(sheet.getByRole("heading", { name: "Your free week is over" })).toBeVisible();
   await expect(sheet).toContainText("open it, export it or delete it any time, with or without Pro");
   await expect(sheet).toContainText("Keep logging after your free week");
-  await expect(toast(page)).not.toContainText("Saved");
+  await expect(toast(page)).not.toContainText("saved");
   const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"]).analyze();
   expect(r.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(" | ")}`)).toEqual([]);
   await sheet.getByRole("button", { name: "Done" }).click();

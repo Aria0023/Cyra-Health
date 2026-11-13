@@ -544,7 +544,7 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 /* ---- Home (UI H1): done CTA, today line, doors with status, first-run sketch, quiet pulse, week bar, milestone moment ---- */
 .cta.done { background:var(--card); color:var(--primary-text); border:1.5px solid var(--primary); }
 .todayline { display:flex; gap:8px; align-items:center; width:100%; min-height:44px; border:none; background:none; text-align:left; font:500 var(--fs-md) var(--ff-body); color:var(--soft); padding:4px 2px; margin:-4px 0 6px; cursor:pointer; line-height:1.3; }
-.todayline .fdot { width:8px; height:8px; }
+.todayline .fdot { width:8px; height:8px; } .todayline .todaytick { flex:none; color:var(--primary); }
 .card.insight { background:color-mix(in srgb, var(--primary) 6%, var(--card)); }
 .card.insight .fdot { width:8px; height:8px; margin-right:6px; vertical-align:1px; }
 .streak.warm { border-color:var(--accent); } .streak.warm b { color:color-mix(in srgb, var(--accent) 70%, var(--ink)); }

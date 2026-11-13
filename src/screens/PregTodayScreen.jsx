@@ -1,3 +1,4 @@
+import { CHECKIN_SAVED } from "../lib/saved.js";
 import { useRef, useState } from "react";
 import { flagWords } from "../lib/pulse.js";
 import Details from "../components/Details.jsx";
@@ -104,7 +105,7 @@ export default function PregTodayScreen({ onPots = null, pregWeek, trimester, sc
         const note = cleanNote(dayNote);
         const entry = { sym: { ...draft }, kicks, scales: { ...scales }, odor, bodyOdor, ...(note ? { note } : {}) };
         if (setPregLog((l) => ({ ...l, [target]: entry })) === false) return; // free week over without Pro (App.jsx guardLog)
-        ping(editDate ? `${fmt(target)} updated` : "Saved to your pregnancy journal — see Calendar");
+        ping(editDate ? `${fmt(target)} updated` : CHECKIN_SAVED);
         contribute({ sym: draft, kicks }, target);
         if (editDate) onEndEdit(entry, target); else setDayNote(note);
       }}>{editDate ? t("pregBody.saveChangesTo", { v0: fmt(editDate) }) : t("pregBody.saveToday")}</button></div>

@@ -1,3 +1,4 @@
+import { SAVED_LINE } from "../lib/saved.js";
 import { fmt } from "../lib/engine.js";
 import { SOURCES, SOURCES_HERE, DEMO_WEARABLES } from "../lib/wearables.js";
 import { isNative } from "../lib/native.js";
@@ -165,7 +166,8 @@ export default function HomeScreen({
           </p>
         )}
         {heroRows.length > 0 && <div className="plaincard herorows">{heroRows.map(nextRow)}</div>}
-        {todayLine && <button type="button" className="todayline" onClick={() => goTab("today")}><i className="fdot" aria-hidden="true" style={{ background: todayLine.color }} />{todayLine.text}</button>}
+        {/* Today's line (once today is logged) opens with a tick, so Home says plainly that today is done. */}
+        {todayLine && <button type="button" className="todayline" onClick={() => goTab("today")}>{todayEntry && <Icon name="check" size={14} className="todaytick" />}<i className="fdot" aria-hidden="true" style={{ background: todayLine.color }} />{todayLine.text}</button>}
       </div>
 
       {guideStep && stepCard}
@@ -381,7 +383,7 @@ export default function HomeScreen({
                 <div className="tinfo"><b>{m.name}</b><span className="tmeta">{kindLabel(m.kind)} {t("home.since")} {fmt(m.started)}</span>
                   {chip && <span className={`tchip${chip.result ? " t-result" : ""}`}>{chip.text}</span>}
                 </div>
-                {q && <button aria-pressed={takenToday} className={`takebtn ${takenToday ? "on" : ""}`} onClick={() => setMedLog((l) => ({ ...l, [todayIso]: { ...(l[todayIso] || {}), [m.id]: !takenToday } }))}>{takenToday ? doneWord(m.kind) : q}</button>}
+                {q && <button aria-pressed={takenToday} className={`takebtn ${takenToday ? "on" : ""}`} onClick={() => { if (setMedLog((l) => ({ ...l, [todayIso]: { ...(l[todayIso] || {}), [m.id]: !takenToday } })) !== false) ping(SAVED_LINE); }}>{takenToday ? doneWord(m.kind) : q}</button>}
               </div>
             );
           })}
