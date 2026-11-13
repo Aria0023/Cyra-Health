@@ -389,6 +389,7 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 .inpErr { border-color:var(--bad) !important; background:var(--bad-bg) !important; }
 .errhint { font-size:var(--fs-sm); color:var(--bad); line-height:1.5; margin:14px 0 0; background:var(--bad-bg); border:1.5px solid var(--err-edge); border-radius:var(--r-inner); padding:11px 13px; }
 .regcards { display:grid; gap:var(--gap); }
+.stagesummary { margin-top:14px; }
 .stagecard { display:flex; flex-direction:column; align-items:flex-start; gap:2px; border:1px solid var(--line); background:var(--card); border-radius:var(--r-card); padding:13px 15px; cursor:pointer; text-align:left; }
 .stagecard.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 8%, var(--card)); }
 .stagecard b { font-family:var(--ff-display); font-size:16px; color:var(--ink); font-style:var(--disp-style); } .stagecard.on b { color:var(--primary); }

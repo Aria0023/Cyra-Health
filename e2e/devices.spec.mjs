@@ -1,4 +1,4 @@
-/* Task 2, one place to connect wearables: the optional registration step, the dismissible Home card and its sheet, and
+/* Task 2, connecting wearables later (never during registration, owner decision 2026-11-12): the dismissible Home card and its sheet, and
    You → Data sources. The API build (mocked backend: Oura set up, Terra not) shows each row's state in a browser; the demo
    build connects illustrative data with one tap. */
 import { test, expect } from "@playwright/test";
@@ -6,7 +6,7 @@ import { register } from "./lib/onboard.mjs";
 import { gotoTab } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
-test("API build in a browser: the step lists every device with what it reads and where it goes; Home card; You", async ({ page }) => {
+test("API build in a browser: registration skips devices; the Home card's sheet lists every device with what it reads and where it goes; You", async ({ page }) => {
   const state = newApiState({ sources: { healthkit: "on-device", oura: true, terra: false } });
   await mockApi(page, state);
   // registration up to the device step, by hand
@@ -18,9 +18,19 @@ test("API build in a browser: the step lists every device with what it reads and
   await page.getByLabel("6-digit code").fill("123456");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.locator(".stagecard", { hasText: "Pregnant" }).click();
+  // Registration never asks about devices: Stage → Device → Pregnancy → Consent.
   for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Connect a device?" })).toBeVisible();
-  const row = (id) => page.locator(`.devrow[data-device="${id}"]`);
+  await expect(page.getByRole("heading", { name: "Your data and your choices" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Connect a device?" })).toHaveCount(0);
+  await page.getByRole("checkbox", { name: /I agree to/ }).click();
+  await page.getByRole("button", { name: "Enter Solia Health" }).click();
+  // Home: the card and its sheet list every device with what it reads and where it goes
+  const card = page.locator("#home-devices");
+  await expect(card).toBeVisible();
+  await card.getByRole("button", { name: "See devices" }).click();
+  const sheet = page.locator("#devices-sheet");
+  await expect(sheet.getByRole("heading", { name: "Connect your devices" })).toBeVisible();
+  const row = (id) => sheet.locator(`.devrow[data-device="${id}"]`);
   await expect(row("apple")).toContainText("In the iPhone app");
   await expect(row("healthconnect")).toContainText("In the Android app");
   await expect(row("apple").getByRole("button")).toHaveCount(0); // no dead button in a browser
@@ -31,17 +41,6 @@ test("API build in a browser: the step lists every device with what it reads and
   await expect(row("terra")).toContainText("7 days at most");
   await expect(row("terra").getByRole("button")).toHaveCount(0);
   expect(state.sent.some((r) => r.path === "/api/integrations/sources")).toBe(true);
-  // skip: Continue moves on
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Your data and your choices" })).toBeVisible();
-  await page.getByRole("checkbox", { name: /I agree to/ }).click();
-  await page.getByRole("button", { name: "Enter Solia Health" }).click();
-  // Home: the card, its sheet, Not now
-  const card = page.locator("#home-devices");
-  await expect(card).toBeVisible();
-  await card.getByRole("button", { name: "See devices" }).click();
-  const sheet = page.locator("#devices-sheet");
-  await expect(sheet.getByRole("heading", { name: "Connect your devices" })).toBeVisible();
   await expect(sheet.locator('.devrow[data-device="oura"]')).toContainText("Where it goes");
   await sheet.getByRole("button", { name: "Close Connect your devices" }).click();
   await card.getByRole("button", { name: "Not now" }).click();

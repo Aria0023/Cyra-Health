@@ -6,7 +6,7 @@ export const STAGES = ["My Cycle", "Trying to conceive", "Pregnant", "Perimenopa
 export const PCOS = { yes: "Yes, diagnosed", suspect: "I suspect it", no: "No", unsaid: "Prefer not to say" };
 
 /** Opens the app and registers. Resolves once the nav pill is on screen. */
-export async function register(page, { url = process.env.E2E_URL, stage = "My Cycle", pcos = "yes", name = "", cycleLen = "24–31 days", lastPeriod = null, dueDate = null, hash = "", signin = "skip" } = {}) {
+export async function register(page, { url = process.env.E2E_URL, stage = "My Cycle", also = [], pcos = "yes", name = "", cycleLen = "24–31 days", lastPeriod = null, dueDate = null, hash = "", signin = "skip" } = {}) {
   await page.goto(`${url}/${hash}`);
   await page.getByRole("button", { name: "Get started" }).click();
   // Create your account (Task 1), in builds with sign-in: "skip" = Continue without an account (no server, or none set up);
@@ -20,6 +20,8 @@ export async function register(page, { url = process.env.E2E_URL, stage = "My Cy
   }
   // Stage
   await page.locator(".stagecard", { hasText: stage }).first().click();
+  // Other cards that fit too (multi-pick, e.g. My Cycle and Perimenopause); `stage` is the one the flow follows.
+  for (const s of also) await page.locator(".stagecard", { hasText: s }).first().click();
   await next(page);
   // PCOS (cycle stages only)
   if (!["Pregnant", "Menopause & beyond"].includes(stage)) {
@@ -37,9 +39,8 @@ export async function register(page, { url = process.env.E2E_URL, stage = "My Cy
     if (lastPeriod) await page.locator('input[type="date"]').fill(lastPeriod);
     await next(page);
   }
-  // Connect a device? (Task 2, builds that offer a device): optional, so Continue moves on
-  await expect(page.getByRole("heading", { name: /^(Connect a device\?|Your data and your choices)$/ })).toBeVisible();
-  if (await page.getByRole("heading", { name: "Connect a device?" }).isVisible()) await next(page);
+  // Registration never asks about devices (connected later from Home or You)
+  await expect(page.getByRole("heading", { name: "Your data and your choices" })).toBeVisible();
   // Consent: only the agreement box is required; nothing is pre-ticked
   await page.getByRole("checkbox", { name: /I agree to/ }).click();
   await page.getByRole("button", { name: "Enter Solia Health" }).click();
