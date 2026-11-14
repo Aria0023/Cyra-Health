@@ -2314,6 +2314,12 @@ so. Apple/Google/Facebook run through `backend/src/modules/oauth` and finish at 
       light scheme (`flushSync` on `beforeprint` and on `matchMedia("print")`), with the monochrome print fallback
       in styles.js for a print neither event reaches (§8.4).
 - [ ] Every UI privacy claim verified literally true of the shipped build.
+- [ ] LATER (2026-11-14, not built): a watch app (watchOS / Wear OS) and a home-screen widget (iOS WidgetKit / Android
+      App Widget). Both are native targets (Swift / Kotlin) this repo's build container cannot compile or test, so
+      they wait for a session with Xcode and Android Studio. Neither may read more than the phone app does, and any
+      widget text on a lock screen must say nothing about her body unless she turns that on.
+- [x] Share with a partner, 24 feelings, Learn explainers (2026-11-14, docs/plans/partner-learn-glucose-shop.md Task A):
+      the message goes through her own share sheet with only what she ticked; no partner account, nothing on a server.
 - [x] Installable web app that opens offline (A14.1); Render serves /, /index.html, /sw.js and /manifest.webmanifest
       with Cache-Control: no-cache.
 - [ ] Choose VITE_FEATURES for each release and list the matching backend modules (§9.1); the default offers Ask

@@ -2146,3 +2146,26 @@ flag and payload); `sw.test.mjs`, `notifications.test.mjs`, `autoTracked.test.mj
   developer machine by `scripts/make-voice-kokoro.py`, with no account and no network call at run time. 48 clips,
   1.6 MB; a unit test checks every line has one. `scripts/make-voice.mjs` (ElevenLabs, paid plan for commercial use)
   stays as an alternative.
+
+## Share with a partner, more feelings, Learn (2026-11-14, Task A) — one new record key (in backups), no new request, nothing new leaves the device by itself
+
+- **Share with a partner** (You → "Share with a partner", `src/lib/partner.js`, `components/PartnerShare.jsx`): she ticks what
+  to include (next period window, fertile window for Trying to conceive only, today's cycle day and phase) and may type a
+  short note. "Share" hands that text to the phone's share sheet (Capacitor Share), or in a browser to `navigator.share`
+  where it exists, else to the clipboard (`lib/files.js shareText`). Solia Health sends nothing: there is no partner
+  account and no server call; the text goes wherever she sends it. The message never holds symptoms, log notes, moods,
+  ids, her stage name or anything she didn't tick (`partner.test.mjs`, `e2e/partner-learn.spec.mjs` reads the clipboard).
+- **Record key `partnerShare`** `{ pick, remind }`: her ticks and the reminder switch; record, in backups, restored
+  literally. The note is never saved.
+- **Reminder "Send an update before my period"** (phone only, off by default): one local notification (id 2100) at 18:00
+  two days before the likely start, scheduled on the device with Capacitor Local Notifications; no server. Its words are
+  "Solia Health" / "A reminder you set: send your partner an update." — nothing about her body. Changing check-in
+  reminders leaves it alone; Delete everything cancels it. In a browser the switch is not offered and the sheet says so.
+- **Sentences added, each literally true:** "Nothing is stored on a server and there is no partner account. Only what you
+  tick is in the message; never your symptoms, notes or moods." / "You send it yourself, from your phone's share sheet or
+  as copied text." / "A notification on this phone 2 days before your next period is likely. It only says …".
+- **More feelings** (24, `lib/mind.js FEELINGS`): same `moodLog.tags` field, old ids unchanged; nothing new leaves the device.
+  The optional AI summary already lists feeling names by label, so a new feeling appears there only if she opts in and
+  previews it, exactly as before.
+- **Learn** (`src/lib/learn.js`): text bundled with the app. "They're read on this device; opening one sends nothing." is
+  true: the explainer sheet makes no request and has no links out.
