@@ -2194,3 +2194,26 @@ flag and payload); `sw.test.mjs`, `notifications.test.mjs`, `autoTracked.test.mj
     declaration and the Health Connect permissions declaration form must add Blood glucose (read) with the use case
     "show the user her own readings on the device"; Data safety: still "not collected / not shared" for health data (it never
     leaves the phone except in her own encrypted backup file). The rationale screen (strings.xml) now names blood glucose.
+
+## Shop by need: affiliate products matched on the device (2026-11-14, Task C) — no new record key, no request; a link opens only on her tap
+
+- **Replaces the care shelf** and its placeholder brands (`SHELF` removed from `src/lib/constants.js`; `src/screens/CareScreen.jsx`
+  removed). One place: You → Shop by need (card id `care`, so `#/care`, `#/shelf` and the new `#/shop` land on it). Quiet
+  contextual links only in the device sheet ("Don't have a device? See options", "Glucose sensors: see options"), Trying to
+  conceive fertility signs ("Ovulation & fertility options") and the glucose card ("Blood sugar options").
+- **Matching on the device** (`lib/shop.js shopCategories`): stage, Trying to conceive, the PCOS module and a connected glucose
+  sensor order the categories. Nothing about her is sent; no request is made to show the shop.
+- **What the merchant learns:** a link opens in the system browser (phone: Capacitor Browser; web: a new tab with
+  `rel="noopener noreferrer"`, plus `sponsored` on an affiliate link). A plain brand link sends no referrer, so the shop
+  learns nothing about where she came from. An affiliate link (only where the owner pasted one into
+  `src/config/affiliates.json`) carries the program's tag, so the shop learns the visit came from Solia Health and may pay a
+  commission. Neither link carries her stage, log, ids or UTM data (`shop.test.mjs`, `e2e/shop.spec.mjs`). After that, the
+  shop's own privacy policy applies.
+- **Sentences, each literally true in the shipped build (affiliates.json committed empty):** "Matched on this device; nothing
+  about you is sent." / "An affiliate link tells that shop you came from Solia Health; a plain brand link doesn't. Neither
+  carries anything about you: no stage, no log, no id. Links open in your browser." The commission sentence and the
+  "Affiliate link" label show only on items that have an affiliate URL.
+- **Flag:** `shop` (default on, no backend module). Off: no card, no sheet, no contextual link.
+- **Legal drafts:** privacy.html section 5 gains "Shops you choose to visit (affiliate links)" (still Draft, attorney note);
+  terms.html's affiliate disclosure now says it may apply ("Affiliate link"). health-data.html's "no affiliates that receive
+  consumer health data" (corporate affiliates) stays true: no health data goes to any merchant.

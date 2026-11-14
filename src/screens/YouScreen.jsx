@@ -34,7 +34,7 @@ import { t } from "../lib/i18n.js";
    - Account: Task 1's sign-in card (who is signed in, Sign out, Delete account) while this device is signed in;
      otherwise R7's "No account needed" card, unchanged, in a build without the optional account; calm R9: where the
      build offers it (`account`, lib/cloudBackup.js ACCOUNTS_HERE) the AccountCard (guest by default; create, sign in,
-     back up now, sign out, delete, and the "backup is newer" choice); Support & care (the care shelf), About & legal (not a medical device, links, build).
+     back up now, sign out, delete, and the "backup is newer" choice); Shop by need (components/Shop.jsx, 2026-11-14; it replaced the care shelf), About & legal (not a medical device, links, build).
    - Cyra's AI (calm R8): with Pro, the ai flag and a server, the weekly write-up and chat switches (off by default) and
      "Include lab values"; without Pro, one line and "See what Pro adds". The switches send nothing themselves.
    Calm R10 (compaction): each card is a title row, one summary line and its primary control; the longer explanations

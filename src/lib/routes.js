@@ -64,10 +64,10 @@ export function viewForTab(tab, lastByTab = {}, opts = {}) {
    (spec §3 R2 table). Segment words are the lower-case labels. */
 const OLD = {
   today: "today", log: "today", calendar: "cal", cal: "cal", cycles: "cycles", report: "report", connect: "connect",
-  ask: "ask", journey: "ask", practices: "practices", journal: "ask", care: "you", shelf: "you", milestones: "mile", roadmap: "mile", settings: "you",
+  ask: "ask", journey: "ask", practices: "practices", journal: "ask", care: "you", shelf: "you", shop: "you", milestones: "mile", roadmap: "mile", settings: "you",
 };
-/* Old links that land on a part of a page: the care shelf is the "Support & care" section of You. */
-const SECTION = { care: "care", shelf: "care" };
+/* Old links that land on a part of a page: the care shelf, now Shop by need (2026-11-14), is the card with id "care" on You. */
+const SECTION = { care: "care", shelf: "care", shop: "care" };
 
 /** A location hash → the view it names ({ view, tab, section? }) or null when it is not a navigation link (#restored, #oauth=…,
     #/dev/ui, empty, unknown words). A view the experience doesn't have falls back to its tab's first view. */

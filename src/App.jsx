@@ -65,7 +65,7 @@ import { flushSync } from "react-dom";
    The saved record's shape, version and key lists live in ./lib/record.js; entitlements in ./lib/plan.js.
    ================================================================ */
 
-import { SYMS, GSYM, ALL_SYM, ENERGY_ID, SCORE_SCALE, SHELF, stagePalettes, ORGS, SYM_FAMILY, PRENATAL, vizVars, rampOf } from "./lib/constants.js";
+import { SYMS, GSYM, ALL_SYM, ENERGY_ID, SCORE_SCALE, stagePalettes, ORGS, SYM_FAMILY, PRENATAL, vizVars, rampOf } from "./lib/constants.js";
 import { seed, fmt, addDays, routeIntake, insights, predict, whyNoPrediction, cycleSummary, cleanCycleFlags, toggleExclude, periodHead, basisLine, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick, scoreRgb, scoreColorOf, inkOn } from "./lib/engine.js";
 import { DEFAULT_APPEARANCE, DEFAULT_STYLE, SYSTEM_DARK_QUERY, cleanAppearance, cleanStyle, resolveScheme, paletteFor, paletteVars, applyDocumentScheme } from "./lib/appearance.js";
 import { API_BASE, apiPost, hasServer } from "./lib/api.js";
@@ -183,7 +183,9 @@ import TodayScreen from "./screens/TodayScreen.jsx";
 import CalendarScreen from "./screens/CalendarScreen.jsx";
 import PatternsScreen from "./screens/PatternsScreen.jsx";
 import ReportScreen from "./screens/ReportScreen.jsx";
-import CareScreen from "./screens/CareScreen.jsx";
+import { ShopContext, ShopCard, ShopSheet, ShopLink } from "./components/Shop.jsx";
+import { shopCategories } from "./lib/shop.js";
+import AFFILIATES from "./config/affiliates.json";
 import YouScreen from "./screens/YouScreen.jsx";
 import CyclesScreen from "./screens/CyclesScreen.jsx";
 import LogSheet from "./components/LogSheet.jsx";
@@ -474,6 +476,8 @@ export default function CyraDemo() {
   /* Task B: blood glucose read on the phone from Apple Health / Health Connect (lib/glucose.js glucoseLog: which apps she
      connected, when it last synced, one summary per day; record, in backups). */
   const [glucoseLog, setGlucoseLog] = useState(() => cleanGlucoseLog(null));
+  /* Task C: Shop by need's sheet, opened by a quiet contextual link with a category (UI only). */
+  const [shopOpen, setShopOpen] = useState(null);
   const [cloudSync, setCloudSync] = useState({ state: "idle", conflict: null, error: null });
   const [acctSheet, setAcctSheet] = useState(null); // "create" | "signin" | null
   const [acctChoice, setAcctChoice] = useState(null); // { saved, acct } while a sign-in waits for "Use the backup / Keep this device's log"
@@ -538,15 +542,6 @@ export default function CyraDemo() {
   const symIds = useMemo(() => (stage === "periods" || stage === "peri" ? trackedIds(stage, symPrefs) : SYMS), [stage, symPrefs]);
   const symMap = useMemo(() => Object.fromEntries(symIds.map((id) => [id, ALL_SYM[id]])), [symIds]);
   const ins = useMemo(() => insights(days, symIds), [days, symIds]);
-  /* Care: items for this stage, the ones that fit what she logged in the last 30 days first
-     (most-logged match first), then in shelf order. Matching runs here, on the device. */
-  const shelfItems = useMemo(() => {
-    const pool = [...ins.counts, { id: "rough", label: "Rough nights", days: ins.roughNights }];
-    const best = (s) => pool.filter((c) => s.m.includes(c.id) && c.days > 0).sort((a, b) => b.days - a.days)[0] || null;
-    return SHELF.filter((s) => s.stages.includes(stage) && (!org.partnerIds || org.partnerIds.includes(s.id)))
-      .map((s, i) => ({ ...s, top: best(s), order: i }))
-      .sort((a, b) => (b.top?.days || 0) - (a.top?.days || 0) || a.order - b.order);
-  }, [ins, stage, org.partnerIds]);
   /* This device's calendar day, never the UTC date. Kept as state so the whole app moves to the
      new day together: at local midnight (a timer, checked at least once a minute, since timers
      pause while a device sleeps) and whenever the app comes back (visible, focused, resumed or
@@ -2507,7 +2502,7 @@ export default function CyraDemo() {
   const bodySection = <BodySignals fertOn={fertOn} stage={stage} showBody={showBody} setShowBody={setShowBody} flow={flow} setFlow={pickFlow} disch={disch} setDisch={setDisch} odor={odor} setOdor={setOdor} bodyOdor={bodyOdor} setBodyOdor={setBodyOdor} />;
   // Fertility signs (L7): the Today group where fertShown says so. Its privacy line names only what this build has (lib/disclosures.js).
   const fertPrivacy = fertPrivacyLine(FEATURES);
-  const fertSection = fertOn ? <FertilitySigns fert={fert} setFert={setFert} unit={tempUnit} setUnit={setTempUnit} privacy={fertPrivacy} /> : null;
+  const fertSection = fertOn ? <FertilitySigns fert={fert} setFert={setFert} unit={tempUnit} setUnit={setTempUnit} privacy={fertPrivacy} extra={ttc ? <p className="learnrow-wrap"><ShopLink category="fertility" label="Ovulation & fertility options" /></p> : null} /> : null;
   // "more detail" opens the full form for this visit only: the answers so far move onto their symptom chips; the Settings preference is untouched.
   const quickCheckin = <QuickCheckin stage={stage} draft={draft} setDraft={setDraft} onMore={() => { setDraft((d) => foldQuick(d, stage)); setExpanded(true); }} />;
 
@@ -2763,7 +2758,7 @@ export default function CyraDemo() {
   const bodyDevices = FEATURES.deviceSync || FEATURES.wearables ? (
     <>
       <p className="bodydevices"><button type="button" className="ghostbtn bodydevbtn" aria-haspopup="dialog" onClick={openDevices}><Icon name="watch" size={16} />Devices</button></p>
-      {glucoseModel && <GlucoseCard m={glucoseModel} />}
+      {glucoseModel && <GlucoseCard m={glucoseModel} extra={<ShopLink category="glucose" label="Blood sugar options" />} />}
     </>
   ) : null;
   const logTop = (
@@ -2963,6 +2958,11 @@ export default function CyraDemo() {
       runs={runsOn(practiceLog, todayIso).map((r) => ({ ...r, title: localPractice(practiceOf(r.p))?.title || r.p }))}
       onHelped={(rid, v) => setPracticeLog((l) => setHelped(l, rid, l.find((r) => r.id === rid)?.helped === v ? null : v))} />
   );
+  /* Task C: Shop by need. Categories in her order, matched here on the device (stage, Trying to conceive, menopause, the
+     PCOS module, a connected glucose sensor); the owner's affiliate links from src/config/affiliates.json; an employer
+     build's allow-list. The contextual links open the sheet on one category. */
+  const shopProps = { categories: shopCategories({ stage, ttc, pcos: pcosHere, glucose: glucoseOn }), affiliates: AFFILIATES, allow: org.partnerIds || null };
+  const shopCtx = FEATURES.shop ? { openCategory: (c) => { setDevicesOpen(false); setShopOpen(c); } } : null;
   const youView = (
     <YouScreen onTour={() => { setGuide(replayGuide(todayIso)); setHomeStepSkip(null); goTab("home"); ping("Getting started is back on Home, and each screen will show its tip again."); }} trial={{ gateOn: TRIAL_GATE && !proOwnedNow, line: trialNow }} acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={proOn} proOwned={proOwnedNow} storeReady={STORE.available} onPro={() => setProOpen(true)}
@@ -2972,7 +2972,7 @@ export default function CyraDemo() {
       dataSources={SOURCES_HERE || sourcesModel.rows.length ? <DataSourcesCard m={sourcesModel} busy={wearBusy} onDevices={openDevices} onConnect={connectWear} onPause={pauseSource} onDisconnect={disconnectAny} onPrefer={preferSource} onDemo={setDemo} /> : null}
       partner={partnerShown ? <PartnerCard onOpen={() => setPartnerOpen(true)} /> : null}
       learn={<LearnCard items={learnFor({ stage, ttc, meno: isMeno })} onOpen={openLearn} />}
-      care={stage === "preg" ? null : <CareScreen embedded shelfItems={shelfItems} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: shelfKind(s), started: todayIso }]); ping(shelfKind(s) === "care" ? "Added to What I'm trying" : "Added — your days before and after will be compared"); }} />} />
+      care={FEATURES.shop ? <ShopCard {...shopProps} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: shelfKind(s), started: todayIso }]); ping(shelfKind(s) === "care" ? "Added to What I'm trying" : "Added — your days before and after will be compared"); }} /> : null} />
   );
   const practicesView = () => <PracticesScreen favs={practiceFavs} onOpen={openPractice} featured={{ practice: localPractice(practiceOf("slow")), need: "calm" }} />;
   const journeyView = () => {
@@ -3004,6 +3004,7 @@ export default function CyraDemo() {
 
   return (
     <LearnContext.Provider value={openLearn}>
+    <ShopContext.Provider value={shopCtx}>
     <Shell {...shell} toast={toast} repaint={repaint}>
       <header className="mast">
         <span className="mark">{org.name}<span className="sub">{org.tag}</span></span>
@@ -3081,15 +3082,17 @@ export default function CyraDemo() {
       {logOpen && <LogSheet items={localItems(logItems)} onPick={pickLog} onClose={() => setLogOpen(false)} onDevices={FEATURES.deviceSync || FEATURES.wearables ? () => { setLogOpen(false); openDevices(); } : null} />}
       {bodySheetView}
       {practiceSheet}
-      {devicesOpen && <DevicesSheet {...devList} onClose={() => setDevicesOpen(false)} />}
+      {devicesOpen && <DevicesSheet {...devList} extra={FEATURES.shop ? <p className="learnrow-wrap devshop"><ShopLink category="wearables" label="Don't have a device? See options" /><ShopLink category="glucose" label="Glucose sensors: see options" /></p> : null} onClose={() => setDevicesOpen(false)} />}
       {partnerOpen && partnerShown && <PartnerSheet prefs={partnerShare} setPrefs={setPartnerPrefs} pred={pred} ttc={ttc} phone={isNative()} onShare={sharePartner} onClose={() => setPartnerOpen(false)} />}
       {learnOpen && <LearnSheet id={learnOpen} onClose={() => setLearnOpen(null)} />}
+      {shopOpen && FEATURES.shop && <ShopSheet {...shopProps} initial={shopOpen} onClose={() => setShopOpen(null)} />}
       {proOpen && <ProSheet gateOn={TRIAL_GATE} unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} onClose={() => setProOpen(false)} />}
       {trialSheet && !proOpen && <ProSheet gateOn={TRIAL_GATE} trialOver unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} onClose={() => setTrialSheet(false)} />}
       {acctSheetView}
       {evSendOpen && <AiSendSheet kind="evidence" body={evSendOpen.body} lines={evSendOpen.lines} busy={evBusy} onSend={sendEvidence} onClose={() => setEvSendOpen(null)} />}
       {aiSendOpen && <AiSendSheet kind={aiSendOpen.kind} body={aiSendOpen.body} lines={aiSendOpen.lines} busy={!!aiBusy} onSend={sendAi} onClose={() => setAiSendOpen(null)} />}
     </Shell>
+    </ShopContext.Provider>
     </LearnContext.Provider>
   );
 }

@@ -2324,6 +2324,8 @@ so. Apple/Google/Facebook run through `backend/src/modules/oauth` and finish at 
       Dexcom / FreeStyle Libre through Apple Health / Health Connect, read on the phone. Native code written but not
       compiled in this container: test on a real iPhone and Android phone before release (plan progress note lists how).
 - [ ] LATER: Dexcom cloud API (needs Dexcom partner approval; docs/PASSIVE-TRACKING-PLAN.md).
+- [x] Shop by need (2026-11-14, Task C): real products by category matched on the device, affiliate links from
+      src/config/affiliates.json only (committed empty), flag `shop`. Owner: join programs and paste links (docs/AFFILIATES.md).
 - [x] Installable web app that opens offline (A14.1); Render serves /, /index.html, /sw.js and /manifest.webmanifest
       with Cache-Control: no-cache.
 - [ ] Choose VITE_FEATURES for each release and list the matching backend modules (§9.1); the default offers Ask

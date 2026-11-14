@@ -25,7 +25,7 @@ export const dailyQuestion = (k) => QUESTION[kindOf(k).ask] || null;
 /** The pressed state's word for the same toggle. */
 export const doneWord = (k) => DONE[kindOf(k).ask] || null;
 
-/** The Care shelf's items (lib/constants.js SHELF) by id → kind. A shelf item may also carry its own `kind`. */
+/** Kinds of the earlier care shelf's items by id (kept for old taps); Shop by need items carry their own `kind` (lib/shop.js). */
 export const SHELF_KINDS = Object.freeze({ midi: "care", restfully: "program", emberline: "aid", mineral: "supp", verdana: "supp", nightfall: "aid" });
 export function shelfKind(item) {
   if (item && TRY_KINDS[item.kind]) return item.kind;

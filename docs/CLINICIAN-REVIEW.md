@@ -641,3 +641,137 @@ Readings read on her phone from Apple Health / Health Connect (Dexcom, FreeStyle
   a day's range, the line its average."), and "What does this mean?" → learn.glucose. No target, no range band, no "high" /
   "low" / "normal", no colour that judges (single-hue soft ramp), no alert, no dosing (`glucose.test.mjs` checks the words).
 - Status: Awaiting clinician sign-off
+
+## Shop by need (2026-11-14, Task C; src/lib/shop.js `SHOP_ITEMS`, components/Shop.jsx)
+One plain "why" line per product or service, with its evidence label (tone → strong / mixed / comfort / clinical) and named
+sources. Shown on You → Shop by need and from quiet links (devices sheet, Trying to conceive fertility signs, the glucose card);
+never in insights, Patterns findings, urgent guidance, notifications or onboarding. Listing is not an endorsement as a
+treatment ("Not medical advice, and not an endorsement of any product as a treatment."). Sources written without an online
+re-check in this session: confirm at review. `shop.test.mjs` fails when a why line or a source is missing here.
+
+Sources:
+- **manders2015** — Manders M, et al. Timed intercourse for couples trying to conceive. Cochrane Database of Systematic Reviews, 2015.
+- **medlineOvTest** — MedlinePlus (NIH), Ovulation home test.
+- **su2017** — Su HW, et al. Detection of ovulation, a review of currently available methods. Bioengineering & Translational Medicine, 2017.
+- **uspstfFolic** — US Preventive Services Task Force, Folic Acid Supplementation to Prevent Neural Tube Defects, 2023.
+- **cdcFolic** — CDC, Folic Acid.
+- **medlinePregTest** — MedlinePlus (NIH), Pregnancy test.
+- **fdaStelo** — FDA news release, FDA Clears First Over-the-Counter Continuous Glucose Monitor, March 2024.
+- **fdaLingo** — FDA 510(k) clearance of Abbott's over-the-counter Lingo and Libre Rio systems, June 2024.
+- **niddkCgm** — NIDDK (NIH), Continuous Glucose Monitoring.
+- **maijala2019** — Maijala A, et al. Nocturnal finger skin temperature in menstrual cycle tracking (Oura ring). BMC Women's Health, 2019.
+- **medlinePulse** — MedlinePlus (NIH), Pulse.
+- **jo2018** — Jo J, Lee SH. Heat therapy for primary dysmenorrhea: a systematic review and meta-analysis. Scientific Reports, 2018.
+- **noTrial** — No trial evidence; listed as a comfort item.
+- **nams2022** — The 2022 Hormone Therapy Position Statement of The North American Menopause Society. Menopause, 2022.
+- **qaseem2016** — Qaseem A, et al. Management of Chronic Insomnia Disorder in Adults: A Clinical Practice Guideline From the American College of Physicians. Annals of Internal Medicine, 2016.
+
+### shop.easyhome-lh (Easy@Home, Ovulation (LH) test strips)
+- Finds the LH surge that usually comes a day or two before ovulation, to help time sex.
+- Label: Mixed evidence · "Mixed evidence on pregnancy rates". Sources: manders2015, medlineOvTest
+- Status: Awaiting clinician sign-off
+
+### shop.clearblue-ovulation (Clearblue, Digital Ovulation Test)
+- The same LH check with a digital readout instead of reading lines.
+- Label: Mixed evidence · "Mixed evidence on pregnancy rates". Sources: manders2015, medlineOvTest
+- Status: Awaiting clinician sign-off
+
+### shop.mira (Mira, Fertility hormone monitor)
+- Reads hormone levels in urine at home and charts them in an app.
+- Label: Mixed evidence · "Early evidence". Sources: su2017
+- Status: Awaiting clinician sign-off
+
+### shop.inito (Inito, Fertility monitor)
+- Reads several fertility hormones from one urine strip with your phone.
+- Label: Mixed evidence · "Early evidence". Sources: su2017
+- Status: Awaiting clinician sign-off
+
+### shop.proov (Proov, PdG test strips)
+- Checks for a progesterone marker in urine in the days after ovulation.
+- Label: Mixed evidence · "Early evidence". Sources: su2017
+- Status: Awaiting clinician sign-off
+
+### shop.easyhome-bbt (Easy@Home, Basal body thermometer)
+- Reads to two decimals, for charting the small rise that follows ovulation.
+- Label: Mixed evidence · "Shows ovulation after it happens". Sources: su2017
+- Status: Awaiting clinician sign-off
+
+### shop.prenatal (Nature Made, Prenatal multivitamin with folic acid)
+- Folic acid before and in early pregnancy lowers the risk of neural tube defects.
+- Label: Strong evidence · "Strong evidence (folic acid)". Sources: uspstfFolic, cdcFolic
+- Status: Awaiting clinician sign-off
+
+### shop.pregnancy-test (First Response, Early Result pregnancy test)
+- Home tests detect the pregnancy hormone hCG; a positive is worth confirming with a clinician.
+- Label: Strong evidence · "Reliable from a missed period". Sources: medlinePregTest
+- Status: Awaiting clinician sign-off
+
+### shop.stelo (Dexcom, Stelo over-the-counter CGM)
+- A glucose sensor sold without a prescription in the US, for adults not using insulin.
+- Label: Clinical care · "FDA-cleared device". Sources: fdaStelo, niddkCgm
+- Status: Awaiting clinician sign-off
+
+### shop.lingo (Abbott, Lingo glucose biosensor)
+- An over-the-counter sensor and app for adults not using insulin.
+- Label: Clinical care · "FDA-cleared device". Sources: fdaLingo, niddkCgm
+- Status: Awaiting clinician sign-off
+
+### shop.libre (FreeStyle Libre, CGM, by prescription)
+- A prescription CGM. Ask your clinician whether it fits you.
+- Label: Clinical care · "Prescription device". Sources: niddkCgm
+- Status: Awaiting clinician sign-off
+
+### shop.oura (Oura, Oura Ring)
+- Reads nightly temperature, heart rate, HRV and sleep; connects to Solia Health.
+- Label: Mixed evidence · "Useful trends, not a diagnosis". Sources: maijala2019
+- Status: Awaiting clinician sign-off
+
+### shop.apple-watch (Apple, Apple Watch)
+- Recent models read wrist temperature at night, plus heart rate and sleep, through Apple Health.
+- Label: Mixed evidence · "Useful trends, not a diagnosis". Sources: medlinePulse
+- Status: Awaiting clinician sign-off
+
+### shop.garmin (Garmin, Garmin smartwatch)
+- Reads heart rate, HRV and sleep; connects through the Fitbit · Garmin · Whoop row.
+- Label: Mixed evidence · "Useful trends, not a diagnosis". Sources: medlinePulse
+- Status: Awaiting clinician sign-off
+
+### shop.fitbit (Fitbit, Fitbit tracker)
+- Reads heart rate, sleep and, on some models, skin temperature.
+- Label: Mixed evidence · "Useful trends, not a diagnosis". Sources: medlinePulse
+- Status: Awaiting clinician sign-off
+
+### shop.whoop (Whoop, Whoop strap)
+- A screenless strap that reads heart rate, HRV, skin temperature and sleep.
+- Label: Mixed evidence · "Useful trends, not a diagnosis". Sources: medlinePulse
+- Status: Awaiting clinician sign-off
+
+### shop.heat-wrap (ThermaCare, Menstrual heat wraps)
+- Heat on the lower belly eased period cramps in trials.
+- Label: Strong evidence · "Strong evidence". Sources: jo2018
+- Status: Awaiting clinician sign-off
+
+### shop.period-underwear (Thinx, Period underwear)
+- Reusable underwear that absorbs flow, for comfort and fewer pads.
+- Label: Comfort · "Comfort, not a treatment". Sources: noTrial
+- Status: Awaiting clinician sign-off
+
+### shop.midi (Midi Health, Menopause-trained clinicians, by video)
+- Clinicians who focus on perimenopause and menopause care, including treatment options.
+- Label: Clinical care · "Clinical care". Sources: nams2022
+- Status: Awaiting clinician sign-off
+
+### shop.cooling-bedding (Slumber Cloud, Cooling bedding)
+- Bedding made to feel cooler, which some people find helps with night sweats.
+- Label: Comfort · "Comfort, not a treatment". Sources: noTrial
+- Status: Awaiting clinician sign-off
+
+### shop.sleepio (Sleepio, Digital CBT-I program)
+- Cognitive behavioural therapy for insomnia (CBT-I) is the first-line treatment for long-term insomnia.
+- Label: Strong evidence · "Strong evidence (CBT-I)". Sources: qaseem2016
+- Status: Awaiting clinician sign-off
+
+### shop.cbti-coach (US Department of Veterans Affairs, CBT-i Coach app (free))
+- A free app that guides you through CBT-I steps, best used alongside a clinician.
+- Label: Strong evidence · "Strong evidence (CBT-I)". Sources: qaseem2016
+- Status: Awaiting clinician sign-off

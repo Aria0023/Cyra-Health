@@ -23,4 +23,7 @@ Baseline (2026-11-14, before any change): lint 0 errors (23 warnings), unit 613/
 - [x] verified: lint 0 errors, unit 632/632, build stamp once, e2e 31/31, axe 25/25 -> final commit
 
 ## Task C: Shop by need
-- [ ] not started
+- [x] lib/shop.js catalog (22 items, 7 categories) + tests; src/config/affiliates.json (empty, _readme); SHELF and CareScreen removed
+- [x] components/Shop.jsx: You card (id care), sheet, quiet links (devices sheet, TTC fertility signs, glucose card); flag `shop`
+- [x] docs: AFFILIATES.md, MONETIZATION, PRIVACY-AUDIT, CLINICIAN-REVIEW (every why line), privacy.html + terms.html drafts
+- [x] e2e/shop.spec.mjs + shop-axe.spec.mjs; e2e demo build adds `shop` to VITE_FEATURES

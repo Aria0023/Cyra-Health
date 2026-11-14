@@ -1952,4 +1952,16 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
 .gluc-band { fill:var(--soft-1); opacity:.55; }
 .gluc-mean { fill:none; stroke:var(--soft-4); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; vector-effect:non-scaling-stroke; }
 .gluc-dot { fill:var(--soft-4); }
+/* Task C (2026-11-14): Shop by need. */
+.shopcats { flex-wrap:wrap; gap:7px; margin:6px 0 12px; } .shopcats .mc { min-height:44px; }
+.shoplist { list-style:none; margin:0; padding:0; }
+.shopitem { border-top:var(--rule); padding:12px 0; }
+.shoplist .shopitem:first-child { border-top:none; }
+.shophead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.shopitem .sname { display:block; font-size:16px; margin:2px 0 4px; }
+.shopwhy { font-size:16px; line-height:1.5; margin:0 0 6px; }
+.shopacts { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin-top:8px; }
+.shopgo { display:inline-flex; align-items:center; gap:6px; min-height:44px; width:auto; padding:0 16px; text-decoration:none; }
+.shoptry, .shoplink { min-height:44px; gap:6px; font-size:var(--fs-sm); }
+.devshop { margin-top:10px; }
 `;

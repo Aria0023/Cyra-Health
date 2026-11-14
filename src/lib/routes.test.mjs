@@ -60,6 +60,7 @@ test("parseRoute: new links, old links redirect, other hashes are not routes", (
   assert.deepEqual(parseRoute("#/practices"), { tab: "mind", view: "practices" });
   assert.deepEqual(parseRoute("#/journal"), { tab: "mind", view: "ask" });
   assert.deepEqual(parseRoute("#/care"), { tab: "you", view: "you", section: "care" });
+  assert.deepEqual(parseRoute("#/shop"), { tab: "you", view: "you", section: "care" });
   assert.deepEqual(parseRoute("#/milestones", PREG), { tab: "patterns", view: "mile" });
   assert.equal(parseRoute("#/report", PREG), null);
   assert.deepEqual(parseRoute("#/cycles", MENO), null);

@@ -199,10 +199,14 @@ closed: an unknown feature, or a paid extension whose value isn't exactly `true`
 
 ## 7. Revenue-adjacent code that already exists
 
-- **Care shelf** (`src/screens/CareScreen.jsx`, `SHELF` in `src/lib/constants.js`): every item's
-  `partner` flag is `false` and no commission is claimed; matching runs on the device, and the screen
-  says "partners never see your data". Spec §1: "Nothing is sold. Partners receive an anonymous
-  token only."
+- **Shop by need** (2026-11-14; `src/lib/shop.js`, `src/components/Shop.jsx`, `src/config/affiliates.json`): replaced
+  the care shelf and its placeholder brands. Real products and services by category (ovulation & fertility, pregnancy,
+  blood sugar, wearables, periods, perimenopause & menopause, sleep), matched on the device to her stage and modules.
+  Revenue comes only from affiliate links the owner pastes into `src/config/affiliates.json` (one URL per item id; empty
+  = plain brand link, no "Affiliate link" label, no commission claimed). The link carries nothing about her; the
+  in-app disclosure is "Solia Health may earn a commission if you buy through this link. It never changes what we show
+  you." No server call, no SDK, no tracking pixel; the `shop` flag (default on) removes it. Programs to join and how:
+  `docs/AFFILIATES.md`. The order of items is set by her stage and the evidence, never by commission rate.
 - **Backend** (`backend/src/modules`): the partners, referrals, webhooks, payouts, affiliates and
   reports modules are for development and demos (`backend/config/app-dev.json`). Production mounts
   only push and ai (`backend/config/app.json`, since L4; oauth, integrations, pulse and backup are

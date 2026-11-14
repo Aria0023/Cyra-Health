@@ -126,19 +126,8 @@ export const STAGES = [
   { id: "peri", label: "Peri · Meno", who: "the transition" },
 ];
 
-/* Care shelf. `m`: the symptom ids an item is matched on, in every stage it lists
-   (SYM ids for peri, PSYM ids for periods; "rough" = nights logged as rough).
-   `partner`: true only once a signed partner agreement exists — it drives the
-   "Partner" pill. None exists yet, so every item is false and no commission is claimed. */
-export const SHELF = [
-  { id: "midi", brand: "Midi Health", name: "Menopause-trained clinician", price: "Insurance accepted by many plans", ev: "Clinical care", tone: "clinical", m: ["hf", "ns", "fog", "slp"], stages: ["peri"], partner: false },
-  { id: "restfully", brand: "Restfully", name: "6-week CBT-I sleep program", price: "$49", ev: "Strong evidence", tone: "strong", m: ["slp", "rough"], stages: ["peri", "periods"], partner: false },
-  { id: "emberline", brand: "Emberline", name: "Wearable heat wrap for cramps", price: "$42", ev: "Comfort with evidence", tone: "strong", m: ["crm"], stages: ["periods"], partner: false },
-  { id: "mineral", brand: "Mineral & Co.", name: "Magnesium glycinate, 90 nights", price: "$24", ev: "Mixed evidence", tone: "mixed", m: ["slp", "mood", "crm"], stages: ["peri", "periods"], partner: false },
-  // Prenatal basics are offered for the stage, not matched to a symptom (and the pregnancy experience has no Care tab).
-  { id: "verdana", brand: "Verdana", name: "Prenatal essentials + folate", price: "$28", ev: "Strong evidence", tone: "strong", m: [], stages: ["preg"], partner: false },
-  { id: "nightfall", brand: "Nightfall", name: "Cooling sleep set", price: "$68", ev: "Comfort, not a treatment", tone: "comfort", m: ["ns", "hf"], stages: ["peri"], partner: false },
-];
+/* The earlier care shelf (SHELF, placeholder brands) was replaced on 2026-11-14 by Shop by need: real products by
+   category, matched on the device (lib/shop.js, src/config/affiliates.json). */
 
 /* Stage palettes (design system v2, calm R1; plan §6): warm airy off-white paper and white cards in light, deep
    navy-charcoal paper and raised navy cards in dark, shared by every stage, and ONE muted, pastel-leaning accent per
@@ -179,7 +168,7 @@ export const stagePalettes = (stage, stageName) => {
 
 export const ORGS = {
   cyra: { slug: "cyra", name: "Solia", title: "Solia Health", tag: "Health", theme: { primary: "#5B54A6", paper: "#FAF7F4", card: "#FFFFFF", ink: "#1E2132", soft: "#585C72", line: "#8A8DA3", accent: "#A8486E", dark: { paper: "#131520", card: "#1C1F2D", ink: "#E9EAF3", soft: "#A5A9C0", line: "#6D7290", primary: "#B9B3F2", accent: "#F0A3C0" } }, partnerIds: null, plan: "Consumer (D2C)" },
-  bloom: { slug: "bloom", name: "Bloom", title: "Bloom", tag: "by AcmeCare", theme: { primary: "#2F5D50", paper: "#F2F5F1", card: "#FBFDFA", accent: "#C89A5B", ink: "#26332E", soft: "#5F6E67", line: "#DCE3DD", dark: { paper: "#141713", card: "#1E221D", ink: "#E2ECE8", soft: "#9AAFA5", line: "#6F7971", primary: "#8AC2B0", accent: "#D8A96A" } }, partnerIds: ["midi", "restfully"], plan: "Employer benefit (500 seats)" },
+  bloom: { slug: "bloom", name: "Bloom", title: "Bloom", tag: "by AcmeCare", theme: { primary: "#2F5D50", paper: "#F2F5F1", card: "#FBFDFA", accent: "#C89A5B", ink: "#26332E", soft: "#5F6E67", line: "#DCE3DD", dark: { paper: "#141713", card: "#1E221D", ink: "#E2ECE8", soft: "#9AAFA5", line: "#6F7971", primary: "#8AC2B0", accent: "#D8A96A" } }, partnerIds: ["midi", "sleepio", "cbti-coach"], plan: "Employer benefit (500 seats)" },
 };
 
 /* Status and surface tokens that are not part of a palette, for each scheme (UI side, never data
