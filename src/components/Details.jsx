@@ -8,8 +8,8 @@ import { FERT_COPY } from "../lib/fertility.js";
    closed (hidden), so the full text is always part of the screen. describedBy (L10): an id the
    toggle button points at with aria-describedby, so a "Details" button in a list says which row
    it belongs to. */
-export default function Details({ label = "Details", describedBy, children }) {
-  const [open, setOpen] = useState(false);
+export default function Details({ label = "Details", describedBy, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(!!defaultOpen);
   const id = useId();
   return (
     <div className="morewrap">

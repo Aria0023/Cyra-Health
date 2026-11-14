@@ -7,7 +7,7 @@
 import { UI } from "./en-ui.js";
 import { TABS, LOG_ITEMS } from "../lib/routes.js";
 import { STEP_COPY, PCOS_ANSWERS } from "../lib/onboarding.js";
-import { PRACTICES, NEEDS, MOODS, FEELINGS, ENERGY_LEVELS, FOG_LEVELS, STRENGTH, PHASE_WORDS } from "../lib/mind.js";
+import { PRACTICES, NEEDS, MOODS, FEELINGS, FEELING_GROUPS, ENERGY_LEVELS, FOG_LEVELS, STRENGTH, PHASE_WORDS } from "../lib/mind.js";
 import { AI_COPY } from "../lib/aiFeatures.js";
 
 const DATA = {};
@@ -22,7 +22,8 @@ for (const p of PRACTICES) {
 }
 for (const n of NEEDS) put(`need.${n.id}`, n.label);
 for (const m of MOODS) put(`mood.${m.v}`, m.label);
-for (const f of FEELINGS) put(`feeling.${f.id}`, f.label);
+for (const f of FEELINGS) { put(`feeling.${f.id}`, f.label); put(`feelingAbout.${f.id}`, f.about); }
+for (const [id, label] of FEELING_GROUPS) put(`feelingGroup.${id}`, label);
 for (const [v, l] of ENERGY_LEVELS) put(`energy.${v}`, l);
 for (const [v, l] of FOG_LEVELS) put(`fog.${v}`, l);
 for (const [k, l] of Object.entries(STRENGTH)) put(`strength.${k}`, l);
@@ -44,6 +45,9 @@ const EXTRA = {
   "practiceSheet.stepOf": "Step {n} of {total}",
   "mind.level.energy": "Energy",
   "mind.level.fog": "Brain fog",
+  "mind.moreFeelings": "More feelings",
+  "mind.feelingWords": "What these words mean",
+  "mind.feelingWordsLead": "Plain meanings, so a word fits how you feel. Pick any number, or none.",
   "you.language": "Language",
   "you.languageLead": "Solia Health follows this device's language when it has it. Your choice stays on this device and isn't part of a backup.",
   "you.languageDevice": "Same as this device",

@@ -56,3 +56,19 @@ export async function saveFile({ name, data, mime, title, onReady }) {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   return "downloaded";
 }
+
+/** Hand a short text she wrote (Share with a partner) to the share sheet she picks from; nothing here talks to a server.
+    Phone: the system share sheet (Capacitor Share). Web: navigator.share where the browser has it, else the text goes to
+    the clipboard. Started only by her tap. → "shared" | "copied" | "cancelled" | "blocked" (the browser refused both). */
+export async function shareText({ title, text }) {
+  if (isNative()) {
+    try { await Share.share({ title, text }); return "shared"; } catch (e) { if (/cancel/i.test(String(e?.message || e))) return "cancelled"; throw new Error("Couldn't open the share sheet on this phone"); }
+  }
+  if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+    try { await navigator.share({ title, text }); return "shared"; } catch (e) { if (e?.name === "AbortError") return "cancelled"; /* fall through to copying */ }
+  }
+  if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+    try { await navigator.clipboard.writeText(text); return "copied"; } catch { return "blocked"; }
+  }
+  return "blocked";
+}

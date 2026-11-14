@@ -53,7 +53,7 @@ const StageArt = () => (
     <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
   </svg>
 );
-export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, language = null, meals = null, dataSources = null }) {
+export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, language = null, meals = null, dataSources = null, partner = null, learn = null }) {
   const offer = ai.offer || { any: false, weekly: false, chat: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
@@ -103,6 +103,10 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
 
       {/* Passive tracking S3: Data sources (components/DataSourcesCard.jsx), where she manages every source and reads the spike's numbers. */}
       {dataSources}
+
+      {/* Task A (2026-11-14): Share with a partner (components/PartnerShare.jsx; cycle stages only) and Learn (components/Learn.jsx). */}
+      {partner}
+      {learn}
 
       {onTour && (
         <Card id="you-tour" tint="you" icon="sparkle" eyebrow="Finding your way" title="New here, or a bit lost?" level={2}>

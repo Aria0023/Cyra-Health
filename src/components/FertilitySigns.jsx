@@ -1,5 +1,6 @@
 import { CERVICAL_MUCUS, OVULATION_TEST } from "../lib/constants.js";
 import { parseBbt, bbtToText, FERT_COPY } from "../lib/fertility.js";
+import { LearnLink } from "./Learn.jsx";
 
 /* Today → "Fertility signs" (local-first L7, decision D6): cervical mucus and an ovulation test as joined .seg rows,
    basal body temperature as a text field with a °C / °F .seg. All optional; tapping a choice again clears it. Shown only
@@ -8,7 +9,7 @@ import { parseBbt, bbtToText, FERT_COPY } from "../lib/fertility.js";
    (lib/fertility.js fertEntryFields) and never hands them to contribute(). The unit she picks (setUnit) is saved in
    fertSigns. No motion, no network, never auto-focused.
    privacy: the flag-dependent line from lib/disclosures.js fertPrivacyLine, followed by the fixed guidance sentence. */
-export default function FertilitySigns({ fert, setFert, unit, setUnit, privacy }) {
+export default function FertilitySigns({ fert, setFert, unit, setUnit, privacy, extra = null }) {
   const typedUnit = fert.bbtUnit === "C" || fert.bbtUnit === "F" ? fert.bbtUnit : unit;
   const parsed = parseBbt(fert.bbtText, typedUnit);
   const bad = !parsed.ok;
@@ -60,6 +61,9 @@ export default function FertilitySigns({ fert, setFert, unit, setUnit, privacy }
       </div>
       {bad ? <p className="errhint" id="fert-bbt-err">{err}</p> : <p className="rfoot inphelp" id="fert-bbt-help">{FERT_COPY.bbtHelp}</p>}
       <p className="rfoot fertfoot">{`${privacy} ${FERT_COPY.foot}`}</p>
+      {/* Task A: plain explainers for each sign (components/Learn.jsx); nothing renders without App's LearnContext. */}
+      <p className="learnrow-wrap fertlearn"><LearnLink id="mucus" label="Cervical mucus: what it means" /><LearnLink id="lh" label="Ovulation tests: what they mean" /><LearnLink id="bbt" label="Temperature: what it means" /></p>
+      {extra}
     </div>
   );
 }

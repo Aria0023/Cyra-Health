@@ -23,13 +23,40 @@ export const MOODS = Object.freeze([
   Object.freeze({ v: 5, label: "Very good" }),
 ]);
 export const moodLabel = (v) => MOODS.find((m) => m.v === v)?.label || "";
-/** Feeling tags (any number). */
+/** Feeling tags (any number). The first ten are the original row (records already store their ids, so they keep their
+    ids and order); 2026-11-14 added fourteen more, shown behind "More feelings". Each has a group and a one-line plain
+    explanation ("What these words mean"). Words for a feeling, never a judgement or a symptom. */
+const F = (id, label, group, about) => Object.freeze({ id, label, group, about });
 export const FEELINGS = Object.freeze([
-  Object.freeze({ id: "calm", label: "Calm" }), Object.freeze({ id: "content", label: "Content" }), Object.freeze({ id: "hopeful", label: "Hopeful" }),
-  Object.freeze({ id: "tired", label: "Tired" }), Object.freeze({ id: "anxious", label: "Anxious" }),
-  Object.freeze({ id: "overwhelmed", label: "Overwhelmed" }), Object.freeze({ id: "irritable", label: "Irritable" }), Object.freeze({ id: "sad", label: "Sad" }),
-  Object.freeze({ id: "lonely", label: "Lonely" }), Object.freeze({ id: "restless", label: "Restless" }),
+  F("calm", "Calm", "calm", "Settled and steady, without much pulling at you."),
+  F("content", "Content", "calm", "Things feel good enough as they are."),
+  F("hopeful", "Hopeful", "calm", "Looking ahead with some sense that things can go well."),
+  F("tired", "Tired", "low", "Low on energy or worn out, in body or mind."),
+  F("anxious", "Anxious", "tense", "Worried or on edge, often about what might happen."),
+  F("overwhelmed", "Overwhelmed", "tense", "Too much at once, hard to know where to start."),
+  F("irritable", "Irritable", "tense", "Quicker than usual to feel annoyed."),
+  F("sad", "Sad", "low", "Down or heavy-hearted."),
+  F("lonely", "Lonely", "connection", "Wanting more closeness than you have right now."),
+  F("restless", "Restless", "tense", "Unable to settle, wanting to move or change something."),
+  F("grateful", "Grateful", "calm", "Noticing something or someone you're glad of."),
+  F("relaxed", "Relaxed", "calm", "Loose and at ease, with your body unhurried."),
+  F("confident", "Confident", "calm", "Trusting yourself to handle what's in front of you."),
+  F("numb", "Numb", "low", "Flat, as if feelings are far away."),
+  F("tearful", "Tearful", "low", "Close to tears, or crying more easily than usual."),
+  F("unmotivated", "Unmotivated", "low", "Hard to get going, even on things you usually like."),
+  F("stressed", "Stressed", "tense", "Under pressure, with a lot to carry."),
+  F("frustrated", "Frustrated", "tense", "Blocked from something you want or need."),
+  F("energized", "Energized", "body", "Lots of get-up-and-go in your body."),
+  F("sluggish", "Sluggish", "body", "Slow and heavy, as if moving through syrup."),
+  F("sensitive", "Sensitive", "body", "Things land harder than usual: noise, touch or words."),
+  F("connected", "Connected", "connection", "Close to the people around you."),
+  F("loved", "Loved", "connection", "Cared for and wanted."),
+  F("space", "Need space", "connection", "Wanting time to yourself."),
 ]);
+/** The groups the feelings sit in, in display order. */
+export const FEELING_GROUPS = Object.freeze([["calm", "Calm"], ["low", "Low"], ["tense", "Tense"], ["body", "Body"], ["connection", "Connection"]]);
+/** The first row (as before 2026-11-14); the rest sit behind "More feelings". */
+export const FIRST_FEELINGS = Object.freeze(["calm", "content", "hopeful", "tired", "anxious", "overwhelmed", "irritable", "sad", "lonely", "restless"]);
 export const FEELING_IDS = Object.freeze(FEELINGS.map((f) => f.id));
 export const feelingLabel = (id) => FEELINGS.find((f) => f.id === id)?.label || id;
 /** Optional levels, 1–3, in words. */

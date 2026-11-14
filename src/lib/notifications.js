@@ -22,6 +22,7 @@ import { API_BASE, apiFetch, apiPost } from "./api.js";
 import { isNative, LocalNotifications } from "./native.js";
 import { whenActive } from "./pwa.js";
 import { CONFIRM_ID, CONFIRM_ACTION_TYPE, CONFIRM_ACTIONS, CONFIRM_TITLE, CONFIRM_TEXT, CONFIRM_AT, confirmDueAt } from "./confirmNight.js";
+import { PARTNER_NOTIFY } from "./partner.js";
 
 export const NUDGE_TIME = { morning: [9, 0], midday: [12, 30], evening: [19, 0] };
 /** The phone reminder's body. Passive tracking S2: while a source synced in the last 36 h App.jsx passes lib/autoTracked.js
@@ -94,8 +95,9 @@ async function cancelAll({ timeoutMs = 15000, known = [], server = true, all = f
   const ln = native();
   if (ln) {
     const pending = await ln.getPending().catch(() => ({ notifications: [] }));
-    const ids = new Set([...REMINDER_IDS, ...(pending.notifications || []).map((n) => n.id).filter((id) => all || id !== CONFIRM_ID)]);
-    if (all) ids.add(CONFIRM_ID);
+    // The confirm-night and partner-update notifications are their own switches: a reminder change leaves them alone.
+    const ids = new Set([...REMINDER_IDS, ...(pending.notifications || []).map((n) => n.id).filter((id) => all || (id !== CONFIRM_ID && id !== PARTNER_NOTIFY.id))]);
+    if (all) { ids.add(CONFIRM_ID); ids.add(PARTNER_NOTIFY.id); partnerSeen = null; }
     await ln.cancel({ notifications: [...ids].map((id) => ({ id })) });
     return { active: false, pending: [] };
   }
@@ -200,6 +202,27 @@ export async function onConfirmAction(cb) {
     cb({ actionId: ev.actionId === "ok" || ev.actionId === "open" ? ev.actionId : "tap", day: typeof extra.day === "string" ? extra.day : null, at: typeof extra.at === "number" ? extra.at : null });
   });
   return () => { try { h.remove(); } catch { /* gone */ } };
+}
+
+/* ---------- Share with a partner: the optional "send an update before my period" reminder (phone only) ---------- */
+let partnerSeen = null; // the time this app last scheduled, so re-applying the same one does nothing
+/** Schedules the one partner-update notification at atMs (lib/partner.js partnerReminderAt), or cancels it (atMs null).
+    Its words say nothing about her body. Phone only; resolves { scheduled, blocked? }. prompt: ask for permission. */
+export async function schedulePartnerReminder(atMs, { prompt = false } = {}) {
+  const ln = native();
+  if (!ln) return { scheduled: false, unsupported: true };
+  if (atMs == null) {
+    await ln.cancel({ notifications: [{ id: PARTNER_NOTIFY.id }] }).catch(() => {});
+    partnerSeen = null;
+    return { scheduled: false };
+  }
+  if (partnerSeen === atMs) return { scheduled: true, same: true };
+  const perm = await (prompt ? ln.requestPermissions() : ln.checkPermissions()).catch(() => ({ display: "denied" }));
+  if (perm.display !== "granted") return { scheduled: false, blocked: true };
+  await ln.cancel({ notifications: [{ id: PARTNER_NOTIFY.id }] }).catch(() => {});
+  await ln.schedule({ notifications: [{ id: PARTNER_NOTIFY.id, title: PARTNER_NOTIFY.title, body: PARTNER_NOTIFY.body, schedule: { at: new Date(atMs), allowWhileIdle: true }, isExactNotification: false }] });
+  partnerSeen = atMs;
+  return { scheduled: true };
 }
 
 function toKey(b64u) { const pad = "=".repeat((4 - (b64u.length % 4)) % 4); const raw = atob((b64u + pad).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(raw, (c) => c.charCodeAt(0)); }

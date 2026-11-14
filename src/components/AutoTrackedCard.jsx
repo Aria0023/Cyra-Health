@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Card, Chip } from "./ui/index.js";
 import Details from "./Details.jsx";
+import { LearnLink } from "./Learn.jsx";
 import { fmt } from "../lib/engine.js";
 import { t } from "../lib/i18n.js";
 import { SIGNAL_COPY, SKIP_REASONS, RISE, BASELINE } from "../lib/signals.js";
@@ -75,6 +76,7 @@ export default function AutoTrackedCard({ m, onConfirm, onAddMore, onSkip, onUns
         <p>{t("auto.how3")}</p>
         <p className="rfoot">{SIGNAL_COPY.guidance}</p>
       </Details>
+      <p className="learnrow-wrap"><LearnLink id="wearables" /></p>
     </Card>
   );
 }

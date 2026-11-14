@@ -1917,4 +1917,27 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
 .qaddrow { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:6px; }
 .qaddrow .hint { margin:0; font-size:var(--fs-sm); }
 .qsave { min-height:44px; }
+/* Task A (2026-11-14): Learn links and sheet, more feelings, Share with a partner. */
+.learnrow-wrap { display:flex; flex-wrap:wrap; gap:4px 14px; margin:6px 0 0; }
+.learnlink { min-height:44px; gap:6px; font-size:var(--fs-sm); text-align:left; }
+.homehero .learnrow-wrap { justify-content:center; }
+.learnbody p { font-size:16px; line-height:1.55; margin:0 0 10px; }
+.learnsrc { margin:6px 0 0; padding-left:18px; } .learnsrc li { font-size:var(--fs-sm); line-height:1.5; margin:0 0 6px; overflow-wrap:anywhere; }
+.learnlist { list-style:none; margin:8px 0 0; padding:0; }
+.learnrow { display:flex; width:100%; align-items:center; justify-content:space-between; gap:10px; min-height:48px; padding:10px 2px; border:none; border-top:var(--rule); background:none; color:var(--ink); font:600 16px var(--ff-body); text-align:left; cursor:pointer; }
+.learnlist li:first-child .learnrow { border-top:none; }
+.learnrow svg { flex:0 0 auto; color:var(--primary-text); }
+.feelmore { margin:-6px 0 12px; }
+.feelgroup { margin:8px 0 0; } .feelgroup-lab { margin:0 0 6px; }
+.feelmore .feelchips { margin:0 0 6px; }
+.feelwords { min-height:44px; font-size:var(--fs-sm); margin-top:4px; }
+.feelwords-g { margin:12px 0 0; } .feelwords-list { margin:6px 0 0; }
+.feelword { padding:8px 0; border-top:var(--rule); } .feelword dt { font-weight:700; font-size:16px; } .feelword dd { margin:2px 0 0; font-size:16px; line-height:1.5; color:var(--soft); }
+.partnerpicks { display:grid; gap:8px; margin:6px 0 12px; }
+.partnerpicks .consentopt { min-height:48px; font-size:16px; } .partnerpicks .consentopt:disabled { opacity:.6; cursor:not-allowed; }
+.partnersheet textarea.inp { width:100%; font-size:16px; resize:vertical; }
+.partnerpreview { border:1px dashed var(--line); border-radius:var(--r-card); padding:12px 14px; margin:6px 0 12px; background:var(--paper); }
+.partnerpreview p { margin:0 0 4px; font-size:16px; line-height:1.5; overflow-wrap:anywhere; }
+.partnergo { display:inline-flex; align-items:center; gap:8px; justify-content:center; width:100%; min-height:48px; }
+.partnerremind { list-style:none; margin-top:10px; }
 `;
