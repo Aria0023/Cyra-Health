@@ -2146,3 +2146,74 @@ flag and payload); `sw.test.mjs`, `notifications.test.mjs`, `autoTracked.test.mj
   developer machine by `scripts/make-voice-kokoro.py`, with no account and no network call at run time. 48 clips,
   1.6 MB; a unit test checks every line has one. `scripts/make-voice.mjs` (ElevenLabs, paid plan for commercial use)
   stays as an alternative.
+
+## Share with a partner, more feelings, Learn (2026-11-14, Task A) — one new record key (in backups), no new request, nothing new leaves the device by itself
+
+- **Share with a partner** (You → "Share with a partner", `src/lib/partner.js`, `components/PartnerShare.jsx`): she ticks what
+  to include (next period window, fertile window for Trying to conceive only, today's cycle day and phase) and may type a
+  short note. "Share" hands that text to the phone's share sheet (Capacitor Share), or in a browser to `navigator.share`
+  where it exists, else to the clipboard (`lib/files.js shareText`). Solia Health sends nothing: there is no partner
+  account and no server call; the text goes wherever she sends it. The message never holds symptoms, log notes, moods,
+  ids, her stage name or anything she didn't tick (`partner.test.mjs`, `e2e/partner-learn.spec.mjs` reads the clipboard).
+- **Record key `partnerShare`** `{ pick, remind }`: her ticks and the reminder switch; record, in backups, restored
+  literally. The note is never saved.
+- **Reminder "Send an update before my period"** (phone only, off by default): one local notification (id 2100) at 18:00
+  two days before the likely start, scheduled on the device with Capacitor Local Notifications; no server. Its words are
+  "Solia Health" / "A reminder you set: send your partner an update." — nothing about her body. Changing check-in
+  reminders leaves it alone; Delete everything cancels it. In a browser the switch is not offered and the sheet says so.
+- **Sentences added, each literally true:** "Nothing is stored on a server and there is no partner account. Only what you
+  tick is in the message; never your symptoms, notes or moods." / "You send it yourself, from your phone's share sheet or
+  as copied text." / "A notification on this phone 2 days before your next period is likely. It only says …".
+- **More feelings** (24, `lib/mind.js FEELINGS`): same `moodLog.tags` field, old ids unchanged; nothing new leaves the device.
+  The optional AI summary already lists feeling names by label, so a new feeling appears there only if she opts in and
+  previews it, exactly as before.
+- **Learn** (`src/lib/learn.js`): text bundled with the app. "They're read on this device; opening one sends nothing." is
+  true: the explainer sheet makes no request and has no links out.
+
+## Devices any time, and blood glucose from Dexcom and Libre through the phone (2026-11-14, Task B) — one new record key (in backups), no new request, nothing new leaves the device
+
+- **Devices any time:** the one device list (`components/Devices.jsx`, `lib/devices.js`) now also opens from Body ("Devices"),
+  the "+" log sheet ("Connect a device") and Settings ("Connect a device"), besides You → Data sources and Home's card. Every
+  row connects or disconnects at any time and says "Connected · synced <when>". No new flow: the same connect paths as before.
+- **Blood glucose** (`lib/glucose.js`, `lib/wearables.js connectGlucose`, the CyraHealth plugin's new `readGlucose`): rows
+  "Dexcom (through Apple Health / Health Connect)" and "FreeStyle Libre (…)". Connect asks the phone for read access to blood
+  glucose only (iOS `HKQuantityTypeIdentifierBloodGlucose`; Android `READ_BLOOD_GLUCOSE`, requested only on that tap) and reads
+  14 days ON THE PHONE. The plugin makes no network call; the web view keeps one summary per day (count, min, max, mean, latest
+  and its time) in `glucoseLog`, never the raw series. Record key, in backups, restored literally; Delete everything removes it
+  with the record. Not in the AI summary, not in weekly counts, not in the clinician PDF (see the final report: left out
+  because page 1 is full under the page rules). Dexcom's own cloud API is not used (docs/PASSIVE-TRACKING-PLAN.md, later).
+- **Sentences, each literally true:** row "Where it goes": "Read on your phone by the Solia Health app from Apple Health /
+  Health Connect. Never sent to a server."; card footnote "Read on your phone, kept on this device." (demo build: "Illustrative
+  readings in this demo build: nothing was read from a sensor or sent."); device list lead now names the glucose sensor.
+- **Store disclosures (owner action before a phone release with glucose):**
+  - iOS: `NSHealthShareUsageDescription` (Info.plist) now names blood glucose; the HealthKit entitlement is unchanged (read
+    only, no clinical records). PrivacyInfo.xcprivacy: Health data read on the device is still "not collected" (never leaves the
+    device by itself); its comment now names glucose. App Store privacy answers: no change needed for collection, but the
+    review notes should say blood glucose is read from HealthKit on the device for display only.
+  - Android: `android.permission.health.READ_BLOOD_GLUCOSE` added to AndroidManifest.xml. The Play Console "Health apps"
+    declaration and the Health Connect permissions declaration form must add Blood glucose (read) with the use case
+    "show the user her own readings on the device"; Data safety: still "not collected / not shared" for health data (it never
+    leaves the phone except in her own encrypted backup file). The rationale screen (strings.xml) now names blood glucose.
+
+## Shop by need: affiliate products matched on the device (2026-11-14, Task C) — no new record key, no request; a link opens only on her tap
+
+- **Replaces the care shelf** and its placeholder brands (`SHELF` removed from `src/lib/constants.js`; `src/screens/CareScreen.jsx`
+  removed). One place: You → Shop by need (card id `care`, so `#/care`, `#/shelf` and the new `#/shop` land on it). Quiet
+  contextual links only in the device sheet ("Don't have a device? See options", "Glucose sensors: see options"), Trying to
+  conceive fertility signs ("Ovulation & fertility options") and the glucose card ("Blood sugar options").
+- **Matching on the device** (`lib/shop.js shopCategories`): stage, Trying to conceive, the PCOS module and a connected glucose
+  sensor order the categories. Nothing about her is sent; no request is made to show the shop.
+- **What the merchant learns:** a link opens in the system browser (phone: Capacitor Browser; web: a new tab with
+  `rel="noopener noreferrer"`, plus `sponsored` on an affiliate link). A plain brand link sends no referrer, so the shop
+  learns nothing about where she came from. An affiliate link (only where the owner pasted one into
+  `src/config/affiliates.json`) carries the program's tag, so the shop learns the visit came from Solia Health and may pay a
+  commission. Neither link carries her stage, log, ids or UTM data (`shop.test.mjs`, `e2e/shop.spec.mjs`). After that, the
+  shop's own privacy policy applies.
+- **Sentences, each literally true in the shipped build (affiliates.json committed empty):** "Matched on this device; nothing
+  about you is sent." / "An affiliate link tells that shop you came from Solia Health; a plain brand link doesn't. Neither
+  carries anything about you: no stage, no log, no id. Links open in your browser." The commission sentence and the
+  "Affiliate link" label show only on items that have an affiliate URL.
+- **Flag:** `shop` (default on, no backend module). Off: no card, no sheet, no contextual link.
+- **Legal drafts:** privacy.html section 5 gains "Shops you choose to visit (affiliate links)" (still Draft, attorney note);
+  terms.html's affiliate disclosure now says it may apply ("Affiliate link"). health-data.html's "no affiliates that receive
+  consumer health data" (corporate affiliates) stays true: no health data goes to any merchant.

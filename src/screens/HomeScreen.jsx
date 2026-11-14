@@ -9,6 +9,7 @@ import { dominantFamily } from "../components/PatternCharts.jsx";
 import { famVar } from "../lib/constants.js";
 import { reduceMotion } from "../lib/motion.js";
 import { InstallTip } from "../components/Pwa.jsx";
+import { LearnLink } from "../components/Learn.jsx";
 import { useEffect, useRef, useState } from "react";
 import { Card, QuickTile, StepRail, Ring, Chip, EmptyNote, Sheet } from "../components/ui/index.js";
 import { dateEyebrow, greeting, TILES_MIN, TILES_MAX } from "../lib/home.js";
@@ -165,7 +166,10 @@ export default function HomeScreen({
             <span className="heroline-txt"><b>{hero.line}</b><span>{hero.note}</span></span>
           </p>
         )}
-        {heroRows.length > 0 && <div className="plaincard herorows">{heroRows.map(nextRow)}</div>}
+        {/* Task A: a quiet "What does this mean?" beside the ring and its phase, and beside the fertile-window row. */}
+        {(hero.kind === "cycle" || hero.kind === "long") && <p className="learnrow-wrap"><LearnLink id={hero.kind === "long" ? "irregular" : "cycle"} /></p>}
+        {(hero.kind === "meno" || hero.kind === "calm") && <p className="learnrow-wrap"><LearnLink id="peri" /></p>}
+        {heroRows.length > 0 && <div className="plaincard herorows">{heroRows.map(nextRow)}<p className="learnrow-wrap"><LearnLink id="fertile" /></p></div>}
         {/* Today's line (once today is logged) opens with a tick, so Home says plainly that today is done. */}
         {todayLine && <button type="button" className="todayline" onClick={() => goTab("today")}>{todayEntry && <Icon name="check" size={14} className="todaytick" />}<i className="fdot" aria-hidden="true" style={{ background: todayLine.color }} />{todayLine.text}</button>}
       </div>

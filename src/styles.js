@@ -1917,4 +1917,51 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
 .qaddrow { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:6px; }
 .qaddrow .hint { margin:0; font-size:var(--fs-sm); }
 .qsave { min-height:44px; }
+/* Task A (2026-11-14): Learn links and sheet, more feelings, Share with a partner. */
+.learnrow-wrap { display:flex; flex-wrap:wrap; gap:4px 14px; margin:6px 0 0; }
+.learnlink { min-height:44px; gap:6px; font-size:var(--fs-sm); text-align:left; }
+.homehero .learnrow-wrap { justify-content:center; }
+.learnbody p { font-size:16px; line-height:1.55; margin:0 0 10px; }
+.learnsrc { margin:6px 0 0; padding-left:18px; } .learnsrc li { font-size:var(--fs-sm); line-height:1.5; margin:0 0 6px; overflow-wrap:anywhere; }
+.learnlist { list-style:none; margin:8px 0 0; padding:0; }
+.learnrow { display:flex; width:100%; align-items:center; justify-content:space-between; gap:10px; min-height:48px; padding:10px 2px; border:none; border-top:var(--rule); background:none; color:var(--ink); font:600 16px var(--ff-body); text-align:left; cursor:pointer; }
+.learnlist li:first-child .learnrow { border-top:none; }
+.learnrow svg { flex:0 0 auto; color:var(--primary-text); }
+.feelmore { margin:-6px 0 12px; }
+.feelgroup { margin:8px 0 0; } .feelgroup-lab { margin:0 0 6px; }
+.feelmore .feelchips { margin:0 0 6px; }
+.feelwords { min-height:44px; font-size:var(--fs-sm); margin-top:4px; }
+.feelwords-g { margin:12px 0 0; } .feelwords-list { margin:6px 0 0; }
+.feelword { padding:8px 0; border-top:var(--rule); } .feelword dt { font-weight:700; font-size:16px; } .feelword dd { margin:2px 0 0; font-size:16px; line-height:1.5; color:var(--soft); }
+.partnerpicks { display:grid; gap:8px; margin:6px 0 12px; }
+.partnerpicks .consentopt { min-height:48px; font-size:16px; } .partnerpicks .consentopt:disabled { opacity:.6; cursor:not-allowed; }
+.partnersheet textarea.inp { width:100%; font-size:16px; resize:vertical; }
+.partnerpreview { border:1px dashed var(--line); border-radius:var(--r-card); padding:12px 14px; margin:6px 0 12px; background:var(--paper); }
+.partnerpreview p { margin:0 0 4px; font-size:16px; line-height:1.5; overflow-wrap:anywhere; }
+.partnergo { display:inline-flex; align-items:center; gap:8px; justify-content:center; width:100%; min-height:48px; }
+.partnerremind { list-style:none; margin-top:10px; }
+/* Task B (2026-11-14): devices any time, the Glucose card (data marks in the soft ramp only). */
+.bodydevices { display:flex; justify-content:flex-end; margin:0 0 8px; }
+.bodydevbtn { display:inline-flex; align-items:center; gap:6px; min-height:44px; width:auto; padding:0 16px; }
+.logdevices { display:inline-flex; gap:8px; min-height:44px; margin-top:12px; font-size:var(--fs-sm); }
+.setdevices .ghostbtn { width:100%; }
+.devsub { margin:18px 0 4px; }
+.gluc-latest { margin:2px 0 2px; font-size:16px; } .gluc-latest b { font:600 28px/1.15 var(--ff-num); color:var(--ink); }
+.gluc-words { margin:0 0 8px; font-size:16px; }
+.gluc-line { display:block; width:100%; height:84px; margin:4px 0 6px; }
+.gluc-band { fill:var(--soft-1); opacity:.55; }
+.gluc-mean { fill:none; stroke:var(--soft-4); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; vector-effect:non-scaling-stroke; }
+.gluc-dot { fill:var(--soft-4); }
+/* Task C (2026-11-14): Shop by need. */
+.shopcats { flex-wrap:wrap; gap:7px; margin:6px 0 12px; } .shopcats .mc { min-height:44px; }
+.shoplist { list-style:none; margin:0; padding:0; }
+.shopitem { border-top:var(--rule); padding:12px 0; }
+.shoplist .shopitem:first-child { border-top:none; }
+.shophead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.shopitem .sname { display:block; font-size:16px; margin:2px 0 4px; }
+.shopwhy { font-size:16px; line-height:1.5; margin:0 0 6px; }
+.shopacts { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin-top:8px; }
+.shopgo { display:inline-flex; align-items:center; gap:6px; min-height:44px; width:auto; padding:0 16px; text-decoration:none; }
+.shoptry, .shoplink { min-height:44px; gap:6px; font-size:var(--fs-sm); }
+.devshop { margin-top:10px; }
 `;

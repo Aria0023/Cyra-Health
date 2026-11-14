@@ -247,6 +247,7 @@ test("disclosures: singular forms for one feature", () => {
 const OFF_RE = {
   wearables: /Oura|Fitbit|Garmin|Whoop|Terra|wearable|watch, ring/,
   deviceSync: /Apple Health|Health Connect/, // passive tracking S3: the on-phone sources' access line follows this flag
+  shop: /Shop by need|affiliate|commission/i, // Task C: no disclosure names the shop
   counts: /weekly counts|[Aa]nonymous counts|counts you|weekly totals/,
   ai: /Solia Health's AI|Anthropic/,
   signin: /Sign-in|Apple(?! Health)|Google|Facebook/,

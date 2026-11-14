@@ -133,3 +133,23 @@ test("mood across the cycle: rows by cycle day, words not scores, the empty line
   assert.equal(stripSentence(full, "EMPTY"), "5 check-ins in the last 35 days: 2 lighter, 2 lower, the rest in between.");
   assert.ok(!/\d+\s*(%|\/\s*100|points?)/.test(stripSentence(full, "")));
 });
+
+/* ---------- 2026-11-14: more feelings ---------- */
+import { FEELINGS, FEELING_GROUPS, FIRST_FEELINGS } from "./mind.js";
+test("feelings: about 24, grouped, each with a one-line meaning; the original ten keep their ids and order", () => {
+  assert.equal(FEELINGS.length, 24);
+  assert.deepEqual(FEELINGS.slice(0, 10).map((f) => f.id), ["calm", "content", "hopeful", "tired", "anxious", "overwhelmed", "irritable", "sad", "lonely", "restless"]);
+  assert.deepEqual([...FIRST_FEELINGS], FEELINGS.slice(0, 10).map((f) => f.id));
+  const groups = FEELING_GROUPS.map(([g]) => g);
+  for (const f of FEELINGS) {
+    assert.ok(groups.includes(f.group), `${f.id} in a known group`);
+    assert.ok(typeof f.about === "string" && f.about.length > 10 && f.about.length < 90 && /\.$/.test(f.about), `${f.id} has a one-line meaning`);
+  }
+  for (const g of groups) assert.ok(FEELINGS.some((f) => f.group === g), `${g} has feelings`);
+  assert.equal(new Set(FEELINGS.map((f) => f.id)).size, 24);
+});
+test("feelings: an old record stays as it was; a new feeling is kept in FEELINGS order", () => {
+  assert.deepEqual(cleanMoodDay({ tags: ["sad", "calm"] }), { tags: ["calm", "sad"] });
+  assert.deepEqual(cleanMoodDay({ tags: ["space", "grateful", "tired", "nope"] }), { tags: ["tired", "grateful", "space"] });
+  assert.deepEqual(toggleFeeling({}, "2026-11-14", "energized"), { "2026-11-14": { tags: ["energized"] } });
+});

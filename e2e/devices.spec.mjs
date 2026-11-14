@@ -48,7 +48,7 @@ test("API build in a browser: registration skips devices; the Home card's sheet 
   // You → Data sources: the same list, at the top
   await gotoTab(page, "You");
   await page.locator("#you-sources").getByRole("button", { name: "Connect a device" }).click();
-  await expect(page.locator("#devices-sheet .devrow")).toHaveCount(4);
+  await expect(page.locator("#devices-sheet .devrow")).toHaveCount(6); // + Dexcom and FreeStyle Libre (Task B)
 });
 
 test("demo build: one tap connects (illustrative), the row says Connected and the Home card goes", async ({ page }) => {

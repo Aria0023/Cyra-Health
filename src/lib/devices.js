@@ -21,7 +21,7 @@
 
 export const DEVICE_COPY = Object.freeze({
   title: "Connect your devices",
-  lead: "Optional. Solia Health works fully without a device. A connected one adds your nightly temperature, resting heart rate, HRV and sleep.",
+  lead: "Optional. Solia Health works fully without a device. A watch or ring adds your nightly temperature, resting heart rate, HRV and sleep; a glucose sensor adds your blood glucose. Connect or disconnect any time.",
   stepTitle: "Connect a device?",
   stepSub: "You can skip this and connect one later from Home or You.",
   reads: "Reads",
@@ -45,6 +45,9 @@ export const DEVICE_COPY = Object.freeze({
   homeHidden: "Hidden. Connect a device any time from You → Data sources.",
   youOpen: "Connect a device",
   demoNote: "This demo build shows illustrative readings. Nothing is really connected or sent.",
+  inPhone: "In the iPhone or Android app",
+  glucoseLead: "Blood glucose from a Dexcom or FreeStyle Libre sensor comes through Apple Health or Health Connect. In the Dexcom or Libre app, turn on sharing to Apple Health or Health Connect first.",
+  noDevice: "Don't have a device? See options",
 });
 
 const ROWS = [
@@ -60,6 +63,15 @@ const ROWS = [
   { id: "terra", source: "terra", name: "Fitbit · Garmin · Whoop", server: true,
     reads: "Temperature, resting heart rate, HRV and sleep, through Terra, a health-data service.",
     where: "Terra keeps its own copy under its privacy policy. Solia Health's server holds your daily readings in memory until this device collects them, 7 days at most, then deletes them." },
+];
+
+/* Blood glucose (Task B, 2026-11-14): Dexcom and FreeStyle Libre write their readings to Apple Health and Health Connect;
+   the app reads them there on the phone (lib/wearables.js connectGlucose). Their connection lives in glucoseLog.apps
+   (lib/glucose.js), not in wearSources, so the nightly signals never see them. */
+const via = (plat) => (plat === "ios" ? "Apple Health" : plat === "android" ? "Health Connect" : "Apple Health / Health Connect");
+const GLUCOSE_ROWS = [
+  { id: "dexcom", brand: "Dexcom", app: "the Dexcom app" },
+  { id: "libre", brand: "FreeStyle Libre", app: "the FreeStyle Libre app" },
 ];
 
 /** "today", "yesterday", "3 days ago" (whole local days between the two times). */
@@ -89,6 +101,24 @@ export function deviceRows(c = {}) {
       : state === "elsewhere" ? (r.app === "ios" ? DEVICE_COPY.inIphone : DEVICE_COPY.inAndroid)
       : state === "notSetUp" ? DEVICE_COPY.notSetUp : "Not connected";
     return { id: r.id, source: r.source, name: r.name, reads: r.reads, where: r.where, server: !!r.server, state, status, note, demo: !!(st && st.demo) };
+  }).concat(f.deviceSync ? glucoseRows(c, plat) : []);
+}
+
+/** The Dexcom and FreeStyle Libre rows. c.glucose: glucoseLog ({ apps, lastSync, connectedAt }). In a browser they can't be
+    read ("In the iPhone or Android app"), except in the demo build, which connects illustrative readings. */
+function glucoseRows(c, plat) {
+  const g = c.glucose && typeof c.glucose === "object" ? c.glucose : {};
+  const apps = Array.isArray(g.apps) ? g.apps : [];
+  return GLUCOSE_ROWS.map((r) => {
+    const on = apps.includes(r.id);
+    const state = on ? "connected" : plat === "web" && !c.demo ? "elsewhere" : "available";
+    const when = on ? syncedWords(typeof g.lastSync === "number" ? g.lastSync : g.connectedAt, c.nowMs) : null;
+    const status = state === "connected" ? DEVICE_COPY.connected(when) : state === "elsewhere" ? DEVICE_COPY.inPhone : "Not connected";
+    return {
+      id: r.id, source: "glucose", glucose: true, name: `${r.brand} (through ${via(plat)})`, server: false, state, status, note: null, demo: !!(on && g.demo),
+      reads: `Blood glucose readings that ${r.app} shares with ${via(plat)}. Turn on that sharing in ${r.app} first.`,
+      where: `Read on your phone by the Solia Health app from ${via(plat)}. Never sent to a server.`,
+    };
   });
 }
 
@@ -96,7 +126,7 @@ export function deviceRows(c = {}) {
 export function homeDevicesCard({ rows = [], hidden = false } = {}) {
   if (hidden) return false;
   if (rows.some((r) => r.state === "connected" || r.state === "pending")) return false;
-  return rows.some((r) => r.state === "available");
+  return rows.some((r) => r.state === "available" && !r.glucose);
 }
 
 /** The device-only "hidden" mark for the Home card: null | "hidden". */

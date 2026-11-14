@@ -55,7 +55,9 @@ export const DEMO_WEARABLES = import.meta.env.VITE_DEMO_WEARABLES === "true";
 /* Native bridge contract (implemented by the iOS/Android wrapper, item A12-7):
      CyraHealth.available()                → { available: boolean }
      CyraHealth.requestAuthorization()     → { granted: boolean, grantedTypes?: string[], requestedTypes?: string[] }
-     CyraHealth.readDaily({ from, to })    → { days: [{ date, temp, rhr, hrv, sleep }], needsAuthorization?: boolean } */
+     CyraHealth.readDaily({ from, to })    → { days: [{ date, temp, rhr, hrv, sleep }], needsAuthorization?: boolean }
+     CyraHealth.requestAuthorization({ glucose: true }) adds blood glucose to the request (Task B)
+     CyraHealth.readGlucose({ from, to })  → { readings: [{ at: ISO time, mgdl }], needsAuthorization?: boolean } */
 const bridge = () => (isNative() ? CyraHealth : null);
 const HEALTH_CONNECT_TYPES = 4; // resting heart rate, HRV, sleep, skin temperature (android/…/CyraHealthPlugin.kt)
 /* Without VITE_API_BASE there is no server to connect through, and nothing is requested. */
@@ -207,6 +209,23 @@ export async function connectSource(id, { onStatus = () => {}, onPending = () =>
     catch { return { rows: [], state }; } // connected, nothing collected yet
   }
   throw new Error("Unknown source");
+}
+
+/** Blood glucose (Task B): ask the phone's Health store for read access to blood glucose (Apple Health:
+    HKQuantityTypeIdentifierBloodGlucose; Health Connect: READ_BLOOD_GLUCOSE), then read the last `days` days of readings
+    ON THE PHONE. Resolves the raw readings [{ at, mgdl }] for lib/glucose.js summarize. Nothing is sent anywhere.
+    Bridge: CyraHealth.requestAuthorization({ glucose: true }) and CyraHealth.readGlucose({ from, to }) → { readings, needsAuthorization? }. */
+export async function connectGlucose({ days = 14 } = {}) {
+  const hk = bridge();
+  if (!hk) throw new Error("Blood glucose is read inside the Solia Health app on your phone. In a browser there's nothing to connect.");
+  if (!hasPlugin("CyraHealth") || !(await hk.available()).available) throw new Error("Health data isn't available on this device");
+  const auth = await hk.requestAuthorization({ glucose: true });
+  const granted = Array.isArray(auth?.grantedTypes) ? auth.grantedTypes : null;
+  if (granted ? !granted.includes("glucose") : !auth?.granted) throw err("Solia Health wasn't given permission to read blood glucose", "NOT_GRANTED");
+  const out = await hk.readGlucose({ from: isoDay(-(days - 1)), to: isoDay(0) });
+  const readings = Array.isArray(out?.readings) ? out.readings : [];
+  if (out?.needsAuthorization && !readings.length) throw err(platform() === "android" ? "No blood glucose shared yet. Check Health Connect → App permissions → Solia Health." : "No blood glucose shared yet. Check Settings → Health → Data Access & Devices → Solia Health.", "NEEDS_AUTH");
+  return readings;
 }
 
 /* Oura failures, worded for what happened: no answer from Cyra's server, a sign-in that

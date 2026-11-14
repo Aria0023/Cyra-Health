@@ -27,13 +27,17 @@
    markers, the PDF table, You → Data sources). ON by default, since it needs no backend module (FEATURE_MODULE null)
    and sends nothing; it offers nothing in a browser. Oura and Fitbit/Garmin/Whoop stay behind `wearables`.
 
+   shop (2026-11-14, Task C) is the eighth: You → Shop by need and its quiet contextual links (lib/shop.js). ON by default;
+   no backend module (FEATURE_MODULE null) and no request: matching runs on the device and a link opens in the browser
+   only on her tap. Off, the shop and every link to it are gone.
+
    Pure, with NO imports: Node (unit tests, vite.config.js) imports this file, where import.meta.env is
    undefined; the optional chaining below keeps it importable there, and Vite still inlines the value. */
 
-export const FEATURE_NAMES = Object.freeze(["wearables", "counts", "ai", "webReminders", "cloudBackup", "signin", "deviceSync"]);
-export const DEFAULT_FEATURES = Object.freeze({ wearables: true, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: true, deviceSync: true });
+export const FEATURE_NAMES = Object.freeze(["wearables", "counts", "ai", "webReminders", "cloudBackup", "signin", "deviceSync", "shop"]);
+export const DEFAULT_FEATURES = Object.freeze({ wearables: true, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: true, deviceSync: true, shop: true });
 /** The backend module each server feature needs; null for a feature that never touches a server (deviceSync). */
-export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts: "pulse", ai: "ai", webReminders: "push", cloudBackup: "backup", signin: "accounts", deviceSync: null });
+export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts: "pulse", ai: "ai", webReminders: "push", cloudBackup: "backup", signin: "accounts", deviceSync: null, shop: null });
 /** Further backend modules a server feature also needs: sign-in with Apple, Google or Facebook runs through oauth. */
 export const FEATURE_ALSO = Object.freeze({ signin: Object.freeze(["oauth"]) });
 
@@ -55,7 +59,7 @@ const known = (w) => FEATURE_NAMES.find((n) => n.toLowerCase() === w.toLowerCase
 export const DEV_FLAG_NAMES = Object.freeze(["devGallery", "proDev", "trialGate"]);
 const devWord = (w) => DEV_FLAG_NAMES.some((n) => n.toLowerCase() === w.toLowerCase());
 
-/** raw VITE_FEATURES → a fresh plain object with all seven flags (dev words are ignored here). */
+/** raw VITE_FEATURES → a fresh plain object with every flag (dev words are ignored here). */
 export function parseFeatures(raw) {
   if (raw == null || !String(raw).trim()) return { ...DEFAULT_FEATURES };
   const list = words(raw).filter((w) => !devWord(w));

@@ -34,7 +34,7 @@ import { t } from "../lib/i18n.js";
    - Account: Task 1's sign-in card (who is signed in, Sign out, Delete account) while this device is signed in;
      otherwise R7's "No account needed" card, unchanged, in a build without the optional account; calm R9: where the
      build offers it (`account`, lib/cloudBackup.js ACCOUNTS_HERE) the AccountCard (guest by default; create, sign in,
-     back up now, sign out, delete, and the "backup is newer" choice); Support & care (the care shelf), About & legal (not a medical device, links, build).
+     back up now, sign out, delete, and the "backup is newer" choice); Shop by need (components/Shop.jsx, 2026-11-14; it replaced the care shelf), About & legal (not a medical device, links, build).
    - Cyra's AI (calm R8): with Pro, the ai flag and a server, the weekly write-up and chat switches (off by default) and
      "Include lab values"; without Pro, one line and "See what Pro adds". The switches send nothing themselves.
    Calm R10 (compaction): each card is a title row, one summary line and its primary control; the longer explanations
@@ -53,7 +53,7 @@ const StageArt = () => (
     <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
   </svg>
 );
-export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, language = null, meals = null, dataSources = null }) {
+export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, language = null, meals = null, dataSources = null, partner = null, learn = null }) {
   const offer = ai.offer || { any: false, weekly: false, chat: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
@@ -103,6 +103,10 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
 
       {/* Passive tracking S3: Data sources (components/DataSourcesCard.jsx), where she manages every source and reads the spike's numbers. */}
       {dataSources}
+
+      {/* Task A (2026-11-14): Share with a partner (components/PartnerShare.jsx; cycle stages only) and Learn (components/Learn.jsx). */}
+      {partner}
+      {learn}
 
       {onTour && (
         <Card id="you-tour" tint="you" icon="sparkle" eyebrow="Finding your way" title="New here, or a bit lost?" level={2}>

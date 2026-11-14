@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { TRY_KINDS, HAND_KINDS, kindLabel, dailyQuestion, doneWord, shelfKind, SHELF_KINDS, tryChip, tryWaitLine, TRY_MIN } from "./trying.js";
-import { SHELF } from "./constants.js";
+import { SHOP_ITEMS } from "./shop.js";
 import { TRIAL_MIN } from "./patterns.js";
 
 test("trying: the daily question fits the kind", () => {
@@ -18,19 +18,19 @@ test("trying: the daily question fits the kind", () => {
   assert.deepEqual(HAND_KINDS.map(([k]) => k), ["rx", "supp", "habit"]);
 });
 
-test("trying: Care-shelf items get a fitting kind (the bug: a CBT-I program listed as a Supplement, a clinician as a Habit)", () => {
-  const byId = Object.fromEntries(SHELF.map((s) => [s.id, s]));
-  assert.equal(shelfKind(byId.restfully), "program");
-  assert.equal(kindLabel(shelfKind(byId.restfully)), "Program");
+test("trying: shop items she can add get a fitting kind (a CBT-I program is a Program, a clinician Care, a wrap a Comfort aid)", () => {
+  const byId = Object.fromEntries(SHOP_ITEMS.map((s) => [s.id, s]));
+  assert.equal(shelfKind(byId.sleepio), "program");
+  assert.equal(kindLabel(shelfKind(byId.sleepio)), "Program");
   assert.equal(shelfKind(byId.midi), "care");
   assert.equal(kindLabel(shelfKind(byId.midi)), "Care");
-  assert.equal(shelfKind(byId.mineral), "supp");
-  assert.equal(shelfKind(byId.verdana), "supp");
-  assert.equal(shelfKind(byId.emberline), "aid");
-  assert.equal(shelfKind(byId.nightfall), "aid");
-  for (const s of SHELF) assert.ok(SHELF_KINDS[s.id], `${s.id} has a kind`);
+  assert.equal(shelfKind(byId.prenatal), "supp");
+  assert.equal(shelfKind(byId["heat-wrap"]), "aid");
+  assert.equal(shelfKind(byId["cooling-bedding"]), "aid");
+  for (const s of SHOP_ITEMS.filter((i) => i.kind)) assert.ok(TRY_KINDS[s.kind], `${s.id} has a known kind`);
   assert.equal(shelfKind({ id: "new", tone: "clinical" }), "care");
   assert.equal(shelfKind({ id: "x", kind: "program" }), "program");
+  assert.equal(SHELF_KINDS.restfully, "program", "an item added from the old shelf keeps its kind");
   for (const k of Object.keys(TRY_KINDS)) assert.equal(typeof kindLabel(k), "string");
 });
 

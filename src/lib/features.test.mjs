@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { FEATURE_NAMES, DEFAULT_FEATURES, FEATURE_MODULE, FEATURE_ALSO, FEATURES, parseFeatures, unknownFeatures, feature, remindersInBuild, DEV_FLAG_NAMES, DEV_FLAGS, parseDevFlags } from "./features.js";
 
-const DEFAULTS = { wearables: true, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: true, deviceSync: true };
+const DEFAULTS = { wearables: true, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: true, deviceSync: true, shop: true };
 const only = (...on) => Object.fromEntries(FEATURE_NAMES.map((n) => [n, on.includes(n)]));
 
 test("features: unset, empty or blank gives a fresh copy of the shipping defaults", () => {
@@ -57,6 +57,7 @@ test("features: remindersInBuild — phones always, the web only with webReminde
 
 test("features: FEATURE_MODULE maps exactly the seven flags (deviceSync has no module); the source has no import", () => {
   assert.equal(FEATURE_MODULE.deviceSync, null);
+  assert.equal(FEATURE_MODULE.shop, null);
   assert.deepEqual(Object.keys(FEATURE_MODULE).sort(), [...FEATURE_NAMES].sort());
   assert.ok(Object.isFrozen(FEATURE_MODULE) && Object.isFrozen(FEATURE_NAMES));
   const src = readFileSync(new URL("./features.js", import.meta.url), "utf8");
