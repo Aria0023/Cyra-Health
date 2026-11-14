@@ -27,3 +27,9 @@ Baseline (2026-11-14, before any change): lint 0 errors (23 warnings), unit 613/
 - [x] components/Shop.jsx: You card (id care), sheet, quiet links (devices sheet, TTC fertility signs, glucose card); flag `shop`
 - [x] docs: AFFILIATES.md, MONETIZATION, PRIVACY-AUDIT, CLINICIAN-REVIEW (every why line), privacy.html + terms.html drafts
 - [x] e2e/shop.spec.mjs + shop-axe.spec.mjs; e2e demo build adds `shop` to VITE_FEATURES
+- [x] verified: lint 0 errors (23 warnings, as baseline), unit 637/637, build stamp once, e2e 34/34, axe 27/27 -> final commit
+
+## Done. Commits on feature/partner-learn-glucose-shop
+- Task A: cfd6328 (WIP), 386dfca (final)
+- Task B: b7c0969 (WIP), 90d3b45 (final)
+- Task C: dcbb951 (WIP), then the final commit after this note
