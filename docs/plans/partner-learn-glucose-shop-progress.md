@@ -20,6 +20,7 @@ Baseline (2026-11-14, before any change): lint 0 errors (23 warnings), unit 613/
 - [x] Info.plist string, PrivacyInfo comment, manifest, strings.xml rationale; PRIVACY-AUDIT store notes; PASSIVE-TRACKING-PLAN Dexcom cloud later
 - [x] e2e/glucose.spec.mjs + glucose-axe.spec.mjs; e2e demo build now includes deviceSync (shipping default)
 - Clinician PDF glucose section: not added (page 1 rules; see report)
+- [x] verified: lint 0 errors, unit 632/632, build stamp once, e2e 31/31, axe 25/25 -> final commit
 
 ## Task C: Shop by need
 - [ ] not started
