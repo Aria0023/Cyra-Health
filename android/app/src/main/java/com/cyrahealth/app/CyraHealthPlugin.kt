@@ -7,6 +7,7 @@ import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.BloodGlucoseRecord
 import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
 import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.RestingHeartRateRecord
@@ -55,6 +56,11 @@ import org.json.JSONObject
  *       The Health Connect permission screen opens only while some requested type isn't granted;
  *       whatever the person allows there stays allowed, even if it is only some of the types.
  *   readDaily({ from, to }) -> { days: [{ date, temp, rhr, hrv, sleep }] }
+ *   requestAuthorization({ glucose: true }) (Task B, 2026-11-14) also asks for READ_BLOOD_GLUCOSE, and then
+ *       lists "glucose" in requestedTypes / grantedTypes. Without the option the request is unchanged.
+ *   readGlucose({ from, to }) -> { readings: [{ at: ISO-8601 instant, mgdl }], needsAuthorization: boolean }
+ *       Every BloodGlucoseRecord in [from, to] (local days), oldest first, in mg/dL (Dexcom and FreeStyle Libre
+ *       write these when she turns on sharing in their app). needsAuthorization: glucose isn't granted.
  *
  * readDaily asks Health Connect which permissions Cyra holds on every call and reads only
  * those types; a type that isn't granted is never read and stays null. It works per local
@@ -88,6 +94,9 @@ class CyraHealthPlugin : Plugin() {
 
     private val permissionScreenOpen = AtomicBoolean(false)
 
+    /** Whether the request in flight asked for blood glucose too (one permission screen at a time, see above). */
+    @Volatile private var wantGlucose = false
+
     override fun handleOnDestroy() {
         super.handleOnDestroy()
         scope.cancel()
@@ -104,6 +113,7 @@ class CyraHealthPlugin : Plugin() {
         if (!permissionScreenOpen.compareAndSet(false, true)) {
             return call.reject("The Health Connect permission screen is already open")
         }
+        wantGlucose = call.getBoolean("glucose", false) == true
         scope.launch {
             try {
                 val wanted = wantedPermissions(client)
@@ -184,6 +194,40 @@ class CyraHealthPlugin : Plugin() {
             .put("granted", grantedCount > 0)
             .put("grantedTypes", grantedTypes)
             .put("requestedTypes", requestedTypes)
+    }
+
+    @PluginMethod
+    fun readGlucose(call: PluginCall) {
+        val from = parseDay(call.getString("from")) ?: return call.reject("from must be a date like 2026-01-31")
+        val to = parseDay(call.getString("to")) ?: return call.reject("to must be a date like 2026-01-31")
+        if (to.isBefore(from)) return call.reject("to must be the same day as from or later")
+        if (ChronoUnit.DAYS.between(from, to) >= MAX_DAYS) return call.reject("Ask for at most $MAX_DAYS days at a time")
+        val client = clientOrNull() ?: return call.reject(MSG_UNAVAILABLE)
+        scope.launch {
+            try {
+                val granted = try { client.permissionController.getGrantedPermissions() } catch (e: SecurityException) { emptySet() }
+                if (READ_BLOOD_GLUCOSE !in granted) {
+                    call.resolve(JSObject().put("readings", JSArray()).put("needsAuthorization", true))
+                    return@launch
+                }
+                val zone = ZoneId.systemDefault()
+                val start = from.atStartOfDay(zone).toInstant()
+                val end = to.plusDays(1).atStartOfDay(zone).toInstant()
+                val out = JSArray()
+                readAllOrNull(client, BloodGlucoseRecord::class, start, end)
+                    ?.sortedBy { it.time }
+                    ?.forEach { r ->
+                        out.put(JSObject().put("at", r.time.toString()).put("mgdl", r.level.inMilligramsPerDeciliter))
+                    }
+                call.resolve(JSObject().put("readings", out).put("needsAuthorization", false))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Never log values: only the exception type.
+                Log.w(TAG, "readGlucose failed: ${e.javaClass.simpleName}")
+                call.reject("Couldn't read blood glucose from Health Connect right now. Try again in a moment.")
+            }
+        }
     }
 
     @PluginMethod
@@ -359,8 +403,10 @@ class CyraHealthPlugin : Plugin() {
         }
 
     /** Read-only permissions; skin temperature only where this Health Connect supports it. */
-    private fun wantedPermissions(client: HealthConnectClient): Set<String> =
-        if (skinTemperatureSupported(client)) BASE_PERMISSIONS + READ_SKIN_TEMPERATURE else BASE_PERMISSIONS
+    private fun wantedPermissions(client: HealthConnectClient): Set<String> {
+        val base = if (skinTemperatureSupported(client)) BASE_PERMISSIONS + READ_SKIN_TEMPERATURE else BASE_PERMISSIONS
+        return if (wantGlucose) base + READ_BLOOD_GLUCOSE else base
+    }
 
     private fun parseDay(value: String?): LocalDate? =
         try {
@@ -379,6 +425,7 @@ class CyraHealthPlugin : Plugin() {
         private val READ_HRV = HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class)
         private val READ_SLEEP = HealthPermission.getReadPermission(SleepSessionRecord::class)
         private val READ_SKIN_TEMPERATURE = HealthPermission.getReadPermission(SkinTemperatureRecord::class)
+        private val READ_BLOOD_GLUCOSE = HealthPermission.getReadPermission(BloodGlucoseRecord::class)
         private val BASE_PERMISSIONS = setOf(READ_RESTING_HEART_RATE, READ_HRV, READ_SLEEP)
 
         /** Each read permission and the row field it fills (the names requestAuthorization reports). */
@@ -387,6 +434,7 @@ class CyraHealthPlugin : Plugin() {
             READ_HRV to "hrv",
             READ_SLEEP to "sleep",
             READ_SKIN_TEMPERATURE to "temp",
+            READ_BLOOD_GLUCOSE to "glucose",
         )
 
         private val ASLEEP_STAGES = setOf(

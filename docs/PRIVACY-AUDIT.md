@@ -2169,3 +2169,28 @@ flag and payload); `sw.test.mjs`, `notifications.test.mjs`, `autoTracked.test.mj
   previews it, exactly as before.
 - **Learn** (`src/lib/learn.js`): text bundled with the app. "They're read on this device; opening one sends nothing." is
   true: the explainer sheet makes no request and has no links out.
+
+## Devices any time, and blood glucose from Dexcom and Libre through the phone (2026-11-14, Task B) — one new record key (in backups), no new request, nothing new leaves the device
+
+- **Devices any time:** the one device list (`components/Devices.jsx`, `lib/devices.js`) now also opens from Body ("Devices"),
+  the "+" log sheet ("Connect a device") and Settings ("Connect a device"), besides You → Data sources and Home's card. Every
+  row connects or disconnects at any time and says "Connected · synced <when>". No new flow: the same connect paths as before.
+- **Blood glucose** (`lib/glucose.js`, `lib/wearables.js connectGlucose`, the CyraHealth plugin's new `readGlucose`): rows
+  "Dexcom (through Apple Health / Health Connect)" and "FreeStyle Libre (…)". Connect asks the phone for read access to blood
+  glucose only (iOS `HKQuantityTypeIdentifierBloodGlucose`; Android `READ_BLOOD_GLUCOSE`, requested only on that tap) and reads
+  14 days ON THE PHONE. The plugin makes no network call; the web view keeps one summary per day (count, min, max, mean, latest
+  and its time) in `glucoseLog`, never the raw series. Record key, in backups, restored literally; Delete everything removes it
+  with the record. Not in the AI summary, not in weekly counts, not in the clinician PDF (see the final report: left out
+  because page 1 is full under the page rules). Dexcom's own cloud API is not used (docs/PASSIVE-TRACKING-PLAN.md, later).
+- **Sentences, each literally true:** row "Where it goes": "Read on your phone by the Solia Health app from Apple Health /
+  Health Connect. Never sent to a server."; card footnote "Read on your phone, kept on this device." (demo build: "Illustrative
+  readings in this demo build: nothing was read from a sensor or sent."); device list lead now names the glucose sensor.
+- **Store disclosures (owner action before a phone release with glucose):**
+  - iOS: `NSHealthShareUsageDescription` (Info.plist) now names blood glucose; the HealthKit entitlement is unchanged (read
+    only, no clinical records). PrivacyInfo.xcprivacy: Health data read on the device is still "not collected" (never leaves the
+    device by itself); its comment now names glucose. App Store privacy answers: no change needed for collection, but the
+    review notes should say blood glucose is read from HealthKit on the device for display only.
+  - Android: `android.permission.health.READ_BLOOD_GLUCOSE` added to AndroidManifest.xml. The Play Console "Health apps"
+    declaration and the Health Connect permissions declaration form must add Blood glucose (read) with the use case
+    "show the user her own readings on the device"; Data safety: still "not collected / not shared" for health data (it never
+    leaves the phone except in her own encrypted backup file). The rationale screen (strings.xml) now names blood glucose.

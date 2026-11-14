@@ -2320,6 +2320,10 @@ so. Apple/Google/Facebook run through `backend/src/modules/oauth` and finish at 
       widget text on a lock screen must say nothing about her body unless she turns that on.
 - [x] Share with a partner, 24 feelings, Learn explainers (2026-11-14, docs/plans/partner-learn-glucose-shop.md Task A):
       the message goes through her own share sheet with only what she ticked; no partner account, nothing on a server.
+- [x] Devices any time and blood glucose (2026-11-14, Task B): the device list from Body, the "+" sheet, Settings and You;
+      Dexcom / FreeStyle Libre through Apple Health / Health Connect, read on the phone. Native code written but not
+      compiled in this container: test on a real iPhone and Android phone before release (plan progress note lists how).
+- [ ] LATER: Dexcom cloud API (needs Dexcom partner approval; docs/PASSIVE-TRACKING-PLAN.md).
 - [x] Installable web app that opens offline (A14.1); Render serves /, /index.html, /sw.js and /manifest.webmanifest
       with Cache-Control: no-cache.
 - [ ] Choose VITE_FEATURES for each release and list the matching backend modules (§9.1); the default offers Ask

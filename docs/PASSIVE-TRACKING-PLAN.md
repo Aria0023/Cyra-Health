@@ -312,3 +312,11 @@ except what she reads out.
 6. Oura/Terra in production (W8), photo meals, Mira import, a vendor API: only after the above is in users' hands and the privacy review is done.
 
 Every slice: one commit, unit tests for the pure logic, the full suite set, axe in both schemes, PRIVACY-AUDIT and CLINICIAN-REVIEW updated in the same commit, nothing merged without the owner's go.
+
+## Later: Dexcom's own cloud API (noted 2026-11-14, not built)
+
+Task B reads blood glucose that the Dexcom and FreeStyle Libre apps write to Apple Health and Health Connect, on the phone.
+Dexcom also offers a cloud API (Dexcom Developer, OAuth) with richer data and no dependency on the phone's Health store, but
+production access needs Dexcom partner approval, and the readings would pass through Solia Health's server (a privacy change
+that needs its own PRIVACY-AUDIT entry and disclosure, like Oura's). Not built; revisit only with an approved partnership.
+Abbott's LibreView has no public consumer API for this use.

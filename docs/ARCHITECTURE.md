@@ -213,6 +213,7 @@ is encrypted). `backupCopy()` is the whole backup transform.
 | `signin` | this device's session with her Solia Health account (`{ token, id, provider, email, name, createdAt }`, Task 1, `lib/signin.js`); the server keeps the account record, never her log | device-only | **no** (NOT_IN_BACKUP) | no (this device keeps its own) | no |
 | `devicesHint` | `"hidden"` once she taps Not now on Home's "Connect a device" card, else null (Task 2, `lib/devices.js`) | device-only | **no** (NOT_IN_BACKUP) | no (this device keeps its own) | no |
 | `partnerShare` | Share with a partner: what she ticks to include (`pick`: next / fertile / today) and the phone reminder switch (`remind`) (Task A 2026-11-14, `lib/partner.js`); the note she types is never saved | record (her choice) | yes | yes (literally; a backup without it resets it) | yes |
+| `glucoseLog` | blood glucose read on the phone from Apple Health / Health Connect (Dexcom, FreeStyle Libre; Task B 2026-11-14, `lib/glucose.js`): which rows she connected (`apps`), `connectedAt`, `lastSync`, and one summary per day `{ n, min, max, mean, last, lastAt }` in mg/dL (at most 120 days), never the raw series | health log | yes | yes (literally; a backup without it clears it) | yes |
 | `reminders` | the switch, this browser's push addresses, a version | bookkeeping | `{ enabled }` only | on the phone only (the web keeps this browser's switch) | own merge (`rev`, the `reminders` message) |
 
 "In the backup file" means inside the encrypted envelope (`lib/backup.js`, PBKDF2-SHA256 600,000

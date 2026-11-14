@@ -632,3 +632,12 @@ Sources:
   where phase is period days / follicular phase / luteal phase / fertile window (the last only for Trying to conceive). Phone
   reminder text: "A reminder you set: send your partner an update." (no health content).
 - Status: Awaiting clinician sign-off
+
+## Blood glucose on Body (2026-11-14, Task B; src/lib/glucose.js `glucoseCard`, components/GlucoseCard.jsx)
+Readings read on her phone from Apple Health / Health Connect (Dexcom, FreeStyle Libre). Descriptive only.
+
+### glucose.card
+- "<value> mg/dL at HH:MM" (or mmol/L, her unit), "Today: N readings, from <min> to <max> mg/dL.", a 7-day line ("Each bar is
+  a day's range, the line its average."), and "What does this mean?" → learn.glucose. No target, no range band, no "high" /
+  "low" / "normal", no colour that judges (single-hue soft ramp), no alert, no dosing (`glucose.test.mjs` checks the words).
+- Status: Awaiting clinician sign-off

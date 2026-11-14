@@ -6,7 +6,7 @@
      E2E_DIST=<dir>     another out dir
    The build flags: VITE_DEMO_WEARABLES=true (illustrative readings, the Home card in every build), VITE_DEMO_SEED=true
    (75 days of illustrative check-ins, so the Report has something to print) and VITE_FEATURES=wearables,devGallery,proDev
-   (the Wearables door, the gallery at #/dev/ui for screenshots, the Pro parts unlocked). */
+   (the Wearables door, deviceSync for the phone and glucose rows (Task B), the gallery at #/dev/ui for screenshots, the Pro parts unlocked). */
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import fs from "node:fs";
@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const DIST = process.env.E2E_DIST || "dist-e2e";
-export const BUILD_ENV = Object.freeze({ VITE_DEMO_WEARABLES: "true", VITE_DEMO_SEED: "true", VITE_FEATURES: "wearables,signin,devGallery,proDev,trialGate", CYRA_SKIP_POLICY_FETCH: "1" });
+export const BUILD_ENV = Object.freeze({ VITE_DEMO_WEARABLES: "true", VITE_DEMO_SEED: "true", VITE_FEATURES: "wearables,deviceSync,signin,devGallery,proDev,trialGate", CYRA_SKIP_POLICY_FETCH: "1" });
 /* The second bundle (dist-e2e-api/, Task 1-3 specs): the shipping defaults plus proDev, with a backend at API_BASE, a host that
    never resolves. Every request to it is answered by the spec itself (page.route, e2e/lib/api.mjs), so no real server runs. */
 export const API_BASE = "https://api.solia.test";

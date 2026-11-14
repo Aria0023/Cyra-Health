@@ -14,7 +14,12 @@ Baseline (2026-11-14, before any change): lint 0 errors (23 warnings), unit 613/
 - [x] verified: lint 0 errors, unit 627/627, build stamp once, e2e 29/29, axe 23/23 -> final commit
 
 ## Task B: Devices any time, and blood glucose
-- [ ] not started
+- [x] lib/glucose.js (+tests), record key glucoseLog, devices.js Dexcom/Libre rows (+tests)
+- [x] wearables.js connectGlucose; iOS readGlucose + glucose auth option; Android readGlucose + READ_BLOOD_GLUCOSE
+- [x] Body "Devices" button + Glucose card (soft ramp), "+" sheet and Settings "Connect a device"
+- [x] Info.plist string, PrivacyInfo comment, manifest, strings.xml rationale; PRIVACY-AUDIT store notes; PASSIVE-TRACKING-PLAN Dexcom cloud later
+- [x] e2e/glucose.spec.mjs + glucose-axe.spec.mjs; e2e demo build now includes deviceSync (shipping default)
+- Clinician PDF glucose section: not added (page 1 rules; see report)
 
 ## Task C: Shop by need
 - [ ] not started

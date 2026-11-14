@@ -82,7 +82,9 @@ import { cleanPartnerShare, partnerReminderAt, PARTNER_COPY } from "./lib/partne
 import { shareText } from "./lib/files.js";
 import { DevicesSheet, DevicesHomeCard } from "./components/Devices.jsx";
 import { deviceRows, homeDevicesCard, cleanDevicesHint, DEVICE_COPY } from "./lib/devices.js";
-import { fetchServerSources } from "./lib/wearables.js";
+import { fetchServerSources, connectGlucose } from "./lib/wearables.js";
+import { cleanGlucoseLog, summarize as glucoseDays, mergeGlucose, glucoseCard, demoReadings } from "./lib/glucose.js";
+import GlucoseCard from "./components/GlucoseCard.jsx";
 import { eventsForDay, fetchPulse, pickStage, queueEvents, queueDue, flushQueue, pruneQueue, mergeQueues, localDay, weekKey } from "./lib/pulse.js";
 import { answerLocally, RED_FLAGS } from "./lib/askLibrary.js";
 import { storage } from "./lib/storage.js";
@@ -469,6 +471,9 @@ export default function CyraDemo() {
   const [partnerShare, setPartnerShare] = useState(() => cleanPartnerShare(null));
   const [partnerOpen, setPartnerOpen] = useState(false);
   const [learnOpen, setLearnOpen] = useState(null);
+  /* Task B: blood glucose read on the phone from Apple Health / Health Connect (lib/glucose.js glucoseLog: which apps she
+     connected, when it last synced, one summary per day; record, in backups). */
+  const [glucoseLog, setGlucoseLog] = useState(() => cleanGlucoseLog(null));
   const [cloudSync, setCloudSync] = useState({ state: "idle", conflict: null, error: null });
   const [acctSheet, setAcctSheet] = useState(null); // "create" | "signin" | null
   const [acctChoice, setAcctChoice] = useState(null); // { saved, acct } while a sign-in waits for "Use the backup / Keep this device's log"
@@ -1266,10 +1271,44 @@ export default function CyraDemo() {
     if (!left.length) setTrackStats((t) => noteSource(t, null));
   };
   // Task 2: the one device list. A row's own "Where it goes" is the disclosure, so a first connect starts on this tap.
-  const devRows = deviceRows({ native: isNative(), platform: platformNow, flags: FEATURES, server: hasServer(), serverSources, wearSources, demo: DEMO_WEARABLES, nowMs: Date.now() });
+  const devRows = deviceRows({ native: isNative(), platform: platformNow, flags: FEATURES, server: hasServer(), serverSources, wearSources, glucose: glucoseLog, demo: DEMO_WEARABLES, nowMs: Date.now() });
+  /* Task B: Dexcom / FreeStyle Libre through Apple Health or Health Connect. Connect asks the phone for read access to
+     blood glucose and reads 14 days on the phone; the demo build adds illustrative readings instead. Disconnect stops
+     reading for that row; what was read stays on this device. Nothing is sent anywhere. */
+  const syncGlucose = async (app = null, { quiet = false } = {}) => {
+    if (wearBusy) return;
+    const name = app === "libre" ? "FreeStyle Libre" : app === "dexcom" ? "Dexcom" : "Glucose";
+    if (DEMO_WEARABLES) {
+      const days = glucoseDays(demoReadings(addDays(todayIso, -13), todayIso));
+      const nowMs = Date.now();
+      setGlucoseLog((g) => mergeGlucose({ ...g, apps: app ? [...g.apps, app] : g.apps, connectedAt: g.connectedAt || nowMs, lastSync: nowMs, demo: true }, days));
+      if (!quiet) ping(`Demo mode — ${name} isn't really connected; showing 14 days of illustrative readings`);
+      return;
+    }
+    setWearBusy("glucose");
+    try {
+      const days = glucoseDays(await connectGlucose({ days: 14 }));
+      const nowMs = Date.now();
+      setGlucoseLog((g) => mergeGlucose({ ...g, apps: app ? [...g.apps, app] : g.apps, connectedAt: g.connectedAt || nowMs, lastSync: nowMs, demo: false }, days));
+      const n = Object.keys(days).length;
+      if (!quiet) ping(n ? `${name}: ${n} day${n === 1 ? "" : "s"} of glucose readings read on this phone.` : `${name} connected — no glucose readings yet. Check that ${name} shares with ${platformNow === "android" ? "Health Connect" : "Apple Health"}.`);
+    } catch (e) { if (!quiet) ping(e.message || `Couldn't connect ${name}`); }
+    finally { setWearBusy(null); }
+  };
+  const disconnectGlucose = (app) => {
+    setGlucoseLog((g) => { const apps = g.apps.filter((a) => a !== app); return cleanGlucoseLog({ ...g, apps, ...(apps.length ? {} : { connectedAt: null }) }); });
+    ping(`${app === "libre" ? "FreeStyle Libre" : "Dexcom"} disconnected. Readings already read stay on this device.`);
+  };
+  const glucoseOn = glucoseLog.apps.length > 0;
+  // On the phone, a connected glucose source re-reads once at launch (quietly), on the phone only.
+  const glucoseSynced = useRef(false);
+  useEffect(() => {
+    if (!hydrated || !glucoseOn || glucoseSynced.current || !isNative() || DEMO_WEARABLES) return;
+    glucoseSynced.current = true; syncGlucose(null, { quiet: true });
+  }, [hydrated, glucoseOn]); // eslint-disable-line
   const devList = { rows: devRows, busy: wearBusy, demo: DEMO_WEARABLES,
-    onConnect: (r) => connectWear(r.source, r.name, { confirmed: true }),
-    onDisconnect: (r) => disconnectAny(r.source, r.name, { deleteRows: false }) };
+    onConnect: (r) => (r.glucose ? syncGlucose(r.id) : connectWear(r.source, r.name, { confirmed: true })),
+    onDisconnect: (r) => (r.glucose ? disconnectGlucose(r.id) : disconnectAny(r.source, r.name, { deleteRows: false })) };
   const askServerSources = () => { if (FEATURES.wearables && hasServer() && !DEMO_WEARABLES && serverSources == null) fetchServerSources().then(setServerSources); };
   const openDevices = () => { askServerSources(); setDevicesOpen(true); };
   const preferSource = (metric, id) => { setWearSources((s) => setPreferred(s, metric, id)); ping(`${label2(metric)} now comes from ${sourcesModel.rows.find((r) => r.id === id)?.name || id} when both have it.`); };
@@ -1500,8 +1539,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLogRaw, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMedsRaw, medLog: setMedLogRaw, appts: setApptsRaw, journal: setJournalRaw, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDaysRaw, pregLog: setPregLogRaw, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestionsRaw(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLogRaw(cleanBodyLog(v)), labs: (v) => setLabsRaw(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLogRaw(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperimentsRaw(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)), signin: (v) => setSignin((cur) => cur || cleanSignin(v)), devicesHint: (v) => setDevicesHint(cleanDevicesHint(v)), practiceVoice: (v) => setPracticeVoice(v === true), trialStart: (v) => setTrialStart(cleanTrialStart(v)), guide: (v) => setGuide(cleanGuide(v)), partnerShare: (v) => setPartnerShare(cleanPartnerShare(v)) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats, signin, devicesHint, practiceVoice, trialStart, guide, partnerShare };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLogRaw, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMedsRaw, medLog: setMedLogRaw, appts: setApptsRaw, journal: setJournalRaw, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDaysRaw, pregLog: setPregLogRaw, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestionsRaw(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLogRaw(cleanBodyLog(v)), labs: (v) => setLabsRaw(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLogRaw(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperimentsRaw(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)), signin: (v) => setSignin((cur) => cur || cleanSignin(v)), devicesHint: (v) => setDevicesHint(cleanDevicesHint(v)), practiceVoice: (v) => setPracticeVoice(v === true), trialStart: (v) => setTrialStart(cleanTrialStart(v)), guide: (v) => setGuide(cleanGuide(v)), partnerShare: (v) => setPartnerShare(cleanPartnerShare(v)), glucoseLog: (v) => setGlucoseLog(cleanGlucoseLog(v)) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats, signin, devicesHint, practiceVoice, trialStart, guide, partnerShare, glucoseLog };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1856,7 +1895,8 @@ export default function CyraDemo() {
     restoredBody.visitQuestions = cleanQuestions(saved.visitQuestions);
     // Passive tracking S1: her skipped nights and confirmations come back literally too (a backup without them clears them); trackStats stays this device's (DEVICE_ONLY).
     restoredBody.nightSkips = cleanNightSkips(saved.nightSkips); restoredBody.confirmations = cleanConfirmations(saved.confirmations);
-    restoredBody.partnerShare = cleanPartnerShare(saved.partnerShare); // Task A: her partner-share ticks, restored literally
+    restoredBody.partnerShare = cleanPartnerShare(saved.partnerShare);
+    restoredBody.glucoseLog = cleanGlucoseLog(saved.glucoseLog); // Task B: glucose summaries, restored literally // Task A: her partner-share ticks, restored literally
     applySaved({ ...saved, pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
     potsBase.current = restoredPots; setPotsHomeLast(null);
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
@@ -2566,7 +2606,7 @@ export default function CyraDemo() {
     flows, flowCtx: { native: isNative(), server: hasServer(), stage }, lock: lockApi, potsOn: potsTab && potsOk, onHandoff: holdLock,
   };
   // On the You tab the same controls are cards on the page, so the sheet is not drawn there (one copy of every id on screen).
-  const settingsSheet = showSettings && !(stage && curNavTab === "you") && <SettingsSheet {...settingsProps} install={installOffer} focusTo={settingsFocus} fertRow={fertRow} />;
+  const settingsSheet = showSettings && !(stage && curNavTab === "you") && <SettingsSheet {...settingsProps} install={installOffer} focusTo={settingsFocus} fertRow={fertRow} onDevices={FEATURES.deviceSync || FEATURES.wearables ? () => { setShowSettings(false); openDevices(); } : null} />;
   if (!stage) {
     // Choosing a stage again: the saved record is still here, so Settings (and Delete
     // everything) stays one tap away.
@@ -2717,8 +2757,17 @@ export default function CyraDemo() {
   const logEntry = entryOn(logDay) || null;
   // A day counts as logged on the strip by its body log, leaving meal notes out while Meal notes is off.
   const bodyHas = (iso) => !!bodyLog[iso] && Object.keys(bodyLog[iso]).some((k) => k !== "meals" || mealsHere);
+  /* Task B: Body opens with a small "Devices" button (connect or disconnect any time) and, when readings exist, the
+     Glucose card (lib/glucose.js glucoseCard, in her unit). */
+  const glucoseModel = glucoseCard(glucoseLog, todayIso, units.glucoseUnit);
+  const bodyDevices = FEATURES.deviceSync || FEATURES.wearables ? (
+    <>
+      <p className="bodydevices"><button type="button" className="ghostbtn bodydevbtn" aria-haspopup="dialog" onClick={openDevices}><Icon name="watch" size={16} />Devices</button></p>
+      {glucoseModel && <GlucoseCard m={glucoseModel} />}
+    </>
+  ) : null;
   const logTop = (
-    <BodyLog
+    <>{bodyDevices}<BodyLog
       actions={stage === "preg"
         ? [{ id: "symptoms", label: "Log symptoms", icon: "pulse", tint: "body" }, { id: "sleep", label: "Sleep", icon: "moon", tint: "mind" }, { id: "move", label: "Move", icon: "move", tint: "body" }, { id: "meds", label: "Meds", icon: "pill", tint: "patterns" }].map((a) => ({ ...a, onClick: () => goLogger(a.id) }))
         : [{ id: "symptoms", label: "Log symptoms", icon: "pulse", tint: "body" }, { id: "flow", label: "Period", icon: "drop", tint: "body" }, fertOn ? { id: "fert", label: "Fertility signs", icon: "teststrip", tint: "mind" } : { id: "move", label: "Move", icon: "move", tint: "body" }, { id: "meds", label: "Meds", icon: "pill", tint: "patterns" }].map((a) => ({ ...a, onClick: () => goLogger(a.id) }))}
@@ -2729,7 +2778,7 @@ export default function CyraDemo() {
       onRow={goLogger} meds={meds} medDay={medLog[logDay] || null}
       onToggleMed={(mid) => savedIf(setMedLog((l) => ({ ...l, [logDay]: { ...(l[logDay] || {}), [mid]: !(l[logDay] || {})[mid] } })))}
       weightOff={!bodyPrefs.weightOn} onWeightOn={() => openSheet("weight")}
-    />
+    /></>
   );
   const sheetDay = bodySheet?.day || todayIso;
   const sheetWord = sheetDay === todayIso ? "today" : `on ${shortDay(sheetDay)}`;
@@ -3029,7 +3078,7 @@ export default function CyraDemo() {
         </div>
       </div>
       <NavPill tabs={localTabs(TABS)} current={curNavTab} onSelect={selectTab} onPlus={() => { setShowPal(false); setLogOpen(true); }} plusExpanded={logOpen} panelId={(id) => `panel-${id}`} />
-      {logOpen && <LogSheet items={localItems(logItems)} onPick={pickLog} onClose={() => setLogOpen(false)} />}
+      {logOpen && <LogSheet items={localItems(logItems)} onPick={pickLog} onClose={() => setLogOpen(false)} onDevices={FEATURES.deviceSync || FEATURES.wearables ? () => { setLogOpen(false); openDevices(); } : null} />}
       {bodySheetView}
       {practiceSheet}
       {devicesOpen && <DevicesSheet {...devList} onClose={() => setDevicesOpen(false)} />}

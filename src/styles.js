@@ -1940,4 +1940,16 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
 .partnerpreview p { margin:0 0 4px; font-size:16px; line-height:1.5; overflow-wrap:anywhere; }
 .partnergo { display:inline-flex; align-items:center; gap:8px; justify-content:center; width:100%; min-height:48px; }
 .partnerremind { list-style:none; margin-top:10px; }
+/* Task B (2026-11-14): devices any time, the Glucose card (data marks in the soft ramp only). */
+.bodydevices { display:flex; justify-content:flex-end; margin:0 0 8px; }
+.bodydevbtn { display:inline-flex; align-items:center; gap:6px; min-height:44px; width:auto; padding:0 16px; }
+.logdevices { display:inline-flex; gap:8px; min-height:44px; margin-top:12px; font-size:var(--fs-sm); }
+.setdevices .ghostbtn { width:100%; }
+.devsub { margin:18px 0 4px; }
+.gluc-latest { margin:2px 0 2px; font-size:16px; } .gluc-latest b { font:600 28px/1.15 var(--ff-num); color:var(--ink); }
+.gluc-words { margin:0 0 8px; font-size:16px; }
+.gluc-line { display:block; width:100%; height:84px; margin:4px 0 6px; }
+.gluc-band { fill:var(--soft-1); opacity:.55; }
+.gluc-mean { fill:none; stroke:var(--soft-4); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; vector-effect:non-scaling-stroke; }
+.gluc-dot { fill:var(--soft-4); }
 `;

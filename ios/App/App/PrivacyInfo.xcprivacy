@@ -35,7 +35,8 @@
     a 5-minute hand-off that a timer enforces.
 
   NOT collected, so not declared:
-  - Apple Health data read by CyraHealthPlugin. It is read and stored on this device
+  - Apple Health data read by CyraHealthPlugin (nightly readings and, since 2026-11-14, blood
+    glucose when she connects Dexcom or FreeStyle Libre). It is read and stored on this device
     (Library/NoCloud, marked excluded from backup) and is never sent to Cyra's servers or
     anyone else; the plugin makes no network calls. It leaves the device only inside the
     passphrase-encrypted backup file, if the user exports one.

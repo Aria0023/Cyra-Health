@@ -11,7 +11,13 @@ import HealthKit
 ///
 /// Contract (all promise methods):
 ///   available()            -> { available: boolean }
-///   requestAuthorization() -> { granted: boolean }
+///   requestAuthorization({ glucose?: boolean }) -> { granted: boolean }
+///     glucose: true (Task B, 2026-11-14) also asks to read blood glucose, which the Dexcom and
+///     FreeStyle Libre apps write to Health. Without it the request is exactly the nightly types.
+///   readGlucose({ from: "YYYY-MM-DD", to: "YYYY-MM-DD" })
+///     -> { readings: [{ at: ISO 8601 time, mgdl: number }], needsAuthorization: boolean }
+///        Every blood-glucose sample in [from, to] (local days), oldest first, in mg/dL. The web
+///        view folds them into one summary per day (src/lib/glucose.js); nothing is sent anywhere.
 ///   readDaily({ from: "YYYY-MM-DD", to: "YYYY-MM-DD" })
 ///     -> { days: [{ date, temp, rhr, hrv, sleep }], needsAuthorization: boolean }
 ///        (null where there is no value). needsAuthorization is true when Cyra never
@@ -32,8 +38,12 @@ public class CyraHealthPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "available", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestAuthorization", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "readDaily", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "readDaily", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "readGlucose", returnType: CAPPluginReturnPromise)
     ]
+
+    /// Most samples one readGlucose call returns (a CGM writes about 288 a day; 14 days is about 4,000).
+    static let maxGlucoseSamples = 20_000
 
     /// Longest range one readDaily call may cover. The app asks for about 31 days.
     static let maxRangeDays = 366
@@ -89,7 +99,11 @@ public class CyraHealthPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         // Read-only: toShare is empty, so Info.plist needs NSHealthShareUsageDescription
         // only (no NSHealthUpdateUsageDescription) and Cyra can never write to Health.
-        store.requestAuthorization(toShare: [], read: CyraHealthPlugin.readTypes()) { success, error in
+        var read = CyraHealthPlugin.readTypes()
+        if call.getBool("glucose") == true, let glucose = HKObjectType.quantityType(forIdentifier: .bloodGlucose) {
+            read.insert(glucose)
+        }
+        store.requestAuthorization(toShare: [], read: read) { success, error in
             // HealthKit calls this on a background queue once the person has answered the
             // sheet (or straight away if every type was already answered).
             //
@@ -151,6 +165,61 @@ public class CyraHealthPlugin: CAPPlugin, CAPBridgedPlugin {
                 call.reject(message, nil, error)
             }
         }
+    }
+}
+
+// MARK: - readGlucose({ from, to })
+
+extension CyraHealthPlugin {
+    @objc func readGlucose(_ call: CAPPluginCall) {
+        guard let store = healthStore() else {
+            call.reject("Health data isn't available on this device.")
+            return
+        }
+        let calendar = DayMath.calendar()
+        guard let fromText = call.getString("from"), let toText = call.getString("to"),
+              let from = DayMath.startOfDay(parsing: fromText, in: calendar),
+              let to = DayMath.startOfDay(parsing: toText, in: calendar),
+              from <= to,
+              let span = calendar.dateComponents([.day], from: from, to: to).day,
+              span < CyraHealthPlugin.maxRangeDays,
+              let end = DayMath.startOfDay(from: to, addingDays: 1, in: calendar) else {
+            call.reject("readGlucose needs from and to as YYYY-MM-DD dates, from on or before to.")
+            return
+        }
+        guard let type = HKObjectType.quantityType(forIdentifier: .bloodGlucose) else {
+            call.resolve(["readings": [], "needsAuthorization": false])
+            return
+        }
+        let predicate = HKQuery.predicateForSamples(withStart: from, end: end, options: .strictStartDate)
+        let sort = [NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)]
+        let query = HKSampleQuery(sampleType: type, predicate: predicate, limit: CyraHealthPlugin.maxGlucoseSamples,
+                                  sortDescriptors: sort) { _, samples, error in
+            if let error = error as? HKError {
+                if error.code == .errorNoData {
+                    call.resolve(["readings": [], "needsAuthorization": false])
+                } else if error.code == .errorAuthorizationNotDetermined {
+                    call.resolve(["readings": [], "needsAuthorization": true])
+                } else if error.code == .errorDatabaseInaccessible {
+                    call.reject("Unlock your device so Solia Health can read your Health data, then try again.", nil, error)
+                } else {
+                    call.reject("Solia Health couldn't read blood glucose just now. Please try again.", nil, error)
+                }
+                return
+            } else if let error = error {
+                call.reject("Solia Health couldn't read blood glucose just now. Please try again.", nil, error)
+                return
+            }
+            // mg/dL; HealthKit converts from whatever unit the writing app used (mmol/L included).
+            let mgdl = HKUnit.gramUnit(with: .milli).unitDivided(by: HKUnit.literUnit(with: .deci))
+            let iso = ISO8601DateFormatter()
+            var readings: [[String: Any]] = []
+            for case let sample as HKQuantitySample in samples ?? [] {
+                readings.append(["at": iso.string(from: sample.startDate), "mgdl": sample.quantity.doubleValue(for: mgdl)])
+            }
+            call.resolve(["readings": readings, "needsAuthorization": false])
+        }
+        store.execute(query)
     }
 }
 
