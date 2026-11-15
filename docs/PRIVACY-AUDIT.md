@@ -2274,3 +2274,6 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   their privacy policies; Solia Health sends them nothing. No contraception service is listed.
 - **Badges:** no "Physician pick"/"Best seller"; "Clinician reviewed" only for an item signed in CLINICIAN-REVIEW and listed
   in `src/config/shop-reviewed.json` (none yet).
+- **Polish (same day):** the page's intro is one sentence; "Matched on this device; nothing about you is sent." moved, word for
+  word, to the footer "About this shop" beside the two link sentences. Brand colours are the shop's own hues (lib/constants.js
+  SHOP_HUES), each tested for AA. No claim changed.

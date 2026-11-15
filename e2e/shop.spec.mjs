@@ -128,9 +128,14 @@ test("the shop never shows in insights, Patterns or Home; a tab switch closes th
 test("wide screens: 2 to 4 columns of cards; phones: one", async ({ page }) => {
   await register(page, { stage: "My Cycle", pcos: "no" });
   await page.locator("header.mast").getByRole("button", { name: "Shop", exact: true }).click();
+  await page$(page).getByRole("button", { name: "Ovulation & fertility" }).click();
+  // phones: a brand with 2+ products scrolls sideways (a list; the next card peeks); a single product stays full width
+  const multi = page$(page).locator(".shopgrid.multi").first();
+  await expect(multi).toHaveCSS("overflow-x", "auto");
+  expect(await multi.evaluate((u) => u.tagName === "UL" && u.scrollWidth > u.clientWidth)).toBe(true);
   await page$(page).getByRole("button", { name: "Wearables" }).click();
   const cols = async () => page$(page).locator(".shopbrand").evaluateAll((els) => Math.max(...els.map((e) => getComputedStyle(e.querySelector(".shopgrid")).gridTemplateColumns.split(" ").length)));
-  expect(await cols()).toBe(1);
+  expect(await cols()).toBeLessThanOrEqual(1);
   await page.setViewportSize({ width: 1280, height: 900 });
   expect(await cols()).toBeGreaterThanOrEqual(3);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

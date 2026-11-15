@@ -28,4 +28,9 @@ Baseline (2026-11-15, before any change): lint 0 errors (23 warnings), unit 637/
 - [x] routes #/shop, #/shop/<need>, #/care, #/shelf → the page; header bag button; Back restores focus; tab switch closes it
 - [x] e2e/shop.spec.mjs (6) + shop-axe.spec.mjs (light/dark, wide, Mono/Bloom/Clear/Journal); CLINICIAN-REVIEW, AFFILIATES, PRIVACY-AUDIT
 - [x] verified: lint 0 errors (23 warnings), unit 646/646, build stamp once, e2e 41/41, axe 30/30 -> final commit
-- Commits: 5cf41ac (WIP), then the final commit after this note
+- Commits: 5cf41ac (WIP), ae05eb9 (final)
+
+## Follow-up: brand colours, richer cards, tighter phone layout
+- [x] SHOP_HUES (10 hues, light + dark, AA tested), BRAND_HUE map, filled monograms, hue bands, richer placeholders (16:10 on phones), card styling, phone snap scroller, hero band; privacy line moved to the footer
+- [x] verified: lint 0 errors (23 warnings), unit 647/647, build stamp once, e2e 41/41, axe 30/30
+- Commits: f1bb733 (WIP), then the final commit after this note
