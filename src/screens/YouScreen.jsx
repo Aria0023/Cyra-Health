@@ -18,6 +18,7 @@ import { AI_DISCLOSURE } from "./AskScreen.jsx";
 import { AI_COPY } from "../lib/aiFeatures.js";
 import { FLOW_COPY } from "../lib/privacyFlows.js";
 import { AccountCard, SignedInCard } from "../components/AccountParts.jsx";
+import { PlanCardTiles } from "../components/PlanTiles.jsx";
 import { t } from "../lib/i18n.js";
 import { youAccountLine } from "../lib/signin.js";
 
@@ -54,7 +55,7 @@ const StageArt = () => (
     <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
   </svg>
 );
-export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, language = null, meals = null, dataSources = null, partner = null, learn = null, signMode = "none" }) {
+export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, language = null, meals = null, dataSources = null, partner = null, learn = null, signMode = "none", store = null, native = false }) {
   const offer = ai.offer || { any: false, weekly: false, chat: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
@@ -119,6 +120,7 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
       <Card id="you-plan" tint="patterns" icon="sparkle" eyebrow={PLAN_COPY.eyebrow} title={proOwned ? PLAN_COPY.pro : planUnlocked ? PLAN_COPY.test : PLAN_COPY.free} level={2} className="youplan" badge={<Chip variant="pro" />}>
         <p>{proOwned ? PLAN_COPY.bodyOn : trial?.gateOn ? PLAN_COPY.bodyTrial : PLAN_COPY.body}</p>
         {trial?.line && <p className="youtrial" role="status">{trial.line}</p>}
+        {!proOwned && <PlanCardTiles store={store} native={native} />}
         <div className="youplanacts">
           <button type="button" className="ghostbtn youprobtn" aria-haspopup="dialog" onClick={onPro}>{storeReady && !proOwned ? PLAN_COPY.seePlans : PLAN_COPY.see}</button>
           {onRestore && <button type="button" className="linkbtn yourestore" aria-describedby="you-store-line" onClick={onRestore}>{PLAN_COPY.restore}</button>}

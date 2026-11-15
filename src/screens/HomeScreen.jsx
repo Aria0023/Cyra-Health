@@ -54,7 +54,7 @@ const SLEPT = { good: "well", fair: "so-so", poor: "poorly" };
 const delta = (a, b, goodUp = true) => { const d = b - a; if (d === 0) return <span className="flat">{t("home.unchanged")}</span>; const good = goodUp ? d > 0 : d < 0; return <span className={good ? "up" : "down"}>{d > 0 ? "+" : ""}{d}</span>; };
 
 export default function HomeScreen({
-  trial = null, acct, stage, stageName, goTab, todayIso, homeInsight, patternsCard = null, wearInsights, milestones, justReached = null, nextUp, pulse,
+  trial = null, proChip = null, acct, stage, stageName, goTab, todayIso, homeInsight, patternsCard = null, wearInsights, milestones, justReached = null, nextUp, pulse,
   todayEntry = null, scoreIds = [], scoreLabels = {},
   hero, tiles = [], onTile, tilePicker = null, step = null, onStep, onSkipStep, bodyRail = [], mindRail = [],
   recap, showRecap, setShowRecap,
@@ -137,6 +137,14 @@ export default function HomeScreen({
         <div className="trialbar" role="status">
           <span>{trial.line}</span>
           <button type="button" className="linkbtn" aria-haspopup="dialog" onClick={trial.onPlans}>See plans</button>
+        </div>
+      )}
+      {/* Plans (2026-11-15): a small "Pro · 7-day free trial" note for someone without Pro, at most one day's first Home
+          visit, hidden with ×; it opens the plans sheet (App.jsx, lib/plans.js). */}
+      {proChip && (
+        <div className="prochip">
+          <button type="button" className="prochip-open" aria-haspopup="dialog" onClick={proChip.onOpen}><Icon name="sparkle" size={14} />{proChip.label}</button>
+          <button type="button" className="prochip-hide" aria-label={proChip.hideLabel} onClick={() => { proChip.onHide(); ctaRef.current?.focus({ preventScroll: true }); }}><Icon name="close" size={14} /></button>
         </div>
       )}
       {/* ---- Hero: the date, her greeting, and the cycle-day ring (pregnancy: the week; menopause: days since the last

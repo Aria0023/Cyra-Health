@@ -13,7 +13,11 @@ Baseline (2026-11-15, before any change): lint 0 errors (23 warnings), unit 637/
 - Commits: 89298a1 (WIP; also appended the owner's Task 3 design update to the brief), then the final commit after this note
 
 ## Task 2: plans and the 7-day trial
-- [ ] not started
+- [x] lib/plans.js (+tests): web tiles, store tiles (store prices, trial badge from the store offer), trial line, Home note rules
+- [x] components/PlanTiles.jsx (tiles, Get in the app with VITE_APP_STORE_URL / VITE_PLAY_STORE_URL, else "Coming soon"); You → Plan; Pro sheet opens with the tiles
+- [x] Home "Pro · 7-day free trial" note; record key proChip (device-only, not in backup) + record tests
+- [ ] e2e + axe (You plan tiles, Pro sheet, Home note), docs (MONETIZATION, PRIVACY-AUDIT)
+- [ ] verified -> final commit
 
 ## Task 3: a distinct Shop page
 - [ ] not started

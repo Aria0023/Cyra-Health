@@ -1685,6 +1685,31 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .aisend-acts .cta, .aisend-acts .ghostbtn { flex:1; margin:0; min-height:48px; }
 .proplanned-lab { margin:14px 0 4px; }
 .proplanned { margin:0 0 12px; padding-left:18px; font-size:var(--fs-sm); line-height:1.6; color:var(--soft); }
+/* Plans (2026-11-15, Task 2, components/PlanTiles.jsx): Yearly and Monthly side by side, stacked under 360px; Home's small Pro note. */
+.plantiles { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0 0 12px; padding:0; }
+@media (max-width:359px) { .plantiles { grid-template-columns:1fr; } }
+.plantile { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-height:44px; text-align:left; padding:14px 12px; border:1px solid var(--line); border-radius:var(--r-inner); background:var(--card); color:var(--ink); font:inherit; }
+.plantile.best { border-color:color-mix(in srgb, var(--primary) 55%, var(--line)); background:linear-gradient(160deg, var(--tint-patterns), var(--card) 75%); }
+button.plantile { cursor:pointer; }
+button.plantile.on { border-color:var(--primary); box-shadow:inset 0 0 0 1px var(--primary); }
+.plantile-top { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; }
+.plantile-title { font:600 15px var(--ff-body); }
+.plantile-best { font:700 var(--fs-xs) var(--ff-body); padding:2px 8px; border-radius:var(--r-pill); background:var(--card); color:var(--ink); box-shadow:inset 0 0 0 1px var(--edge); }
+.plantile-price { font:600 var(--fs-md) var(--ff-body); color:var(--ink); }
+.plantile-note { font-size:var(--fs-sm); color:var(--soft); }
+.plantile-trial { display:inline-flex; align-items:center; gap:4px; margin-top:2px; padding:3px 9px; border-radius:var(--r-pill); background:var(--tint-mind); color:var(--primary-text); font:700 var(--fs-sm) var(--ff-body); }
+.proplanstop { margin:0 0 14px; }
+.protrialline { margin:0 0 10px; font-size:var(--fs-md); line-height:1.5; color:var(--ink); }
+.youplantiles { margin:10px 0 6px; }
+.getinapp { margin:4px 0 0; padding:12px 14px; border-radius:var(--r-inner); background:color-mix(in srgb, var(--tint-you) 70%, var(--card)); box-shadow:inset 0 0 0 1px var(--edge); }
+.getinapp-h { margin:0 0 6px !important; font-size:var(--fs-md); color:var(--ink); }
+.getinapp-btns { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 6px; }
+.getinapp .storebtn { display:inline-flex; align-items:center; gap:8px; min-height:44px; }
+.getinapp-soon { margin:0 0 4px !important; font-size:var(--fs-sm); color:var(--soft); }
+.getinapp .rfoot { margin:0 !important; }
+.prochip { display:inline-flex; align-items:center; gap:2px; margin:0 0 12px; border:1px solid var(--line); border-radius:var(--r-pill); background:var(--card); }
+.prochip-open { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 6px 0 14px; border:0; background:none; color:var(--ink); font:600 var(--fs-sm) var(--ff-body); cursor:pointer; border-radius:var(--r-pill); }
+.prochip-hide { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border:0; background:none; color:var(--soft); cursor:pointer; border-radius:50%; }
 /* ---------- calm R9: the optional account (You → Account, its sheets, the splash sign-in) ---------- */
 .acctcard { position:relative; overflow:hidden; }
 .acctart { position:absolute; right:-6px; top:8px; width:120px; height:60px; pointer-events:none; }

@@ -3,7 +3,9 @@ import { Sheet } from "./ui/index.js";
 import Icon from "./Icon.jsx";
 import { t } from "../lib/i18n.js";
 import { loadOffer, buyPro, sendTip, STORE_LINES } from "../lib/purchase.js";
-import { PRO_PLAN_IDS, PRO_PRODUCTS, TIP_PRODUCTS, WEB_PRICE_LINE, planLines, CANCEL_LINES, KEEP_LINE } from "../lib/pricing.js";
+import { TIP_PRODUCTS, planLines, CANCEL_LINES, KEEP_LINE } from "../lib/pricing.js";
+import { planTiles, proTrialLine } from "../lib/plans.js";
+import { PlanTiles, GetInApp } from "./PlanTiles.jsx";
 import { TRIAL_COPY } from "../lib/trial.js";
 import { TERMS_URL, PRIVACY_URL, POLICY_LINKS_READY, TIP_URL, openExternal } from "../lib/links.js";
 
@@ -15,7 +17,11 @@ import { TERMS_URL, PRIVACY_URL, POLICY_LINKS_READY, TIP_URL, openExternal } fro
    - a phone whose store answered: the two plans with the STORE's own prices (never a price from this file), the
      auto-renewal terms, how to cancel, Restore, the Terms and Privacy links (App Store Guideline 3.1.2), and tips;
    - a phone without a connected store: the store's honest line, no price at all;
-   - the web: what Pro costs in the apps (WEB_PRICE_LINE), and a tip link only when VITE_TIP_URL is set;
+   - the web: the two plan tiles with the US reference prices "in the iPhone and Android apps", "Get Solia Health Pro in
+     the app" (store buttons from VITE_APP_STORE_URL / VITE_PLAY_STORE_URL, else "Coming soon …"), and a tip link only
+     when VITE_TIP_URL is set;
+   2026-11-15 (Task 2): the sheet opens with the two plan tiles (lib/plans.js; Yearly first with its free-trial badge) and
+   one line about the yearly trial, then what Pro adds. On a phone the tiles are the store's own and pick the plan;
    - Pro already on: what it includes and how to manage it. A dev build (proDev) says it is a test build.
    Every line under "What Pro adds" is something this build really opens for Pro (lib/plan.js). Task 3: Ask with evidence
    leads, then the weekly write-up and chat, then the encrypted backup where the build has it. */
@@ -37,6 +43,8 @@ export const PRO_CLOUD = Object.freeze(["shield", "An encrypted backup to Solia 
 export const PRO_NONE = "In this version Pro adds nothing yet: its features need Solia Health's server.";
 export const proAddsFor = (ai, cloud = false, gateOn = false) => [...(gateOn ? [PRO_LOG] : []), ...(ai ? [PRO_EVIDENCE, PRO_AI] : []), ...(cloud ? [PRO_CLOUD] : [])];
 
+const PLANS_LAB = "Pro plans";
+
 export default function ProSheet({ onClose, unlocked = false, owned = false, ai = false, cloud = false, gateOn = false, trialOver = false, store = null, native = false, onOwned, onRestore, ping }) {
   const selling = !!(store && store.available) && !owned;
   const [offer, setOffer] = useState(null); // null while the store hasn't answered
@@ -50,6 +58,9 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
   }, [store]);
 
   const lines = offer && offer.plans && offer.plans[pick] ? planLines(pick, offer.plans[pick]) : null;
+  const where = native ? "store" : "web";
+  const tiles = owned ? [] : planTiles({ where, offer: native ? offer : null });
+  const tLine = proTrialLine(where, tiles);
   const buy = async () => {
     if (busy || !lines) return;
     setBusy(true);
@@ -73,6 +84,14 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
   return (
     <Sheet id="pro-sheet" title={owned ? t("pro.proIsOn") : trialOver ? TRIAL_COPY.sheetTitle : t("pro.whatProAdds")} onClose={onClose} closeLabel={t("pro.closeWhatProAdds")} className="prosheet">
       {trialOver && !owned && <p className="protrial">{TRIAL_COPY.sheetBody}</p>}
+      {!owned && tiles.length > 0 && (
+        <div className="proplanstop">
+          <p className="section-lab" id="pro-plans-lab">{selling ? t("pro.choosePlan") : PLANS_LAB}</p>
+          {tLine && <p className="protrialline">{tLine}</p>}
+          <PlanTiles tiles={tiles} labelledBy="pro-plans-lab" pick={selling ? pick : null} onPick={selling ? setPick : null} />
+          {!native && <GetInApp id="pro-getinapp" />}
+        </div>
+      )}
       {!proAddsFor(ai, cloud, gateOn).length && <p className="hint pronone">{PRO_NONE}</p>}
       <ul className="prolist" aria-label={t("pro.whatProAddsInThis")}>
         {proAddsFor(ai, cloud, gateOn).map(([icon, tv, d]) => (
@@ -86,23 +105,9 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
       {owned && <p className="hint pronote">{t("pro.ownedNote")} {cancelLine}</p>}
 
       {selling && (
-        <div className="proplans" role="group" aria-labelledby="pro-plans-lab">
-          <p className="section-lab" id="pro-plans-lab">{t("pro.choosePlan")}</p>
+        <div className="proplans">
           {offer === null && <p className="hint" aria-live="polite">{t("pro.askingTheStore")}</p>}
           {offer !== null && !Object.keys(offer.plans || {}).length && <p className="hint">{STORE_LINES.noPrice}</p>}
-          <div className="proplanopts">
-            {PRO_PLAN_IDS.filter((id) => offer && offer.plans && offer.plans[id]).map((id) => {
-              const l = planLines(id, offer.plans[id]);
-              const on = pick === id;
-              return (
-                <button key={id} type="button" className={`proplanopt ${on ? "on" : ""}`} aria-pressed={on} onClick={() => setPick(id)}>
-                  <b>{l.title}</b><span className="proplanprice">{l.price}</span>
-                  {l.note && <span className="proplannote">{l.note}</span>}
-                  {PRO_PRODUCTS[id].trialDays > 0 && <span className="proplannote">{t("pro.freeTrialDays", { n: PRO_PRODUCTS[id].trialDays })}</span>}
-                </button>
-              );
-            })}
-          </div>
           {lines && (
             <>
               <button type="button" className="cta probuy" disabled={busy} aria-describedby="pro-terms" onClick={buy}>{busy ? t("pro.waitingForStore") : lines.button}</button>
@@ -118,7 +123,7 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
         </div>
       )}
 
-      {!owned && !selling && <p className="hint pronote">{native ? (store && store.line ? store.line : STORE_LINES.native) : WEB_PRICE_LINE}</p>}
+      {!owned && !selling && native && <p className="hint pronote">{store && store.line ? store.line : STORE_LINES.native}</p>}
       {!owned && unlocked && <p className="hint pronote">{t("pro.thisIsATestBuild")}</p>}
 
       {store && store.available && tips.length > 0 && (
