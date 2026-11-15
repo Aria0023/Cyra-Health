@@ -4,7 +4,7 @@ import Details from "./Details.jsx";
 import Icon from "./Icon.jsx";
 import {
   SHOP_COPY as C, SHOP_PAGE_COPY as P, AFFILIATE_LINE, TONE_LABEL, AVAIL_LABEL, CATEGORY_ICON, BRANDS,
-  linkFor, relFor, shopItems, allItems, itemSources, groupByBrand, brandsOf, monogram, brandTint, priceFor, imageFor, isReviewed,
+  linkFor, relFor, shopItems, allItems, itemSources, groupByBrand, brandsOf, monogram, brandHue, priceFor, imageFor, isReviewed,
 } from "../lib/shop.js";
 import { isNative } from "../lib/native.js";
 import { openExternal } from "../lib/links.js";
@@ -13,10 +13,12 @@ import { openExternal } from "../lib/links.js";
    design update). A full-screen page under the current tab (#/shop, and the old #/care and #/shelf), opened from the
    header's bag button on the five main tabs, a single entry card on You, and the quiet contextual links (ShopLink, through
    ShopContext, with the right category preselected). Back returns to where she came from.
-   The page: a soft "shop" wash with the h1 (focused on open), a "By need / By brand" switch over one horizontal chip
+   The page: a hero band (a soft wash of the stage primary) with the h1 (focused on open), one line and a "By need / By
+   brand" switch, then one horizontal chip
    scroller (needs, hers first, lib/shop.js shopCategories; or "All brands" and each brand with its monogram), then the
-   products grouped by brand: a tinted band (accent border and monogram in the brand's UI tint, never a data-viz ramp; the
-   brand, its type, one line about it) over a grid of cards (1 column on phones, 2–4 on wide screens). Each card: an image
+   products grouped by brand: a band in the brand's own hue (lib/constants.js SHOP_HUES, apart from the stage palettes
+   and the data-viz ramps: monogram tile, the brand, its type, one line about it) over its cards: on phones a horizontal
+   snap list when a brand has 2+ products (the next card peeks), on wide screens a 2–4 column grid. Each card: an image
    only where the owner placed a licensed one (src/config/shop-images.json), otherwise a calm placeholder; where it comes
    from and the owner's price when there is one; the name, what it covers, why, "Sold by", the evidence pill; "Visit
    <brand>" and "Learn more" (evidence, price note, sources). "Affiliate link" and the commission line only where
@@ -32,7 +34,7 @@ export function ShopLink({ category, label }) {
 
 /** The brand's monogram tile (decorative: the brand's name is always written beside it). */
 export const Monogram = ({ brand, size = "sm" }) => (
-  <span className={`shopmono ${size}`} data-tint={brandTint(brand)} aria-hidden="true">{monogram(brand)}</span>
+  <span className={`shopmono ${size}`} data-hue={brandHue(brand)} aria-hidden="true">{monogram(brand)}</span>
 );
 
 function ProductCard({ item, affiliates, images, signed, onTry }) {
@@ -43,12 +45,21 @@ function ProductCard({ item, affiliates, images, signed, onTry }) {
   const go = (e) => { if (isNative()) { e.preventDefault(); openExternal(link.href); } };
   return (
     <li className="shopcard" data-item={item.id}>
-      <div className="shopimg" data-tint={brandTint(item.brand)}>
-        {img ? <img src={`${import.meta.env.BASE_URL || "/"}${img}`} alt="" loading="lazy" /> : <span className="shopimg-ph" aria-hidden="true"><Icon name={CATEGORY_ICON[item.category] || "bag"} size={34} /></span>}
-        <span className="shopimg-brand" aria-hidden="true">{item.brand}</span>
+      <div className="shopimg" data-hue={brandHue(item.brand)}>
+        {img ? <img src={`${import.meta.env.BASE_URL || "/"}${img}`} alt="" loading="lazy" /> : (
+          <>
+            <svg className="shopimg-blobs" viewBox="0 0 200 125" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+              <path className="b1" d="M150 -10c34 6 58 34 52 62s-40 40-70 30-44-40-34-64 22-34 52-28z" />
+              <path className="b2" d="M20 90c22-10 52-2 60 18s-8 40-34 42-48-10-50-30 2-22 24-30z" />
+              <circle className="b3" cx="40" cy="22" r="6" /><circle className="b3" cx="176" cy="104" r="4" />
+            </svg>
+            <span className="shopimg-ph" aria-hidden="true"><Icon name={CATEGORY_ICON[item.category] || "bag"} size={36} /></span>
+          </>
+        )}
+        <span className="shopimg-brand" aria-hidden="true"><Monogram brand={item.brand} size="xs" />{item.brand}</span>
       </div>
       <div className="shopcard-body">
-        <p className="shopmeta"><span>{AVAIL_LABEL[item.avail] || ""}</span>{price && <span className="shopprice">{price}</span>}</p>
+        <p className="shopmeta" data-hue={brandHue(item.brand)}><span className="shopavail"><span className="shopdot" aria-hidden="true" />{AVAIL_LABEL[item.avail] || ""}</span>{price && <span className="shopprice">{price}</span>}</p>
         <h3 className="sname" id={nameId}>{item.name}</h3>
         {item.covers && <p className="shopcovers">{item.covers}</p>}
         <p className="shopwhy">{item.why}</p>
@@ -79,7 +90,7 @@ function BrandSection({ brand, items, ...card }) {
   const hid = `shopb-${monogram(brand).toLowerCase()}-${items[0].id}`;
   return (
     <section className="shopbrand" aria-labelledby={hid}>
-      <div className="shopband" data-tint={brandTint(brand)}>
+      <div className="shopband" data-hue={brandHue(brand)}>
         <Monogram brand={brand} size="lg" />
         <div className="shopband-text">
           <h2 className="shopband-name" id={hid}>{brand}</h2>
@@ -87,7 +98,7 @@ function BrandSection({ brand, items, ...card }) {
           {b.about && <p className="shopband-about">{b.about}</p>}
         </div>
       </div>
-      <ul className="shopgrid" aria-labelledby={hid}>{items.map((i) => <ProductCard key={i.id} item={i} {...card} />)}</ul>
+      <ul className={`shopgrid ${items.length > 1 ? "multi" : ""}`} aria-labelledby={hid}>{items.map((i) => <ProductCard key={i.id} item={i} {...card} />)}</ul>
     </section>
   );
 }
@@ -108,13 +119,12 @@ export function ShopPage({ categories, initial = null, affiliates = {}, images =
     <main className="shoppage" aria-labelledby="shop-h">
       <div className="shophero">
         <button type="button" className="linkbtn shopback" onClick={onBack}><Icon name="chevron" className="shopback-ico" size={16} />{P.back}</button>
-        <p className="eyebrow">{C.eyebrow}</p>
-        <h1 className="disp" id="shop-h" tabIndex={-1} ref={headRef}>{P.title}</h1>
+        <h1 className="disp" id="shop-h" tabIndex={-1} ref={headRef}><span className="shophero-ico" aria-hidden="true"><Icon name="bag" size={20} /></span>{P.title}</h1>
         <p className="shoplead">{P.lead}</p>
-      </div>
-      <div className="seg shopmode" role="group" aria-label={P.viewLab}>
-        <button type="button" className={`mc ${mode === "need" ? "on" : ""}`} aria-pressed={mode === "need"} onClick={() => setMode("need")}>{P.byNeed}</button>
-        <button type="button" className={`mc ${mode === "brand" ? "on" : ""}`} aria-pressed={mode === "brand"} onClick={() => setMode("brand")}>{P.byBrand}</button>
+        <div className="seg shopmode" role="group" aria-label={P.viewLab}>
+          <button type="button" className={`mc ${mode === "need" ? "on" : ""}`} aria-pressed={mode === "need"} onClick={() => setMode("need")}>{P.byNeed}</button>
+          <button type="button" className={`mc ${mode === "brand" ? "on" : ""}`} aria-pressed={mode === "brand"} onClick={() => setMode("brand")}>{P.byBrand}</button>
+        </div>
       </div>
       {mode === "need" ? (
         <div className="shopchips" role="group" aria-label={P.needLab}>
@@ -129,6 +139,7 @@ export function ShopPage({ categories, initial = null, affiliates = {}, images =
       {items.length ? groupByBrand(items).map((g) => <BrandSection key={g.brand} brand={g.brand} items={g.items} {...card} />) : <p className="hint">{P.noneHere}</p>}
       <footer className="shopfoot">
         <h2 className="shopfoot-h">{P.footHead}</h2>
+        <p className="rfoot">{P.footMatched}</p>
         <p className="rfoot">{C.privacy}</p>
         <p className="rfoot">{C.notAdvice}</p>
       </footer>

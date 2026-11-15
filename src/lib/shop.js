@@ -202,7 +202,8 @@ export const itemSources = (item) => (item.src || []).map((k) => SHOP_SOURCES[k]
 /* ---------- the Shop page (2026-11-15, plans-shop-page Task 3 and the owner's design update) ---------- */
 export const SHOP_PAGE_COPY = Object.freeze({
   title: "Shop by need",
-  lead: "Real products and services for your stage, with an honest note on the evidence. Matched on this device; nothing about you is sent.",
+  lead: "Real products and services for your stage, with an honest note on the evidence.",
+  footMatched: "Matched on this device; nothing about you is sent.",
   back: "Back",
   byNeed: "By need",
   byBrand: "By brand",
@@ -259,11 +260,21 @@ export function monogram(brand) {
   if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
   return (words[0] || "?").slice(0, 2).toUpperCase();
 }
-/** The brand tile's colour: one of the UI palette's four tints (never a data-viz ramp), the same for a brand every time. */
-export const BRAND_TINTS = Object.freeze(["mind", "body", "patterns", "you"]);
-export function brandTint(brand) {
+/* The brand's hue (2026-11-15 polish): one of the shop's own hues (lib/constants.js SHOP_HUES; not a stage UI palette,
+   not a data-viz ramp), fixed per brand so brands side by side in a need look different. */
+export const BRAND_HUE = Object.freeze({
+  "Quest Diagnostics": "teal", "Labcorp OnDemand": "blue", Everlywell: "coral",
+  "Easy@Home": "rose", Clearblue: "indigo", Mira: "violet", Inito: "cyan", Proov: "plum", "Nature Made": "green", "First Response": "coral",
+  Dexcom: "green", Abbott: "blue", "FreeStyle Libre": "amber",
+  Oura: "amber", Apple: "indigo", Garmin: "cyan", Fitbit: "teal", Whoop: "rose",
+  ThermaCare: "coral", Thinx: "plum", "Midi Health": "violet", "Slumber Cloud": "blue", Sleepio: "indigo", "US Department of Veterans Affairs": "blue",
+});
+export const SHOP_HUE_IDS = Object.freeze(["teal", "blue", "coral", "violet", "green", "amber", "rose", "indigo", "cyan", "plum"]);
+/** The hue of a brand (a fallback from its name for a brand without one in BRAND_HUE). */
+export function brandHue(brand) {
+  if (BRAND_HUE[brand]) return BRAND_HUE[brand];
   let h = 0; for (const ch of String(brand || "")) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return BRAND_TINTS[h % BRAND_TINTS.length];
+  return SHOP_HUE_IDS[h % SHOP_HUE_IDS.length];
 }
 /** The brands of a list of items, in order of first appearance. */
 export const brandsOf = (items) => [...new Set(items.map((i) => i.brand))];
