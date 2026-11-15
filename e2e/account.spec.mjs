@@ -2,7 +2,7 @@
    - required: "Create your account" first, Apple first, no skip; a wrong then a right email code; the app opens;
      You → Account names her; sign out brings the one-time sign-in screen; Google (a mocked redirect) signs her back in;
      delete account (confirmed) says her log stays; nothing from her log went to the server.
-   - no sign-in set up on the server: "Continue without an account", said plainly.
+   - no sign-in set up on the server: "Continue for now", said plainly (2026-11-15: never "No account needed").
    - an existing record (made while sign-in wasn't set up) is asked to sign in once when it becomes required; its log stays.
    - the no-server build: the step explains there is no server and makes no request (privacy.spec.mjs checks the rest). */
 import { test, expect } from "@playwright/test";
@@ -67,13 +67,14 @@ test("required, end to end: email sign-in → app → You → sign out → gate 
   for (const r of state.sent) if (r.body) for (const k of Object.keys(r.body)) expect(["email", "code", "verifier"]).toContain(k);
 });
 
-test("no sign-in set up on the server: continue without an account, said plainly", async ({ page }) => {
+test("no sign-in set up on the server: continue for now, said plainly", async ({ page }) => {
   const state = newApiState({ providers: { apple: false, google: false, facebook: false, email: false } });
   await mockApi(page, state);
   await page.goto(`${API_URL()}/`);
   await page.getByRole("button", { name: "Get started" }).click();
-  await expect(page.getByText("Sign-in isn't set up on this server yet, so you can continue without an account.")).toBeVisible();
-  await page.getByRole("button", { name: "Continue without an account" }).click();
+  await expect(page.getByRole("heading", { name: "Your account" })).toBeVisible();
+  await expect(page.getByText("Sign-in isn't switched on for this server yet. Until it is, your log lives on this device.")).toBeVisible();
+  await page.getByRole("button", { name: "Continue for now" }).click();
   await expect(page.getByRole("heading", { name: "Where are you right now?" })).toBeVisible();
 });
 
@@ -100,7 +101,22 @@ test("the no-server build: the step says there's no server and asks nothing", as
   page.on("request", (r) => { if (/\/api\//.test(r.url())) api.push(r.url()); });
   await page.goto(`${process.env.E2E_URL}/`);
   await page.getByRole("button", { name: "Get started" }).click();
-  await expect(page.getByText("This version of Solia Health has no server, so there's no account to make.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your account" })).toBeVisible();
+  await expect(page.getByText("Sign-in isn't switched on in this version yet. Until it is, your log lives on this device.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue for now" })).toBeVisible();
   await expect(page.locator(".signinbtn")).toHaveCount(0);
+  await expect(page.getByText(/No account needed|no account to make/i)).toHaveCount(0);
   expect(api).toEqual([]);
+});
+
+test("the no-server build: splash and You → Account say sign-in isn't switched on yet, never \"No account needed\"", async ({ page }) => {
+  await page.goto(`${process.env.E2E_URL}/`);
+  await expect(page.getByText("Accounts are on the way: sign-in isn't switched on in this version yet.")).toBeVisible();
+  await expect(page.getByText(/No account needed/i)).toHaveCount(0);
+  await register(page, { stage: "My Cycle", name: "Maya" });
+  await gotoTab(page, "You");
+  const card = page.locator("#you-account");
+  await expect(card.getByRole("heading", { name: "Your account" })).toBeVisible();
+  await expect(card).toContainText("Sign-in isn't switched on in this version yet. Until it is, your log lives on this device, and your name stays with it.");
+  await expect(page.getByText(/No account needed|keeps no account/i)).toHaveCount(0);
 });

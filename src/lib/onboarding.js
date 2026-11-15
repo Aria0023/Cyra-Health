@@ -84,10 +84,12 @@ export const PCOS_STAGES = ["My Cycle", "Trying to conceive", "Perimenopause"];
 export const STEP_COPY = {
   stage: { short: "Stage", title: "Where are you right now?", sub: "Pick all that fit, like having periods and being in perimenopause. You can change it anytime." },
   pcos: { short: "PCOS", title: "Living with PCOS?", sub: "Optional. A yes adds PCOS tracking, and you can change it in You. Your answer stays on this device, and goes into an encrypted backup only if you save one." },
+  // The same step while sign-in is switched off (no server, or the server has none set up): nothing to sign in with yet.
+  signinOff: { short: "Account", title: "Your account", sub: "Solia Health accounts are on the way. Sign-in isn't switched on in this version yet, so for now you can continue without one. Your health log stays on this device." },
   signin: { short: "Account", title: "Create your account", sub: "Sign in so Solia Health knows it's you. Your health log stays on this device, and your account never holds it." },
   // The Device step in a build with sign-in (signin flag and a server): the account exists, so the "no account" sentence goes.
   deviceSignin: { short: "Device", title: "Set up Solia Health on this device", sub: "Your name, email and answers here are saved on this device, not in your account. Lose the device or clear the browser and you lose them, unless you saved an encrypted backup, which keeps most of them." },
-  account: { short: "Device", title: "Set up Solia Health on this device", sub: "There's no Solia Health account. Your name, email and answers are saved on this device. Lose the device or clear the browser and you lose them, unless you saved an encrypted backup, which keeps most of them." },
+  account: { short: "Device", title: "Set up Solia Health on this device", sub: "Sign-in isn't switched on in this version yet. Your name, email and answers are saved on this device. Lose the device or clear the browser and you lose them, unless you saved an encrypted backup, which keeps most of them." },
   cycle: { short: "Cycle", title: "Your cycle history", sub: "So predictions can start from day one. These answers stay on this device, and go into an encrypted backup only if you save one." },
   pregnancy: { short: "Pregnancy", title: "Your pregnancy", sub: "So your week and your care roadmap start in the right place. Your due date stays on this device, and goes into an encrypted backup only if you save one." },
   consent: { short: "Consent", title: "Your data and your choices", sub: "What Solia Health does with your data today — and choices you can change later in Settings." },

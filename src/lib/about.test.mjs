@@ -36,6 +36,7 @@ test("account lines: a name is mentioned only when one was given", () => {
   assert.equal(accountLine({ anon: false, name: "" }), ACCOUNT_LINES.none);
   assert.equal(accountLine({ anon: false, name: "Maya" }), ACCOUNT_LINES.named);
   assert.equal(accountLine(null), ACCOUNT_LINES.none);
+  for (const l of Object.values(ACCOUNT_LINES)) assert.doesNotMatch(l, /^No account|keeps no account/, l); // 2026-11-15
 });
 
 test("legal lines say what Solia Health is not", () => {

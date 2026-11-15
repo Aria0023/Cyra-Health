@@ -43,7 +43,7 @@ test("register (My Cycle, PCOS on), the five tabs, the log sheet, the one-page P
 test("stage cards are multi-pick: periods and perimenopause together; registration never asks about devices", async ({ page }) => {
   await page.goto(`${process.env.E2E_URL}/`);
   await page.getByRole("button", { name: "Get started" }).click();
-  const skip = page.getByRole("button", { name: "Continue without an account" });
+  const skip = page.getByRole("button", { name: "Continue for now" });
   if (await skip.isVisible().catch(() => false)) await skip.click();
   const card = (s) => page.locator(".stagecard", { hasText: s }).first();
   await card("My Cycle").click();

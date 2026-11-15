@@ -19,6 +19,7 @@ import { AI_COPY } from "../lib/aiFeatures.js";
 import { FLOW_COPY } from "../lib/privacyFlows.js";
 import { AccountCard, SignedInCard } from "../components/AccountParts.jsx";
 import { t } from "../lib/i18n.js";
+import { youAccountLine } from "../lib/signin.js";
 
 /* You (calm R7, spec "You tab"): one calm scrolling page of v2 Cards. It is where she controls her data, so the
    privacy dashboard is the first thing under her stage. Top to bottom:
@@ -32,7 +33,7 @@ import { t } from "../lib/i18n.js";
    - Check-ins, Reminders, (weekly counts where the build has them), Appearance, (Install), Cyra's AI, About you:
      the same controls, ids and sentences the Settings sheet has (components/settingsParts.jsx);
    - Account: Task 1's sign-in card (who is signed in, Sign out, Delete account) while this device is signed in;
-     otherwise R7's "No account needed" card, unchanged, in a build without the optional account; calm R9: where the
+     otherwise "Your account" (2026-11-15: sign-in isn't switched on yet, or she hasn't signed in) in a build without the optional account; calm R9: where the
      build offers it (`account`, lib/cloudBackup.js ACCOUNTS_HERE) the AccountCard (guest by default; create, sign in,
      back up now, sign out, delete, and the "backup is newer" choice); Shop by need (components/Shop.jsx, 2026-11-14; it replaced the care shelf), About & legal (not a medical device, links, build).
    - Cyra's AI (calm R8): with Pro, the ai flag and a server, the weekly write-up and chat switches (off by default) and
@@ -53,7 +54,7 @@ const StageArt = () => (
     <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
   </svg>
 );
-export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, language = null, meals = null, dataSources = null, partner = null, learn = null }) {
+export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, language = null, meals = null, dataSources = null, partner = null, learn = null, signMode = "none" }) {
   const offer = ai.offer || { any: false, weekly: false, chat: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
@@ -218,11 +219,12 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
         <AboutBody hideLab compact regAnswers={sp.regAnswers} onAnswer={sp.onAnswer} stage={sp.stage} stageName={sp.stageName} todayIso={sp.todayIso} />
       </Card>
 
-      {/* Task 1: the sign-in account, when this device is signed in (the "No account needed" card would no longer be true). */}
+      {/* Task 1: the sign-in account, when this device is signed in. Otherwise "Your account" says why there is none yet
+          (2026-11-15: never "No account needed"; signinMode none / unset: sign-in isn't switched on yet). */}
       {signedIn && <SignedInCard si={signedIn} />}
       {account ? <AccountCard a={account} person={acct} /> : !signedIn && (
-        <Card id="you-account" tint="you" icon="user" eyebrow={t("you.account")} title={t("you.noAccountNeeded")} level={2} className="youaccount">
-          <p>{accountLine(acct)}</p>
+        <Card id="you-account" tint="you" icon="user" eyebrow={t("you.account")} title={t("you.yourAccount")} level={2} className="youaccount">
+          <p>{signMode === "none" ? accountLine(acct) : youAccountLine(signMode)}</p>
           <p className="rfoot">{ACCOUNT_LINES.more}</p>
         </Card>
       )}

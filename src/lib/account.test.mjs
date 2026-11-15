@@ -117,7 +117,8 @@ test("account: every sentence is calm and honest (no streaks, grades, or claims 
   assert.match(ACCOUNT_COPY.lost, /nobody can recover it/);
   assert.ok(ACCOUNT_COPY.holds.some((t) => /hash of your email/.test(t) && /Never your email/.test(t)));
   assert.ok(!/streak|score|perfect|fail(ed|ure) you|recover your passphrase|reset your passphrase|magic link/i.test(all));
-  assert.ok(/No account needed/.test(ACCOUNT_COPY.guestTitle));
+  assert.equal(ACCOUNT_COPY.guestTitle, "Your account"); // 2026-11-15: never "No account needed"
+  assert.doesNotMatch(all, /No account needed/i);
 });
 
 test("disclosures (calm R9): accounts builds name the encrypted account backup; every other build is unchanged", () => {
@@ -138,8 +139,9 @@ test("disclosures (calm R9): accounts builds name the encrypted account backup; 
     assert.ok(Object.values(potsTodayFootUnsaved(f, true)).every((t) => t.includes(ACCOUNT_EXCEPT)));
     assert.ok(potsNeverSent(f, true).endsWith(`${ACCOUNT_EXCEPT}.`) && !potsNeverSent(f).includes("account"));
   }
-  assert.equal(splashAccountLine(), "No account needed. There's no Solia Health account to make, and your name and email are optional.");
-  assert.match(splashAccountLine(true), /^No account needed\. An account is optional/);
+  assert.equal(splashAccountLine(), "Accounts are on the way: sign-in isn't switched on in this version yet. Your name and email are optional.");
+  assert.match(splashAccountLine(true), /^An account is optional/);
+  for (const a of [false, true]) for (const si of [false, true]) assert.doesNotMatch(splashAccountLine(a, si), /No account needed|no Solia Health account to make/i);
   assert.match(consentBackupFact(true), /optional account keeps the same kind of encrypted backup/);
   assert.equal(consentBackupFact(), "A backup is a file you keep, locked with a passphrase only you know. Solia Health never receives the file or the passphrase, so we can't read it or recover a lost passphrase.");
 });

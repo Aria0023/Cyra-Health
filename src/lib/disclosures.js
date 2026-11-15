@@ -172,12 +172,13 @@ export const potsNeverSent = (f, accounts = false) => {
 
 /* ---------- the splash, the lock screen and the registration consent card (calm R9) ---------- */
 /** The splash promise's second item. Task 1: in a build with sign-in (signin flag and a server) she signs in, so "no
-    account" can't be said; the line says what the account holds instead. */
+    account" can't be said; the line says what the account holds instead. 2026-11-15 (owner: accounts are required):
+    never "No account needed"; a build without sign-in says sign-in isn't switched on yet. */
 export const splashAccountLine = (accounts = false, signin = false) => (signin
   ? "You sign in with Apple, Google, Facebook or email. Your account holds how you sign in, never your health log."
   : accounts
-  ? "No account needed. An account is optional and only keeps an encrypted backup, and your name and email are optional too."
-  : "No account needed. There's no Solia Health account to make, and your name and email are optional.");
+  ? "An account is optional and only keeps an encrypted backup, and your name and email are optional too."
+  : "Accounts are on the way: sign-in isn't switched on in this version yet. Your name and email are optional.");
 /** The consent card's backup fact. */
 export const consentBackupFact = (accounts = false) => `A backup is a file you keep, locked with a passphrase only you know. Solia Health never receives the file or the passphrase, so we can't read it or recover a lost passphrase.${accounts ? " The optional account keeps the same kind of encrypted backup on Solia Health's server; Solia Health can't read it or recover that passphrase either." : ""}`;
 /** The report's watch/ring sentence: only where a watch, ring or health app can be connected at all. */
