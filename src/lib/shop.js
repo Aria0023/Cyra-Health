@@ -219,6 +219,8 @@ export const SHOP_PAGE_COPY = Object.freeze({
   reviewed: "Clinician reviewed",
   noneHere: "Nothing here for this plan.",
   footHead: "About this shop",
+  footList: "The product list comes from Solia Health's server, like loading a web page: the request carries nothing about you.",
+  fromBrand: (brand) => `From ${brand}:`,
   footLearns: "What the shop learns: nothing from Solia Health. Matching happens on this device. A shop learns only that you visited, and, through an affiliate link, that you came from Solia Health.",
   entryTitle: "Shop by need",
   entryLine: "Real products for your stage",

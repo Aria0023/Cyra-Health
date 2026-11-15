@@ -25,6 +25,7 @@ const CATS = SHOP_CATEGORIES.map((c) => c.id);
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,47}$/;
 const IMAGE_RE = /^[a-f0-9]{24}$/;
 const PRICE_RE = /^(From |About )?[$£€]\d[\d.,]{0,8}( (a|per) (month|year|test|kit))?$/;
+const has = (o, k) => Object.prototype.hasOwnProperty.call(o, k); // not Object.hasOwn: iOS 15.0 target
 const CTRL = /[\u0000-\u001F\u007F‪-‮⁦-⁩]/g; // eslint-disable-line no-control-regex
 
 /** Plain text: a string, control and bidi characters removed, whitespace collapsed, at most `max` characters, else "". */
@@ -69,11 +70,11 @@ export function cleanCatalog(raw) {
     const url = httpsUrl(p.url);
     const categories = ids(p.categories, CATS, 3);
     if (!id || !name || !url || !categories.length || !brands.some((b) => b.id === p.brandId) || products.some((x) => x.id === id)) continue;
-    const ev = p.evidence && typeof p.evidence === "object" && Object.hasOwn(TONE_LABEL, p.evidence.tone) && text(p.evidence.label, 80) ? { tone: p.evidence.tone, label: text(p.evidence.label, 80) } : null;
+    const ev = p.evidence && typeof p.evidence === "object" && has(TONE_LABEL, p.evidence.tone) && text(p.evidence.label, 80) ? { tone: p.evidence.tone, label: text(p.evidence.label, 80) } : null;
     products.push({
       id, brandId: p.brandId, name, url, categories,
       covers: text(p.covers, 140), description: text(p.description, 400), why: text(p.why, 240),
-      availability: Object.hasOwn(AVAIL_LABEL, p.availability) ? p.availability : "",
+      availability: has(AVAIL_LABEL, p.availability) ? p.availability : "",
       price: typeof p.price === "string" && PRICE_RE.test(p.price.trim()) ? p.price.trim() : "",
       affiliateUrl: httpsUrl(p.affiliateUrl),
       imageId: typeof p.imageId === "string" && IMAGE_RE.test(p.imageId) ? p.imageId : null,

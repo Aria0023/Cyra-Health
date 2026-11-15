@@ -4,6 +4,7 @@
 import { API_BASE } from "./serve.mjs";
 
 const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "content-type, authorization", "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS" };
+const PNG_1PX = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 export const TOKEN = `${"t".repeat(40)}.${"s".repeat(43)}`;
 export const account = (provider, email, name = "") => ({ id: `acct_${provider}_0001`, provider, email, name, createdAt: "2026-11-12T10:00:00.000Z" });
 
@@ -13,6 +14,7 @@ export function newApiState(over = {}) {
     code: "123456",
     sources: { oura: true, terra: true },
     evidence: null, // (body) => { status, json } for POST /api/ai/evidence
+    catalog: null, // GET /api/shop/catalog answers this (any JSON) when set; null = 404, so the app keeps its bundled catalog
     sent: [],
     ...over,
   };
@@ -26,7 +28,7 @@ export async function mockApi(target, state) {
     const method = req.method();
     if (method === "OPTIONS") return route.fulfill({ status: 204, headers: CORS });
     let body = null; try { body = req.postDataJSON(); } catch { body = null; }
-    state.sent.push({ method, path: u.pathname, body, auth: req.headers().authorization || null });
+    state.sent.push({ method, path: u.pathname, search: u.search, body, auth: req.headers().authorization || null, cookie: req.headers().cookie || null });
     const json = (status, obj) => route.fulfill({ status, headers: { ...CORS, "content-type": "application/json" }, body: JSON.stringify(obj) });
     const p = u.pathname;
     if (p === "/api/accounts/config") return json(200, { providers: state.providers });
@@ -43,6 +45,8 @@ export async function mockApi(target, state) {
     if (p === "/api/integrations/sources") return json(200, state.sources);
     if (p === "/api/ai/status") return json(200, { ready: true });
     if (p === "/api/ai/evidence" && state.evidence) { const r = state.evidence(body); return json(r.status, r.json); }
+    if (p === "/api/shop/catalog") return state.catalog == null ? json(404, { error: "not in the mock" }) : json(200, state.catalog);
+    if (/^\/api\/shop\/images\/[a-f0-9]{24}$/.test(p)) return route.fulfill({ status: 200, headers: { ...CORS, "content-type": "image/png", "cache-control": "public, max-age=31536000, immutable" }, body: PNG_1PX });
     if (p === "/api/ai/ask") return json(200, { provider: "rules", answer: "A written answer.", source_note: null, ask_your_doctor: null, urgent: false });
     return json(404, { error: "not in the mock" });
   });

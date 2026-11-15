@@ -187,6 +187,8 @@ import { ShopContext, ShopEntryCard, ShopPage, ShopLink } from "./components/Sho
 import SHOP_IMAGES from "./config/shop-images.json";
 import SHOP_REVIEWED from "./config/shop-reviewed.json";
 import { shopCategories } from "./lib/shop.js";
+import { cleanShopCatalog, catalogDue, shopFor } from "./lib/shopCatalog.js";
+import { fetchShopCatalog, SHOP_LIVE } from "./lib/shopLive.js";
 import AFFILIATES from "./config/affiliates.json";
 import YouScreen from "./screens/YouScreen.jsx";
 import CyclesScreen from "./screens/CyclesScreen.jsx";
@@ -488,11 +490,28 @@ export default function CyraDemo() {
      page is open under the current tab (UI only). shopFrom is the control that opened it, where Back returns focus. */
   const [shopPage, setShopPage] = useState(null);
   const shopFrom = useRef(null);
+  /* The live Shop catalog (2026-11-15, partner portal Task 3, lib/shopCatalog.js): in a build with a server and the shop
+     flag, the published catalog is downloaded when the Shop page opens and at most once a day otherwise, with one plain
+     GET that carries nothing about her (lib/shopLive.js). shopCatalog is the cleaned copy and when it came (device-only,
+     never in a backup); null = the bundled catalog. A server answer that fails the cleaner drops the copy (bundled
+     again); no answer at all keeps it. */
+  const [shopCatalog, setShopCatalog] = useState(null);
+  const shopFetching = useRef(false);
+  const refreshShop = async () => {
+    if (!SHOP_LIVE || shopFetching.current) return;
+    shopFetching.current = true;
+    try {
+      const r = await fetchShopCatalog();
+      if (r.ok) setShopCatalog({ at: new Date().toISOString(), data: r.data });
+      else if (r.invalid) setShopCatalog(null);
+    } finally { shopFetching.current = false; }
+  };
   const openShop = (cat = null) => {
     const a = document.activeElement;
     shopFrom.current = a && a !== document.body && !a.closest?.("[role=dialog]") ? a : null;
     setDevicesOpen(false); setShowSettings(false); setShowPal(false); setLogOpen(false); setPotsOpen(false);
     setShopPage({ cat: cat || null, at: Date.now() });
+    refreshShop();
   };
   const [cloudSync, setCloudSync] = useState({ state: "idle", conflict: null, error: null });
   const [acctSheet, setAcctSheet] = useState(null); // "create" | "signin" | null
@@ -570,6 +589,8 @@ export default function CyraDemo() {
   // The free week starts the first day she is in the app with a stage (a new registration, or the first launch of this
   // version for someone already registered). It is kept in her record, so a restored backup keeps its start.
   useEffect(() => { if (hydrated && phase === "app" && stage != null && !trialStart) setTrialStart(todayIso); }, [hydrated, phase, stage, trialStart, todayIso]);
+  // The Shop catalog's background refresh: at most once a day, once she is in the app (refreshShop above; nothing about her).
+  useEffect(() => { if (SHOP_LIVE && hydrated && phase === "app" && stage != null && catalogDue(shopCatalog)) refreshShop(); }, [hydrated, phase, stage]); // eslint-disable-line react-hooks/exhaustive-deps
   const syncDay = () => { const now = localDay(); setTodayIso((cur) => (cur === now ? cur : now)); return now; };
   const isMeno = phaseOf(stage, stageName) === "meno";
   /* Summaries and links in her log (L8, lib/insights.js): worked out here on render from the on-device record, never
@@ -1558,8 +1579,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLogRaw, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMedsRaw, medLog: setMedLogRaw, appts: setApptsRaw, journal: setJournalRaw, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDaysRaw, pregLog: setPregLogRaw, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestionsRaw(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLogRaw(cleanBodyLog(v)), labs: (v) => setLabsRaw(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLogRaw(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperimentsRaw(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)), signin: (v) => setSignin((cur) => cur || cleanSignin(v)), devicesHint: (v) => setDevicesHint(cleanDevicesHint(v)), practiceVoice: (v) => setPracticeVoice(v === true), trialStart: (v) => setTrialStart(cleanTrialStart(v)), guide: (v) => setGuide(cleanGuide(v)), partnerShare: (v) => setPartnerShare(cleanPartnerShare(v)), glucoseLog: (v) => setGlucoseLog(cleanGlucoseLog(v)), proChip: (v) => setProChip(cleanProChip(v)) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats, signin, devicesHint, practiceVoice, trialStart, guide, partnerShare, glucoseLog, proChip };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLogRaw, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMedsRaw, medLog: setMedLogRaw, appts: setApptsRaw, journal: setJournalRaw, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDaysRaw, pregLog: setPregLogRaw, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestionsRaw(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLogRaw(cleanBodyLog(v)), labs: (v) => setLabsRaw(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLogRaw(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperimentsRaw(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)), signin: (v) => setSignin((cur) => cur || cleanSignin(v)), devicesHint: (v) => setDevicesHint(cleanDevicesHint(v)), practiceVoice: (v) => setPracticeVoice(v === true), trialStart: (v) => setTrialStart(cleanTrialStart(v)), guide: (v) => setGuide(cleanGuide(v)), partnerShare: (v) => setPartnerShare(cleanPartnerShare(v)), glucoseLog: (v) => setGlucoseLog(cleanGlucoseLog(v)), proChip: (v) => setProChip(cleanProChip(v)), shopCatalog: (v) => setShopCatalog(cleanShopCatalog(v)) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats, signin, devicesHint, practiceVoice, trialStart, guide, partnerShare, glucoseLog, proChip, shopCatalog };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1921,7 +1942,7 @@ export default function CyraDemo() {
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
-    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, uiLocale, uiStyle, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount, signin, devicesHint, practiceVoice, guide, proChip };
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, uiLocale, uiStyle, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount, signin, devicesHint, practiceVoice, guide, proChip, shopCatalog };
     if (account) setCloudAccount(account);
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
@@ -2987,7 +3008,8 @@ export default function CyraDemo() {
   /* Task C: Shop by need. Categories in her order, matched here on the device (stage, Trying to conceive, menopause, the
      PCOS module, a connected glucose sensor); the owner's affiliate links from src/config/affiliates.json; an employer
      build's allow-list. The contextual links open the sheet on one category. */
-  const shopProps = { categories: shopCategories({ stage, ttc, pcos: pcosHere, glucose: glucoseOn }), affiliates: AFFILIATES, allow: org.partnerIds || null };
+  const shopNow = shopFor(SHOP_LIVE ? shopCatalog : null, { apiBase: API_BASE, affiliates: AFFILIATES, images: SHOP_IMAGES, signed: SHOP_REVIEWED.signed });
+  const shopProps = { shop: shopNow, live: shopNow.source === "live", categories: shopCategories({ stage, ttc, pcos: pcosHere, glucose: glucoseOn }), allow: org.partnerIds || null };
   const shopCtx = FEATURES.shop ? { openCategory: (c) => openShop(c) } : null;
   const closeShop = () => {
     const back = shopFrom.current; shopFrom.current = null;
@@ -2998,7 +3020,7 @@ export default function CyraDemo() {
     });
   };
   const shopView = shopPage && FEATURES.shop ? (
-    <ShopPage key={shopPage.at} {...shopProps} initial={shopPage.cat} images={SHOP_IMAGES} signed={SHOP_REVIEWED.signed} onBack={closeShop}
+    <ShopPage key={shopPage.at} {...shopProps} initial={shopPage.cat} onBack={closeShop}
       onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: shelfKind(s), started: todayIso }]); ping(shelfKind(s) === "care" ? "Added to What I'm trying" : "Added — your days before and after will be compared"); }} />
   ) : null;
   const youView = (
