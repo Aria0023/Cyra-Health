@@ -14,7 +14,10 @@ symlinks to the main checkout's). Resume there: `git worktree list`.
 - [x] shop module exposes the portal's auth + audit (ctx.portal); accounts module sign-in / delete hooks
 - [x] mount in config/app.json + app-dev.json, registry PRODUCTION_MODULES, prod-smoke, render.yaml, .env.example
 - [x] backend/test/subscriptions.test.mjs (12), backend/scripts/subscriptions-smoke.js in smoke:all
-- [ ] verified -> final commit
+- [x] verified: lint 0 errors (23 warnings), unit 660/660, backend 47/47 (12 new), smoke:all all passed (subscriptions
+      smoke 18 ok), build stamp once, e2e 46/46, axe 34/34 -> final commit
+- Baseline before any change: lint 0 errors (23 warnings), unit 660/660, backend 35/35
+- Commits: 3e84288 (WIP), then the final commit after this note
 
 ## Task 2: portal screens
 - [ ] not started
