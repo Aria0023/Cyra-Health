@@ -124,25 +124,34 @@ export function perAddress({ max = 3, windowMs = 10 * 60_000, clock = Date.now }
   };
 }
 
-/* ---------- sending the code ---------- */
-export function emailSender({ production }) {
+/* ---------- sending email (Resend's HTTPS API; also used by the shop module's partner portal) ---------- */
+/** { ready, send(to, subject, text) } when RESEND_API_KEY and EMAIL_FROM are set, else null. */
+export function resendMailer() {
   const key = env("RESEND_API_KEY"), from = env("EMAIL_FROM");
   const base = (env("RESEND_API_BASE") || "https://api.resend.com").replace(/\/$/, ""); // tests only (accounts-smoke)
-  if (key && from) {
+  if (!key || !from) return null;
+  return {
+    ready: true,
+    async send(to, subject, text) {
+      const r = await fetch(`${base}/emails`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+        body: JSON.stringify({ from, to: [to], subject, text }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!r.ok) throw Object.assign(new Error("send"), { cat: `email provider answered ${r.status}` });
+    },
+  };
+}
+
+/* ---------- sending the code ---------- */
+export function emailSender({ production }) {
+  const mail = resendMailer();
+  if (mail) {
     return {
       ready: true, dev: false,
-      async send(to, code) {
-        const r = await fetch(`${base}/emails`, {
-          method: "POST",
-          headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-          body: JSON.stringify({
-            from, to: [to], subject: `Your Solia Health sign-in code: ${code}`,
-            text: `Your Solia Health sign-in code is ${code}.\n\nIt works once, for 10 minutes. If you didn't ask for it, you can ignore this email: nothing happens without the code.\n\nSolia Health never asks for this code by phone or message.`,
-          }),
-          signal: AbortSignal.timeout(10_000),
-        });
-        if (!r.ok) throw Object.assign(new Error("send"), { cat: `email provider answered ${r.status}` });
-      },
+      send: (to, code) => mail.send(to, `Your Solia Health sign-in code: ${code}`,
+        `Your Solia Health sign-in code is ${code}.\n\nIt works once, for 10 minutes. If you didn't ask for it, you can ignore this email: nothing happens without the code.\n\nSolia Health never asks for this code by phone or message.`),
     };
   }
   if (!production) {

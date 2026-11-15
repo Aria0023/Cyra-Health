@@ -1,6 +1,6 @@
 // The shop's vocabulary and input cleaners (partner portal, docs/plans/partner-portal.md Task 1). Pure: no I/O.
 // The lists mirror the app's src/lib/shop.js (SHOP_CATEGORIES, AVAIL_LABEL, TONE_LABEL, SHOP_HUE_IDS), lib/trying.js
-// TRY_KINDS and the stage / module ids; src/lib/shopCatalog.test.mjs fails if the two drift apart.
+// TRY_KINDS and the stage / module ids; src/lib/shopSeed.test.mjs fails if the two drift apart.
 //
 // Every cleaner takes untrusted input and answers { value } or { error }: text is trimmed and capped, URLs must be
 // https with a real host and no user:password, lists keep only known ids. Nothing here ever echoes a long value back.

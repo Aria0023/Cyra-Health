@@ -21,7 +21,8 @@
     "accounts",
     "pulse",
     "push",
-    "backup"
+    "backup",
+    "shop"
   ],
   "opsConsole": true,
   "storage": {

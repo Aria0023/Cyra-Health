@@ -1,5 +1,6 @@
-// Affiliate portal: DTC brands & clinics apply to join the Shelf; admins
-// review; approved affiliates become partner configs (with contract terms).
+// Affiliate portal (development only: not mounted with NODE_ENV=production): DTC brands & clinics apply to join the
+// Shelf; admins review with x-admin-key. The production path is the shop module's POST /api/shop/apply and the partner
+// portal at /portal/ (docs/plans/partner-portal.md), where an approval creates the brand and invites its contact.
 export function mount(router, ctx) {
   const { store, config } = ctx;
   const admin = (req, res) => {

@@ -1,6 +1,6 @@
 /* The bundled Shop catalog (lib/shop.js + src/config/affiliates.json + shop-reviewed.json) in the partner portal's shape
    (docs/plans/partner-portal.md Task 1): the backend's shop module imports it as published items on its first start with
-   an empty store (backend/config/shop-seed.json, written by `npm run shop:seed`; shopCatalog.test.mjs fails when that
+   an empty store (backend/config/shop-seed.json, written by `npm run shop:seed`; shopSeed.test.mjs fails when that
    file is out of date). Pure: the config objects are passed in. */
 import { SHOP_ITEMS, BRANDS, BRAND_HUE, monogram, itemSources, linkFor, priceFor } from "./shop.js";
 
