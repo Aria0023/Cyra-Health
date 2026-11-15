@@ -10,7 +10,9 @@ import { storeFor } from "../lib/purchase.js";
 
 /* A pretend store for the Pro sheet preview (dev gallery only): the store's answers in the shape RevenueCat gives them,
    with the owner's US prices. Nothing is bought, charged or sent. */
-const demoPkg = (type, id, priceString, price) => ({ identifier: `$rc_${type.toLowerCase()}`, packageType: type, product: { identifier: id, priceString, price } });
+const demoPkg = (type, id, priceString, price) => ({ identifier: `$rc_${type.toLowerCase()}`, packageType: type, product: { identifier: id, priceString, price,
+  // the yearly product's 7-day free trial, as App Store Connect sets it up (lib/plans.js storeTrialDays reads it)
+  ...(type === "ANNUAL" ? { introPrice: { price: 0, priceString: "Free", periodUnit: "DAY", periodNumberOfUnits: 7, cycles: 1 } } : {}) } });
 const DEMO_PLUGIN = {
   configure: async () => {},
   getCustomerInfo: async () => ({ customerInfo: { entitlements: { active: {} } } }),

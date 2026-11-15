@@ -2242,3 +2242,16 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
 - Unchanged because still true: the lock screen's "There's no account and no back door" in a build without accounts, and
   "What Solia Health's server sees" in a no-server build. Tests: account/signin/onboarding/about unit tests reject the old
   sentences; e2e/account.spec.mjs checks the splash, the step and You in the no-server build.
+
+## Plans and the 7-day trial, clearly visible (2026-11-15, plans-shop-page Task 2) — one device-only key, no new request
+
+- **Sentences** (each literally true): web tiles "Yearly · $100 a year · About $8.33 a month · 7-day free trial" (with "Best
+  value") and "Monthly · $9.95 a month"; "Try Pro free for 7 days on the yearly plan, then $100 a year in the iPhone and Android
+  apps. Cancel any time."; "Get Solia Health Pro in the app"; "Coming soon to the App Store and Google Play" while the store URLs
+  are unset; "Pro is sold only in the iPhone and Android apps. Nothing is sold on the web." On a phone only the store's own
+  prices, and the trial words only when the store's offer has a free trial.
+- **Requests:** none new. A phone's You → Plan asks the store for its offerings (lib/purchase.js loadOffer, as the Pro sheet
+  already did; RevenueCat learns nothing about her). The store buttons open the store page only on her tap, with nothing added
+  to the URL (lib/links.js openExternal).
+- **Record key `proChip`** (null or the local day Home last showed "Pro · 7-day free trial"): device-only, never in a backup
+  file (record.js DEVICE_ONLY + NOT_IN_BACKUP), removed by Delete everything with the record. Never sent.

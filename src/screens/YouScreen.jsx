@@ -30,7 +30,8 @@ import { youAccountLine } from "../lib/signin.js";
      "what it adds". The PCOS switch is this card's only PCOS control; POTS also has its row in the header's Settings
      sheet (Add-ons), which App.jsx closes whenever the You tab is open, so one switch is ever on screen;
    - Plan: Cyra Free, and a "See what Pro adds" sheet. Calm R8: "Restore purchases" asks lib/purchase.js, which in this
-     version has no store connected and says so (nothing is checked or sent); no price, no nagging;
+     version has no store connected and says so (nothing is checked or sent); no nagging. 2026-11-15 (Task 2): the two plan
+     tiles (components/PlanTiles.jsx): the web's reference prices with "Get Solia Health Pro in the app", a phone's store prices;
    - Check-ins, Reminders, (weekly counts where the build has them), Appearance, (Install), Cyra's AI, About you:
      the same controls, ids and sentences the Settings sheet has (components/settingsParts.jsx);
    - Account: Task 1's sign-in card (who is signed in, Sign out, Delete account) while this device is signed in;
