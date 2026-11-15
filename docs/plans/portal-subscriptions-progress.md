@@ -25,7 +25,9 @@ symlinks to the main checkout's). Resume there: `git worktree list`.
 - [x] docs/STORE-SETUP.md sections 6 (RevenueCat key, promotions, grants, privacy labels) and 7 (partner codes)
 - [x] e2e/portal-subs.spec.mjs (2) + portal-subs-axe.spec.mjs (light/dark, phone + wide, 44px) with a mocked RevenueCat
       (e2e/lib/revenuecat.mjs); portal.spec nav lists updated
-- [ ] verified -> final commit
+- [x] verified: lint 0 errors (23 warnings), unit 660/660, backend 47/47, smoke:all all passed, build stamp once,
+      e2e 48/48, axe 36/36 -> final commit
+- Commits: 8f3f9a5 (WIP), then the final commit after this note
 
 ## Task 3: the app
 - [ ] not started
