@@ -57,7 +57,7 @@ test("features: remindersInBuild — phones always, the web only with webReminde
 
 test("features: FEATURE_MODULE maps exactly the seven flags (deviceSync has no module); the source has no import", () => {
   assert.equal(FEATURE_MODULE.deviceSync, null);
-  assert.equal(FEATURE_MODULE.shop, null);
+  assert.equal(FEATURE_MODULE.shop, "shop"); // 2026-11-15: the published catalog and the partner portal API
   assert.deepEqual(Object.keys(FEATURE_MODULE).sort(), [...FEATURE_NAMES].sort());
   assert.ok(Object.isFrozen(FEATURE_MODULE) && Object.isFrozen(FEATURE_NAMES));
   const src = readFileSync(new URL("./features.js", import.meta.url), "utf8");
@@ -70,7 +70,7 @@ test("features: the production backend mirrors the default build (D2)", () => {
   const dev = JSON.parse(readFileSync(new URL("../../backend/config/app-dev.json", import.meta.url), "utf8"));
   const want = FEATURE_NAMES.filter((n) => DEFAULT_FEATURES[n] && FEATURE_MODULE[n]).flatMap((n) => [FEATURE_MODULE[n], ...(FEATURE_ALSO[n] || [])]).sort();
   assert.deepEqual([...prod.modules].sort(), want);
-  assert.deepEqual(want, ["accounts", "ai", "integrations", "oauth", "push"]);
+  assert.deepEqual(want, ["accounts", "ai", "integrations", "oauth", "push", "shop"]);
   assert.ok(!prod.modules.includes("backup"), "the backup module is not mounted in production");
   for (const m of [...Object.values(FEATURE_MODULE), ...Object.values(FEATURE_ALSO).flat()]) if (m) assert.ok(dev.modules.includes(m), `app-dev.json lists ${m}`);
 });
