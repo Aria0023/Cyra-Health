@@ -22,7 +22,28 @@ join programs and paste your links into one file.
 - Affiliate tags are public by design (anyone can see them in a link). Never put a secret, API key or password here.
 - Never add anything about the user to a link: no stage, no ids, no UTM parameters that hint at health (`utm_campaign=pcos`
   is not allowed). A plain program tag (Amazon `tag=`, an Impact or ShareASale click URL) is fine.
+- **Optional price** (2026-11-15): instead of a plain string, an entry can be `{ "url": "https://…", "price": "From $89" }`.
+  The price shows on the product card only when present and only in a plain form (`$89`, `From $89`, `About $99 a year`,
+  `$49 per test`); "Learn more" then says "Price set by <brand>; check their site." Copy it from the brand's own site and
+  update it when theirs changes: never invent or round a price. `{ "url": "", "price": "…" }` shows the price with the plain
+  brand link (no affiliate label).
 - Commit, push, and Render rebuilds the static site; phone apps pick it up at the next store build.
+
+## 1a. Product images (optional): `public/shop/` and `src/config/shop-images.json`
+
+The Shop page shows a calm illustrated placeholder (a soft wash in the brand's tint with the need's icon) for every product
+until you add an image you have the right to use. Most affiliate programs give partners a creative kit (product photos and
+logos) with permission to use them; take images only from there, or from the brand with written permission.
+1. Save the image as `public/shop/<item id>.webp` (or `.jpg`), square, about 800×800, under ~150 KB.
+2. Declare it in `src/config/shop-images.json`: `"everly-peri": "everly-peri.webp"`. Only a file named after its item id is used.
+3. Never link to a brand's own image server (no hotlinking): the app loads nothing from another server to show the shop.
+Remove an image by deleting both the file and its line.
+
+## 1b. "Clinician reviewed" badge
+
+Shown only for an item whose `docs/CLINICIAN-REVIEW.md` entry says `Status: Signed` AND whose id is listed in
+`src/config/shop-reviewed.json` `"signed"`. None is signed yet, so no badge shows. There are no "Physician pick" or
+"Best seller" badges.
 
 ## 2. Programs you can join (check current terms before applying; rates and eligibility change)
 
@@ -34,6 +55,7 @@ join programs and paste your links into one file.
 | `stelo`, `lingo` | Check whether Dexcom (Stelo) and Abbott (Lingo) run consumer affiliate programs in your country; if not, leave empty. |
 | `libre` | Prescription device: leave empty (no affiliate link to a prescription product). |
 | `apple-watch`, `garmin`, `fitbit`, `whoop` | Apple has no general affiliate program for the US Apple Store (check current terms); Garmin, Fitbit and Whoop: check their sites or Amazon Associates. |
+| `quest-thyroid`, `labcorp-a1c`, `everly-fertility`, `everly-peri` | Lab tests (2026-11-15): Quest (questhealth.com), Labcorp OnDemand and Everlywell each run affiliate or partner programs through networks such as Impact or CJ (check current terms and whether health-test affiliate links are allowed in your country). Hers was not added: we couldn't confirm a listing unrelated to contraception. |
 | `midi`, `sleepio`, `cbti-coach` | Care services: Midi Health may have a referral or partner program (check); Sleepio is often employer-provided; CBT-i Coach is a free government app, leave empty. |
 
 ## 3. Disclosure rules (already built in; keep them)

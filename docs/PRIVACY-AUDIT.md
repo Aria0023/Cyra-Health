@@ -2255,3 +2255,22 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   to the URL (lib/links.js openExternal).
 - **Record key `proChip`** (null or the local day Home last showed "Pro · 7-day free trial"): device-only, never in a backup
   file (record.js DEVICE_ONLY + NOT_IN_BACKUP), removed by Delete everything with the record. Never sent.
+
+## Shop by need: its own page (2026-11-15, plans-shop-page Task 3 and the owner's design update) — no new record key, no new request
+
+- **Where:** a full-screen page under the current tab (#/shop, #/shop/<need>; the old #/care and #/shelf redirect to it),
+  opened from the header's bag button ("Shop") on the five main tabs, one entry card on You, and the same quiet links as
+  before (device sheet, fertility signs, glucose card), now opening the page on their need. Never on Home, insights,
+  Patterns findings, urgent guidance, notifications or onboarding.
+- **Matching** is unchanged and on the device; "By need / By brand" and the brand filter are UI state only (not saved).
+- **What a shop learns:** unchanged: a link opens only on her tap, with nothing about her added; an affiliate link (only where
+  the owner set one) tells the shop she came from Solia Health. The footer keeps the two sentences ("An affiliate link tells
+  that shop … Neither carries anything about you …" and "Not medical advice …").
+- **Images:** only files the owner places in `public/shop/` (from an affiliate program's creative kit), served with the app;
+  the manifest is committed empty, so every card shows an illustrated placeholder. No image is loaded from a brand's server.
+- **Prices:** only an owner-set price from `src/config/affiliates.json` (none committed); otherwise none is shown and "Learn
+  more" says "No price is shown here: check the brand's site."
+- **New items (lab tests):** Quest Diagnostics, Labcorp OnDemand, Everlywell. Ordering a test happens on their sites under
+  their privacy policies; Solia Health sends them nothing. No contraception service is listed.
+- **Badges:** no "Physician pick"/"Best seller"; "Clinician reviewed" only for an item signed in CLINICIAN-REVIEW and listed
+  in `src/config/shop-reviewed.json` (none yet).

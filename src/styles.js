@@ -2003,7 +2003,8 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
 .shopband-about { margin:4px 0 0; font-size:var(--fs-sm); line-height:1.45; color:var(--ink); }
 .shopgrid { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap:14px; }
 .shopcard { display:flex; flex-direction:column; border-radius:var(--r-card); background:var(--card); box-shadow:var(--sh-card); border:1px solid var(--line); overflow:hidden; }
-.shopimg { position:relative; aspect-ratio:1 / 1; max-height:260px; width:100%; background:linear-gradient(150deg, var(--tintc), color-mix(in srgb, var(--tintc) 35%, var(--card)) 70%, var(--card)); display:flex; align-items:center; justify-content:center; }
+.shopimg { position:relative; aspect-ratio:4 / 3; width:100%; background:linear-gradient(150deg, var(--tintc), color-mix(in srgb, var(--tintc) 35%, var(--card)) 70%, var(--card)); display:flex; align-items:center; justify-content:center; }
+@media (min-width:700px) { .shopimg { aspect-ratio:1 / 1; } }
 .shopimg img { width:100%; height:100%; object-fit:cover; display:block; }
 .shopimg-ph { display:inline-flex; align-items:center; justify-content:center; width:76px; height:76px; border-radius:50%; background:color-mix(in srgb, var(--card) 70%, transparent); color:var(--ink); }
 .shopimg-brand { position:absolute; right:10px; bottom:10px; padding:3px 10px; border-radius:var(--r-pill); background:var(--card); color:var(--ink); font:700 var(--fs-xs) var(--ff-body); box-shadow:inset 0 0 0 1px var(--edge); }

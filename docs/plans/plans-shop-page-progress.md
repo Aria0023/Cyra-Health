@@ -19,7 +19,13 @@ Baseline (2026-11-15, before any change): lint 0 errors (23 warnings), unit 637/
 - [x] e2e/plans.spec.mjs + plans-axe.spec.mjs (light + dark), axe.spec Pro sheet updated; dev gallery's pretend yearly product has a 7-day intro offer
 - [x] docs: MONETIZATION 1d, PRIVACY-AUDIT, .env.example VITE_APP_STORE_URL / VITE_PLAY_STORE_URL
 - [x] verified: lint 0 errors (23 warnings), unit 643/643, build stamp once, e2e 38/38, axe 29/29 -> final commit
-- Commits: 38a1987 (WIP), then the final commit after this note
+- Commits: 38a1987 (WIP), 1ef0ec5 (final)
 
-## Task 3: a distinct Shop page
-- [ ] not started
+## Task 3: a distinct Shop page (with the owner's design update in the brief)
+- [x] lib/shop.js: Lab tests category (Quest, Labcorp OnDemand, Everlywell x2; Hers skipped), avail + covers, BRANDS (tag, line, monogram, UI tint), price/image/reviewed helpers (+tests)
+- [x] src/config/shop-images.json, shop-reviewed.json (empty), affiliates.json new ids + optional { url, price }; public/shop/
+- [x] components/Shop.jsx ShopPage (By need / By brand chips, brand bands, product cards, Learn more, footer), ShopEntryCard; sheet and You card removed
+- [x] routes #/shop, #/shop/<need>, #/care, #/shelf → the page; header bag button; Back restores focus; tab switch closes it
+- [x] e2e/shop.spec.mjs (6) + shop-axe.spec.mjs (light/dark, wide, Mono/Bloom/Clear/Journal); CLINICIAN-REVIEW, AFFILIATES, PRIVACY-AUDIT
+- [x] verified: lint 0 errors (23 warnings), unit 646/646, build stamp once, e2e 41/41, axe 30/30 -> final commit
+- Commits: 5cf41ac (WIP), then the final commit after this note
