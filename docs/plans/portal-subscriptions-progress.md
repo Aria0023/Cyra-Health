@@ -42,4 +42,12 @@ symlinks to the main checkout's). Resume there: `git worktree list`.
 - [x] privacy: Pro sheet line, sign-in "What signing in shares", privacy.html, health-data.html, MONETIZATION, STORE-SETUP
       labels, PRIVACY-AUDIT entry
 - [x] e2e/promos.spec.mjs (3), promos-axe.spec.mjs (light/dark)
-- [ ] verified -> final commit
+- [x] verified: lint 0 errors (23 warnings), unit 670/670, backend 47/47, smoke:all all passed, build stamp once,
+      e2e 51/51, axe 38/38 -> final commit
+- Commits: 220e9a3 (WIP), then the final commit after this note
+
+## Left for the owner
+- Verify every endpoint in backend/src/modules/subscriptions/revenuecat.js against RevenueCat's current API docs.
+- Set REVENUECAT_SECRET_KEY, REVENUECAT_PROJECT_ID (REVENUECAT_ENTITLEMENT=pro) on cyra-backend; VITE_APP_STORE_ID on the
+  static site and phone builds; follow docs/STORE-SETUP.md sections 6 and 7; update the store privacy labels.
+- Counsel: the clinic grant list (docs/PRIVACY-AUDIT.md, "Promotions, Pro grants and codes").
