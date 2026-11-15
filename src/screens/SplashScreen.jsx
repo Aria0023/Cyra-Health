@@ -10,12 +10,12 @@ import { t } from "../lib/i18n.js";
 /* Phase 1: splash. Wordmark, tagline, value proposition, the privacy promise, "Get started", and a way back
    in from an encrypted backup. UI O1: a ring motif in the stage-neutral palette and the three promises as icon
    rows. L11 (spec §4.1): the privacy promise is stated once, plainly, before any personal question: "Your
-   privacy, plainly" with three items (the unchanged on-device sentence, docs/PRIVACY-AUDIT.md; no account
-   needed; guidance, never a diagnosis), directly above the button. The restore link is now a 44px toggle
+   privacy, plainly" with three items (the unchanged on-device sentence, docs/PRIVACY-AUDIT.md; the account
+   line, lib/disclosures.js splashAccountLine; guidance, never a diagnosis), directly above the button. The restore link is now a 44px toggle
    (.ghostbtn.quiet, aria-expanded / aria-controls) with a constant label. initialRestore (L10): App.jsx opens the
    restore form straight away after a forgotten-PIN restore that deleted the record but couldn't write the backup. */
-/* Calm R9: in a build that offers the optional account (`accounts`), the second promise says so (still "No account
-   needed": guest is the default and nothing asks her to sign in), and with Pro (`onSignIn`) one quiet "Sign in to restore
+/* Calm R9: in a build that offers the optional account (`accounts`), the second promise says so (2026-11-15: never
+   "No account needed"; guest is the default and nothing asks her to sign in), and with Pro (`onSignIn`) one quiet "Sign in to restore
    from your account" button sits under the file restore. */
 /* Brand: the Solia mark (BrandMark) sits where the three-circle motif was, the wordmark is
    "Solia" with "HEALTH" beside it (as the header), and the tagline is the slogan "I am Heard". */

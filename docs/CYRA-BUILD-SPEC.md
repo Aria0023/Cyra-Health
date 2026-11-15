@@ -249,8 +249,8 @@ PCOS control in the app; POTS's switch is the Settings → Add-ons control rende
 turn-off and erase cards and focus moves, "Exactly what's kept")); **Plan** (Cyra Free, the free-forever sentence, "See what
 Pro adds" opening `ProSheet`, and "There's nothing to buy in this version." until R8; a dev build says it is a test build);
 **Check-ins and reminders**, **Appearance**, **Cyra's AI** (the Ask consent checkbox with the same disclosure, or the sentence
-that answers stay on the device when the build has no AI), **About you**, **Account** ("No account. Your log lives on this
-device." plus "Cyra keeps no account or profile of you…"), **Care & support** (the shelf) and **About & legal** (not a
+that answers stay on the device when the build has no AI), **About you**, **Account** ("Your account": "Sign-in isn't switched on in this
+version yet. Until it is, your log lives on this device." plus "Solia Health keeps no profile of you…"; 2026-11-15), **Care & support** (the shelf) and **About & legal** (not a
 medical device, the Terms and Privacy links where the build has them, the build stamp from `BUILD_STAMP`). Weekly counts
 and Install get a card only where the build offers them (counts also needs a server). There is no Language card until R10.
 Settings keeps its sheet (header sliders button, every tab but You) with unchanged markup: both render the same bodies
@@ -285,9 +285,9 @@ server has no key ("AI isn't set up on this server yet, so nothing was sent to A
 /api/ai/weekly`, `POST /api/ai/chat`, `GET /api/ai/status` (§10).
 
 ### 3.5g The optional account: an encrypted backup on Cyra's server (calm R9, `lib/account.js`, `lib/cloudBackup.js`, `components/AccountParts.jsx`)
-**Guest stays the default.** Nothing asks her to sign in; the splash keeps "No account needed". The account exists only in
-a build with the `cloudBackup` flag AND a server (`ACCOUNTS_HERE`); the default production build has neither, shows R7's
-"No account needed" card unchanged and makes no account request. It is Pro (`plan.can("cloudBackup")`; proDev for QA):
+**Guest stays the default.** Nothing asks her to sign in (2026-11-15: no screen says "No account needed"). The account exists only in
+a build with the `cloudBackup` flag AND a server (`ACCOUNTS_HERE`); the default production build has neither, shows the plain
+"Your account" card and makes no account request. It is Pro (`plan.can("cloudBackup")`; proDev for QA):
 without Pro the card says "An encrypted backup to Cyra's server comes with Pro." with "See what Pro adds".
 **Account = email + a passphrase she keeps**, both turned into keys on the device: `lookupFor(email)` (SHA-256 of the
 tagged, normalised email) and `tokenFor(email, passphrase)` (HMAC under PBKDF2-SHA256 600,000 rounds); the backup is the
@@ -295,7 +295,7 @@ usual `cyra-backup` envelope under `backupKey(passphrase)` (same PBKDF2 over the
 email is ever sent (no mail provider, no magic link). **The server stores per account** `{ id (random), kind, emailHash,
 tokenHash, version, size, createdAt, updatedAt, expiresAt }` and the encrypted bytes; never the email, the passphrase, the
 plaintext or the key. A lost passphrase can't be recovered, and the copy says so plainly.
-**You → Account** (`#you-account.acctcard`): guest — "No account needed", "You're using Cyra as a guest. Your log lives on
+**You → Account** (`#you-account.acctcard`): guest — "Your account", "You're using Cyra as a guest. Your log lives on
 this device.", "Create an account" (sheet `#acct-sheet`: what Cyra's server keeps, the lost-passphrase warning, email,
 passphrase twice, "I understand a lost passphrase can't be recovered", "Create account and back up") and "Sign in";
 signed in — "Your account", "Signed in as …", the back-up status ("Backed up today", "Backing up…", "Waiting for a
@@ -487,9 +487,10 @@ with evidence — cycles, symptoms, PCOS signals." — the PCOS clause since cal
 "Your privacy, plainly" labels `ul.splashpromise` (three `li`, one 16px `Icon` each; `p.splashpriv` is gone):
 1. lock — "Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that
    tells you exactly what it sends." (unchanged sentence; it appears nowhere else in onboarding)
-2. user — "No account needed. There's no Cyra account to make, and your name and email are optional." (calm R9: in a build
-   that offers the optional account, "No account needed. An account is optional and only keeps an encrypted backup, and
-   your name and email are optional too.", `splashAccountLine`)
+2. user — 2026-11-15 (owner: accounts are required, never "No account needed"): a build without sign-in says "Accounts are
+   on the way: sign-in isn't switched on in this version yet. Your name and email are optional."; a build that offers the
+   optional account, "An account is optional and only keeps an encrypted backup, and your name and email are optional
+   too."; a sign-in build names what the account holds (`splashAccountLine`)
 3. book — "Guidance, never a diagnosis. For anything medical, talk with your clinician."
 Then `button.cta` "Get started", then `button.ghostbtn.quiet.splashrestore` "Restore from an encrypted backup" (a 44px
 toggle with a constant label; `aria-expanded` carries the state, `aria-controls="splash-restore"`, and `initialRestore`

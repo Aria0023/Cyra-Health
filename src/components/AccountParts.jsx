@@ -10,7 +10,7 @@ import { t } from "../lib/i18n.js";
 import { SIGNIN_COPY as S, whoLine } from "../lib/signin.js";
 
 /* The optional account (calm R9): You → Account and its two sheets. Shown only in a build that offers it (lib/cloudBackup.js
-   ACCOUNTS_HERE: the cloudBackup flag and a server); otherwise YouScreen keeps R7's "No account needed" card unchanged.
+   ACCOUNTS_HERE: the cloudBackup flag and a server); otherwise YouScreen shows its plain "Your account" card (sign-in isn't switched on yet).
    Guest is the default and stays first: the card says she's a guest and her log lives on this device; "Create an
    account" and "Sign in" are offered (with Pro, plan.can("cloudBackup")), or one Pro line and "See what Pro adds".
    Nothing here makes a request by itself: App.jsx does, only after she submits a sheet or taps a button, and only while

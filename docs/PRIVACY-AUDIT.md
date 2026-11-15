@@ -2217,3 +2217,28 @@ flag and payload); `sw.test.mjs`, `notifications.test.mjs`, `autoTracked.test.mj
 - **Legal drafts:** privacy.html section 5 gains "Shops you choose to visit (affiliate links)" (still Draft, attorney note);
   terms.html's affiliate disclosure now says it may apply ("Affiliate link"). health-data.html's "no affiliates that receive
   consumer health data" (corporate affiliates) stays true: no health data goes to any merchant.
+
+## Accounts are coming: never "No account needed" (owner request 2026-11-15, plans-shop-page Task 1) — copy only, no new request
+
+The owner requires accounts, so no screen says "No account needed" or "There's no Solia Health account to make". Each
+replacement is literally true of the build it shows in; sign-in itself is unchanged (lib/signin.js signinMode).
+- **Splash, promise 2** (`splashAccountLine`), a build without sign-in (no server, e.g. the live web demo): "Accounts are on
+  the way: sign-in isn't switched on in this version yet. Your name and email are optional." (was "No account needed. There's
+  no Solia Health account to make, …"). A build with the optional backup account: "An account is optional and only keeps an
+  encrypted backup, and your name and email are optional too." (the "No account needed." lead dropped). Sign-in builds: unchanged.
+- **Sign-up step** while sign-in is off (`none`: no server or no signin flag; `unset`: the server has no sign-in set up):
+  title "Your account", sub "Solia Health accounts are on the way. Sign-in isn't switched on in this version yet, so for now you
+  can continue without one. Your health log stays on this device."; reason "Sign-in isn't switched on in this version yet.
+  Until it is, your log lives on this device." (`unset`: "… for this server yet. …"); the skip is "Continue for now". With
+  `VITE_REQUIRE_SIGNIN=false` (optional) the skip stays "Continue without an account".
+- **Device step** (builds without sign-in): "Sign-in isn't switched on in this version yet. Your name, email and answers are
+  saved on this device. …" (was "There's no Solia Health account. …").
+- **You → Account**, not signed in: title "Your account" (was "No account needed"); line "Sign-in isn't switched on in this
+  version yet. Until it is, your log lives on this device." (with a name: "…, and your name stays with it."); `unset`: "… for
+  this server yet. …"; otherwise "You haven't signed in on this device. Your log lives on this device." Footer: "Solia Health
+  keeps no profile of you. …" (was "keeps no account or profile of you"). The optional-backup AccountCard's guest title is
+  "Your account" too.
+- "your log lives on this device" (not "only on this device"): an encrypted backup file she saves is a copy elsewhere.
+- Unchanged because still true: the lock screen's "There's no account and no back door" in a build without accounts, and
+  "What Solia Health's server sees" in a no-server build. Tests: account/signin/onboarding/about unit tests reject the old
+  sentences; e2e/account.spec.mjs checks the splash, the step and You in the no-server build.
