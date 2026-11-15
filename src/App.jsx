@@ -205,7 +205,7 @@ import ProSheet from "./components/ProSheet.jsx";
 import { AiSendSheet, WriteUpCard, ChatCard } from "./components/ai/AiParts.jsx";
 import { buildSummary, checkSummary, summaryLines, weeklyBody, chatBody } from "./lib/aiSummary.js";
 import { cleanAiPrefs, cleanAiChat, cleanAiWeekly, aiOffer, AI_COPY } from "./lib/aiFeatures.js";
-import { aiStatus, aiSend, askEvidence } from "./lib/aiClient.js";
+import { aiStatus, aiSend, askEvidence, aiUsage } from "./lib/aiClient.js";
 import EvidenceCard from "./components/ai/EvidenceCard.jsx";
 import { evidenceBody, evidenceOffer, cleanSources, EVIDENCE_COPY } from "./lib/evidence.js";
 import { storeFor, restorePurchases, proOwned, startStore } from "./lib/purchase.js";
@@ -460,6 +460,18 @@ export default function CyraDemo() {
   /* Sign-in (Task 1, lib/signin.js): signin is this device's session with her Solia Health account (device-only, never in
      a backup); signinCfg is what the server said it offers (null until asked, "offline" when it couldn't be reached). */
   const [signin, setSignin] = useState(null);
+  // Monthly AI allowance (backend ai/usage.js): { evidence|chat|weekly: { used, limit } } as the server last said. Memory only.
+  const [aiLeft, setAiLeft] = useState({});
+  // Once per sign-in, in the app (not during registration) and only with Pro's AI: ask the server how much of this
+  // month's allowance is left (GET with her session token, no body).
+  const aiPlan = can("aiEvidence", planLive) || can("aiChat", planLive) || can("aiPatternReports", planLive);
+  useEffect(() => {
+    const token = signin?.token;
+    if (!token || phase !== "app" || !aiPlan || !FEATURES.ai || !hasServer()) { setAiLeft({}); return undefined; }
+    let live = true;
+    aiUsage(token).then((u) => { if (live && u) setAiLeft({ evidence: u.evidence, chat: u.chat, weekly: u.weekly }); });
+    return () => { live = false; };
+  }, [signin?.token, phase, aiPlan]);
   const signinRef = useRef(null); signinRef.current = signin;
   const signedOutHere = useRef(false); // this tab signed out or deleted the account: another tab's copy must not come back
   const [signinCfg, setSigninCfg] = useState(null);
@@ -2853,14 +2865,17 @@ export default function CyraDemo() {
     const o = aiSendOpen;
     if (!o || aiBusy || !aiPrefs[o.kind] || !offer[o.kind] || checkSummary(o.body.summary).length) return;
     setAiSendOpen(null); setAiBusy(o.kind);
-    const r = await aiSend(o.kind, o.body);
+    const r = await aiSend(o.kind, o.body, signinRef.current?.token || null);
     setAiBusy(null);
     if (!r.ok) {
       if (r.why === "unset") setAiState("unset");
-      setAiNote((n) => ({ ...n, [o.kind]: r.why === "unset" ? AI_COPY.notSetUp : r.why === "busy" ? AI_COPY.tooMany : AI_COPY.noAnswer }));
+      const limitLine = o.kind === "chat" ? AI_COPY.limitChat : AI_COPY.limitWeekly;
+      setAiNote((n) => ({ ...n, [o.kind]: r.why === "unset" ? AI_COPY.notSetUp : r.why === "busy" ? AI_COPY.tooMany : r.why === "signin" ? AI_COPY.signin : r.why === "limit" ? limitLine(r.limit, r.resetsOn) : AI_COPY.noAnswer }));
+      if (r.why === "limit") setAiLeft((l) => ({ ...l, [o.kind]: { used: r.limit, limit: r.limit } }));
       return;
     }
     const d = r.data || {};
+    if (d.usage && d.usage.kind === o.kind) setAiLeft((l) => ({ ...l, [o.kind]: { used: Number(d.usage.used) || 0, limit: Number(d.usage.limit) || 0 } }));
     if (o.kind === "weekly") {
       if (typeof d.writeup !== "string" || !d.writeup.trim()) { setAiNote((n) => ({ ...n, weekly: AI_COPY.noAnswer })); return; }
       setAiWeekly(cleanAiWeekly({ writeup: d.writeup, ask: d.ask_your_doctor || null, day: todayIso }));
@@ -2886,17 +2901,22 @@ export default function CyraDemo() {
     const o = evSendOpen;
     if (!o || evBusy || !ev.open) return;
     setEvSendOpen(null); setEvBusy(true); setEvOut(null);
-    const r = await askEvidence(o.body);
+    const r = await askEvidence(o.body, signinRef.current?.token || null);
     setEvBusy(false);
-    if (!r.ok) { setEvNote(r.why === "unset" ? EVIDENCE_COPY.notSetUp : r.why === "busy" ? EVIDENCE_COPY.tooMany : r.why === "offline" ? EVIDENCE_COPY.offline : r.why === "nosources" ? EVIDENCE_COPY.noSources : EVIDENCE_COPY.noAnswer); return; }
+    if (!r.ok) {
+      if (r.why === "limit") setAiLeft((l) => ({ ...l, evidence: { used: r.limit, limit: r.limit } }));
+      setEvNote(r.why === "unset" ? EVIDENCE_COPY.notSetUp : r.why === "busy" ? EVIDENCE_COPY.tooMany : r.why === "offline" ? EVIDENCE_COPY.offline : r.why === "nosources" ? EVIDENCE_COPY.noSources : r.why === "signin" ? EVIDENCE_COPY.signin : r.why === "limit" ? EVIDENCE_COPY.limit(r.limit, r.resetsOn) : EVIDENCE_COPY.noAnswer);
+      return;
+    }
     const d = r.data || {};
+    if (d.usage && d.usage.kind === "evidence") setAiLeft((l) => ({ ...l, evidence: { used: Number(d.usage.used) || 0, limit: Number(d.usage.limit) || 0 } }));
     if (d.refused) { setEvNote(EVIDENCE_COPY.refused); return; }
     if (d.urgent) { setEvOut({ question: o.body.question, answer: d.answer || EVIDENCE_COPY.urgentLocal, urgent: true, sources: [] }); return; }
     const sources = cleanSources(d.sources);
     if (typeof d.answer !== "string" || !d.answer.trim() || !sources.length) { setEvNote(EVIDENCE_COPY.noSources); return; }
     setEvOut({ question: o.body.question, answer: d.answer, sources });
   };
-  const evidenceCard = (id) => (ev.shown ? <EvidenceCard id={id} open={ev.open} onPro={() => setProOpen(true)} summaryOk={stage != null} busy={evBusy} out={evOut} note={evNote} onPrepare={prepareEvidence} /> : null);
+  const evidenceCard = (id) => (ev.shown ? <EvidenceCard id={id} open={ev.open} onPro={() => setProOpen(true)} summaryOk={stage != null} busy={evBusy} out={evOut} note={evNote} left={aiLeft.evidence ? EVIDENCE_COPY.left(aiLeft.evidence) : null} onPrepare={prepareEvidence} /> : null);
   const store = STORE;
   const onRestore = async () => { const r = await restorePurchases(store); if (r.ok) setProOwnedNow(r.owned); ping(r.line); };
   const buzz = !isNative() ? null : hasPlugin("Haptics") ? () => { Haptics.impact({ style: "LIGHT" }).catch(() => {}); } : typeof navigator !== "undefined" && typeof navigator.vibrate === "function" ? () => { try { navigator.vibrate(30); } catch { /* no vibration here */ } } : null;
@@ -2940,7 +2960,7 @@ export default function CyraDemo() {
         onSkip={() => { setExperiments((s) => skipWeek(s, wk.key)); ping("Skipped for this week"); focusSel([".wrexp"]); }}
         onPractice={(id) => openPractice(id)} onPro={() => setProOpen(true)}
         aiEvidence={evidenceCard("ai-evidence-p")}
-        aiWriteUp={offer.weekly && aiPrefs.weekly ? <WriteUpCard status={online ? aiState : "offline"} last={aiWeekly} busy={aiBusy === "weekly"} note={aiNote.weekly} onCheck={checkAi} onPrepare={() => prepareAi("weekly")} /> : null}
+        aiWriteUp={offer.weekly && aiPrefs.weekly ? <WriteUpCard status={online ? aiState : "offline"} last={aiWeekly} busy={aiBusy === "weekly"} note={aiNote.weekly} left={aiLeft.weekly ? AI_COPY.leftWeekly(aiLeft.weekly) : null} onCheck={checkAi} onPrepare={() => prepareAi("weekly")} /> : null}
         historyLabel={isMeno ? "Calendar" : "History"}
         onHistory={() => showView(isMeno ? "cal" : "cycles")}
         onReport={(pdf) => { pendingFocus.current = pdf ? ["button.route.primary", ".viewpanel main h1"] : [".viewpanel main h1"]; showView("report", { head: true }); }} />
@@ -2984,7 +3004,7 @@ export default function CyraDemo() {
       onJournal={(t) => { const more = !!journal[todayIso]; setJournal((j) => ({ ...j, [todayIso]: j[todayIso] ? `${j[todayIso]}\n\n${t}` : t })); setJDraft(""); ping(more ? "Added to today's journal" : "Saved to your journal"); }}
       conn={{ line: connDays.length ? `Last logged ${fmt(connDays[connDays.length - 1])}. Private, on this device.` : "How connected you feel, not just sex. Private, on this device." }}
       onConnect={() => showView("connect", { head: true })}
-      chat={offer.chat && aiPrefs.chat ? <ChatCard status={aiState} online={online} chat={aiChat} busy={aiBusy === "chat"} note={aiNote.chat} onCheck={checkAi} onPrepare={(q, clear) => prepareAi("chat", q, clear)} onClear={() => { setAiChat([]); ping("Chat cleared from this device"); }} /> : null}
+      chat={offer.chat && aiPrefs.chat ? <ChatCard status={aiState} online={online} chat={aiChat} busy={aiBusy === "chat"} note={aiNote.chat} left={aiLeft.chat ? AI_COPY.leftChat(aiLeft.chat) : null} onCheck={checkAi} onPrepare={(q, clear) => prepareAi("chat", q, clear)} onClear={() => { setAiChat([]); ping("Chat cleared from this device"); }} /> : null}
       evidence={evidenceCard("ai-evidence")}
       ask={<AskScreen embedded org={org} stage={stage} askQ={askQ} setAskQ={setAskQ} runAsk={runAsk} askBusy={askBusy} askOut={askOut} askAI={askAI} setAskAI={setAskAI} aiAvailable={aiAvailable} potsOn={potsTab && potsOk} ping={ping} />} />
     );

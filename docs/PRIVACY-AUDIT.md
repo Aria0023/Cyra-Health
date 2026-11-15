@@ -2217,3 +2217,19 @@ flag and payload); `sw.test.mjs`, `notifications.test.mjs`, `autoTracked.test.mj
 - **Legal drafts:** privacy.html section 5 gains "Shops you choose to visit (affiliate links)" (still Draft, attorney note);
   terms.html's affiliate disclosure now says it may apply ("Affiliate link"). health-data.html's "no affiliates that receive
   consumer health data" (corporate affiliates) stays true: no health data goes to any merchant.
+
+## Monthly AI allowance (2026-11-15, owner decision)
+
+- **What changed:** Pro's AI is capped per person per calendar month (UTC): 30 "Ask with evidence" questions, 100 chat
+  messages and 6 weekly write-ups (backend `config.ai.monthly` overrides). Only a delivered answer counts.
+- **What the server keeps:** one row per signed-in account per month in `ai_usage` (`<account id>:<YYYY-MM>` and three
+  counts). No question, answer, summary or anything she logged. The rows are deleted with the account
+  (DELETE /api/accounts/me). With sign-in set up on the server, a signed-out AI request is refused (401
+  sign-in-required) and nothing is forwarded. On a server with no sign-in at all, requests are counted in memory by the
+  address hashed with a monthly salt and never written.
+- **What the app sends:** its existing request body, plus her session token in the Authorization header when signed in.
+  GET /api/ai/usage (token, no body) reads the month's counts after sign-in.
+- **Statements updated to stay true:** You → AI switches ("keeps only a count of how many you've used this month, never
+  what you sent"), "What Solia Health will send" (both AI sheets), the evidence "Kept" line, the sign-in disclosure
+  ("If you use Pro's AI, it also counts how many questions you sent this month, never what they said."), the "no
+  answer" note, and the privacy policy draft's AI row.

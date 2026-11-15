@@ -13,6 +13,7 @@ export function newApiState(over = {}) {
     code: "123456",
     sources: { oura: true, terra: true },
     evidence: null, // (body) => { status, json } for POST /api/ai/evidence
+    usage: null, // the GET /api/ai/usage answer ({ usage, resetsOn }), or null for 401
     sent: [],
     ...over,
   };
@@ -42,6 +43,7 @@ export async function mockApi(target, state) {
     if (p === "/api/accounts/me" && method === "DELETE") return route.fulfill({ status: 204, headers: CORS });
     if (p === "/api/integrations/sources") return json(200, state.sources);
     if (p === "/api/ai/status") return json(200, { ready: true });
+    if (p === "/api/ai/usage") return state.usage ? json(200, state.usage) : json(401, { error: "not signed in" });
     if (p === "/api/ai/evidence" && state.evidence) { const r = state.evidence(body); return json(r.status, r.json); }
     if (p === "/api/ai/ask") return json(200, { provider: "rules", answer: "A written answer.", source_note: null, ask_your_doctor: null, urgent: false });
     return json(404, { error: "not in the mock" });

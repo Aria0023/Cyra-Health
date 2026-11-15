@@ -47,7 +47,7 @@ const AiArt = () => (
   </svg>
 );
 
-export function WriteUpCard({ status, last = null, busy = false, note = null, onPrepare, onCheck }) {
+export function WriteUpCard({ status, last = null, busy = false, note = null, left = null, onPrepare, onCheck }) {
   useEffect(() => { onCheck?.(); }, []); // eslint-disable-line
   const line = statusLine(status);
   const paras = last ? String(last.writeup).split(/\n\s*\n/) : [];
@@ -64,6 +64,7 @@ export function WriteUpCard({ status, last = null, busy = false, note = null, on
       ) : <p className="hint">{t("ai.wuLead")}</p>}
       {line && <p className="ainote" role="status">{line}</p>}
       {note && <p className="ainote" role="status">{note}</p>}
+      {left && <p className="rfoot aileft">{left}</p>}
       <button type="button" className={last ? "ghostbtn aigo" : "cta aigo"} aria-haspopup="dialog" disabled={busy || status !== "ready"} onClick={onPrepare}>
         {busy ? t("aiParts.writing") : last ? t("ai.wuAgain") : t("ai.wuGo")}
       </button>
@@ -71,7 +72,7 @@ export function WriteUpCard({ status, last = null, busy = false, note = null, on
   );
 }
 
-export function ChatCard({ status, chat = [], busy = false, note = null, online = true, onPrepare, onClear, onCheck }) {
+export function ChatCard({ status, chat = [], busy = false, note = null, left = null, online = true, onPrepare, onClear, onCheck }) {
   const [q, setQ] = useState("");
   const listRef = useRef(null);
   useEffect(() => { onCheck?.(); }, []); // eslint-disable-line
@@ -97,6 +98,7 @@ export function ChatCard({ status, chat = [], busy = false, note = null, online 
       </ol>
       {line && <p className="ainote" role="status">{line}</p>}
       {note && <p className="ainote" role="status">{note}</p>}
+      {left && <p className="rfoot aileft">{left}</p>}
       <label className="section-lab" htmlFor="ai-chat-q">{t("ai.chatLabel")}</label>
       <textarea id="ai-chat-q" className="inp aiq" rows={2} maxLength={500} value={q} onChange={(e) => setQ(e.target.value)}
         onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); send(); } }} />

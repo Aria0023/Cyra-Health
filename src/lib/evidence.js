@@ -2,7 +2,9 @@
    (backend/src/modules/ai/evidence.js), with numbered source links. Pure: no React, storage or network.
    What is sent: only her typed question, plus the pseudonymized summary of her log (lib/aiSummary.js) if she ticks
    "Include a summary of my log". She sees this exact body in "What Solia Health will send" before every send. A red-flag
-   question is answered on this device (lib/askLibrary.js RED_FLAGS) and never sent. Nothing is kept on the server. */
+   question is answered on this device (lib/askLibrary.js RED_FLAGS) and never sent. The server keeps no question or
+   answer, only how many questions each signed-in account asked this month (the monthly allowance). */
+import { monthDay } from "./aiFeatures.js";
 
 /** The sites the server lets the search use, in words (the server's EVIDENCE_DOMAINS, said for people). */
 export const EVIDENCE_SITES = "PubMed, MedlinePlus, CDC, NIH, ACOG, WHO, NICE, the Cochrane Library, the Endocrine Society and the FDA";
@@ -40,7 +42,7 @@ export const EVIDENCE_COPY = Object.freeze({
   sendLines: (summary) => [
     ["Who answers", `Claude, made by Anthropic, through Solia Health's server. Anthropic's search provider runs the search, only on ${EVIDENCE_SITES}.`],
     ["Summary of your log", summary ? "Included, shown in full below." : "Not included."],
-    ["Kept", "Solia Health's server keeps nothing. Anthropic keeps the request for a limited time under its own terms."],
+    ["Kept", "Solia Health's server keeps only how many questions you asked this month, never the question. Anthropic keeps the request for a limited time under its own terms."],
   ],
   sourcesLab: "Sources",
   opensIn: "opens in a new tab",
@@ -49,6 +51,9 @@ export const EVIDENCE_COPY = Object.freeze({
   notSetUp: "Solia Health's AI isn't set up on this server yet, so nothing was sent.",
   offline: "You're offline, so nothing was sent. Try again when you're connected.",
   tooMany: "Too many questions in a minute. Wait a moment and try again.",
+  signin: "Sign in to ask with evidence. Nothing was sent.",
+  limit: (n, date) => `You've asked this month's ${n} questions, so nothing was sent. They start again on ${monthDay(date)}.`,
+  left: (u) => `${Math.max(0, u.limit - u.used)} of ${u.limit} questions left this month.`,
   noSources: "No sources could be found for that just now, so there's no answer. Try asking it another way.",
   refused: "This one can't be answered here. Please ask your clinician.",
   noAnswer: "No answer came back. Try again in a moment.",

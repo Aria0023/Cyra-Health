@@ -48,7 +48,7 @@ const mock = http.createServer((req, res) => {
 await new Promise((r) => mock.listen(3995, r));
 let logged = "";
 // a config with room for every case below (production: 6 a minute per client)
-const cfg = JSON.parse(fs.readFileSync("config/app-dev.json")); cfg.ai = { ...cfg.ai, evidencePerMinute: 100 }; fs.writeFileSync("config/app.evidence-test.json", JSON.stringify(cfg));
+const cfg = JSON.parse(fs.readFileSync("config/app-dev.json")); cfg.ai = { ...cfg.ai, evidencePerMinute: 100, signinRequired: false }; fs.writeFileSync("config/app.evidence-test.json", JSON.stringify(cfg));
 const live = spawn("node", ["server.js"], { env: { ...process.env, PORT: "3107", NODE_ENV: "", ANTHROPIC_API_KEY: "sk-ant-test", ANTHROPIC_BASE_URL: "http://127.0.0.1:3995", AI_MODEL: "", CYRA_CONFIG: "config/app.evidence-test.json" }, stdio: ["ignore", "pipe", "pipe"] });
 live.stdout.on("data", (c) => (logged += c)); live.stderr.on("data", (c) => (logged += c));
 const nokey = spawn("node", ["server.js"], { env: { ...process.env, PORT: "3108", NODE_ENV: "", ANTHROPIC_API_KEY: "" }, stdio: ["ignore", "ignore", "ignore"] });

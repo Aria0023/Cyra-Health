@@ -203,6 +203,11 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, sender 
     return acct ? { acct, sid: sidHash(p.s) } : null;
   }
 
+  // Shared with the ai module (monthly allowance, ai/usage.js): who is signed in on a request, and whether this server
+  // offers any sign-in at all. Read at request time, so the mount order of the two modules doesn't matter.
+  ctx.accountWho = who;
+  ctx.accountSigninReady = () => { const p = oauthProviders(); return send.ready === true || p.apple === true || p.google === true || p.facebook === true; };
+
   router.get("/config", (req, res) => {
     noStore(res);
     const p = oauthProviders();
@@ -264,6 +269,7 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, sender 
     if (!w) return res.status(401).json({ error: "not signed in" });
     await store.remove("account_sessions", (r) => r.accountId === w.acct.id);
     await store.remove("accounts", (a) => a.id === w.acct.id);
+    await store.remove("ai_usage", (r) => typeof r.id === "string" && r.id.startsWith(`${w.acct.id}:`));
     res.sendStatus(204);
   });
 }
