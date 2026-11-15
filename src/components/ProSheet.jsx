@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Sheet } from "./ui/index.js";
 import Icon from "./Icon.jsx";
 import { t } from "../lib/i18n.js";
-import { loadOffer, buyPro, sendTip, STORE_LINES } from "../lib/purchase.js";
+import { loadOffer, buyPro, sendTip, redeemCode, STORE_LINES, CODE_LINES } from "../lib/purchase.js";
 import { TIP_PRODUCTS, planLines, CANCEL_LINES, KEEP_LINE } from "../lib/pricing.js";
-import { planTiles, proTrialLine } from "../lib/plans.js";
+import { planTiles, proTrialLine, storeTrialDays } from "../lib/plans.js";
+import { promoBanner } from "../lib/promos.js";
+import PromoBanner from "./PromoBanner.jsx";
 import { PlanTiles, GetInApp } from "./PlanTiles.jsx";
 import { TRIAL_COPY } from "../lib/trial.js";
-import { TERMS_URL, PRIVACY_URL, POLICY_LINKS_READY, TIP_URL, openExternal } from "../lib/links.js";
+import { TERMS_URL, PRIVACY_URL, POLICY_LINKS_READY, TIP_URL, APP_STORE_ID, openExternal } from "../lib/links.js";
 
 /* "What Pro adds" (calm R5, plan §7 "Premium (Pro)"; owner decision D4: $9.95 a month or $100 a year, 7-day free
    trial on the yearly plan, optional tips). One calm sheet, opened only when she taps "See what Pro adds" or a Pro
@@ -44,8 +46,12 @@ export const PRO_NONE = "In this version Pro adds nothing yet: its features need
 export const proAddsFor = (ai, cloud = false, gateOn = false) => [...(gateOn ? [PRO_LOG] : []), ...(ai ? [PRO_EVIDENCE, PRO_AI] : []), ...(cloud ? [PRO_CLOUD] : [])];
 
 const PLANS_LAB = "Pro plans";
+/* 2026-11-15 (docs/plans/portal-subscriptions.md Task 3): a matching promotion's banner (lib/promos.js; its offering's
+   store prices drive the tiles and the purchase), "Pro until <date>" for a free grant, and "Have a code?". */
+export const CODE_COPY = Object.freeze({ lab: "Have a code?", open: "Have a code?", codeLab: "Your code", redeemPlay: "Redeem in Google Play" });
+export const untilLine = (iso) => { try { return `Pro until ${new Date(iso).toLocaleDateString(undefined, { dateStyle: "long" })}`; } catch { return ""; } };
 
-export default function ProSheet({ onClose, unlocked = false, owned = false, ai = false, cloud = false, gateOn = false, trialOver = false, store = null, native = false, onOwned, onRestore, ping }) {
+export default function ProSheet({ onClose, unlocked = false, owned = false, ai = false, cloud = false, gateOn = false, trialOver = false, store = null, native = false, onOwned, onRestore, ping, promo = null, onHidePromo = null, until = null, onCodeDone = null }) {
   const selling = !!(store && store.available) && !owned;
   const [offer, setOffer] = useState(null); // null while the store hasn't answered
   const [pick, setPick] = useState("annual");
@@ -56,15 +62,38 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
     if (store && store.available) loadOffer(store, { tipIds: TIP_PRODUCTS.map((x) => x.id) }).then((o) => { if (live.current) setOffer(o); });
     return () => { live.current = false; };
   }, [store]);
+  // a promotion's own offering, asked of the store (nothing shown until it answers with prices)
+  const [promoOffer, setPromoOffer] = useState(null);
+  const promoId = promo && native && store && store.available && !owned ? promo.offeringId : null;
+  useEffect(() => {
+    let on = true;
+    setPromoOffer(null);
+    if (promoId) loadOffer(store, { offeringId: promoId }).then((o) => { if (on) setPromoOffer(o); });
+    return () => { on = false; };
+  }, [promoId, store]);
+  const banner = owned ? null : promoBanner(promo, { where: native ? "store" : "web", offer: promoOffer, lines: planLines, trialDays: storeTrialDays });
+  const promoPlans = promoOffer && promoOffer.ok && Object.keys(promoOffer.plans || {}).length ? promoOffer : null;
+  const shown = promoPlans ? { ...promoPlans, tips: offer && Array.isArray(offer.tips) ? offer.tips : [] } : offer; // what the tiles show and the purchase buys
+  const platformOf = store && store.kind === "app-store" ? "ios" : store && store.kind === "play" ? "android" : "web";
+  const [code, setCode] = useState("");
+  const redeem = async () => {
+    if (busy) return;
+    const r = await redeemCode(store, { platform: platformOf, code, appStoreId: APP_STORE_ID });
+    if (!live.current) return;
+    if (r.url) openExternal(r.url);
+    ping?.(r.line);
+    if (r.ok) onCodeDone?.();
+  };
 
-  const lines = offer && offer.plans && offer.plans[pick] ? planLines(pick, offer.plans[pick]) : null;
+  // a promotion's offering: the button and terms name the trial its store product really has (none = none)
+  const lines = shown && shown.plans && shown.plans[pick] ? planLines(pick, promoPlans ? { ...shown.plans[pick], trialDays: storeTrialDays(shown.plans[pick].pkg && shown.plans[pick].pkg.product) } : shown.plans[pick]) : null;
   const where = native ? "store" : "web";
-  const tiles = owned ? [] : planTiles({ where, offer: native ? offer : null });
+  const tiles = owned ? [] : planTiles({ where, offer: native ? shown : null });
   const tLine = proTrialLine(where, tiles);
   const buy = async () => {
     if (busy || !lines) return;
     setBusy(true);
-    const r = await buyPro(store, pick, offer);
+    const r = await buyPro(store, pick, shown);
     if (!live.current) return;
     setBusy(false);
     if (r.owned) onOwned?.(true);
@@ -84,6 +113,8 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
   return (
     <Sheet id="pro-sheet" title={owned ? t("pro.proIsOn") : trialOver ? TRIAL_COPY.sheetTitle : t("pro.whatProAdds")} onClose={onClose} closeLabel={t("pro.closeWhatProAdds")} className="prosheet">
       {trialOver && !owned && <p className="protrial">{TRIAL_COPY.sheetBody}</p>}
+      {owned && until && <p className="prountil">{untilLine(until)}</p>}
+      <PromoBanner banner={banner} onHide={onHidePromo} idPrefix="prosheet-promo" />
       {!owned && tiles.length > 0 && (
         <div className="proplanstop">
           <p className="section-lab" id="pro-plans-lab">{selling ? t("pro.choosePlan") : PLANS_LAB}</p>
@@ -115,11 +146,26 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
             </>
           )}
           <p className="rfoot">{KEEP_LINE}</p>
+          <p className="rfoot">{STORE_LINES.whoKnows}</p>
           <div className="prolinks">
             {onRestore && <button type="button" className="linkbtn" onClick={onRestore}>{t("pro.restorePurchases")}</button>}
             {POLICY_LINKS_READY && <button type="button" className="linkbtn" onClick={() => openExternal(TERMS_URL)}>{t("pro.termsOfUse")}</button>}
             {POLICY_LINKS_READY && <button type="button" className="linkbtn" onClick={() => openExternal(PRIVACY_URL)}>{t("pro.privacyPolicy")}</button>}
           </div>
+        </div>
+      )}
+
+      {!owned && (
+        <div className="procode" role="group" aria-labelledby="pro-code-lab">
+          <p className="section-lab" id="pro-code-lab">{CODE_COPY.lab}</p>
+          {!native && <p className="hint">{CODE_LINES.web}</p>}
+          {native && platformOf === "ios" && <button type="button" className="linkbtn" onClick={redeem}>{CODE_COPY.open}</button>}
+          {native && platformOf === "android" && (
+            <div className="procode-row">
+              <label>{CODE_COPY.codeLab}<input type="text" value={code} maxLength={64} autoCapitalize="characters" autoComplete="off" spellCheck={false} onChange={(e) => setCode(e.target.value)} /></label>
+              <button type="button" className="ghostbtn" onClick={redeem}>{CODE_COPY.redeemPlay}</button>
+            </div>
+          )}
         </div>
       )}
 

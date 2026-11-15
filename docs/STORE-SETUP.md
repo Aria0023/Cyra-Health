@@ -39,7 +39,8 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
 - [ ] **In-App Purchases** → add the three tips as **Consumable** with the ids and prices above.
 - [ ] Users and Access → Integrations → **In-App Purchase key**: generate it, download the .p8 (for RevenueCat).
 - [ ] App Information → **App-Specific Shared Secret**: generate it (for RevenueCat).
-- [ ] App Privacy: add **Purchases** → "Not linked to the user", "Not used for tracking".
+- [ ] App Privacy: add **Purchases** and **User ID** → "Linked to the user", "Not used for tracking" (the app tells
+      RevenueCat her account number while she is signed in; see section 6).
 
 ## 2. Google Play Console (Android)
 
@@ -48,7 +49,8 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
 - [ ] On the yearly base plan → **Add offer** → free trial, 7 days, eligibility "new customers".
 - [ ] Monetize → Products → **In-app products** → add the three tips (managed products; RevenueCat
       consumes them).
-- [ ] Data safety form: declare purchase history collected for app functionality, not shared.
+- [ ] Data safety form: declare purchase history and user IDs collected for app functionality and account
+      management, not shared (see section 6).
 - [ ] Create a Google Cloud **service account** with Play access for RevenueCat (RevenueCat's
       dashboard walks you through it).
 

@@ -1705,6 +1705,20 @@ button.plantile.on { border-color:var(--primary); box-shadow:inset 0 0 0 1px var
 .proplanstop { margin:0 0 14px; }
 .protrialline { margin:0 0 10px; font-size:var(--fs-md); line-height:1.5; color:var(--ink); }
 .youplantiles { margin:10px 0 6px; }
+/* Promotions (2026-11-15, portal subscriptions Task 3, components/PromoBanner.jsx): one calm banner tied to a store offer, on You → Plan and the Pro sheet only. */
+.promobanner { position:relative; margin:0 0 12px; padding:12px 14px; border-radius:var(--r-inner); background:var(--card); box-shadow:inset 0 0 0 1px var(--edge); border-left:4px solid var(--primary); }
+.promobanner-lab { margin:0 0 2px !important; font:700 var(--fs-xs) var(--ff-body); letter-spacing:.04em; text-transform:uppercase; color:var(--soft); }
+.promobanner-title { margin:0 0 4px !important; font:600 var(--fs-md) var(--ff-body); color:var(--ink); }
+.promobanner-body { margin:0 0 6px !important; font-size:var(--fs-sm); line-height:1.5; color:var(--ink); }
+.promobanner-prices { list-style:none; margin:0 0 6px; padding:0; font:600 var(--fs-sm) var(--ff-body); color:var(--ink); }
+.promobanner .rfoot { margin:0 !important; }
+.promobanner-x { min-height:44px; font-size:var(--fs-sm); }
+.procode { margin:14px 0 4px; }
+.procode-row { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; }
+.procode-row label { display:flex; flex-direction:column; gap:4px; font:600 var(--fs-sm) var(--ff-body); color:var(--ink); flex:1 1 180px; }
+.procode-row input { min-height:44px; padding:0 12px; border:1px solid var(--line); border-radius:var(--r-inner); background:var(--card); color:var(--ink); font:inherit; text-transform:uppercase; }
+.procode .linkbtn { min-height:44px; font-size:var(--fs-sm); }
+.prountil { margin:0 0 10px; font:600 var(--fs-md) var(--ff-body); color:var(--ink); }
 .getinapp { margin:4px 0 0; padding:12px 14px; border-radius:var(--r-inner); background:color-mix(in srgb, var(--tint-you) 70%, var(--card)); box-shadow:inset 0 0 0 1px var(--edge); }
 .getinapp-h { margin:0 0 6px !important; font-size:var(--fs-md); color:var(--ink); }
 .getinapp-btns { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 6px; }

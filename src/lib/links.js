@@ -21,6 +21,9 @@ export const TIP_URL = clean(import.meta.env.VITE_TIP_URL);
    the web says "Coming soon to the App Store and Google Play" instead of showing a dead button. */
 export const APP_STORE_URL = clean(import.meta.env.VITE_APP_STORE_URL);
 export const PLAY_STORE_URL = clean(import.meta.env.VITE_PLAY_STORE_URL);
+/* The app's numeric Apple id (2026-11-15, portal subscriptions Task 3): "Have a code?" opens Apple's offer-code redeem page
+   for this app when the RevenueCat plugin can't show Apple's code sheet. Digits only; anything else = unset. */
+export const APP_STORE_ID = /^\d{6,12}$/.test(String(import.meta.env.VITE_APP_STORE_ID || "").trim()) ? String(import.meta.env.VITE_APP_STORE_ID).trim() : "";
 
 export function openExternal(url) {
   if (!url) return;

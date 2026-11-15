@@ -14,6 +14,7 @@ export function newApiState(over = {}) {
     code: "123456",
     sources: { oura: true, terra: true },
     evidence: null, // (body) => { status, json } for POST /api/ai/evidence
+    promotions: null, // GET /api/promotions/active answers { version: 1, promotions: this } when set; null = 404
     catalog: null, // GET /api/shop/catalog answers this (any JSON) when set; null = 404, so the app keeps its bundled catalog
     sent: [],
     ...over,
@@ -45,6 +46,7 @@ export async function mockApi(target, state) {
     if (p === "/api/integrations/sources") return json(200, state.sources);
     if (p === "/api/ai/status") return json(200, { ready: true });
     if (p === "/api/ai/evidence" && state.evidence) { const r = state.evidence(body); return json(r.status, r.json); }
+    if (p === "/api/promotions/active") return state.promotions == null ? json(404, { error: "not in the mock" }) : json(200, { version: 1, promotions: state.promotions });
     if (p === "/api/shop/catalog") return state.catalog == null ? json(404, { error: "not in the mock" }) : json(200, state.catalog);
     if (/^\/api\/shop\/images\/[a-f0-9]{24}$/.test(p)) return route.fulfill({ status: 200, headers: { ...CORS, "content-type": "image/png", "cache-control": "public, max-age=31536000, immutable" }, body: PNG_1PX });
     if (p === "/api/ai/ask") return json(200, { provider: "rules", answer: "A written answer.", source_note: null, ask_your_doctor: null, urgent: false });

@@ -30,4 +30,16 @@ symlinks to the main checkout's). Resume there: `git worktree list`.
 - Commits: 8f3f9a5 (WIP), then the final commit after this note
 
 ## Task 3: the app
-- [ ] not started
+- [x] lib/promos.js (+tests): cleaner, device copy, audience on the device (stage, new = first date within 14 days),
+      one at a time, banner with ONLY the store's price strings (web: none); lib/promoLive.js plain GET
+- [x] lib/purchase.js (+tests): linkAccount (logIn with the account id only) / unlinkAccount (logOut), proUntil (free
+      grants), loadOffer({ offeringId }), redeemCode (Apple sheet / Apple redeem page / Play redeem page); pricing.js
+      planLines takes the store product's trial for a promotion's offering
+- [x] components/PromoBanner.jsx; ProSheet (banner, promotion offering drives tiles + purchase, Pro until, Have a code?,
+      what RevenueCat is told); You → Plan (banner, Pro until); App.jsx (promos / promoHidden device-only record keys,
+      download when the Pro sheet or You opens and at most daily, logIn/logOut following the sign-in)
+- [x] dev gallery pretend store: a promotion offering + "Open the Pro sheet with a promotion"; VITE_APP_STORE_ID
+- [x] privacy: Pro sheet line, sign-in "What signing in shares", privacy.html, health-data.html, MONETIZATION, STORE-SETUP
+      labels, PRIVACY-AUDIT entry
+- [x] e2e/promos.spec.mjs (3), promos-axe.spec.mjs (light/dark)
+- [ ] verified -> final commit

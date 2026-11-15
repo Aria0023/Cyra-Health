@@ -16,13 +16,21 @@ const demoPkg = (type, id, priceString, price) => ({ identifier: `$rc_${type.toL
 const DEMO_PLUGIN = {
   configure: async () => {},
   getCustomerInfo: async () => ({ customerInfo: { entitlements: { active: {} } } }),
-  getOfferings: async () => ({ current: { availablePackages: [demoPkg("MONTHLY", "solia_pro_monthly", "$9.95", 9.95), demoPkg("ANNUAL", "solia_pro_annual", "$100.00", 100)] } }),
+  getOfferings: async () => ({ current: { availablePackages: [demoPkg("MONTHLY", "solia_pro_monthly", "$9.95", 9.95), demoPkg("ANNUAL", "solia_pro_annual", "$100.00", 100)] },
+    // a promotion's own offering (portal subscriptions Task 3): a yearly product whose store offer is a 1-month free trial
+    all: { spring_demo: { identifier: "spring_demo", availablePackages: [{ identifier: "$rc_annual", packageType: "ANNUAL", product: { identifier: "solia_pro_annual_spring", priceString: "$89.99", price: 89.99, introPrice: { price: 0, priceString: "Free", periodUnit: "MONTH", periodNumberOfUnits: 1, cycles: 1 } } }] } } }),
+  logIn: async () => ({ customerInfo: { entitlements: { active: {} } }, created: false }),
+  logOut: async () => ({ customerInfo: { entitlements: { active: {} } } }),
+  isAnonymous: async () => ({ isAnonymous: true }),
+  presentCodeRedemptionSheet: async () => {},
   getProducts: async ({ productIdentifiers }) => ({ products: productIdentifiers.map((id, i) => ({ identifier: id, priceString: ["$1.99", "$4.99", "$9.99"][i], price: [1.99, 4.99, 9.99][i] })) }),
   purchasePackage: async () => { throw Object.assign(new Error("demo"), { userCancelled: true, code: "1" }); },
   purchaseStoreProduct: async () => { throw Object.assign(new Error("demo"), { userCancelled: true, code: "1" }); },
   restorePurchases: async () => ({ customerInfo: { entitlements: { active: {} } } }),
 };
 const DEMO_STORE = storeFor({ platform: "ios", plugin: DEMO_PLUGIN, apiKey: "demo" });
+/* A pretend promotion, as the portal would publish it (lib/promos.js); its prices come from the pretend store's offering. */
+const DEMO_PROMO = Object.freeze({ id: "promo_demo01", offeringId: "spring_demo", platforms: ["ios", "android", "web"], audience: { who: "everyone", stages: [] }, startsAt: "2026-01-01T00:00:00.000Z", endsAt: "2099-01-01T00:00:00.000Z", banner: { title: "A calmer start to spring", body: "A longer free trial on the yearly plan, for a little while." } });
 import { localDay } from "../lib/engine.js";
 
 /* The design-system gallery (calm R1): every v2 component in the stage accent picked here, light or dark. Present
@@ -60,7 +68,7 @@ export default function DevGallery() {
   const [tiles, setTiles] = useState({ Sleep: true });
   const [autoDone, setAutoDone] = useState(false);
   const [autoSkip, setAutoSkip] = useState(null);
-  const [proDemo, setProDemo] = useState(false);
+  const [proDemo, setProDemo] = useState(false); // false | true | "promo"
   useEffect(() => { const on = () => setView(readHash()); window.addEventListener("hashchange", on); return () => window.removeEventListener("hashchange", on); }, []);
   const set = (next) => { const v = { stage, scheme, style: uiStyle, ...next }; window.location.hash = `#/dev/ui?stage=${v.stage}&scheme=${v.scheme}&style=${v.style}`; };
   const [, stageLabel, stageId, stageName] = GALLERY_STAGES.find(([k]) => k === stage);
@@ -174,6 +182,7 @@ export default function DevGallery() {
 
         <button type="button" className="cta" aria-haspopup="dialog" onClick={() => setSheet(true)}>Open the log sheet</button>
         <button type="button" className="ghostbtn" aria-haspopup="dialog" style={{ marginTop: 8 }} onClick={() => setProDemo(true)}>Open the Pro sheet (pretend store)</button>
+        <button type="button" className="ghostbtn" aria-haspopup="dialog" style={{ marginTop: 8 }} onClick={() => setProDemo("promo")}>Open the Pro sheet with a promotion (pretend store)</button>
         <p className="rfoot" style={{ textAlign: "center" }}>Illustrative data. Nothing on this page is saved or sent.</p>
       </main>
       <NavPill tabs={TABS} current={tab} onSelect={setTab} onPlus={() => setSheet(true)} plusExpanded={sheet} label="Gallery sections" />
@@ -185,7 +194,7 @@ export default function DevGallery() {
           <p className="rfoot" style={{ marginTop: 4 }}>One tap opens the right logger.</p>
         </Sheet>
       )}
-      {proDemo && <ProSheet store={DEMO_STORE} native ai onRestore={() => {}} ping={() => {}} onClose={() => setProDemo(false)} />}
+      {proDemo && <ProSheet store={DEMO_STORE} native ai onRestore={() => {}} ping={() => {}} promo={proDemo === "promo" ? DEMO_PROMO : null} onHidePromo={() => {}} onClose={() => setProDemo(false)} />}
     </Shell>
   );
 }

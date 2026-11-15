@@ -45,11 +45,14 @@ countdown or upgrade button, and a dev build (proDev) says it is a test build. R
 - **Prices on a phone come only from the store** (`product.priceString`, her currency). Until the store answers, no price
   is shown at all. The sheet shows the plan length, price per period, auto-renewal, how to cancel, Restore purchases and
   the Terms and Privacy links (App Store Review Guideline 3.1.2).
-- **What RevenueCat is told:** nothing about her. `configure()` gets no app user id (RevenueCat makes an anonymous one);
+- **What RevenueCat is told** (updated 2026-11-15, docs/plans/portal-subscriptions.md): nothing about her health. `configure()`
+  gets no app user id (RevenueCat makes an anonymous one); while she is signed in the app calls `logIn` with her opaque
+  account id (so a partner portal Pro grant reaches her) and `logOut` on sign-out or account deletion;
   no attributes, email, name or health data are ever set; `purchase.test.mjs` fails if the code calls any of those.
-  RevenueCat receives the store receipt and the anonymous id, as any subscription processor must. It is a payment
-  processor, not analytics or advertising (§6), and must be listed as a processor in the Privacy Policy and the App
-  Store privacy label ("Purchases", not linked to identity).
+  RevenueCat receives the store receipt and the anonymous id (or the account id while signed in), as any subscription
+  processor must. It is a payment processor, not analytics or advertising (§6), and must be listed as a processor in the
+  Privacy Policy and the App Store privacy label ("Purchases" and "User ID", linked to the user, not used for tracking:
+  docs/STORE-SETUP.md §6).
 - **What Pro opens** is unchanged: `PRO_PLAN` in `src/lib/plan.js`. Everything in §2 stays free.
 - **Status:** the code path is built and tested with a fake store and a pretend-store preview (dev gallery). It sells
   nothing until the products exist in App Store Connect / Play Console / RevenueCat and the two public keys are set.

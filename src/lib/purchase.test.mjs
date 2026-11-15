@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { storeFor, startStore, loadOffer, buyPro, restorePurchases, sendTip, ownsPro, proOwned, STORE_LINES, STORE_KINDS } from "./purchase.js";
+import { storeFor, startStore, loadOffer, buyPro, restorePurchases, sendTip, ownsPro, proOwned, STORE_LINES, STORE_KINDS, proUntil, linkAccount, unlinkAccount, redeemCode, appleRedeemUrl, playRedeemUrl, CODE_LINES } from "./purchase.js";
 import { PRO_PRODUCTS, TIP_PRODUCTS, ENTITLEMENT, WEB_PRICE_LINE, planLines, perMonthOf, CANCEL_LINES, KEEP_LINE } from "./pricing.js";
 import { planFor, PLAN, PRO_PLAN, DEV_PRO_PLAN, can } from "./plan.js";
 
@@ -54,12 +54,12 @@ test("storeFor: only a phone with the plugin and a key has a store; the web neve
 test("startStore configures once, anonymously, and reads the entitlement", async () => {
   const plugin = fakePlugin({ owned: true });
   const s = storeFor({ platform: "ios", plugin, apiKey: "appl_pub" });
-  assert.deepEqual(await startStore(s), { ok: true, owned: true });
+  assert.deepEqual(await startStore(s), { ok: true, owned: true, until: null });
   await startStore(s);
   const conf = plugin.calls.filter(([n]) => n === "configure");
   assert.equal(conf.length, 1, "configured once");
   assert.deepEqual(conf[0][1], { apiKey: "appl_pub" }, "no appUserID, nothing about her");
-  assert.deepEqual(await startStore(storeFor({ platform: "web" })), { ok: false, owned: false });
+  assert.deepEqual(await startStore(storeFor({ platform: "web" })), { ok: false, owned: false, until: null });
 });
 
 test("loadOffer returns the store's own prices; buyPro buys a plan and opens Pro", async () => {
@@ -140,6 +140,85 @@ test("pricing: the owner's prices, store prices on phones, honest terms", () => 
 test("purchase.js imports nothing, stores nothing, has no network of its own, sets nothing about her", () => {
   const code = stripComments(readFileSync(join(HERE, "purchase.js"), "utf8"));
   assert.ok(!/\bimport\s/.test(code), "no import");
-  for (const w of ["fetch", "XMLHttpRequest", "sendBeacon", "indexedDB", "localStorage", "import.meta", "setAttributes", "setEmail", "logIn(", "appUserID", "setDisplayName", "collectDeviceIdentifiers", "setAdjustID", "setAppsflyerID"]) assert.ok(!code.includes(w), w);
+  for (const w of ["fetch", "XMLHttpRequest", "sendBeacon", "indexedDB", "localStorage", "import.meta", "setAttributes", "setEmail", "setDisplayName", "setPhoneNumber", "collectDeviceIdentifiers", "setAdjustID", "setAppsflyerID", "setMixpanel", "setFirebase"]) assert.ok(!code.includes(w), w);
+  // 2026-11-15 (Task 3): exactly one logIn, with the opaque account id only (checked against ACCOUNT_ID_RE first)
+  assert.equal((code.match(/logIn\(/g) || []).length, 1, "one logIn call");
+  assert.match(code, /logIn\(\{ appUserID: accountId \}\)/);
+  assert.equal((code.match(/appUserID/g) || []).length, 1, "appUserID only in that call");
   assert.ok(!/[$€£]\s?\d/.test(code), "no price in purchase.js: prices come from the store or pricing.js");
+});
+
+/* ---------- 2026-11-15 (portal subscriptions Task 3): accounts, promotions, free grants, codes ---------- */
+function rcPlugin({ promo = true, info = NO_INFO, anonymous = false } = {}) {
+  const p = fakePlugin();
+  const pkg = (type, id, priceString, price) => ({ identifier: `$rc_${type.toLowerCase()}`, packageType: type, product: { identifier: id, priceString, price } });
+  p.getOfferings = async () => { p.calls.push(["getOfferings"]); return { current: { availablePackages: [pkg("ANNUAL", "solia_pro_annual", "$100.00", 100)] }, all: promo ? { spring_clinic: { identifier: "spring_clinic", availablePackages: [pkg("ANNUAL", "solia_pro_annual_spring", "$79.99", 79.99)] } } : {} }; };
+  p.logIn = async (a) => { p.calls.push(["logIn", a]); return { customerInfo: info, created: false }; };
+  p.logOut = async () => { p.calls.push(["logOut"]); return { customerInfo: NO_INFO }; };
+  p.isAnonymous = async () => ({ isAnonymous: anonymous });
+  p.presentCodeRedemptionSheet = async () => { p.calls.push(["presentCodeRedemptionSheet"]); };
+  return p;
+}
+const GRANT_INFO = { entitlements: { active: { pro: { identifier: "pro", isActive: true, store: "PROMOTIONAL", expirationDate: "2027-02-15T10:00:00Z" } } } };
+
+test("linkAccount: RevenueCat logIn with the opaque account id only; anything else is refused before any call", async () => {
+  const plugin = rcPlugin({ info: GRANT_INFO });
+  const store = storeFor({ platform: "ios", plugin, apiKey: "appl_test" });
+  for (const bad of ["maya@clinic.example", "Maya Lin", "", null, "x".repeat(41)]) {
+    assert.deepEqual(await linkAccount(store, bad), { ok: false, owned: false, until: null }, String(bad));
+  }
+  assert.ok(!plugin.calls.some(([n]) => n === "logIn"), "no logIn for a refused id");
+  const r = await linkAccount(store, "acct_email_0001");
+  assert.deepEqual(r, { ok: true, owned: true, until: "2027-02-15T10:00:00.000Z" });
+  const login = plugin.calls.filter(([n]) => n === "logIn");
+  assert.deepEqual(login, [["logIn", { appUserID: "acct_email_0001" }]], "only the id, nothing else");
+  assert.deepEqual(plugin.calls.find(([n]) => n === "configure")[1], { apiKey: "appl_test" }, "configure is still anonymous");
+  assert.deepEqual(await linkAccount(storeFor({ platform: "web" }), "acct_email_0001"), { ok: false, owned: false, until: null });
+});
+
+test("unlinkAccount: logOut when linked; nothing when already anonymous or never configured", async () => {
+  const plugin = rcPlugin();
+  const store = storeFor({ platform: "android", plugin, apiKey: "goog_test" });
+  assert.equal((await unlinkAccount(store)).ok, false, "not configured yet: nothing");
+  await linkAccount(store, "acct_google_0001");
+  assert.deepEqual(await unlinkAccount(store), { ok: true, owned: false });
+  assert.equal(plugin.calls.filter(([n]) => n === "logOut").length, 1);
+  const anon = rcPlugin({ anonymous: true });
+  const s2 = storeFor({ platform: "ios", plugin: anon, apiKey: "appl_test" });
+  await startStore(s2);
+  assert.deepEqual(await unlinkAccount(s2), { ok: true, owned: false });
+  assert.ok(!anon.calls.some(([n]) => n === "logOut"), "logOut throws for an anonymous user in RevenueCat; never called");
+});
+
+test("proUntil: only a free (promotional) grant has an end date shown; a paid subscription renews", () => {
+  assert.equal(proUntil(GRANT_INFO), "2027-02-15T10:00:00.000Z");
+  assert.equal(proUntil({ entitlements: { active: { pro: { isActive: true, store: "APP_STORE", expirationDate: "2027-01-01T00:00:00Z" } } } }), null);
+  assert.equal(proUntil({ entitlements: { active: { pro: { isActive: true, store: "PROMOTIONAL", expirationDate: null } } } }), null, "lifetime");
+  assert.equal(proUntil(NO_INFO), null);
+});
+
+test("loadOffer with a promotion's offering: its own packages and the store's prices; a missing offering is nothing, never the current one", async () => {
+  const store = storeFor({ platform: "ios", plugin: rcPlugin(), apiKey: "appl_test" });
+  const o = await loadOffer(store, { offeringId: "spring_clinic" });
+  assert.equal(o.ok, true);
+  assert.equal(o.plans.annual.priceString, "$79.99");
+  assert.equal(o.plans.monthly, undefined);
+  assert.deepEqual(await loadOffer(store, { offeringId: "gone" }), { ok: false, plans: {}, tips: [] });
+  assert.deepEqual(await loadOffer(store, { offeringId: "__proto__" }), { ok: false, plans: {}, tips: [] });
+  assert.equal((await loadOffer(store)).plans.annual.priceString, "$100.00", "no id: the current offering as before");
+});
+
+test("redeemCode: Apple's sheet on iPhone (else Apple's redeem page), Google Play's page on Android, nothing on the web", async () => {
+  const plugin = rcPlugin();
+  const ios = storeFor({ platform: "ios", plugin, apiKey: "appl_test" });
+  assert.deepEqual(await redeemCode(ios, { platform: "ios" }), { ok: true, how: "sheet", line: CODE_LINES.opened });
+  const noSheet = rcPlugin(); noSheet.presentCodeRedemptionSheet = async () => { throw new Error("not implemented"); };
+  const r = await redeemCode(storeFor({ platform: "ios", plugin: noSheet, apiKey: "appl_test" }), { platform: "ios", appStoreId: "1234567890" });
+  assert.deepEqual(r, { ok: true, how: "url", url: "https://apps.apple.com/redeem?ctx=offercodes&id=1234567890", line: CODE_LINES.opened });
+  assert.equal(appleRedeemUrl("abc"), null);
+  const android = storeFor({ platform: "android", plugin: rcPlugin(), apiKey: "goog_test" });
+  assert.equal((await redeemCode(android, { platform: "android", code: " PARTNER-0001 " })).url, "https://play.google.com/redeem?code=PARTNER-0001");
+  assert.deepEqual(await redeemCode(android, { platform: "android", code: "no good!" }), { ok: false, how: "none", line: CODE_LINES.badCode });
+  assert.equal(playRedeemUrl("a&b=c"), null, "nothing but a code goes in the link");
+  assert.deepEqual(await redeemCode(storeFor({ platform: "web" }), { platform: "web", code: "X" }), { ok: false, how: "none", line: CODE_LINES.web });
 });

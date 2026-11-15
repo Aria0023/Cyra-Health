@@ -34,7 +34,8 @@ export const Haptics = registerPlugin("Haptics");
 /* Pro subscriptions and tips (owner decision D4): RevenueCat's Capacitor plugin. The npm package
    (@revenuecat/purchases-capacitor) is a dependency so `cap sync` bundles its native code into the phone builds; the
    JS side is reached here through the bridge like every other plugin, so the web bundle never loads it. Used only
-   through lib/purchase.js and only when hasPlugin("Purchases") is true. It is told nothing about her. */
+   through lib/purchase.js and only when hasPlugin("Purchases") is true. It is told nothing about her health; while she is
+   signed in it gets her opaque account id (lib/purchase.js linkAccount), never her email or name. */
 export const Purchases = registerPlugin("Purchases");
 
 /* Sign-in and connect flows on the phone run outside the web view and come back

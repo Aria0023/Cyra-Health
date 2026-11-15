@@ -2306,3 +2306,53 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   third-party request. **Attorney:** partner contacts are business personal data; the privacy policy for partners (not
   app users) is still to be written.
 
+
+## Promotions, Pro grants and codes (portal subscriptions, 2026-11-15, docs/plans/portal-subscriptions.md) — RevenueCat now gets her account number while she is signed in; no health data leaves the device
+
+- **What is new in the app:** (1) a promotion banner on You → Plan and the Pro sheet only (never in notifications,
+  onboarding, urgent screens or insights; one at a time; "Not now" hides it); (2) while she is signed in, RevenueCat's
+  `logIn` with her opaque Solia Health account id, and `logOut` when she signs out, deletes the account or erases
+  everything (`lib/purchase.js linkAccount / unlinkAccount`; App.jsx follows `signin.id`); (3) "Pro until <date>" for a
+  free grant; (4) "Have a code?" on the Pro sheet.
+- **What leaves the device, and to whom:**
+  - Solia Health's server: one plain `GET /api/promotions/active` when the Pro sheet or You opens, at most once a day
+    (`lib/promoLive.js`): no query, no Authorization header, no cookie, no referrer (`e2e/promos.spec.mjs` checks method,
+    query, token and cookie). The server answers everyone the same list and ignores any query (backend test). Like any
+    request, it shows the device's IP address (salted, daily-rotated hash in the rate limiter, nothing logged per request).
+  - RevenueCat: while signed in, the account id (22 random characters made by the accounts module; it names nothing).
+    `purchase.test.mjs` checks the source has exactly one `logIn(` with `{ appUserID: accountId }`, that an email or a name
+    is refused before any call, and still no `setEmail` / `setAttributes` / `setDisplayName` / attribution id. Signed out,
+    RevenueCat keeps (or makes a new) anonymous id as before.
+  - Apple / Google: a code is redeemed in Apple's code sheet (RevenueCat plugin) or Apple's redeem page
+    (`VITE_APP_STORE_ID`), or Google Play's redeem page with the code she typed. The code never goes to Solia Health or
+    RevenueCat.
+- **Decided on the device, never sent:** whether a promotion is for her (`lib/promos.js promoFor`): platform, her stage
+  (`promoStageOf`: periods / ttc / preg / peri / meno from her own record), "new" = her record's first date (the free week's
+  start or an earlier logged day) within 14 days. The server never learns her stage or newness.
+- **What the device keeps:** `promos` (the cleaned list and when it came) and `promoHidden` (ids she hid): both record keys
+  are device-only and NOT in any backup (`record.test.mjs`). The cleaner (`cleanPromo`) keeps only known fields with caps;
+  anything odd drops that promotion.
+- **Prices:** a phone shows a promotion ONLY with the store's own price strings for its RevenueCat offering; if the
+  offering or its prices don't load, no banner at all (`promoBanner`, tested). The tiles and the purchase then use that
+  offering, and the buy button and terms name the trial the store's product carries (`planLines(…, { trialDays })`). The
+  web never shows a price for a promotion ("This offer is in the iPhone and Android apps"). The portal refuses a banner
+  that names a price or a percentage.
+- **Server side (owner-only, never health data):** `subs_promotions` (rules and banner text; a promotion's internal name is
+  never public), `subs_grants` (the email an owner typed, the matching account ids, duration, note, who and when; an
+  account deletion removes its id from the grant), `subs_batches` / `subs_codes` (store codes and the partner brand). Every
+  grant, revoke, code upload, assignment and export is in the portal's audit log. RevenueCat gets the account id and a
+  duration for a grant, never the email (`subscriptions-smoke.js`). `REVENUECAT_SECRET_KEY` is server-only, never logged
+  (unit test and smoke check the log), never sent to the portal page.
+- **Sentences changed so each stays literally true:** the Pro sheet (store section) adds "RevenueCat, which handles Pro for
+  the stores, gets an anonymous id, or your account number if you're signed in; never your email or anything you log.";
+  the sign-in step's "What signing in shares" adds the RevenueCat and free-Pro sentence; privacy.html (Draft) "Pro and
+  tips" row, a new "Offers in the app" row, and the CCPA identifiers row; health-data.html's RevenueCat line;
+  MONETIZATION.md §1a; the portal's footer (it now also holds subscription numbers, promotions, grants by account email
+  and partner codes); native.js and purchase.js comments.
+- **Store disclosures:** App Store Connect → App Privacy: **Purchases** and **User ID**, "Linked to the user", not used for
+  tracking; Google Play Data safety: purchase history and **User IDs** for app functionality / account management, not
+  shared (`docs/STORE-SETUP.md` §1, §2 and §6).
+- **For counsel:** the grant list holds third-party-supplied emails (e.g. a clinic's patient list): a partner handing
+  Solia Health a list of its patients' emails discloses that they are patients. Before the first clinic grant, counsel
+  should decide the basis (the partner's own consent from each person, a data processing agreement) and whether "free Pro
+  through your clinic" needs its own notice. The portal tells owners never to write anything about health in the note.

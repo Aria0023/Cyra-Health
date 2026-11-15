@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import Icon from "./Icon.jsx";
 import { PLANS_COPY as C, planTiles } from "../lib/plans.js";
 import { loadOffer } from "../lib/purchase.js";
+import { planLines } from "../lib/pricing.js";
+import { promoBanner } from "../lib/promos.js";
+import { storeTrialDays } from "../lib/plans.js";
+import PromoBanner from "./PromoBanner.jsx";
 import { APP_STORE_URL, PLAY_STORE_URL, openExternal } from "../lib/links.js";
 
 /* The two Pro plans side by side (2026-11-15, Task 2; lib/plans.js decides the words and prices): Yearly first, marked
@@ -55,17 +59,29 @@ export function GetInApp({ id = "getinapp" }) {
 
 /** You → Plan's tiles: the web's reference tiles and "Get Solia Health Pro in the app"; on a phone the store's own tiles
     once its offer has answered (nothing while it hasn't, or with no store: no reference price on a phone). */
-export function PlanCardTiles({ store = null, native = false }) {
+export function PlanCardTiles({ store = null, native = false, promo = null, onHidePromo = null }) {
   const [offer, setOffer] = useState(null);
+  const [promoOffer, setPromoOffer] = useState(null);
+  const promoId = promo && native && store && store.available ? promo.offeringId : null;
   useEffect(() => {
     let live = true;
     if (native && store && store.available) loadOffer(store).then((o) => { if (live) setOffer(o); });
     return () => { live = false; };
   }, [native, store]);
-  const tiles = native ? planTiles({ where: "store", offer }) : planTiles({ where: "web" });
-  if (!tiles.length) return null;
+  // 2026-11-15 (portal subscriptions Task 3): a matching promotion's own offering; its store prices replace the usual ones
+  useEffect(() => {
+    let live = true;
+    setPromoOffer(null);
+    if (promoId) loadOffer(store, { offeringId: promoId }).then((o) => { if (live) setPromoOffer(o); });
+    return () => { live = false; };
+  }, [promoId, store]);
+  const banner = promoBanner(promo, { where: native ? "store" : "web", offer: promoOffer, lines: planLines, trialDays: storeTrialDays });
+  const shown = promoOffer && promoOffer.ok && Object.keys(promoOffer.plans || {}).length ? promoOffer : offer;
+  const tiles = native ? planTiles({ where: "store", offer: shown }) : planTiles({ where: "web" });
+  if (!tiles.length && !banner) return null;
   return (
     <div className="youplantiles">
+      <PromoBanner banner={banner} onHide={onHidePromo} idPrefix="you-promo" />
       <p className="section-lab" id="you-plans-lab">{C.label}</p>
       <PlanTiles tiles={tiles} labelledBy="you-plans-lab" />
       {!native && <GetInApp id="you-getinapp" />}

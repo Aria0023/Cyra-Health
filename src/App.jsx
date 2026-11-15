@@ -213,7 +213,9 @@ import { cleanAiPrefs, cleanAiChat, cleanAiWeekly, aiOffer, AI_COPY } from "./li
 import { aiStatus, aiSend, askEvidence } from "./lib/aiClient.js";
 import EvidenceCard from "./components/ai/EvidenceCard.jsx";
 import { evidenceBody, evidenceOffer, cleanSources, EVIDENCE_COPY } from "./lib/evidence.js";
-import { storeFor, restorePurchases, proOwned, startStore } from "./lib/purchase.js";
+import { storeFor, restorePurchases, proOwned, startStore, linkAccount, unlinkAccount } from "./lib/purchase.js";
+import { cleanPromoCache, cleanPromoHidden, promosDue, promoFor, promoStageOf, isNewUser } from "./lib/promos.js";
+import { fetchPromos, PROMOS_LIVE } from "./lib/promoLive.js";
 import { WEB_PRICE_LINE } from "./lib/pricing.js";
 import ConnectScreen from "./screens/ConnectScreen.jsx";
 import PregTodayScreen from "./screens/PregTodayScreen.jsx";
@@ -456,7 +458,10 @@ export default function CyraDemo() {
   const [proOpen, setProOpen] = useState(false);
   /* Whether the store says Pro is active (device-only, UI state; re-asked at every launch, never in a backup). */
   const [proOwnedNow, setProOwnedNow] = useState(false);
-  useEffect(() => { let live = true; startStore(STORE).then((r) => { if (live && r.ok) setProOwnedNow(r.owned); }); return () => { live = false; }; }, []);
+  /* For a free Pro grant made in the partner portal (portal subscriptions Task 3): its end date, else null (UI state). */
+  const [proUntilNow, setProUntilNow] = useState(null);
+  const takeStore = (r) => { if (r && r.ok) { setProOwnedNow(r.owned); setProUntilNow(r.owned ? r.until || null : null); } };
+  useEffect(() => { let live = true; startStore(STORE).then((r) => { if (live) takeStore(r); }); return () => { live = false; }; }, []);
   const planLive = planFor(DEV_FLAGS, proOwnedNow);
   useEffect(() => { planRef.current = planLive; }, [planLive]);
   /* The optional account (calm R9): cloudAccount { rev, acct } is device-only and never in any backup (it holds the
@@ -496,6 +501,22 @@ export default function CyraDemo() {
      never in a backup); null = the bundled catalog. A server answer that fails the cleaner drops the copy (bundled
      again); no answer at all keeps it. */
   const [shopCatalog, setShopCatalog] = useState(null);
+  /* Promotions (2026-11-15, portal subscriptions Task 3, lib/promos.js): the live list is downloaded with one plain GET that
+     carries nothing about her (lib/promoLive.js), when the Pro sheet or You opens and at most once a day; whether one is
+     for her is decided here on the device. promos (the list and when) and promoHidden (ids she hid) are device-only. */
+  const [promos, setPromos] = useState(null);
+  const [promoHidden, setPromoHidden] = useState([]);
+  const promoFetching = useRef(false);
+  const refreshPromos = async () => {
+    if (!PROMOS_LIVE || promoFetching.current) return;
+    promoFetching.current = true;
+    try {
+      const r = await fetchPromos();
+      if (r.ok) setPromos({ at: new Date().toISOString(), list: r.list });
+      else if (r.invalid) setPromos(null);
+    } finally { promoFetching.current = false; }
+  };
+  const hidePromo = (id) => setPromoHidden((h) => cleanPromoHidden([...h, id]));
   const shopFetching = useRef(false);
   const refreshShop = async () => {
     if (!SHOP_LIVE || shopFetching.current) return;
@@ -837,6 +858,22 @@ export default function CyraDemo() {
     editSnap.current = null; setEditDate(null); applyForm(back);
   };
   const curTab = stage === "preg" ? pregTab : appTab;
+  // Promotions: downloaded when the Pro sheet or You opens, at most once a day (refreshPromos above; nothing about her).
+  const promoMoment = proOpen || trialSheet || curTab === "you";
+  // The one promotion for her, decided on this device from her own record: her stage, and "new" = her record's first date
+  // (the free week's start, or an earlier logged day) within the last 14 days. Nobody with Pro sees one.
+  const firstDay = days.reduce((m, d) => (d && typeof d.date === "string" && d.date < m ? d.date : m), trialStart || todayIso);
+  const promoNow = PROMOS_LIVE && promos ? promoFor(promos.list, { platform: isNative() ? platform() : "web", stage: promoStageOf({ stage, ttc, meno: isMeno }), isNew: isNewUser(firstDay, todayIso), nowMs: Date.now(), hidden: promoHidden, owned: proOwnedNow }) : null;
+  useEffect(() => { if (PROMOS_LIVE && hydrated && phase === "app" && promoMoment && promosDue(promos)) refreshPromos(); }, [hydrated, phase, promoMoment]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Signed in: RevenueCat is told her opaque account id (never her email), so a free Pro grant reaches her; signed out
+  // (or the account deleted): logOut, back to an anonymous id (lib/purchase.js linkAccount / unlinkAccount).
+  const linkedTo = useRef(null);
+  const signinId = signin && signin.id ? signin.id : null;
+  useEffect(() => {
+    if (!STORE.available || !hydrated) return;
+    if (signinId && linkedTo.current !== signinId) { linkedTo.current = signinId; linkAccount(STORE, signinId).then(takeStore); }
+    else if (!signinId && linkedTo.current) { linkedTo.current = null; unlinkAccount(STORE).then((r) => { if (r.ok) { setProOwnedNow(r.owned); setProUntilNow(null); } }); }
+  }, [signinId, hydrated]);
   // A view's one-time tip (lib/guide.js): shown the first time she opens it, and counted as seen right away, so it never
   // comes back unless she asks (You → Show me around again). "Got it" just closes it.
   useEffect(() => {
@@ -1579,8 +1616,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLogRaw, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMedsRaw, medLog: setMedLogRaw, appts: setApptsRaw, journal: setJournalRaw, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDaysRaw, pregLog: setPregLogRaw, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestionsRaw(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLogRaw(cleanBodyLog(v)), labs: (v) => setLabsRaw(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLogRaw(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperimentsRaw(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)), signin: (v) => setSignin((cur) => cur || cleanSignin(v)), devicesHint: (v) => setDevicesHint(cleanDevicesHint(v)), practiceVoice: (v) => setPracticeVoice(v === true), trialStart: (v) => setTrialStart(cleanTrialStart(v)), guide: (v) => setGuide(cleanGuide(v)), partnerShare: (v) => setPartnerShare(cleanPartnerShare(v)), glucoseLog: (v) => setGlucoseLog(cleanGlucoseLog(v)), proChip: (v) => setProChip(cleanProChip(v)), shopCatalog: (v) => setShopCatalog(cleanShopCatalog(v)) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats, signin, devicesHint, practiceVoice, trialStart, guide, partnerShare, glucoseLog, proChip, shopCatalog };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLogRaw, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMedsRaw, medLog: setMedLogRaw, appts: setApptsRaw, journal: setJournalRaw, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDaysRaw, pregLog: setPregLogRaw, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestionsRaw(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLogRaw(cleanBodyLog(v)), labs: (v) => setLabsRaw(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLogRaw(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperimentsRaw(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)), signin: (v) => setSignin((cur) => cur || cleanSignin(v)), devicesHint: (v) => setDevicesHint(cleanDevicesHint(v)), practiceVoice: (v) => setPracticeVoice(v === true), trialStart: (v) => setTrialStart(cleanTrialStart(v)), guide: (v) => setGuide(cleanGuide(v)), partnerShare: (v) => setPartnerShare(cleanPartnerShare(v)), glucoseLog: (v) => setGlucoseLog(cleanGlucoseLog(v)), proChip: (v) => setProChip(cleanProChip(v)), shopCatalog: (v) => setShopCatalog(cleanShopCatalog(v)), promos: (v) => setPromos(cleanPromoCache(v)), promoHidden: (v) => setPromoHidden(cleanPromoHidden(v)) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats, signin, devicesHint, practiceVoice, trialStart, guide, partnerShare, glucoseLog, proChip, shopCatalog, promos, promoHidden };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1942,7 +1979,7 @@ export default function CyraDemo() {
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
-    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, uiLocale, uiStyle, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount, signin, devicesHint, practiceVoice, guide, proChip, shopCatalog };
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, uiLocale, uiStyle, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount, signin, devicesHint, practiceVoice, guide, proChip, shopCatalog, promos, promoHidden };
     if (account) setCloudAccount(account);
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
@@ -2945,7 +2982,7 @@ export default function CyraDemo() {
   };
   const evidenceCard = (id) => (ev.shown ? <EvidenceCard id={id} open={ev.open} onPro={() => setProOpen(true)} summaryOk={stage != null} busy={evBusy} out={evOut} note={evNote} onPrepare={prepareEvidence} /> : null);
   const store = STORE;
-  const onRestore = async () => { const r = await restorePurchases(store); if (r.ok) setProOwnedNow(r.owned); ping(r.line); };
+  const onRestore = async () => { const r = await restorePurchases(store); if (r.ok) { setProOwnedNow(r.owned); startStore(STORE).then(takeStore); } ping(r.line); };
   const buzz = !isNative() ? null : hasPlugin("Haptics") ? () => { Haptics.impact({ style: "LIGHT" }).catch(() => {}); } : typeof navigator !== "undefined" && typeof navigator.vibrate === "function" ? () => { try { navigator.vibrate(30); } catch { /* no vibration here */ } } : null;
   const moodToday = moodLog[todayIso] || {};
   // Every tap that saves on the spot says so (owner request 2026-11-12): the same short line each time. A refused save
@@ -3027,7 +3064,7 @@ export default function CyraDemo() {
     <YouScreen onTour={() => { setGuide(replayGuide(todayIso)); setHomeStepSkip(null); goTab("home"); ping("Getting started is back on Home, and each screen will show its tip again."); }} trial={{ gateOn: TRIAL_GATE && !proOwnedNow, line: trialNow }} acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={proOn} proOwned={proOwnedNow} storeReady={STORE.available} onPro={() => setProOpen(true)}
       ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line || (isNative() ? null : WEB_PRICE_LINE)} meals={mealsOffered ? { on: mealsHere, onToggle: () => { const on = !mealsHere; setBodyPrefs((p) => cleanBodyPrefs({ ...p, mealsOn: on })); ping(on ? "Meal notes on" : "Meal notes off. What you noted is kept"); } } : null} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
-      signMode={signMode} store={STORE} native={isNative()} signedIn={signin ? { s: signin, required: REQUIRE_SIGNIN, onSignOut: signOutAccount, onDelete: deleteSignedInAccount } : null}
+      signMode={signMode} store={STORE} native={isNative()} promo={promoNow} onHidePromo={hidePromo} proUntil={proUntilNow} signedIn={signin ? { s: signin, required: REQUIRE_SIGNIN, onSignOut: signOutAccount, onDelete: deleteSignedInAccount } : null}
       account={ACCOUNTS_HERE ? { can: ACCOUNTS.available(), acct: cloudAccount.acct, sync: cloudSync, todayIso, onCreate: () => setAcctSheet("create"), onSignIn: () => setAcctSheet("signin"), onBackup: () => backupToCloud(), onSignOut: signOut, onDelete: deleteAccount, onUseBackup: resolveUseBackup, onKeepDevice: resolveKeepDevice, onPro: () => setProOpen(true) } : null}
       dataSources={SOURCES_HERE || sourcesModel.rows.length ? <DataSourcesCard m={sourcesModel} busy={wearBusy} onDevices={openDevices} onConnect={connectWear} onPause={pauseSource} onDisconnect={disconnectAny} onPrefer={preferSource} onDemo={setDemo} /> : null}
       partner={partnerShown ? <PartnerCard onOpen={() => setPartnerOpen(true)} /> : null}
@@ -3148,8 +3185,8 @@ export default function CyraDemo() {
       {devicesOpen && <DevicesSheet {...devList} extra={FEATURES.shop ? <p className="learnrow-wrap devshop"><ShopLink category="wearables" label="Don't have a device? See options" /><ShopLink category="glucose" label="Glucose sensors: see options" /></p> : null} onClose={() => setDevicesOpen(false)} />}
       {partnerOpen && partnerShown && <PartnerSheet prefs={partnerShare} setPrefs={setPartnerPrefs} pred={pred} ttc={ttc} phone={isNative()} onShare={sharePartner} onClose={() => setPartnerOpen(false)} />}
       {learnOpen && <LearnSheet id={learnOpen} onClose={() => setLearnOpen(null)} />}
-      {proOpen && <ProSheet gateOn={TRIAL_GATE} unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} onClose={() => setProOpen(false)} />}
-      {trialSheet && !proOpen && <ProSheet gateOn={TRIAL_GATE} trialOver unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} onClose={() => setTrialSheet(false)} />}
+      {proOpen && <ProSheet gateOn={TRIAL_GATE} unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} promo={promoNow} onHidePromo={hidePromo} until={proUntilNow} onCodeDone={() => startStore(STORE).then(takeStore)} onClose={() => setProOpen(false)} />}
+      {trialSheet && !proOpen && <ProSheet gateOn={TRIAL_GATE} trialOver unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} promo={promoNow} onHidePromo={hidePromo} until={proUntilNow} onCodeDone={() => startStore(STORE).then(takeStore)} onClose={() => setTrialSheet(false)} />}
       {acctSheetView}
       {evSendOpen && <AiSendSheet kind="evidence" body={evSendOpen.body} lines={evSendOpen.lines} busy={evBusy} onSend={sendEvidence} onClose={() => setEvSendOpen(null)} />}
       {aiSendOpen && <AiSendSheet kind={aiSendOpen.kind} body={aiSendOpen.body} lines={aiSendOpen.lines} busy={!!aiBusy} onSend={sendAi} onClose={() => setAiSendOpen(null)} />}

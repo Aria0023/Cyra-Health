@@ -125,6 +125,7 @@ export const SIGNIN_COPY = Object.freeze({
     "Apple, Google or Facebook learns that you signed in to Solia Health, and nothing about your health. Apple lets you hide your email; Solia Health then gets a private relay address.",
     "Facebook doesn't say whether an email is confirmed, so a Facebook account keeps your name and no email.",
     "With email, our email provider (Resend) delivers a 6-digit code to your address. The code works once, for 10 minutes.",
+    "In the iPhone and Android apps, RevenueCat, which handles Pro for the stores, gets your account number while you're signed in, never your email or anything you log. If a clinic or partner arranges free Pro for you, Solia Health keeps that grant with your sign-in email.",
     "This device keeps your sign-in in a place that is never part of a backup. Sign out or delete your account any time in You → Account.",
   ]),
   // You → Account
