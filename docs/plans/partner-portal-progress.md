@@ -20,6 +20,18 @@ Baseline (2026-11-15, before any change): lint 0 errors (23 warnings), unit 647/
 - Commits: 177b42e, 91f9474 (WIP), then the final commit after this note
 
 ## Task 2: the portal web app
-- [ ] backend/src/modules/portal (static /portal/, /portal/apply, strict CSP), backend/public/portal (html, js, css, fonts)
-- [ ] e2e against a real backend started in the spec; axe light/dark
+- [x] backend/src/modules/portal (static /portal/, /portal/apply, strict CSP), backend/public/portal (html, js, css, fonts);
+      chosen over a second Vite entry (same origin as the API, deploys with the backend); configs, registry, prod-smoke,
+      FEATURE_ALSO.shop = ["portal"], backend/README section; dev static skips /portal
+- [x] e2e/portal.spec.mjs (3) against a real dev backend started in the spec (e2e/lib/portal.mjs); portal-axe.spec.mjs
+      light/dark, phone + wide, 44px check; shopSeed.test.mjs checks portal labels match the app
+- [x] verified: lint 0 errors (23 warnings), unit 651/651, backend 35/35, smoke:all all passed, build stamp once,
+      e2e 44/44, axe 32/32 -> final commit
+- Commits: 1007c0a (WIP), then the final commit after this note
+
+## Task 3: the app reads the live catalog
+- [x] src/lib/shopCatalog.js (+ tests): cleaner, record value, bundled/live shapes, fallback
+- [ ] fetch on Shop open + once a day; device-only record key shopCatalog (not in backup); Shop.jsx on the shape
+- [ ] footer sentence; PRIVACY-AUDIT, AFFILIATES, .env.example, render.yaml
+- [ ] e2e with the mocked API (new brand appears; invalid catalog falls back)
 - [ ] verified -> final commit

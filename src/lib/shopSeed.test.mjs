@@ -37,3 +37,16 @@ test("every seeded product passes the backend's own cleaners", () => {
   }
   for (const b of seed.brands) assert.ok(!V.cleanText(b.about, V.CAPS.about).error && V.ID_RE.test(b.id), b.id);
 });
+
+test("the partner portal's labels and preview copy match the app's (backend/public/portal/portal.js)", async () => {
+  const src = fs.readFileSync(new URL("../../backend/public/portal/portal.js", import.meta.url), "utf8");
+  const { AFFILIATE_LINE } = await import("./shop.js");
+  // const NAME = { key: "label", … }; → a plain object (keys quoted, then JSON)
+  const obj = (name) => JSON.parse(`{${src.match(new RegExp(`const ${name} = \\{(.*?)\\};`))[1].replace(/(\w+):/g, '"$1":')}}`);
+  assert.deepEqual(obj("CATEGORY_LABEL"), Object.fromEntries(SHOP_CATEGORIES.map((c) => [c.id, c.label])));
+  assert.deepEqual(obj("AVAIL_LABEL"), { ...AVAIL_LABEL });
+  assert.deepEqual(obj("TONE_LABEL"), { ...TONE_LABEL });
+  assert.deepEqual(Object.keys(obj("KIND_LABEL")).sort(), Object.keys(TRY_KINDS).sort());
+  assert.ok(src.includes(JSON.stringify(AFFILIATE_LINE)), "the commission line");
+  assert.ok(!/\.innerHTML\s*=|insertAdjacentHTML|document\.write/.test(src), "the portal never builds markup from text");
+});

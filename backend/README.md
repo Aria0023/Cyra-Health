@@ -381,6 +381,27 @@ passphrase derives. The server never parses, inspects, decrypts or logs a body.
   `VITE_FEATURES`. The app's account screens and the privacy copy (docs/PRIVACY-AUDIT.md, Calm R9) are
   in place. `npm run smoke:backup` and `npm run smoke:account` test all of the above.
 
+## Shop catalog and partner portal (`src/modules/shop/`, `src/modules/portal/`) — production
+
+Business data only (brands, products, the people at partner companies who edit them); never anyone's health data.
+- **Public:** `GET /api/shop/catalog` — published brands and products only, with ETag and `Cache-Control`; it takes no
+  parameters, so the app's request carries nothing about the person. `GET /api/shop/images/:id` — uploaded images
+  (PNG/JPEG/WebP, checked by magic bytes, at most 1 MB) with a year-long cache. `POST /api/shop/apply` — "Apply to partner".
+- **Portal:** the page at `/portal/` (`public/portal/`: `index.html`, `portal.js`, `portal.css` and two font files; no
+  framework, no build step; a strict CSP) and `/portal/apply`. Chosen over a second Vite entry so the portal deploys with
+  the backend and shares its origin (no CORS, no token in another site's storage).
+- **Sign-in:** an emailed one-time code (the accounts module's code book and Resend path; a development server without
+  `RESEND_API_KEY` logs it), then an 8-hour portal token signed with a key derived from `AUTH_SECRET` under its own label.
+  Owners are the addresses in `ADMIN_EMAILS`; partners are invited by an owner and can edit only their brands.
+  Later, per-company SSO (OIDC) plugs in at `ssoFor(email)` in `src/modules/shop/index.js`; not built.
+- **Roles:** a partner edits names, descriptions, links, prices and images, creates drafts and submits them; only an owner
+  sets why / evidence / sources / needs / stages / modules / clinician status, publishes, unpublishes or archives.
+  Edits never change the live catalog until an owner publishes (the catalog serves a published snapshot).
+- **Data:** `DATA_DIR/shop_*.json` and `DATA_DIR/shop-images/`. On a first start with an empty store the bundled catalog
+  (`config/shop-seed.json`, written by `npm run shop:seed` at the repo root) is imported as published. **Without a
+  persistent disk every portal edit is lost on each deploy.** Tests: `npm test` (`test/shop.test.mjs`) and
+  `npm run smoke:shop`.
+
 ## Development-only modules
 - **Agent (`src/modules/agent/`)** — task + shared tool registry + pluggable
   reasoning provider (`providers/rules.js`, deterministic, the default;

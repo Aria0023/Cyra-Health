@@ -86,7 +86,7 @@ function markNav() {
 /* ---------- views ---------- */
 function show(title, ...kids) {
   const h1 = h("h1", { tabindex: "-1", id: "view-h" }, title);
-  $main().replaceChildren(h1, ...kids);
+  $main().replaceChildren(h1, ...kids.filter(Boolean));
   document.title = `${title} · Solia Health partner portal`;
   h1.focus({ preventScroll: false });
   return h1;
@@ -251,8 +251,8 @@ async function renderProduct(id) {
   const form = h("form", { class: "panel", novalidate: true, id: "prodform" });
   const preview = h("div", { class: "sticky" }, h("p", { class: "preview-lab", id: "prev-lab" }, "Preview: the product card in the app"), h("div", { role: "group", "aria-labelledby": "prev-lab", id: "preview" }));
   const imgBox = h("div", { class: "imgprev" });
-  const drawImg = () => imgBox.replaceChildren(imageId ? h("img", { src: imageUrl(imageId), alt: "The product image" }) : h("p", { class: "note" }, "No image: the app shows a calm placeholder in the brand's colour."),
-    imageId ? h("button", { type: "button", class: "btn small", onclick: () => { imageId = null; drawImg(); drawPreview(); } }, "Remove image") : null);
+  const drawImg = () => imgBox.replaceChildren(...[imageId ? h("img", { src: imageUrl(imageId), alt: "The product image" }) : h("p", { class: "note" }, "No image: the app shows a calm placeholder in the brand's colour."),
+    imageId ? h("button", { type: "button", class: "btn small", onclick: () => { imageId = null; drawImg(); drawPreview(); } }, "Remove image") : null].filter(Boolean));
   const file = h("input", { id: "pe-image", type: "file", accept: "image/png,image/jpeg,image/webp", "aria-describedby": "pe-image-help" });
   file.addEventListener("change", async () => {
     const f = file.files?.[0]; if (!f) return;
