@@ -1,10 +1,30 @@
 # Affiliate links for Shop by need (owner guide)
 
 Shop by need (You → Shop by need, `src/lib/shop.js`) lists real products and services by category. It works with **no**
-affiliate links: every item then shows a plain link to the brand's own page and no "Affiliate link" label. To earn from it,
-join programs and paste your links into one file.
+affiliate links: every item then shows a plain link to the brand's own page and no "Affiliate link" label.
 
-## 1. The one file to edit: `src/config/affiliates.json`
+## 0. Now: use the partner portal (2026-11-15)
+
+The live catalog is edited in the **partner portal** at `<backend>/portal/` (e.g. `https://cyra-backend.onrender.com/portal/`)
+and the app downloads what you publish (`GET /api/shop/catalog`, a plain request that carries nothing about her) when the
+Shop opens and at most once a day otherwise. No app build is needed for a catalog change.
+1. Put your sign-in address in `ADMIN_EMAILS` (Render → cyra-backend → Environment), with `RESEND_API_KEY` and `EMAIL_FROM`
+   so the one-time codes are emailed. Attach a persistent disk and point `DATA_DIR` at it, or every portal edit is lost on
+   the next deploy.
+2. Sign in at `/portal/` with that address and the emailed 6-digit code. The first start imported this bundled catalog as
+   published, so everything below is already there to edit.
+3. Per product: the affiliate link, price and image are fields in the product editor (same rules as below: https only,
+   plain prices, images you have the right to use, PNG/JPEG/WebP up to 1 MB). The why line, evidence, sources, needs and
+   "Clinician reviewed" (set only once docs/CLINICIAN-REVIEW.md says Signed) are owner-only fields.
+4. Brands that want to join apply at `/portal/apply`; approving one creates the brand and invites its contact, who can then
+   edit only that brand and submit changes. Nothing a partner does reaches the app until you publish it.
+
+**The files below remain the offline fallback**: the app shows them when the build has no server, the server can't be
+reached and no copy was downloaded yet, or the server's answer fails the app's checks. After editing them, run
+`npm run shop:seed` so a fresh server's first import matches (a unit test fails otherwise). An existing portal store is not
+changed by them.
+
+## 1. The fallback file: `src/config/affiliates.json`
 
 ```json
 {
@@ -27,7 +47,8 @@ join programs and paste your links into one file.
   `$49 per test`); "Learn more" then says "Price set by <brand>; check their site." Copy it from the brand's own site and
   update it when theirs changes: never invent or round a price. `{ "url": "", "price": "…" }` shows the price with the plain
   brand link (no affiliate label).
-- Commit, push, and Render rebuilds the static site; phone apps pick it up at the next store build.
+- Commit, push, and Render rebuilds the static site; phone apps pick it up at the next store build. (In the portal, a
+  published change reaches the app without a build.)
 
 ## 1a. Product images (optional): `public/shop/` and `src/config/shop-images.json`
 

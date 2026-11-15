@@ -2277,3 +2277,32 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
 - **Polish (same day):** the page's intro is one sentence; "Matched on this device; nothing about you is sent." moved, word for
   word, to the footer "About this shop" beside the two link sentences. Brand colours are the shop's own hues (lib/constants.js
   SHOP_HUES), each tested for AA. No claim changed.
+
+## Partner portal and the live Shop catalog (2026-11-15, docs/plans/partner-portal.md) — one new request with nothing about her, one device-only key
+
+- **What the app sends:** in a build with a server (`VITE_API_BASE`) and the `shop` flag, `GET /api/shop/catalog` when the Shop
+  page opens and at most once a day otherwise (only once she is in the app). The request has no query string, no
+  Authorization header, no cookie (`credentials: "omit"`) and no referrer (`lib/shopLive.js`); the server ignores any query
+  and answers everyone the same catalog (backend `test/shop.test.mjs`, `e2e/shop-live.spec.mjs` checks method, query,
+  token and cookie). Like loading a web page, the server sees the device's IP address; the rate limiter keeps only a salted
+  hash that rotates daily (core/memory.js) and nothing is logged per request. Images come from `/api/shop/images/:id`,
+  loaded with `referrerpolicy="no-referrer"`.
+- **What the device keeps:** `shopCatalog` (record key, device-only, NOT in any backup): the cleaned catalog and when it
+  was downloaded. Business data only. Matching to her stage and modules stays on the device (`lib/shop.js shopCategories`).
+- **Cleaning:** `lib/shopCatalog.js cleanCatalog` keeps only https URLs with a real host, capped text with control and
+  bidi characters removed, known categories, availabilities, tones, hues, kinds, stages and modules, plain prices and
+  24-hex image ids; at most 300 products and 120 brands. A product that fails is dropped; a catalog with none left is
+  refused and the bundled one is shown. "Clinician reviewed" only when the server says exactly "signed"; "Affiliate link"
+  and the commission line only with an https affiliate URL.
+- **Sentences (each literally true):** the footer adds, only while the live catalog is shown, "The product list comes from
+  Solia Health's server, like loading a web page: the request carries nothing about you." "Matched on this device; nothing
+  about you is sent." stays true (the request sends nothing about her). privacy.html section 5 (still Draft) says the
+  list is downloaded with a plain request carrying nothing about her.
+- **Server side (business data only, never health data):** the `shop` module stores brands, products, partner email
+  addresses with their brand scope, invitations, applications (company, contact email, website, note), an audit log
+  (email of who changed what, when) and uploaded images, under `DATA_DIR`. Owners come from `ADMIN_EMAILS`. Sign-in codes
+  are kept in memory as salted hashes; portal tokens use their own HKDF label (an app token never opens the portal);
+  production logs never contain an email address or a code. The partner portal page (`/portal/`) has a strict CSP and no
+  third-party request. **Attorney:** partner contacts are business personal data; the privacy policy for partners (not
+  app users) is still to be written.
+

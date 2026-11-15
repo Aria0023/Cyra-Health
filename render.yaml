@@ -11,6 +11,8 @@ services:
       # 22: @capacitor/cli (a devDependency since the iOS/Android wrap) declares engines node >=22.
       - key: NODE_VERSION
         value: "22"
+      # Also where the Shop downloads its published catalog (GET /api/shop/catalog, edited in the partner portal at
+      # <backend>/portal/); without it the app shows the catalog it was built with.
       - key: VITE_API_BASE
         value: https://cyra-backend.onrender.com
       # Sign-in is required by default (VITE_REQUIRE_SIGNIN unset = "true"); set "false" to offer it with a skip.

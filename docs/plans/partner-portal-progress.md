@@ -31,7 +31,12 @@ Baseline (2026-11-15, before any change): lint 0 errors (23 warnings), unit 647/
 
 ## Task 3: the app reads the live catalog
 - [x] src/lib/shopCatalog.js (+ tests): cleaner, record value, bundled/live shapes, fallback
-- [ ] fetch on Shop open + once a day; device-only record key shopCatalog (not in backup); Shop.jsx on the shape
-- [ ] footer sentence; PRIVACY-AUDIT, AFFILIATES, .env.example, render.yaml
-- [ ] e2e with the mocked API (new brand appears; invalid catalog falls back)
-- [ ] verified -> final commit
+- [x] lib/shopLive.js fetch (no query, no token, no cookie, no referrer) on Shop open + once a day in the app;
+      device-only record key shopCatalog (not in backup; record tests); Shop.jsx draws the live or bundled shape
+- [x] footer sentence (live only); "From <brand>:" description under Learn more; PRIVACY-AUDIT, AFFILIATES, privacy.html
+      draft, .env.example, render.yaml, features.js comment
+- [x] e2e/shop-live.spec.mjs (new brand appears, request carries nothing, device copy kept offline, invalid falls back);
+      shop-axe live catalog light/dark
+- [x] verified: lint 0 errors (23 warnings), unit 660/660, backend 35/35, smoke:all all passed, build stamp once,
+      e2e 46/46, axe 34/34 -> final commit
+- Commits: e02a30e (WIP, plus an earlier WIP with lib/shopCatalog.js), then the final commit after this note
