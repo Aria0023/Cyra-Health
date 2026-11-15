@@ -41,8 +41,9 @@ export const DEFAULT_FEATURES = Object.freeze({ wearables: true, counts: false, 
 /** The backend module each server feature needs; null for a feature that never touches a server (deviceSync). */
 export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts: "pulse", ai: "ai", webReminders: "push", cloudBackup: "backup", signin: "accounts", deviceSync: null, shop: "shop" });
 /** Further backend modules a server feature also needs: sign-in with Apple, Google or Facebook runs through oauth; the
-    shop's partner portal page (where its catalog is edited) is the portal module. */
-export const FEATURE_ALSO = Object.freeze({ signin: Object.freeze(["oauth"]), shop: Object.freeze(["portal"]) });
+    shop's partner portal page (where its catalog is edited) is the portal module, and the portal's subscriptions part
+    (promotions the app downloads with GET /api/promotions/active, Pro grants, partner codes) is the subscriptions module. */
+export const FEATURE_ALSO = Object.freeze({ signin: Object.freeze(["oauth"]), shop: Object.freeze(["portal", "subscriptions"]) });
 
 const words = (raw) => String(raw).split(",").map((w) => w.trim()).filter(Boolean);
 const known = (w) => FEATURE_NAMES.find((n) => n.toLowerCase() === w.toLowerCase());

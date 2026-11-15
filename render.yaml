@@ -79,6 +79,14 @@ services:
       # personal: paste it under this service's Environment tab.
       - key: ADMIN_EMAILS
         sync: false
+      # Partner portal → Subscriptions, Promotions, Pro grants (subscriptions module, 2026-11-15). The SECRET key stays
+      # on this service only (never the static site, never a VITE_ variable). Unset = the portal says "not configured".
+      - key: REVENUECAT_SECRET_KEY
+        sync: false
+      - key: REVENUECAT_PROJECT_ID
+        sync: false
+      - key: REVENUECAT_ENTITLEMENT
+        value: pro
       # Sign-in (required since 2026-11-12): config/app.json mounts oauth and accounts, so the Apple / Google /
       # Facebook keys below and RESEND_API_KEY + EMAIL_FROM are needed in production. config/app.json also mounts
       # integrations (wearables on by default), so the Oura and Terra keys are needed for those rows to connect.

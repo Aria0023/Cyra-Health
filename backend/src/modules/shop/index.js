@@ -265,6 +265,9 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, mailer,
   };
   const mayBrand = (who, brandId) => who.role === "owner" || who.brandIds.includes(brandId);
   const reading = limited(L.read), writing = limited(L.write);
+  // The portal's sign-in, shared with modules mounted after this one (subscriptions, docs/plans/portal-subscriptions.md):
+  // the same token check and roles, and the same audit log, so the Activity page lists every change in one place.
+  ctx.portal = { auth, audit, brandIds: async () => (await store.find("shop_brands")).map((b) => ({ id: b.id, name: b.name })) };
 
   /** An image id a user may attach: it exists and, for a partner, they uploaded it. */
   async function imageOk(who, id) {

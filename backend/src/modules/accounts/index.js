@@ -180,6 +180,11 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, sender 
   ctx.accountCodeCount = () => codes.size; // tests
 
   const noStore = (res) => res.set("cache-control", "no-store");
+  // Other modules may listen for a sign-in or a deleted account (subscriptions: a Pro grant queued for her email is applied
+  // on her first sign-in). Hooks get the account id and sign-in email only, run after the answer is decided, never block
+  // or fail a sign-in, and log only a fixed category.
+  ctx.onAccountSignIn ||= []; ctx.onAccountDelete ||= [];
+  const runHooks = (list, arg) => { for (const fn of list || []) Promise.resolve().then(() => fn(arg)).catch(() => console.warn("[cyra] accounts: a sign-in hook failed")); };
   const oauthProviders = () => { try { return ctx.oauth?.configured?.() || {}; } catch { return {}; } };
 
   async function signInAs(provider, subject, { email = "", name = "" } = {}) {
@@ -195,6 +200,7 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, sender 
       if (name && name !== acct.name) patch.name = text(name, 200);
       if (Object.keys(patch).length) { await store.update("accounts", (a) => a.id === acct.id, patch); acct = { ...acct, ...patch }; }
     }
+    runHooks(ctx.onAccountSignIn, { id: acct.id, email: acct.email || "" });
     const sid = crypto.randomBytes(24).toString("base64url");
     await store.insert("account_sessions", { sid: sidHash(sid), accountId: acct.id, createdAt: new Date(clock()).toISOString() });
     const token = signToken({ a: acct.id, s: sid, x: clock() + TOKEN_DAYS * DAY }, keys.token);
@@ -273,6 +279,7 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, sender 
     if (!w) return res.status(401).json({ error: "not signed in" });
     await store.remove("account_sessions", (r) => r.accountId === w.acct.id);
     await store.remove("accounts", (a) => a.id === w.acct.id);
+    runHooks(ctx.onAccountDelete, { id: w.acct.id });
     res.sendStatus(204);
   });
 }

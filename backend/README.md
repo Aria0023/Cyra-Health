@@ -402,6 +402,24 @@ Business data only (brands, products, the people at partner companies who edit t
   persistent disk every portal edit is lost on each deploy.** Tests: `npm test` (`test/shop.test.mjs`) and
   `npm run smoke:shop`.
 
+## Subscriptions, promotions, Pro grants and partner codes (`src/modules/subscriptions/`) — production
+
+The portal's owner-only business tools (docs/plans/portal-subscriptions.md). Never health data, never her stage.
+- **RevenueCat:** every endpoint path is in `src/modules/subscriptions/revenuecat.js` (v2 metrics overview and offerings;
+  v1 promotional grant and revoke). **Verify each against RevenueCat's current API docs before go-live.** Needs
+  `REVENUECAT_SECRET_KEY` (secret, server only) and `REVENUECAT_PROJECT_ID`; `REVENUECAT_ENTITLEMENT` defaults to `pro`.
+  Without them the portal says "not configured" and names the variables; grants are refused before any request.
+- **Public:** `GET /api/promotions/active` — live promotions only (offering id, platforms, audience rules, dates, banner
+  text; never a promotion's internal name), ETag and `Cache-Control`, no parameters. The app decides on the device whether
+  one matches her; the server never learns her stage. No price is ever stored: the app shows the store's own price.
+- **Owner:** metrics (5-minute cache), promotions (draft → start → scheduled / live → stop), Pro grants by account email
+  (one or up to 500 pasted; RevenueCat gets the opaque account id; no account yet → listed back, or queued and applied at
+  her first sign-in through the accounts module's hook), revoke (RevenueCat revokes every promotional grant of an
+  account), and code batches (upload, assign to a brand, mark given out / redeemed, CSV export).
+- **Partner:** `GET /api/subscriptions/codes` and `/codes.csv` — only its own brands' counts and available codes. Every
+  other route answers 403. Every change is in the portal's audit log. Tests: `npm test` (`test/subscriptions.test.mjs`)
+  and `npm run smoke:subscriptions`.
+
 ## Development-only modules
 - **Agent (`src/modules/agent/`)** — task + shared tool registry + pluggable
   reasoning provider (`providers/rules.js`, deterministic, the default;

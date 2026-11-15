@@ -23,7 +23,8 @@
     "push",
     "backup",
     "shop",
-    "portal"
+    "portal",
+    "subscriptions"
   ],
   "opsConsole": true,
   "storage": {
