@@ -1,9 +1,9 @@
 // Module registry: every feature is a module exporting { mount(router, ctx) } and,
 // optionally, basePath. Which modules load is configuration:
 //   NODE_ENV=production → config/app.json: only what the app's default build calls
-//                         (push, ai, oauth, accounts, integrations and shop: sign-in is
+//                         (push, ai, oauth, accounts, integrations, shop and portal: sign-in is
 //                         required and wearables are on since 2026-11-12; shop, the published
-//                         Shop catalog and partner portal API, since 2026-11-15; VITE_FEATURES
+//                         Shop catalog, the partner portal API and its page, since 2026-11-15; VITE_FEATURES
 //                         unset, src/lib/features.js). pulse and backup stay in the code and
 //                         are mounted by listing them there, for a build whose
 //                         VITE_FEATURES turns them on. ADMIN_KEY and AUTH_SECRET come
@@ -19,7 +19,7 @@ import path from "path";
 import crypto from "crypto";
 import express from "express";
 
-export const PRODUCTION_MODULES = ["push", "ai", "oauth", "accounts", "integrations", "shop"];
+export const PRODUCTION_MODULES = ["push", "ai", "oauth", "accounts", "integrations", "shop", "portal"];
 const DEMO_VALUES = ["demo-admin-key-change-me", "demo-auth-secret-change-me"];
 const env = (k) => (process.env[k] || "").trim();
 const isProduction = () => env("NODE_ENV") === "production";

@@ -22,7 +22,8 @@
     "pulse",
     "push",
     "backup",
-    "shop"
+    "shop",
+    "portal"
   ],
   "opsConsole": true,
   "storage": {
