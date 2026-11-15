@@ -13,10 +13,11 @@ import { ROOT } from "./serve.mjs";
 export const OWNER = "owner@solia.example";
 const freePort = () => new Promise((resolve, reject) => { const s = createServer(); s.on("error", reject); s.listen(0, "127.0.0.1", () => { const { port } = s.address(); s.close(() => resolve(port)); }); });
 
-export async function startBackend() {
+/** extra: more environment for the server (e.g. REVENUECAT_* pointing at e2e/lib/revenuecat.mjs). */
+export async function startBackend({ env: extra = {} } = {}) {
   const port = await freePort();
   const data = fs.mkdtempSync(path.join(os.tmpdir(), "portal-e2e-"));
-  const env = { ...process.env, NODE_ENV: "", PORT: String(port), DATA_DIR: data, CYRA_CONFIG: "", ADMIN_EMAILS: OWNER, RESEND_API_KEY: "", EMAIL_FROM: "", PUBLIC_BASE_URL: `http://127.0.0.1:${port}`, AUTH_SECRET: "portal-e2e-secret-0123456789abcdef", ADMIN_KEY: "portal-e2e-admin-0123456789abcdef" };
+  const env = { ...process.env, NODE_ENV: "", PORT: String(port), DATA_DIR: data, CYRA_CONFIG: "", ADMIN_EMAILS: OWNER, RESEND_API_KEY: "", EMAIL_FROM: "", PUBLIC_BASE_URL: `http://127.0.0.1:${port}`, AUTH_SECRET: "portal-e2e-secret-0123456789abcdef", ADMIN_KEY: "portal-e2e-admin-0123456789abcdef", REVENUECAT_SECRET_KEY: "", REVENUECAT_PROJECT_ID: "", REVENUECAT_API_BASE: "", ...extra };
   const proc = spawn(process.execPath, ["server.js"], { cwd: path.join(ROOT, "backend"), env, stdio: ["ignore", "pipe", "pipe"] });
   let log = "";
   proc.stdout.on("data", (d) => { log += d; });
@@ -45,6 +46,17 @@ export async function portalSignIn(page, be, email, heading) {
   await page.getByLabel("6-digit code").fill(be.codeFor(email));
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+}
+
+/** The portal token of the signed-in tab (for setting things up through the API). */
+export const portalToken = (page) => page.evaluate(() => JSON.parse(sessionStorage.getItem("solia.portal") || "null")?.token || null);
+/** Signs an app account in by email code (the development server logs it) → { id, email }. */
+export async function appAccount(be, email) {
+  const before = be.codeFor(email);
+  await fetch(`${be.url}/api/accounts/email/start`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email }) });
+  await expect.poll(() => be.codeFor(email)).not.toBe(before);
+  const r = await fetch(`${be.url}/api/accounts/email/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, code: be.codeFor(email) }) });
+  return (await r.json()).account;
 }
 
 /** A tiny valid PNG (1x1), for uploads. */

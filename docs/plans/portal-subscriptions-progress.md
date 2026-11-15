@@ -20,7 +20,12 @@ symlinks to the main checkout's). Resume there: `git worktree list`.
 - Commits: 3e84288 (WIP), then the final commit after this note
 
 ## Task 2: portal screens
-- [ ] not started
+- [x] backend/public/portal/subs.js (Subscriptions, Promotions + editor with banner preview, Pro grants, Codes; partner
+      Codes), wired into portal.js (nav, routes, /api/* paths), portal.css; footer sentence widened to stay true
+- [x] docs/STORE-SETUP.md sections 6 (RevenueCat key, promotions, grants, privacy labels) and 7 (partner codes)
+- [x] e2e/portal-subs.spec.mjs (2) + portal-subs-axe.spec.mjs (light/dark, phone + wide, 44px) with a mocked RevenueCat
+      (e2e/lib/revenuecat.mjs); portal.spec nav lists updated
+- [ ] verified -> final commit
 
 ## Task 3: the app
 - [ ] not started

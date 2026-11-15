@@ -29,7 +29,7 @@ test("apply, then the owner approves, sets up a product, publishes it, and expor
   // the owner
   await portalSignIn(page, be, OWNER, "Overview");
   await expect(page.locator(".who")).toContainText(`Signed in as ${OWNER} · Owner`);
-  await expect(page.getByRole("navigation", { name: "Portal" }).getByRole("link")).toHaveText(["Overview", "Products", "Brands", "Applications", "Partners", "Activity"]);
+  await expect(page.getByRole("navigation", { name: "Portal" }).getByRole("link")).toHaveText(["Overview", "Products", "Brands", "Applications", "Partners", "Subscriptions", "Promotions", "Pro grants", "Codes", "Activity"]);
   await expect(page.locator(".stats")).toContainText("Applications waiting");
   await page.getByRole("link", { name: "Review applications" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Applications" })).toBeFocused();
@@ -93,7 +93,7 @@ test("a partner sees only its brand, can edit and submit, but never publish or s
   const pp = await ctx.newPage();
   await portalSignIn(pp, be, "pat@oura.example", "Products");
   await expect(pp.locator(".who")).toContainText("Partner");
-  await expect(pp.getByRole("navigation", { name: "Portal" }).getByRole("link")).toHaveText(["Products", "Brands"]);
+  await expect(pp.getByRole("navigation", { name: "Portal" }).getByRole("link")).toHaveText(["Products", "Brands", "Codes"]);
   await expect(pp.locator(".row")).toHaveCount(1);
   await pp.getByRole("link", { name: "Oura Ring" }).click();
   await expect(pp.getByRole("heading", { level: 1, name: "Oura Ring" })).toBeFocused();

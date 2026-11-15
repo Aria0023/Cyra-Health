@@ -2,7 +2,10 @@
    with an emailed one-time code and talks only to this origin's /api/shop. Every element is built with the DOM API
    (textContent, never innerHTML), so nothing a partner types can become markup. The portal token lives in this tab's
    sessionStorage and is gone when the tab closes; the server ends it after 8 hours or at sign-out.
-   Labels mirror the app's src/lib/shop.js (src/lib/shopSeed.test.mjs checks they agree). */
+   Labels mirror the app's src/lib/shop.js (src/lib/shopSeed.test.mjs checks they agree).
+   2026-11-15 (docs/plans/portal-subscriptions.md Task 2): the owner's Subscriptions, Promotions, Pro grants and Codes
+   screens, and a partner's Codes, live in subs.js and talk to /api/subscriptions on this same origin. */
+import { subsViews } from "./subs.js";
 
 const CATEGORY_LABEL = { fertility: "Ovulation & fertility", pregnancy: "Pregnancy", labs: "Lab tests", glucose: "Blood sugar", wearables: "Wearables", periods: "Periods", meno: "Perimenopause & menopause", sleep: "Sleep" };
 const AVAIL_LABEL = { home: "Kit sent to your home", lab: "Sample taken at a lab", visit: "Online visit", app: "In an app", online: "Sold online", stores: "Sold online and in stores", rx: "By prescription" };
@@ -52,7 +55,7 @@ async function api(method, path, body, { raw = false, type = "" } = {}) {
   if (raw) { payload = body; headers["content-type"] = type || "application/octet-stream"; }
   else if (body !== undefined) { headers["content-type"] = "application/json"; payload = JSON.stringify(body); }
   let r;
-  try { r = await fetch(`/api/shop${path}`, { method, headers, body: payload, credentials: "omit", cache: "no-store" }); }
+  try { r = await fetch(path.startsWith("/api/") ? path : `/api/shop${path}`, { method, headers, body: payload, credentials: "omit", cache: "no-store" }); }
   catch { throw new ApiError("The server didn't answer. Check your connection and try again."); }
   if (r.status === 401 && token() && !path.startsWith("/auth/")) { endSession("Your session ended. Sign in again."); throw new ApiError("Your session ended. Sign in again."); }
   const json = (r.headers.get("content-type") || "").includes("json") ? await r.json().catch(() => null) : null;
@@ -71,15 +74,15 @@ function renderWho() {
   who.append(h("span", {}, "Signed in as ", h("b", { text: me().email }), ` · ${isOwner() ? "Owner" : "Partner"}`),
     h("button", { type: "button", class: "btn small", onclick: async () => { try { await api("POST", "/auth/sign-out", {}); } catch { /* ends locally anyway */ } endSession("You're signed out."); } }, "Sign out"));
   const links = isOwner()
-    ? [["#/", "Overview"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/activity", "Activity"]]
-    : [["#/products", "Products"], ["#/brands", "Brands"]];
+    ? [["#/", "Overview"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/subscriptions", "Subscriptions"], ["#/promotions", "Promotions"], ["#/grants", "Pro grants"], ["#/codes", "Codes"], ["#/activity", "Activity"]]
+    : [["#/products", "Products"], ["#/brands", "Brands"], ["#/codes", "Codes"]];
   for (const [href, label] of links) nav.append(h("a", { href, "data-nav": href }, label));
   nav.hidden = false;
   markNav();
 }
 function markNav() {
   const cur = location.hash.replace(/\?.*$/, "") || "#/";
-  const top = cur.startsWith("#/product") ? "#/products" : cur.startsWith("#/brand") ? "#/brands" : cur;
+  const top = cur.startsWith("#/product") ? "#/products" : cur.startsWith("#/brand") ? "#/brands" : cur.startsWith("#/promotion") ? "#/promotions" : cur;
   for (const a of document.querySelectorAll("#nav a")) { if (a.dataset.nav === top || (top === "#/" && !isOwner() && a.dataset.nav === "#/products")) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); }
 }
 
@@ -509,6 +512,9 @@ function renderApply() {
     box, form, h("p", { class: "note" }, "Already a partner? ", h("a", { href: "/portal/" }, "Sign in"), "."));
 }
 
+/* ----- subscriptions, promotions, Pro grants and codes (subs.js) ----- */
+const subs = subsViews({ h, api, show, field, textIn, area, select, checks, checked, msgBox, tell, fmtTime, isOwner, brandList: async () => [...(await brandMap()).values()] });
+
 /* ---------- router ---------- */
 async function route() {
   if (/\/apply\/?$/.test(location.pathname)) return renderApply();
@@ -519,6 +525,11 @@ async function route() {
   try {
     if (m) return await (m[1] === "product" ? renderProduct(decodeURIComponent(m[2])) : renderBrand(decodeURIComponent(m[2])));
     if (hash === "#/brands") return await renderBrands();
+    if (hash === "#/codes") return await subs.renderCodes();
+    if (isOwner() && hash === "#/subscriptions") return await subs.renderSubscriptions();
+    if (isOwner() && hash === "#/promotions") return await subs.renderPromotions();
+    if (isOwner() && hash.startsWith("#/promotion/")) return await subs.renderPromotion(decodeURIComponent(hash.slice("#/promotion/".length)));
+    if (isOwner() && hash === "#/grants") return await subs.renderGrants();
     if (isOwner() && hash === "#/partners") return await renderPartners();
     if (isOwner() && hash === "#/applications") return await renderApplications();
     if (isOwner() && hash === "#/activity") return await renderActivity();
