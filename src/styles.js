@@ -1977,16 +1977,49 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
 .gluc-band { fill:var(--soft-1); opacity:.55; }
 .gluc-mean { fill:none; stroke:var(--soft-4); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; vector-effect:non-scaling-stroke; }
 .gluc-dot { fill:var(--soft-4); }
-/* Task C (2026-11-14): Shop by need. */
-.shopcats { flex-wrap:wrap; gap:7px; margin:6px 0 12px; } .shopcats .mc { min-height:44px; }
-.shoplist { list-style:none; margin:0; padding:0; }
-.shopitem { border-top:var(--rule); padding:12px 0; }
-.shoplist .shopitem:first-child { border-top:none; }
-.shophead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.shopitem .sname { display:block; font-size:16px; margin:2px 0 4px; }
-.shopwhy { font-size:16px; line-height:1.5; margin:0 0 6px; }
-.shopacts { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin-top:8px; }
-.shopgo { display:inline-flex; align-items:center; gap:6px; min-height:44px; width:auto; padding:0 16px; text-decoration:none; }
+/* Task C (2026-11-14): Shop by need; its own page since 2026-11-15 (components/Shop.jsx ShopPage). A soft "shop" wash,
+   calm but distinct: the brand bands and monogram tiles take the UI palette's four tints (--tint-*), never the data-viz
+   ramps. Cards are 1 column on phones; on a wide screen the page widens past the 430px column for 2–4 columns. */
 .shoptry, .shoplink { min-height:44px; gap:6px; font-size:var(--fs-sm); }
+.shopgo { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; width:auto; padding:0 18px; text-decoration:none; }
+.shopgo.cta { background:var(--ink); color:var(--on-ink); box-shadow:none; font-size:var(--fs-md); padding:0 18px; }
+.shoppage { --shop-wash:color-mix(in srgb, var(--tint-patterns) 70%, var(--tint-body)); padding-bottom:24px; }
+@media (min-width:700px) { .shoppage { width:min(1080px, calc(100vw - 48px)); margin-left:calc(50% - min(540px, 50vw - 24px)); } }
+.shophero { margin:0 0 14px; padding:10px 16px 16px; border-radius:var(--r-card); background:linear-gradient(160deg, var(--shop-wash), var(--card) 85%); box-shadow:inset 0 0 0 1px var(--edge); }
+.shophero .disp { margin:2px 0 6px; }
+.shoplead { margin:0; font-size:var(--fs-md); line-height:1.5; color:var(--ink); max-width:60ch; }
+.shopback { display:inline-flex; align-items:center; gap:4px; min-height:44px; padding:0 8px 0 0; font-size:var(--fs-sm); }
+.shopback-ico { transform:rotate(90deg); }
+.shopmode { max-width:320px; margin:0 0 10px; }
+.shopchips { display:flex; flex-wrap:nowrap; gap:8px; overflow-x:auto; margin:0 -16px 16px; padding:2px 16px 8px; scroll-padding:0 16px; scrollbar-width:thin; }
+.shopchips .mc { flex:0 0 auto; min-height:44px; white-space:nowrap; display:inline-flex; align-items:center; gap:8px; }
+.shopmono { flex:none; display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:8px; background:var(--tintc); color:var(--ink); font:700 11px var(--ff-body); letter-spacing:.02em; box-shadow:inset 0 0 0 1px var(--edge); }
+.shopmono.lg { width:44px; height:44px; border-radius:12px; font-size:15px; }
+.shopbrand { margin:0 0 22px; }
+.shopband { display:flex; align-items:flex-start; gap:12px; margin:0 0 12px; padding:12px 14px; border-radius:var(--r-inner); border-left:4px solid color-mix(in srgb, var(--tintc) 45%, var(--ink)); background:color-mix(in srgb, var(--tintc) 65%, var(--card)); }
+.shopband-text { min-width:0; }
+.shopband-name { margin:0; font:600 var(--fs-lg) var(--ff-body); color:var(--ink); }
+.shopband-tag { margin:2px 0 0; font:700 var(--fs-xs) var(--ff-body); letter-spacing:.08em; text-transform:uppercase; color:var(--ink); }
+.shopband-about { margin:4px 0 0; font-size:var(--fs-sm); line-height:1.45; color:var(--ink); }
+.shopgrid { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap:14px; }
+.shopcard { display:flex; flex-direction:column; border-radius:var(--r-card); background:var(--card); box-shadow:var(--sh-card); border:1px solid var(--line); overflow:hidden; }
+.shopimg { position:relative; aspect-ratio:1 / 1; max-height:260px; width:100%; background:linear-gradient(150deg, var(--tintc), color-mix(in srgb, var(--tintc) 35%, var(--card)) 70%, var(--card)); display:flex; align-items:center; justify-content:center; }
+.shopimg img { width:100%; height:100%; object-fit:cover; display:block; }
+.shopimg-ph { display:inline-flex; align-items:center; justify-content:center; width:76px; height:76px; border-radius:50%; background:color-mix(in srgb, var(--card) 70%, transparent); color:var(--ink); }
+.shopimg-brand { position:absolute; right:10px; bottom:10px; padding:3px 10px; border-radius:var(--r-pill); background:var(--card); color:var(--ink); font:700 var(--fs-xs) var(--ff-body); box-shadow:inset 0 0 0 1px var(--edge); }
+.shopcard-body { display:flex; flex-direction:column; gap:4px; padding:14px 14px 12px; flex:1; }
+.shopmeta { display:flex; justify-content:space-between; gap:8px; margin:0; font-size:var(--fs-sm); color:var(--soft); }
+.shopprice { font-weight:700; color:var(--ink); white-space:nowrap; }
+.shopcard .sname { display:block; margin:2px 0 0; font-size:18px; line-height:1.25; }
+.shopcovers { margin:0; font-size:var(--fs-md); font-weight:600; color:var(--ink); }
+.shopwhy { margin:2px 0 0; font-size:15px; line-height:1.5; color:var(--ink); }
+.shopsold { margin:2px 0 0; font-size:var(--fs-sm); color:var(--soft); }
+.shoppills { display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 0; }
+.shoppills .ev { margin:0; }
+.shopacts { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin-top:8px; }
+.shoplm-ev { margin:0 0 6px; font-size:var(--fs-sm); }
+.shopfoot { margin:8px 0 0; padding:14px 16px; border-radius:var(--r-inner); background:color-mix(in srgb, var(--tint-you) 60%, var(--card)); }
+.shopfoot-h { margin:0 0 6px; font:600 var(--fs-md) var(--ff-body); color:var(--ink); }
+.youshopgo { display:inline-flex; align-items:center; gap:8px; }
 .devshop { margin-top:10px; }
 `;

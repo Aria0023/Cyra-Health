@@ -775,3 +775,87 @@ Sources:
 - A free app that guides you through CBT-I steps, best used alongside a clinician.
 - Label: Strong evidence · "Strong evidence (CBT-I)". Sources: qaseem2016
 - Status: Awaiting clinician sign-off
+
+### Shop page additions (2026-11-15, plans-shop-page Task 3 owner update): lab tests, "what it covers" lines, brand lines
+The four lab-test items below are new; every why line is marked confirm at review. A "Clinician reviewed" badge shows on an
+item only when its entry here says `Status: Signed` AND its id is listed in src/config/shop-reviewed.json (none yet).
+New sources (confirm editions at review):
+- **medlineTsh** — MedlinePlus (NIH), TSH (Thyroid-stimulating hormone) Test.
+- **medlineA1c** — MedlinePlus (NIH), Hemoglobin A1C (HbA1c) Test.
+- **teede2023** — Teede HJ, et al. Recommendations from the 2023 International Evidence-based Guideline for the Assessment and Management of Polycystic Ovary Syndrome. Journal of Clinical Endocrinology & Metabolism, 2023.
+- **asrm2020** — Practice Committee of the American Society for Reproductive Medicine. Testing and interpreting measures of ovarian reserve: a committee opinion. Fertility and Sterility, 2020.
+- **nice2015** — NICE guideline NG23, Menopause: identification and management (2015, updated 2024).
+
+### shop.quest-thyroid (Quest Diagnostics, Thyroid tests you order online)
+- Thyroid problems can change periods and fertility; a TSH blood test is the usual first check.
+- Covers: Thyroid blood tests, such as TSH
+- Label: Clinical care · "Lab test; go over results with a clinician". Sources: medlineTsh
+- Status: Awaiting clinician sign-off (confirm at review)
+
+### shop.labcorp-a1c (Labcorp OnDemand, HbA1c blood sugar test you order online)
+- PCOS guidelines advise checking blood sugar from time to time; HbA1c is one common way.
+- Covers: HbA1c: your average blood sugar over about three months
+- Label: Clinical care · "Lab test; go over results with a clinician". Sources: teede2023, medlineA1c
+- Status: Awaiting clinician sign-off (confirm at review)
+
+### shop.everly-fertility (Everlywell, Women's Fertility Test)
+- Hormone levels can point to things worth discussing with a clinician, but they can't tell you whether you'll get pregnant.
+- Covers: Reproductive hormones and thyroid (TSH) from a finger-prick sample
+- Label: Mixed evidence · "Limited value for predicting fertility". Sources: asrm2020
+- Status: Awaiting clinician sign-off (confirm at review)
+
+### shop.everly-peri (Everlywell, Perimenopause Test)
+- Over 45, perimenopause is usually recognised from symptoms; hormone levels swing from day to day, so one test says little.
+- Covers: Hormones such as FSH and estradiol
+- Label: Mixed evidence · "Rarely needed to recognise perimenopause". Sources: nice2015
+- Status: Awaiting clinician sign-off (confirm at review)
+
+#### "What it covers" lines on the product cards (confirm at review)
+- shop.easyhome-lh: LH, the hormone that surges before ovulation
+- shop.clearblue-ovulation: LH, with a digital result
+- shop.mira: Fertility hormones in urine, read by a small monitor
+- shop.inito: Several fertility hormones on one strip
+- shop.proov: PdG, a progesterone marker in urine
+- shop.easyhome-bbt: Basal body temperature, to two decimals
+- shop.prenatal: Folic acid and other vitamins for pregnancy
+- shop.pregnancy-test: hCG, the pregnancy hormone
+- shop.stelo: Glucose, read by a sensor on your arm
+- shop.lingo: Glucose, read by a sensor on your arm
+- shop.libre: Glucose, read by a sensor on your arm
+- shop.oura: Sleep, heart rate, HRV and temperature
+- shop.apple-watch: Heart rate, sleep and wrist temperature on recent models
+- shop.garmin: Heart rate, HRV and sleep
+- shop.fitbit: Heart rate and sleep
+- shop.whoop: Heart rate, HRV, skin temperature and sleep
+- shop.heat-wrap: Steady heat for period cramps
+- shop.period-underwear: Absorbs period flow
+- shop.midi: Perimenopause and menopause care by video
+- shop.cooling-bedding: Bedding that feels cooler
+- shop.sleepio: A self-guided CBT-I course
+- shop.cbti-coach: CBT-I tools and a sleep diary
+
+#### One line about each brand (the brand band; confirm at review)
+- Easy@Home (AT-HOME TESTS): Home ovulation and pregnancy tests and a basal thermometer.
+- Clearblue (AT-HOME TESTS): Home pregnancy and ovulation tests.
+- Mira (AT-HOME TESTS): A home hormone monitor that reads urine test wands, with an app.
+- Inito (AT-HOME TESTS): A fertility monitor that works with your phone and reads urine test strips.
+- Proov (AT-HOME TESTS): Home urine tests for ovulation markers, including PdG.
+- Nature Made (SUPPLEMENTS): Vitamins and supplements sold in US stores.
+- First Response (AT-HOME TESTS): Home pregnancy and ovulation tests.
+- Dexcom (GLUCOSE SENSOR): Makes continuous glucose monitors, including Stelo, sold without a prescription in the US.
+- Abbott (GLUCOSE SENSOR): Makes the Lingo glucose biosensor, sold without a prescription in the US.
+- FreeStyle Libre (GLUCOSE SENSOR): Abbott's continuous glucose monitors, by prescription.
+- Oura (WEARABLE): A smart ring that reads sleep, heart rate and temperature.
+- Apple (WEARABLE): Apple Watch, read through Apple Health on iPhone.
+- Garmin (WEARABLE): Smartwatches and fitness trackers.
+- Fitbit (WEARABLE): Fitness trackers and smartwatches.
+- Whoop (WEARABLE): A screenless wearable strap, sold as a membership.
+- ThermaCare (PERIOD CARE): Heat wraps that warm up when opened.
+- Thinx (PERIOD CARE): Reusable period underwear.
+- Midi Health (TELEHEALTH): A US telehealth service for perimenopause and menopause care.
+- Slumber Cloud (HOME COMFORT): Bedding made with fabrics meant to feel cooler.
+- Sleepio (SLEEP PROGRAM): A digital CBT-I program for insomnia.
+- US Department of Veterans Affairs (FREE APP): Free mental health and sleep apps from the US VA.
+- Quest Diagnostics (LAB NETWORK): A US lab network; on its consumer site you order a test and give the sample at a Quest location.
+- Labcorp OnDemand (LAB NETWORK): Labcorp's consumer site: you order a test online and give the sample at a Labcorp location or with a home kit.
+- Everlywell (AT-HOME TESTS): Home test kits: you collect a sample and mail it to a lab.

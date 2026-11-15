@@ -183,7 +183,9 @@ import TodayScreen from "./screens/TodayScreen.jsx";
 import CalendarScreen from "./screens/CalendarScreen.jsx";
 import PatternsScreen from "./screens/PatternsScreen.jsx";
 import ReportScreen from "./screens/ReportScreen.jsx";
-import { ShopContext, ShopCard, ShopSheet, ShopLink } from "./components/Shop.jsx";
+import { ShopContext, ShopEntryCard, ShopPage, ShopLink } from "./components/Shop.jsx";
+import SHOP_IMAGES from "./config/shop-images.json";
+import SHOP_REVIEWED from "./config/shop-reviewed.json";
 import { shopCategories } from "./lib/shop.js";
 import AFFILIATES from "./config/affiliates.json";
 import YouScreen from "./screens/YouScreen.jsx";
@@ -482,8 +484,16 @@ export default function CyraDemo() {
   /* Task B: blood glucose read on the phone from Apple Health / Health Connect (lib/glucose.js glucoseLog: which apps she
      connected, when it last synced, one summary per day; record, in backups). */
   const [glucoseLog, setGlucoseLog] = useState(() => cleanGlucoseLog(null));
-  /* Task C: Shop by need's sheet, opened by a quiet contextual link with a category (UI only). */
-  const [shopOpen, setShopOpen] = useState(null);
+  /* Shop by need (Task C; its own page since 2026-11-15, plans-shop-page Task 3): shopPage is null or { cat } while the
+     page is open under the current tab (UI only). shopFrom is the control that opened it, where Back returns focus. */
+  const [shopPage, setShopPage] = useState(null);
+  const shopFrom = useRef(null);
+  const openShop = (cat = null) => {
+    const a = document.activeElement;
+    shopFrom.current = a && a !== document.body && !a.closest?.("[role=dialog]") ? a : null;
+    setDevicesOpen(false); setShowSettings(false); setShowPal(false); setLogOpen(false); setPotsOpen(false);
+    setShopPage({ cat: cat || null, at: Date.now() });
+  };
   const [cloudSync, setCloudSync] = useState({ state: "idle", conflict: null, error: null });
   const [acctSheet, setAcctSheet] = useState(null); // "create" | "signin" | null
   const [acctChoice, setAcctChoice] = useState(null); // { saved, acct } while a sign-in waits for "Use the backup / Keep this device's log"
@@ -834,7 +844,7 @@ export default function CyraDemo() {
   useEffect(() => { if (stage && !tabOf(curTab, navOpts)) goTab("home"); }, [stage, stageName, curTab]); // eslint-disable-line
   const focusHead = useRef(false);
   const pendingFocus = useRef(null); // selectors for the log sheet's target control, tried in order after the view renders
-  const showView = (v, { head = true } = {}) => { setPotsOpen(false); focusHead.current = head; goTab(v); };
+  const showView = (v, { head = true } = {}) => { setPotsOpen(false); setShopPage(null); focusHead.current = head; goTab(v); };
   const showViewRef = useRef(showView); showViewRef.current = showView; // the notification handlers below call the latest one
   const selectTab = (t) => showView(viewForTab(t, lastByTab.current, navOpts));
   useEffect(() => {
@@ -878,6 +888,7 @@ export default function CyraDemo() {
       const r = parseRoute(window.location.hash, { preg: stage === "preg", meno: isMeno });
       if (!r) return;
       try { history.replaceState(history.state, "", window.location.pathname + window.location.search); } catch { /* keep the hash */ }
+      if (r.page === "shop") { if (FEATURES.shop) openShop(r.category); return; } // #/shop[/<need>], and the old #/care, #/shelf
       showView(r.view);
       if (r.section) setYouSection(r.section);
     };
@@ -985,8 +996,8 @@ export default function CyraDemo() {
   const potsWearConnected = useMemo(() => Object.entries(wearSources).filter(([, v]) => v && !v.pending && !v.demo).map(([k]) => k), [wearSources]);
   const potsCyc = useMemo(() => ({ starts: ins.starts, stageName }), [ins, stageName]);
   const potsOffer = potsOk && !pots.on && !pots.since && !pots.offered && Array.isArray(regAnswers?.conditions) && regAnswers.conditions.includes("POTS or dysautonomia");
-  const openPots = (simple = false) => { if (simple) setPots((p) => setPotsSettings(p, { simple: true })); setPotsSec("today"); setPotsDate(null); setPotsOpen(true); };
-  const openStandTest = () => { setPotsSec("stand"); setPotsOpen(true); };
+  const openPots = (simple = false) => { if (simple) setPots((p) => setPotsSettings(p, { simple: true })); setPotsSec("today"); setPotsDate(null); setShopPage(null); setPotsOpen(true); };
+  const openStandTest = () => { setPotsSec("stand"); setShopPage(null); setPotsOpen(true); };
   /* Every change of stage INTO Pregnancy asks the prenatal team's exercise answer again: a "yes"
      given before this pregnancy, or in an earlier one, never carries over. The answer is cleared
      by her own stage actions, never by what the record says the stage was: when she taps
@@ -2637,9 +2648,10 @@ export default function CyraDemo() {
   const patternsCard = sixty ? <HomePatterns days={sixty} ids={symIds} labels={symMap} starts={isMeno ? [] : ins.starts} curLen={pred?.center || 28} onMore={() => goTab("patterns")} /> : null;
   /* POTS tools open as a page under the current tab (potsOpen): the tab bar stays, with the
      current tab still selected, and a Back button at the top of the page returns to it. */
-  const potsPage = potsOpen && potsTab;
-  const pregIs = (id) => !potsPage && pregTab === id;
-  const appIs = (id) => !potsPage && appTab === id;
+  const potsPage = potsOpen && potsTab && !shopPage;
+  const overPage = potsPage || (shopPage && FEATURES.shop);
+  const pregIs = (id) => !overPage && pregTab === id;
+  const appIs = (id) => !overPage && appTab === id;
   /* Home v2 (calm R3): the loggers this stage has (the "+" sheet's list) plus PCOS signals while the module is on; her
      Quick log tiles (homeTiles, 2–4) drawn from them; what today already holds, for the tiles' "Logged" chips and rails. */
   /* calm R4: Move is the general movement logger in every stage (a sheet); Sleep in pregnancy opens the hours sheet;
@@ -2976,7 +2988,19 @@ export default function CyraDemo() {
      PCOS module, a connected glucose sensor); the owner's affiliate links from src/config/affiliates.json; an employer
      build's allow-list. The contextual links open the sheet on one category. */
   const shopProps = { categories: shopCategories({ stage, ttc, pcos: pcosHere, glucose: glucoseOn }), affiliates: AFFILIATES, allow: org.partnerIds || null };
-  const shopCtx = FEATURES.shop ? { openCategory: (c) => { setDevicesOpen(false); setShopOpen(c); } } : null;
+  const shopCtx = FEATURES.shop ? { openCategory: (c) => openShop(c) } : null;
+  const closeShop = () => {
+    const back = shopFrom.current; shopFrom.current = null;
+    setShopPage(null);
+    requestAnimationFrame(() => {
+      if (back && back.isConnected) { back.focus({ preventScroll: false }); return; }
+      const h = document.querySelector(".viewpanel h1"); if (h) { if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1"); h.focus(); }
+    });
+  };
+  const shopView = shopPage && FEATURES.shop ? (
+    <ShopPage key={shopPage.at} {...shopProps} initial={shopPage.cat} images={SHOP_IMAGES} signed={SHOP_REVIEWED.signed} onBack={closeShop}
+      onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: shelfKind(s), started: todayIso }]); ping(shelfKind(s) === "care" ? "Added to What I'm trying" : "Added — your days before and after will be compared"); }} />
+  ) : null;
   const youView = (
     <YouScreen onTour={() => { setGuide(replayGuide(todayIso)); setHomeStepSkip(null); goTab("home"); ping("Getting started is back on Home, and each screen will show its tip again."); }} trial={{ gateOn: TRIAL_GATE && !proOwnedNow, line: trialNow }} acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={proOn} proOwned={proOwnedNow} storeReady={STORE.available} onPro={() => setProOpen(true)}
@@ -2986,7 +3010,7 @@ export default function CyraDemo() {
       dataSources={SOURCES_HERE || sourcesModel.rows.length ? <DataSourcesCard m={sourcesModel} busy={wearBusy} onDevices={openDevices} onConnect={connectWear} onPause={pauseSource} onDisconnect={disconnectAny} onPrefer={preferSource} onDemo={setDemo} /> : null}
       partner={partnerShown ? <PartnerCard onOpen={() => setPartnerOpen(true)} /> : null}
       learn={<LearnCard items={learnFor({ stage, ttc, meno: isMeno })} onOpen={openLearn} />}
-      care={FEATURES.shop ? <ShopCard {...shopProps} onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: shelfKind(s), started: todayIso }]); ping(shelfKind(s) === "care" ? "Added to What I'm trying" : "Added — your days before and after will be compared"); }} /> : null} />
+      care={FEATURES.shop ? <ShopEntryCard onOpen={() => openShop(null)} /> : null} />
   );
   const practicesView = () => <PracticesScreen favs={practiceFavs} onOpen={openPractice} featured={{ practice: localPractice(practiceOf("slow")), need: "calm" }} />;
   const journeyView = () => {
@@ -3025,6 +3049,8 @@ export default function CyraDemo() {
         {stage && <span className="acctchip" title={`${acct.anon ? "Anonymous" : acct.name || "You"}${research && FEATURES.counts && hasServer() ? " · sharing counts ✓" : ""}`}>{acct.anon ? "Anonymous" : acct.name || "You"}{research && FEATURES.counts && hasServer() ? " · sharing counts ✓" : ""}</span>}
         {/* One sheet at a time: opening either closes the other (UI S1). */}
         {stage && orgId === "cyra" && <button ref={palBtnRef} className="stagechip icon" onClick={() => { setShowSettings(false); setShowPal((s) => !s); }} aria-label="Color palette" aria-expanded={showPal} aria-controls="palette-sheet"><Icon name="palette" size={18} /></button>}
+        {/* Shop by need (2026-11-15): the bag opens the Shop page on every main tab */}
+        {stage && FEATURES.shop && <button type="button" className="stagechip icon shopbtn" aria-label="Shop" aria-current={shopPage ? "page" : undefined} onClick={() => (shopPage ? null : openShop(null))}><Icon name="bag" size={18} /></button>}
         {stage && <button ref={settingsBtnRef} className="stagechip icon" onClick={() => { setShowPal(false); setShowSettings((s) => !s); }} aria-label="Check-in settings" aria-expanded={showSettings} aria-controls="settings-sheet"><Icon name="sliders" size={18} /></button>}
         {updateRow}
       </header>
@@ -3053,6 +3079,7 @@ export default function CyraDemo() {
           </aside>
         )}
         {potsPage && potsView}
+        {shopView}
         {stage === "preg" ? (
           <>
             {pregIs("today") && (
@@ -3099,7 +3126,6 @@ export default function CyraDemo() {
       {devicesOpen && <DevicesSheet {...devList} extra={FEATURES.shop ? <p className="learnrow-wrap devshop"><ShopLink category="wearables" label="Don't have a device? See options" /><ShopLink category="glucose" label="Glucose sensors: see options" /></p> : null} onClose={() => setDevicesOpen(false)} />}
       {partnerOpen && partnerShown && <PartnerSheet prefs={partnerShare} setPrefs={setPartnerPrefs} pred={pred} ttc={ttc} phone={isNative()} onShare={sharePartner} onClose={() => setPartnerOpen(false)} />}
       {learnOpen && <LearnSheet id={learnOpen} onClose={() => setLearnOpen(null)} />}
-      {shopOpen && FEATURES.shop && <ShopSheet {...shopProps} initial={shopOpen} onClose={() => setShopOpen(null)} />}
       {proOpen && <ProSheet gateOn={TRIAL_GATE} unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} onClose={() => setProOpen(false)} />}
       {trialSheet && !proOpen && <ProSheet gateOn={TRIAL_GATE} trialOver unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} onClose={() => setTrialSheet(false)} />}
       {acctSheetView}

@@ -61,3 +61,60 @@ test("every why line is registered in docs/CLINICIAN-REVIEW.md with its sources"
   const all = SHOP_ITEMS.map((i) => `${i.why} ${i.ev}`).join(" ");
   assert.doesNotMatch(all, /cure|treats PCOS|prevent pregnancy|birth control|guarantee/i);
 });
+
+/* ---------- the Shop page (2026-11-15, plans-shop-page Task 3 and the owner's design update) ---------- */
+import { BRANDS, BRAND_TINTS, AVAIL_LABEL, CATEGORY_ICON, SHOP_PAGE_COPY, monogram, brandTint, brandsOf, groupByBrand, allItems, priceFor, imageFor, isReviewed } from "./shop.js";
+const IMAGES = JSON.parse(fs.readFileSync(path.resolve(here, "../config/shop-images.json"), "utf8"));
+const REVIEWED = JSON.parse(fs.readFileSync(path.resolve(here, "../config/shop-reviewed.json"), "utf8"));
+
+test("shop page: every brand has a type tag and one line, a two-letter monogram and a UI tint (never a data-viz ramp)", () => {
+  for (const b of brandsOf(SHOP_ITEMS)) {
+    assert.ok(BRANDS[b] && /^[A-Z -]+$/.test(BRANDS[b].tag) && BRANDS[b].about, b);
+    assert.match(monogram(b), /^[A-Z]{2}$/, b);
+    assert.ok(BRAND_TINTS.includes(brandTint(b)), b);
+    assert.equal(brandTint(b), brandTint(b), "stable");
+    assert.ok(review.includes(BRANDS[b].about), `brand line for ${b} registered`);
+  }
+  assert.deepEqual([...BRAND_TINTS], ["mind", "body", "patterns", "you"]);
+  assert.equal(monogram("Quest Diagnostics"), "QD"); assert.equal(monogram("Oura"), "OU"); assert.equal(monogram("US Department of Veterans Affairs"), "VA");
+  for (const i of SHOP_ITEMS) {
+    assert.ok(AVAIL_LABEL[i.avail], `${i.id} availability`);
+    assert.ok(i.covers && review.includes(i.covers), `${i.id} covers registered`);
+    assert.ok(CATEGORY_ICON[i.category], `${i.id} placeholder icon`);
+  }
+});
+
+test("shop page: grouped by brand in order; a brand filter; lab tests early for Trying to conceive, PCOS and perimenopause", () => {
+  const g = groupByBrand(shopItems("fertility"));
+  assert.equal(g[0].brand, "Easy@Home");
+  assert.deepEqual(g[0].items.map((i) => i.id), ["easyhome-lh", "easyhome-bbt"]);
+  assert.deepEqual(allItems({ brand: "Everlywell" }).map((i) => i.id), ["everly-fertility", "everly-peri"]);
+  const order = (o) => shopCategories(o).map((c) => c.id);
+  assert.ok(order({ ttc: true }).indexOf("labs") <= 2);
+  assert.ok(order({ pcos: true }).indexOf("labs") <= 2);
+  assert.ok(order({ stage: "peri" }).indexOf("labs") <= 2);
+  assert.ok(shopItems("labs").length >= 4);
+  assert.ok(shopItems("glucose").some((i) => i.id === "labcorp-a1c") && shopItems("meno").some((i) => i.id === "everly-peri"));
+  for (const brand of ["Quest Diagnostics", "Labcorp OnDemand", "Everlywell"]) assert.ok(SHOP_ITEMS.some((i) => i.brand === brand), brand);
+  assert.ok(!SHOP_ITEMS.some((i) => /hers|hims/i.test(i.brand)), "no service is listed we couldn't check (no contraception services)");
+});
+
+test("shop page: a price only when the owner set one, an image only when the owner placed one, no invented badges", () => {
+  const item = SHOP_ITEMS.find((i) => i.id === "everly-peri");
+  assert.equal(priceFor(item, AFF), null, "committed: no prices");
+  assert.equal(priceFor(item, { "everly-peri": { url: "https://aff.test/x", price: "From $99" } }), "From $99");
+  assert.equal(linkFor(item, { "everly-peri": { url: "https://aff.test/x", price: "From $99" } }).affiliate, true);
+  assert.equal(linkFor(item, { "everly-peri": { url: "", price: "From $99" } }).affiliate, false, "a price alone isn't a link");
+  assert.equal(priceFor(item, { "everly-peri": { price: "Best price ever!" } }), null, "only a plain price");
+  assert.deepEqual(Object.keys(IMAGES), ["_readme"], "images manifest committed empty");
+  assert.equal(imageFor(item, IMAGES), null);
+  assert.equal(imageFor(item, { "everly-peri": "everly-peri.webp" }), "shop/everly-peri.webp");
+  assert.equal(imageFor(item, { "everly-peri": "https://brand.example/img.jpg" }), null, "never a hotlinked image");
+  assert.equal(imageFor(item, { "everly-peri": "../x.webp" }), null);
+  assert.deepEqual(REVIEWED.signed, [], "no item is clinician-signed yet, so no badge shows");
+  assert.equal(isReviewed(item, REVIEWED.signed), false);
+  assert.equal(isReviewed(item, ["everly-peri"]), true);
+  for (const id of REVIEWED.signed) assert.match(review, new RegExp(`### shop\\.${id} [^\\n]*\\n(?:- [^\\n]*\\n)*- Status: Signed`), `${id} signed in CLINICIAN-REVIEW`);
+  const all = JSON.stringify(SHOP_PAGE_COPY) + JSON.stringify(BRANDS);
+  assert.doesNotMatch(all, /physician pick|best seller|top rated|#1|guarantee/i);
+});
