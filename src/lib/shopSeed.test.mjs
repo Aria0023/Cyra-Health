@@ -2,6 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { ART_IDS } from "./shopArt.js";
 import { buildSeed } from "./shopSeed.js";
 import { SHOP_ITEMS, SHOP_CATEGORIES, AVAIL_LABEL, TONE_LABEL, SHOP_HUE_IDS } from "./shop.js";
 import { TRY_KINDS } from "./trying.js";
@@ -22,6 +23,7 @@ test("the backend's vocabulary matches the app's", () => {
   assert.deepEqual([...V.TONES].sort(), Object.keys(TONE_LABEL).sort());
   assert.deepEqual([...V.HUES], [...SHOP_HUE_IDS]);
   assert.deepEqual([...V.KINDS].sort(), Object.keys(TRY_KINDS).sort());
+  assert.deepEqual([...V.ARTS], [...ART_IDS]); // 2026-11-16: the product illustrations
   assert.deepEqual([...V.MODULES].sort(), [...MODULE_IDS].sort());
   for (const i of SHOP_ITEMS) for (const s of i.stages) assert.ok(V.STAGES.includes(s), s);
 });
@@ -49,4 +51,11 @@ test("the partner portal's labels and preview copy match the app's (backend/publ
   assert.deepEqual(Object.keys(obj("KIND_LABEL")).sort(), Object.keys(TRY_KINDS).sort());
   assert.ok(src.includes(JSON.stringify(AFFILIATE_LINE)), "the commission line");
   assert.ok(!/\.innerHTML\s*=|insertAdjacentHTML|document\.write/.test(src), "the portal never builds markup from text");
+});
+
+test("the portal's copy of the product illustrations is up to date (run `npm run shop:seed` after editing lib/shopArt.js)", async () => {
+  const { buildPortalArt } = await import("./shopSeed.js");
+  assert.equal(fs.readFileSync(new URL("../../backend/public/portal/shop-art.js", import.meta.url), "utf8"), buildPortalArt());
+  const seed = read("../../backend/config/shop-seed.json");
+  for (const p of seed.products) assert.ok(ART_IDS.includes(p.art), `${p.id}: a seeded product names a known illustration`);
 });

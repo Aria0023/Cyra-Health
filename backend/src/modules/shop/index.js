@@ -5,7 +5,7 @@
 // Data (JSON store under DATA_DIR, like the other modules; images as files in DATA_DIR/shop-images/):
 //   shop_brands        { id, name, monogram, hue, tag, about, website, imageId, published: <snapshot>|null, changed, … }
 //   shop_products      { id, brandId, name, covers, description, availability, price, url, affiliateUrl, imageId,
-//                        categories[], stages[], modules[], kind, why, evidence {tone,label}|null, sources[],
+//                        categories[], stages[], modules[], kind, why, evidence {tone,label}|null, sources[], art,
 //                        clinicianStatus "awaiting"|"signed", status "draft"|"pending"|"published"|"archived",
 //                        published: <snapshot>|null, updatedBy, updatedAt, … }
 //                      The fields are the WORKING COPY; `published` is the snapshot the public catalog serves. An edit
@@ -63,7 +63,7 @@ const BRAND_PARTNER = ["name", "about", "website", "imageId"];
 const BRAND_OWNER = ["monogram", "hue", "tag"];
 const BRAND_CONTENT = ["name", "monogram", "hue", "tag", "about", "website", "imageId"];
 export const PRODUCT_PARTNER = ["name", "covers", "description", "availability", "price", "url", "affiliateUrl", "imageId"];
-export const PRODUCT_OWNER = ["brandId", "categories", "stages", "modules", "kind", "why", "evidence", "sources", "clinicianStatus"];
+export const PRODUCT_OWNER = ["brandId", "categories", "stages", "modules", "kind", "why", "evidence", "sources", "clinicianStatus", "art"];
 const PRODUCT_CONTENT = ["brandId", ...PRODUCT_PARTNER, ...PRODUCT_OWNER.filter((k) => k !== "brandId")];
 const LIMITS = { brands: 500, products: 3000, partners: 2000, pendingApplications: 500, imagesPer: 300, images: 5000, audit: 5000 };
 
@@ -120,6 +120,7 @@ function productField(k, v) {
     case "stages": return V.cleanIds(v, V.STAGES);
     case "modules": return V.cleanIds(v, V.MODULES);
     case "kind": return V.cleanOne(v, V.KINDS, { nullable: true });
+    case "art": return V.cleanOne(v, V.ARTS, { nullable: true }); // the illustration shown while there is no image; null = the need's default
     case "why": return V.cleanText(v, V.CAPS.why);
     case "evidence": return V.cleanEvidence(v);
     case "sources": return V.cleanSources(v);
@@ -442,7 +443,7 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, mailer,
     const at = now();
     const row = {
       id, brandId, name: "", covers: "", description: "", availability: "online", price: "", url: "", affiliateUrl: "", imageId: null,
-      categories: [], stages: [], modules: [], kind: null, why: "", evidence: null, sources: [], clinicianStatus: "awaiting",
+      categories: [], stages: [], modules: [], kind: null, why: "", evidence: null, sources: [], clinicianStatus: "awaiting", art: null,
       ...fields, status: "draft", published: null, createdAt: at, updatedBy: req.portal.email, updatedAt: at,
     };
     await store.insert("shop_products", row);

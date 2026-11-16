@@ -50,6 +50,18 @@ test("apply, then the owner approves, sets up a product, publishes it, and expor
   await expect(preview.locator(".sname")).toHaveText("Lumen sleep mask");
   await page.getByLabel("What it covers (one line)").fill("Blocks light while you sleep");
   await expect(preview).toContainText("Blocks light while you sleep");
+  // 2026-11-16: with no image the preview draws the app's illustration, marked "Illustration"; the owner can pick one
+  await expect(preview.locator(".shopimg svg.shopart")).toHaveCount(1);
+  await expect(preview.locator(".shopimg-tag")).toHaveText("Illustration");
+  await expect(preview.locator(".shopimg img")).toHaveCount(0);
+  const artPick = page.getByLabel("Illustration (shown while there is no image)");
+  await expect(artPick).toHaveValue("");
+  await expect(artPick.locator("option")).toHaveCount(24); // "Chosen from its main need" and the 23 drawings
+  const drawn = () => preview.locator(".shopimg svg.shopart").evaluate((el) => el.outerHTML.length);
+  const before = await drawn();
+  await artPick.selectOption({ label: "Folded sheets and a pillow" });
+  await expect.poll(drawn).not.toBe(before);
+  expect(await preview.locator(".shopimg svg.shopart").evaluate((el) => getComputedStyle(el.querySelector(".ah, .ahl, .ahd")).fill)).not.toBe("rgb(0, 0, 0)"); // the hue classes apply under the portal's CSP
   await page.getByRole("button", { name: "Publish" }).click();
   await expect(page.getByRole("alert")).toContainText("Needs a category before it can be published.");
   await page.getByRole("group", { name: /Needs/ }).getByLabel("Sleep").check();
@@ -102,6 +114,9 @@ test("a partner sees only its brand, can edit and submit, but never publish or s
   await expect(pp.locator(".locked")).toContainText("Mixed evidence: Useful trends, not a diagnosis");
   for (const name of [/Needs/, "Evidence label", "Why (one plain line)", "Clinician review"]) await expect(pp.getByLabel(name)).toHaveCount(0);
   for (const name of ["Publish", "Unpublish", "Archive"]) await expect(pp.getByRole("button", { name, exact: true })).toHaveCount(0);
+  await expect(pp.getByLabel("Illustration (shown while there is no image)")).toHaveCount(0); // the picker is the owner's
+  await expect(pp.getByRole("group", { name: "Preview: the product card in the app" }).locator(".shopimg-tag")).toHaveText("Illustration");
+  await expect(pp.locator(".imgprev")).toContainText("No image: the app shows a drawing of this kind of product, marked \"Illustration\"");
   // edit, with an image, and the preview follows
   await pp.getByLabel("Product name").fill("Oura Ring 4");
   await pp.getByLabel("Price (optional)").fill("From $349");
@@ -111,6 +126,8 @@ test("a partner sees only its brand, can edit and submit, but never publish or s
   await pp.getByLabel("Product image").setInputFiles({ name: "ring.png", mimeType: "image/png", buffer: PNG_1PX });
   await expect(pp.locator(".msgbox")).toContainText("Image uploaded");
   await expect(preview.locator(".shopimg img")).toHaveCount(1);
+  await expect(preview.locator(".shopimg-tag")).toHaveCount(0); // a real image shows no "Illustration" tag
+  await expect(preview.locator(".shopimg svg.shopart")).toHaveCount(0);
   await pp.getByRole("button", { name: "Save changes" }).click();
   await expect(pp.locator(".msgbox")).toContainText("The app keeps showing the last published version until this one is published.");
   await pp.getByRole("button", { name: "Submit for review" }).click();

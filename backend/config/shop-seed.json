@@ -254,6 +254,7 @@
       "url": "https://www.easyhomefertility.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "lh-strips",
       "categories": [
         "fertility"
       ],
@@ -284,6 +285,7 @@
       "url": "https://www.clearblue.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "ovulation-digital",
       "categories": [
         "fertility"
       ],
@@ -314,6 +316,7 @@
       "url": "https://www.miracare.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "hormone-monitor",
       "categories": [
         "fertility"
       ],
@@ -343,6 +346,7 @@
       "url": "https://www.inito.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "phone-reader",
       "categories": [
         "fertility"
       ],
@@ -372,6 +376,7 @@
       "url": "https://proovtest.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "pdg-strips",
       "categories": [
         "fertility"
       ],
@@ -401,6 +406,7 @@
       "url": "https://www.easyhomefertility.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "thermometer",
       "categories": [
         "fertility"
       ],
@@ -430,6 +436,7 @@
       "url": "https://www.naturemade.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "vitamins",
       "categories": [
         "fertility",
         "pregnancy"
@@ -462,6 +469,7 @@
       "url": "https://www.firstresponse.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "pregnancy-test",
       "categories": [
         "pregnancy",
         "fertility"
@@ -493,6 +501,7 @@
       "url": "https://www.stelo.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "cgm-a",
       "categories": [
         "glucose"
       ],
@@ -523,6 +532,7 @@
       "url": "https://www.hellolingo.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "cgm-b",
       "categories": [
         "glucose"
       ],
@@ -553,6 +563,7 @@
       "url": "https://www.freestyle.abbott/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "cgm-a",
       "categories": [
         "glucose"
       ],
@@ -582,6 +593,7 @@
       "url": "https://ouraring.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "smart-ring",
       "categories": [
         "wearables"
       ],
@@ -609,6 +621,7 @@
       "url": "https://www.apple.com/watch/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "watch-square",
       "categories": [
         "wearables"
       ],
@@ -636,6 +649,7 @@
       "url": "https://www.garmin.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "watch-round",
       "categories": [
         "wearables"
       ],
@@ -663,6 +677,7 @@
       "url": "https://www.fitbit.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "fitness-band",
       "categories": [
         "wearables"
       ],
@@ -690,6 +705,7 @@
       "url": "https://www.whoop.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "fabric-strap",
       "categories": [
         "wearables"
       ],
@@ -717,6 +733,7 @@
       "url": "https://www.thermacare.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "heat-wrap",
       "categories": [
         "periods"
       ],
@@ -746,6 +763,7 @@
       "url": "https://www.thinx.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "period-underwear",
       "categories": [
         "periods"
       ],
@@ -775,6 +793,7 @@
       "url": "https://www.joinmidi.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "video-visit",
       "categories": [
         "meno"
       ],
@@ -804,6 +823,7 @@
       "url": "https://slumbercloud.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "cooling-bedding",
       "categories": [
         "meno"
       ],
@@ -833,6 +853,7 @@
       "url": "https://www.sleepio.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "sleep-app-a",
       "categories": [
         "sleep"
       ],
@@ -860,6 +881,7 @@
       "url": "https://mobile.va.gov/app/cbt-i-coach",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "sleep-app-b",
       "categories": [
         "sleep"
       ],
@@ -887,6 +909,7 @@
       "url": "https://www.questhealth.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "lab-visit",
       "categories": [
         "labs"
       ],
@@ -918,6 +941,7 @@
       "url": "https://www.ondemand.labcorp.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "lab-visit",
       "categories": [
         "labs",
         "glucose"
@@ -949,6 +973,7 @@
       "url": "https://www.everlywell.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "lab-kit",
       "categories": [
         "labs",
         "fertility"
@@ -979,6 +1004,7 @@
       "url": "https://www.everlywell.com/",
       "affiliateUrl": "",
       "imageId": null,
+      "art": "lab-kit",
       "categories": [
         "labs",
         "meno"

@@ -11,7 +11,7 @@ import path from "node:path";
 import express from "express";
 import { JsonStore } from "../src/core/store.js";
 import { mount, basePath, imageType, ownersFrom, cleanPatch, buildCatalog, portalKey, IMAGE_MAX_BYTES } from "../src/modules/shop/index.js";
-import { cleanUrl, cleanText, cleanPrice, cleanIds, CATEGORIES } from "../src/modules/shop/vocab.js";
+import { cleanUrl, cleanText, cleanPrice, cleanIds, CATEGORIES, ARTS } from "../src/modules/shop/vocab.js";
 import { accountKeys, signToken } from "../src/modules/accounts/index.js";
 
 const SECRET = "unit-test-secret-1234567890";
@@ -59,6 +59,19 @@ test("cleanPatch: a partner may not set owner-only fields; unknown fields are re
   assert.equal(cleanPatch({ status: "published" }, "owner", "product").status, 400, "not even for an owner: publishing is its own action");
   assert.equal(cleanPatch({ hue: "teal" }, "partner", "brand").status, 403);
   assert.deepEqual(cleanPatch({ name: " Ring ", price: "$299" }, "partner", "product").patch, { name: "Ring", price: "$299" });
+});
+
+test("art (2026-11-16): the illustration is owner-only, a known id or null; the public catalog carries it", () => {
+  assert.equal(cleanPatch({ art: "smart-ring" }, "partner", "product").status, 403);
+  assert.deepEqual(cleanPatch({ art: "smart-ring" }, "owner", "product").patch, { art: "smart-ring" });
+  assert.deepEqual(cleanPatch({ art: "" }, "owner", "product").patch, { art: null });
+  assert.deepEqual(cleanPatch({ art: null }, "owner", "product").patch, { art: null });
+  for (const bad of ["nope", "<svg>", 3, ["cgm-a"]]) assert.equal(cleanPatch({ art: bad }, "owner", "product").status, 400);
+  assert.equal(ARTS.length, 23);
+  const snap = { brandId: "b", name: "Ring", url: "https://b.com/r", categories: ["wearables"], art: "smart-ring" };
+  const out = buildCatalog([{ id: "b", published: { name: "B", website: "https://b.com/" } }], [{ id: "r", status: "published", published: snap }, { id: "old", status: "published", published: { ...snap, art: undefined } }]);
+  assert.equal(out.products[0].art, "smart-ring");
+  assert.ok(!JSON.parse(JSON.stringify(out)).products[1].art, "a product published before the field existed has none: the app draws its need's default");
 });
 
 test("buildCatalog: published snapshots only; no editor, audit or working copy", () => {

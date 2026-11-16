@@ -2331,6 +2331,10 @@ so. Apple/Google/Facebook run through `backend/src/modules/oauth` and finish at 
       "Shop" pill, a "Shop by need" card on Home (she can hide it; You brings it back), a row in the "+" sheet, the card
       at the top of You, and a one-time "New: Shop by need" note. The shop may appear on Home; it still never appears in
       insights, Patterns findings, urgent guidance, notifications or onboarding. Device-only key `shopHint`.
+- [x] Shop product illustrations (2026-11-16, Task 2): a generic studio-style drawing per product type (`src/lib/shopArt.js`,
+      23 drawings, each item's `art`), tagged "Illustration" until the owner places a licensed photo (which always wins);
+      the portal's product editor previews it and lets an owner pick one. Owner: upload real photos from each affiliate
+      program's creative kit (docs/AFFILIATES.md §1a).
 - [x] Installable web app that opens offline (A14.1); Render serves /, /index.html, /sw.js and /manifest.webmanifest
       with Cache-Control: no-cache.
 - [ ] Choose VITE_FEATURES for each release and list the matching backend modules (§9.1); the default offers Ask

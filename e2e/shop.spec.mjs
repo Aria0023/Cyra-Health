@@ -1,7 +1,7 @@
 /* Shop by need (Task C, 2026-11-14), its own page since 2026-11-15 (docs/plans/plans-shop-page.md Task 3 and the owner's
    design update). With src/config/affiliates.json committed empty, every link is the brand's own page with no affiliate
-   label, no price and no "Clinician reviewed" badge; with src/config/shop-images.json empty, every card shows the calm
-   placeholder (no <img>). Links are checked, never followed: the app sends nothing.
+   label, no price and no "Clinician reviewed" badge; with src/config/shop-images.json empty, every card shows its
+   illustration with an "Illustration" tag (no <img>; 2026-11-16, Task 2). Links are checked, never followed: the app sends nothing.
    2026-11-16 (docs/plans/shop-findable-visuals.md Task 1, easier to find): the header's labelled "Shop" pill, Home's
    "Shop by need" card (Hide, and You brings it back), the "+" sheet's row, the entry card at the top of You, and the
    one-time "New: Shop by need" hint. */
@@ -60,7 +60,12 @@ test("Trying to conceive: needs first, products grouped by brand, plain brand li
   await expect(lh).toContainText("Sold online");
   await expect(lh).toContainText("Sold by Easy@Home");
   await expect(lh).toContainText("Mixed evidence on pregnancy rates");
-  await expect(lh.locator("img")).toHaveCount(0); // no licensed image yet: the placeholder
+  await expect(lh.locator("img")).toHaveCount(0); // no licensed image yet: the item's illustration, tagged as one
+  await expect(lh.locator(".shopimg svg.shopart")).toHaveAttribute("data-art", "lh-strips");
+  await expect(lh.locator(".shopimg svg.shopart")).toHaveAttribute("aria-hidden", "true");
+  await expect(lh.locator(".shopimg-tag")).toHaveText("Illustration");
+  await expect(shop.locator(".shopimg-tag")).toHaveCount(await shop.locator(".shopcard").count()); // every card without a photo says so
+  await expect(shop.locator(".shopfoot")).toContainText("Pictures marked Illustration are drawings, not photos of the product.");
   await expect(lh.locator(".shopprice")).toHaveCount(0); // no price set
   await lh.getByRole("button", { name: "Learn more" }).click();
   await expect(lh).toContainText("No price is shown here: check the brand's site.");
@@ -275,6 +280,39 @@ test("a narrow phone (360px): the Shop pill keeps its icon and label on one head
   expect(Math.max(...ys) - Math.min(...ys)).toBeLessThanOrEqual(4); // one row
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await ctx.close();
+});
+
+test("product pictures: an illustration per product type, 4:3, a click target that is not a second tab stop", async ({ page }) => {
+  await register(page, { stage: "My Cycle", pcos: "no" });
+  // Home's thumbnails are the same drawings
+  await expect(page.locator("#home-shop .shopthumb svg.shopart")).toHaveCount(3);
+  await expect(page.locator("#home-shop .shopthumb svg.shopart").first()).toHaveAttribute("data-art", "heat-wrap");
+  await expect(page.locator("#home-shop .shophome-thumbs")).toHaveAttribute("aria-hidden", "true");
+  await page.locator("header.mast").getByRole("button", { name: "Shop", exact: true }).click();
+  const shop = page$(page);
+  await shop.getByRole("button", { name: "By brand" }).click();
+  // every bundled item draws the art its catalog entry names; the three glucose sensors use two variants
+  const drawn = await shop.locator(".shopcard").evaluateAll((els) => Object.fromEntries(els.map((e) => [e.dataset.item, e.querySelector("svg.shopart")?.dataset.art])));
+  expect(Object.keys(drawn).length).toBe(26);
+  expect(drawn).toMatchObject({ oura: "smart-ring", "apple-watch": "watch-square", garmin: "watch-round", fitbit: "fitness-band", whoop: "fabric-strap", stelo: "cgm-a", lingo: "cgm-b", libre: "cgm-a", midi: "video-visit", "quest-thyroid": "lab-visit", "everly-peri": "lab-kit", prenatal: "vitamins" });
+  expect(new Set(Object.values(drawn)).size).toBe(23);
+  // gradient and filter ids never collide between two cards with the same drawing
+  expect(await shop.evaluate((m) => { const ids = [...m.querySelectorAll("svg.shopart [id]")].map((e) => e.id); return ids.length === new Set(ids).size && ids.length > 250; })).toBe(true);
+  // phones: the picture is 4:3, also in the sideways list
+  const img = shop.locator('.shopcard[data-item="easyhome-lh"] .shopimg');
+  const box = await img.boundingBox();
+  expect(Math.abs(box.width / box.height - 4 / 3)).toBeLessThan(0.02);
+  // the picture goes where "Visit <brand>" goes, but only the button is a control
+  expect(await img.evaluate((el) => [el.tabIndex, el.getAttribute("role"), el.closest("a"), getComputedStyle(el).cursor])).toEqual([-1, null, null, "pointer"]);
+  const card = shop.locator('.shopcard[data-item="easyhome-lh"]');
+  await card.getByRole("link", { name: /Visit Easy@Home/ }).evaluate((a) => a.addEventListener("click", (e) => { e.preventDefault(); a.dataset.went = String(Number(a.dataset.went || 0) + 1); }));
+  await img.click({ position: { x: 40, y: 80 } });
+  await expect(card.getByRole("link", { name: /Visit Easy@Home/ })).toHaveAttribute("data-went", "1");
+  expect(await card.locator("a, button, [tabindex]").evaluateAll((els) => els.filter((e) => e.tabIndex >= 0).map((e) => e.textContent.trim().slice(0, 14)))).toEqual(["Visit Easy@Hom", "Learn more"]);
+  // nothing moves with reduced motion (the harness asks for it): no zoom on hover, even on a wide screen
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await card.hover();
+  expect(await card.locator("svg.shopart").evaluate((el) => getComputedStyle(el).transform)).toBe("none");
 });
 
 test("wide screens: 2 to 4 columns of cards; phones: one", async ({ page }) => {

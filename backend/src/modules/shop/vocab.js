@@ -9,6 +9,8 @@ export const CATEGORIES = Object.freeze(["fertility", "pregnancy", "labs", "gluc
 export const AVAILABILITY = Object.freeze(["home", "lab", "visit", "app", "online", "stores", "rx"]);
 export const TONES = Object.freeze(["strong", "mixed", "comfort", "clinical"]);
 export const HUES = Object.freeze(["teal", "blue", "coral", "violet", "green", "amber", "rose", "indigo", "cyan", "plum"]);
+// Product illustrations (the app's src/lib/shopArt.js ART_IDS): what a card draws while a product has no image.
+export const ARTS = Object.freeze(["lh-strips", "ovulation-digital", "hormone-monitor", "phone-reader", "pdg-strips", "thermometer", "vitamins", "pregnancy-test", "cgm-a", "cgm-b", "smart-ring", "watch-square", "watch-round", "fitness-band", "fabric-strap", "heat-wrap", "period-underwear", "video-visit", "cooling-bedding", "sleep-app-a", "sleep-app-b", "lab-kit", "lab-visit"]);
 export const KINDS = Object.freeze(["rx", "supp", "habit", "program", "aid", "care"]);
 export const STAGES = Object.freeze(["periods", "ttc", "preg", "peri", "meno"]);
 export const MODULES = Object.freeze(["pots", "pcos"]);

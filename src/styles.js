@@ -2034,10 +2034,10 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
    brand's shop hue ([data-hue] → --hue; never a stage palette or a data-viz ramp); the floor shadow and studio light
    adapt to the dark scheme. A gentle zoom on hover, wide screens only, never with reduced motion. */
 .shopart { display:block; width:100%; height:100%; }
-.shopart .ah { fill:var(--hue); } .shopart .ahl { fill:color-mix(in srgb, var(--hue) 34%, #fff); } .shopart .ahd { fill:color-mix(in srgb, var(--hue) 66%, #0B1220); } .shopart .ahs { stroke:var(--hue); }
-.shopart .sl { stop-color:color-mix(in srgb, var(--hue) 58%, #fff); } .shopart .sh { stop-color:var(--hue); } .shopart .sd { stop-color:color-mix(in srgb, var(--hue) 64%, #0B1220); }
+.shopart .ah { fill:var(--hue); } .shopart .ahl { fill:color-mix(in srgb, var(--hue) 34%, var(--shop-on)); } .shopart .ahd { fill:color-mix(in srgb, var(--hue) 66%, var(--shop-deep)); } .shopart .ahs { stroke:var(--hue); }
+.shopart .sl { stop-color:color-mix(in srgb, var(--hue) 58%, var(--shop-on)); } .shopart .sh { stop-color:var(--hue); } .shopart .sd { stop-color:color-mix(in srgb, var(--hue) 64%, var(--shop-deep)); }
 .shopart .a-glow { opacity:.6; }
-.cy[data-scheme="dark"] .shopart .a-glow { opacity:.07; } .cy[data-scheme="dark"] .shopart .a-sh { opacity:.6; }
+.cy[data-scheme="dark"] .shopart .a-glow { opacity:.07; } .cy[data-scheme="dark"] .shopart .a-sh { opacity:.45; }
 .shopimg .shopart, .shopimg img { transition:transform var(--t-base) var(--ease-std); }
 @media (hover:hover) and (min-width:700px) and (prefers-reduced-motion:no-preference) { .shopcard:hover .shopimg .shopart, .shopcard:hover .shopimg img { transform:scale(1.045); } }
 .shopimg-tag { position:absolute; left:10px; top:10px; padding:2px 8px; border-radius:var(--r-pill); background:var(--card); color:var(--ink); font:700 var(--fs-xs) var(--ff-body); letter-spacing:.02em; box-shadow:var(--sh-opt); }

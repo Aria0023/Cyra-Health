@@ -173,10 +173,12 @@ export function ShopEntryCard({ onOpen, onShowHome = null }) {
 }
 
 /** Home → the "Shop by need" card under Quick log (2026-11-16, owner decision: the shop may appear on Home): the title,
-    one line with her stage in words, three thumbnails from her first category, "Browse the shop", and Hide (remembered
+    one line with her stage in words, three thumbnails from her first need, "Browse the shop", and Hide (remembered
     on this device; You brings the card back). It sends nothing and says nothing about her log. */
-export function ShopHomeCard({ shop, category, allow = null, words, onOpen, onHide }) {
-  const thumbs = (category ? itemsIn(shop, category.id, { allow }) : []).slice(0, 3);
+export function ShopHomeCard({ shop, categories = [], allow = null, words, onOpen, onHide }) {
+  // three from her first need; a need with fewer (Periods has two) is topped up from her next ones
+  const thumbs = [];
+  for (const c of categories) for (const i of itemsIn(shop, c.id, { allow })) if (thumbs.length < 3 && !thumbs.includes(i)) thumbs.push(i);
   return (
     <Card id="home-shop" tint="patterns" icon="bag" title={P.title} level={2} className="shophome">
       <p className="shophome-line">{P.homeLine(words)}</p>

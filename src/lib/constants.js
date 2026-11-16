@@ -196,6 +196,7 @@ export const SHOP_HUES = Object.freeze({
 export const shopHueTokens = (scheme = "light") => Object.fromEntries([
   ...Object.entries(SHOP_HUES).flatMap(([k, v]) => [[`--shop-${k}`, v[scheme].fill], [`--shop-${k}-ink`, v[scheme].ink]]),
   ["--shop-on", "#FFFFFF"],
+  ["--shop-deep", "#0B1220"], // the dark the product illustrations mix into the hue for their shaded sides (lib/shopArt.js)
 ]);
 
 export const SCHEME_TOKENS = {

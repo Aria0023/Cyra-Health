@@ -52,9 +52,14 @@ changed by them.
 
 ## 1a. Product images (optional): `public/shop/` and `src/config/shop-images.json`
 
-The Shop page shows a calm illustrated placeholder (a soft wash in the brand's tint with the need's icon) for every product
-until you add an image you have the right to use. Most affiliate programs give partners a creative kit (product photos and
-logos) with permission to use them; take images only from there, or from the brand with written permission.
+Until you add an image you have the right to use, every product card shows a drawing of that kind of product (since
+2026-11-16): a generic, studio-style illustration with the brand's tint as an accent, never a brand's logo, wordmark or
+packaging (`src/lib/shopArt.js`; each item's `art` in `src/lib/shop.js`, or the "Illustration" picker in the portal's
+product editor, owner only; an item with none gets its need's default). Each such card carries a small "Illustration"
+tag, and "About this shop" says "Pictures marked Illustration are drawings, not photos of the product." A real image
+always wins and shows no tag. We may not copy photos or logos from a brand's website (no licence): most affiliate
+programs give partners a creative kit (product photos and logos) with permission to use them; take images only from
+there, or from the brand with written permission. Upload one in the portal's product editor, or bundle it:
 1. Save the image as `public/shop/<item id>.webp` (or `.jpg`), square, about 800×800, under ~150 KB.
 2. Declare it in `src/config/shop-images.json`: `"everly-peri": "everly-peri.webp"`. Only a file named after its item id is used.
 3. Never link to a brand's own image server (no hotlinking): the app loads nothing from another server to show the shop.

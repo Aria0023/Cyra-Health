@@ -36,6 +36,8 @@ test("a brand published in the portal appears on the Shop page; the request carr
   const card = shop.locator(`.shopcard[data-item="${mask.id}"]`);
   await expect(card.getByRole("heading", { level: 3 })).toHaveText("Lumen sleep mask");
   await expect(card.locator(".shopimg img")).toHaveAttribute("src", `${API_BASE}/api/shop/images/${IMG}`);
+  await expect(card.locator(".shopimg-tag")).toHaveCount(0); // a real image: no "Illustration" tag, no drawing
+  await expect(card.locator(".shopart")).toHaveCount(0);
   await expect(card.locator(".shopprice")).toHaveText("From $29");
   await expect(card).toContainText("Clinician reviewed");
   await expect(card).toContainText("Affiliate link");
@@ -49,6 +51,8 @@ test("a brand published in the portal appears on the Shop page; the request carr
   // the bundled items are still there, with no affiliate label and no badge (none set on the server)
   const sleepio = shop.locator('.shopcard[data-item="sleepio"]');
   await expect(sleepio).toBeVisible();
+  await expect(sleepio.locator(".shopimg-tag")).toHaveText("Illustration"); // no image: the drawing the catalog names, tagged
+  await expect(sleepio.locator(".shopart")).toHaveAttribute("data-art", "sleep-app-a");
   await expect(sleepio).not.toContainText("Affiliate link");
   await expect(sleepio).not.toContainText("Clinician reviewed");
   await expect(shop.locator(".shopfoot")).toContainText("The product list comes from Solia Health's server, like loading a web page: the request carries nothing about you.");

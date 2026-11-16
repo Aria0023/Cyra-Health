@@ -6,6 +6,7 @@
    2026-11-15 (docs/plans/portal-subscriptions.md Task 2): the owner's Subscriptions, Promotions, Pro grants and Codes
    screens, and a partner's Codes, live in subs.js and talk to /api/subscriptions on this same origin. */
 import { subsViews } from "./subs.js";
+import { SHOP_ART, ART_LABEL, ART_DEFAULT } from "./shop-art.js";
 
 const CATEGORY_LABEL = { fertility: "Ovulation & fertility", pregnancy: "Pregnancy", labs: "Lab tests", glucose: "Blood sugar", wearables: "Wearables", periods: "Periods", meno: "Perimenopause & menopause", sleep: "Sleep" };
 const AVAIL_LABEL = { home: "Kit sent to your home", lab: "Sample taken at a lab", visit: "Online visit", app: "In an app", online: "Sold online", stores: "Sold online and in stores", rx: "By prescription" };
@@ -17,6 +18,17 @@ const HUES = ["teal", "blue", "coral", "violet", "green", "amber", "rose", "indi
 const STATUS_LABEL = { draft: "Draft", pending: "Waiting for review", published: "Published", archived: "Archived" };
 const AFFILIATE_LINE = "Solia Health may earn a commission if you buy through this link. It never changes what we show you.";
 const IMAGE_MAX = 1024 * 1024;
+
+/* ---------- product illustrations (2026-11-16): the app's own drawings (shop-art.js, generated from src/lib/shopArt.js) ----------
+   What the app's card shows while a product has no image. The markup is a static drawing chosen by a known id (never
+   anything typed in the portal), parsed as SVG and adopted into the page; its colours come from classes in portal.css. */
+const artOf = (p) => (p?.art && Object.prototype.hasOwnProperty.call(SHOP_ART, p.art) ? p.art : ART_DEFAULT[(p?.categories || [])[0]] || "lab-kit");
+let artSeq = 0;
+function artNode(id) {
+  const uid = `pa${++artSeq}_`;
+  const doc = new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" class="shopart" aria-hidden="true" focusable="false">${SHOP_ART[id].replace(/ID_/g, uid)}</svg>`, "image/svg+xml");
+  return document.importNode(doc.documentElement, true);
+}
 
 /* ---------- small helpers ---------- */
 function h(tag, attrs = {}, ...kids) {
@@ -254,7 +266,7 @@ async function renderProduct(id) {
   const form = h("form", { class: "panel", novalidate: true, id: "prodform" });
   const preview = h("div", { class: "sticky" }, h("p", { class: "preview-lab", id: "prev-lab" }, "Preview: the product card in the app"), h("div", { role: "group", "aria-labelledby": "prev-lab", id: "preview" }));
   const imgBox = h("div", { class: "imgprev" });
-  const drawImg = () => imgBox.replaceChildren(...[imageId ? h("img", { src: imageUrl(imageId), alt: "The product image" }) : h("p", { class: "note" }, "No image: the app shows a calm placeholder in the brand's colour."),
+  const drawImg = () => imgBox.replaceChildren(...[imageId ? h("img", { src: imageUrl(imageId), alt: "The product image" }) : h("p", { class: "note" }, "No image: the app shows a drawing of this kind of product, marked \"Illustration\" (see the preview). A real image you upload replaces it."),
     imageId ? h("button", { type: "button", class: "btn small", onclick: () => { imageId = null; drawImg(); drawPreview(); } }, "Remove image") : null].filter(Boolean));
   const file = h("input", { id: "pe-image", type: "file", accept: "image/png,image/jpeg,image/webp", "aria-describedby": "pe-image-help" });
   file.addEventListener("change", async () => {
@@ -283,6 +295,7 @@ async function renderProduct(id) {
       checks("stages", "Stages it suits", STAGE_LABEL, p.stages),
       checks("modules", "Modules it suits", MODULE_LABEL, p.modules),
       field("kind", "\"Add to what I'm trying\" files it as", select("kind", [["", "Not offered"], ...Object.entries(KIND_LABEL)], p.kind || "")),
+      field("art", "Illustration (shown while there is no image)", select("art", [["", "Chosen from its main need"], ...Object.entries(ART_LABEL)], p.art && ART_LABEL[p.art] ? p.art : "", { "aria-describedby": "art-help" }), "A generic drawing of the product type, marked \"Illustration\" in the app. Never a brand's logo or packaging."),
       field("why", "Why (one plain line)", area("why", p.why, { maxlength: "240" })),
       field("evTone", "Evidence", select("evTone", [["", "No evidence note"], ...Object.entries(TONE_LABEL)], p.evidence?.tone || "")),
       field("evLabel", "Evidence label", textIn("evLabel", p.evidence?.label || "", { maxlength: "80" })),
@@ -308,7 +321,7 @@ async function renderProduct(id) {
   function collect() {
     const body = { name: v("name"), covers: v("covers"), description: v("description"), availability: v("availability"), price: v("price").trim(), url: v("url").trim(), affiliateUrl: v("affiliateUrl").trim(), imageId };
     if (owner) Object.assign(body, {
-      categories: checked(form, "categories"), stages: checked(form, "stages"), modules: checked(form, "modules"), kind: v("kind") || null, why: v("why"),
+      categories: checked(form, "categories"), stages: checked(form, "stages"), modules: checked(form, "modules"), kind: v("kind") || null, art: v("art") || null, why: v("why"),
       evidence: v("evTone") ? { tone: v("evTone"), label: v("evLabel") } : null, sources: v("sources").split("\n").map((s) => s.trim()).filter(Boolean), clinicianStatus: v("clinicianStatus"),
     });
     return body;
@@ -341,7 +354,8 @@ function productCard(p, b) {
   const aff = /^https:\/\//i.test(p.affiliateUrl || "");
   return h("article", { class: "shopcard" },
     h("div", { class: "shopimg", "data-hue": hue },
-      p.imageId ? h("img", { src: imageUrl(p.imageId), alt: "" }) : h("span", { class: "shopimg-ph", "aria-hidden": "true" }, monogramOf(b)),
+      p.imageId ? h("img", { src: imageUrl(p.imageId), alt: "" }) : artNode(artOf(p)),
+      p.imageId ? null : h("span", { class: "shopimg-tag" }, "Illustration"),
       h("span", { class: "shopimg-brand", "aria-hidden": "true" }, h("span", { class: "shopmono", "data-hue": hue }, monogramOf(b)), brandName)),
     h("div", { class: "shopcard-body" },
       h("p", { class: "shopmeta", "data-hue": hue }, h("span", { class: "shopavail" }, h("span", { class: "shopdot", "aria-hidden": "true" }), AVAIL_LABEL[p.availability] || ""), p.price ? h("span", { class: "shopprice" }, p.price) : null),

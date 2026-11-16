@@ -2393,3 +2393,20 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
 - **Requests:** none new. Home's card draws the catalog the Shop page already has (the bundled one, or the device's copy
   of the published one); showing it sends nothing. A build with a server still downloads the catalog at most once a
   day with the same plain GET as before.
+
+## Shop: product illustrations (2026-11-16, shop-findable-visuals Task 2) — no new record key, no new request
+
+- **What shows:** a card without a real, licensed image now shows a drawing of that kind of product (23 hand-built SVG
+  illustrations bundled with the app, `src/lib/shopArt.js`), not the earlier gradient-and-icon placeholder. Generic
+  shapes only: no brand logo, wordmark, trade dress or copied packaging, and no words inside the picture (only generic
+  marks such as test lines and chart bars; a unit test rejects `<text>`, links, scripts, images and brand names).
+- **Honesty:** every card that shows a drawing carries a visible "Illustration" tag, and "About this shop" says
+  "Pictures marked Illustration are drawings, not photos of the product." A real image (the owner's bundled file or one
+  uploaded in the portal) always wins and shows no tag (`e2e/shop.spec.mjs`, `e2e/shop-live.spec.mjs`).
+- **Requests:** none new. The drawings ship inside the app; nothing is loaded from a brand's server or any other. The
+  published catalog may carry an `art` id per product (owner-only in the portal; a known id or nothing): the app cleans
+  it against its own list and otherwise draws the need's default. It is business data, like the rest of the catalog.
+- **The picture is a click target** for "Visit <brand>" (the same link, the same rel, nothing added); it is not a
+  second tab stop and has no role: the button stays the one accessible control.
+- **The earlier line** "every card shows an illustrated placeholder" (Shop by need: its own page, Images) now reads as
+  "every card shows its illustration, tagged Illustration".
