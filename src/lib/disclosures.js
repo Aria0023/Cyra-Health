@@ -100,6 +100,9 @@ export const WEAR_RESTORE_LINE = "Restoring a backup brings back its wearable co
 /** The line under the Restore button (Settings and the splash). */
 export const restoreFoot = (f) => `Unlocked on this device with your passphrase. It replaces your record here.${f.wearables ? " Oura and Fitbit/Garmin/Whoop connections in the backup come back unconfirmed until Solia Health checks them through its server; ones only on this device stay connected." : ""}`;
 
+/** The guest window (lib/guest.js): said in builds with sign-in; a conditional sentence, so true where no guest window is offered too. */
+export const GUEST_RESTORE_LINE = "If you're trying Solia Health as a guest, a restore doesn't restart or extend your guest time: the earlier start, the backup's or this device's, is kept.";
+
 /** "What a restore changes". This device's choices are kept whatever the server: they are settings on this device. */
 export function restoreChanges(f) {
   const keep = on([f.counts && "weekly counts", f.ai && "Solia Health's AI", f.webReminders && "browser reminders", "appearance (light or dark, and the style)"]);
@@ -107,6 +110,8 @@ export function restoreChanges(f) {
     `Your settings are replaced too, except this device's choices about ${andList(keep)}.`,
     f.wearables && "If the backup has Oura or Fitbit/Garmin/Whoop connected, that connection comes back on this device marked not confirmed, because it may have been ended since the backup was made. It counts as connected again once Solia Health confirms it through its server: Oura on a Sync that works (checked straight away, and removed from this device if it no longer works), Fitbit/Garmin/Whoop when readings arrive. A Fitbit/Garmin/Whoop connection you ended after the backup can't send readings, so tap Disconnect to remove it. One this device is still waiting to see disconnected isn't restored. A connection this device has now for the same service is replaced, so remove Solia Health in that account if you want it ended.",
     f.wearables && "A connection this device has that the backup doesn't (Oura or Fitbit/Garmin/Whoop) stays connected here and keeps fetching readings through Solia Health's server as before. Tap Disconnect under Wearables on Home if you don't want it.",
+    // 2026-11-16 (lib/guest.js): the guest window's start is the one date a restore doesn't simply replace (App.jsx applyRestore keeps the earlier one).
+    f.signin && GUEST_RESTORE_LINE,
     // L5: her "Don't use" choices are part of the record and restored literally (App.jsx importBackup, cleanCycleFlags).
     "Cycles you left out of predictions are restored as the backup has them; a backup made before you left any out uses every cycle again.",
     "A backup made before you turned on POTS tools has no POTS log, so restoring it clears the POTS log on this device.",

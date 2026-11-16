@@ -2,7 +2,8 @@
 
    - Everyone gets 7 free days of the whole app, with saving, counted on this device from the day she finished
      registering (trialStart, a local YYYY-MM-DD kept in her record and in encrypted backups, so restoring a backup
-     doesn't restart it). No card, no account.
+     doesn't restart it). No card. Where sign-in is required she may spend the first 48 hours of it as a guest
+     (lib/guest.js, 2026-11-16); the week still counts from the day she finished registering.
    - After the 7 days, without Pro, nothing new can be logged or changed in her health log. Everything already logged
      stays: she can still open, read, export (PDF, spreadsheet, encrypted backup), and delete it, and safety guidance
      and practices stay open. Ending the free week or Pro never locks, changes or deletes what she logged.

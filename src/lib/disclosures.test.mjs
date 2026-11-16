@@ -125,7 +125,7 @@ test("disclosures: with every flag on, web and phone, each builder is the pre-L4
     assert.equal(WEAR_RESTORE_LINE, PRE.wearRestore);
     assert.equal(filesSentence(ALL), PRE.filesSentence);
     assert.equal(restoreFoot(ALL), PRE.restoreFoot);
-    assert.deepEqual(restoreChanges(ALL), PRE.restoreChanges);
+    assert.deepEqual(restoreChanges(ALL), [...PRE.restoreChanges.slice(0, 3), "If you're trying Solia Health as a guest, a restore doesn't restart or extend your guest time: the earlier start, the backup's or this device's, is kept.", PRE.restoreChanges[3], PRE.restoreChanges[4]], "2026-11-16: the guest window's sentence, in builds with sign-in");
     assert.equal(wipeConfirm(ALL, native), PRE.wipeConfirm.replace(" Solia Health's servers keep", " It deletes your Solia Health account too, if you made one. Solia Health's servers keep"), "Task 1 adds the account sentence");
     assert.deepEqual(wipeMore(ALL, native), native ? [PRE.wipeMoreWeb[0], PRE.wipeMoreWeb[1], PRE.appleHealth, PRE.wipeMoreWeb[2]] : PRE.wipeMoreWeb);
     assert.equal(intakeHint(ALL), PRE.intakeHint);
@@ -164,7 +164,7 @@ test("disclosures: the shipping defaults before Task 2 (ai, webReminders, signin
   assert.deepEqual(consentDetails(DEF0, true), [consentDetails(DEF0, false)[0], PRE.consentDetails[1], consentDetails(DEF0, false)[3]], "phone: a cancel never needs the server");
   assert.equal(filesSentence(DEF0), "Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase.");
   assert.equal(restoreFoot(DEF0), "Unlocked on this device with your passphrase. It replaces your record here.");
-  assert.deepEqual(restoreChanges(DEF0), ["Your settings are replaced too, except this device's choices about Solia Health's AI, browser reminders and appearance (light or dark, and the style).", PRE.restoreChanges[3], PRE.restoreChanges[4]]);
+  assert.deepEqual(restoreChanges(DEF0), ["Your settings are replaced too, except this device's choices about Solia Health's AI, browser reminders and appearance (light or dark, and the style).", "If you're trying Solia Health as a guest, a restore doesn't restart or extend your guest time: the earlier start, the backup's or this device's, is kept.", PRE.restoreChanges[3], PRE.restoreChanges[4]]);
   assert.deepEqual(wipeMore(DEF0, false), [
     "If Solia Health's server can't confirm that, Solia Health tells you what did and didn't end and keeps your record on this device until you choose.",
     "Questions already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms.",

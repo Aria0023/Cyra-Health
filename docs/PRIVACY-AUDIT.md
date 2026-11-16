@@ -2371,3 +2371,51 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   what you sent"), "What Solia Health will send" (both AI sheets), the evidence "Kept" line, the sign-in disclosure
   ("If you use Pro's AI, it also counts how many questions you sent this month, never what they said."), the "no
   answer" note, and the privacy policy draft's AI row.
+
+## The guest window (2026-11-16, owner request)
+
+- **What changed:** where sign-in is required (the build requires it and the server has a sign-in), "Create your
+  account" also offers "Try it first". She then uses the whole app, with saving, as a guest for 48 hours
+  (`VITE_GUEST_HOURS`; 0 turns the window off). After that the sign-in screen appears the next time the app opens. The
+  free week is unchanged (7 days from registration, guest days included). `src/lib/guest.js`, spec A11.2.
+- **What the server knows about a guest:** no account, no email, no name, no session, no identifier. The app's only
+  accounts request while she is a guest is `GET /api/accounts/config` ("which sign-ins do you have?"), with no body and
+  no token; like any request it carries her address and app or browser type. Nothing new is sent anywhere: the window is
+  kept and counted entirely on the device. e2e/guest.spec.mjs asserts that no request carried a body or a token while
+  she was a guest.
+- **What the device keeps:** `guestStart` (when she first tapped "Try it first"), in her record and in encrypted backups
+  so a restore doesn't restart the window; `guestSeen` (the latest time this device saw while she was a guest, so a clock
+  moved back doesn't extend the window) and `guestNote` (the day Home last showed the guest line), both device-only and
+  never in a backup. None of it is about her health. Delete everything removes all three. Signing in clears `guestStart`.
+- **Never locked out of her own data:** the screen after the window ("Your 2 guest days are up") carries the encrypted
+  backup, restore and Delete everything, all usable without signing in. If the server can't be reached the app opens as
+  before instead of showing that screen. Tested end to end (backup downloads, delete really deletes, both without an
+  account).
+- **Sentences added or changed so each stays literally true in every build mode:**
+  - sign-in step (required mode only): "Or try Solia Health as a guest for 2 days before you make an account. What you
+    log is saved on this device, and Solia Health's server holds no account for you." and the story line. The story
+    names the free week and Pro only where the free-week gate is on ("2 days as a guest, 7 days free in all, then Pro if
+    you want to keep logging."); where the gate is off nothing ends after 7 days, so it says "2 days as a guest, then a
+    free account to keep going." The span ("2 days") is computed from the build's hours.
+  - Home: "You're trying Solia Health as a guest. Create an account by <weekday, time> to keep going." You → Account:
+    "You're trying Solia Health as a guest until <weekday, time>. Solia Health's server holds no account for you, and your
+    log lives on this device."
+  - the screen after the window: "Your 2 guest days are up" / "Sign in to keep going. Everything you logged is still on
+    this device." / "Your log is yours with or without an account. You can save an encrypted backup of it, or delete
+    everything, right here."
+  - Pro's AI as a guest: "Create an account to use this. Nothing was sent." (checked before any request, so nothing is).
+  - "Delete account" still says she'll "be asked to sign in again": true, because signing in ends the guest window for
+    good (a later sign-out or account deletion doesn't make her a guest again).
+  - terms draft §6 no longer says an account is needed "before you use it"; it describes the guest time. Privacy policy
+    draft: a new "Trying the app as a guest" row. .env.example and render.yaml no longer say registration has no skip.
+  - Unchanged and still true: the splash's "You sign in with Apple, Google, Facebook or email. Your account holds how you
+    sign in, never your health log."; "What signing in shares"; the no-server build's sentences (no guest window there).
+- **Known limit, accepted:** the window lives only on the device, so deleting everything or reinstalling lets someone
+  start a new guest window. Preventing that would need a device identifier on the server, which would contradict "the
+  server holds no account for you".
+- **App Review 5.1.1:** requiring sign-in before features that don't need an account is a rejection risk. The guest
+  window softens it: the whole app can be used first, account deletion stays in the app, and the data controls stay
+  reachable without an account. `VITE_REQUIRE_SIGNIN=false` remains the one-line fallback (sign-in offered, "Continue
+  without an account"), and `VITE_GUEST_HOURS` can lengthen the window up to 168 hours.
+- **For counsel:** the terms and privacy drafts mention the guest time ("48 hours as of this draft"); keep that number in
+  step with `VITE_GUEST_HOURS` before publishing.

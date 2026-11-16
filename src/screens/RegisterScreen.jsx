@@ -30,7 +30,8 @@ import { stepCopy } from "../locales/index.js";
    (components/AboutYou.jsx) and are never asked here. Red state appears only after the user taps Continue with
    required fields missing; optional fields never turn red.
    Task 1 (owner request 2026-11-12): in a build with the signin flag, "Create your account" (components/SignInStep.jsx)
-   comes first: Apple, Google, Facebook or an email code; no skip while sign-in is required and the server has one, else
+   comes first: Apple, Google, Facebook or an email code; while sign-in is required and the server has one the only skip
+   is the guest window's "Try it first" (lib/guest.js, 2026-11-16; none with VITE_GUEST_HOURS=0), else
    "Continue without an account" with the reason. The account holds how she signed in, her email and name; every answer
    on these steps is still stored only on this device (App.jsx finishReg), never in the account. Registration data
    reaches Cyra's server only through opt-ins: the check-in cadence (sent for web push along with the Settings

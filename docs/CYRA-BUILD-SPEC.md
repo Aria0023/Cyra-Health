@@ -2278,7 +2278,7 @@ so. Apple/Google/Facebook run through `backend/src/modules/oauth` and finish at 
 - **Session token** (HMAC with a key derived from `AUTH_SECRET`, 180 days, revocable): kept on the device in the record key
   `signin`, device-only and never in a backup (`lib/record.js`).
 - **REQUIRE switch** `VITE_REQUIRE_SIGNIN` (default "true", `lib/signin.js signinMode`): required + a configured sign-in
-  → no skip. `false`, no server, or a server reporting no sign-in configured → "Continue without an account", with the
+  → no skip except the guest window's "Try it first" (A11.2; none with `VITE_GUEST_HOURS=0`). `false`, no server, or a server reporting no sign-in configured → "Continue without an account", with the
   reason in plain words. Offline → Try again (no skip).
 - **Existing users** (a record already on the device, no session) see "Sign in to keep going" once at launch when the
   server says sign-in is required; their log stays. Offline or while asking, the app opens as before.
@@ -2292,6 +2292,46 @@ so. Apple/Google/Facebook run through `backend/src/modules/oauth` and finish at 
 - Tests: `backend/test/accounts.test.mjs` (code expiry, attempts, single use, tokens, sign-out, delete),
   `backend/scripts/accounts-smoke.js` (mock provider + mock Resend), `src/lib/signin.test.mjs`, `e2e/account.spec.mjs`
   (mocked backend), `e2e/signin-axe.spec.mjs` (light + dark).
+
+### A11.2 The guest window (owner request 2026-11-16; docs/plans/guest-window.md)
+"Anonymous for a limited time, then require registering; 7 days which you can save." Normative; `src/lib/guest.js` is the
+pure reference.
+- **Where:** only in sign-in mode "required" (A11.1). Modes none / unset / optional / checking / offline behave exactly
+  as before: the public demo with no server stays open with "Continue for now", and when the server can't be reached the
+  app opens rather than locking anyone out, and asks again when it can.
+- **Hour 0-48 (guest):** "Create your account" shows the sign-ins (Apple first) AND "Try it first", a real skip. She uses
+  the whole app, with saving. Home shows one quiet line on the first Home visit of a day ("You're trying Solia Health as
+  a guest. Create an account by <weekday, time> to keep going.", with "Create account" and "Hide for today"); You →
+  Account always says it. "Create account" opens the same sign-in choices in a sheet, with no skip.
+- **After 48 hours:** the sign-in screen (A11.1's gate) appears the next time the app opens (the clock is read at launch
+  and when the app comes back to the front, never mid-task): "Your 2 guest days are up. Sign in to keep going.
+  Everything you logged is still on this device." Sign-ins, Apple first, no skip. **The screen must never lock her out
+  of her own data:** the encrypted backup, restore and Delete everything (the same `DataControls` as Settings) are on it
+  and work without signing in. After signing in she is exactly where she was; nothing is lost.
+- **Days 0-7:** the free week (`lib/trial.js`) is unchanged: 7 days from the day she finished registering, guest days
+  included, and the gate only where she can pay. The story is told once, on the sign-in step and in the guest line: "2
+  days as a guest, 7 days free in all, then Pro if you want to keep logging." where the free-week gate is on; elsewhere
+  nothing ends after 7 days, so it reads "2 days as a guest, then a free account to keep going."
+- **State:** `guestStart` (ISO time of her first "Try it first"; record key, in encrypted backups; a restore keeps the
+  earlier of the backup's and the device's, so it can neither restart nor extend the window). It is cleared when she
+  signs in on the device: signing in ends the guest window for good, so signing out later brings "Sign in to keep going"
+  as in A11.1. `guestSeen` (device-only, never in a backup): the latest time the device has seen as a guest; the window is
+  measured against max(now, guestSeen), so a clock moved back never extends it. `guestNote` (device-only): the day Home
+  last showed the line. Delete everything removes all three with the record (the window lives only on the device, so a
+  fresh install or a wiped device can start one again; accepted, since the server knows nothing about a guest).
+- **Build switch:** `VITE_GUEST_HOURS` (whole hours; unset = 48; 0 = no guest window, sign-in first as in A11.1; capped at
+  168 so it never outlasts the free week).
+- **Existing records** from before this change (no `guestStart`, no session): unchanged, asked once at launch.
+- **Pro's AI** already needs a sign-in: a guest sees "Create an account to use this. Nothing was sent." and no request
+  is made.
+- **Privacy:** as a guest the server holds no account for her; the only accounts request is `GET /api/accounts/config`
+  (no body, no identifier). docs/PRIVACY-AUDIT.md "The guest window".
+- **App Review (5.1.1):** requiring sign-in before features that don't need an account risks rejection; the guest window
+  softens it (the whole app is usable first), and `VITE_REQUIRE_SIGNIN=false` remains the one-line fallback.
+- Tests: `src/lib/guest.test.mjs` (window maths, clock moved back, restore keeps the start, modes, copy per build),
+  `e2e/guest.spec.mjs` (mocked backend: try first → guest line → 49 h later the gate with backup and delete → sign in →
+  back in the app with her data; clock moved back; unreachable server; delete from the gate),
+  `e2e/guest-axe.spec.mjs` (light + dark).
 
 ## A12. Production checklist (what the demo simulates)
 - [ ] Proxy all Anthropic calls through the backend; no API key in client code.

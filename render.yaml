@@ -18,6 +18,10 @@ services:
       # Sign-in is required by default (VITE_REQUIRE_SIGNIN unset = "true"); set "false" to offer it with a skip.
       - key: VITE_REQUIRE_SIGNIN
         value: "true"
+      # The guest window (src/lib/guest.js): hours she can use the app after "Try it first" before sign-in is asked.
+      # Unset = 48; "0" = no guest window (sign-in first, no skip). Only applies where sign-in is required.
+      - key: VITE_GUEST_HOURS
+        value: "48"
       # VITE_FEATURES unset = the shipping defaults (Ask Cyra's AI, browser reminders, sign-in, wearables, and deviceSync: the on-phone
       # Apple Health / Health Connect sources in the phone app, no server module). To offer more (wearables, counts,
       # signin, cloudBackup; .env.example), set it here AND add the matching module to backend/config/app.json.
