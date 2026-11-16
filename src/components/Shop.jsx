@@ -9,8 +9,9 @@ import { openExternal } from "../lib/links.js";
 
 /* Shop by need (Task C, 2026-11-14; its own page since 2026-11-15, docs/plans/plans-shop-page.md Task 3 and the owner's
    design update). A full-screen page under the current tab (#/shop, and the old #/care and #/shelf), opened from the
-   header's bag button on the five main tabs, a single entry card on You, and the quiet contextual links (ShopLink, through
-   ShopContext, with the right category preselected). Back returns to where she came from.
+   header's labelled "Shop" pill on the five main tabs, a card on Home she can hide, a row at the bottom of the "+" sheet,
+   the entry card at the top of You (all since 2026-11-16, docs/plans/shop-findable-visuals.md), and the quiet contextual
+   links (ShopLink, through ShopContext, with the right category preselected). Back returns to where she came from.
    The page: a hero band (a soft wash of the stage primary) with the h1 (focused on open), one line and a "By need / By
    brand" switch, then one horizontal chip
    scroller (needs, hers first, lib/shop.js shopCategories; or "All brands" and each brand with its monogram), then the
@@ -152,12 +153,48 @@ export function ShopPage({ shop, categories, initial = null, allow = null, live 
   );
 }
 
-/** You → one distinct entry card that opens the page. */
-export function ShopEntryCard({ onOpen }) {
+/** A small product thumbnail (decorative: Home's card names the shop in words). */
+export function ShopThumb({ item, brands }) {
+  const hue = brands[item.brand]?.hue || brandHue(item.brand);
+  return <span className="shopthumb" data-hue={hue} data-item={item.id} aria-hidden="true"><Icon name={CATEGORY_ICON[item.category] || "bag"} size={26} /></span>;
+}
+
+/** You → one distinct entry card that opens the page (the top group of You, right under her stage, since 2026-11-16).
+    onShowHome: only while she has hidden Home's shop card on this device; brings it back. */
+export function ShopEntryCard({ onOpen, onShowHome = null }) {
   return (
     <Card id="you-shop" tint="patterns" icon="bag" eyebrow={C.eyebrow} title={P.entryLine} level={2} className="youshop" tabIndex={-1}>
       <p className="hint">{C.lead}</p>
       <button type="button" className="ghostbtn youshopgo" onClick={onOpen}>{P.entryTitle}<Icon name="arrow-right" size={16} /></button>
+      {onShowHome && <p className="youshop-home"><button type="button" className="linkbtn" onClick={onShowHome}>{P.homeShow}</button></p>}
     </Card>
+  );
+}
+
+/** Home → the "Shop by need" card under Quick log (2026-11-16, owner decision: the shop may appear on Home): the title,
+    one line with her stage in words, three thumbnails from her first category, "Browse the shop", and Hide (remembered
+    on this device; You brings the card back). It sends nothing and says nothing about her log. */
+export function ShopHomeCard({ shop, category, allow = null, words, onOpen, onHide }) {
+  const thumbs = (category ? itemsIn(shop, category.id, { allow }) : []).slice(0, 3);
+  return (
+    <Card id="home-shop" tint="patterns" icon="bag" title={P.title} level={2} className="shophome">
+      <p className="shophome-line">{P.homeLine(words)}</p>
+      {thumbs.length > 0 && <div className="shophome-thumbs" aria-hidden="true">{thumbs.map((i) => <ShopThumb key={i.id} item={i} brands={shop.brands} />)}</div>}
+      <div className="shophome-acts">
+        <button type="button" className="cta shophome-go" onClick={onOpen}>{P.homeBrowse}<Icon name="arrow-right" size={16} /></button>
+        <button type="button" className="linkbtn shophome-hide" onClick={onHide}>{P.homeHide}<span className="sr-only"> the shop card</span></button>
+      </div>
+    </Card>
+  );
+}
+
+/** The one-time hint under the header's Shop pill: a small note with an arrow, in the page flow (it covers nothing and
+    never traps focus); "Got it" closes it and hands focus to the pill. No animation, so reduced motion needs nothing. */
+export function ShopCoach({ onClose }) {
+  return (
+    <aside className="shopcoach" aria-label={P.coachLab}>
+      <p id="shop-coach-t"><Icon name="bag" size={14} />{P.coach}</p>
+      <button type="button" className="linkbtn" onClick={onClose}>{P.coachOk}</button>
+    </aside>
   );
 }

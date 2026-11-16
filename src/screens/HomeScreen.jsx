@@ -22,7 +22,7 @@ import { HAND_KINDS, kindLabel, dailyQuestion, doneWord, tryChip, tryWaitLine, T
    prediction line with its uncertainty range; pregnancy shows the week, menopause the days since the last period or a
    calm "No period tracking needed"), the check-in button and today's line (words only, never a score); the POTS card
    and install tip when they apply; Quick log (2–4 tiles she can choose, each with a "Logged" chip once today has that
-   entry); Today's small step (one optional suggestion, a Why disclosure, "Not today"); the Body and Mind step rails;
+   entry); the "Shop by need" card (components/Shop.jsx ShopHomeCard, 2026-11-16; she can hide it); Today's small step (one optional suggestion, a Why disclosure, "Not today"); the Body and Mind step rails;
    Today's insight (one, with the not-medical-advice line); the word-based patterns preview (components/HomePatterns.jsx,
    no numbers out of 100); milestones (no counts); Coming up; the community pulse (builds with counts); and the grid of
    collapsible sections (Month vs last month, Wearables, What I'm trying, Appointments, Journal) with their panels.
@@ -65,7 +65,7 @@ export default function HomeScreen({
   potsCard = null,
   installTip = null,
   fertRead = null,
-  autoCard = null, autoConfirmed = false, devicesCard = null,
+  autoCard = null, autoConfirmed = false, devicesCard = null, shopCard = null,
 }) {
   const hour = new Date().getHours();
   const connectedCount = Object.values(wearSources).filter((w) => w && !w.pending).length;
@@ -202,6 +202,9 @@ export default function HomeScreen({
           {tiles.map((tv) => <QuickTile key={tv.id} icon={tv.icon} label={tv.label} tint={tv.tint} note={tv.logged ? <Chip variant="logged" /> : null} onClick={() => onTile(tv.id)} />)}
         </div>
       </section>
+
+      {/* ---- Shop by need (2026-11-16, owner decision): one card she can hide, under Quick log; never inside insights. ---- */}
+      {shopCard}
 
       {/* ---- Today's small step: one optional suggestion from her log and stage, a Why line, and "Not today". ---- */}
       {step && !guideStep && stepCard}

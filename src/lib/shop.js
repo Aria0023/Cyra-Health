@@ -11,7 +11,10 @@
    - Every "why" is one plain line with an honest evidence label (strong / mixed / comfort / clinical) and a named
      source, registered in docs/CLINICIAN-REVIEW.md "Shop by need".
    - Never shown in insights, Patterns findings, urgent guidance, notifications or onboarding. FEATURES.shop turns the
-     whole thing off. */
+     whole thing off.
+   - Where it opens from (2026-11-16, owner decision: the shop may appear on Home): the header's labelled "Shop" pill on
+     the five main tabs, a "Shop by need" card on Home she can hide (and bring back from You), a row at the bottom of
+     the "+" sheet, the entry card at the top of You, and the quiet contextual links. */
 
 export const SHOP_COPY = Object.freeze({
   eyebrow: "Shop by need",
@@ -225,7 +228,30 @@ export const SHOP_PAGE_COPY = Object.freeze({
   entryTitle: "Shop by need",
   entryLine: "Real products for your stage",
   headerLabel: "Shop",
+  /* 2026-11-16 (docs/plans/shop-findable-visuals.md Task 1): Home's card, the "+" sheet's row, the one-time hint. */
+  homeLine: (words) => `Real products for ${words}`,
+  homeBrowse: "Browse the shop",
+  homeHide: "Hide",
+  homeHidden: "Hidden from Home. You can bring it back from You.",
+  homeShow: "Show the shop card on Home",
+  homeShown: "The shop card is back on Home.",
+  sheetRow: "Shop by need",
+  coach: "New: Shop by need",
+  coachOk: "Got it",
+  coachLab: "New in this update",
 });
+/* Her stage in words, for Home's card ("Real products for perimenopause"). ctx: { stage, ttc, meno }. */
+export function stageWords({ stage = "periods", ttc = false, meno = false } = {}) {
+  if (stage === "preg") return "pregnancy";
+  if (ttc) return "trying to conceive";
+  if (meno) return "menopause";
+  if (stage === "peri") return "perimenopause";
+  return "your cycle";
+}
+/* The device-only record key shopHint (never in a backup): { home: "hidden" | null, coach: true | false }. home is
+   "hidden" once she taps Hide on Home's shop card (You brings it back); coach is true once this device has shown the
+   one-time "New: Shop by need" hint. */
+export const cleanShopHint = (v) => ({ home: v && typeof v === "object" && v.home === "hidden" ? "hidden" : null, coach: !!(v && typeof v === "object" && v.coach === true) });
 /* Brand types for the section header's small tag, and one line about each brand (registered in docs/CLINICIAN-REVIEW.md).
    mono overrides the two-letter monogram where the initials would read oddly. */
 export const BRANDS = Object.freeze({

@@ -2055,5 +2055,27 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
 .shopfoot { margin:8px 0 0; padding:14px 16px; border-radius:var(--r-inner); background:color-mix(in srgb, var(--tint-you) 60%, var(--card)); }
 .shopfoot-h { margin:0 0 6px; font:600 var(--fs-md) var(--ff-body); color:var(--ink); }
 .youshopgo { display:inline-flex; align-items:center; gap:8px; }
+/* 2026-11-16 (shop-findable-visuals Task 1): the header's labelled Shop pill, the one-time hint under it, Home's card,
+   the "+" sheet's row. */
+.mast > .stagechip.shoppill { flex:0 0 auto; max-width:none; display:inline-flex; align-items:center; gap:6px; height:44px; padding:0 14px 0 12px; border-color:transparent; border-radius:var(--r-pill); background:var(--primary); color:var(--on-primary); font:700 var(--fs-sm) var(--ff-body); box-shadow:var(--sh-opt); }
+/* A tight header (phones): her name's chip gives way first (it shortens with an ellipsis, and goes under 375px), so the
+   Shop pill keeps its icon and label on one row. */
+@media (max-width:430px) { .mast > .acctchip { flex:1 1 0; min-width:0; } }
+@media (max-width:374px) { .mast > .acctchip { display:none; } }
+.mast > .stagechip.shoppill[aria-current="page"] { background:var(--ink); color:var(--on-ink); }
+.mast > .shopcoach { flex:1 1 100%; position:relative; display:flex; align-items:center; justify-content:space-between; gap:8px; margin:8px 0 0; padding:2px 6px 2px 14px; border:1px solid var(--line); border-radius:var(--r-inner); background:var(--card); box-shadow:var(--sh-card); }
+.shopcoach::before { content:""; position:absolute; top:-7px; right:var(--coach-x, 62px); width:12px; height:12px; transform:rotate(45deg); background:var(--card); border-left:1px solid var(--line); border-top:1px solid var(--line); }
+.shopcoach p { display:flex; align-items:center; gap:8px; margin:0; font:700 var(--fs-sm) var(--ff-body); color:var(--ink); }
+.shopcoach .linkbtn { flex:none; min-height:44px; padding:0 10px; font-size:var(--fs-sm); }
+.shophome-line { margin:0 0 10px; font-size:var(--fs-md); color:var(--ink); }
+.shophome-thumbs { display:flex; gap:10px; margin:0 0 12px; }
+.shopthumb { flex:1 1 0; min-width:0; max-width:132px; aspect-ratio:4 / 3; display:inline-flex; align-items:center; justify-content:center; border-radius:14px; border:1px solid var(--edge); background:linear-gradient(135deg, color-mix(in srgb, var(--hue) 25%, var(--card)), color-mix(in srgb, var(--hue) 7%, var(--card)) 75%); color:var(--hue-ink); overflow:hidden; }
+.shophome-acts { display:flex; flex-wrap:wrap; align-items:center; gap:8px 18px; }
+.shophome-go { display:inline-flex; align-items:center; justify-content:center; gap:6px; width:auto; min-height:44px; margin:0; padding:0 20px; }
+.shophome-hide { min-height:44px; min-width:44px; font-size:var(--fs-sm); }
+.youshop-home { margin:8px 0 0; } .youshop-home .linkbtn { min-height:44px; font-size:var(--fs-sm); }
+.logshop { margin-top:14px; padding-top:6px; border-top:1px solid var(--line); }
+.logshop-go { display:flex; width:100%; justify-content:flex-start; gap:8px; min-height:48px; font-size:var(--fs-md); text-decoration:none; color:var(--ink); }
+.logshop-go > svg:last-child { margin-left:auto; color:var(--soft); }
 .devshop { margin-top:10px; }
 `;

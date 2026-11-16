@@ -37,7 +37,7 @@ import { youAccountLine } from "../lib/signin.js";
    - Account: Task 1's sign-in card (who is signed in, Sign out, Delete account) while this device is signed in;
      otherwise "Your account" (2026-11-15: sign-in isn't switched on yet, or she hasn't signed in) in a build without the optional account; calm R9: where the
      build offers it (`account`, lib/cloudBackup.js ACCOUNTS_HERE) the AccountCard (guest by default; create, sign in,
-     back up now, sign out, delete, and the "backup is newer" choice); the Shop by need entry card (components/Shop.jsx ShopEntryCard; since 2026-11-15 it opens the Shop page), About & legal (not a medical device, links, build).
+     back up now, sign out, delete, and the "backup is newer" choice); About & legal (not a medical device, links, build).
    - Cyra's AI (calm R8): with Pro, the ai flag and a server, the weekly write-up and chat switches (off by default) and
      "Include lab values"; without Pro, one line and "See what Pro adds". The switches send nothing themselves.
    Calm R10 (compaction): each card is a title row, one summary line and its primary control; the longer explanations
@@ -76,6 +76,9 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
         <button type="button" className="stagechip quiet" onClick={onChangeStage}>{t("you.change", { stageName })}</button>
         {sp.daysLogged > 0 && <p className="youfact"><Icon name="calendar" size={14} />{sp.daysLogged === 1 ? t("you.1DayLogged") : t("you.daysLogged", { daysLogged: sp.daysLogged })}</p>}
       </Card>
+
+      {/* Shop by need: in the top group, right under her stage (2026-11-16, easier to find). */}
+      {care}
 
       <Card id="you-privacy" tint="mind" icon="shield" eyebrow={t("you.privacyYourData")} title={t("you.youDecideWhatLeavesThis")} level={2} className="youprivacy" tabIndex={-1}>
         <PrivacyBody hideLab compact storageDriver={sp.storageDriver} onExport={sp.onExport} onImport={sp.onImport} onWipe={sp.onWipe} ping={sp.ping} keepsWeekNote={sp.keepsWeekNote} daysLogged={sp.daysLogged} lastBackupAt={sp.lastBackupAt} todayIso={sp.todayIso} offlineCopy={sp.offlineCopy} legacyWear={sp.legacyWear} onHandoff={sp.onHandoff} flows={sp.flows} flowCtx={sp.flowCtx} lock={sp.lock} potsOn={sp.potsOn} />
@@ -233,7 +236,6 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
         </Card>
       )}
 
-      {care}
 
       <Card id="you-about-legal" tint="you" icon="book" eyebrow={t("you.about")} title={t("you.aboutLegal")} level={2} className="youlegal-card">
         <p className="aboutbrand"><BrandMark size={30} /><span><b>{t("you.brandName")}</b><span className="slogan">{t("splash.slogan")}</span></span></p>

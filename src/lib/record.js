@@ -29,6 +29,7 @@ import { cleanLocale } from "./i18n.js";
 import { cleanQuestions } from "./visitQuestions.js";
 import { cleanNightSkips, cleanConfirmations, cleanTrackStats, cleanSourceExtras } from "./sources.js";
 import { cleanShopCatalog } from "./shopCatalog.js";
+import { cleanShopHint } from "./shop.js";
 import { cleanPromoCache, cleanPromoHidden } from "./promos.js";
 
 /* ======================= shapes (documentation only) =======================
@@ -105,6 +106,7 @@ import { cleanPromoCache, cleanPromoHidden } from "./promos.js";
  * @property {null|string} proChip [device-only] [not-in-backup] 2026-11-15 (Task 2, lib/plans.js): the local day Home last showed its "Pro · 7-day free trial" note (at most one day's first visit).
  * @property {null|{at: string, list: Object[]}} promos [device-only] [not-in-backup] 2026-11-15 (portal subscriptions Task 3, lib/promos.js): the live promotions this device last downloaded (the same list for everyone, nothing about her) and when.
  * @property {string[]} promoHidden [device-only] [not-in-backup] 2026-11-15 (lib/promos.js): the ids of promotions she hid with "Not now" on this device.
+ * @property {{home: null|"hidden", coach: boolean}} shopHint [device-only] [not-in-backup] 2026-11-16 (lib/shop.js cleanShopHint): whether she hid Home's "Shop by need" card on this device, and whether this device already showed the one-time "New: Shop by need" hint. Nothing about her health; never sent.
  * @property {null|{at: string, data: Object}} shopCatalog [device-only] [not-in-backup] 2026-11-15 (partner portal Task 3, lib/shopCatalog.js): the published Shop catalog this device last downloaded (business data: brands and products, nothing about her) and when; never in any backup.
  * @property {{apps: string[], connectedAt: ?number, lastSync: ?number, days: Object}} glucoseLog [record] Task B (2026-11-14): blood glucose read on the phone from Apple Health / Health Connect (Dexcom, FreeStyle Libre): one summary per day ({ n, min, max, mean, last, lastAt } in mg/dL), never the raw series (lib/glucose.js).
  * @property {{pick: string[], remind: boolean}} partnerShare [record] Task A (2026-11-14): Share with a partner, what she ticks to include and the phone reminder switch (lib/partner.js). The note she types is never saved.
@@ -291,8 +293,10 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    lib/shopCatalog.js) is the cleaned Shop catalog this device last downloaded and when, or null (the bundled one is
    used): business data, never about her; device-only and never in a backup (another device downloads its own).
    promos (2026-11-15, portal subscriptions Task 3, lib/promos.js) is the list of live promotions this device last
-   downloaded and when, or null; promoHidden the ids she hid with "Not now". Both device-only and never in a backup. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice", "trialStart", "guide", "partnerShare", "glucoseLog", "proChip", "shopCatalog", "promos", "promoHidden"]);
+   downloaded and when, or null; promoHidden the ids she hid with "Not now". Both device-only and never in a backup.
+   shopHint (2026-11-16, lib/shop.js) is { home, coach }: Home's shop card hidden on this device, and the one-time
+   "New: Shop by need" hint already shown: device-only and never in a backup. */
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice", "trialStart", "guide", "partnerShare", "glucoseLog", "proChip", "shopCatalog", "promos", "promoHidden", "shopHint"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -300,7 +304,7 @@ export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "ca
    is whether this browser's Home install tip should stay away (null | "dismissed" |
    "installed", lib/pwa.js), also left out of the backup file; exportLog is this device's count of
    appointment PDFs this month (L9), null while exports are unlimited, also left out of the file. */
-export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "guide", "proChip", "shopCatalog", "promos", "promoHidden"]);
+export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "shopHint"]);
 /* A display preference of this device (L2): appearance ("system" | "light" | "dark", lib/appearance.js).
    It is saved with the record and followed by every open tab of this browser (so it stays in RECORD,
    they are all the same device), but it is never in a backup file and never taken from one:
@@ -315,7 +319,7 @@ export const RECORD = Object.freeze(PERSISTED.filter((k) => !DEVICE_ONLY.include
    lastBackupAt (this device's own note of when it last backed up), installHint (whether this
    device's install tip is hidden), exportLog (this device's PDF count this month, L9) and appearance
    (this device's light/dark choice). */
-export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "guide", "proChip", "shopCatalog", "promos", "promoHidden", ...DEVICE_PREFS]);
+export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "shopHint", ...DEVICE_PREFS]);
 
 /** The record as it goes into an encrypted backup file, as a new object (the input is not
     changed): every saved key, except that regAnswers loses zip and age (neither is used after
@@ -583,6 +587,7 @@ export const RULES = Object.freeze({
   proChip: (v, p) => (v === undefined || v === null || (typeof v === "string" && isIso(v)) ? [] : [`${p}: expected null or YYYY-MM-DD, got ${show(v)}`]),
   promos: (v, p) => (v === undefined || v === null || JSON.stringify(v) === JSON.stringify(cleanPromoCache(v)) ? [] : [`${p}: expected null or { at: ISO time, list: clean promotions }, got ${show(v)}`]),
   promoHidden: (v, p) => (v === undefined || JSON.stringify(v) === JSON.stringify(cleanPromoHidden(v)) ? [] : [`${p}: expected a list of promotion ids, got ${show(v)}`]),
+  shopHint: (v, p) => (v === undefined || JSON.stringify(v) === JSON.stringify(cleanShopHint(v)) ? [] : [`${p}: expected { home: null | "hidden", coach: boolean }, got ${show(v)}`]),
   shopCatalog: (v, p) => (v === undefined || v === null || JSON.stringify(v) === JSON.stringify(cleanShopCatalog(v)) ? [] : [`${p}: expected null or { at: ISO time, data: a clean catalog }, got ${show(v)}`]),
   guide: (v, p) => (v === undefined || JSON.stringify(v) === JSON.stringify(cleanGuide(v)) ? [] : [`${p}: expected { seen: [view ids], off: true|false, replay: YYYY-MM-DD|null }, got ${show(v)}`]),
   // The free week (lib/trial.js): missing (a record from before it) or null, or a real local date.
