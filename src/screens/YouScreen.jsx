@@ -56,7 +56,7 @@ const StageArt = () => (
     <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
   </svg>
 );
-export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, language = null, meals = null, dataSources = null, partner = null, learn = null, signMode = "none", store = null, native = false, promo = null, onHidePromo = null, proUntil = null }) {
+export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, language = null, meals = null, dataSources = null, partner = null, learn = null, signMode = "none", store = null, native = false, promo = null, onHidePromo = null, proUntil = null, guest = null }) {
   const offer = ai.offer || { any: false, weekly: false, chat: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
@@ -226,7 +226,19 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
       {/* Task 1: the sign-in account, when this device is signed in. Otherwise "Your account" says why there is none yet
           (2026-11-15: never "No account needed"; signinMode none / unset: sign-in isn't switched on yet). */}
       {signedIn && <SignedInCard si={signedIn} />}
-      {account ? <AccountCard a={account} person={acct} /> : !signedIn && (
+      {/* The guest window (2026-11-16, lib/guest.js): a guest's account card says until when, the whole story once, and
+          offers "Create account" (always here, while Home's line shows once a day). */}
+      {guest && !signedIn && (
+        <Card id="you-guest" tint="you" icon="user" eyebrow={t("you.account")} title={t("you.yourAccount")} level={2} className="youaccount youguest">
+          <p>{guest.youLine}</p>
+          <p className="hint">{guest.story}</p>
+          <div className="acctacts">
+            <button type="button" className="ghostbtn" aria-haspopup="dialog" onClick={guest.onCreate}>{guest.createLabel}</button>
+          </div>
+          {!account && <p className="rfoot">{ACCOUNT_LINES.more}</p>}
+        </Card>
+      )}
+      {account ? <AccountCard a={account} person={acct} /> : !signedIn && !guest && (
         <Card id="you-account" tint="you" icon="user" eyebrow={t("you.account")} title={t("you.yourAccount")} level={2} className="youaccount">
           <p>{signMode === "none" ? accountLine(acct) : youAccountLine(signMode)}</p>
           <p className="rfoot">{ACCOUNT_LINES.more}</p>

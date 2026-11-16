@@ -13,7 +13,9 @@
      "offline"   the server couldn't be reached: Try again (no skip while sign-in is required)
      "unset"     the server reports no sign-in configured: "Continue for now", said plainly
      "optional"  the build has VITE_REQUIRE_SIGNIN=false: the providers plus "Continue without an account"
-     "required"  at least one sign-in works and the build requires it: the providers, no skip
+     "required"  at least one sign-in works and the build requires it: the providers, and no skip except the guest
+                 window's "Try it first" (lib/guest.js, 2026-11-16: 48 hours as a guest, then sign-in; none when
+                 VITE_GUEST_HOURS=0)
    Pure: no React, no storage, no network (lib/signinClient.js makes the requests). */
 
 /** The build's switch: anything but "false" (case-insensitive) requires sign-in. */
@@ -45,8 +47,10 @@ export const skipLabel = (mode) => (signinOff(mode) ? SIGNIN_COPY.skipForNow : S
 /** You → Account's line while this device isn't signed in (none: no server or no signin flag; unset: the server has none). */
 export const youAccountLine = (mode) => (mode === "none" ? SIGNIN_COPY.youNone : mode === "unset" ? SIGNIN_COPY.youUnset : SIGNIN_COPY.noneLine);
 
-/** Whether a record that is already on this device has to sign in once before the app opens (existing users). */
-export const gateNeeded = ({ mode, signedIn }) => mode === "required" && !signedIn;
+/** Whether a record that is already on this device has to sign in before the app opens: an existing record with no
+    session, or a guest whose window is over (lib/guest.js guestState "over"). A guest inside her window ("in") isn't
+    asked. Only ever in mode "required": offline or while asking, the app opens as before. */
+export const gateNeeded = ({ mode, signedIn, guest = null }) => mode === "required" && !signedIn && guest !== "in";
 
 const str = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const TOKEN = /^[A-Za-z0-9_-]{8,560}\.[A-Za-z0-9_-]{43}$/;

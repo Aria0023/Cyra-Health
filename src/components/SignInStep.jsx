@@ -1,16 +1,21 @@
 import { useEffect, useId, useRef, useState } from "react";
 import Icon from "./Icon.jsx";
 import Details from "./Details.jsx";
+import { Sheet } from "./ui/index.js";
 import { PROVIDERS, SIGNIN_COPY as C, canSkip, skipLabel, cleanCode, isEmailAddress, whoLine } from "../lib/signin.js";
+import { GUEST_COPY as G } from "../lib/guest.js";
 
 /* The sign-in choices (Task 1): Apple, Google, Facebook, then email, in that order (Apple first: App Store). Used as
    registration's first step ("Create your account", RegisterScreen) and as the one-time screen an existing user sees
    before the app opens (SignInGate below). What it offers comes from lib/signin.js signinMode: no skip while sign-in is
    required and the server has a sign-in; while sign-in is off "Continue for now", when optional "Continue without an
    account", each with the reason in plain words.
+   The guest window (2026-11-16, lib/guest.js): where sign-in is required and the build has a guest window, registration
+   passes `guest` ({ hours, story, onTry }) and the step also offers "Try it first", a real skip, with the whole story in
+   one line. The gate and the in-app "Create your account" sheet (GuestCreateSheet) never pass it: no skip there.
    Nothing here sends anything by itself: onProvider / onEmailStart / onEmailVerify (App.jsx) make the requests, each
    after her tap. The email and the code live only in this component's state until she sends them. */
-export default function SignInStep({ mode, providers = {}, busy = null, signedIn = null, onProvider, onEmailStart, onEmailVerify, onSkip, onRetry }) {
+export default function SignInStep({ mode, providers = {}, busy = null, signedIn = null, onProvider, onEmailStart, onEmailVerify, onSkip, onRetry, guest = null }) {
   const uid = useId();
   const [emailOpen, setEmailOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -103,6 +108,13 @@ export default function SignInStep({ mode, providers = {}, busy = null, signedIn
           <button type="button" className="ghostbtn" onClick={onSkip}>{skipLabel(mode)}</button>
         </div>
       )}
+      {mode === "required" && guest && (
+        <div className="signin-skip signin-try">
+          <p className="hint">{G.tryWhy(guest.hours)}</p>
+          <p className="hint signin-story"><b>{guest.story}</b></p>
+          <button type="button" className="ghostbtn" disabled={!!busy || working} onClick={() => { guest.onTry?.(); onSkip?.(); }}>{G.tryFirst}</button>
+        </div>
+      )}
       {mode !== "none" && (
         <Details label={C.sharedLab}>
           <ul>{C.shared.map((s) => <li key={s}>{s}</li>)}</ul>
@@ -112,16 +124,36 @@ export default function SignInStep({ mode, providers = {}, busy = null, signedIn
   );
 }
 
-/** The one-time screen for a record already on this device when sign-in becomes required. */
-export function SignInGate({ children }) {
+/** The one-time screen for a record already on this device when sign-in becomes required, and the screen a guest sees
+    once her guest window is over (title / sub from lib/guest.js). `data` (the guest screen) is the encrypted backup,
+    restore and Delete everything, usable without signing in: nobody is locked out of her own data. */
+export function SignInGate({ children, title = C.gateTitle, sub = C.gateSub, data = null }) {
   const headRef = useRef(null);
   useEffect(() => { headRef.current?.focus({ preventScroll: true }); }, []);
   return (
     <main className="obwrap signingate">
       <span className="mark">Solia<span className="sub">Health</span></span>
-      <h1 className="disp" tabIndex={-1} ref={headRef} style={{ marginTop: 18 }}>{C.gateTitle}</h1>
-      <p className="hint">{C.gateSub}</p>
+      <h1 className="disp" tabIndex={-1} ref={headRef} style={{ marginTop: 18 }}>{title}</h1>
+      <p className="hint">{sub}</p>
       {children}
+      {data && (
+        <section className="gatedata" aria-labelledby="gatedata-h">
+          <h2 className="gatedata-h" id="gatedata-h">{G.gateData}</h2>
+          <p className="hint">{G.gateDataWhy}</p>
+          {data}
+        </section>
+      )}
     </main>
+  );
+}
+
+/** "Create your account" for a guest inside her window (Home's guest line, You → Account): the same choices, no skip.
+    A finished sign-in closes it (App.jsx adoptSession) and she is exactly where she was. */
+export function GuestCreateSheet({ onClose, step }) {
+  return (
+    <Sheet id="guest-create" title={G.sheetTitle} onClose={onClose}>
+      <p className="hint">{G.sheetSub}</p>
+      <SignInStep {...step} />
+    </Sheet>
   );
 }
