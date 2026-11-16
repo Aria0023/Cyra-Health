@@ -11,6 +11,11 @@ Branch `feature/shop-findable-visuals`. Brief: `docs/plans/shop-findable-visuals
       (1,618.14 kB, gzip 510.12 kB); e2e 59/59; axe 38/38, 0 violations. FINAL COMMIT DONE.
 
 ## Task 2: lifelike product illustrations
-- [ ] not started.
+- [x] WIP committed: 23 illustrations in `src/lib/shopArt.js` (SVG markup as data, hue through CSS classes so the portal's
+      CSP is fine), `src/components/shop/art/ShopArt.jsx`, `art` on every item, the card (4:3, Illustration tag, image is
+      a click target, hover zoom), footer sentence, Home thumbnails, catalog cleaner (`art` kept only when known).
+- [ ] backend `art` field (vocab, owner-only, catalog, seed), portal preview + picker (generated
+      `backend/public/portal/shop-art.js` by `npm run shop:seed`), unit/e2e/axe tests, docs, bundle size, verification,
+      final commit.
 
 Baseline bundle (main 4fa87fd, `npm run build`): dist/assets/index-*.js 1,611.61 kB (gzip 508.62 kB).

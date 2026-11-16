@@ -7,13 +7,15 @@
 
    One shape for the Shop page, whichever the source: { source: "live" | "bundled", items, brands } where an item is
    { id, category, also, brand, name, covers, description, why, tone, ev, sources, avail, stages, modules, kind,
-     href, affiliate, price, image, reviewed }
+     href, affiliate, price, image, art, reviewed }
+   (art: the illustration drawn while there is no image, lib/shopArt.js; an unknown or missing one is the need's default)
    and brands maps a brand's name to { tag, about, mono, hue }. "Clinician reviewed" (reviewed) only where the server
    marks the item signed (live) or src/config/shop-reviewed.json lists it (bundled). The affiliate label only where an
    https affiliate URL exists. */
 import {
   SHOP_ITEMS, SHOP_CATEGORIES, AVAIL_LABEL, TONE_LABEL, SHOP_HUE_IDS, BRANDS, monogram, brandHue, linkFor, priceFor, imageFor, isReviewed, itemSources,
 } from "./shop.js";
+import { cleanArt, artFor } from "./shopArt.js";
 
 export const MAX_PRODUCTS = 300;
 export const MAX_BRANDS = 120;
@@ -83,6 +85,9 @@ export function cleanCatalog(raw) {
       evidence: ev,
       sources: Array.isArray(p.sources) ? p.sources.slice(0, 6).map((s) => text(s, 300)).filter(Boolean) : [],
       clinicianStatus: p.clinicianStatus === "signed" ? "signed" : "awaiting",
+      // 2026-11-16: a known illustration id only (lib/shopArt.js); an unknown or missing one is left out, so the page
+      // draws the need's default, and a copy saved before this field existed still cleans to itself.
+      ...(cleanArt(p.art) ? { art: cleanArt(p.art) } : {}),
     });
   }
   if (!products.length) return null;
@@ -107,7 +112,7 @@ export function bundledShop({ affiliates = {}, images = {}, signed = [] } = {}) 
     return {
       id: i.id, category: i.category, also: [...(i.also || [])], brand: i.brand, name: i.name, covers: i.covers || "", description: "",
       why: i.why || "", tone: i.tone || null, ev: i.ev || "", sources: itemSources(i), avail: i.avail || "", stages: [...i.stages], modules: [...i.modules],
-      kind: i.kind || null, href: link.href, affiliate: link.affiliate, price: priceFor(i, affiliates), image: img ? { bundled: img } : null, reviewed: isReviewed(i, signed),
+      kind: i.kind || null, href: link.href, affiliate: link.affiliate, price: priceFor(i, affiliates), image: img ? { bundled: img } : null, art: artFor(i), reviewed: isReviewed(i, signed),
     };
   });
   const brands = Object.fromEntries([...new Set(items.map((i) => i.brand))].map((name) => [name, { tag: BRANDS[name]?.tag || "", about: BRANDS[name]?.about || "", mono: monogram(name), hue: brandHue(name) }]));
@@ -126,7 +131,7 @@ export function liveShop(data, { apiBase = "", images = {} } = {}) {
       why: p.why, tone: p.evidence?.tone || null, ev: p.evidence?.label || "", sources: p.sources, avail: p.availability, stages: p.stages, modules: p.modules,
       kind: p.kind, href: p.affiliateUrl || p.url, affiliate: !!p.affiliateUrl, price: p.price || null,
       image: p.imageId && apiBase ? { url: `${apiBase}/api/shop/images/${p.imageId}` } : bundledImg ? { bundled: bundledImg } : null,
-      reviewed: p.clinicianStatus === "signed",
+      art: artFor({ art: p.art, category: p.categories[0] }), reviewed: p.clinicianStatus === "signed",
     };
   });
   const brands = Object.fromEntries(data.brands.map((b) => [b.name, { tag: b.tag, about: b.about, mono: b.monogram, hue: b.hue || brandHue(b.name) }]));

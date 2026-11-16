@@ -18,6 +18,7 @@ export function buildSeed({ affiliates = {}, signed = [] } = {}) {
     return {
       id: i.id, brandId: brandId(i.brand), name: i.name, covers: i.covers || "", description: "", availability: i.avail || "online",
       price: priceFor(i, affiliates) || "", url: i.url, affiliateUrl: link.affiliate ? link.href : "", imageId: null,
+      art: i.art || null,
       categories: [i.category, ...(i.also || [])], stages: [...i.stages], modules: [...i.modules], kind: i.kind || null,
       why: i.why || "", evidence: i.tone ? { tone: i.tone, label: i.ev } : null, sources: itemSources(i),
       clinicianStatus: Array.isArray(signed) && signed.includes(i.id) ? "signed" : "awaiting",

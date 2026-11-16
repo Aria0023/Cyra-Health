@@ -158,7 +158,17 @@ const MORE = Object.freeze({
   sleepio: { avail: "app", covers: "A self-guided CBT-I course" },
   "cbti-coach": { avail: "app", covers: "CBT-I tools and a sleep diary" },
 });
-export const SHOP_ITEMS = Object.freeze(ITEMS.map((i) => (MORE[i.id] ? Object.freeze({ ...i, ...MORE[i.id] }) : i)));
+/* The product illustration of each item (2026-11-16, lib/shopArt.js ART_IDS): a generic drawing of the product TYPE,
+   shown with an "Illustration" tag until the owner places a real, licensed photo. Never a brand's logo or packaging. */
+const ART = Object.freeze({
+  "easyhome-lh": "lh-strips", "clearblue-ovulation": "ovulation-digital", "mira": "hormone-monitor", "inito": "phone-reader", "proov": "pdg-strips",
+  "easyhome-bbt": "thermometer", "prenatal": "vitamins", "pregnancy-test": "pregnancy-test", "stelo": "cgm-a", "lingo": "cgm-b",
+  "libre": "cgm-a", "oura": "smart-ring", "apple-watch": "watch-square", "garmin": "watch-round", "fitbit": "fitness-band",
+  "whoop": "fabric-strap", "heat-wrap": "heat-wrap", "period-underwear": "period-underwear", "midi": "video-visit", "cooling-bedding": "cooling-bedding",
+  "sleepio": "sleep-app-a", "cbti-coach": "sleep-app-b", "quest-thyroid": "lab-visit", "labcorp-a1c": "lab-visit", "everly-fertility": "lab-kit",
+  "everly-peri": "lab-kit",
+});
+export const SHOP_ITEMS = Object.freeze(ITEMS.map((i) => Object.freeze({ ...i, ...(MORE[i.id] || {}), art: ART[i.id] || null })));
 export const AVAIL_LABEL = Object.freeze({
   home: "Kit sent to your home", lab: "Sample taken at a lab", visit: "Online visit", app: "In an app", online: "Sold online",
   stores: "Sold online and in stores", rx: "By prescription",
@@ -224,6 +234,8 @@ export const SHOP_PAGE_COPY = Object.freeze({
   footHead: "About this shop",
   footList: "The product list comes from Solia Health's server, like loading a web page: the request carries nothing about you.",
   fromBrand: (brand) => `From ${brand}:`,
+  illustration: "Illustration",
+  footArt: "Pictures marked Illustration are drawings, not photos of the product.",
   footLearns: "What the shop learns: nothing from Solia Health. Matching happens on this device. A shop learns only that you visited, and, through an affiliate link, that you came from Solia Health.",
   entryTitle: "Shop by need",
   entryLine: "Real products for your stage",
@@ -319,7 +331,7 @@ export function priceFor(item, affiliates = {}) {
 }
 /* Product images (owner design update, item 4): only files the owner placed in public/shop/ from an affiliate program's
    creative kit, declared in src/config/shop-images.json ({ "<item id>": "<item id>.webp" | ".jpg" }). Never a hotlinked
-   brand image; anything else (or nothing) shows the calm illustrated placeholder. */
+   brand image; anything else (or nothing) shows the item's illustration (lib/shopArt.js) with an "Illustration" tag. */
 export function imageFor(item, manifest = {}) {
   const f = manifest && manifest[item.id];
   return typeof f === "string" && (f === `${item.id}.webp` || f === `${item.id}.jpg`) ? `shop/${f}` : null;
@@ -327,5 +339,5 @@ export function imageFor(item, manifest = {}) {
 /* "Clinician reviewed" (item 6): only for an item whose docs/CLINICIAN-REVIEW.md entry is marked signed and whose id the
    owner then lists in src/config/shop-reviewed.json "signed" (shop.test.mjs checks the two agree). None are signed yet. */
 export const isReviewed = (item, signed = []) => Array.isArray(signed) && signed.includes(item.id);
-/** The icon of a category, for the image placeholder. */
+/** The icon of a category (the image placeholder until 2026-11-16; the cards now draw lib/shopArt.js). */
 export const CATEGORY_ICON = Object.freeze({ fertility: "teststrip", pregnancy: "heart", labs: "clipboard", glucose: "drop", wearables: "watch", periods: "drop", meno: "sun", sleep: "moon" });

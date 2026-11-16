@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Card } from "./ui/index.js";
 import Details from "./Details.jsx";
 import Icon from "./Icon.jsx";
-import { SHOP_COPY as C, SHOP_PAGE_COPY as P, AFFILIATE_LINE, TONE_LABEL, AVAIL_LABEL, CATEGORY_ICON, relFor, groupByBrand, brandsOf, monogram, brandHue } from "../lib/shop.js";
+import ShopArt from "./shop/art/ShopArt.jsx";
+import { SHOP_COPY as C, SHOP_PAGE_COPY as P, AFFILIATE_LINE, TONE_LABEL, AVAIL_LABEL, relFor, groupByBrand, brandsOf, monogram, brandHue } from "../lib/shop.js";
 import { itemsIn, itemsOf } from "../lib/shopCatalog.js";
 import { isNative } from "../lib/native.js";
 import { openExternal } from "../lib/links.js";
@@ -18,7 +19,8 @@ import { openExternal } from "../lib/links.js";
    products grouped by brand: a band in the brand's own hue (lib/constants.js SHOP_HUES, apart from the stage palettes
    and the data-viz ramps: monogram tile, the brand, its type, one line about it) over its cards: on phones a horizontal
    snap list when a brand has 2+ products (the next card peeks), on wide screens a 2–4 column grid. Each card: an image
-   only where the owner placed a licensed one (src/config/shop-images.json), otherwise a calm placeholder; where it comes
+   only where the owner placed a licensed one (src/config/shop-images.json), otherwise the item's illustration
+   (lib/shopArt.js, a generic studio-style drawing, tagged "Illustration"; 2026-11-16); where it comes
    from and the owner's price when there is one; the name, what it covers, why, "Sold by", the evidence pill; "Visit
    <brand>" and "Learn more" (evidence, price note, sources). "Affiliate link" and the commission line only where
    src/config/affiliates.json has a link. Nothing here sends anything or adds anything about her to a link.
@@ -46,19 +48,15 @@ function ProductCard({ item, brands, onTry }) {
   const hue = info?.hue || brandHue(item.brand);
   const nameId = `shop-${item.id}`;
   const go = (e) => { if (isNative()) { e.preventDefault(); openExternal(link.href); } };
+  const goRef = useRef(null);
   return (
     <li className="shopcard" data-item={item.id}>
-      <div className="shopimg" data-hue={hue}>
-        {img ? <img src={img} alt="" loading="lazy" referrerPolicy="no-referrer" /> : (
-          <>
-            <svg className="shopimg-blobs" viewBox="0 0 200 125" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
-              <path className="b1" d="M150 -10c34 6 58 34 52 62s-40 40-70 30-44-40-34-64 22-34 52-28z" />
-              <path className="b2" d="M20 90c22-10 52-2 60 18s-8 40-34 42-48-10-50-30 2-22 24-30z" />
-              <circle className="b3" cx="40" cy="22" r="6" /><circle className="b3" cx="176" cy="104" r="4" />
-            </svg>
-            <span className="shopimg-ph" aria-hidden="true"><Icon name={CATEGORY_ICON[item.category] || "bag"} size={36} /></span>
-          </>
-        )}
+      {/* The picture goes where "Visit <brand>" goes (a product page's habit), but it is not a second tab stop: a plain
+          click target for pointers; the button below stays the one accessible control. A real, licensed image wins;
+          otherwise the item's illustration, always tagged "Illustration" so it is never taken for a photo. */}
+      <div className={`shopimg ${img ? "photo" : "drawn"}`} data-hue={hue} onClick={() => goRef.current?.click()}>
+        {img ? <img src={img} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <ShopArt art={item.art} />}
+        {!img && <span className="shopimg-tag">{P.illustration}</span>}
         <span className="shopimg-brand" aria-hidden="true"><Monogram brand={item.brand} info={info} size="xs" />{item.brand}</span>
       </div>
       <div className="shopcard-body">
@@ -73,7 +71,7 @@ function ProductCard({ item, brands, onTry }) {
           {link.affiliate && <span className="ppill affpill">{C.affiliate}</span>}
         </p>
         <div className="shopacts">
-          <a className="cta shopgo" href={link.href} target="_blank" rel={relFor(link)} aria-describedby={link.affiliate ? `${nameId}-aff` : undefined} onClick={go}>{C.open(item.brand)}<Icon name="arrow-right" size={14} /><span className="sr-only"> (opens in your browser)</span></a>
+          <a ref={goRef} className="cta shopgo" href={link.href} target="_blank" rel={relFor(link)} aria-describedby={link.affiliate ? `${nameId}-aff` : undefined} onClick={go}>{C.open(item.brand)}<Icon name="arrow-right" size={14} /><span className="sr-only"> (opens in your browser)</span></a>
           {onTry && item.kind && <button type="button" className="linkbtn shoptry" aria-describedby={nameId} onClick={() => onTry(item)}>{C.tryIt}</button>}
         </div>
         <Details label={P.learnMore} describedBy={nameId}>
@@ -145,6 +143,7 @@ export function ShopPage({ shop, categories, initial = null, allow = null, live 
       <footer className="shopfoot">
         <h2 className="shopfoot-h">{P.footHead}</h2>
         <p className="rfoot">{P.footMatched}</p>
+        <p className="rfoot">{P.footArt}</p>
         {live && <p className="rfoot">{P.footList}</p>}
         <p className="rfoot">{C.privacy}</p>
         <p className="rfoot">{C.notAdvice}</p>
@@ -153,10 +152,12 @@ export function ShopPage({ shop, categories, initial = null, allow = null, live 
   );
 }
 
-/** A small product thumbnail (decorative: Home's card names the shop in words). */
+/** A small product thumbnail (decorative: Home's card names the shop in words): the item's licensed image when the
+    owner placed one, else its illustration (the same art as its card on the Shop page). */
 export function ShopThumb({ item, brands }) {
   const hue = brands[item.brand]?.hue || brandHue(item.brand);
-  return <span className="shopthumb" data-hue={hue} data-item={item.id} aria-hidden="true"><Icon name={CATEGORY_ICON[item.category] || "bag"} size={26} /></span>;
+  const img = item.image ? (item.image.url || `${import.meta.env.BASE_URL || "/"}${item.image.bundled}`) : null;
+  return <span className="shopthumb" data-hue={hue} data-item={item.id} aria-hidden="true">{img ? <img src={img} alt="" loading="lazy" referrerPolicy="no-referrer" /> : <ShopArt art={item.art} />}</span>;
 }
 
 /** You → one distinct entry card that opens the page (the top group of You, right under her stage, since 2026-11-16).
