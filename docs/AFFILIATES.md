@@ -85,6 +85,9 @@ Shown only for an item whose `docs/CLINICIAN-REVIEW.md` entry says `Status: Sign
   link" on the item and the commission sentence under its button; the privacy line under every list says what the shop learns.
 - **Ordering never follows commission**: items are ordered by her stage, her modules and the evidence. Do not reorder for rates.
 - **Never** in insights, Patterns findings, urgent guidance, notifications or onboarding (checked by `e2e/shop.spec.mjs`).
+- **Where the shop opens from** (owner decision 2026-11-16: it may appear on Home): the header's labelled "Shop" pill, one
+  "Shop by need" card on Home that she can hide (You brings it back), a row at the bottom of the "+" sheet, the card at
+  the top of You, and the quiet links beside the device list, fertility signs and the glucose card.
 - **App Store (guideline 3.1.3(e) / 3.1.1)**: linking out to buy physical goods and services consumed outside the app is
   allowed and does not use in-app purchase. Do not sell digital content through these links. Google Play: same for
   physical goods.

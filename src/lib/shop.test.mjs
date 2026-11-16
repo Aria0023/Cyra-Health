@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { SHOP_ITEMS, SHOP_IDS, SHOP_CATEGORIES, SHOP_SOURCES, TONE_LABEL, AFFILIATE_LINE, SHOP_COPY, linkFor, relFor, shopCategories, shopItems, itemSources } from "./shop.js";
+import { SHOP_ITEMS, SHOP_IDS, SHOP_CATEGORIES, SHOP_SOURCES, TONE_LABEL, AFFILIATE_LINE, SHOP_COPY, linkFor, relFor, shopCategories, shopItems, itemSources, stageWords, cleanShopHint } from "./shop.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const AFF = JSON.parse(fs.readFileSync(path.resolve(here, "../config/affiliates.json"), "utf8"));
@@ -141,4 +141,17 @@ test("shop hues: their own set (not a stage palette, not a data-viz ramp); white
     }
   }
   assert.equal(shopHueTokens("dark")["--shop-teal-ink"], SHOP_HUES.teal.dark.ink);
+});
+
+test("easier to find (2026-11-16): Home's line names her stage in words; the device-only hint value is cleaned", () => {
+  assert.equal(SHOP_PAGE_COPY.homeLine(stageWords({ stage: "periods" })), "Real products for your cycle");
+  assert.equal(stageWords({ stage: "periods", ttc: true }), "trying to conceive");
+  assert.equal(stageWords({ stage: "preg", ttc: true }), "pregnancy");
+  assert.equal(stageWords({ stage: "peri" }), "perimenopause");
+  assert.equal(stageWords({ stage: "peri", meno: true }), "menopause");
+  assert.deepEqual(cleanShopHint(undefined), { home: null, coach: false });
+  assert.deepEqual(cleanShopHint({ home: "hidden", coach: true, extra: 1 }), { home: "hidden", coach: true });
+  assert.deepEqual(cleanShopHint({ home: "yes", coach: "true" }), { home: null, coach: false });
+  assert.deepEqual(cleanShopHint("hidden"), { home: null, coach: false });
+  assert.equal(SHOP_PAGE_COPY.headerLabel, "Shop");
 });

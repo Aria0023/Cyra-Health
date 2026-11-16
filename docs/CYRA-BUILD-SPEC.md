@@ -2327,6 +2327,10 @@ so. Apple/Google/Facebook run through `backend/src/modules/oauth` and finish at 
 - [ ] LATER: Dexcom cloud API (needs Dexcom partner approval; docs/PASSIVE-TRACKING-PLAN.md).
 - [x] Shop by need (2026-11-14, Task C): real products by category matched on the device, affiliate links from
       src/config/affiliates.json only (committed empty), flag `shop`. Owner: join programs and paste links (docs/AFFILIATES.md).
+- [x] Shop easier to find (2026-11-16, owner decision, docs/plans/shop-findable-visuals.md Task 1): the header's labelled
+      "Shop" pill, a "Shop by need" card on Home (she can hide it; You brings it back), a row in the "+" sheet, the card
+      at the top of You, and a one-time "New: Shop by need" note. The shop may appear on Home; it still never appears in
+      insights, Patterns findings, urgent guidance, notifications or onboarding. Device-only key `shopHint`.
 - [x] Installable web app that opens offline (A14.1); Render serves /, /index.html, /sw.js and /manifest.webmanifest
       with Cache-Control: no-cache.
 - [ ] Choose VITE_FEATURES for each release and list the matching backend modules (§9.1); the default offers Ask

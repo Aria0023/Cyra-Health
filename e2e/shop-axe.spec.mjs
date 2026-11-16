@@ -19,8 +19,19 @@ for (const scheme of ["light", "dark"]) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });
     const page = await ctx.newPage();
     await register(page, { stage: "Trying to conceive", pcos: "no" });
+    // 2026-11-16 (easier to find): the header pill with its one-time hint, Home's card, the + sheet's row, You's card with "Show the shop card on Home"
+    await expect(page.locator(".shopcoach")).toBeVisible();
+    await audit(page, `Home with the Shop pill and its hint ${scheme}`);
+    await page.locator("#home-shop").scrollIntoViewIfNeeded();
+    await audit(page, `Home → Shop by need card ${scheme}`);
+    await page.getByRole("button", { name: "Log something" }).click();
+    await expect(page.getByRole("dialog", { name: "Log something" }).getByRole("button", { name: "Shop by need" })).toBeVisible();
+    await audit(page, `+ sheet with the Shop row ${scheme}`);
+    await page.locator(".v2sheet .v2sheet-close").click();
+    await page.locator("#home-shop").getByRole("button", { name: "Hide the shop card" }).click();
     await gotoTab(page, "You");
     await page.locator("#you-shop").scrollIntoViewIfNeeded();
+    await expect(page.locator("#you-shop").getByRole("button", { name: "Show the shop card on Home" })).toBeVisible();
     await audit(page, `You → Shop entry ${scheme}`);
     await page.locator("header.mast").getByRole("button", { name: "Shop", exact: true }).click();
     const shop = page.locator("main.shoppage");
@@ -50,6 +61,9 @@ test("Shop page in every style (Mono, Bloom, Clear, Journal), light and dark", a
       await gotoTab(page, "You");
       await page.getByRole("radio", { name: style }).click();
       await expect(page.locator(".cy")).toHaveAttribute("data-style", style.toLowerCase());
+      await gotoTab(page, "Home");
+      await page.locator("#home-shop").scrollIntoViewIfNeeded();
+      await audit(page, `Home → Shop by need card ${style} ${scheme}`);
       await page.locator("header.mast").getByRole("button", { name: "Shop", exact: true }).click();
       await expect(page.locator("main.shoppage")).toBeVisible();
       await audit(page, `Shop page ${style} ${scheme}`);

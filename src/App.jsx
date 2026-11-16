@@ -507,6 +507,7 @@ export default function CyraDemo() {
      page is open under the current tab (UI only). shopFrom is the control that opened it, where Back returns focus. */
   const [shopPage, setShopPage] = useState(null);
   const shopFrom = useRef(null);
+  const shopFromSel = useRef(null);
   /* Easier to find (2026-11-16, docs/plans/shop-findable-visuals.md Task 1): shopHint is the device-only { home, coach }
      (lib/shop.js cleanShopHint; never in a backup): Home's shop card hidden, and the one-time "New: Shop by need" hint
      already shown on this device. coachNow is whether the hint shows in this visit (UI only). */
@@ -548,6 +549,8 @@ export default function CyraDemo() {
   const openShop = (cat = null) => {
     const a = document.activeElement;
     shopFrom.current = a && a !== document.body && !a.closest?.("[role=dialog]") ? a : null;
+    // Home's and You's cards leave the page while the shop is over them: Back finds the same button again by its place.
+    shopFromSel.current = a?.closest?.("#home-shop") ? "#home-shop .shophome-go" : a?.closest?.("#you-shop") ? "#you-shop .youshopgo" : null;
     setDevicesOpen(false); setShowSettings(false); setShowPal(false); setLogOpen(false); setPotsOpen(false);
     setShopPage({ cat: cat || null, at: Date.now() });
     setCoachNow(false);
@@ -3088,9 +3091,12 @@ export default function CyraDemo() {
   const shopCtx = FEATURES.shop ? { openCategory: (c) => openShop(c) } : null;
   const closeShop = () => {
     const back = shopFrom.current; shopFrom.current = null;
+    const sel = shopFromSel.current; shopFromSel.current = null;
     setShopPage(null);
     requestAnimationFrame(() => {
       if (back && back.isConnected) { back.focus({ preventScroll: false }); return; }
+      const again = sel ? document.querySelector(sel) : null;
+      if (again) { again.focus({ preventScroll: false }); return; }
       const h = document.querySelector(".viewpanel h1"); if (h) { if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1"); h.focus(); }
     });
   };

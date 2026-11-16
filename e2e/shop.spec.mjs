@@ -1,14 +1,17 @@
 /* Shop by need (Task C, 2026-11-14), its own page since 2026-11-15 (docs/plans/plans-shop-page.md Task 3 and the owner's
    design update). With src/config/affiliates.json committed empty, every link is the brand's own page with no affiliate
    label, no price and no "Clinician reviewed" badge; with src/config/shop-images.json empty, every card shows the calm
-   placeholder (no <img>). Links are checked, never followed: the app sends nothing. */
+   placeholder (no <img>). Links are checked, never followed: the app sends nothing.
+   2026-11-16 (docs/plans/shop-findable-visuals.md Task 1, easier to find): the header's labelled "Shop" pill, Home's
+   "Shop by need" card (Hide, and You brings it back), the "+" sheet's row, the entry card at the top of You, and the
+   one-time "New: Shop by need" hint. */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab } from "./lib/nav.mjs";
+import { gotoTab, openLog, toast } from "./lib/nav.mjs";
 
 const page$ = (page) => page.locator("main.shoppage");
 
-test("the header's bag opens the Shop page on every main tab; Back returns to where she came from, focus on the h1", async ({ page }) => {
+test("the header's labelled Shop pill opens the Shop page on every main tab; Back returns to where she came from, focus on the h1", async ({ page }) => {
   await register(page, { stage: "Trying to conceive", pcos: "no" });
   for (const tab of ["Home", "Body", "Mind", "Patterns", "You"]) {
     await gotoTab(page, tab);
@@ -16,6 +19,9 @@ test("the header's bag opens the Shop page on every main tab; Back returns to wh
     await expect(bag).toBeVisible();
     const box = await bag.boundingBox();
     expect(box.width).toBeGreaterThanOrEqual(44); expect(box.height).toBeGreaterThanOrEqual(44);
+    await expect(bag.locator("span")).toHaveText("Shop"); // a visible label beside the icon, not an icon alone
+    await expect(bag.locator("span")).toBeVisible();
+    await expect(bag.locator("svg")).toBeVisible();
     await bag.click();
     await expect(page$(page).getByRole("heading", { level: 1, name: "Shop by need" })).toBeFocused();
     await expect(page.locator("main")).toHaveCount(1); // the page replaces the view under the tab
@@ -36,6 +42,9 @@ test("Trying to conceive: needs first, products grouped by brand, plain brand li
   const entry = page.locator("#you-shop");
   await expect(entry).toContainText("Shop by need");
   await expect(entry).toContainText("Real products for your stage");
+  await entry.getByRole("button", { name: "Shop by need" }).click();
+  await page$(page).getByRole("button", { name: "Back" }).click();
+  await expect(entry.getByRole("button", { name: "Shop by need" })).toBeFocused(); // Back returns to the card she came from
   await entry.getByRole("button", { name: "Shop by need" }).click();
   const shop = page$(page);
   const chips = shop.getByRole("group", { name: "Needs, yours first" }).getByRole("button");
@@ -114,15 +123,158 @@ test("PCOS on: blood sugar first; the device sheet's quiet link opens wearables;
   await expect(page$(page).locator('.shopcard[data-item="labcorp-a1c"]')).toBeVisible();
 });
 
-test("the shop never shows in insights, Patterns or Home; a tab switch closes the page", async ({ page }) => {
+test("the shop never shows in insights or Patterns; on Home only its own card; a tab switch closes the page", async ({ page }) => {
   await register(page, { stage: "Perimenopause", pcos: "no" });
+  // Home (owner decision 2026-11-16): one card of its own under Quick log, never inside the insight, the patterns card or the POTS card
+  await expect(page.locator("#home-shop")).toHaveCount(1);
   await expect(page.locator(".shoplink, .shopcard")).toHaveCount(0);
+  await expect(page.locator(".insightcard, .homepatterns, .stepcard").locator(".shophome, .shoplink, .shopthumb")).toHaveCount(0);
+  await expect(page.locator(".insightcard")).not.toContainText(/shop/i);
   await gotoTab(page, "Patterns");
-  await expect(page.locator(".shoplink, .shopcard")).toHaveCount(0);
+  await expect(page.locator(".shoplink, .shopcard, .shophome, .shopthumb")).toHaveCount(0);
   await page.locator("header.mast").getByRole("button", { name: "Shop", exact: true }).click();
   await expect(page$(page)).toBeVisible();
   await gotoTab(page, "Home");
   await expect(page$(page)).toHaveCount(0);
+});
+
+test("Home: the Shop by need card sits under Quick log, opens the shop, hides, and comes back from You", async ({ page }) => {
+  await register(page, { stage: "Trying to conceive", pcos: "no" });
+  const card = page.locator("#home-shop");
+  await expect(card.getByRole("heading", { level: 2, name: "Shop by need" })).toBeVisible();
+  await expect(card).toContainText("Real products for trying to conceive");
+  await expect(card.locator(".shopthumb")).toHaveCount(3); // three thumbnails from her first need
+  await expect(card.locator(".shopthumb").first()).toHaveAttribute("data-item", "easyhome-lh");
+  // below the hero and Quick log, above Today's insight
+  const y = async (sel) => (await page.locator(sel).first().boundingBox()).y;
+  expect(await y("#home-shop")).toBeGreaterThan(await y(".homehero"));
+  expect(await y("#home-shop")).toBeGreaterThan(await y(".quicklog"));
+  expect(await y("#home-shop")).toBeLessThan(await y(".insightcard"));
+  const browse = card.getByRole("button", { name: "Browse the shop" });
+  const hide = card.getByRole("button", { name: "Hide the shop card" });
+  for (const b of [browse, hide]) { const box = await b.boundingBox(); expect(box.height).toBeGreaterThanOrEqual(44); expect(box.width).toBeGreaterThanOrEqual(44); }
+  await browse.click();
+  await expect(page$(page).getByRole("heading", { level: 1, name: "Shop by need" })).toBeFocused();
+  await expect(page$(page).getByRole("group", { name: "Needs, yours first" }).getByRole("button", { pressed: true })).toHaveText("Ovulation & fertility");
+  await page$(page).getByRole("button", { name: "Back" }).click();
+  await expect(browse).toBeFocused();
+  // Hide: remembered on this device, also after a reload
+  await hide.click();
+  await expect(toast(page)).toContainText("Hidden from Home. You can bring it back from You.");
+  await expect(card).toHaveCount(0);
+  await page.waitForTimeout(1500); // the record's autosave has run
+  await page.reload();
+  await expect(page.locator(".navpill")).toBeVisible();
+  await expect(page.locator(".quicklog")).toBeVisible();
+  await expect(card).toHaveCount(0);
+  // You brings it back
+  await gotoTab(page, "You");
+  await page.locator("#you-shop").getByRole("button", { name: "Show the shop card on Home" }).click();
+  await expect(toast(page)).toContainText("The shop card is back on Home.");
+  await expect(page.locator("#you-shop").getByRole("button", { name: "Show the shop card on Home" })).toHaveCount(0);
+  await gotoTab(page, "Home");
+  await expect(card).toBeVisible();
+});
+
+test("Home's line names each stage in words", async ({ browser }) => {
+  for (const [stage, words] of [["My Cycle", "your cycle"], ["Pregnant", "pregnancy"], ["Perimenopause", "perimenopause"], ["Menopause & beyond", "menopause"]]) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
+    const page = await ctx.newPage();
+    await register(page, { stage, pcos: "no" });
+    await expect(page.locator("#home-shop .shophome-line")).toHaveText(`Real products for ${words}`);
+    await ctx.close();
+  }
+});
+
+test("the + sheet: a Shop by need row at the bottom, under a divider", async ({ page }) => {
+  await register(page, { stage: "My Cycle", pcos: "no" });
+  const sheet = await openLog(page);
+  const row = sheet.getByRole("button", { name: "Shop by need" });
+  await expect(row).toBeVisible();
+  expect((await row.boundingBox()).height).toBeGreaterThanOrEqual(44);
+  // the last control in the sheet, in a block with a top border
+  expect(await sheet.locator("button").last().evaluate((b) => b.classList.contains("logshop-go"))).toBe(true);
+  expect(await sheet.locator(".logshop").evaluate((d) => parseFloat(getComputedStyle(d).borderTopWidth))).toBeGreaterThanOrEqual(1);
+  expect((await row.boundingBox()).y).toBeGreaterThan((await sheet.locator(".logtiles").boundingBox()).y);
+  await row.click();
+  await expect(page.getByRole("dialog", { name: "Log something" })).toHaveCount(0);
+  await expect(page$(page).getByRole("heading", { level: 1, name: "Shop by need" })).toBeFocused();
+  await page$(page).getByRole("button", { name: "Back" }).click();
+  await expect(page$(page)).toHaveCount(0);
+  await expect(page.locator(".navpill button, .navpill [role=tab]")).toHaveCount(6); // still five tabs and the +
+  await expect(page.getByRole("tab")).toHaveCount(5);
+});
+
+test("You: the Shop entry card is in the top group, right under her stage", async ({ page }) => {
+  await register(page, { stage: "Perimenopause", pcos: "no" });
+  await gotoTab(page, "You");
+  const order = await page.locator("main.youpage > .v2card, main.youpage > section").evaluateAll((els) => els.map((e) => e.id || e.className));
+  expect(order[0]).toContain("youstage");
+  expect(order[1]).toBe("you-shop");
+  expect(order.indexOf("you-shop")).toBeLessThan(order.indexOf("you-privacy"));
+  await expect(page.locator("#you-shop").getByRole("button", { name: "Show the shop card on Home" })).toHaveCount(0); // nothing is hidden yet
+});
+
+test("the one-time hint: New: Shop by need under the pill, once, dismissible, never a focus trap", async ({ page }) => {
+  await register(page, { stage: "My Cycle", pcos: "no" });
+  const pill = page.locator("header.mast").getByRole("button", { name: "Shop", exact: true });
+  const coach = page.locator(".shopcoach");
+  await expect(coach).toBeVisible();
+  await expect(coach).toContainText("New: Shop by need");
+  await expect(pill).toHaveAttribute("aria-describedby", "shop-coach-t");
+  await expect(page.locator("[role=dialog]")).toHaveCount(0); // a note in the page, not a dialog
+  // it sits right under the header's pill and covers nothing
+  const cb = await coach.boundingBox(); const pb = await pill.boundingBox();
+  expect(cb.y).toBeGreaterThanOrEqual(pb.y + pb.height);
+  expect(await coach.evaluate((el) => getComputedStyle(el).position)).not.toBe("fixed");
+  expect(await coach.evaluate((el) => getComputedStyle(el).animationName)).toBe("none"); // nothing moves (reduced motion or not)
+  // Tab moves through it and on: focus is never held
+  await pill.focus();
+  await page.keyboard.press("Tab"); // settings
+  await page.keyboard.press("Tab");
+  await expect(coach.getByRole("button", { name: "Got it" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  expect(await page.evaluate(() => !document.activeElement.closest(".shopcoach"))).toBe(true);
+  const ok = coach.getByRole("button", { name: "Got it" });
+  expect((await ok.boundingBox()).height).toBeGreaterThanOrEqual(44);
+  await ok.click();
+  await expect(coach).toHaveCount(0);
+  await expect(pill).toBeFocused();
+  await expect(pill).not.toHaveAttribute("aria-describedby", /.+/);
+  // once: not after a tab switch, and not after a reload
+  await gotoTab(page, "Body"); await gotoTab(page, "Home");
+  await expect(coach).toHaveCount(0);
+  await page.waitForTimeout(1500); // the record's autosave has run
+  await page.reload();
+  await expect(page.locator(".navpill")).toBeVisible();
+  await expect(page.locator(".quicklog")).toBeVisible();
+  await expect(coach).toHaveCount(0);
+});
+
+test("the one-time hint leaves when she opens the shop, and is counted as shown right away", async ({ page }) => {
+  await register(page, { stage: "My Cycle", pcos: "no" });
+  await expect(page.locator(".shopcoach")).toBeVisible();
+  await page.locator("header.mast").getByRole("button", { name: "Shop", exact: true }).click();
+  await expect(page.locator(".shopcoach")).toHaveCount(0);
+  await page$(page).getByRole("button", { name: "Back" }).click();
+  await expect(page.locator(".quicklog")).toBeVisible();
+  await expect(page.locator(".shopcoach")).toHaveCount(0);
+  await page.waitForTimeout(1500); // the record's autosave has run
+  await page.reload();
+  await expect(page.locator(".quicklog")).toBeVisible();
+  await expect(page.locator(".shopcoach")).toHaveCount(0);
+});
+
+test("a narrow phone (360px): the Shop pill keeps its icon and label on one header row", async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 360, height: 740 }, reducedMotion: "reduce" });
+  const page = await ctx.newPage();
+  await register(page, { stage: "My Cycle", pcos: "no", name: "Alexandra" });
+  const pill = page.locator("header.mast").getByRole("button", { name: "Shop", exact: true });
+  await expect(pill.locator("span")).toBeVisible();
+  const ys = await page.locator("header.mast > .mark, header.mast > button").evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return Math.round(r.top + r.height / 2); }));
+  expect(Math.max(...ys) - Math.min(...ys)).toBeLessThanOrEqual(4); // one row
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await ctx.close();
 });
 
 test("wide screens: 2 to 4 columns of cards; phones: one", async ({ page }) => {

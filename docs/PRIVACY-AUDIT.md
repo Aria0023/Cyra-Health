@@ -2260,8 +2260,9 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
 
 - **Where:** a full-screen page under the current tab (#/shop, #/shop/<need>; the old #/care and #/shelf redirect to it),
   opened from the header's bag button ("Shop") on the five main tabs, one entry card on You, and the same quiet links as
-  before (device sheet, fertility signs, glucose card), now opening the page on their need. Never on Home, insights,
-  Patterns findings, urgent guidance, notifications or onboarding.
+  before (device sheet, fertility signs, glucose card), now opening the page on their need. Never in insights,
+  Patterns findings, urgent guidance, notifications or onboarding. (2026-11-16, owner decision: the shop may appear on
+  Home, as one card of its own; see "Shop: easier to find" below. Until then this line also said "Never on Home".)
 - **Matching** is unchanged and on the device; "By need / By brand" and the brand filter are UI state only (not saved).
 - **What a shop learns:** unchanged: a link opens only on her tap, with nothing about her added; an affiliate link (only where
   the owner set one) tells the shop she came from Solia Health. The footer keeps the two sentences ("An affiliate link tells
@@ -2371,3 +2372,24 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   what you sent"), "What Solia Health will send" (both AI sheets), the evidence "Kept" line, the sign-in disclosure
   ("If you use Pro's AI, it also counts how many questions you sent this month, never what they said."), the "no
   answer" note, and the privacy policy draft's AI row.
+
+## Shop: easier to find (2026-11-16, owner decision, shop-findable-visuals Task 1) — one device-only key, no new request
+
+- **Owner decision:** the shop may appear on Home. It still never appears in insights, Patterns findings, urgent
+  guidance, notifications or onboarding (`e2e/shop.spec.mjs` checks Home's insight, patterns and step cards and the
+  Patterns tab).
+- **Where it opens from now:** the header's "Shop" pill (icon and a visible label) on the five main tabs; a "Shop by need"
+  card on Home under Quick log ("Real products for <her stage in words>", three decorative thumbnails from her first need,
+  "Browse the shop", "Hide"); a "Shop by need" row at the bottom of the "+" sheet; the entry card on You, moved up to
+  right under her stage; and the quiet contextual links as before. The bottom bar stays five tabs and "+".
+- **The stage words on Home's card** ("your cycle", "trying to conceive", "pregnancy", "perimenopause", "menopause") come
+  from her stage on the device (lib/shop.js stageWords), the same matching the Shop page already did. Nothing is sent.
+- **Sentences** (each literally true): "Real products for <stage words>"; "Hidden from Home. You can bring it back from
+  You." (You's shop card then shows "Show the shop card on Home"); "The shop card is back on Home."; "New: Shop by
+  need" (a one-time note under the pill: in the page flow, no animation, never a dialog or a focus trap).
+- **Record key `shopHint`** (`{ home: null | "hidden", coach: boolean }`): whether she hid Home's card on this device and
+  whether this device already showed the one-time note. Device-only, never in a backup file (record.js DEVICE_ONLY +
+  NOT_IN_BACKUP), removed by Delete everything with the record. Never sent; it says nothing about her health.
+- **Requests:** none new. Home's card draws the catalog the Shop page already has (the bundled one, or the device's copy
+  of the published one); showing it sends nothing. A build with a server still downloads the catalog at most once a
+  day with the same plain GET as before.
