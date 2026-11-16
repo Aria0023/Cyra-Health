@@ -45,11 +45,14 @@ countdown or upgrade button, and a dev build (proDev) says it is a test build. R
 - **Prices on a phone come only from the store** (`product.priceString`, her currency). Until the store answers, no price
   is shown at all. The sheet shows the plan length, price per period, auto-renewal, how to cancel, Restore purchases and
   the Terms and Privacy links (App Store Review Guideline 3.1.2).
-- **What RevenueCat is told:** nothing about her. `configure()` gets no app user id (RevenueCat makes an anonymous one);
+- **What RevenueCat is told** (updated 2026-11-15, docs/plans/portal-subscriptions.md): nothing about her health. `configure()`
+  gets no app user id (RevenueCat makes an anonymous one); while she is signed in the app calls `logIn` with her opaque
+  account id (so a partner portal Pro grant reaches her) and `logOut` on sign-out or account deletion;
   no attributes, email, name or health data are ever set; `purchase.test.mjs` fails if the code calls any of those.
-  RevenueCat receives the store receipt and the anonymous id, as any subscription processor must. It is a payment
-  processor, not analytics or advertising (§6), and must be listed as a processor in the Privacy Policy and the App
-  Store privacy label ("Purchases", not linked to identity).
+  RevenueCat receives the store receipt and the anonymous id (or the account id while signed in), as any subscription
+  processor must. It is a payment processor, not analytics or advertising (§6), and must be listed as a processor in the
+  Privacy Policy and the App Store privacy label ("Purchases" and "User ID", linked to the user, not used for tracking:
+  docs/STORE-SETUP.md §6).
 - **What Pro opens** is unchanged: `PRO_PLAN` in `src/lib/plan.js`. Everything in §2 stays free.
 - **Status:** the code path is built and tested with a fake store and a pretend-store preview (dev gallery). It sells
   nothing until the products exist in App Store Connect / Play Console / RevenueCat and the two public keys are set.
@@ -85,6 +88,22 @@ Supersedes "free core, forever" (§2) wherever the gate is on. `src/lib/trial.js
   (QA, the e2e harness, and the web once Pro can be bought there). `proDev` never opens it.
 - The yearly plan's own 7-day store trial still exists in the stores; decide whether to keep it (it is a second free
   week for people who pick yearly) or remove the introductory offer in App Store Connect and Play Console.
+
+## 1d. Owner request 2026-11-15 (plans-shop-page Task 2): the plans and the 7-day trial, clearly visible
+
+- **You → Plan** and the **top of the Pro sheet** show two tiles side by side (stacked under 360px; `components/PlanTiles.jsx`,
+  `lib/plans.js`): "Yearly" (marked "Best value", "About … a month", the "7-day free trial" badge) and "Monthly".
+- **Web:** the US reference prices ($100 a year, about $8.33 a month; $9.95 a month), the sheet's one line "Try Pro free for 7 days
+  on the yearly plan, then $100 a year in the iPhone and Android apps. Cancel any time.", and "Get Solia Health Pro in the app"
+  with App Store / Google Play buttons from `VITE_APP_STORE_URL` / `VITE_PLAY_STORE_URL`; while unset, plain text "Coming soon to
+  the App Store and Google Play" (never a dead button). Nothing is sold on the web.
+- **Phones:** only the store's own prices (pricing.js rules); no tiles until the store answers; the trial badge and the trial line
+  appear only when the store's offer for the product has a free trial (`storeTrialDays`: iOS intro price at 0, Android free
+  phase). The tiles pick the plan for the store's purchase button, as before. App Store Connect / Play Console must set the
+  7-day free trial as the yearly product's introductory offer (docs/STORE-SETUP.md) or no trial is shown.
+- **Home:** a small "Pro · 7-day free trial" note for someone without Pro, on at most one day's first Home visit, hidden with ×,
+  opening the Pro sheet. Never beside the free-week bar, never on another screen, never in a notification. Record key
+  `proChip` (the local day it last showed): device-only, never in a backup.
 
 ## 2. The free core, forever
 

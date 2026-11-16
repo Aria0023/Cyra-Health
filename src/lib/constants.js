@@ -176,6 +176,28 @@ export const ORGS = {
    The light values are the literals the stylesheet used before L2, unchanged. Filled primary and
    danger controls carry --on-primary / --on-bad text (white in light, the dark paper in dark,
    because the dark primary is a light tone); the toast is an inverse surface with --on-ink text. */
+/* Shop brand hues (2026-11-15, Shop polish): the Shop page's brand tiles, bands and placeholders. A third, separate set:
+   not a stage UI palette and not a data-viz ramp. fill carries white monogram text (AA 4.5:1, both schemes); ink is the
+   brand-coloured text on the brand's 18% band and on the card (AA, light ink on light, dark ink on dark). lib/shop.js
+   BRAND_HUE assigns one per brand; lib/shop.test.mjs checks every contrast. */
+export const SHOP_HUES = Object.freeze({
+  teal: { light: { fill: "#0F766E", ink: "#115E59" }, dark: { fill: "#0F766E", ink: "#5EEAD4" } },
+  blue: { light: { fill: "#1D4ED8", ink: "#1E40AF" }, dark: { fill: "#2563EB", ink: "#93C5FD" } },
+  coral: { light: { fill: "#C2410C", ink: "#9A3412" }, dark: { fill: "#C2410C", ink: "#FDBA74" } },
+  violet: { light: { fill: "#6D28D9", ink: "#5B21B6" }, dark: { fill: "#7C3AED", ink: "#C4B5FD" } },
+  green: { light: { fill: "#15803D", ink: "#166534" }, dark: { fill: "#15803D", ink: "#86EFAC" } },
+  amber: { light: { fill: "#B45309", ink: "#92400E" }, dark: { fill: "#B45309", ink: "#FCD34D" } },
+  rose: { light: { fill: "#BE123C", ink: "#9F1239" }, dark: { fill: "#E11D48", ink: "#FDA4AF" } },
+  indigo: { light: { fill: "#4338CA", ink: "#3730A3" }, dark: { fill: "#4F46E5", ink: "#A5B4FC" } },
+  cyan: { light: { fill: "#0E7490", ink: "#155E75" }, dark: { fill: "#0E7490", ink: "#67E8F9" } },
+  plum: { light: { fill: "#A21CAF", ink: "#86198F" }, dark: { fill: "#A21CAF", ink: "#F0ABFC" } },
+});
+/** The shop hue tokens for a scheme: { "--shop-teal": fill, "--shop-teal-ink": ink, …, "--shop-on": white }. */
+export const shopHueTokens = (scheme = "light") => Object.fromEntries([
+  ...Object.entries(SHOP_HUES).flatMap(([k, v]) => [[`--shop-${k}`, v[scheme].fill], [`--shop-${k}-ink`, v[scheme].ink]]),
+  ["--shop-on", "#FFFFFF"],
+]);
+
 export const SCHEME_TOKENS = {
   light: {
     "--good": "#43604F", "--bad": "#A04545", "--bad-bg": "#FBEEEA", "--bad-chip": "#F3DBDB", "--err-line": "#E0A99B", "--err-edge": "#E7C3B8",

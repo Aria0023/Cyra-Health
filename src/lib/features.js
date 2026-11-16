@@ -27,9 +27,11 @@
    markers, the PDF table, You → Data sources). ON by default, since it needs no backend module (FEATURE_MODULE null)
    and sends nothing; it offers nothing in a browser. Oura and Fitbit/Garmin/Whoop stay behind `wearables`.
 
-   shop (2026-11-14, Task C) is the eighth: You → Shop by need and its quiet contextual links (lib/shop.js). ON by default;
-   no backend module (FEATURE_MODULE null) and no request: matching runs on the device and a link opens in the browser
-   only on her tap. Off, the shop and every link to it are gone.
+   shop (2026-11-14, Task C) is the eighth: the Shop by need page (2026-11-15: the header's bag, You's entry card, #/shop)
+   and its quiet contextual links (lib/shop.js). ON by default. Its backend module is shop (2026-11-15, partner portal:
+   the published catalog and the portal API): with a server, the Shop downloads the published catalog with a plain
+   request that carries nothing about her (lib/shopLive.js), else it shows the bundled one; matching runs on the device and
+   a link opens in the browser only on her tap. Off, the shop and every link to it are gone.
 
    Pure, with NO imports: Node (unit tests, vite.config.js) imports this file, where import.meta.env is
    undefined; the optional chaining below keeps it importable there, and Vite still inlines the value. */
@@ -37,9 +39,11 @@
 export const FEATURE_NAMES = Object.freeze(["wearables", "counts", "ai", "webReminders", "cloudBackup", "signin", "deviceSync", "shop"]);
 export const DEFAULT_FEATURES = Object.freeze({ wearables: true, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: true, deviceSync: true, shop: true });
 /** The backend module each server feature needs; null for a feature that never touches a server (deviceSync). */
-export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts: "pulse", ai: "ai", webReminders: "push", cloudBackup: "backup", signin: "accounts", deviceSync: null, shop: null });
-/** Further backend modules a server feature also needs: sign-in with Apple, Google or Facebook runs through oauth. */
-export const FEATURE_ALSO = Object.freeze({ signin: Object.freeze(["oauth"]) });
+export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts: "pulse", ai: "ai", webReminders: "push", cloudBackup: "backup", signin: "accounts", deviceSync: null, shop: "shop" });
+/** Further backend modules a server feature also needs: sign-in with Apple, Google or Facebook runs through oauth; the
+    shop's partner portal page (where its catalog is edited) is the portal module, and the portal's subscriptions part
+    (promotions the app downloads with GET /api/promotions/active, Pro grants, partner codes) is the subscriptions module. */
+export const FEATURE_ALSO = Object.freeze({ signin: Object.freeze(["oauth"]), shop: Object.freeze(["portal", "subscriptions"]) });
 
 const words = (raw) => String(raw).split(",").map((w) => w.trim()).filter(Boolean);
 const known = (w) => FEATURE_NAMES.find((n) => n.toLowerCase() === w.toLowerCase());

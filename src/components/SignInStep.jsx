@@ -1,12 +1,13 @@
 import { useEffect, useId, useRef, useState } from "react";
 import Icon from "./Icon.jsx";
 import Details from "./Details.jsx";
-import { PROVIDERS, SIGNIN_COPY as C, canSkip, cleanCode, isEmailAddress, whoLine } from "../lib/signin.js";
+import { PROVIDERS, SIGNIN_COPY as C, canSkip, skipLabel, cleanCode, isEmailAddress, whoLine } from "../lib/signin.js";
 
 /* The sign-in choices (Task 1): Apple, Google, Facebook, then email, in that order (Apple first: App Store). Used as
    registration's first step ("Create your account", RegisterScreen) and as the one-time screen an existing user sees
    before the app opens (SignInGate below). What it offers comes from lib/signin.js signinMode: no skip while sign-in is
-   required and the server has a sign-in; otherwise "Continue without an account" with the reason in plain words.
+   required and the server has a sign-in; while sign-in is off "Continue for now", when optional "Continue without an
+   account", each with the reason in plain words.
    Nothing here sends anything by itself: onProvider / onEmailStart / onEmailVerify (App.jsx) make the requests, each
    after her tap. The email and the code live only in this component's state until she sends them. */
 export default function SignInStep({ mode, providers = {}, busy = null, signedIn = null, onProvider, onEmailStart, onEmailVerify, onSkip, onRetry }) {
@@ -99,7 +100,7 @@ export default function SignInStep({ mode, providers = {}, busy = null, signedIn
       {canSkip(mode) && (
         <div className="signin-skip">
           <p className="hint">{why}</p>
-          <button type="button" className="ghostbtn" onClick={onSkip}>{C.skip}</button>
+          <button type="button" className="ghostbtn" onClick={onSkip}>{skipLabel(mode)}</button>
         </div>
       )}
       {mode !== "none" && (

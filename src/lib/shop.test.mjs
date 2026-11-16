@@ -61,3 +61,84 @@ test("every why line is registered in docs/CLINICIAN-REVIEW.md with its sources"
   const all = SHOP_ITEMS.map((i) => `${i.why} ${i.ev}`).join(" ");
   assert.doesNotMatch(all, /cure|treats PCOS|prevent pregnancy|birth control|guarantee/i);
 });
+
+/* ---------- the Shop page (2026-11-15, plans-shop-page Task 3 and the owner's design update) ---------- */
+import { BRANDS, BRAND_HUE, SHOP_HUE_IDS, AVAIL_LABEL, CATEGORY_ICON, SHOP_PAGE_COPY, monogram, brandHue, brandsOf, groupByBrand, allItems, priceFor, imageFor, isReviewed } from "./shop.js";
+const IMAGES = JSON.parse(fs.readFileSync(path.resolve(here, "../config/shop-images.json"), "utf8"));
+const REVIEWED = JSON.parse(fs.readFileSync(path.resolve(here, "../config/shop-reviewed.json"), "utf8"));
+
+test("shop page: every brand has a type tag and one line, a two-letter monogram and a UI tint (never a data-viz ramp)", () => {
+  for (const b of brandsOf(SHOP_ITEMS)) {
+    assert.ok(BRANDS[b] && /^[A-Z -]+$/.test(BRANDS[b].tag) && BRANDS[b].about, b);
+    assert.match(monogram(b), /^[A-Z]{2}$/, b);
+    assert.ok(BRAND_HUE[b] && SHOP_HUE_IDS.includes(brandHue(b)), `${b} has its own hue`);
+    assert.ok(review.includes(BRANDS[b].about), `brand line for ${b} registered`);
+  }
+  assert.equal(brandHue("Quest Diagnostics"), "teal"); assert.equal(brandHue("Labcorp OnDemand"), "blue"); assert.equal(brandHue("Everlywell"), "coral"); assert.equal(brandHue("Oura"), "amber");
+  // brands side by side in a need differ
+  for (const c of SHOP_CATEGORIES) { const hs = brandsOf(shopItems(c.id)).map(brandHue); assert.ok(new Set(hs).size >= Math.min(hs.length, 3), `${c.id} hues vary`); }
+  assert.equal(monogram("Quest Diagnostics"), "QD"); assert.equal(monogram("Oura"), "OU"); assert.equal(monogram("US Department of Veterans Affairs"), "VA");
+  for (const i of SHOP_ITEMS) {
+    assert.ok(AVAIL_LABEL[i.avail], `${i.id} availability`);
+    assert.ok(i.covers && review.includes(i.covers), `${i.id} covers registered`);
+    assert.ok(CATEGORY_ICON[i.category], `${i.id} placeholder icon`);
+  }
+});
+
+test("shop page: grouped by brand in order; a brand filter; lab tests early for Trying to conceive, PCOS and perimenopause", () => {
+  const g = groupByBrand(shopItems("fertility"));
+  assert.equal(g[0].brand, "Easy@Home");
+  assert.deepEqual(g[0].items.map((i) => i.id), ["easyhome-lh", "easyhome-bbt"]);
+  assert.deepEqual(allItems({ brand: "Everlywell" }).map((i) => i.id), ["everly-fertility", "everly-peri"]);
+  const order = (o) => shopCategories(o).map((c) => c.id);
+  assert.ok(order({ ttc: true }).indexOf("labs") <= 2);
+  assert.ok(order({ pcos: true }).indexOf("labs") <= 2);
+  assert.ok(order({ stage: "peri" }).indexOf("labs") <= 2);
+  assert.ok(shopItems("labs").length >= 4);
+  assert.ok(shopItems("glucose").some((i) => i.id === "labcorp-a1c") && shopItems("meno").some((i) => i.id === "everly-peri"));
+  for (const brand of ["Quest Diagnostics", "Labcorp OnDemand", "Everlywell"]) assert.ok(SHOP_ITEMS.some((i) => i.brand === brand), brand);
+  assert.ok(!SHOP_ITEMS.some((i) => /hers|hims/i.test(i.brand)), "no service is listed we couldn't check (no contraception services)");
+});
+
+test("shop page: a price only when the owner set one, an image only when the owner placed one, no invented badges", () => {
+  const item = SHOP_ITEMS.find((i) => i.id === "everly-peri");
+  assert.equal(priceFor(item, AFF), null, "committed: no prices");
+  assert.equal(priceFor(item, { "everly-peri": { url: "https://aff.test/x", price: "From $99" } }), "From $99");
+  assert.equal(linkFor(item, { "everly-peri": { url: "https://aff.test/x", price: "From $99" } }).affiliate, true);
+  assert.equal(linkFor(item, { "everly-peri": { url: "", price: "From $99" } }).affiliate, false, "a price alone isn't a link");
+  assert.equal(priceFor(item, { "everly-peri": { price: "Best price ever!" } }), null, "only a plain price");
+  assert.deepEqual(Object.keys(IMAGES), ["_readme"], "images manifest committed empty");
+  assert.equal(imageFor(item, IMAGES), null);
+  assert.equal(imageFor(item, { "everly-peri": "everly-peri.webp" }), "shop/everly-peri.webp");
+  assert.equal(imageFor(item, { "everly-peri": "https://brand.example/img.jpg" }), null, "never a hotlinked image");
+  assert.equal(imageFor(item, { "everly-peri": "../x.webp" }), null);
+  assert.deepEqual(REVIEWED.signed, [], "no item is clinician-signed yet, so no badge shows");
+  assert.equal(isReviewed(item, REVIEWED.signed), false);
+  assert.equal(isReviewed(item, ["everly-peri"]), true);
+  for (const id of REVIEWED.signed) assert.match(review, new RegExp(`### shop\\.${id} [^\\n]*\\n(?:- [^\\n]*\\n)*- Status: Signed`), `${id} signed in CLINICIAN-REVIEW`);
+  const all = JSON.stringify(SHOP_PAGE_COPY) + JSON.stringify(BRANDS);
+  assert.doesNotMatch(all, /physician pick|best seller|top rated|#1|guarantee/i);
+});
+
+test("shop hues: their own set (not a stage palette, not a data-viz ramp); white monogram text and brand-coloured text pass AA in both schemes", async () => {
+  const C = await import("./constants.js"); const { SHOP_HUES, shopHueTokens } = C;
+  const hex = (h) => { const x = h.replace("#", ""); return [0, 2, 4].map((i) => parseInt(x.slice(i, i + 2), 16)); };
+  const lum = (c) => { const a = c.map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2]; };
+  const cr = (a, b) => { const x = lum(hex(a)), y = lum(hex(b)); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const mixHex = (a, b, t) => "#" + hex(a).map((v, i) => Math.round(v * t + hex(b)[i] * (1 - t)).toString(16).padStart(2, "0")).join("");
+  assert.deepEqual(Object.keys(SHOP_HUES), [...SHOP_HUE_IDS]);
+  const cards = { light: ["#FFFFFF", "#FAF7F4"], dark: ["#1C1F2D", "#131520"] };
+  const others = JSON.stringify(Object.entries(C).filter(([n]) => !/SHOP/i.test(n)).map(([, v]) => v)).toUpperCase();
+  for (const [k, v] of Object.entries(SHOP_HUES)) {
+    for (const scheme of ["light", "dark"]) {
+      const { fill, ink } = v[scheme];
+      assert.ok(cr("#FFFFFF", fill) >= 4.5, `${k} ${scheme}: white on fill ${cr("#FFFFFF", fill).toFixed(2)}`);
+      for (const card of cards[scheme]) {
+        assert.ok(cr(ink, mixHex(fill, card, 0.18)) >= 4.5, `${k} ${scheme}: ink on the 18% band`);
+        assert.ok(cr(ink, card) >= 4.5, `${k} ${scheme}: ink on the card`);
+      }
+      assert.ok(!others.includes(fill.toUpperCase()), `${k} fill is not a palette or ramp colour`);
+    }
+  }
+  assert.equal(shopHueTokens("dark")["--shop-teal-ink"], SHOP_HUES.teal.dark.ink);
+});

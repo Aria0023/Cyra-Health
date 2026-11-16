@@ -3,7 +3,7 @@
    @fontsource-variable/fraunces and /karla), so this stylesheet loads nothing from
    another server. The bundled faces are named 'Fraunces Variable' and 'Karla Variable';
    plain 'Fraunces' / 'Karla' stay listed as fallbacks for a locally installed copy. */
-import { SCHEME_TOKENS, MONO_PALETTE_KEYS, STYLE_SHAPE, STYLE_SKINS } from "./lib/constants.js";
+import { SCHEME_TOKENS, MONO_PALETTE_KEYS, STYLE_SHAPE, STYLE_SKINS, SHOP_HUES, shopHueTokens } from "./lib/constants.js";
 import { tokenDecls } from "./lib/appearance.js";
 
 /* Styles (Solia Mono, then skins 2026-11-02): lib/constants.js STYLE_SHAPE + STYLE_SKINS. The palette tokens arrive inline
@@ -36,6 +36,10 @@ export const css = `
 .cy { ${BASE_TOKENS}; --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); background:var(--paper-tex), linear-gradient(180deg, transparent 0, var(--paper) 340px) no-repeat, linear-gradient(105deg, var(--wash-a), var(--wash-b) 52%, var(--wash-c)) no-repeat, var(--paper); background-size:auto, 100% 340px, 100% 340px, auto; font-variant-numeric:var(--num-variant); color:var(--ink); font-family:var(--ff-body); line-height:1.5; min-height:100dvh; max-width:430px; margin:0 auto; padding:18px 16px 48px; box-sizing:border-box; color-scheme:light; }
 /* Dark (L2, spec §8.4): App.jsx resolves Appearance to data-scheme on .cy; the palette and data-viz variables arrive inline. */
 .cy[data-scheme="dark"] { color-scheme:dark; ${tokenDecls(SCHEME_TOKENS.dark)} }
+/* Shop brand hues (lib/constants.js SHOP_HUES): their own tokens, light and dark; [data-hue] picks one as --hue / --hue-ink. */
+.cy { ${tokenDecls(shopHueTokens("light"))} }
+.cy[data-scheme="dark"] { ${tokenDecls(shopHueTokens("dark"))} }
+${Object.keys(SHOP_HUES).map((k) => `.cy [data-hue="${k}"] { --hue:var(--shop-${k}); --hue-ink:var(--shop-${k}-ink); }`).join("\n")}
 /* html is above .cy, so the one html-level rule (scroll padding under the POTS stop bar) gets the same inset tokens. */
 html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); }
 .cy * { box-sizing:border-box; }
@@ -1685,6 +1689,45 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .aisend-acts .cta, .aisend-acts .ghostbtn { flex:1; margin:0; min-height:48px; }
 .proplanned-lab { margin:14px 0 4px; }
 .proplanned { margin:0 0 12px; padding-left:18px; font-size:var(--fs-sm); line-height:1.6; color:var(--soft); }
+/* Plans (2026-11-15, Task 2, components/PlanTiles.jsx): Yearly and Monthly side by side, stacked under 360px; Home's small Pro note. */
+.plantiles { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0 0 12px; padding:0; }
+@media (max-width:359px) { .plantiles { grid-template-columns:1fr; } }
+.plantile { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-height:44px; text-align:left; padding:14px 12px; border:1px solid var(--line); border-radius:var(--r-inner); background:var(--card); color:var(--ink); font:inherit; }
+.plantile.best { border-color:color-mix(in srgb, var(--primary) 55%, var(--line)); background:linear-gradient(160deg, var(--tint-patterns), var(--card) 75%); }
+button.plantile { cursor:pointer; }
+button.plantile.on { border-color:var(--primary); box-shadow:inset 0 0 0 1px var(--primary); }
+.plantile-top { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; }
+.plantile-title { font:600 15px var(--ff-body); }
+.plantile-best { font:700 var(--fs-xs) var(--ff-body); padding:2px 8px; border-radius:var(--r-pill); background:var(--card); color:var(--ink); box-shadow:inset 0 0 0 1px var(--edge); }
+.plantile-price { font:600 var(--fs-md) var(--ff-body); color:var(--ink); }
+.plantile-note { font-size:var(--fs-sm); color:var(--soft); }
+.plantile-trial { display:inline-flex; align-items:center; gap:4px; margin-top:2px; padding:3px 9px; border-radius:var(--r-pill); background:var(--tint-mind); color:var(--primary-text); font:700 var(--fs-sm) var(--ff-body); }
+.proplanstop { margin:0 0 14px; }
+.protrialline { margin:0 0 10px; font-size:var(--fs-md); line-height:1.5; color:var(--ink); }
+.youplantiles { margin:10px 0 6px; }
+/* Promotions (2026-11-15, portal subscriptions Task 3, components/PromoBanner.jsx): one calm banner tied to a store offer, on You → Plan and the Pro sheet only. */
+.promobanner { position:relative; margin:0 0 12px; padding:12px 14px; border-radius:var(--r-inner); background:var(--card); box-shadow:inset 0 0 0 1px var(--edge); border-left:4px solid var(--primary); }
+.promobanner-lab { margin:0 0 2px !important; font:700 var(--fs-xs) var(--ff-body); letter-spacing:.04em; text-transform:uppercase; color:var(--soft); }
+.promobanner-title { margin:0 0 4px !important; font:600 var(--fs-md) var(--ff-body); color:var(--ink); }
+.promobanner-body { margin:0 0 6px !important; font-size:var(--fs-sm); line-height:1.5; color:var(--ink); }
+.promobanner-prices { list-style:none; margin:0 0 6px; padding:0; font:600 var(--fs-sm) var(--ff-body); color:var(--ink); }
+.promobanner .rfoot { margin:0 !important; }
+.promobanner-x { min-height:44px; font-size:var(--fs-sm); }
+.procode { margin:14px 0 4px; }
+.procode-row { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; }
+.procode-row label { display:flex; flex-direction:column; gap:4px; font:600 var(--fs-sm) var(--ff-body); color:var(--ink); flex:1 1 180px; }
+.procode-row input { min-height:44px; padding:0 12px; border:1px solid var(--line); border-radius:var(--r-inner); background:var(--card); color:var(--ink); font:inherit; text-transform:uppercase; }
+.procode .linkbtn { min-height:44px; font-size:var(--fs-sm); }
+.prountil { margin:0 0 10px; font:600 var(--fs-md) var(--ff-body); color:var(--ink); }
+.getinapp { margin:4px 0 0; padding:12px 14px; border-radius:var(--r-inner); background:color-mix(in srgb, var(--tint-you) 70%, var(--card)); box-shadow:inset 0 0 0 1px var(--edge); }
+.getinapp-h { margin:0 0 6px !important; font-size:var(--fs-md); color:var(--ink); }
+.getinapp-btns { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 6px; }
+.getinapp .storebtn { display:inline-flex; align-items:center; gap:8px; min-height:44px; }
+.getinapp-soon { margin:0 0 4px !important; font-size:var(--fs-sm); color:var(--soft); }
+.getinapp .rfoot { margin:0 !important; }
+.prochip { display:inline-flex; align-items:center; gap:2px; margin:0 0 12px; border:1px solid var(--line); border-radius:var(--r-pill); background:var(--card); }
+.prochip-open { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 6px 0 14px; border:0; background:none; color:var(--ink); font:600 var(--fs-sm) var(--ff-body); cursor:pointer; border-radius:var(--r-pill); }
+.prochip-hide { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border:0; background:none; color:var(--soft); cursor:pointer; border-radius:50%; }
 /* ---------- calm R9: the optional account (You → Account, its sheets, the splash sign-in) ---------- */
 .acctcard { position:relative; overflow:hidden; }
 .acctart { position:absolute; right:-6px; top:8px; width:120px; height:60px; pointer-events:none; }
@@ -1952,16 +1995,65 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
 .gluc-band { fill:var(--soft-1); opacity:.55; }
 .gluc-mean { fill:none; stroke:var(--soft-4); stroke-width:2.5; stroke-linejoin:round; stroke-linecap:round; vector-effect:non-scaling-stroke; }
 .gluc-dot { fill:var(--soft-4); }
-/* Task C (2026-11-14): Shop by need. */
-.shopcats { flex-wrap:wrap; gap:7px; margin:6px 0 12px; } .shopcats .mc { min-height:44px; }
-.shoplist { list-style:none; margin:0; padding:0; }
-.shopitem { border-top:var(--rule); padding:12px 0; }
-.shoplist .shopitem:first-child { border-top:none; }
-.shophead { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.shopitem .sname { display:block; font-size:16px; margin:2px 0 4px; }
-.shopwhy { font-size:16px; line-height:1.5; margin:0 0 6px; }
-.shopacts { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; margin-top:8px; }
-.shopgo { display:inline-flex; align-items:center; gap:6px; min-height:44px; width:auto; padding:0 16px; text-decoration:none; }
+/* Task C (2026-11-14): Shop by need; its own page since 2026-11-15 (components/Shop.jsx ShopPage), polished the same day:
+   brand tiles, bands and placeholders take the shop's own hues ([data-hue] → --hue / --hue-ink, lib/constants.js
+   SHOP_HUES; never a stage palette or a data-viz ramp). Phones: a brand's 2+ cards scroll sideways with snap; a wide
+   screen widens the page past the 430px column for a 2–4 column grid. */
 .shoptry, .shoplink { min-height:44px; gap:6px; font-size:var(--fs-sm); }
+.shopgo { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:44px; width:auto; padding:0 18px; text-decoration:none; }
+.shopgo.cta { background:var(--ink); color:var(--on-ink); box-shadow:none; font-size:var(--fs-md); padding:0 18px; border-radius:12px; }
+.shoppage { padding-bottom:24px; }
+@media (min-width:700px) { .shoppage { width:min(1080px, calc(100vw - 48px)); margin-left:calc(50% - min(540px, 50vw - 24px)); } }
+.shophero { position:relative; overflow:hidden; margin:0 0 14px; padding:8px 16px 16px; border-radius:var(--r-card); background:radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--primary) 26%, var(--card)) 0, transparent 60%), linear-gradient(160deg, color-mix(in srgb, var(--primary) 14%, var(--card)), var(--card) 80%); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--primary) 22%, var(--edge)); }
+.shophero .disp { display:flex; align-items:center; gap:10px; margin:2px 0 4px; }
+.shophero-ico { flex:none; display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:12px; background:var(--primary); color:var(--on-primary); box-shadow:var(--sh-opt); }
+.shoplead { margin:0 0 12px; font-size:var(--fs-md); line-height:1.45; color:var(--ink); max-width:60ch; }
+.shopback { display:inline-flex; align-items:center; gap:4px; min-height:44px; padding:0 8px 0 0; font-size:var(--fs-sm); }
+.shopback-ico { transform:rotate(90deg); }
+.shopmode { max-width:320px; margin:0; }
+.shopchips { display:flex; flex-wrap:nowrap; gap:8px; overflow-x:auto; margin:0 -16px 14px; padding:2px 16px 8px; scroll-padding:0 16px; scrollbar-width:thin; }
+.shopchips .mc { flex:0 0 auto; min-height:44px; white-space:nowrap; display:inline-flex; align-items:center; gap:8px; }
+.shopmono { flex:none; display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:10px; background:var(--hue); color:var(--shop-on); font:800 11px var(--ff-body); letter-spacing:.03em; box-shadow:var(--sh-opt), inset 0 -1px 0 color-mix(in srgb, var(--hue) 70%, var(--ink)); }
+.shopmono.xs { width:20px; height:20px; border-radius:7px; font-size:9px; }
+.shopmono.lg { width:46px; height:46px; border-radius:12px; font-size:16px; }
+.shopbrand { margin:0 0 24px; }
+.shopband { display:flex; align-items:flex-start; gap:12px; margin:0 0 12px; padding:12px 14px; border-radius:var(--r-inner); border-left:4px solid var(--hue); background:linear-gradient(90deg, color-mix(in srgb, var(--hue) 18%, var(--card)), transparent); }
+.shopband-text { min-width:0; }
+.shopband-name { margin:0; font:700 var(--fs-lg) var(--ff-body); color:var(--ink); }
+.shopband-tag { margin:2px 0 0; font:800 var(--fs-xs) var(--ff-body); letter-spacing:.09em; text-transform:uppercase; color:var(--hue-ink); }
+.shopband-about { margin:4px 0 0; font-size:var(--fs-sm); line-height:1.45; color:var(--ink); }
+.shopgrid { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap:14px; }
+@media (max-width:699px) {
+  .shopgrid.multi { display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory; margin:0 -16px; padding:2px 16px 12px; scroll-padding:0 16px; scrollbar-width:thin; }
+  .shopgrid.multi > .shopcard { flex:0 0 85%; scroll-snap-align:start; }
+}
+.shopcard { display:flex; flex-direction:column; border-radius:16px; background:var(--card); box-shadow:var(--sh-card); border:1px solid var(--edge); overflow:hidden; }
+.shopimg { position:relative; overflow:hidden; aspect-ratio:16 / 10; width:100%; background:linear-gradient(135deg, color-mix(in srgb, var(--hue) 25%, var(--card)), color-mix(in srgb, var(--hue) 7%, var(--card)) 75%); display:flex; align-items:center; justify-content:center; }
+@media (min-width:700px) { .shopimg { aspect-ratio:4 / 3; } }
+.shopimg img { width:100%; height:100%; object-fit:cover; display:block; }
+.shopimg-blobs { position:absolute; inset:0; width:100%; height:100%; }
+.shopimg-blobs .b1 { fill:color-mix(in srgb, var(--hue) 16%, transparent); }
+.shopimg-blobs .b2 { fill:color-mix(in srgb, var(--hue) 11%, transparent); }
+.shopimg-blobs .b3 { fill:color-mix(in srgb, var(--hue) 30%, transparent); }
+.shopimg-ph { position:relative; display:inline-flex; align-items:center; justify-content:center; width:78px; height:78px; border-radius:50%; background:var(--card); color:var(--hue-ink); box-shadow:var(--sh-card); }
+.shopimg-brand { position:absolute; right:10px; bottom:10px; display:inline-flex; align-items:center; gap:6px; padding:3px 10px 3px 3px; border-radius:var(--r-pill); background:var(--card); color:var(--ink); font:700 var(--fs-xs) var(--ff-body); box-shadow:var(--sh-opt); }
+.shopcard-body { display:flex; flex-direction:column; gap:4px; padding:14px 14px 14px; flex:1; }
+.shopmeta { display:flex; justify-content:space-between; align-items:center; gap:8px; margin:0; font-size:var(--fs-sm); color:var(--soft); }
+.shopavail { display:inline-flex; align-items:center; gap:6px; }
+.shopdot { width:8px; height:8px; border-radius:50%; background:var(--hue); flex:none; }
+.shopprice { font-weight:700; color:var(--ink); white-space:nowrap; margin-left:auto; }
+.shopcard .sname { display:block; margin:2px 0 0; font-size:19px; line-height:1.25; }
+.shopcovers { margin:0; font-size:var(--fs-md); font-weight:600; color:var(--ink); }
+.shopwhy { margin:2px 0 0; font-size:15px; line-height:1.5; color:var(--ink); }
+.shopsold { margin:2px 0 0; font-size:var(--fs-sm); color:var(--soft); }
+.shoppills { display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 0; }
+.shoppills .ev { margin:0; }
+.shopacts { display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin-top:10px; }
+.shopcard .morewrap { margin-top:8px; }
+.shopcard .disclosure.more { min-height:44px; border:1px solid var(--line); border-radius:12px; background:var(--card); }
+.shoplm-ev { margin:0 0 6px; font-size:var(--fs-sm); }
+.shopfoot { margin:8px 0 0; padding:14px 16px; border-radius:var(--r-inner); background:color-mix(in srgb, var(--tint-you) 60%, var(--card)); }
+.shopfoot-h { margin:0 0 6px; font:600 var(--fs-md) var(--ff-body); color:var(--ink); }
+.youshopgo { display:inline-flex; align-items:center; gap:8px; }
 .devshop { margin-top:10px; }
 `;

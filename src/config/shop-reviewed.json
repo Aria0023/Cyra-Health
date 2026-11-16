@@ -1,0 +1,4 @@
+{
+  "_readme": "Item ids from src/lib/shop.js whose docs/CLINICIAN-REVIEW.md entry says \"Status: Signed\". Only these show a \"Clinician reviewed\" badge. Empty until a clinician signs; lib/shop.test.mjs fails if an id here isn't signed there.",
+  "signed": []
+}

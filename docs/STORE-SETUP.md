@@ -39,7 +39,8 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
 - [ ] **In-App Purchases** → add the three tips as **Consumable** with the ids and prices above.
 - [ ] Users and Access → Integrations → **In-App Purchase key**: generate it, download the .p8 (for RevenueCat).
 - [ ] App Information → **App-Specific Shared Secret**: generate it (for RevenueCat).
-- [ ] App Privacy: add **Purchases** → "Not linked to the user", "Not used for tracking".
+- [ ] App Privacy: add **Purchases** and **User ID** → "Linked to the user", "Not used for tracking" (the app tells
+      RevenueCat her account number while she is signed in; see section 6).
 
 ## 2. Google Play Console (Android)
 
@@ -48,7 +49,8 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
 - [ ] On the yearly base plan → **Add offer** → free trial, 7 days, eligibility "new customers".
 - [ ] Monetize → Products → **In-app products** → add the three tips (managed products; RevenueCat
       consumes them).
-- [ ] Data safety form: declare purchase history collected for app functionality, not shared.
+- [ ] Data safety form: declare purchase history and user IDs collected for app functionality and account
+      management, not shared (see section 6).
 - [ ] Create a Google Cloud **service account** with Play access for RevenueCat (RevenueCat's
       dashboard walks you through it).
 
@@ -84,3 +86,61 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
       should change), and that "Start 7-day free trial" appears only on the yearly plan.
 - [ ] Turn Pro off (cancel and let it lapse in sandbox): nothing she logged is locked or hidden.
 - [ ] Without keys set, the phone app must say "The app store isn't connected in this build".
+
+## 6. Promotions, Pro grants and the subscriptions dashboard (partner portal)
+
+The portal's **Subscriptions**, **Promotions** and **Pro grants** pages (owner only) read and write RevenueCat from the
+backend. The portal never sets a price: every price, trial and discount is made in the stores, and the app shows only
+the price the store returns.
+
+**Connect RevenueCat to the backend (once).**
+- [ ] RevenueCat → Project settings → API keys → **+ New secret API key** (API v2). Give it read access to charts and
+      metrics, project configuration (offerings) and customer information, and write access to customer information
+      (for grants). Copy it once; it starts `sk_`.
+- [ ] Render → **cyra-backend** (the web service, never the static site) → Environment:
+      `REVENUECAT_SECRET_KEY` = that key, `REVENUECAT_PROJECT_ID` = the project id (Project settings → General, or the
+      id in the dashboard's URL), `REVENUECAT_ENTITLEMENT` = `pro`. Save; Render redeploys.
+- [ ] If Pro grants fail with "RevenueCat refused the key", the promotional-grant endpoints are API v1: create a v1
+      secret key too and set it as `REVENUECAT_V1_SECRET_KEY`.
+- [ ] **Before go-live, check every endpoint in `backend/src/modules/subscriptions/revenuecat.js` against RevenueCat's
+      current API reference** (paths, body and response fields). They were written without access to the docs.
+
+**A promotion (a scheduled banner tied to a store offer).**
+- [ ] In the store, make the offer as an **introductory offer on its own product**, so a normal purchase applies it:
+      App Store Connect → Subscriptions → the "Solia Health Pro" group → add a product (e.g. `solia_pro_annual_spring`,
+      1 year) → Introductory Offers (e.g. Free, 1 month, new subscribers). Google Play Console → `solia_pro_annual` →
+      add a base plan or an offer (free trial, eligibility "new customer acquisition"). The store decides who is eligible.
+      (Apple's signed "Promotional Offers" are not used: the app buys packages as they are.)
+- [ ] RevenueCat → Products → import it; Entitlements → `pro` → attach it; Offerings → **+ New** (not the current
+      offering) with an Annual package (and a Monthly one if wanted) using the new products. Copy the offering's
+      **identifier**.
+- [ ] Portal → Promotions → New promotion: the offering identifier, where (iPhone / Android / web), who (everyone, new
+      users, or life stages; decided on her phone), start and end, and the banner's title and text (no price: the app adds
+      the store's). Save, then **Start**. It goes live at its start and ends by itself; **Stop now** ends it at once.
+- [ ] Check on a sandbox phone: the banner shows the store's price for that offering, and nothing if the offering doesn't load.
+
+**Free Pro for a person or a group.**
+- [ ] Portal → Pro grants: paste one email or up to 500 (or a CSV), choose the length (1 week to lifetime, RevenueCat's
+      promotional durations) and a note. Emails with no account are listed back; tick "give it to them at their first
+      sign-in" to queue them. RevenueCat receives the account number, never the email.
+- [ ] Revoke ends **every** free Pro grant on that account (RevenueCat's revoke is per account).
+- [ ] The app picks the grant up the next time it reads Pro from RevenueCat (at launch, or Restore purchases).
+
+**Privacy labels after this change.** The app now calls RevenueCat's `logIn` with her Solia Health account number when
+she is signed in, so in App Store Connect → App Privacy, **Purchases** and a new **User ID** are "Linked to the user"
+(not used for tracking), and in Google Play's Data safety form, **User IDs** are collected for app functionality and
+account management (not shared). See `docs/PRIVACY-AUDIT.md`, "Promotions, Pro grants and codes".
+
+## 7. Partner promo codes
+
+- [ ] **iPhone:** App Store Connect → Subscriptions → the subscription → **Offer Codes** → create an offer (who may
+      redeem, duration, price or free), then **one-time-use codes** → generate and download the .txt. Make a separate
+      offer per partner so App Store Connect's reports show each partner's redemptions.
+- [ ] **Android:** Play Console → Monetize → **Promo codes** → a subscription promotion (one-time codes) → download the
+      CSV. Again one promotion per partner.
+- [ ] Set `VITE_APP_STORE_ID` (the app's numeric Apple id, App Store Connect → App Information → Apple ID) on the static
+      site and in the phone builds' `.env`: the Pro sheet's "Have a code?" opens Apple's redeem page with it when the
+      RevenueCat plugin can't show Apple's code sheet itself.
+- [ ] Portal → Codes → upload the batch (store, offer, expiry, partner). The partner downloads its available codes in
+      its own portal; you mark codes given out or redeemed from the stores' reports. The portal never claims to know
+      which code was used: the stores don't report that to it.

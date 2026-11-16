@@ -1,5 +1,5 @@
 {
-  "_readme": "Owner-edited: paste an affiliate URL (https only) as the value for an item id from src/lib/shop.js. An empty value means the plain brand link is shown with no affiliate label. Affiliate tags are public by design; never put a secret here. See docs/AFFILIATES.md.",
+  "_readme": "Owner-edited: paste an affiliate URL (https only) as the value for an item id from src/lib/shop.js. An empty value means the plain brand link is shown with no affiliate label. Optional price: use { \"url\": \"https://...\", \"price\": \"From $89\" } instead of a plain string; the price is shown only when present, copied from the brand's own site (never invented). Affiliate tags are public by design; never put a secret here. See docs/AFFILIATES.md.",
   "easyhome-lh": "",
   "clearblue-ovulation": "",
   "mira": "",
@@ -21,5 +21,9 @@
   "midi": "",
   "cooling-bedding": "",
   "sleepio": "",
-  "cbti-coach": ""
+  "cbti-coach": "",
+  "quest-thyroid": "",
+  "labcorp-a1c": "",
+  "everly-fertility": "",
+  "everly-peri": ""
 }

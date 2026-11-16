@@ -1,8 +1,11 @@
-/* axe-core on Shop by need, light and dark: the You card opened, and the sheet from the device list's quiet link. */
+/* axe-core on the Shop page (2026-11-15), light and dark, in Soft and the other styles: opened from the header, a card's
+   "Learn more" open, "By brand", the device list's quiet link, and a wide screen. */
+import fs from "node:fs";
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
 import { gotoTab } from "./lib/nav.mjs";
+import { mockApi, newApiState } from "./lib/api.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 const audit = async (page, name) => {
@@ -12,20 +15,67 @@ const audit = async (page, name) => {
 };
 
 for (const scheme of ["light", "dark"]) {
-  test(`Shop by need, ${scheme}`, async ({ browser }) => {
+  test(`Shop page, ${scheme}`, async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });
     const page = await ctx.newPage();
     await register(page, { stage: "Trying to conceive", pcos: "no" });
     await gotoTab(page, "You");
-    await page.locator("#care").getByRole("button", { name: "See products by need" }).click();
-    await page.locator('#care .shopitem[data-item="easyhome-lh"]').getByRole("button", { name: "Sources" }).click();
-    await audit(page, `You → Shop by need ${scheme}`);
+    await page.locator("#you-shop").scrollIntoViewIfNeeded();
+    await audit(page, `You → Shop entry ${scheme}`);
+    await page.locator("header.mast").getByRole("button", { name: "Shop", exact: true }).click();
+    const shop = page.locator("main.shoppage");
+    await shop.locator('.shopcard[data-item="easyhome-lh"]').getByRole("button", { name: "Learn more" }).click();
+    await audit(page, `Shop page by need ${scheme}`);
+    await shop.getByRole("button", { name: "By brand" }).click();
+    await audit(page, `Shop page by brand ${scheme}`);
+    await shop.getByRole("button", { name: "Back" }).click();
     await gotoTab(page, "Body");
     await page.locator(".bodydevbtn").click();
     await audit(page, `devices sheet with shop link ${scheme}`);
     await page.locator("#devices-sheet").getByRole("button", { name: "Don't have a device? See options" }).click();
-    await expect(page.locator("#shop-sheet")).toBeVisible();
-    await audit(page, `shop sheet ${scheme}`);
+    await expect(shop).toBeVisible();
+    await audit(page, `Shop page from a quiet link ${scheme}`);
+    await page.setViewportSize({ width: 1200, height: 900 });
+    await audit(page, `Shop page, wide ${scheme}`);
+    await ctx.close();
+  });
+}
+
+test("Shop page in every style (Mono, Bloom, Clear, Journal), light and dark", async ({ browser }) => {
+  for (const scheme of ["light", "dark"]) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });
+    const page = await ctx.newPage();
+    await register(page, { stage: "Perimenopause", pcos: "no" });
+    for (const style of ["Mono", "Bloom", "Clear", "Journal"]) {
+      await gotoTab(page, "You");
+      await page.getByRole("radio", { name: style }).click();
+      await expect(page.locator(".cy")).toHaveAttribute("data-style", style.toLowerCase());
+      await page.locator("header.mast").getByRole("button", { name: "Shop", exact: true }).click();
+      await expect(page.locator("main.shoppage")).toBeVisible();
+      await audit(page, `Shop page ${style} ${scheme}`);
+    }
+    await ctx.close();
+  }
+});
+
+/* 2026-11-15 (partner portal Task 3): the Shop page drawn from the server's catalog (the API build and its mock), with a
+   portal-added brand, its server image, "Clinician reviewed", the affiliate label and "Learn more" open. */
+for (const scheme of ["light", "dark"]) {
+  test(`Shop page from the live catalog, ${scheme}`, async ({ browser }) => {
+    const seed = JSON.parse(fs.readFileSync(new URL("../backend/config/shop-seed.json", import.meta.url), "utf8"));
+    const lumen = { id: "lumen-sleep", name: "Lumen Sleep", monogram: "LS", hue: "indigo", tag: "SLEEP AID", about: "Sleep masks.", website: "https://lumen.com/", imageId: null };
+    const mask = { id: "lumen-mask", brandId: "lumen-sleep", name: "Lumen sleep mask", covers: "Blocks light", description: "Light, washable silk.", availability: "online", price: "From $29", url: "https://lumen.com/mask", affiliateUrl: "https://lumen.com/mask?aff=solia", imageId: "ab".repeat(12), categories: ["sleep"], stages: [], modules: [], kind: null, why: "A dark room helps many people fall asleep.", evidence: { tone: "comfort", label: "Comfort, not a treatment" }, sources: ["No trial evidence"], clinicianStatus: "signed" };
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });
+    const page = await ctx.newPage();
+    await mockApi(page, newApiState({ catalog: { version: 1, brands: [...seed.brands, lumen], products: [...seed.products, mask] } }));
+    await register(page, { url: process.env.E2E_API_URL, stage: "Perimenopause", pcos: "no", signin: "email" });
+    await page.locator("header.mast").getByRole("button", { name: "Shop", exact: true }).click();
+    const shop = page.locator("main.shoppage");
+    await shop.getByRole("button", { name: "Sleep", exact: true }).click();
+    const card = shop.locator('.shopcard[data-item="lumen-mask"]');
+    await expect(card.locator("img")).toBeVisible();
+    await card.getByRole("button", { name: "Learn more" }).click();
+    await audit(page, `Shop page, live catalog ${scheme}`);
     await ctx.close();
   });
 }

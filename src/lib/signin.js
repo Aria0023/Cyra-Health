@@ -7,11 +7,11 @@
 
    The REQUIRE switch: VITE_REQUIRE_SIGNIN (build time, default "true"). signinMode() decides what the sign-in step
    offers, from the build and what the server reported:
-     "none"      the build has no server (VITE_API_BASE unset) or no signin flag: no account can be made; she continues
-                 without one and the step says why
+     "none"      the build has no server (VITE_API_BASE unset) or no signin flag: sign-in isn't switched on yet; she
+                 continues for now and the step says why (never "No account needed": owner request 2026-11-15)
      "checking"  asking the server which sign-ins it has
      "offline"   the server couldn't be reached: Try again (no skip while sign-in is required)
-     "unset"     the server reports no sign-in configured: continue without an account, said plainly
+     "unset"     the server reports no sign-in configured: "Continue for now", said plainly
      "optional"  the build has VITE_REQUIRE_SIGNIN=false: the providers plus "Continue without an account"
      "required"  at least one sign-in works and the build requires it: the providers, no skip
    Pure: no React, no storage, no network (lib/signinClient.js makes the requests). */
@@ -35,8 +35,15 @@ export function signinMode({ build, server, require = REQUIRE_SIGNIN, config = n
   if (!["apple", "google", "facebook", "email"].some((k) => p[k] === true)) return "unset";
   return require ? "required" : "optional";
 }
-/** Whether "Continue without an account" is offered in a mode. */
+/** Whether a skip is offered in a mode ("Continue for now" while sign-in is off, "Continue without an account" when optional). */
 export const canSkip = (mode) => mode === "none" || mode === "unset" || mode === "optional";
+/** Whether sign-in is switched off in this build or on its server (owner request 2026-11-15: accounts are coming, so the
+    app never says "No account needed"; it says sign-in isn't switched on yet). */
+export const signinOff = (mode) => mode === "none" || mode === "unset";
+/** The skip button's words in a mode. */
+export const skipLabel = (mode) => (signinOff(mode) ? SIGNIN_COPY.skipForNow : SIGNIN_COPY.skip);
+/** You → Account's line while this device isn't signed in (none: no server or no signin flag; unset: the server has none). */
+export const youAccountLine = (mode) => (mode === "none" ? SIGNIN_COPY.youNone : mode === "unset" ? SIGNIN_COPY.youUnset : SIGNIN_COPY.noneLine);
 
 /** Whether a record that is already on this device has to sign in once before the app opens (existing users). */
 export const gateNeeded = ({ mode, signedIn }) => mode === "required" && !signedIn;
@@ -103,8 +110,9 @@ export const SIGNIN_COPY = Object.freeze({
   errProvider: "Sign-in didn't finish. Try again, or choose another way.",
   // the skip and why
   skip: "Continue without an account",
-  whyNone: "This version of Solia Health has no server, so there's no account to make. Your log stays on this device.",
-  whyUnset: "Sign-in isn't set up on this server yet, so you can continue without an account. Your log stays on this device.",
+  skipForNow: "Continue for now",
+  whyNone: "Sign-in isn't switched on in this version yet. Until it is, your log lives on this device.",
+  whyUnset: "Sign-in isn't switched on for this server yet. Until it is, your log lives on this device.",
   whyOptional: "Signing in is optional in this version. Your log stays on this device either way.",
   checking: "Checking which sign-ins are available…",
   offline: "Solia Health couldn't reach its server to sign you in. Check your connection and try again.",
@@ -117,6 +125,7 @@ export const SIGNIN_COPY = Object.freeze({
     "Apple, Google or Facebook learns that you signed in to Solia Health, and nothing about your health. Apple lets you hide your email; Solia Health then gets a private relay address.",
     "Facebook doesn't say whether an email is confirmed, so a Facebook account keeps your name and no email.",
     "With email, our email provider (Resend) delivers a 6-digit code to your address. The code works once, for 10 minutes.",
+    "In the iPhone and Android apps, RevenueCat, which handles Pro for the stores, gets your account number while you're signed in, never your email or anything you log. If a clinic or partner arranges free Pro for you, Solia Health keeps that grant with your sign-in email.",
     "This device keeps your sign-in in a place that is never part of a backup. Sign out or delete your account any time in You → Account.",
   ]),
   // You → Account
@@ -137,7 +146,9 @@ export const SIGNIN_COPY = Object.freeze({
   cancel: "Cancel",
   errSignOut: "Couldn't reach Solia Health's server, so you're still signed in. Try again when you're online.",
   errDelete: "Couldn't reach Solia Health's server, so the account wasn't deleted. Try again when you're online.",
-  noneTitle: "No account",
+  noneTitle: "Your account",
   noneLine: "You haven't signed in on this device. Your log lives on this device.",
+  youNone: "Sign-in isn't switched on in this version yet. Until it is, your log lives on this device.",
+  youUnset: "Sign-in isn't switched on for this server yet. Until it is, your log lives on this device.",
   signInNow: "Sign in",
 });

@@ -381,6 +381,45 @@ passphrase derives. The server never parses, inspects, decrypts or logs a body.
   `VITE_FEATURES`. The app's account screens and the privacy copy (docs/PRIVACY-AUDIT.md, Calm R9) are
   in place. `npm run smoke:backup` and `npm run smoke:account` test all of the above.
 
+## Shop catalog and partner portal (`src/modules/shop/`, `src/modules/portal/`) — production
+
+Business data only (brands, products, the people at partner companies who edit them); never anyone's health data.
+- **Public:** `GET /api/shop/catalog` — published brands and products only, with ETag and `Cache-Control`; it takes no
+  parameters, so the app's request carries nothing about the person. `GET /api/shop/images/:id` — uploaded images
+  (PNG/JPEG/WebP, checked by magic bytes, at most 1 MB) with a year-long cache. `POST /api/shop/apply` — "Apply to partner".
+- **Portal:** the page at `/portal/` (`public/portal/`: `index.html`, `portal.js`, `portal.css` and two font files; no
+  framework, no build step; a strict CSP) and `/portal/apply`. Chosen over a second Vite entry so the portal deploys with
+  the backend and shares its origin (no CORS, no token in another site's storage).
+- **Sign-in:** an emailed one-time code (the accounts module's code book and Resend path; a development server without
+  `RESEND_API_KEY` logs it), then an 8-hour portal token signed with a key derived from `AUTH_SECRET` under its own label.
+  Owners are the addresses in `ADMIN_EMAILS`; partners are invited by an owner and can edit only their brands.
+  Later, per-company SSO (OIDC) plugs in at `ssoFor(email)` in `src/modules/shop/index.js`; not built.
+- **Roles:** a partner edits names, descriptions, links, prices and images, creates drafts and submits them; only an owner
+  sets why / evidence / sources / needs / stages / modules / clinician status, publishes, unpublishes or archives.
+  Edits never change the live catalog until an owner publishes (the catalog serves a published snapshot).
+- **Data:** `DATA_DIR/shop_*.json` and `DATA_DIR/shop-images/`. On a first start with an empty store the bundled catalog
+  (`config/shop-seed.json`, written by `npm run shop:seed` at the repo root) is imported as published. **Without a
+  persistent disk every portal edit is lost on each deploy.** Tests: `npm test` (`test/shop.test.mjs`) and
+  `npm run smoke:shop`.
+
+## Subscriptions, promotions, Pro grants and partner codes (`src/modules/subscriptions/`) — production
+
+The portal's owner-only business tools (docs/plans/portal-subscriptions.md). Never health data, never her stage.
+- **RevenueCat:** every endpoint path is in `src/modules/subscriptions/revenuecat.js` (v2 metrics overview and offerings;
+  v1 promotional grant and revoke). **Verify each against RevenueCat's current API docs before go-live.** Needs
+  `REVENUECAT_SECRET_KEY` (secret, server only) and `REVENUECAT_PROJECT_ID`; `REVENUECAT_ENTITLEMENT` defaults to `pro`.
+  Without them the portal says "not configured" and names the variables; grants are refused before any request.
+- **Public:** `GET /api/promotions/active` — live promotions only (offering id, platforms, audience rules, dates, banner
+  text; never a promotion's internal name), ETag and `Cache-Control`, no parameters. The app decides on the device whether
+  one matches her; the server never learns her stage. No price is ever stored: the app shows the store's own price.
+- **Owner:** metrics (5-minute cache), promotions (draft → start → scheduled / live → stop), Pro grants by account email
+  (one or up to 500 pasted; RevenueCat gets the opaque account id; no account yet → listed back, or queued and applied at
+  her first sign-in through the accounts module's hook), revoke (RevenueCat revokes every promotional grant of an
+  account), and code batches (upload, assign to a brand, mark given out / redeemed, CSV export).
+- **Partner:** `GET /api/subscriptions/codes` and `/codes.csv` — only its own brands' counts and available codes. Every
+  other route answers 403. Every change is in the portal's audit log. Tests: `npm test` (`test/subscriptions.test.mjs`)
+  and `npm run smoke:subscriptions`.
+
 ## Development-only modules
 - **Agent (`src/modules/agent/`)** — task + shared tool registry + pluggable
   reasoning provider (`providers/rules.js`, deterministic, the default;

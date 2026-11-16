@@ -9,11 +9,12 @@ export const PCOS = { yes: "Yes, diagnosed", suspect: "I suspect it", no: "No", 
 export async function register(page, { url = process.env.E2E_URL, stage = "My Cycle", also = [], pcos = "yes", name = "", cycleLen = "24–31 days", lastPeriod = null, dueDate = null, hash = "", signin = "skip" } = {}) {
   await page.goto(`${url}/${hash}`);
   await page.getByRole("button", { name: "Get started" }).click();
-  // Create your account (Task 1), in builds with sign-in: "skip" = Continue without an account (no server, or none set up);
+  // Create your account (Task 1), in builds with sign-in: "skip" = "Continue for now" on "Your account" (sign-in isn't
+  // switched on: no server, or none set up; 2026-11-15);
   // "email" = sign in with the mock's email code (e2e/lib/api.mjs); null = the caller already did it.
   if (signin === "skip") {
-    await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
-    await page.getByRole("button", { name: "Continue without an account" }).click();
+    await expect(page.getByRole("heading", { name: "Your account" })).toBeVisible();
+    await page.getByRole("button", { name: "Continue for now" }).click();
   } else if (signin === "email") {
     await emailSignIn(page); // a finished sign-in moves on to the stage step by itself
     await expect(page.getByRole("heading", { name: "Where are you right now?" })).toBeVisible();

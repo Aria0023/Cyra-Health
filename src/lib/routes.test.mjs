@@ -59,8 +59,12 @@ test("parseRoute: new links, old links redirect, other hashes are not routes", (
   assert.deepEqual(parseRoute("#/mind"), { tab: "mind", view: "mind" });
   assert.deepEqual(parseRoute("#/practices"), { tab: "mind", view: "practices" });
   assert.deepEqual(parseRoute("#/journal"), { tab: "mind", view: "ask" });
-  assert.deepEqual(parseRoute("#/care"), { tab: "you", view: "you", section: "care" });
-  assert.deepEqual(parseRoute("#/shop"), { tab: "you", view: "you", section: "care" });
+  // 2026-11-15: Shop by need is its own page; the care shelf's old links redirect to it
+  assert.deepEqual(parseRoute("#/shop"), { page: "shop", category: null });
+  assert.deepEqual(parseRoute("#/shop/glucose"), { page: "shop", category: "glucose" });
+  assert.deepEqual(parseRoute("#/care"), { page: "shop", category: null });
+  assert.deepEqual(parseRoute("#/shelf"), { page: "shop", category: null });
+  assert.deepEqual(parseRoute("#/shop", PREG), { page: "shop", category: null });
   assert.deepEqual(parseRoute("#/milestones", PREG), { tab: "patterns", view: "mile" });
   assert.equal(parseRoute("#/report", PREG), null);
   assert.deepEqual(parseRoute("#/cycles", MENO), null);

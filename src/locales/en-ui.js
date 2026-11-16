@@ -424,7 +424,7 @@ export const UI = {
   "you.exactlyWhatTheSummaryHolds": "Exactly what the summary holds",
   "you.aboutYou": "About you",
   "you.account": "Account",
-  "you.noAccountNeeded": "No account needed",
+  "you.yourAccount": "Your account",
   "you.about": "About",
   "you.aboutLegal": "About & legal",
   "you.brandName": "Solia Health",

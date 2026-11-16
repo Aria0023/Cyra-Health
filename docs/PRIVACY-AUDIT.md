@@ -2217,3 +2217,142 @@ flag and payload); `sw.test.mjs`, `notifications.test.mjs`, `autoTracked.test.mj
 - **Legal drafts:** privacy.html section 5 gains "Shops you choose to visit (affiliate links)" (still Draft, attorney note);
   terms.html's affiliate disclosure now says it may apply ("Affiliate link"). health-data.html's "no affiliates that receive
   consumer health data" (corporate affiliates) stays true: no health data goes to any merchant.
+
+## Accounts are coming: never "No account needed" (owner request 2026-11-15, plans-shop-page Task 1) — copy only, no new request
+
+The owner requires accounts, so no screen says "No account needed" or "There's no Solia Health account to make". Each
+replacement is literally true of the build it shows in; sign-in itself is unchanged (lib/signin.js signinMode).
+- **Splash, promise 2** (`splashAccountLine`), a build without sign-in (no server, e.g. the live web demo): "Accounts are on
+  the way: sign-in isn't switched on in this version yet. Your name and email are optional." (was "No account needed. There's
+  no Solia Health account to make, …"). A build with the optional backup account: "An account is optional and only keeps an
+  encrypted backup, and your name and email are optional too." (the "No account needed." lead dropped). Sign-in builds: unchanged.
+- **Sign-up step** while sign-in is off (`none`: no server or no signin flag; `unset`: the server has no sign-in set up):
+  title "Your account", sub "Solia Health accounts are on the way. Sign-in isn't switched on in this version yet, so for now you
+  can continue without one. Your health log stays on this device."; reason "Sign-in isn't switched on in this version yet.
+  Until it is, your log lives on this device." (`unset`: "… for this server yet. …"); the skip is "Continue for now". With
+  `VITE_REQUIRE_SIGNIN=false` (optional) the skip stays "Continue without an account".
+- **Device step** (builds without sign-in): "Sign-in isn't switched on in this version yet. Your name, email and answers are
+  saved on this device. …" (was "There's no Solia Health account. …").
+- **You → Account**, not signed in: title "Your account" (was "No account needed"); line "Sign-in isn't switched on in this
+  version yet. Until it is, your log lives on this device." (with a name: "…, and your name stays with it."); `unset`: "… for
+  this server yet. …"; otherwise "You haven't signed in on this device. Your log lives on this device." Footer: "Solia Health
+  keeps no profile of you. …" (was "keeps no account or profile of you"). The optional-backup AccountCard's guest title is
+  "Your account" too.
+- "your log lives on this device" (not "only on this device"): an encrypted backup file she saves is a copy elsewhere.
+- Unchanged because still true: the lock screen's "There's no account and no back door" in a build without accounts, and
+  "What Solia Health's server sees" in a no-server build. Tests: account/signin/onboarding/about unit tests reject the old
+  sentences; e2e/account.spec.mjs checks the splash, the step and You in the no-server build.
+
+## Plans and the 7-day trial, clearly visible (2026-11-15, plans-shop-page Task 2) — one device-only key, no new request
+
+- **Sentences** (each literally true): web tiles "Yearly · $100 a year · About $8.33 a month · 7-day free trial" (with "Best
+  value") and "Monthly · $9.95 a month"; "Try Pro free for 7 days on the yearly plan, then $100 a year in the iPhone and Android
+  apps. Cancel any time."; "Get Solia Health Pro in the app"; "Coming soon to the App Store and Google Play" while the store URLs
+  are unset; "Pro is sold only in the iPhone and Android apps. Nothing is sold on the web." On a phone only the store's own
+  prices, and the trial words only when the store's offer has a free trial.
+- **Requests:** none new. A phone's You → Plan asks the store for its offerings (lib/purchase.js loadOffer, as the Pro sheet
+  already did; RevenueCat learns nothing about her). The store buttons open the store page only on her tap, with nothing added
+  to the URL (lib/links.js openExternal).
+- **Record key `proChip`** (null or the local day Home last showed "Pro · 7-day free trial"): device-only, never in a backup
+  file (record.js DEVICE_ONLY + NOT_IN_BACKUP), removed by Delete everything with the record. Never sent.
+
+## Shop by need: its own page (2026-11-15, plans-shop-page Task 3 and the owner's design update) — no new record key, no new request
+
+- **Where:** a full-screen page under the current tab (#/shop, #/shop/<need>; the old #/care and #/shelf redirect to it),
+  opened from the header's bag button ("Shop") on the five main tabs, one entry card on You, and the same quiet links as
+  before (device sheet, fertility signs, glucose card), now opening the page on their need. Never on Home, insights,
+  Patterns findings, urgent guidance, notifications or onboarding.
+- **Matching** is unchanged and on the device; "By need / By brand" and the brand filter are UI state only (not saved).
+- **What a shop learns:** unchanged: a link opens only on her tap, with nothing about her added; an affiliate link (only where
+  the owner set one) tells the shop she came from Solia Health. The footer keeps the two sentences ("An affiliate link tells
+  that shop … Neither carries anything about you …" and "Not medical advice …").
+- **Images:** only files the owner places in `public/shop/` (from an affiliate program's creative kit), served with the app;
+  the manifest is committed empty, so every card shows an illustrated placeholder. No image is loaded from a brand's server.
+- **Prices:** only an owner-set price from `src/config/affiliates.json` (none committed); otherwise none is shown and "Learn
+  more" says "No price is shown here: check the brand's site."
+- **New items (lab tests):** Quest Diagnostics, Labcorp OnDemand, Everlywell. Ordering a test happens on their sites under
+  their privacy policies; Solia Health sends them nothing. No contraception service is listed.
+- **Badges:** no "Physician pick"/"Best seller"; "Clinician reviewed" only for an item signed in CLINICIAN-REVIEW and listed
+  in `src/config/shop-reviewed.json` (none yet).
+- **Polish (same day):** the page's intro is one sentence; "Matched on this device; nothing about you is sent." moved, word for
+  word, to the footer "About this shop" beside the two link sentences. Brand colours are the shop's own hues (lib/constants.js
+  SHOP_HUES), each tested for AA. No claim changed.
+
+## Partner portal and the live Shop catalog (2026-11-15, docs/plans/partner-portal.md) — one new request with nothing about her, one device-only key
+
+- **What the app sends:** in a build with a server (`VITE_API_BASE`) and the `shop` flag, `GET /api/shop/catalog` when the Shop
+  page opens and at most once a day otherwise (only once she is in the app). The request has no query string, no
+  Authorization header, no cookie (`credentials: "omit"`) and no referrer (`lib/shopLive.js`); the server ignores any query
+  and answers everyone the same catalog (backend `test/shop.test.mjs`, `e2e/shop-live.spec.mjs` checks method, query,
+  token and cookie). Like loading a web page, the server sees the device's IP address; the rate limiter keeps only a salted
+  hash that rotates daily (core/memory.js) and nothing is logged per request. Images come from `/api/shop/images/:id`,
+  loaded with `referrerpolicy="no-referrer"`.
+- **What the device keeps:** `shopCatalog` (record key, device-only, NOT in any backup): the cleaned catalog and when it
+  was downloaded. Business data only. Matching to her stage and modules stays on the device (`lib/shop.js shopCategories`).
+- **Cleaning:** `lib/shopCatalog.js cleanCatalog` keeps only https URLs with a real host, capped text with control and
+  bidi characters removed, known categories, availabilities, tones, hues, kinds, stages and modules, plain prices and
+  24-hex image ids; at most 300 products and 120 brands. A product that fails is dropped; a catalog with none left is
+  refused and the bundled one is shown. "Clinician reviewed" only when the server says exactly "signed"; "Affiliate link"
+  and the commission line only with an https affiliate URL.
+- **Sentences (each literally true):** the footer adds, only while the live catalog is shown, "The product list comes from
+  Solia Health's server, like loading a web page: the request carries nothing about you." "Matched on this device; nothing
+  about you is sent." stays true (the request sends nothing about her). privacy.html section 5 (still Draft) says the
+  list is downloaded with a plain request carrying nothing about her.
+- **Server side (business data only, never health data):** the `shop` module stores brands, products, partner email
+  addresses with their brand scope, invitations, applications (company, contact email, website, note), an audit log
+  (email of who changed what, when) and uploaded images, under `DATA_DIR`. Owners come from `ADMIN_EMAILS`. Sign-in codes
+  are kept in memory as salted hashes; portal tokens use their own HKDF label (an app token never opens the portal);
+  production logs never contain an email address or a code. The partner portal page (`/portal/`) has a strict CSP and no
+  third-party request. **Attorney:** partner contacts are business personal data; the privacy policy for partners (not
+  app users) is still to be written.
+
+
+## Promotions, Pro grants and codes (portal subscriptions, 2026-11-15, docs/plans/portal-subscriptions.md) — RevenueCat now gets her account number while she is signed in; no health data leaves the device
+
+- **What is new in the app:** (1) a promotion banner on You → Plan and the Pro sheet only (never in notifications,
+  onboarding, urgent screens or insights; one at a time; "Not now" hides it); (2) while she is signed in, RevenueCat's
+  `logIn` with her opaque Solia Health account id, and `logOut` when she signs out, deletes the account or erases
+  everything (`lib/purchase.js linkAccount / unlinkAccount`; App.jsx follows `signin.id`); (3) "Pro until <date>" for a
+  free grant; (4) "Have a code?" on the Pro sheet.
+- **What leaves the device, and to whom:**
+  - Solia Health's server: one plain `GET /api/promotions/active` when the Pro sheet or You opens, at most once a day
+    (`lib/promoLive.js`): no query, no Authorization header, no cookie, no referrer (`e2e/promos.spec.mjs` checks method,
+    query, token and cookie). The server answers everyone the same list and ignores any query (backend test). Like any
+    request, it shows the device's IP address (salted, daily-rotated hash in the rate limiter, nothing logged per request).
+  - RevenueCat: while signed in, the account id (22 random characters made by the accounts module; it names nothing).
+    `purchase.test.mjs` checks the source has exactly one `logIn(` with `{ appUserID: accountId }`, that an email or a name
+    is refused before any call, and still no `setEmail` / `setAttributes` / `setDisplayName` / attribution id. Signed out,
+    RevenueCat keeps (or makes a new) anonymous id as before.
+  - Apple / Google: a code is redeemed in Apple's code sheet (RevenueCat plugin) or Apple's redeem page
+    (`VITE_APP_STORE_ID`), or Google Play's redeem page with the code she typed. The code never goes to Solia Health or
+    RevenueCat.
+- **Decided on the device, never sent:** whether a promotion is for her (`lib/promos.js promoFor`): platform, her stage
+  (`promoStageOf`: periods / ttc / preg / peri / meno from her own record), "new" = her record's first date (the free week's
+  start or an earlier logged day) within 14 days. The server never learns her stage or newness.
+- **What the device keeps:** `promos` (the cleaned list and when it came) and `promoHidden` (ids she hid): both record keys
+  are device-only and NOT in any backup (`record.test.mjs`). The cleaner (`cleanPromo`) keeps only known fields with caps;
+  anything odd drops that promotion.
+- **Prices:** a phone shows a promotion ONLY with the store's own price strings for its RevenueCat offering; if the
+  offering or its prices don't load, no banner at all (`promoBanner`, tested). The tiles and the purchase then use that
+  offering, and the buy button and terms name the trial the store's product carries (`planLines(…, { trialDays })`). The
+  web never shows a price for a promotion ("This offer is in the iPhone and Android apps"). The portal refuses a banner
+  that names a price or a percentage.
+- **Server side (owner-only, never health data):** `subs_promotions` (rules and banner text; a promotion's internal name is
+  never public), `subs_grants` (the email an owner typed, the matching account ids, duration, note, who and when; an
+  account deletion removes its id from the grant), `subs_batches` / `subs_codes` (store codes and the partner brand). Every
+  grant, revoke, code upload, assignment and export is in the portal's audit log. RevenueCat gets the account id and a
+  duration for a grant, never the email (`subscriptions-smoke.js`). `REVENUECAT_SECRET_KEY` is server-only, never logged
+  (unit test and smoke check the log), never sent to the portal page.
+- **Sentences changed so each stays literally true:** the Pro sheet (store section) adds "RevenueCat, which handles Pro for
+  the stores, gets an anonymous id, or your account number if you're signed in; never your email or anything you log.";
+  the sign-in step's "What signing in shares" adds the RevenueCat and free-Pro sentence; privacy.html (Draft) "Pro and
+  tips" row, a new "Offers in the app" row, and the CCPA identifiers row; health-data.html's RevenueCat line;
+  MONETIZATION.md §1a; the portal's footer (it now also holds subscription numbers, promotions, grants by account email
+  and partner codes); native.js and purchase.js comments.
+- **Store disclosures:** App Store Connect → App Privacy: **Purchases** and **User ID**, "Linked to the user", not used for
+  tracking; Google Play Data safety: purchase history and **User IDs** for app functionality / account management, not
+  shared (`docs/STORE-SETUP.md` §1, §2 and §6).
+- **For counsel:** the grant list holds third-party-supplied emails (e.g. a clinic's patient list): a partner handing
+  Solia Health a list of its patients' emails discloses that they are patients. Before the first clinic grant, counsel
+  should decide the basis (the partner's own consent from each person, a data processing agreement) and whether "free Pro
+  through your clinic" needs its own notice. The portal tells owners never to write anything about health in the note.

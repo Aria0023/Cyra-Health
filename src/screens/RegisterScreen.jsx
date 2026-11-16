@@ -18,6 +18,7 @@ import Details, { WebReminderFacts } from "../components/Details.jsx";
 import { ChipRow } from "../components/AnswerChips.jsx";
 import Icon from "../components/Icon.jsx";
 import SignInStep from "../components/SignInStep.jsx";
+import { signinOff } from "../lib/signin.js";
 import { t } from "../lib/i18n.js";
 import { stepCopy } from "../locales/index.js";
 
@@ -54,7 +55,8 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
   const steps = regSteps(reg.stage, { signin: !!signinStep });
   const key = steps[Math.min(regStep, steps.length - 1)];
   // A build with sign-in and a server has accounts: the Device step's "There's no Solia Health account" can't be said there.
-  const copyKey = key === "account" && signinStep && hasServer() ? "deviceSignin" : key;
+  // While sign-in is switched off (no server, or none set up on it) the first step says so instead of "Create your account".
+  const copyKey = key === "account" && signinStep && hasServer() ? "deviceSignin" : key === "signin" && signinStep && signinOff(signinStep.mode) ? "signinOff" : key;
   const rs = stepCopy(copyKey, STEP_COPY[copyKey]);
   const uid = useId();
   const labId = (k) => `${uid}-${k}`;

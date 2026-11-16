@@ -59,6 +59,11 @@ test("the Pro sheet: the store's prices, the trial, the renewal terms and tips (
     await page.getByRole("button", { name: "Open the Pro sheet (pretend store)" }).click();
     const sheet = page.locator("#pro-sheet");
     await expect(sheet.getByRole("button", { name: "Start 7-day free trial" })).toBeVisible();
+    // 2026-11-15: the sheet opens with the two store tiles (Yearly first, its trial badge from the store's offer) and the trial line
+    await expect(sheet.locator(".plantile")).toHaveCount(2);
+    await expect(sheet.locator(".plantile").first()).toContainText("Yearly");
+    await expect(sheet.locator(".plantile").first()).toContainText("7-day free trial");
+    await expect(sheet.locator(".protrialline")).toHaveText("Try Pro free for 7 days on the yearly plan, then $100.00 a year. Cancel any time.");
     await expect(sheet.locator("#pro-terms")).toContainText("Free for 7 days, then $100.00 a year. Renews every year until you cancel.");
     await expect(sheet.locator("#pro-terms")).toContainText("Cancel any time in Settings");
     await expect(sheet.getByRole("button", { name: /\$9\.99/ })).toBeVisible();
@@ -72,15 +77,17 @@ test("the Pro sheet: the store's prices, the trial, the renewal terms and tips (
   await ctx.close();
 });
 
-test("the Pro sheet on the web sells nothing: it names the price in the apps", async ({ browser }) => {
+test("the Pro sheet on the web sells nothing: the two plan tiles and the price in the apps", async ({ browser }) => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
   const page = await ctx.newPage();
   await register(page, { stage: "Perimenopause", name: "Ana" });
   await gotoTab(page, "You");
   await page.locator("#you-plan").getByRole("button", { name: "See what Pro adds" }).click();
   const sheet = page.locator("#pro-sheet");
-  await expect(sheet).toContainText("Pro is $9.95 a month or $100 a year in the iPhone and Android apps");
-  await expect(sheet.getByRole("button", { name: /free trial|Subscribe/ })).toHaveCount(0);
+  await expect(sheet.locator(".protrialline")).toHaveText("Try Pro free for 7 days on the yearly plan, then $100 a year in the iPhone and Android apps. Cancel any time.");
+  await expect(sheet.locator(".plantile")).toHaveText([/Yearly.*Best value.*\$100 a year.*About \$8\.33 a month.*7-day free trial/, /Monthly.*\$9\.95 a month/]);
+  await expect(sheet.getByText("Coming soon to the App Store and Google Play")).toBeVisible();
+  await expect(sheet.getByRole("button", { name: /free trial|Subscribe|App Store|Google Play/ })).toHaveCount(0);
   await audit(page, "Pro sheet on the web");
   await ctx.close();
 });

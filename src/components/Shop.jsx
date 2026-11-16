@@ -1,78 +1,163 @@
-import { createContext, useContext, useState } from "react";
-import { Card, Sheet } from "./ui/index.js";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { Card } from "./ui/index.js";
 import Details from "./Details.jsx";
 import Icon from "./Icon.jsx";
-import { SHOP_COPY as C, AFFILIATE_LINE, TONE_LABEL, linkFor, relFor, shopItems, itemSources } from "../lib/shop.js";
+import { SHOP_COPY as C, SHOP_PAGE_COPY as P, AFFILIATE_LINE, TONE_LABEL, AVAIL_LABEL, CATEGORY_ICON, relFor, groupByBrand, brandsOf, monogram, brandHue } from "../lib/shop.js";
+import { itemsIn, itemsOf } from "../lib/shopCatalog.js";
 import { isNative } from "../lib/native.js";
 import { openExternal } from "../lib/links.js";
 
-/* Shop by need (Task C). One place on You (the card keeps the old care section's id "care", so #/care and #/shelf still
-   land on it), a sheet opened by the quiet contextual links (ShopLink, through ShopContext, as Learn does), and the same
-   body in both: category buttons (hers first, lib/shop.js shopCategories) and the items of the one picked. Every item
-   says why in one line with its evidence label and named sources; a link opens in the system browser (phone: Capacitor
-   Browser; web: a new tab with rel noopener noreferrer, plus sponsored on an affiliate link). Nothing here sends anything
-   or adds anything about her to a link. App.jsx provides the context only while FEATURES.shop is on. */
+/* Shop by need (Task C, 2026-11-14; its own page since 2026-11-15, docs/plans/plans-shop-page.md Task 3 and the owner's
+   design update). A full-screen page under the current tab (#/shop, and the old #/care and #/shelf), opened from the
+   header's bag button on the five main tabs, a single entry card on You, and the quiet contextual links (ShopLink, through
+   ShopContext, with the right category preselected). Back returns to where she came from.
+   The page: a hero band (a soft wash of the stage primary) with the h1 (focused on open), one line and a "By need / By
+   brand" switch, then one horizontal chip
+   scroller (needs, hers first, lib/shop.js shopCategories; or "All brands" and each brand with its monogram), then the
+   products grouped by brand: a band in the brand's own hue (lib/constants.js SHOP_HUES, apart from the stage palettes
+   and the data-viz ramps: monogram tile, the brand, its type, one line about it) over its cards: on phones a horizontal
+   snap list when a brand has 2+ products (the next card peeks), on wide screens a 2–4 column grid. Each card: an image
+   only where the owner placed a licensed one (src/config/shop-images.json), otherwise a calm placeholder; where it comes
+   from and the owner's price when there is one; the name, what it covers, why, "Sold by", the evidence pill; "Visit
+   <brand>" and "Learn more" (evidence, price note, sources). "Affiliate link" and the commission line only where
+   src/config/affiliates.json has a link. Nothing here sends anything or adds anything about her to a link.
+   2026-11-15 (partner portal, Task 3): the page draws `shop` (lib/shopCatalog.js), the published catalog downloaded from
+   the server when the build has one, else the bundled catalog; both have the same shape, so the page is the same. */
 export const ShopContext = createContext(null);
 
 /** A quiet link to one category ("Don't have a device? See options"); renders nothing when the shop is off. */
 export function ShopLink({ category, label }) {
   const open = useContext(ShopContext);
   if (!open) return null;
-  return <button type="button" className="linkbtn shoplink" aria-haspopup="dialog" data-shop={category} onClick={() => open.openCategory(category)}><Icon name="bag" size={14} />{label}</button>;
+  return <button type="button" className="linkbtn shoplink" data-shop={category} onClick={() => open.openCategory(category)}><Icon name="bag" size={14} />{label}</button>;
 }
 
-function ItemRow({ item, affiliates, onTry }) {
-  const link = linkFor(item, affiliates);
+/** The brand's monogram tile (decorative: the brand's name is always written beside it). info: the catalog's brand entry. */
+export const Monogram = ({ brand, info = null, size = "sm" }) => (
+  <span className={`shopmono ${size}`} data-hue={info?.hue || brandHue(brand)} aria-hidden="true">{info?.mono || monogram(brand)}</span>
+);
+
+function ProductCard({ item, brands, onTry }) {
+  const link = { href: item.href, affiliate: item.affiliate };
+  const price = item.price;
+  const img = item.image ? (item.image.url || `${import.meta.env.BASE_URL || "/"}${item.image.bundled}`) : null;
+  const info = brands[item.brand] || null;
+  const hue = info?.hue || brandHue(item.brand);
   const nameId = `shop-${item.id}`;
   const go = (e) => { if (isNative()) { e.preventDefault(); openExternal(link.href); } };
   return (
-    <li className="shopitem" data-item={item.id}>
-      <div className="shophead"><span className="sbrand">{item.brand}</span>{link.affiliate && <span className="ppill affpill">{C.affiliate}</span>}</div>
-      <b className="sname" id={nameId}>{item.name}</b>
-      <p className="shopwhy">{item.why}</p>
-      <span className={`ev ev-${item.tone}`}><span className="sr-only">{TONE_LABEL[item.tone]}: </span>{item.ev}</span>
-      <Details label="Sources" describedBy={nameId}><ul className="learnsrc">{itemSources(item).map((s) => <li key={s}>{s}</li>)}</ul></Details>
-      <div className="shopacts">
-        <a className="ghostbtn shopgo" href={link.href} target="_blank" rel={relFor(link)} aria-describedby={link.affiliate ? `${nameId}-aff` : undefined} onClick={go}>{C.open(item.brand)}<Icon name="arrow-right" size={14} /><span className="sr-only"> (opens in your browser)</span></a>
-        {onTry && item.kind && <button type="button" className="linkbtn shoptry" aria-describedby={nameId} onClick={() => onTry(item)}>{C.tryIt}</button>}
+    <li className="shopcard" data-item={item.id}>
+      <div className="shopimg" data-hue={hue}>
+        {img ? <img src={img} alt="" loading="lazy" referrerPolicy="no-referrer" /> : (
+          <>
+            <svg className="shopimg-blobs" viewBox="0 0 200 125" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+              <path className="b1" d="M150 -10c34 6 58 34 52 62s-40 40-70 30-44-40-34-64 22-34 52-28z" />
+              <path className="b2" d="M20 90c22-10 52-2 60 18s-8 40-34 42-48-10-50-30 2-22 24-30z" />
+              <circle className="b3" cx="40" cy="22" r="6" /><circle className="b3" cx="176" cy="104" r="4" />
+            </svg>
+            <span className="shopimg-ph" aria-hidden="true"><Icon name={CATEGORY_ICON[item.category] || "bag"} size={36} /></span>
+          </>
+        )}
+        <span className="shopimg-brand" aria-hidden="true"><Monogram brand={item.brand} info={info} size="xs" />{item.brand}</span>
       </div>
-      {link.affiliate && <p className="rfoot" id={`${nameId}-aff`}>{AFFILIATE_LINE}</p>}
+      <div className="shopcard-body">
+        <p className="shopmeta" data-hue={hue}><span className="shopavail"><span className="shopdot" aria-hidden="true" />{AVAIL_LABEL[item.avail] || ""}</span>{price && <span className="shopprice">{price}</span>}</p>
+        <h3 className="sname" id={nameId}>{item.name}</h3>
+        {item.covers && <p className="shopcovers">{item.covers}</p>}
+        <p className="shopwhy">{item.why}</p>
+        <p className="shopsold">{P.soldBy(item.brand)}</p>
+        <p className="shoppills">
+          {item.tone && <span className={`ev ev-${item.tone}`}><span className="sr-only">{TONE_LABEL[item.tone]}: </span>{item.ev}</span>}
+          {item.reviewed && <span className="ppill fit shopreviewed">{P.reviewed}</span>}
+          {link.affiliate && <span className="ppill affpill">{C.affiliate}</span>}
+        </p>
+        <div className="shopacts">
+          <a className="cta shopgo" href={link.href} target="_blank" rel={relFor(link)} aria-describedby={link.affiliate ? `${nameId}-aff` : undefined} onClick={go}>{C.open(item.brand)}<Icon name="arrow-right" size={14} /><span className="sr-only"> (opens in your browser)</span></a>
+          {onTry && item.kind && <button type="button" className="linkbtn shoptry" aria-describedby={nameId} onClick={() => onTry(item)}>{C.tryIt}</button>}
+        </div>
+        <Details label={P.learnMore} describedBy={nameId}>
+          {item.tone && <p className="shoplm-ev"><b>{TONE_LABEL[item.tone]}</b> · {item.ev}</p>}
+          {item.description && <p className="shopdesc">{P.fromBrand(item.brand)} {item.description}</p>}
+          <p className="hint">{price ? P.priceNote(item.brand) : P.noPrice}</p>
+          {item.sources.length > 0 && <><p className="section-lab">Sources</p>
+          <ul className="learnsrc">{item.sources.map((s) => <li key={s}>{s}</li>)}</ul></>}
+        </Details>
+        {link.affiliate && <p className="rfoot" id={`${nameId}-aff`}>{AFFILIATE_LINE}</p>}
+      </div>
     </li>
   );
 }
 
-export function ShopBody({ categories, initial = null, affiliates, allow = null, onTry = null, idBase = "shop" }) {
-  const [cat, setCat] = useState(initial || categories[0]?.id);
-  const items = shopItems(cat, { allow });
+function BrandSection({ brand, items, ...card }) {
+  const b = card.brands[brand] || {};
+  const hid = `shopb-${monogram(brand).toLowerCase()}-${items[0].id}`;
   return (
-    <>
-      <p className="section-lab" id={`${idBase}-cats`}>{C.forYou}</p>
-      <div className="mcrow shopcats" role="group" aria-labelledby={`${idBase}-cats`}>
-        {categories.map((c) => <button key={c.id} type="button" className={`mc ${cat === c.id ? "on" : ""}`} aria-pressed={cat === c.id} data-cat={c.id} onClick={() => setCat(c.id)}>{c.label}</button>)}
+    <section className="shopbrand" aria-labelledby={hid}>
+      <div className="shopband" data-hue={b.hue || brandHue(brand)}>
+        <Monogram brand={brand} info={card.brands[brand]} size="lg" />
+        <div className="shopband-text">
+          <h2 className="shopband-name" id={hid}>{brand}</h2>
+          {b.tag && <p className="shopband-tag">{b.tag}</p>}
+          {b.about && <p className="shopband-about">{b.about}</p>}
+        </div>
       </div>
-      {items.length ? <ul className="shoplist" aria-label={categories.find((c) => c.id === cat)?.label}>{items.map((i) => <ItemRow key={i.id} item={i} affiliates={affiliates} onTry={onTry} />)}</ul>
-        : <p className="hint">Nothing in this category for this plan.</p>}
-      <p className="rfoot">{C.privacy}</p>
-      <p className="rfoot">{C.notAdvice}</p>
-    </>
+      <ul className={`shopgrid ${items.length > 1 ? "multi" : ""}`} aria-labelledby={hid}>{items.map((i) => <ProductCard key={i.id} item={i} {...card} />)}</ul>
+    </section>
   );
 }
 
-/** You → Shop by need: one summary line and the categories behind one disclosure (calm R10 style). */
-export function ShopCard(props) {
+/** The Shop page. shop: lib/shopCatalog.js (live or bundled); initial: a category id to preselect (a contextual link or
+    #/shop/<category>); live: this build downloads the catalog from its server (the footer says what that request carries). */
+export function ShopPage({ shop, categories, initial = null, allow = null, live = false, onTry = null, onBack }) {
+  const firstCat = categories.some((c) => c.id === initial) ? initial : categories[0]?.id;
+  const [mode, setMode] = useState("need");
+  const [cat, setCat] = useState(firstCat);
+  const [brand, setBrand] = useState(null);
+  const headRef = useRef(null);
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "auto" }); headRef.current?.focus({ preventScroll: true }); }, []);
+  useEffect(() => { if (initial && categories.some((c) => c.id === initial)) { setMode("need"); setCat(initial); } }, [initial]); // eslint-disable-line react-hooks/exhaustive-deps
+  const items = mode === "need" ? itemsIn(shop, cat, { allow }) : itemsOf(shop, { brand, allow });
+  const brands = brandsOf(itemsOf(shop, { allow }));
+  const card = { brands: shop.brands, onTry };
   return (
-    <Card id="care" tint="you" icon="bag" eyebrow={C.eyebrow} title={C.title} level={2} className="youshop" tabIndex={-1}>
+    <main className="shoppage" aria-labelledby="shop-h">
+      <div className="shophero">
+        <button type="button" className="linkbtn shopback" onClick={onBack}><Icon name="chevron" className="shopback-ico" size={16} />{P.back}</button>
+        <h1 className="disp" id="shop-h" tabIndex={-1} ref={headRef}><span className="shophero-ico" aria-hidden="true"><Icon name="bag" size={20} /></span>{P.title}</h1>
+        <p className="shoplead">{P.lead}</p>
+        <div className="seg shopmode" role="group" aria-label={P.viewLab}>
+          <button type="button" className={`mc ${mode === "need" ? "on" : ""}`} aria-pressed={mode === "need"} onClick={() => setMode("need")}>{P.byNeed}</button>
+          <button type="button" className={`mc ${mode === "brand" ? "on" : ""}`} aria-pressed={mode === "brand"} onClick={() => setMode("brand")}>{P.byBrand}</button>
+        </div>
+      </div>
+      {mode === "need" ? (
+        <div className="shopchips" role="group" aria-label={P.needLab}>
+          {categories.map((c) => <button key={c.id} type="button" className={`mc shopchip ${cat === c.id ? "on" : ""}`} aria-pressed={cat === c.id} data-cat={c.id} onClick={() => setCat(c.id)}>{c.label}</button>)}
+        </div>
+      ) : (
+        <div className="shopchips" role="group" aria-label={P.brandLab}>
+          <button type="button" className={`mc shopchip ${brand == null ? "on" : ""}`} aria-pressed={brand == null} onClick={() => setBrand(null)}>{P.allBrands}</button>
+          {brands.map((b) => <button key={b} type="button" className={`mc shopchip brandchip ${brand === b ? "on" : ""}`} aria-pressed={brand === b} data-brand={b} onClick={() => setBrand(b)}><Monogram brand={b} info={shop.brands[b]} />{b}</button>)}
+        </div>
+      )}
+      {items.length ? groupByBrand(items).map((g) => <BrandSection key={g.brand} brand={g.brand} items={g.items} {...card} />) : <p className="hint">{P.noneHere}</p>}
+      <footer className="shopfoot">
+        <h2 className="shopfoot-h">{P.footHead}</h2>
+        <p className="rfoot">{P.footMatched}</p>
+        {live && <p className="rfoot">{P.footList}</p>}
+        <p className="rfoot">{C.privacy}</p>
+        <p className="rfoot">{C.notAdvice}</p>
+      </footer>
+    </main>
+  );
+}
+
+/** You → one distinct entry card that opens the page. */
+export function ShopEntryCard({ onOpen }) {
+  return (
+    <Card id="you-shop" tint="patterns" icon="bag" eyebrow={C.eyebrow} title={P.entryLine} level={2} className="youshop" tabIndex={-1}>
       <p className="hint">{C.lead}</p>
-      <Details label="See products by need"><ShopBody {...props} idBase="shop-you" /></Details>
+      <button type="button" className="ghostbtn youshopgo" onClick={onOpen}>{P.entryTitle}<Icon name="arrow-right" size={16} /></button>
     </Card>
-  );
-}
-
-export function ShopSheet({ onClose, ...props }) {
-  return (
-    <Sheet id="shop-sheet" title={C.sheetTitle} closeLabel={`Close ${C.sheetTitle}`} onClose={onClose} className="shopsheet">
-      <p className="hint">{C.lead}</p>
-      <ShopBody {...props} idBase="shop-sheet" />
-    </Sheet>
   );
 }

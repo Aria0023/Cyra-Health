@@ -155,6 +155,10 @@ test("regSteps with sign-in: Create your account comes first for every stage; a 
   }
   assert.equal(STEP_COPY.signin.title, "Create your account");
   assert.ok(!/no Solia Health account/i.test(STEP_COPY.deviceSignin.sub), "the Device step in a sign-in build never says there is no account");
+  // 2026-11-15: while sign-in is off, the first step says so; no step says "No account needed" or "There's no ... account"
+  assert.equal(STEP_COPY.signinOff.title, "Your account");
+  assert.match(STEP_COPY.signinOff.sub, /isn't switched on in this version yet/);
+  for (const c of Object.values(STEP_COPY)) assert.doesNotMatch(c.sub, /No account needed|There's no Solia Health account/i);
 });
 
 test("registration never asks about wearables: no device step for any stage, with or without sign-in", () => {

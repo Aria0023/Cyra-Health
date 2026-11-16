@@ -17,6 +17,13 @@ export const POLICY_LINKS_READY = !!(TERMS_URL && PRIVACY_URL);
 /* An optional tip page for the web only (a Stripe Payment Link or similar, VITE_TIP_URL). Never shown in the phone apps,
    where tips go through the app store (lib/purchase.js sendTip). */
 export const TIP_URL = clean(import.meta.env.VITE_TIP_URL);
+/* The app's store pages (2026-11-15, Task 2): the web's "Get Solia Health Pro in the app" buttons. While either is unset
+   the web says "Coming soon to the App Store and Google Play" instead of showing a dead button. */
+export const APP_STORE_URL = clean(import.meta.env.VITE_APP_STORE_URL);
+export const PLAY_STORE_URL = clean(import.meta.env.VITE_PLAY_STORE_URL);
+/* The app's numeric Apple id (2026-11-15, portal subscriptions Task 3): "Have a code?" opens Apple's offer-code redeem page
+   for this app when the RevenueCat plugin can't show Apple's code sheet. Digits only; anything else = unset. */
+export const APP_STORE_ID = /^\d{6,12}$/.test(String(import.meta.env.VITE_APP_STORE_ID || "").trim()) ? String(import.meta.env.VITE_APP_STORE_ID).trim() : "";
 
 export function openExternal(url) {
   if (!url) return;

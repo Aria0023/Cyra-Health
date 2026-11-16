@@ -156,7 +156,7 @@ export const nextCloudAccount = (cur, acct) => ({ rev: cleanCloudAccount(cur).re
 /* ---------- every sentence the account shows (You → Account, its sheets, the splash sign-in) ---------- */
 export const ACCOUNT_COPY = Object.freeze({
   eyebrow: "Account",
-  guestTitle: "No account needed",
+  guestTitle: "Your account",
   guestLine: "You're using Solia Health as a guest. Your log lives on this device.",
   guestMore: "An account is optional. It keeps an encrypted copy of your log on Solia Health's server, so you can bring it back on a new phone or browser. Solia Health can't read it.",
   proLine: "An encrypted backup to Solia Health's server comes with Pro.",

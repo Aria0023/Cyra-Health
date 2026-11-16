@@ -4,7 +4,7 @@
      module does in this build (PCOS: the signals sheet, the long-cycle count, the pattern questions; POTS: the tools
      the POTS page has; fertility signs: the Today group). Listed in docs/CLINICIAN-REVIEW.md.
    - PLAN_COPY: the Plan card. Free stays free; Pro (owner decision D4) is sold only in the phone apps through the app
-     store (lib/purchase.js), described calmly, never pushed. The web names the price "in the iPhone and Android apps".
+     store (lib/purchase.js), described calmly, never pushed (one small dismissible Home note at most once a day, lib/plans.js). The web names the price "in the iPhone and Android apps".
    - ACCOUNT_LINES / NOT_MEDICAL / AI_OFF_LINE: sentences that must stay literally true of the build. */
 export const BUILD_STAMP = "BUILD 2026.10.07-D";
 
@@ -34,9 +34,9 @@ export const PLAN_COPY = Object.freeze({
 });
 
 export const ACCOUNT_LINES = Object.freeze({
-  none: "No account. Your log lives on this device.",
-  named: "No account. Your log lives on this device, and your name stays with it.",
-  more: "Solia Health keeps no account or profile of you. Your name and email, if you gave them, stay on this device and go into an encrypted backup only if you save one.",
+  none: "Sign-in isn't switched on in this version yet. Until it is, your log lives on this device.",
+  named: "Sign-in isn't switched on in this version yet. Until it is, your log lives on this device, and your name stays with it.",
+  more: "Solia Health keeps no profile of you. Your name and email, if you gave them, stay on this device and go into an encrypted backup only if you save one.",
   // calm R9: a build that offers the optional account (the AccountCard's footer instead of `more`)
   moreAccount: "Solia Health keeps no profile of you. Your name and email, if you gave them, stay on this device and go into an encrypted backup only if you save one or make an account; your account itself never holds your email, only a one-way hash of it.",
 });

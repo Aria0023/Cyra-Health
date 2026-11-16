@@ -2,7 +2,7 @@
 // and copy that stays literally true (no "anonymous", the account never holds the log, Apple first).
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseRequire, signinMode, canSkip, gateNeeded, cleanSignin, sessionFrom, whoLine, firstNameOf, cleanCode, isEmailAddress, PROVIDERS, SIGNIN_COPY, signinInBuild } from "./signin.js";
+import { parseRequire, signinMode, canSkip, gateNeeded, cleanSignin, sessionFrom, whoLine, firstNameOf, cleanCode, isEmailAddress, PROVIDERS, SIGNIN_COPY, signinInBuild, signinOff, skipLabel, youAccountLine } from "./signin.js";
 
 const TOKEN = `${"a".repeat(40)}.${"b".repeat(43)}`;
 const S = { token: TOKEN, id: "acct_1234567890", provider: "google", email: "maya@example.com", name: "Maya Lin", createdAt: "2026-11-12T10:00:00.000Z" };
@@ -53,5 +53,16 @@ test("signin: Apple first, then Google and Facebook; copy stays literally true",
   assert.doesNotMatch(all, /anonymous|we don't know who you are/i);
   assert.match(SIGNIN_COPY.shared[0], /Never your health log/);
   assert.match(SIGNIN_COPY.deleteBody, /isn't touched/);
-  assert.match(SIGNIN_COPY.whyNone, /no server/);
+  assert.match(SIGNIN_COPY.whyNone, /isn't switched on in this version yet/);
+  assert.doesNotMatch(all, /No account needed|no account to make/i);
+});
+
+test("signin: while sign-in is off the skip says \"Continue for now\" and You says why; optional keeps \"without an account\"", () => {
+  assert.equal(signinOff("none"), true); assert.equal(signinOff("unset"), true);
+  for (const m of ["checking", "offline", "optional", "required"]) assert.equal(signinOff(m), false);
+  assert.equal(skipLabel("none"), "Continue for now"); assert.equal(skipLabel("unset"), "Continue for now");
+  assert.equal(skipLabel("optional"), "Continue without an account");
+  assert.equal(youAccountLine("none"), SIGNIN_COPY.youNone); assert.equal(youAccountLine("unset"), SIGNIN_COPY.youUnset);
+  assert.equal(youAccountLine("optional"), SIGNIN_COPY.noneLine);
+  assert.match(SIGNIN_COPY.youNone, /^Sign-in isn't switched on in this version yet\./);
 });

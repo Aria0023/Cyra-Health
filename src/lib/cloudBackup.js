@@ -5,7 +5,7 @@
         (config/app-dev.json lists it; config/app.json, production, does not);
      3. plan.can("cloudBackup") — the entitlement (lib/plan.js): Pro (and the proDev QA unlock), never the free plan.
    ACCOUNTS_HERE (gates 1 and 2) decides whether the account UI exists at all; while it is false nothing in the app
-   mentions an account beyond "No account needed", and no account request is ever made. The transports themselves are
+   mentions an account beyond "Your account" (sign-in isn't switched on yet), and no account request is ever made. The transports themselves are
    fail-closed: every call rejects with code CLOUD_OFF before any request unless all three gates are open (the plan is
    passed in by App.jsx, which knows planFor()).
    cloudBackup (the L4 id + token transport) stays exported for the scaffold's tests; the app uses cloudAccounts. */

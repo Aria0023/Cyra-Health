@@ -11,7 +11,8 @@ authoritative description of the record; this document explains it. The normativ
   sent to a server (CLAUDE.md, hard rules). The optional server features she turns on send only
   what their in-app disclosure says, never the record; the full list is the README's Privacy
   section and the header comment of `src/App.jsx`.
-- **No account needed.** Nothing needs a sign-up, a password or an email; guest is the default. Social
+- **Guest until sign-in is switched on.** (2026-11-15: the UI never says "No account needed"; accounts are coming and
+  a build without sign-in says sign-in isn't switched on yet.) Nothing needs a password; guest is the default. Social
   sign-in is optional and only pre-fills the name and email fields on this device. Calm R9: a build with
   the `cloudBackup` flag and a server also offers an optional account (Pro) whose only purpose is an
   encrypted backup on Cyra's server (§10.5a); the server never receives her email, passphrase or log in

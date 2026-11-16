@@ -64,17 +64,21 @@ export function viewForTab(tab, lastByTab = {}, opts = {}) {
    (spec §3 R2 table). Segment words are the lower-case labels. */
 const OLD = {
   today: "today", log: "today", calendar: "cal", cal: "cal", cycles: "cycles", report: "report", connect: "connect",
-  ask: "ask", journey: "ask", practices: "practices", journal: "ask", care: "you", shelf: "you", shop: "you", milestones: "mile", roadmap: "mile", settings: "you",
+  ask: "ask", journey: "ask", practices: "practices", journal: "ask", milestones: "mile", roadmap: "mile", settings: "you",
 };
-/* Old links that land on a part of a page: the care shelf, now Shop by need (2026-11-14), is the card with id "care" on You. */
-const SECTION = { care: "care", shelf: "care", shop: "care" };
+/* Old links that land on a part of a page (none today; kept for the next one). */
+const SECTION = {};
+/* Shop by need is its own page (2026-11-15): #/shop, #/shop/<need id> (e.g. #/shop/glucose), and the care shelf's old
+   #/care and #/shelf. It opens under the current tab, so it isn't a view: parseRoute returns { page: "shop", category }. */
+const SHOP_WORDS = ["shop", "care", "shelf"];
 
-/** A location hash → the view it names ({ view, tab, section? }) or null when it is not a navigation link (#restored, #oauth=…,
+/** A location hash → the view it names ({ view, tab, section? }), the Shop page ({ page: "shop", category }), or null when it is not a navigation link (#restored, #oauth=…,
     #/dev/ui, empty, unknown words). A view the experience doesn't have falls back to its tab's first view. */
 export function parseRoute(hash, opts = {}) {
   const m = /^#\/([a-z]+)(?:\/([a-z-]+))?\/?$/.exec(String(hash || "").toLowerCase());
   if (!m) return null;
   const [, a, b] = m;
+  if (SHOP_WORDS.includes(a)) return { page: "shop", category: a === "shop" && b ? b : null };
   if (TAB_IDS.includes(a)) {
     const views = viewsOf(a, opts);
     const sub = b ? Object.keys(SUBPAGES).find((v) => SUBPAGES[v].slug === b && views.some(([id]) => id === SUBPAGES[v].parent)) : null;

@@ -39,18 +39,20 @@ export function perMonthOf(price, priceString) {
 
 /** What the subscribe button and the lines under it say, for one plan with the store's own price. Required by
     Guideline 3.1.2: the title, the length, the price per period, auto-renewal, and how to cancel. */
-export function planLines(planId, { priceString, price } = {}) {
+export function planLines(planId, { priceString, price, trialDays = null } = {}) {
   const p = PRO_PRODUCTS[planId];
   if (!p || typeof priceString !== "string" || !priceString) return null;
-  const trial = p.trialDays > 0;
+  // trialDays: a promotion's offering (2026-11-15) passes the trial its STORE product carries (0 = none); otherwise the plan's own
+  const days = Number.isInteger(trialDays) && trialDays >= 0 ? trialDays : p.trialDays;
+  const trial = days > 0;
   const perMonth = planId === "annual" ? perMonthOf(price, priceString) : null;
   return {
     title: planId === "annual" ? "Yearly" : "Monthly",
     price: `${priceString} a ${p.per}`,
     note: planId === "annual" ? (perMonth ? `About ${perMonth} a month` : null) : null,
-    button: trial ? `Start ${p.trialDays}-day free trial` : `Subscribe for ${priceString} a ${p.per}`,
+    button: trial ? `Start ${days}-day free trial` : `Subscribe for ${priceString} a ${p.per}`,
     terms: trial
-      ? `Free for ${p.trialDays} days, then ${priceString} a ${p.per}. Renews every ${p.per} until you cancel. Cancel at least a day before the trial ends and you won't be charged.`
+      ? `Free for ${days} days, then ${priceString} a ${p.per}. Renews every ${p.per} until you cancel. Cancel at least a day before the trial ends and you won't be charged.`
       : `${priceString} a ${p.per}. Renews every ${p.per} until you cancel.`,
   };
 }

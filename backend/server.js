@@ -67,7 +67,10 @@ app.use("/api/ai", express.json({ limit: "32kb" }), (err, req, res, next) => {
 app.use(express.json({ verify: keepRaw }));
 app.use(express.urlencoded({ extended: false })); // Apple Sign-In posts its callback as a form
 
-if (config.opsConsole) app.use(express.static(path.join(root, "public"))); // development only
+if (config.opsConsole) { // development only; /portal is the portal module's (its own security headers)
+  const ops = express.static(path.join(root, "public"));
+  app.use((req, res, next) => (req.path === "/portal" || req.path.startsWith("/portal/") ? next() : ops(req, res, next)));
+}
 app.get("/health", (req, res) => res.json({ ok: true, service: "cyra-backend" }));
 if (config.modules.includes("referrals")) {
   const { redirectHandler } = await import("./src/modules/referrals/index.js");

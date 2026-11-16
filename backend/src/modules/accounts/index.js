@@ -124,25 +124,34 @@ export function perAddress({ max = 3, windowMs = 10 * 60_000, clock = Date.now }
   };
 }
 
-/* ---------- sending the code ---------- */
-export function emailSender({ production }) {
+/* ---------- sending email (Resend's HTTPS API; also used by the shop module's partner portal) ---------- */
+/** { ready, send(to, subject, text) } when RESEND_API_KEY and EMAIL_FROM are set, else null. */
+export function resendMailer() {
   const key = env("RESEND_API_KEY"), from = env("EMAIL_FROM");
   const base = (env("RESEND_API_BASE") || "https://api.resend.com").replace(/\/$/, ""); // tests only (accounts-smoke)
-  if (key && from) {
+  if (!key || !from) return null;
+  return {
+    ready: true,
+    async send(to, subject, text) {
+      const r = await fetch(`${base}/emails`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+        body: JSON.stringify({ from, to: [to], subject, text }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!r.ok) throw Object.assign(new Error("send"), { cat: `email provider answered ${r.status}` });
+    },
+  };
+}
+
+/* ---------- sending the code ---------- */
+export function emailSender({ production }) {
+  const mail = resendMailer();
+  if (mail) {
     return {
       ready: true, dev: false,
-      async send(to, code) {
-        const r = await fetch(`${base}/emails`, {
-          method: "POST",
-          headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-          body: JSON.stringify({
-            from, to: [to], subject: `Your Solia Health sign-in code: ${code}`,
-            text: `Your Solia Health sign-in code is ${code}.\n\nIt works once, for 10 minutes. If you didn't ask for it, you can ignore this email: nothing happens without the code.\n\nSolia Health never asks for this code by phone or message.`,
-          }),
-          signal: AbortSignal.timeout(10_000),
-        });
-        if (!r.ok) throw Object.assign(new Error("send"), { cat: `email provider answered ${r.status}` });
-      },
+      send: (to, code) => mail.send(to, `Your Solia Health sign-in code: ${code}`,
+        `Your Solia Health sign-in code is ${code}.\n\nIt works once, for 10 minutes. If you didn't ask for it, you can ignore this email: nothing happens without the code.\n\nSolia Health never asks for this code by phone or message.`),
     };
   }
   if (!production) {
@@ -171,6 +180,11 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, sender 
   ctx.accountCodeCount = () => codes.size; // tests
 
   const noStore = (res) => res.set("cache-control", "no-store");
+  // Other modules may listen for a sign-in or a deleted account (subscriptions: a Pro grant queued for her email is applied
+  // on her first sign-in). Hooks get the account id and sign-in email only, run after the answer is decided, never block
+  // or fail a sign-in, and log only a fixed category.
+  ctx.onAccountSignIn ||= []; ctx.onAccountDelete ||= [];
+  const runHooks = (list, arg) => { for (const fn of list || []) Promise.resolve().then(() => fn(arg)).catch(() => console.warn("[cyra] accounts: a sign-in hook failed")); };
   const oauthProviders = () => { try { return ctx.oauth?.configured?.() || {}; } catch { return {}; } };
 
   async function signInAs(provider, subject, { email = "", name = "" } = {}) {
@@ -186,6 +200,7 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, sender 
       if (name && name !== acct.name) patch.name = text(name, 200);
       if (Object.keys(patch).length) { await store.update("accounts", (a) => a.id === acct.id, patch); acct = { ...acct, ...patch }; }
     }
+    runHooks(ctx.onAccountSignIn, { id: acct.id, email: acct.email || "" });
     const sid = crypto.randomBytes(24).toString("base64url");
     await store.insert("account_sessions", { sid: sidHash(sid), accountId: acct.id, createdAt: new Date(clock()).toISOString() });
     const token = signToken({ a: acct.id, s: sid, x: clock() + TOKEN_DAYS * DAY }, keys.token);
@@ -264,6 +279,7 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, sender 
     if (!w) return res.status(401).json({ error: "not signed in" });
     await store.remove("account_sessions", (r) => r.accountId === w.acct.id);
     await store.remove("accounts", (a) => a.id === w.acct.id);
+    runHooks(ctx.onAccountDelete, { id: w.acct.id });
     res.sendStatus(204);
   });
 }
