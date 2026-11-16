@@ -53,6 +53,32 @@ test("voice guide plays the recorded calm voice when this build ships clips", as
   await expect.poll(() => page.evaluate(() => window.__spoken), { timeout: 15000 }).toContain("and out");
 });
 
+test("monthly allowance: questions left shows after sign-in and updates; at the limit nothing is sent and the reset date shows", async ({ page }) => {
+  let n = 0;
+  const state = newApiState({
+    usage: { usage: { evidence: { used: 28, limit: 30 }, chat: { used: 0, limit: 100 }, weekly: { used: 0, limit: 6 } }, resetsOn: "2026-12-01" },
+    evidence: () => (++n === 1 ? { status: 200, json: { ...ANSWER, usage: { kind: "evidence", used: 29, limit: 30, resetsOn: "2026-12-01" } } } : { status: 429, json: { error: "monthly-limit", kind: "evidence", used: 30, limit: 30, resetsOn: "2026-12-01" } }),
+  });
+  await mockApi(page, state);
+  await register(page, { url: process.env.E2E_API_URL, stage: "Perimenopause", signin: "email" });
+  await gotoTab(page, "Mind"); await gotoSegment(page, "Journey");
+  const card = page.locator("#ai-evidence");
+  await expect(card.locator(".evleft")).toHaveText("2 of 30 questions left this month.");
+  expect(state.sent.find((r) => r.path === "/api/ai/usage")?.auth).toMatch(/^Bearer /);
+  const ask = async (q) => {
+    await card.getByLabel("Your question").fill(q);
+    await card.getByRole("button", { name: "Review and send" }).click();
+    await page.locator("#ai-send-sheet").getByRole("button", { name: "Send", exact: true }).click();
+  };
+  await ask("Do non-hormonal treatments help hot flashes?");
+  await expect(card.locator(".evsrcs li")).toHaveCount(3);
+  await expect(card.locator(".evleft")).toHaveText("1 of 30 questions left this month.");
+  expect(state.sent.filter((r) => r.path === "/api/ai/evidence").every((r) => /^Bearer /.test(r.auth || ""))).toBe(true);
+  await ask("Does magnesium help sleep in perimenopause?");
+  await expect(card.locator(".evnote")).toHaveText("You've asked this month's 30 questions, so nothing was sent. They start again on December 1.");
+  await expect(card.locator(".evleft")).toHaveText("0 of 30 questions left this month.");
+});
+
 test("Ask with evidence: preview, send only what was shown, numbered sources; a red flag is never sent", async ({ page }) => {
   const state = newApiState({ evidence: () => ({ status: 200, json: ANSWER }) });
   await mockApi(page, state);

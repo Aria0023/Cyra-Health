@@ -32,13 +32,15 @@ const mock = http.createServer((req, res) => {
 await new Promise((r) => mock.listen(3999, r));
 
 // a config with a 1-second API limit for the timeout check (12 s in production)
-const cfg = JSON.parse(fs.readFileSync("config/app-dev.json")); cfg.ai = { ...cfg.ai, timeoutMs: 1000 }; fs.writeFileSync("config/app.ai-test.json", JSON.stringify(cfg));
+const cfg = JSON.parse(fs.readFileSync("config/app-dev.json")); cfg.ai = { ...cfg.ai, timeoutMs: 1000, signinRequired: false }; fs.writeFileSync("config/app.ai-test.json", JSON.stringify(cfg));
+// signinRequired false: these requests are signed out, so the monthly allowance counts them in memory (ai/usage.js)
+const cfgW = { ...cfg, ai: { ...cfg.ai, timeoutMs: undefined } }; fs.writeFileSync("config/app.ai-test-w.json", JSON.stringify(cfgW));
 const start = (port, env) => spawn("node", ["server.js"], { env: { ...process.env, PORT: String(port), NODE_ENV: "", ...env }, stdio: ["ignore", "ignore", "inherit"] });
 const rules = start(3101, { ANTHROPIC_API_KEY: "" });
 const live = start(3102, { ANTHROPIC_API_KEY: "sk-ant-test", ANTHROPIC_BASE_URL: "http://127.0.0.1:3999", CORS_ORIGIN: "https://app.example" });
 // calm R8: a server whose every output line is captured, to prove no summary or question is ever logged
 let logged = "";
-const watched = spawn("node", ["server.js"], { env: { ...process.env, PORT: "3110", NODE_ENV: "", ANTHROPIC_API_KEY: "sk-ant-test", ANTHROPIC_BASE_URL: "http://127.0.0.1:3999" }, stdio: ["ignore", "pipe", "pipe"] });
+const watched = spawn("node", ["server.js"], { env: { ...process.env, PORT: "3110", NODE_ENV: "", ANTHROPIC_API_KEY: "sk-ant-test", ANTHROPIC_BASE_URL: "http://127.0.0.1:3999", CYRA_CONFIG: "config/app.ai-test-w.json" }, stdio: ["ignore", "pipe", "pipe"] });
 watched.stdout.on("data", (c) => (logged += c)); watched.stderr.on("data", (c) => (logged += c));
 const rules2 = start(3111, { ANTHROPIC_API_KEY: "" }); // calm R8: no key, not yet rate-limited
 const quick = start(3109, { ANTHROPIC_API_KEY: "sk-ant-test", ANTHROPIC_BASE_URL: "http://127.0.0.1:3999", CYRA_CONFIG: "config/app.ai-test.json" });
@@ -168,5 +170,5 @@ try {
   // nothing she sent is in the server's output
   await new Promise((res) => setTimeout(res, 300));
   assert(!/LEAK|cyra-summary|Cramps|cramps|chest pain|Maya/.test(logged), `logs carry no summary, question or body (${logged.split("\n").filter((l) => /ai/.test(l)).join(" / ").slice(0, 200)})`);
-} finally { watched.kill(); rules2.kill(); rules.kill(); live.kill(); quick.kill(); mock.close(); fs.rmSync("config/app.ai-test.json", { force: true }); }
+} finally { watched.kill(); rules2.kill(); rules.kill(); live.kill(); quick.kill(); mock.close(); fs.rmSync("config/app.ai-test.json", { force: true }); fs.rmSync("config/app.ai-test-w.json", { force: true }); }
 console.log(process.exitCode ? "AI SMOKE: FAILURES" : "AI SMOKE: all passed");

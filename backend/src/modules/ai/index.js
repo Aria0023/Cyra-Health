@@ -12,7 +12,9 @@
 // when the person has turned on "Also ask Cyra's AI when the library has no answer"
 // and the library has no match. The question text is forwarded to Anthropic verbatim
 // (trimmed to 500 characters): free text carries whatever she typed. This module
-// stores nothing. The client address is used only in memory for the rate limit, as
+// stores no question, answer or summary. The one thing it keeps is the monthly allowance (usage.js): how many evidence
+// questions, chat messages and weekly write-ups each signed-in account has had this month (counts only), and
+// GET /api/ai/usage reports them. The client address is used only in memory for the rate limit, as
 // a salted hash (salt changes daily) that is dropped about a minute (60-65 s) after the
 // last request. welcome / route / insight are no longer mounted — the app makes its
 // welcome and life-stage routing on the device, so POST /api/ai/{welcome,route,insight}
@@ -26,6 +28,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { TASKS } from "./tasks.js";
 import { mountEvidence } from "./evidence.js";
 import { rateLimiter } from "../../core/memory.js";
+import { usageMeter, limitsFrom } from "./usage.js";
 
 export const basePath = "/api/ai";
 
@@ -52,16 +55,28 @@ export function mount(router, ctx) {
   const timeout = Number(config.ai?.timeoutMs) > 0 ? Number(config.ai.timeoutMs) : 12_000;
   const client = key ? new Anthropic({ apiKey: key, timeout, maxRetries: 0 }) : null;
   const allow = rateLimiter({ perMinute: config.ai?.perMinute || 20 });
+  const meter = usageMeter({ store: ctx.store, who: (req) => (ctx.accountWho ? ctx.accountWho(req) : null), signinReady: () => !!ctx.accountSigninReady?.(), requireSignin: config.ai?.signinRequired !== false, limits: limitsFrom(config.ai?.monthly) });
+  // The monthly allowance applies to the paid tasks only; the free "ask" (with its rules fallback) is not counted.
+  const METERED = new Set(["weekly", "chat"]);
   console.log(`[cyra] ai provider: ${client ? model : "rules fallback (ANTHROPIC_API_KEY not set)"}; tasks: ${Object.keys(TASKS).join(", ")}`);
 
   // Whether this server can reach Cyra's AI at all (the app shows "AI isn't set up on this server yet" when not).
   router.get("/status", (req, res) => { res.set("cache-control", "no-store"); res.json({ ready: !!client }); });
 
+  // This month's allowance for the person asking: { usage: { evidence|chat|weekly: { used, limit } }, resetsOn }.
+  router.get("/usage", async (req, res) => {
+    res.set("cache-control", "no-store");
+    if (!allow(req.ip)) return res.status(429).json({ error: "too many requests — try again in a minute" });
+    const u = await meter.usage(req);
+    if (!u.ok) return res.status(u.status).json(u.body);
+    res.json({ usage: u.usage, resetsOn: u.resetsOn });
+  });
+
   // Task 3, "Ask with evidence" (Pro): its own client (a web-searching answer takes longer than the 12 s ask: 60 s, one
   // attempt) and its own, tighter rate limit. See evidence.js.
   const evTimeout = Number(config.ai?.evidenceTimeoutMs) > 0 ? Number(config.ai.evidenceTimeoutMs) : 60_000;
   const evClient = key ? new Anthropic({ apiKey: key, timeout: evTimeout, maxRetries: 0 }) : null;
-  mountEvidence(router, { client: evClient, model, allow: rateLimiter({ perMinute: config.ai?.evidencePerMinute || 6 }) });
+  mountEvidence(router, { client: evClient, model, allow: rateLimiter({ perMinute: config.ai?.evidencePerMinute || 6 }), meter });
 
   for (const [name, task] of Object.entries(TASKS)) {
     router.post(`/${name}`, async (req, res) => {
@@ -75,8 +90,12 @@ export function mount(router, ctx) {
       const early = task.preflight ? task.preflight(input.value) : null;
       if (early) return res.json({ provider: "safety", ...early });
       if (!client) return task.fallback ? res.json({ provider: "rules", ...task.fallback(input.value) }) : res.status(503).json({ error: "ai-not-configured" });
+      const gate = METERED.has(name) ? await meter.check(req, name) : null;
+      if (gate && !gate.ok) return res.status(gate.status).json(gate.body);
       try {
-        res.json({ provider: model, ...(await callClaude(client, model, task, input.value)) });
+        const out = await callClaude(client, model, task, input.value);
+        const usage = gate ? await gate.commit() : undefined;
+        res.json({ provider: model, ...out, ...(usage ? { usage } : {}) });
       } catch (e) {
         const kind = e instanceof Anthropic.RateLimitError ? "rate-limited" : e instanceof Anthropic.AuthenticationError ? "bad API key" : e instanceof Anthropic.APIConnectionTimeoutError ? "timed out" : e instanceof Anthropic.APIConnectionError ? "connection error" : e instanceof Anthropic.APIError ? `API ${e.status}` : e.cat || e.constructor?.name || "error";
         if (!task.fallback) { console.warn(`[cyra] ai/${name}: ${kind} — no answer`); return res.status(502).json({ error: "no-answer" }); }

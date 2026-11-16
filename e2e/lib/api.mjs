@@ -16,6 +16,7 @@ export function newApiState(over = {}) {
     evidence: null, // (body) => { status, json } for POST /api/ai/evidence
     promotions: null, // GET /api/promotions/active answers { version: 1, promotions: this } when set; null = 404
     catalog: null, // GET /api/shop/catalog answers this (any JSON) when set; null = 404, so the app keeps its bundled catalog
+    usage: null, // the GET /api/ai/usage answer ({ usage, resetsOn }), or null for 401
     sent: [],
     ...over,
   };
@@ -45,6 +46,7 @@ export async function mockApi(target, state) {
     if (p === "/api/accounts/me" && method === "DELETE") return route.fulfill({ status: 204, headers: CORS });
     if (p === "/api/integrations/sources") return json(200, state.sources);
     if (p === "/api/ai/status") return json(200, { ready: true });
+    if (p === "/api/ai/usage") return state.usage ? json(200, state.usage) : json(401, { error: "not signed in" });
     if (p === "/api/ai/evidence" && state.evidence) { const r = state.evidence(body); return json(r.status, r.json); }
     if (p === "/api/promotions/active") return state.promotions == null ? json(404, { error: "not in the mock" }) : json(200, { version: 1, promotions: state.promotions });
     if (p === "/api/shop/catalog") return state.catalog == null ? json(404, { error: "not in the mock" }) : json(200, state.catalog);

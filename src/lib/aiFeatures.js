@@ -4,7 +4,8 @@
      Pro plan (lib/plan.js aiPatternReports / aiChat); they are off until she turns them on in You → Cyra's AI;
    - before EVERY send, "What Cyra will send" shows the exact JSON body, and nothing goes until she taps Send;
    - the body is { summary } (write-up) or { summary, question, history } (chat), the summary built by lib/aiSummary.js;
-   - Cyra's server forwards it to Anthropic and keeps nothing (backend/src/modules/ai); Anthropic keeps requests for a
+   - Cyra's server forwards it to Anthropic and keeps no text, only the month's count per account for the monthly
+     allowance (backend/src/modules/ai/usage.js); Anthropic keeps requests for a
      limited time under its own terms (the same sentence as Ask's AI_DISCLOSURE);
    - the write-up and the chat history are kept on this device only (aiWeekly, aiChat: device-only, never in a backup
      file), and turning a feature off clears what it kept.
@@ -36,6 +37,9 @@ export const aiOffer = ({ flag = false, server = false, canWeekly = false, canCh
   any: !!(flag && server), weekly: !!(flag && server && canWeekly), chat: !!(flag && server && canChat),
 });
 
+/** "December 1" for an ISO date (YYYY-MM-DD); the date itself if it can't be read. */
+export const monthDay = (iso) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || "")); if (!m) return String(iso || "next month"); return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "UTC" }); };
+
 export const AI_COPY = Object.freeze({
   // You → Cyra's AI
   weeklyName: "Weekly write-up",
@@ -46,11 +50,11 @@ export const AI_COPY = Object.freeze({
   chatAdds: "Each message sends your question, your last few chat messages and the same summary, the same way. You see exactly what will be sent first, every time. Your chat history stays on this device.",
   labsName: "Include lab values",
   labsHint: "Adds the latest fasting glucose, HbA1c and waist values you typed, rounded and without their dates.",
-  offLine: "Both are off until you turn them on. Solia Health's server passes a request on and keeps nothing. Turning one off clears what it kept on this device.",
+  offLine: "Both are off until you turn them on. Solia Health's server passes a request on and keeps only a count of how many you've used this month, never what you sent. Turning one off clears what it kept on this device.",
   locked: "Pro adds a weekly write-up and a chat about your own log, written by Solia Health's AI from a summary you see before it's sent. Both stay off until you turn them on.",
   // the preview sheet
   sheetTitle: "What Solia Health will send",
-  sheetLead: "Exactly the text below goes through Solia Health's server to Anthropic, maker of the Claude AI, which keeps it for a limited time. Solia Health's server keeps nothing. Nothing else from your log is sent.",
+  sheetLead: "Exactly the text below goes through Solia Health's server to Anthropic, maker of the Claude AI, which keeps it for a limited time. Solia Health's server keeps only a count of how many you've sent this month, never the text. Nothing else from your log is sent.",
   sheetPlain: "In plain words",
   sheetExact: "Exactly as sent",
   sheetQuestion: "Your question",
@@ -64,7 +68,13 @@ export const AI_COPY = Object.freeze({
   sentSummary: "Sent: your summary",
   sentChat: "Sent: your question + your summary",
   tooMany: "Too many requests in a minute. Nothing went to Anthropic; try again shortly.",
-  noAnswer: "No answer came back from Solia Health's AI. Nothing is kept on Solia Health's server; try again later.",
+  // Monthly allowance (backend ai/usage.js): nothing is sent once the month's allowance is used.
+  signin: "Sign in to use Solia Health's AI. Nothing was sent.",
+  limitChat: (n, date) => `You've used this month's ${n} chat messages, so nothing was sent. They start again on ${monthDay(date)}.`,
+  limitWeekly: (n, date) => `You've had this month's ${n} write-ups, so nothing was sent. They start again on ${monthDay(date)}.`,
+  leftChat: (u) => `${Math.max(0, u.limit - u.used)} of ${u.limit} chat messages left this month.`,
+  leftWeekly: (u) => `${Math.max(0, u.limit - u.used)} of ${u.limit} write-ups left this month.`,
+  noAnswer: "No answer came back from Solia Health's AI, and it didn't count toward this month. Try again later.",
   refused: "Solia Health didn't send this: the summary had something it shouldn't. Please report this.",
   // write-up card
   wuTitle: "Solia Health's write-up",

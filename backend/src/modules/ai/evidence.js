@@ -96,7 +96,7 @@ export async function askWithEvidence(client, model, v, { maxContinues = 2 } = {
   return buildAnswer(blocks);
 }
 
-export function mountEvidence(router, { client, model, allow }) {
+export function mountEvidence(router, { client, model, allow, meter = null }) {
   router.post("/evidence", async (req, res) => {
     res.set("cache-control", "no-store");
     if (!allow(req.ip)) return res.status(429).json({ error: "too many requests — try again in a minute" });
@@ -106,11 +106,14 @@ export function mountEvidence(router, { client, model, allow }) {
     if (input.error) return res.status(400).json({ error: input.error });
     if (RED_FLAGS.test(input.value.question)) return res.json({ provider: "safety", urgent: true, answer: EMERGENCY_ANSWER, sources: [] });
     if (!client) return res.status(503).json({ error: "ai-not-configured" });
+    const gate = meter ? await meter.check(req, "evidence") : null;
+    if (gate && !gate.ok) return res.status(gate.status).json(gate.body);
     try {
       const out = await askWithEvidence(client, model, input.value);
       if (out.refused) { console.warn(`[cyra] ai/evidence: model declined (${out.category})`); return res.json({ provider: model, refused: true, answer: "", sources: [] }); }
       if (!out.sources.length || !out.answer) { console.warn(`[cyra] ai/evidence: no sources${out.searchError ? ` (search: ${out.searchError})` : ""}`); return res.status(502).json({ error: "no-sources", searchError: out.searchError }); }
-      res.json({ provider: model, answer: out.answer, sources: out.sources, ...(out.searchError ? { searchError: out.searchError } : {}) });
+      const usage = gate ? await gate.commit() : undefined;
+      res.json({ provider: model, answer: out.answer, sources: out.sources, ...(out.searchError ? { searchError: out.searchError } : {}), ...(usage ? { usage } : {}) });
     } catch (e) {
       const kind = e instanceof Anthropic.RateLimitError ? "rate-limited" : e instanceof Anthropic.AuthenticationError ? "bad API key" : e instanceof Anthropic.APIConnectionTimeoutError ? "timed out" : e instanceof Anthropic.APIConnectionError ? "connection error" : e instanceof Anthropic.APIError ? `API ${e.status}` : e?.constructor?.name || "error";
       console.warn(`[cyra] ai/evidence: ${kind} — no answer`);

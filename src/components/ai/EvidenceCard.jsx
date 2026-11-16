@@ -9,7 +9,7 @@ import { isNative } from "../../lib/native.js";
    With Pro: her question, an optional "Include a summary of my log" tick, and "Review and send", which opens "What Solia
    Health will send" (App.jsx, AiSendSheet) with the exact body; nothing goes until Send there. The answer shows with
    numbered links to its sources. A red-flag question is answered on this device by App.jsx and never sent. */
-export default function EvidenceCard({ open = false, onPro, summaryOk = false, busy = false, out = null, note = null, onPrepare, id = "ai-evidence" }) {
+export default function EvidenceCard({ open = false, onPro, summaryOk = false, busy = false, out = null, note = null, left = null, onPrepare, id = "ai-evidence" }) {
   const [q, setQ] = useState("");
   const [inc, setInc] = useState(false);
   const [err, setErr] = useState("");
@@ -43,6 +43,7 @@ export default function EvidenceCard({ open = false, onPro, summaryOk = false, b
       <button type="button" className="cta" aria-haspopup="dialog" disabled={busy} onClick={go}>{busy ? C.asking : C.ask}</button>
       {busy && <p className="rfoot" role="status">{C.asking}</p>}
       {note && <p className="hint evnote" role="status">{note}</p>}
+      {left && <p className="rfoot evleft">{left}</p>}
       {out && (
         <div className={`evout${out.urgent ? " askurgent" : ""}`} tabIndex={-1} ref={outRef} aria-label={`Answer: ${out.question}`}>
           <p className="asksrc-q">{out.question}</p>
