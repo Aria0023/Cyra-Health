@@ -449,6 +449,11 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 .signin-again { display:flex; flex-wrap:wrap; gap:4px 14px; }
 .signin-again .linkbtn, .signin-skip .ghostbtn { min-height:44px; }
 .signin-skip { display:grid; gap:8px; }
+.signin-try { margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+.signin-try .hint { margin:0; }
+.signin-story { color:var(--ink); }
+.gatedata { margin-top:22px; padding-top:16px; border-top:1px solid var(--line); text-align:left; }
+.gatedata-h { margin:0 0 6px; font:600 var(--fs-md, 1rem) var(--ff-body); color:var(--ink); }
 .signin-off { margin:0; }
 .signin-done { display:flex; align-items:center; gap:8px; font-size:16px; font-weight:700; color:var(--ink); margin:14px 0 6px; }
 .signin-done svg { color:var(--primary); flex-shrink:0; }
@@ -1502,6 +1507,9 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 /* The free week (lib/trial.js): one calm line on Home and in You, and the lead line of "Your free week is over". */
 .trialbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px 12px; margin:0 0 12px; padding:6px 6px 6px 14px; border:1px solid var(--line); border-radius:var(--r-inner); background:var(--card); font-size:var(--fs-sm); color:var(--ink); }
 .trialbar .linkbtn { min-height:44px; padding:0 10px; font-size:var(--fs-sm); }
+.guestbar { padding:10px 6px 4px 14px; }
+.guestbar-story { color:var(--soft); }
+.guestbar-acts { display:flex; align-items:center; justify-content:space-between; gap:4px; width:100%; margin-left:-10px; }
 /* One-time tip at the top of a view (lib/guide.js). */
 .viewtip { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin:0 0 12px; padding:10px 8px 10px 14px; border:1px solid var(--line); border-left:3px solid var(--primary); border-radius:var(--r-inner); background:var(--card); font-size:var(--fs-sm); color:var(--ink); }
 .viewtip p { margin:0; line-height:1.45; } .viewtip b { margin-right:4px; }

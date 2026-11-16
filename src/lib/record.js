@@ -25,6 +25,7 @@ import { cleanExperiments } from "./experiments.js";
 import { cleanAiPrefs, cleanAiChat, cleanAiWeekly } from "./aiFeatures.js";
 import { cleanCloudAccount } from "./account.js";
 import { cleanSignin } from "./signin.js";
+import { cleanGuestTime } from "./guest.js";
 import { cleanLocale } from "./i18n.js";
 import { cleanQuestions } from "./visitQuestions.js";
 import { cleanNightSkips, cleanConfirmations, cleanTrackStats, cleanSourceExtras } from "./sources.js";
@@ -108,6 +109,9 @@ import { cleanPromoCache, cleanPromoHidden } from "./promos.js";
  * @property {null|{at: string, data: Object}} shopCatalog [device-only] [not-in-backup] 2026-11-15 (partner portal Task 3, lib/shopCatalog.js): the published Shop catalog this device last downloaded (business data: brands and products, nothing about her) and when; never in any backup.
  * @property {{apps: string[], connectedAt: ?number, lastSync: ?number, days: Object}} glucoseLog [record] Task B (2026-11-14): blood glucose read on the phone from Apple Health / Health Connect (Dexcom, FreeStyle Libre): one summary per day ({ n, min, max, mean, last, lastAt } in mg/dL), never the raw series (lib/glucose.js).
  * @property {{pick: string[], remind: boolean}} partnerShare [record] Task A (2026-11-14): Share with a partner, what she ticks to include and the phone reminder switch (lib/partner.js). The note she types is never saved.
+ * @property {(string|null)} guestStart [record] 2026-11-16 (lib/guest.js): when she first tapped "Try it first" (an ISO time), the start of her guest window; in backups so a restore doesn't restart it; null if she never did, and null again once she has signed in on this device.
+ * @property {(string|null)} guestSeen [device-only] [not-in-backup] 2026-11-16 (lib/guest.js): the latest time this device has seen while she was a guest (an ISO time), so a clock moved back never extends the guest window.
+ * @property {(string|null)} guestNote [device-only] [not-in-backup] 2026-11-16 (lib/guest.js): the local day Home last showed its guest line (at most one day's first visit).
  * @property {(string|null)} trialStart [record] the first day of her free week (lib/trial.js, owner decision 2026-11-12), a local YYYY-MM-DD; in backups so a restore keeps it; null until she is in the app.
  * @property {Object<string, {on: boolean, since: (string|null)}>} modules [record] condition modules switched on or off (calm R1, lib/modules.js), POTS excepted (it stays in `pots`); missing means {} (all off).
  */
@@ -291,8 +295,11 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    lib/shopCatalog.js) is the cleaned Shop catalog this device last downloaded and when, or null (the bundled one is
    used): business data, never about her; device-only and never in a backup (another device downloads its own).
    promos (2026-11-15, portal subscriptions Task 3, lib/promos.js) is the list of live promotions this device last
-   downloaded and when, or null; promoHidden the ids she hid with "Not now". Both device-only and never in a backup. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice", "trialStart", "guide", "partnerShare", "glucoseLog", "proChip", "shopCatalog", "promos", "promoHidden"]);
+   downloaded and when, or null; promoHidden the ids she hid with "Not now". Both device-only and never in a backup.
+   guestStart (2026-11-16, lib/guest.js) is when she first tapped "Try it first": part of her record and of backups (a
+   restore keeps the earlier of the backup's and this device's, App.jsx applyRestore). guestSeen (the latest time this
+   device has seen as a guest) and guestNote (the day Home last showed the guest line) are device-only, never in a backup. */
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice", "trialStart", "guide", "partnerShare", "glucoseLog", "proChip", "shopCatalog", "promos", "promoHidden", "guestStart", "guestSeen", "guestNote"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -300,7 +307,7 @@ export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "ca
    is whether this browser's Home install tip should stay away (null | "dismissed" |
    "installed", lib/pwa.js), also left out of the backup file; exportLog is this device's count of
    appointment PDFs this month (L9), null while exports are unlimited, also left out of the file. */
-export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "guide", "proChip", "shopCatalog", "promos", "promoHidden"]);
+export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "guestSeen", "guestNote"]);
 /* A display preference of this device (L2): appearance ("system" | "light" | "dark", lib/appearance.js).
    It is saved with the record and followed by every open tab of this browser (so it stays in RECORD,
    they are all the same device), but it is never in a backup file and never taken from one:
@@ -315,7 +322,7 @@ export const RECORD = Object.freeze(PERSISTED.filter((k) => !DEVICE_ONLY.include
    lastBackupAt (this device's own note of when it last backed up), installHint (whether this
    device's install tip is hidden), exportLog (this device's PDF count this month, L9) and appearance
    (this device's light/dark choice). */
-export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "guide", "proChip", "shopCatalog", "promos", "promoHidden", ...DEVICE_PREFS]);
+export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "guestSeen", "guestNote", ...DEVICE_PREFS]);
 
 /** The record as it goes into an encrypted backup file, as a new object (the input is not
     changed): every saved key, except that regAnswers loses zip and age (neither is used after
@@ -585,6 +592,10 @@ export const RULES = Object.freeze({
   promoHidden: (v, p) => (v === undefined || JSON.stringify(v) === JSON.stringify(cleanPromoHidden(v)) ? [] : [`${p}: expected a list of promotion ids, got ${show(v)}`]),
   shopCatalog: (v, p) => (v === undefined || v === null || JSON.stringify(v) === JSON.stringify(cleanShopCatalog(v)) ? [] : [`${p}: expected null or { at: ISO time, data: a clean catalog }, got ${show(v)}`]),
   guide: (v, p) => (v === undefined || JSON.stringify(v) === JSON.stringify(cleanGuide(v)) ? [] : [`${p}: expected { seen: [view ids], off: true|false, replay: YYYY-MM-DD|null }, got ${show(v)}`]),
+  // The guest window (lib/guest.js): missing (a record from before it) or null, or an ISO time / a local day.
+  guestStart: (v, p) => (v == null || cleanGuestTime(v) === v ? [] : [`${p}: expected an ISO time or null, got ${show(v)}`]),
+  guestSeen: (v, p) => (v == null || cleanGuestTime(v) === v ? [] : [`${p}: expected an ISO time or null, got ${show(v)}`]),
+  guestNote: (v, p) => (v == null || (typeof v === "string" && isIso(v)) ? [] : [`${p}: expected null or YYYY-MM-DD, got ${show(v)}`]),
   // The free week (lib/trial.js): missing (a record from before it) or null, or a real local date.
   trialStart: (v, p) => (v == null || cleanTrialStart(v) === v ? [] : [`${p}: expected a YYYY-MM-DD date or null, got ${show(v)}`]),
   experiments: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanExperiments(v)) ? [] : [`${p}: expected { active: { id, start, done: [days] } | null, skip: day | null, past: [{ id, start, days, target }] }, got ${show(v)}`]),

@@ -95,7 +95,8 @@ import { encryptBackup, decryptBackup, fileTransport, backupFileName, backupKey,
 import { ACCOUNTS_HERE, cloudAccountsFor } from "./lib/cloudBackup.js";
 import { ACCOUNT_ERRORS, credentialsFor, cleanCloudAccount, mergeCloudAccount, nextCloudAccount, normEmail, contentSum, NO_ACCOUNT, ACCOUNT_COPY } from "./lib/account.js";
 import { AccountSheet } from "./components/AccountParts.jsx";
-import SignInStep, { SignInGate } from "./components/SignInStep.jsx";
+import SignInStep, { SignInGate, GuestCreateSheet } from "./components/SignInStep.jsx";
+import DataControls from "./components/DataControls.jsx";
 import { signinMode, signinInBuild, gateNeeded, sessionFrom, cleanSignin, firstNameOf, whoLine, SIGNIN_COPY, REQUIRE_SIGNIN } from "./lib/signin.js";
 import { accountsConfig, emailStart, emailVerify, providerFinish, signOutServer, deleteAccountServer } from "./lib/signinClient.js";
 import { FEATURES, DEV_FLAGS, feature, remindersInBuild } from "./lib/features.js";
@@ -118,6 +119,7 @@ import { isNative, hasPlugin, Haptics, Purchases, platform, appReturnUrl, newApp
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pots/ui.js";
 import { canLog, cleanTrialStart, trialLine } from "./lib/trial.js";
+import { GUEST_HOURS, GUEST_COPY, canTryFirst, cleanGuestTime, cleanGuestNote, guestState, guestEndsAt, guestDeadline, guestStory, guestNoteNew, nextGuestSeen, restoredGuestStart } from "./lib/guest.js";
 import { SAVED_LINE } from "./lib/saved.js";
 import { cleanGuide, hintFor, markSeen, replayGuide, gettingStarted } from "./lib/guide.js";
 import { REG_STAGE, STAGE_LABELS, ANSWER_BLANK, pruneForStage, pregWeekFrom, pcosModuleFrom, goalsForStages } from "./lib/onboarding.js";
@@ -493,6 +495,24 @@ export default function CyraDemo() {
      one day's first Home visit and goes when she hides it or opens the plans. */
   const [proChip, setProChip] = useState(null);
   const [proChipNow, setProChipNow] = useState(false);
+  /* The guest window (2026-11-16, lib/guest.js): guestStart is when she first tapped "Try it first" (her record and
+     encrypted backups; null once she has signed in here); guestSeen is the latest time this device has seen while she
+     was a guest (device-only: a clock moved back never extends the window); guestNote is the local day Home last showed
+     the guest line (device-only) and guestNoteNow whether it shows in this visit (UI only). guestClock is the time the
+     window is judged at: read when the record loads and each time the app comes back to the front, so the sign-in
+     screen appears the next time she opens the app, never in the middle of something. createOpen is the "Create your
+     account" sheet a guest opens from Home or You (UI only). */
+  const [guestStart, setGuestStart] = useState(null);
+  const [guestSeen, setGuestSeen] = useState(null);
+  const [guestNote, setGuestNote] = useState(null);
+  const [guestNoteNow, setGuestNoteNow] = useState(false);
+  const [guestClock, setGuestClock] = useState(() => Date.now());
+  const [createOpen, setCreateOpen] = useState(false);
+  const SIGNIN_BUILD = signinInBuild(FEATURES, hasServer());
+  const signMode = signinMode({ build: FEATURES.signin, server: hasServer(), config: signinCfg });
+  const guest = guestState({ mode: signMode, signedIn: !!signin, start: guestStart, now: guestClock, seen: guestSeen });
+  const guestWhen = guestStart ? guestDeadline(guestEndsAt(guestStart)) : "";
+  const guestStoryNow = guestStory({ hours: GUEST_HOURS, trialGate: TRIAL_GATE });
   const [devicesOpen, setDevicesOpen] = useState(false);
   const [serverSources, setServerSources] = useState(null);
   /* Task A (2026-11-14): Share with a partner. partnerShare { pick, remind } is her ticks and the reminder switch (record, in
@@ -899,9 +919,27 @@ export default function CyraDemo() {
      beside the free-week bar; it isn't on any other screen and never in a notification (lib/plans.js). */
   useEffect(() => {
     if (!hydrated || phase !== "app" || !stage || curTab !== "home") return;
-    if (!proChipEligible({ owned: proOwnedNow, trialBar: !!trialNow })) return;
+    if (!proChipEligible({ owned: proOwnedNow, trialBar: !!trialNow }) || guest === "in" || signMode === "checking") return; // never beside the guest line
     if (proChipNew({ shownDay: proChip, todayIso })) { setProChip(todayIso); setProChipNow(true); }
-  }, [hydrated, phase, stage, curTab, todayIso, proOwnedNow, trialNow]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hydrated, phase, stage, curTab, todayIso, proOwnedNow, trialNow, guest, signMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* The guest window (lib/guest.js). The clock is read when the record has loaded and whenever the app comes back to the
+     front; while she is a guest the latest time seen is kept (it only moves forward). Home's guest line shows on the
+     first Home visit of a day, and goes when she hides it or creates her account; You → Account always says it. */
+  useEffect(() => {
+    if (!hydrated) return undefined;
+    const tick = () => { if (document.visibilityState !== "hidden") setGuestClock(Date.now()); };
+    tick();
+    document.addEventListener("visibilitychange", tick); window.addEventListener("pageshow", tick);
+    return () => { document.removeEventListener("visibilitychange", tick); window.removeEventListener("pageshow", tick); };
+  }, [hydrated]);
+  useEffect(() => {
+    if (!hydrated || phase !== "app" || !guestStart || signin) return;
+    setGuestSeen((cur) => { const next = nextGuestSeen(cur, guestClock); return next === cur ? cur : next; });
+  }, [hydrated, phase, guestStart, signin, guestClock]);
+  useEffect(() => {
+    if (!hydrated || phase !== "app" || !stage || curTab !== "home" || guest !== "in") return;
+    if (guestNoteNew({ shownDay: guestNote, todayIso })) { setGuestNote(todayIso); setGuestNoteNow(true); }
+  }, [hydrated, phase, stage, curTab, todayIso, guest]); // eslint-disable-line react-hooks/exhaustive-deps
   /* ---------- navigation (calm R2) ----------
      One view at a time (appTab / pregTab, unchanged ids), shown under one of five tabs (lib/routes.js). A tab remembers
      the view she last had open in it. Switching from the nav (or a segment, or the log sheet) closes the POTS page;
@@ -1628,8 +1666,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLogRaw, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMedsRaw, medLog: setMedLogRaw, appts: setApptsRaw, journal: setJournalRaw, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDaysRaw, pregLog: setPregLogRaw, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestionsRaw(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLogRaw(cleanBodyLog(v)), labs: (v) => setLabsRaw(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLogRaw(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperimentsRaw(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)), signin: (v) => setSignin((cur) => cur || cleanSignin(v)), devicesHint: (v) => setDevicesHint(cleanDevicesHint(v)), practiceVoice: (v) => setPracticeVoice(v === true), trialStart: (v) => setTrialStart(cleanTrialStart(v)), guide: (v) => setGuide(cleanGuide(v)), partnerShare: (v) => setPartnerShare(cleanPartnerShare(v)), glucoseLog: (v) => setGlucoseLog(cleanGlucoseLog(v)), proChip: (v) => setProChip(cleanProChip(v)), shopCatalog: (v) => setShopCatalog(cleanShopCatalog(v)), promos: (v) => setPromos(cleanPromoCache(v)), promoHidden: (v) => setPromoHidden(cleanPromoHidden(v)) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats, signin, devicesHint, practiceVoice, trialStart, guide, partnerShare, glucoseLog, proChip, shopCatalog, promos, promoHidden };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLogRaw, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMedsRaw, medLog: setMedLogRaw, appts: setApptsRaw, journal: setJournalRaw, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDaysRaw, pregLog: setPregLogRaw, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestionsRaw(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLogRaw(cleanBodyLog(v)), labs: (v) => setLabsRaw(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLogRaw(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperimentsRaw(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)), signin: (v) => setSignin((cur) => cur || cleanSignin(v)), devicesHint: (v) => setDevicesHint(cleanDevicesHint(v)), practiceVoice: (v) => setPracticeVoice(v === true), trialStart: (v) => setTrialStart(cleanTrialStart(v)), guide: (v) => setGuide(cleanGuide(v)), partnerShare: (v) => setPartnerShare(cleanPartnerShare(v)), glucoseLog: (v) => setGlucoseLog(cleanGlucoseLog(v)), proChip: (v) => setProChip(cleanProChip(v)), shopCatalog: (v) => setShopCatalog(cleanShopCatalog(v)), promos: (v) => setPromos(cleanPromoCache(v)), promoHidden: (v) => setPromoHidden(cleanPromoHidden(v)), guestStart: (v) => setGuestStart(cleanGuestTime(v)), guestSeen: (v) => setGuestSeen(cleanGuestTime(v)), guestNote: (v) => setGuestNote(cleanGuestNote(v)) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats, signin, devicesHint, practiceVoice, trialStart, guide, partnerShare, glucoseLog, proChip, shopCatalog, promos, promoHidden, guestStart, guestSeen, guestNote };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -1985,13 +2023,15 @@ export default function CyraDemo() {
     // Passive tracking S1: her skipped nights and confirmations come back literally too (a backup without them clears them); trackStats stays this device's (DEVICE_ONLY).
     restoredBody.nightSkips = cleanNightSkips(saved.nightSkips); restoredBody.confirmations = cleanConfirmations(saved.confirmations);
     restoredBody.partnerShare = cleanPartnerShare(saved.partnerShare);
+    // The guest window (lib/guest.js): the earlier of the backup's start and this device's, so a restore never restarts or extends it; none once she has signed in here.
+    restoredBody.guestStart = restoredGuestStart(saved.guestStart, guestStart, !!signin);
     restoredBody.glucoseLog = cleanGlucoseLog(saved.glucoseLog); // Task B: glucose summaries, restored literally // Task A: her partner-share ticks, restored literally
     applySaved({ ...saved, pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody }, { skip: [...DEVICE_ONLY, ...DEVICE_PREFS, "reminders"] }); setShowSettings(false); setFormRev((n) => n + 1);
     potsBase.current = restoredPots; setPotsHomeLast(null);
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
-    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, uiLocale, uiStyle, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount, signin, devicesHint, practiceVoice, guide, proChip, shopCatalog, promos, promoHidden };
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, uiLocale, uiStyle, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount, signin, devicesHint, practiceVoice, guide, proChip, shopCatalog, promos, promoHidden, guestSeen, guestNote };
     if (account) setCloudAccount(account);
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
@@ -2463,8 +2503,6 @@ export default function CyraDemo() {
      redeemable only with this attempt's one-time verifier. Email: a 6-digit code (lib/signinClient.js). A build without
      the signin flag or a server makes none of these requests, and never redeems a returning #oauth= code.
      Nothing from her log goes with any of them. */
-  const SIGNIN_BUILD = signinInBuild(FEATURES, hasServer());
-  const signMode = signinMode({ build: FEATURES.signin, server: hasServer(), config: signinCfg });
   const askSigninConfig = () => { setSigninCfg(null); accountsConfig().then(setSigninCfg); };
   const phaseRef = useRef(phase); phaseRef.current = phase;
   const regRef = useRef(reg); regRef.current = reg;
@@ -2474,6 +2512,7 @@ export default function CyraDemo() {
     if (!s) throw new Error("no session");
     signedOutHere.current = false;
     setSignin(s);
+    setGuestStart(null); setGuestNoteNow(false); setCreateOpen(false); // signing in ends the guest window for good (lib/guest.js)
     if (phaseRef.current !== "app") {
       const first = firstNameOf(s);
       setReg((x) => (x.anon ? x : { ...x, name: x.name || first, email: x.email || s.email || "" }));
@@ -2637,11 +2676,21 @@ export default function CyraDemo() {
       onUse={() => adoptAccountBackup(acctChoice.saved, acctChoice.acct)} onKeep={() => keepDeviceLog(acctChoice.acct)} />
   );
   /* Sign-in required (Task 1): a record already on this device signs in once before the app opens. Only once the server
-     has said sign-in is required here; offline, or while it is being asked, the app opens as before. */
-  if (phase === "app" && gateNeeded({ mode: signMode, signedIn: !!signin })) {
+     has said sign-in is required here; offline, or while it is being asked, the app opens as before.
+     The guest window (2026-11-16, lib/guest.js): a guest inside her window isn't asked; once it is over she is, on the
+     next open, with the guest wording. That screen never locks her out of her own data: the encrypted backup, restore
+     and Delete everything are right there (the same DataControls as Settings), no sign-in needed. */
+  if (phase === "app" && gateNeeded({ mode: signMode, signedIn: !!signin, guest })) {
+    const over = guest === "over";
     return (
       <Shell {...shell} toast={toast}>
-        <SignInGate>
+        <SignInGate title={over ? GUEST_COPY.gateTitle(GUEST_HOURS) : undefined} sub={over ? GUEST_COPY.gateSub : undefined}
+          data={over ? (
+            <>
+              <DataControls hideLab driver={storageDriver} onExport={exportBackup} onImport={importBackup} onWipe={wipeDevice} ping={ping} keepsWeekNote={keepsWeekNote}
+                daysLogged={stage === "preg" ? Object.keys(pregLog).length : days.length} lastBackupAt={lastBackupAt} todayIso={todayIso} offlineCopy={offlineReady} legacyWear={legacyWear} onHandoff={holdLock} />
+            </>
+          ) : null}>
           <SignInStep mode={signMode} providers={signinCfg?.providers || {}} busy={socialBusy} signedIn={signin} onProvider={startSocial} onEmailStart={emailStart} onEmailVerify={onEmailVerify} onRetry={askSigninConfig} />
         </SignInGate>
       </Shell>
@@ -2661,7 +2710,8 @@ export default function CyraDemo() {
     return (
       <Shell {...shell} toast={toast} repaint={repaint}>
         <RegisterScreen reg={reg} setReg={setReg} regStep={regStep} setRegStep={setRegStep} regTouched={regTouched} setRegTouched={setRegTouched} cadence={cadence} setCadence={setCadence} finishReg={finishReg} onBackToSplash={() => setPhase("splash")} scheme={scheme}
-          signinStep={FEATURES.signin ? { mode: signMode, providers: signinCfg?.providers || {}, busy: socialBusy, signedIn: signin, onProvider: startSocial, onEmailStart: emailStart, onEmailVerify, onRetry: askSigninConfig } : null} />
+          signinStep={FEATURES.signin ? { mode: signMode, providers: signinCfg?.providers || {}, busy: socialBusy, signedIn: signin, onProvider: startSocial, onEmailStart: emailStart, onEmailVerify, onRetry: askSigninConfig,
+            guest: canTryFirst(signMode, GUEST_HOURS) ? { hours: GUEST_HOURS, story: guestStoryNow, onTry: () => setGuestStart((g) => g || new Date().toISOString()) } : null } : null} />
       </Shell>
     );
   }
@@ -2736,6 +2786,7 @@ export default function CyraDemo() {
   const homeView = (
     <HomeScreen
       trial={trialNow ? { line: trialNow, onPlans: () => setProOpen(true) } : null}
+      guest={guest === "in" && guestNoteNow ? { line: GUEST_COPY.line(guestWhen), story: guestStoryNow, createLabel: GUEST_COPY.create, hideLabel: GUEST_COPY.hide, onCreate: () => setCreateOpen(true), onHide: () => { setGuestNoteNow(false); ping(GUEST_COPY.hidden); } } : null}
       proChip={proChipNow && !proOwnedNow && !trialNow ? { label: PLANS_COPY.chip, hideLabel: PLANS_COPY.chipHide, onOpen: () => { setProChipNow(false); setProOpen(true); }, onHide: () => setProChipNow(false) } : null}
       acct={acct} stage={stage} stageName={stageName} goTab={goTab}
       hero={heroModel({ stage, isMeno, pred, predWhy, pregWeek, tri, dueDate, lastPeriodIso: isMeno ? lastPeriodDay(ins.sorted) : null, todayIso, pcosOn: pcosHere })}
@@ -2941,6 +2992,8 @@ export default function CyraDemo() {
       then?.();
       return;
     }
+    // A guest has no account, and Pro's AI needs one: said here, before anything is prepared or sent (lib/guest.js).
+    if (guest === "in") { setAiNote((n) => ({ ...n, [kind]: GUEST_COPY.ai })); return; }
     const s = summaryNow();
     if (checkSummary(s).length) { setAiNote((n) => ({ ...n, [kind]: AI_COPY.refused })); return; }
     setAiSendOpen({ kind, body: kind === "chat" ? chatBody({ summary: s, question, history: aiChat }) : weeklyBody(s), lines: summaryLines(s), then });
@@ -2976,6 +3029,7 @@ export default function CyraDemo() {
   const prepareEvidence = (question, include) => {
     setEvNote(null);
     if (RED_FLAGS.test(question)) { setEvOut({ question, answer: EVIDENCE_COPY.urgentLocal, urgent: true, sources: [] }); return; }
+    if (guest === "in") { setEvNote(GUEST_COPY.ai); return; } // a guest has no account; nothing is sent
     const s = include ? summaryNow() : null;
     if (s && checkSummary(s).length) { setEvNote(AI_COPY.refused); return; }
     const body = evidenceBody(question, s);
@@ -3084,6 +3138,7 @@ export default function CyraDemo() {
     <YouScreen onTour={() => { setGuide(replayGuide(todayIso)); setHomeStepSkip(null); goTab("home"); ping("Getting started is back on Home, and each screen will show its tip again."); }} trial={{ gateOn: TRIAL_GATE && !proOwnedNow, line: trialNow }} acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={proOn} proOwned={proOwnedNow} storeReady={STORE.available} onPro={() => setProOpen(true)}
       ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line || (isNative() ? null : WEB_PRICE_LINE)} meals={mealsOffered ? { on: mealsHere, onToggle: () => { const on = !mealsHere; setBodyPrefs((p) => cleanBodyPrefs({ ...p, mealsOn: on })); ping(on ? "Meal notes on" : "Meal notes off. What you noted is kept"); } } : null} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
+      guest={guest === "in" ? { youLine: GUEST_COPY.youLine(guestWhen), story: guestStoryNow, createLabel: GUEST_COPY.create, onCreate: () => setCreateOpen(true) } : null}
       signMode={signMode} store={STORE} native={isNative()} promo={promoNow} onHidePromo={hidePromo} proUntil={proUntilNow} signedIn={signin ? { s: signin, required: REQUIRE_SIGNIN, onSignOut: signOutAccount, onDelete: deleteSignedInAccount } : null}
       account={ACCOUNTS_HERE ? { can: ACCOUNTS.available(), acct: cloudAccount.acct, sync: cloudSync, todayIso, onCreate: () => setAcctSheet("create"), onSignIn: () => setAcctSheet("signin"), onBackup: () => backupToCloud(), onSignOut: signOut, onDelete: deleteAccount, onUseBackup: resolveUseBackup, onKeepDevice: resolveKeepDevice, onPro: () => setProOpen(true) } : null}
       dataSources={SOURCES_HERE || sourcesModel.rows.length ? <DataSourcesCard m={sourcesModel} busy={wearBusy} onDevices={openDevices} onConnect={connectWear} onPause={pauseSource} onDisconnect={disconnectAny} onPrefer={preferSource} onDemo={setDemo} /> : null}
@@ -3206,6 +3261,7 @@ export default function CyraDemo() {
       {partnerOpen && partnerShown && <PartnerSheet prefs={partnerShare} setPrefs={setPartnerPrefs} pred={pred} ttc={ttc} phone={isNative()} onShare={sharePartner} onClose={() => setPartnerOpen(false)} />}
       {learnOpen && <LearnSheet id={learnOpen} onClose={() => setLearnOpen(null)} />}
       {proOpen && <ProSheet gateOn={TRIAL_GATE} unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} promo={promoNow} onHidePromo={hidePromo} until={proUntilNow} onCodeDone={() => startStore(STORE).then(takeStore)} onClose={() => setProOpen(false)} />}
+      {createOpen && guest === "in" && <GuestCreateSheet onClose={() => setCreateOpen(false)} step={{ mode: signMode, providers: signinCfg?.providers || {}, busy: socialBusy, signedIn: signin, onProvider: startSocial, onEmailStart: emailStart, onEmailVerify, onRetry: askSigninConfig }} />}
       {trialSheet && !proOpen && <ProSheet gateOn={TRIAL_GATE} trialOver unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} promo={promoNow} onHidePromo={hidePromo} until={proUntilNow} onCodeDone={() => startStore(STORE).then(takeStore)} onClose={() => setTrialSheet(false)} />}
       {acctSheetView}
       {evSendOpen && <AiSendSheet kind="evidence" body={evSendOpen.body} lines={evSendOpen.lines} busy={evBusy} onSend={sendEvidence} onClose={() => setEvSendOpen(null)} />}

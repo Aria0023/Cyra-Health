@@ -54,7 +54,7 @@ const SLEPT = { good: "well", fair: "so-so", poor: "poorly" };
 const delta = (a, b, goodUp = true) => { const d = b - a; if (d === 0) return <span className="flat">{t("home.unchanged")}</span>; const good = goodUp ? d > 0 : d < 0; return <span className={good ? "up" : "down"}>{d > 0 ? "+" : ""}{d}</span>; };
 
 export default function HomeScreen({
-  trial = null, proChip = null, acct, stage, stageName, goTab, todayIso, homeInsight, patternsCard = null, wearInsights, milestones, justReached = null, nextUp, pulse,
+  trial = null, proChip = null, guest = null, acct, stage, stageName, goTab, todayIso, homeInsight, patternsCard = null, wearInsights, milestones, justReached = null, nextUp, pulse,
   todayEntry = null, scoreIds = [], scoreLabels = {},
   hero, tiles = [], onTile, tilePicker = null, step = null, onStep, onSkipStep, bodyRail = [], mindRail = [],
   recap, showRecap, setShowRecap,
@@ -137,6 +137,17 @@ export default function HomeScreen({
         <div className="trialbar" role="status">
           <span>{trial.line}</span>
           <button type="button" className="linkbtn" aria-haspopup="dialog" onClick={trial.onPlans}>See plans</button>
+        </div>
+      )}
+      {/* The guest window (2026-11-16, lib/guest.js): one quiet line for a guest, on the first Home visit of a day, with
+          the whole story once, a way to create the account and "Hide for today". */}
+      {guest && (
+        <div className="trialbar guestbar" role="status">
+          <span>{guest.line} <span className="guestbar-story">{guest.story}</span></span>
+          <span className="guestbar-acts">
+            <button type="button" className="linkbtn" aria-haspopup="dialog" onClick={guest.onCreate}>{guest.createLabel}</button>
+            <button type="button" className="prochip-hide" aria-label={guest.hideLabel} onClick={() => { guest.onHide(); ctaRef.current?.focus({ preventScroll: true }); }}><Icon name="close" size={14} /></button>
+          </span>
         </div>
       )}
       {/* Plans (2026-11-15): a small "Pro · 7-day free trial" note for someone without Pro, at most one day's first Home
