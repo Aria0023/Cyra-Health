@@ -21,14 +21,14 @@ export const STYLES = [
   ["mono", "Mono", "Quiet, one colour"],
   ["clear", "Clear", "Crisp, easy reading"],
   ["journal", "Journal", "Paper, handmade"],
-  ["dawn", "Dawn", "Peach and rose"],
-  ["sage", "Sage", "Soft green, earthy"],
-  ["lilac", "Lilac", "Lavender, airy"],
+  ["velvet", "Velvet", "Plum and gold, rich"],
+  ["evergreen", "Evergreen", "Deep green, earthy"],
+  ["marine", "Marine", "Navy and copper"],
 ];
 export const STYLE_KEYS = STYLES.map(([k]) => k);
 export const DEFAULT_STYLE = "soft";
-/* Dawn, Sage and Lilac (2026-11-19, owner: "a few more skins to try") are Soft's shape with one blended pastel
-   palette each, the same for every stage. Anything that isn't one of the seven keys (missing, an old record, a typo) reads as Soft. */
+/* Velvet, Evergreen and Marine (2026-11-19, owner: "a few more skins to try ... comfortable blended tones, high end,
+   contrast") are Soft's shape with one deeper, richer palette each, the same for every stage. Anything that isn't one of the seven keys (missing, an old record, a typo) reads as Soft. */
 export const cleanStyle = (v) => (STYLE_KEYS.includes(v) ? v : DEFAULT_STYLE);
 export const SYSTEM_DARK_QUERY = "(prefers-color-scheme: dark)";
 /* The scheme on screen: printing → light; then her explicit choice; else the device setting. */
