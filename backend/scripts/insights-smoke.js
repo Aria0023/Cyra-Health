@@ -1,7 +1,8 @@
 // Insights smoke test (docs/plans/tracking-reports.md): a real production-mode server (NODE_ENV=production, real-looking
 // secrets, ADMIN_EMAILS) with local mocks of Impact's partner API (IMPACT_API_BASE) and Resend's (RESEND_API_BASE), on
 // free ports, so the whole path runs end to end: an app account signs in and its day is noted, an owner's portal sign-in,
-// the People counts, shop taps beside Impact's numbers on the Affiliates answer, an Amazon Associates report upload.
+// the People counts, shop taps beside Impact's numbers on the Affiliates answer, an Amazon Associates report upload, and
+// the weekly report previewed and sent (the plain template: no AI key here).
 // Then the log and the disk: never the Impact token, never an email address in the log, totals only on disk. Last, a
 // production server without the Impact variables says "not configured", names them, and makes no request.
 // Usage: node scripts/insights-smoke.js
@@ -81,15 +82,26 @@ try {
   const az = (await (await call("GET", "/api/insights/affiliates?days=7", undefined, owner)).json()).amazon;
   assert(up.status === 201 && az.uploaded === true && az.window.items === 3 && az.window.revenue === 49.97 && az.window.earnings === 2, "amazon: the uploaded earnings report becomes per-day totals");
   assert((await call("POST", "/api/insights/amazon", "not a report", owner)).status === 400, "amazon: a file that isn't the report is refused");
+  // the weekly report (Task 4): no ANTHROPIC_API_KEY here, so the plain template; sent through Resend to the owners
+  const ws = await (await call("GET", "/api/insights/weekly", undefined, owner)).json();
+  assert(ws.enabled === true && ws.recipients.join() === "owner@solia.example" && ws.email === "ready" && ws.ai === false && /T14:00:00\.000Z$/.test(ws.nextAt) && new Date(ws.nextAt).getUTCDay() === 1, "weekly: on by default, to ADMIN_EMAILS, next on a Monday at 14:00 UTC; AI not set up here");
+  const pv = await (await call("POST", "/api/insights/weekly/preview", {}, owner)).json();
+  assert(pv.writer === "template" && /ANTHROPIC_API_KEY/.test(pv.why) && pv.text.includes("Totals only; no personal or health data.") && pv.text.includes("- Accounts: 2 in all") && !/@|maya|noor/.test(pv.text), "weekly preview: the plain template with the totals; no address or name in it");
+  const before = inbox.length;
+  const sn = await call("POST", "/api/insights/weekly/send", { previewId: pv.id }, owner);
+  const mailed = inbox.slice(before);
+  assert(sn.status === 200 && mailed.length === 1 && mailed[0].to.join() === "owner@solia.example" && mailed[0].subject === pv.subject && mailed[0].text === pv.text && mailed[0].from.includes("portal@solia.example"), "weekly send now: Resend gets exactly the previewed text, for the owner");
+  assert((await call("PUT", "/api/insights/weekly", { enabled: false }, owner)).status === 200 && (await (await call("GET", "/api/insights/weekly", undefined, owner)).json()).nextAt === null, "weekly: an owner can turn it off");
   // a partner and a stranger
   await call("POST", "/api/shop/invites", { email: "pat@oura.example", brandIds: ["oura"] }, owner);
   const partner = await portalIn(call, "pat@oura.example");
   const pst = [];
-  for (const p of ["/api/insights/people", "/api/insights/affiliates", "/api/insights/impact/campaigns"]) pst.push((await call("GET", p, undefined, partner)).status, (await call("GET", p)).status, (await call("GET", p, undefined, maya.token)).status);
+  for (const p of ["/api/insights/people", "/api/insights/affiliates", "/api/insights/weekly"]) pst.push((await call("GET", p, undefined, partner)).status, (await call("GET", p)).status, (await call("GET", p, undefined, maya.token)).status);
   assert(pst.join() === "403,401,401,403,401,401,403,401,401" && (await call("GET", "/api/shop/taps?days=7", undefined, partner)).status === 200, "owner only: a partner gets 403, no sign-in and an app session get 401; the partner still reads its own brands' taps");
   // disk and log
   const log = srv.log();
   assert(!log.includes(TOKEN) && !log.includes(SID) && !/@clinic\.example|@solia\.example|@oura\.example/.test(log), "log: no Impact token or SID and no email address");
+  assert(!log.includes("Accounts: 2 in all") && !log.includes("weekly report:"), "log: nothing of the weekly report's text");
   const disk = fs.readdirSync(`${DATA}-${P}`).filter((f) => f.startsWith("insights_") || f === "shop_taps.json").map((f) => fs.readFileSync(`${DATA}-${P}/${f}`, "utf8")).join("\n");
   assert(!disk.includes(TOKEN) && !/strips|Thermometer|clinic\.example/.test(disk) && !/"(symptoms|mood|days|stage|cycleLen|lastPeriod)"\s*:/.test(disk), "disk: totals only — no token, no product names from the Amazon report, no account, no health field");
 } finally { srv.proc.kill(); }
@@ -107,6 +119,34 @@ try {
     assert(a.impact.configured === false && a.impact.missing.join() === "IMPACT_ACCOUNT_SID,IMPACT_AUTH_TOKEN" && c.configured === false && c.campaigns.length === 0 && imCalls.length === n, "without Impact's variables: \"not configured\" names them, and no request is made");
     assert((await call("GET", "/api/insights/people", undefined, owner)).status === 200, "without Impact's variables: People still answers");
   } finally { s2.proc.kill(); }
+}
+// with an AI key: the weekly summary goes through the ai module's client (the official SDK) to a mock Anthropic
+{
+  const seen = [];
+  const anthropic = http.createServer((req, res) => {
+    let raw = ""; req.on("data", (c) => (raw += c)); req.on("end", () => {
+      const body = JSON.parse(raw); seen.push({ url: req.url, headers: req.headers, body });
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ id: "msg_mock", type: "message", role: "assistant", model: body.model, stop_reason: "end_turn", stop_sequence: null, content: [{ type: "thinking", thinking: "", signature: "s" }, { type: "text", text: "One account was made this week. The Shop was opened once. Nothing else stands out." }], usage: { input_tokens: 1, output_tokens: 1 } }));
+    });
+  });
+  const [AP, P3] = [await freePort(), await freePort()];
+  await new Promise((r) => anthropic.listen(AP, "127.0.0.1", r));
+  const s3 = start({ ANTHROPIC_API_KEY: "sk-ant-test", ANTHROPIC_BASE_URL: `http://127.0.0.1:${AP}` }, P3);
+  try {
+    const B = `http://127.0.0.1:${P3}`, call = caller(B);
+    await waitFor(`${B}/health`);
+    await appIn(call, "ines@clinic.example");
+    await call("POST", "/api/shop/tap", { productId: "oura" });
+    const owner = await portalIn(call, "owner@solia.example");
+    const pv = await (await call("POST", "/api/insights/weekly/preview", {}, owner)).json();
+    const q = seen.at(-1);
+    assert(pv.writer === "claude" && pv.why === null && pv.text.includes("One account was made this week.") && pv.text.includes("THE NUMBERS") && pv.text.includes("Totals only; no personal or health data.") && /written by Claude \(Anthropic\)/.test(pv.text), "weekly with a key: Claude's summary above the same numbers, and the email says who wrote it");
+    assert(seen.length === 1 && q.url.startsWith("/v1/messages") && /server-side-fallback-2026-07-01/.test(q.headers["anthropic-beta"] || "") && q.body.fallbacks === "default" && q.body.output_config?.effort === "low" && !("thinking" in q.body) && !("temperature" in q.body) && q.body.model === "claude-opus-5-5", "anthropic: one request with the configured model, effort low, no thinking parameter, the refusal fallback on");
+    const content = String(q.body.messages[0].content), given = JSON.parse(content.slice(content.indexOf("{"), content.lastIndexOf("}") + 1));
+    assert(given.people.total === 1 && given.shop && given.unusual && !/@|ines|clinic\.example|acct_/.test(content + String(q.body.system)), "anthropic: it is sent the totals JSON only — no address, name or account id");
+    assert(!s3.log().includes("One account was made") && !s3.log().includes("sk-ant-test"), "log: neither the summary nor the key");
+  } finally { s3.proc.kill(); anthropic.close(); fs.rmSync(`${DATA}-${P3}`, { recursive: true, force: true }); }
 }
 resend.close(); impact.close();
 await sleep(200);
