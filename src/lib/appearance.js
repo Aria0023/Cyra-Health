@@ -21,10 +21,16 @@ export const STYLES = [
   ["mono", "Mono", "Quiet, one colour"],
   ["clear", "Clear", "Crisp, easy reading"],
   ["journal", "Journal", "Paper, handmade"],
+  ["aura", "Aura", "Lilac to peach glow"],
+  ["sky", "Sky", "Blue glow, airy"],
+  ["blush", "Blush", "Peach and pink glow"],
+  ["mint", "Mint", "Green glow, fresh"],
+  ["sunset", "Sunset", "Orange to violet"],
 ];
 export const STYLE_KEYS = STYLES.map(([k]) => k);
 export const DEFAULT_STYLE = "soft";
-/* Anything that isn't one of the four keys (missing, an old record, a typo) reads as Soft. */
+/* Aura, Sky, Blush, Mint and Sunset (2026-11-19, to test with users) follow the owner's reference screens: a pastel gradient behind frosted cards.
+   Anything that isn't one of the nine keys (missing, an old record, a typo) reads as Soft. */
 export const cleanStyle = (v) => (STYLE_KEYS.includes(v) ? v : DEFAULT_STYLE);
 export const SYSTEM_DARK_QUERY = "(prefers-color-scheme: dark)";
 /* The scheme on screen: printing → light; then her explicit choice; else the device setting. */

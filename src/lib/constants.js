@@ -289,6 +289,12 @@ export const STYLE_SHAPE = {
   },
   /* Mono: same shape as Soft (only colour changes; MONO above). */
   mono: {},
+  /* Aura, Sky, Blush, Mint, Sunset: Soft with rounder cards and tiles and a larger screen title. */
+  aura: { "--r-card": "26px", "--r-tile": "22px", "--r-inner": "18px", "--fs-title": "30px" },
+  sky: { "--r-card": "26px", "--r-tile": "22px", "--r-inner": "18px", "--fs-title": "30px" },
+  blush: { "--r-card": "26px", "--r-tile": "22px", "--r-inner": "18px", "--fs-title": "30px" },
+  mint: { "--r-card": "26px", "--r-tile": "22px", "--r-inner": "18px", "--fs-title": "30px" },
+  sunset: { "--r-card": "26px", "--r-tile": "22px", "--r-inner": "18px", "--fs-title": "30px" },
   /* Bloom: warm, expressive, editorial. Fraunces for headings and big labels, larger display steps, very round shapes,
      roomier spacing, a gentle overshoot in motion. */
   bloom: {
@@ -390,6 +396,103 @@ export const STYLE_SKINS = {
       "--sh-card": "3px 3px 0 -1px var(--card), 3px 3px 0 0 #3B3E48", "--sh-opt": "none", "--sh-meter": "none",
       "--sh-lift": "3px 3px 0 -1px var(--card), 3px 3px 0 0 #3B3E48", "--sh-sheet": "0 -1px 0 #3B3E48, 0 -5px 0 -2px var(--card), 0 -5px 0 -1px #3B3E48",
       "--scrim": "rgba(0,0,0,.58)",
+    },
+  },
+  /* Aura, Sky, Blush, Mint, Sunset (2026-11-19, from the owner's reference screens: "color and feel"; five to test
+     with users): Soft's
+     layout with rounder cards, a full pastel gradient behind every screen (from the three washes), frosted white
+     cards, fuller domain tints and colourful gradient icon circles (--ico-*; the rules tokens can't say are in
+     styles.js under "Aura"). Aura is lilac to peach, Sky is blue, Blush is peach and pink, Mint is green, Sunset is orange to violet. One palette for every
+     stage. UI colours only; charts keep theirs. AA on every surface; each paper hex is the deepest pastel its
+     gradient reaches, so the tested contrast is the worst case. */
+  aura: {
+    light: {
+      "--primary": "#5F57C2", "--accent": "#B83E79", "--paper": "#F3E8F8", "--card": "#FFFFFF", "--ink": "#1C1A2E", "--soft": "#514E68", "--line": "#7B7893",
+      "--edge": "#EADFF2", "--wash-a": "rgba(226,170,240,.55)", "--wash-b": "rgba(160,205,250,.50)", "--wash-c": "rgba(255,200,165,.55)",
+      "--tint-mind": "#D8EBFB", "--tint-body": "#FBDDE7", "--tint-patterns": "#FDE7D0", "--tint-you": "#E8E1F8",
+      "--good": "#2C5B43", "--bad": "#9E3340", "--on-primary": "#FFF", "--toast-dot": "var(--accent)", "--brand": "#5F57C2",
+      "--sh-card": "0 1px 2px rgba(60,40,110,.05), 0 18px 40px -18px rgba(90,60,150,.28)", "--sh-ico": "0 6px 14px -6px rgba(90,60,150,.45)",
+      "--ico-0": "linear-gradient(140deg, #8E86F0, #5F57C2)", "--ico-1": "linear-gradient(140deg, #FF8FB1, #E0508A)", "--ico-2": "linear-gradient(140deg, #6FC3F7, #3E86D9)", "--ico-3": "linear-gradient(140deg, #FFB36B, #F0763C)", "--ico-4": "linear-gradient(140deg, #6FD9B0, #2FA57C)", "--ico-ink": "#FFF",
+    },
+    dark: {
+      "--primary": "#B4AEF6", "--accent": "#F0A3C6", "--paper": "#14122A", "--card": "#1F1C3A", "--ink": "#EFEDFA", "--soft": "#B7B3D0", "--line": "#7C7899",
+      "--edge": "#322E55", "--wash-a": "rgba(150,90,200,.40)", "--wash-b": "rgba(60,110,200,.34)", "--wash-c": "rgba(210,110,90,.28)",
+      "--tint-mind": "#1D2A4A", "--tint-body": "#3A2140", "--tint-patterns": "#3A2A2A", "--tint-you": "#2A2550",
+      "--good": "#8FCBA4", "--bad": "#F29B91", "--on-primary": "var(--paper)", "--toast-dot": "var(--accent)", "--brand": "#B4AEF6",
+      "--sh-card": "0 1px 2px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.05)", "--sh-ico": "0 6px 14px -6px rgba(0,0,0,.6)",
+      "--ico-0": "linear-gradient(140deg, #8E86F0, #5F57C2)", "--ico-1": "linear-gradient(140deg, #FF8FB1, #E0508A)", "--ico-2": "linear-gradient(140deg, #6FC3F7, #3E86D9)", "--ico-3": "linear-gradient(140deg, #FFB36B, #F0763C)", "--ico-4": "linear-gradient(140deg, #6FD9B0, #2FA57C)", "--ico-ink": "#FFF",
+    },
+  },
+  sky: {
+    light: {
+      "--primary": "#3A66BF", "--accent": "#B03C74", "--paper": "#E2F0FC", "--card": "#FFFFFF", "--ink": "#15203A", "--soft": "#48556E", "--line": "#73819A",
+      "--edge": "#D6E6F5", "--wash-a": "rgba(140,200,250,.62)", "--wash-b": "rgba(170,225,245,.50)", "--wash-c": "rgba(200,190,250,.45)",
+      "--tint-mind": "#D2E7FB", "--tint-body": "#F9DCE9", "--tint-patterns": "#FCE8D2", "--tint-you": "#E0E4FA",
+      "--good": "#2A5A44", "--bad": "#9E3340", "--on-primary": "#FFF", "--toast-dot": "var(--accent)", "--brand": "#3A66BF",
+      "--sh-card": "0 1px 2px rgba(60,40,110,.05), 0 18px 40px -18px rgba(90,60,150,.28)", "--sh-ico": "0 6px 14px -6px rgba(90,60,150,.45)",
+      "--ico-0": "linear-gradient(140deg, #8E86F0, #5F57C2)", "--ico-1": "linear-gradient(140deg, #FF8FB1, #E0508A)", "--ico-2": "linear-gradient(140deg, #6FC3F7, #3E86D9)", "--ico-3": "linear-gradient(140deg, #FFB36B, #F0763C)", "--ico-4": "linear-gradient(140deg, #6FD9B0, #2FA57C)", "--ico-ink": "#FFF",
+    },
+    dark: {
+      "--primary": "#9DBCF5", "--accent": "#F0A3C6", "--paper": "#0F1830", "--card": "#182340", "--ink": "#EAF1FB", "--soft": "#AFBCD3", "--line": "#74829C",
+      "--edge": "#2A3858", "--wash-a": "rgba(50,110,210,.42)", "--wash-b": "rgba(40,150,190,.30)", "--wash-c": "rgba(120,90,210,.30)",
+      "--tint-mind": "#1A2D52", "--tint-body": "#372343", "--tint-patterns": "#38292A", "--tint-you": "#232C55",
+      "--good": "#8FCBA4", "--bad": "#F29B91", "--on-primary": "var(--paper)", "--toast-dot": "var(--accent)", "--brand": "#9DBCF5",
+      "--sh-card": "0 1px 2px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.05)", "--sh-ico": "0 6px 14px -6px rgba(0,0,0,.6)",
+      "--ico-0": "linear-gradient(140deg, #8E86F0, #5F57C2)", "--ico-1": "linear-gradient(140deg, #FF8FB1, #E0508A)", "--ico-2": "linear-gradient(140deg, #6FC3F7, #3E86D9)", "--ico-3": "linear-gradient(140deg, #FFB36B, #F0763C)", "--ico-4": "linear-gradient(140deg, #6FD9B0, #2FA57C)", "--ico-ink": "#FFF",
+    },
+  },
+  blush: {
+    light: {
+      "--primary": "#B23F6B", "--accent": "#8C4F16", "--paper": "#FCE8DF", "--card": "#FFFFFF", "--ink": "#2A1A22", "--soft": "#5E4A54", "--line": "#8C7480",
+      "--edge": "#F4DDD4", "--wash-a": "rgba(255,190,165,.60)", "--wash-b": "rgba(250,170,200,.50)", "--wash-c": "rgba(255,222,165,.52)",
+      "--tint-mind": "#E0E9FA", "--tint-body": "#FBD8E2", "--tint-patterns": "#FDE3C6", "--tint-you": "#F5E2EC",
+      "--good": "#2F5A42", "--bad": "#9E3340", "--on-primary": "#FFF", "--toast-dot": "var(--accent)", "--brand": "#B23F6B",
+      "--sh-card": "0 1px 2px rgba(60,40,110,.05), 0 18px 40px -18px rgba(90,60,150,.28)", "--sh-ico": "0 6px 14px -6px rgba(90,60,150,.45)",
+      "--ico-0": "linear-gradient(140deg, #8E86F0, #5F57C2)", "--ico-1": "linear-gradient(140deg, #FF8FB1, #E0508A)", "--ico-2": "linear-gradient(140deg, #6FC3F7, #3E86D9)", "--ico-3": "linear-gradient(140deg, #FFB36B, #F0763C)", "--ico-4": "linear-gradient(140deg, #6FD9B0, #2FA57C)", "--ico-ink": "#FFF",
+    },
+    dark: {
+      "--primary": "#F3A6BF", "--accent": "#EBBE8C", "--paper": "#1E1218", "--card": "#2A1A23", "--ink": "#FBEDEE", "--soft": "#CDB5BE", "--line": "#8E7682",
+      "--edge": "#40293A", "--wash-a": "rgba(210,100,110,.36)", "--wash-b": "rgba(200,80,140,.32)", "--wash-c": "rgba(210,150,70,.26)",
+      "--tint-mind": "#22294A", "--tint-body": "#40202F", "--tint-patterns": "#3D2A1E", "--tint-you": "#352238",
+      "--good": "#8FCBA4", "--bad": "#F29B91", "--on-primary": "var(--paper)", "--toast-dot": "var(--accent)", "--brand": "#F3A6BF",
+      "--sh-card": "0 1px 2px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.05)", "--sh-ico": "0 6px 14px -6px rgba(0,0,0,.6)",
+      "--ico-0": "linear-gradient(140deg, #8E86F0, #5F57C2)", "--ico-1": "linear-gradient(140deg, #FF8FB1, #E0508A)", "--ico-2": "linear-gradient(140deg, #6FC3F7, #3E86D9)", "--ico-3": "linear-gradient(140deg, #FFB36B, #F0763C)", "--ico-4": "linear-gradient(140deg, #6FD9B0, #2FA57C)", "--ico-ink": "#FFF",
+    },
+  },
+  mint: {
+    light: {
+      "--primary": "#23705A", "--accent": "#9A4E7A", "--paper": "#DFF3EA", "--card": "#FFFFFF", "--ink": "#14241E", "--soft": "#47584F", "--line": "#71837A",
+      "--edge": "#D5EADF", "--wash-a": "rgba(150,225,195,.55)", "--wash-b": "rgba(160,215,240,.50)", "--wash-c": "rgba(235,235,165,.50)",
+      "--tint-mind": "#D3E9F7", "--tint-body": "#F8DDE6", "--tint-patterns": "#FBEACD", "--tint-you": "#DDEFE4",
+      "--good": "#27573F", "--bad": "#9E3340", "--on-primary": "#FFF", "--toast-dot": "var(--accent)", "--brand": "#23705A",
+      "--sh-card": "0 1px 2px rgba(60,40,110,.05), 0 18px 40px -18px rgba(90,60,150,.28)", "--sh-ico": "0 6px 14px -6px rgba(90,60,150,.45)",
+      "--ico-0": "linear-gradient(140deg, #8E86F0, #5F57C2)", "--ico-1": "linear-gradient(140deg, #FF8FB1, #E0508A)", "--ico-2": "linear-gradient(140deg, #6FC3F7, #3E86D9)", "--ico-3": "linear-gradient(140deg, #FFB36B, #F0763C)", "--ico-4": "linear-gradient(140deg, #6FD9B0, #2FA57C)", "--ico-ink": "#FFF",
+    },
+    dark: {
+      "--primary": "#8FD8BC", "--accent": "#F0A3C6", "--paper": "#0E1F1A", "--card": "#172B25", "--ink": "#E9F4EE", "--soft": "#AEC2B8", "--line": "#70867B",
+      "--edge": "#284238", "--wash-a": "rgba(40,150,110,.38)", "--wash-b": "rgba(40,120,170,.30)", "--wash-c": "rgba(150,150,60,.24)",
+      "--tint-mind": "#19324A", "--tint-body": "#3A2338", "--tint-patterns": "#38301F", "--tint-you": "#1D3A30",
+      "--good": "#8FCBA4", "--bad": "#F29B91", "--on-primary": "var(--paper)", "--toast-dot": "var(--accent)", "--brand": "#8FD8BC",
+      "--sh-card": "0 1px 2px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.05)", "--sh-ico": "0 6px 14px -6px rgba(0,0,0,.6)",
+      "--ico-0": "linear-gradient(140deg, #8E86F0, #5F57C2)", "--ico-1": "linear-gradient(140deg, #FF8FB1, #E0508A)", "--ico-2": "linear-gradient(140deg, #6FC3F7, #3E86D9)", "--ico-3": "linear-gradient(140deg, #FFB36B, #F0763C)", "--ico-4": "linear-gradient(140deg, #6FD9B0, #2FA57C)", "--ico-ink": "#FFF",
+    },
+  },
+  sunset: {
+    light: {
+      "--primary": "#B5422E", "--accent": "#7446B0", "--paper": "#FDE6D6", "--card": "#FFFFFF", "--ink": "#2A1A16", "--soft": "#604A44", "--line": "#8E766F",
+      "--edge": "#F5DCCF", "--wash-a": "rgba(255,185,130,.58)", "--wash-b": "rgba(250,150,170,.50)", "--wash-c": "rgba(200,165,245,.50)",
+      "--tint-mind": "#E2E4FA", "--tint-body": "#FBD9DF", "--tint-patterns": "#FDE2C2", "--tint-you": "#F0E1F5",
+      "--good": "#2F5A42", "--bad": "#9E3340", "--on-primary": "#FFF", "--toast-dot": "var(--accent)", "--brand": "#B5422E",
+      "--sh-card": "0 1px 2px rgba(60,40,110,.05), 0 18px 40px -18px rgba(90,60,150,.28)", "--sh-ico": "0 6px 14px -6px rgba(90,60,150,.45)",
+      "--ico-0": "linear-gradient(140deg, #8E86F0, #5F57C2)", "--ico-1": "linear-gradient(140deg, #FF8FB1, #E0508A)", "--ico-2": "linear-gradient(140deg, #6FC3F7, #3E86D9)", "--ico-3": "linear-gradient(140deg, #FFB36B, #F0763C)", "--ico-4": "linear-gradient(140deg, #6FD9B0, #2FA57C)", "--ico-ink": "#FFF",
+    },
+    dark: {
+      "--primary": "#F5AE94", "--accent": "#C9B0F5", "--paper": "#20130F", "--card": "#2D1C18", "--ink": "#FCEEE8", "--soft": "#D0B8AF", "--line": "#917870",
+      "--edge": "#452C26", "--wash-a": "rgba(220,110,60,.36)", "--wash-b": "rgba(200,70,110,.30)", "--wash-c": "rgba(120,80,200,.28)",
+      "--tint-mind": "#24294C", "--tint-body": "#40202C", "--tint-patterns": "#40291A", "--tint-you": "#33223F",
+      "--good": "#8FCBA4", "--bad": "#F29B91", "--on-primary": "var(--paper)", "--toast-dot": "var(--accent)", "--brand": "#F5AE94",
+      "--sh-card": "0 1px 2px rgba(0,0,0,.4), 0 0 0 1px rgba(255,255,255,.05)", "--sh-ico": "0 6px 14px -6px rgba(0,0,0,.6)",
+      "--ico-0": "linear-gradient(140deg, #8E86F0, #5F57C2)", "--ico-1": "linear-gradient(140deg, #FF8FB1, #E0508A)", "--ico-2": "linear-gradient(140deg, #6FC3F7, #3E86D9)", "--ico-3": "linear-gradient(140deg, #FFB36B, #F0763C)", "--ico-4": "linear-gradient(140deg, #6FD9B0, #2FA57C)", "--ico-ink": "#FFF",
     },
   },
 };

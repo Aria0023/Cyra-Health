@@ -527,9 +527,9 @@ test("Patterns (calm R6): experiments is a record key in backups, validated and 
   assert.ok(validateRecord(appRecord({ experiments: { active: { id: "nope", start: "x" }, skip: null, past: [] } })).length > 0);
 });
 
-test("uiStyle (skins): the record accepts the four styles, and the withdrawn Bloom from an older record, and flags anything else", async () => {
+test("uiStyle (skins): the record accepts the nine styles, and the withdrawn Bloom from an older record, and flags anything else", async () => {
   const { STYLE_KEYS, cleanStyle } = await import("./appearance.js");
-  assert.deepEqual(STYLE_KEYS, ["soft", "mono", "clear", "journal"]);
+  assert.deepEqual(STYLE_KEYS, ["soft", "mono", "clear", "journal", "aura", "sky", "blush", "mint", "sunset"]);
   for (const k of [...STYLE_KEYS, "bloom"]) assert.deepEqual(validateRecord(appRecord({ uiStyle: k })), [], k);
   assert.equal(cleanStyle("bloom"), "soft");
   for (const bad of ["Bloom", "paper", "", null]) assert.equal(validateRecord(appRecord({ uiStyle: bad })).length, 1, String(bad));
