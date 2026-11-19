@@ -7,7 +7,6 @@ import { startBackend, portalSignIn, portalToken, appAccount, OWNER } from "./li
 let be;
 test.beforeAll(async () => { be = await startBackend(); });
 test.afterAll(async () => { await be?.stop(); });
-const nav = (page, name) => page.getByRole("navigation", { name: "Portal" }).getByRole("link", { name, exact: true }).click();
 
 test("accounts become counts: the Overview card and the People page; a partner can't see them", async ({ page, browser }) => {
   const emails = ["maya@clinic.example", "noor@clinic.example", "ines@clinic.example"];
