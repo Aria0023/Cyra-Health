@@ -48,7 +48,14 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
    The chips can still narrow (their text wraps inside) and only when even that doesn't fit does the last one move to a second row, so the page never scrolls sideways. */
 .mast > .mark { margin-right:auto; }
 .mast > .stagechip, .mast > .acctchip { flex:1 1 min-content; max-width:max-content; margin-right:0; }
-.mast > .stagechip.icon { flex:0 0 44px; max-width:44px; }
+.mast > /* Plan badge in the header: one look per plan state (lib/planBadge.js). 44px tall like the icon chips beside it. */
+.stagechip.planbadge { min-height:44px; padding:6px 12px; white-space:nowrap; letter-spacing:.02em; }
+.planbadge[data-plan="pro"] { background:var(--primary); border-color:var(--primary); color:var(--on-primary); }
+.planbadge[data-plan="trial"] { background:color-mix(in srgb, var(--primary) 12%, var(--card)); border-color:var(--primary); color:var(--ink); }
+.planbadge[data-plan="ended"] { background:var(--card); border:2px solid var(--ink); color:var(--ink); }
+.planbadge[data-plan="guest"] { background:var(--card); border-style:dashed; border-color:var(--soft); color:var(--ink); }
+.planbadge[data-plan="free"] { background:var(--card); color:var(--ink); }
+.stagechip.icon { flex:0 0 44px; max-width:44px; }
 .mark { font-family:var(--ff-display); font-weight:600; font-size:22px; }
 .sub { font-size:10.5px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--primary-text); margin-left:7px; vertical-align:3px; }
 .orgsel { display:flex; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:3px; }
