@@ -38,7 +38,7 @@ test("S2: the card above Quick log; Looks right confirms without writing a day; 
   expect(cardBox.y).toBeLessThan(qlBox.y);
   // four rows, words only
   const rows = card.locator(".autorow");
-  await expect(rows).toHaveCount(9);
+  await expect(rows).toHaveCount(4);
   await expect(rows.locator(".autolab")).toHaveText(["Sleep", "Temperature", "HRV", "Resting HR"]);
   for (const w of await rows.locator(".autoword").allTextContents()) expect(w).toMatch(WORDS);
   expect(await card.locator(".autorows").textContent()).not.toMatch(/\d/); // words, never a number
