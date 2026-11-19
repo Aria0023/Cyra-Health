@@ -319,10 +319,10 @@ test("v2 soft ramp (R1): ordinal, single hue, separate from UI palettes, arrives
 
 /* ---------- Mono style (Solia): a device preference, one token layer, AA in both schemes ---------- */
 test("Mono style: Soft is the default; anything unknown reads as Soft", () => {
-  assert.deepEqual(STYLES.map(([k]) => k), ["soft", "mono", "clear", "journal"]);
+  assert.deepEqual(STYLES.map(([k]) => k), ["soft", "mono", "clear", "journal", "dawn", "sage", "lilac"]);
   assert.equal(DEFAULT_STYLE, "soft");
   for (const v of [undefined, null, "", "Mono", "dark", 1, "Bloom", "bloom", "clear ", "paper", "__proto__", {}, ["clear"]]) assert.equal(cleanStyle(v), "soft");
-  for (const k of ["soft", "mono", "clear", "journal"]) assert.equal(cleanStyle(k), k);
+  for (const k of ["soft", "mono", "clear", "journal", "dawn", "sage", "lilac"]) assert.equal(cleanStyle(k), k);
   for (const [, name, note] of STYLES) { assert.ok(name && note && note.length <= 22, name); }
 });
 
@@ -354,7 +354,7 @@ test("Styles: one generated token layer per style in styles.js, no per-screen co
   assert.ok(css.includes('.cy[data-style="${id}"], .cy .stylepv[data-style="${id}"] { ${skinDecls(STYLE_SKINS[id].light)}'));
   assert.ok(css.includes('.cy[data-style="${id}"][data-scheme="dark"], .cy[data-scheme="dark"] .stylepv[data-style="${id}"] { ${skinDecls(STYLE_SKINS[id].dark)} }'));
   assert.ok(css.includes("${tokenDecls(STYLE_SHAPE.soft)}"));
-  assert.deepEqual(Object.keys(STYLE_SKINS).sort(), ["bloom", "clear", "journal", "mono"]);
+  assert.deepEqual(Object.keys(STYLE_SKINS).sort(), ["bloom", "clear", "dawn", "journal", "lilac", "mono", "sage"]);
   assert.equal(STYLE_SKINS.mono, MONO);
   for (const id of Object.keys(STYLE_SKINS)) for (const scheme of ["light", "dark"]) for (const k of Object.keys(STYLE_SKINS[id][scheme])) {
     assert.ok(!k.startsWith("--fam-") && !k.startsWith("--ramp-") && !k.startsWith("--soft-") && !k.startsWith("--st-"), `${id} ${k}`);
@@ -397,7 +397,7 @@ test("Skins: every shape token a style sets is one Soft defines (no stray names)
 test("Skins: every text pair 4.5:1 and every UI boundary 3:1 on paper, card and each domain tint, light and dark, for every stage palette", () => {
   const themes = [...Object.values(PALETTES).flat(), ...Object.values(ORGS).map((o) => o.theme)];
   let pairs = 0;
-  for (const id of ["bloom", "clear", "journal"]) for (const scheme of ["light", "dark"]) {
+  for (const id of ["bloom", "clear", "journal", "dawn", "sage", "lilac"]) for (const scheme of ["light", "dark"]) {
     const base = { ...SCHEME_TOKENS[scheme], ...STYLE_SKINS[id][scheme] };
     for (const k of ["--paper", "--card", "--ink", "--soft", "--line"]) assert.match(base[k], /^#[0-9A-F]{6}$/i, `${id} ${scheme} ${k}`);
     for (const th of id === "bloom" ? themes : [null]) {

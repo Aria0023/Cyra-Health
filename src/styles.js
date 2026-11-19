@@ -1004,17 +1004,17 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .serif { font-family:var(--ff-display); }
 .v2card { position:relative; background:var(--card); border:1px solid var(--edge); border-radius:var(--r-card); box-shadow:var(--sh-card); padding:var(--pad-card); margin-bottom:var(--stack); }
 .v2card[data-tint] { background:linear-gradient(180deg, var(--tintc) 0, var(--card) 92px) var(--card); }
-/* 2026-11-19 (owner: "each box should have a distinct shade or some form of separation for the eye to catch"): a tinted
-   card keeps a light shade of its domain colour all the way down, and gets an edge and a top band in a deeper shade
-   of the same hue (--tintedge, derived from the tint so every style, palette and scheme follows; decorative only:
-   text stays on a surface lighter than the tint itself, and controls keep --line). Journal and Clear keep their own
-   backgrounds below. Browsers without relative colours keep the plain card above. */
+/* 2026-11-19 (owner: "each box should have a distinct shade ... but a more blended feel like the original Soft"): a
+   tinted card keeps a light shade of its domain colour all the way down, fading on a slant, with a hairline in a
+   slightly deeper shade of the same hue (--tintedge, derived from the tint so every style, palette and scheme
+   follows). No hard bands. Decorative only: controls keep --line. Journal and Clear keep their own backgrounds
+   below. Browsers without relative colours keep the plain card above. */
 @supports (color: oklch(from red l c h)) {
-  .cy [data-tint] { --tintedge:oklch(from var(--tintc) calc(l - .17) calc(c * 3.4) h); }
-  .cy[data-scheme="dark"] [data-tint] { --tintedge:oklch(from var(--tintc) calc(l + .22) calc(c * 2.2) h); }
-  .v2card[data-tint] { background:linear-gradient(180deg, var(--tintc) 0, color-mix(in srgb, var(--tintc) 50%, var(--card)) 130px, color-mix(in srgb, var(--tintc) 30%, var(--card)) 100%) var(--card); border:1px solid color-mix(in srgb, var(--tintedge) 60%, var(--card)); box-shadow:inset 0 4px 0 var(--tintedge), var(--sh-card); }
-  .v2card[data-tint] .ibadge { box-shadow:0 0 0 2px color-mix(in srgb, var(--tintedge) 70%, var(--card)); }
+  .cy [data-tint] { --tintedge:oklch(from var(--tintc) calc(l - .12) calc(c * 2.6) h); }
+  .cy[data-scheme="dark"] [data-tint] { --tintedge:oklch(from var(--tintc) calc(l + .16) calc(c * 1.8) h); }
+  .v2card[data-tint] { background:linear-gradient(168deg, var(--tintc) 0, color-mix(in srgb, var(--tintc) 62%, var(--card)) 45%, color-mix(in srgb, var(--tintc) 34%, var(--card)) 100%) var(--card); border:1px solid color-mix(in srgb, var(--tintedge) 34%, var(--card)); }
 }
+
 .v2card.hero { padding:var(--pad-hero); }
 .v2card-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
 .v2card-head:only-child { margin-bottom:0; }

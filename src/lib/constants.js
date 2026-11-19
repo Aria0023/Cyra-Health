@@ -392,6 +392,50 @@ export const STYLE_SKINS = {
       "--scrim": "rgba(0,0,0,.58)",
     },
   },
+  /* Dawn, Sage, Lilac (2026-11-19): Soft's shape and shadows with one blended pastel palette each (the same for every
+     stage), a faint wash on the paper and four gentle domain tints. UI colours only; charts keep theirs. */
+  dawn: {
+    light: {
+      "--primary": "#A14B5C", "--accent": "#9A5A2E", "--paper": "#FBF3EE", "--card": "#FFFBF8", "--ink": "#33262A", "--soft": "#6A5559", "--line": "#977D81",
+      "--edge": "#F0E2DC", "--wash-a": "rgba(240,150,130,.07)", "--wash-b": "rgba(245,190,140,.07)", "--wash-c": "rgba(230,140,170,.06)",
+      "--tint-mind": "#F6E9F0", "--tint-body": "#FBE7E1", "--tint-patterns": "#FCEEDB", "--tint-you": "#F4ECE6",
+      "--good": "#3F5F4B", "--bad": "#A03F3B", "--on-primary": "#FFF", "--toast-dot": "var(--accent)", "--brand": "#A14B5C",
+    },
+    dark: {
+      "--primary": "#EBA5B0", "--accent": "#E9B48F", "--paper": "#1B1517", "--card": "#241C1F", "--ink": "#F1E6E4", "--soft": "#C2ADAF", "--line": "#8E7679",
+      "--edge": "#3A2D30", "--wash-a": "rgba(240,150,130,.05)", "--wash-b": "rgba(245,190,140,.04)", "--wash-c": "rgba(230,140,170,.05)",
+      "--tint-mind": "#2E2230", "--tint-body": "#35252A", "--tint-patterns": "#33291E", "--tint-you": "#2B2426",
+      "--good": "#8FCBA4", "--bad": "#F29B91", "--on-primary": "var(--paper)", "--toast-dot": "var(--accent)", "--brand": "#EBA5B0",
+    },
+  },
+  sage: {
+    light: {
+      "--primary": "#3F6B5C", "--accent": "#86652F", "--paper": "#F2F5F0", "--card": "#FBFDFA", "--ink": "#25302B", "--soft": "#55635C", "--line": "#7B8881",
+      "--edge": "#DDE5DC", "--wash-a": "rgba(120,180,150,.07)", "--wash-b": "rgba(200,200,130,.06)", "--wash-c": "rgba(120,170,190,.06)",
+      "--tint-mind": "#E6F0EE", "--tint-body": "#E9F2E4", "--tint-patterns": "#F3F0DF", "--tint-you": "#EDF0EA",
+      "--good": "#335A45", "--bad": "#A03F3B", "--on-primary": "#FFF", "--toast-dot": "var(--accent)", "--brand": "#3F6B5C",
+    },
+    dark: {
+      "--primary": "#8FCDB6", "--accent": "#D9BC87", "--paper": "#121714", "--card": "#19201C", "--ink": "#E6EDE8", "--soft": "#A9B6AE", "--line": "#6F7D75",
+      "--edge": "#2A342E", "--wash-a": "rgba(120,180,150,.05)", "--wash-b": "rgba(200,200,130,.04)", "--wash-c": "rgba(120,170,190,.05)",
+      "--tint-mind": "#1D2A2A", "--tint-body": "#202B20", "--tint-patterns": "#2A281C", "--tint-you": "#222722",
+      "--good": "#8FCBA4", "--bad": "#F29B91", "--on-primary": "var(--paper)", "--toast-dot": "var(--accent)", "--brand": "#8FCDB6",
+    },
+  },
+  lilac: {
+    light: {
+      "--primary": "#5B56A8", "--accent": "#9B4D7A", "--paper": "#F5F3FA", "--card": "#FDFCFF", "--ink": "#2A2838", "--soft": "#5A5870", "--line": "#827F96",
+      "--edge": "#E4E0EF", "--wash-a": "rgba(150,130,230,.07)", "--wash-b": "rgba(120,160,235,.06)", "--wash-c": "rgba(235,140,185,.06)",
+      "--tint-mind": "#E8ECFA", "--tint-body": "#EFE8F8", "--tint-patterns": "#F6E9F1", "--tint-you": "#EEECF3",
+      "--good": "#3C5E4C", "--bad": "#A03F3B", "--on-primary": "#FFF", "--toast-dot": "var(--accent)", "--brand": "#5B56A8",
+    },
+    dark: {
+      "--primary": "#B3AEF0", "--accent": "#E3A4C6", "--paper": "#15141C", "--card": "#1D1B27", "--ink": "#E9E7F2", "--soft": "#B0ADC4", "--line": "#77748C",
+      "--edge": "#302D40", "--wash-a": "rgba(150,130,230,.06)", "--wash-b": "rgba(120,160,235,.05)", "--wash-c": "rgba(235,140,185,.05)",
+      "--tint-mind": "#1F2438", "--tint-body": "#272036", "--tint-patterns": "#30212B", "--tint-you": "#24222E",
+      "--good": "#8FCBA4", "--bad": "#F29B91", "--on-primary": "var(--paper)", "--toast-dot": "var(--accent)", "--brand": "#B3AEF0",
+    },
+  },
 };
 
 /* ---- Data viz (kept apart from PALETTES and SCHEME_TOKENS; never derived from a UI palette) ----

@@ -1626,6 +1626,12 @@ pass on the new dark cards (unit tests).
 > **2026-11-19, owner decision: Bloom is withdrawn.** The picker offers four styles (Soft, Mono, Clear, Journal). A device
 > that had chosen Bloom reads as Soft (`cleanStyle`, applied where Shell gets `uiStyle`). Bloom's token layer remains in
 > lib/constants.js, unselectable. Where this section says "five", read four.
+>
+> **2026-11-19, owner request: three more styles to try, Dawn, Sage and Lilac.** Each is Soft's shape and shadows with
+> one blended pastel palette (the same for every stage), a faint paper wash and four gentle domain tints
+> (`STYLE_SKINS.dawn|sage|lilac`, light and dark, AA on every surface, lib/appearance.test.mjs). The picker shows seven.
+> Tinted cards (all styles but Clear and Journal, which keep their own) carry a slanted fade of their domain tint and
+> a hairline in a deeper shade of the same hue; no hard bands.
 
 You → Appearance → **Style** is a small visual picker: five radio cards, each a live mini preview drawn in that style
 (wordmark, a chip, a button and a card corner). **Soft** stays the default. A style changes type, shape, density,
