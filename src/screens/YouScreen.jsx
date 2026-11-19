@@ -15,7 +15,7 @@ import { TERMS_URL, PRIVACY_URL, openExternal } from "../lib/links.js";
 import { BUILD_STAMP, MODULE_ADDS, PLAN_COPY, ACCOUNT_LINES, NOT_MEDICAL, AI_OFF_LINE, accountLine } from "../lib/about.js";
 import { freeKeepsFor, untilLine } from "../components/ProSheet.jsx";
 import { AI_DISCLOSURE } from "./AskScreen.jsx";
-import { AI_COPY } from "../lib/aiFeatures.js";
+import { AI_COPY, ASK_COPY } from "../lib/aiFeatures.js";
 import { FLOW_COPY } from "../lib/privacyFlows.js";
 import { AccountCard, SignedInCard } from "../components/AccountParts.jsx";
 import { PlanCardTiles } from "../components/PlanTiles.jsx";
@@ -57,7 +57,7 @@ const StageArt = () => (
     <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
   </svg>
 );
-export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, help = null, language = null, meals = null, dataSources = null, partner = null, learn = null, signMode = "none", store = null, native = false, promo = null, onHidePromo = null, proUntil = null, guest = null }) {
+export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, help = null, language = null, meals = null, dataSources = null, partner = null, learn = null, signMode = "none", store = null, native = false, promo = null, onHidePromo = null, proUntil = null, guest = null, homeCards = null }) {
   const offer = ai.offer || { any: false, weekly: false, chat: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
@@ -119,6 +119,18 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
         </Card>
       )}
 
+      {/* 2026-11-19: Home cards she can hide come back here (today: Ask Solia; askCardOff, this device only). */}
+      {homeCards && (
+        <Card id="you-home-cards" tint="you" icon="home" eyebrow={t("you.settings")} title="Home cards" level={2} className="youset">
+          <ul className="modlist">
+            <li className="modrow">
+              <div className="modrow-main"><div className="modinfo"><b id="home-ask-n">{ASK_COPY.showName}</b><span className="hint" id="home-ask-d">{ASK_COPY.showHint}</span></div>
+                <Switch checked={!!homeCards.ask} onChange={(v) => homeCards.setAsk(v)} labelledBy="home-ask-n" describedBy="home-ask-d" /></div>
+            </li>
+          </ul>
+        </Card>
+      )}
+
       <Card id="you-plan" tint="patterns" icon="sparkle" eyebrow={PLAN_COPY.eyebrow} title={proOwned ? PLAN_COPY.pro : planUnlocked ? PLAN_COPY.test : PLAN_COPY.free} level={2} className="youplan" badge={<Chip variant="pro" />}>
         <p>{proOwned ? PLAN_COPY.bodyOn : trial?.gateOn ? PLAN_COPY.bodyTrial : PLAN_COPY.body}</p>
         {proOwned && proUntil && <p className="prountil">{untilLine(proUntil)}</p>}
@@ -170,7 +182,7 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
         </Card>
       )}
 
-      <Card id="you-ai" tint="mind" icon="sparkle" title={t("you.cyrasAi")} level={2} className="youset youai">
+      <Card id="you-ai" tint="mind" icon="sparkle" title={t("you.cyrasAi")} level={2} className="youset youai" tabIndex={-1}>
         {ai.available ? (
           <>
             <button type="button" role="checkbox" aria-checked={!!ai.on} aria-describedby="you-ai-disclosure" className={`consentopt ${ai.on ? "on" : ""}`} onClick={() => ai.set(!ai.on)}>

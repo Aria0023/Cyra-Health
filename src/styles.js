@@ -1702,6 +1702,15 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .aiart { position:absolute; right:-18px; bottom:-14px; width:150px; height:100px; z-index:0; pointer-events:none; opacity:.8; }
 .aiart-blob { fill:color-mix(in srgb, var(--primary) 11%, transparent); }
 .aiart-spark { fill:var(--accent); opacity:.55; }
+/* Home's Ask Solia card and the write-up on Home (2026-11-19, components/ai/AiParts.jsx). */
+.asksolia .v2card-action { align-self:flex-start; margin:-8px -8px 0 0; }
+.asksolia .section-lab { display:block; margin:2px 0 6px; }
+.asksolia-acts { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 0; }
+.asksolia-acts > button { flex:1 1 140px; margin:0; min-height:44px; }
+.asksolia-off { margin:10px 0 0; }
+.asksolia-off .linkbtn { min-height:44px; text-align:left; }
+.asksolia > .ghostbtn { margin-top:10px; }
+.homewriteup-open { min-height:44px; gap:6px; margin-top:4px; }
 .aiout { margin:2px 0 10px; } .aiout:focus { outline:none; } .aiout:focus-visible { outline:2px solid var(--primary); outline-offset:3px; border-radius:6px; }
 .aitext { margin:0 0 10px; font-size:var(--fs-md); line-height:1.6; color:var(--ink); }
 .aichips { margin:8px 0 4px; }

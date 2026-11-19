@@ -1,7 +1,7 @@
 /* Unit tests for lib/aiFeatures.js (calm R8). */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cleanAiPrefs, cleanAiChat, cleanAiWeekly, aiOffer, AI_COPY, CHAT_MAX } from "./aiFeatures.js";
+import { cleanAiPrefs, cleanAiChat, cleanAiWeekly, aiOffer, AI_COPY, CHAT_MAX, askCard, ASK_COPY } from "./aiFeatures.js";
 
 test("prefs: off unless a real true", () => {
   assert.deepEqual(cleanAiPrefs(undefined), { weekly: false, chat: false, labs: false });
@@ -34,4 +34,27 @@ test("copy keeps the tone rules", () => {
   const all = Object.values(AI_COPY).join(" ");
   assert.ok(!/streak|score|grade|perfect|fail(ed|ure)?\b|out of 100/i.test(all));
   assert.ok(/every time/.test(AI_COPY.weeklyAdds) && /every time/.test(AI_COPY.chatAdds), "previewed before every send");
+});
+
+test("Ask Solia card: coming soon without the flag, a server or a set-up AI", () => {
+  const pro = { canChat: true, chatOn: true, canEvidence: true };
+  assert.deepEqual(askCard({}), { state: "soon" });
+  assert.deepEqual(askCard({ flag: true, server: false, ...pro }), { state: "soon" });
+  assert.deepEqual(askCard({ flag: false, server: true, ...pro }), { state: "soon" });
+  assert.deepEqual(askCard({ flag: true, server: true, serverAi: "unset", ...pro }), { state: "soon" });
+});
+
+test("Ask Solia card: guest, plans, then the box with what her plan and switch allow", () => {
+  const here = { flag: true, server: true };
+  assert.deepEqual(askCard({ ...here, guest: true, canChat: true, chatOn: true, canEvidence: true }), { state: "guest" });
+  assert.deepEqual(askCard({ ...here }), { state: "plans" });
+  assert.deepEqual(askCard({ ...here, chatOn: true }), { state: "plans" }, "a switch without the plan opens nothing");
+  assert.deepEqual(askCard({ ...here, canChat: true, chatOn: true, canEvidence: true }), { state: "ask", chat: true, chatOff: false, evidence: true });
+  assert.deepEqual(askCard({ ...here, canChat: true, chatOn: false, canEvidence: true }), { state: "ask", chat: false, chatOff: true, evidence: true });
+  assert.deepEqual(askCard({ ...here, serverAi: "ready", canChat: true, chatOn: true }), { state: "ask", chat: true, chatOff: false, evidence: false });
+});
+
+test("Ask Solia copy: names the page its link opens, and keeps the tone rules", () => {
+  assert.equal(ASK_COPY.turnOn, "Turn on in You \u2192 Solia Health's AI");
+  assert.ok(!/streak|score|grade|diagnos/i.test(Object.values(ASK_COPY).join(" ")));
 });

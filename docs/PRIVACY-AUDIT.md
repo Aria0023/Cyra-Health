@@ -2726,3 +2726,36 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   the grant list after the account is deleted (the grant row only drops the account id). The confirmation's "your
   sign-in email" is true of the account record; the grant list is the owner's own record.
 
+
+## Visible features (2026-11-19, docs/plans/visible-features.md)
+
+### Task 1: Ask Solia on Home; the write-up where she already looks — no new request, one device-only key
+
+- **What changed.** Home has an "Ask Solia" card under the hero (`components/ai/AiParts.jsx` AskSoliaCard, state from
+  `lib/aiFeatures.js` askCard). It is a way in to two existing features and adds no AI logic: "Ask" opens Mind →
+  Journey's "Chat about your log" with her question typed into that card's own box, "Ask with evidence" opens that
+  card the same way. The question is NOT sent: the chat's "Preview and send" / the evidence card's "Review and send"
+  and the "What Solia Health will send" sheet are still the only way anything goes (e2e/ask-solia.spec.mjs asserts no
+  POST to `/api/ai/*` after either button, and none before Send in the sheet).
+- **The card makes no request.** It does not ask the server whether AI is set up (the existing check still runs only
+  from the chat and write-up cards, after she turned them on). So "Coming soon" shows when the build has no `ai` flag
+  or no server, or when this session already heard from the server that AI isn't set up; on a server whose AI isn't
+  set up, a person without Pro sees the Pro line until then (the same as You's existing locked card).
+- **New sentences, each true of the build:**
+  - "Nothing is sent from here. The next screen shows exactly what would go, and only your Send sends it." (the box
+    state: the card navigates and types; every send is previewed in the sheet first)
+  - "Chat about your log is off." with the link "Turn on in You → Solia Health's AI" (Pro, her chat switch off; the
+    link opens that card and turns nothing on)
+  - "With Pro, ask about your own log or get answers that cite their sources. Nothing is sent until you've seen it
+    and tapped Send." (no Pro)
+  - "Solia Health's AI is part of Pro and needs an account." with the existing "Create account" (a guest)
+  - "Solia Health's AI isn't connected in this build yet, so there is nothing to ask here for now." (Coming soon)
+  - "Ask Solia is hidden. You can bring it back from You." / "Ask Solia is back on Home."
+- **One device-only key:** `askCardOff` (true once she hides the card with ×). A display choice, nothing about her
+  health; `DEVICE_ONLY` and `NOT_IN_BACKUP` (never in a backup file, kept across a restore). You has the switch
+  "Ask Solia on Home" to bring it back.
+- **The weekly write-up** (when she has one: Pro, her switch on, a write-up kept on this device) also shows on Home
+  under Today's insight (read-only, the same text and the same "Written by Solia Health's AI …" and "Associations to
+  raise with your clinician, not a diagnosis or medical advice." footers) and leads the Patterns page; without one
+  the Patterns card keeps its place. Nothing new is stored or sent: it is the same `aiWeekly` (device-only, never in
+  a backup), cleared when she switches the write-up off.

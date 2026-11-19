@@ -25,7 +25,7 @@ import { t } from "../lib/i18n.js";
    Everything is worked out on this device on render (App.jsx), never saved or sent. */
 export default function PatternsScreen({
   ins, symIds, symMap, isMeno = false, todayIso, potsOn = false, popIso = null, onGo, onAsk, onPots = null, scoreScale, fert = null,
-  timeline = null, rings, cards = [], checked = [], weekly = null, onStart, onSkip, onPractice, onPro, onHistory, onReport, aiWriteUp = null, aiEvidence = null, historyLabel = "History",
+  timeline = null, rings, cards = [], checked = [], weekly = null, onStart, onSkip, onPractice, onPro, onHistory, onReport, aiWriteUp = null, aiWriteUpFirst = false, aiEvidence = null, historyLabel = "History",
 }) {
   const [all, setAll] = useState(false);
   const [view, setView] = useState(null);
@@ -47,6 +47,9 @@ export default function PatternsScreen({
           <button type="button" className="patact" aria-haspopup="dialog" onClick={() => setShare(true)}><Icon name="share" size={16} />{t("patterns.share")}</button>
         </div>
       </div>
+
+      {/* 2026-11-19: once she has a write-up it leads the page (the same card; without one it keeps its place below). */}
+      {aiWriteUpFirst && aiWriteUp}
 
       {/* ---- the hero: the cycle timeline ---- */}
       {!isMeno && (
@@ -85,7 +88,7 @@ export default function PatternsScreen({
         )}
       </section>
 
-      {aiWriteUp}
+      {!aiWriteUpFirst && aiWriteUp}
       {aiEvidence}
 
       {weekly && !weekly.week.shows && review}
