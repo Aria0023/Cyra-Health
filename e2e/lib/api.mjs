@@ -16,6 +16,7 @@ export function newApiState(over = {}) {
     evidence: null, // (body) => { status, json } for POST /api/ai/evidence
     promotions: null, // GET /api/promotions/active answers { version: 1, promotions: this } when set; null = 404
     catalog: null, // GET /api/shop/catalog answers this (any JSON) when set; null = 404, so the app keeps its bundled catalog
+    tapStatus: 204, // POST /api/shop/tap (the anonymous shop tap count)
     usage: null, // the GET /api/ai/usage answer ({ usage, resetsOn }), or null for 401
     sent: [],
     ...over,
@@ -30,7 +31,7 @@ export async function mockApi(target, state) {
     const method = req.method();
     if (method === "OPTIONS") return route.fulfill({ status: 204, headers: CORS });
     let body = null; try { body = req.postDataJSON(); } catch { body = null; }
-    state.sent.push({ method, path: u.pathname, search: u.search, body, auth: req.headers().authorization || null, cookie: req.headers().cookie || null });
+    state.sent.push({ method, path: u.pathname, search: u.search, body, auth: req.headers().authorization || null, cookie: req.headers().cookie || null, referer: req.headers().referer || null, headers: Object.keys(req.headers()) });
     const json = (status, obj) => route.fulfill({ status, headers: { ...CORS, "content-type": "application/json" }, body: JSON.stringify(obj) });
     const p = u.pathname;
     if (p === "/api/accounts/config") return json(200, { providers: state.providers });
@@ -49,6 +50,7 @@ export async function mockApi(target, state) {
     if (p === "/api/ai/usage") return state.usage ? json(200, state.usage) : json(401, { error: "not signed in" });
     if (p === "/api/ai/evidence" && state.evidence) { const r = state.evidence(body); return json(r.status, r.json); }
     if (p === "/api/promotions/active") return state.promotions == null ? json(404, { error: "not in the mock" }) : json(200, { version: 1, promotions: state.promotions });
+    if (p === "/api/shop/tap" && method === "POST") return route.fulfill({ status: state.tapStatus || 204, headers: CORS }); // the anonymous tap count: an empty answer
     if (p === "/api/shop/catalog") return state.catalog == null ? json(404, { error: "not in the mock" }) : json(200, state.catalog);
     if (/^\/api\/shop\/images\/[a-f0-9]{24}$/.test(p)) return route.fulfill({ status: 200, headers: { ...CORS, "content-type": "image/png", "cache-control": "public, max-age=31536000, immutable" }, body: PNG_1PX });
     if (p === "/api/ai/ask") return json(200, { provider: "rules", answer: "A written answer.", source_note: null, ask_your_doctor: null, urgent: false });

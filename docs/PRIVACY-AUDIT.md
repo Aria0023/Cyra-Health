@@ -2419,3 +2419,57 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   without an account"), and `VITE_GUEST_HOURS` can lengthen the window up to 168 hours.
 - **For counsel:** the terms and privacy drafts mention the guest time ("48 hours as of this draft"); keep that number in
   step with `VITE_GUEST_HOURS` before publishing.
+
+## Anonymous shop tap counts (2026-11-19, docs/plans/tracking-reports.md Task 1) — one new request, ON by default, one device-only key
+
+- **What changed:** in a build with a server and the shop flag, opening a product from the Shop page ("Visit <brand>" or
+  its picture) sends `POST /api/shop/tap` with the body `{"productId":"<id>"}`. This is the first request the app makes
+  **by default** that reflects something she did, so it is disclosed where she meets it (the Shop footer), in the
+  privacy dashboard (a row with its own switch) and in the privacy draft. Owner decision: on by default.
+- **What is sent:** the product id and nothing else. `src/lib/shopTaps.js` builds the request: no cookie
+  (`credentials: "omit"`), no `Authorization` header even when she is signed in, `referrerPolicy: "no-referrer"`,
+  `keepalive`, never awaited (a failure or a slow server never delays the link). e2e/shop-taps.spec.mjs asserts the
+  whole body is `{ productId }` and that no token, cookie or referrer goes with it.
+- **What a product id can imply:** a product belongs to a need (an ovulation test, a glucose sensor), so a single tap,
+  if it were tied to a person, would hint at her situation. That is why nothing that could tie it to a person is sent
+  or kept, and why the server refuses a body with any other field (400) instead of ignoring it.
+- **What the server keeps:** `shop_taps` rows `{ day (UTC date), productId, brandId, taps }`: one row per product per
+  day, a total. No row per request, no time of day, no address, no user agent, no account, no device id. Taps wait in
+  memory **as totals** for up to 10 seconds before being written. Rows older than 400 days are dropped at the next
+  write. Nothing about a tap is logged or audited. The request address is used only by the existing in-memory rate
+  limiter (salted daily hash, dropped about a minute after the last request; `core/memory.js`): 30 taps a minute per
+  client, 3000 overall. As with every request, the host (Render) may log the address in its own request log; the
+  app's sentence says "Solia Health's own code ... doesn't keep it", which is what is true.
+- **Who sees the totals:** the portal's Clicks page (`GET /api/shop/taps`, `/taps.csv`): owners see every brand; a
+  partner sees only rows whose brand is one of its own (checked on the server on every read; tested in
+  backend/test/shop-taps.test.mjs and e2e/portal-clicks.spec.mjs). No threshold is applied to small totals: a total of
+  1 says one tap happened that day, not who tapped. **Residual risk:** an owner or partner who knows that exactly one
+  named person uses the app on a given day could infer her tap from a daily total; with real traffic this is not
+  possible. If the app launches to a very small group, consider showing a brand only totals of 5 or more.
+- **Her control:** "Count my shop taps anonymously" (You → Privacy & your data → How this works → What can leave this
+  device), on by default, a device-only key (`shopTapsOff`, never in a backup, kept across a restore). Off: no tap
+  request is made at all (unit and e2e tested). Delete everything resets it to on, like every other device setting.
+  A total already added can't be removed for one person, because nothing links it to her.
+- **Builds where nothing is sent:** no `VITE_API_BASE`, or the shop flag off: no request, no row, no switch.
+- **Sentences added or changed so each stays literally true:**
+  - Shop footer and You's Shop card, where a tap can be sent: "Matched on this device: your stage and what you log are
+    never sent." (was "Matched on this device; nothing about you is sent.", which is still shown where no tap can be
+    sent: no server, or her switch off), plus "When you open a product, Solia Health counts one anonymous tap for that
+    product. It isn't linked to you or to anything you log. You can turn this off in You → Privacy & your data."
+  - Privacy dashboard row: "When you open a product in the Shop, Solia Health's server gets that product's id and
+    nothing else, and adds one to that product's total for the day. No account, no device id, no stage and nothing you
+    logged goes with it." and three Details sentences (no cookie/token/referrer and 400-day totals; the address used
+    only in memory; who sees the totals and how to turn it off).
+  - "Every feature that can send something is off right now." is no longer shown in a server build while the tap count
+    is on: the same line now reads "Turned on now: Count my shop taps anonymously."
+  - Privacy draft (public/legal/privacy.html): section 3 gains a row for the tap counts; section 5's Shop paragraph no
+    longer says "nothing about you is sent to us" and describes the tap total and its switch. Attorney review as before.
+  - Portal footer: lists "anonymous daily totals of Shop taps per product".
+  - Privacy draft, "The short version" and Section 6: "no advertising, analytics or tracking code" became "no
+    advertising and no third-party analytics or tracking code", followed by a sentence naming the one count kept (the
+    Shop tap totals). README.md says the same. docs/…/health-data.html gains a counsel note: confirm the anonymous
+    totals are not consumer health data under the Washington / Nevada Acts, or make the count opt-in.
+- **Store declarations:** `ios/App/App/PrivacyInfo.xcprivacy` already declares Product Interaction (for the host's
+  request log); its purposes now include Analytics and its comment describes the tap count. App Store Connect → App
+  Privacy → Product Interaction must list Analytics as a purpose too, and Google Play's Data safety form should list
+  "App interactions" (collected, not shared, optional, for analytics). Data Used to Track You stays: none.

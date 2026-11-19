@@ -12,7 +12,7 @@ export function reportViews(L) {
   const svg = (tag, attrs = {}, ...kids) => { const el = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) if (v != null) el.setAttribute(k, String(v)); el.append(...kids); return el; };
   const table = (caption, cols, rows) => h("div", { class: "tablewrap", role: "region", tabindex: "0", "aria-label": caption },
     h("table", { class: "tbl" }, h("caption", { class: "sr-only" }, caption),
-      h("thead", {}, h("tr", {}, cols.map((c, i) => h("th", { scope: "col", class: i && /^\d|taps|clicks|sales|amount|commission|accounts|share/i.test(c) ? "numcol" : null }, c))),
+      h("thead", {}, h("tr", {}, cols.map((c, i) => h("th", { scope: "col", class: i && /^\d|taps|clicks|sales|amount|commission|accounts|share/i.test(c) ? "numcol" : null }, c)))),
       h("tbody", {}, rows)));
   const td = (v, numeric = false) => h("td", { class: numeric ? "numcol" : null }, v);
   /** The window switch: three pressed-state buttons; onPick(days) redraws. */

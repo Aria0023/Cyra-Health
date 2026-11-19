@@ -2367,6 +2367,11 @@ pure reference.
 - [ ] LATER: Dexcom cloud API (needs Dexcom partner approval; docs/PASSIVE-TRACKING-PLAN.md).
 - [x] Shop by need (2026-11-14, Task C): real products by category matched on the device, affiliate links from
       src/config/affiliates.json only (committed empty), flag `shop`. Owner: join programs and paste links (docs/AFFILIATES.md).
+- [x] Anonymous shop tap counts (2026-11-19, docs/plans/tracking-reports.md Task 1): opening a product sends
+      `POST /api/shop/tap {productId}` and nothing else (no token, cookie or referrer; `src/lib/shopTaps.js`); the server
+      keeps one total per product per day for 400 days; on by default with her device-only switch "Count my shop taps
+      anonymously" (You → Privacy & your data); the portal's Clicks page shows the totals (a partner: its own brands).
+      Only in a build with a server and the `shop` flag. docs/PRIVACY-AUDIT.md "Anonymous shop tap counts".
 - [x] Installable web app that opens offline (A14.1); Render serves /, /index.html, /sw.js and /manifest.webmanifest
       with Cache-Control: no-cache.
 - [ ] Choose VITE_FEATURES for each release and list the matching backend modules (§9.1); the default offers Ask
