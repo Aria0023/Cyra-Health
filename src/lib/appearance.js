@@ -21,14 +21,10 @@ export const STYLES = [
   ["mono", "Mono", "Quiet, one colour"],
   ["clear", "Clear", "Crisp, easy reading"],
   ["journal", "Journal", "Paper, handmade"],
-  ["dawn", "Dawn", "Cream and bold rose"],
-  ["sage", "Sage", "Cream and deep green"],
-  ["lilac", "Lilac", "Cream and bold violet"],
 ];
 export const STYLE_KEYS = STYLES.map(([k]) => k);
 export const DEFAULT_STYLE = "soft";
-/* Dawn, Sage and Lilac (2026-11-19, owner: "a few more skins to try ... cream and bold contrast") are Soft's shape
-   on a cream paper with near-black ink and one bold colour each, the same for every stage. Anything that isn't one of the seven keys (missing, an old record, a typo) reads as Soft. */
+/* Anything that isn't one of the four keys (missing, an old record, a typo) reads as Soft. */
 export const cleanStyle = (v) => (STYLE_KEYS.includes(v) ? v : DEFAULT_STYLE);
 export const SYSTEM_DARK_QUERY = "(prefers-color-scheme: dark)";
 /* The scheme on screen: printing → light; then her explicit choice; else the device setting. */

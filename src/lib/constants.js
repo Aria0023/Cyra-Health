@@ -392,58 +392,6 @@ export const STYLE_SKINS = {
       "--scrim": "rgba(0,0,0,.58)",
     },
   },
-  /* Dawn, Sage, Lilac (2026-11-19, owner: "cream and bold contrast, with the different skins"): Soft's shape on one
-     cream paper and card with near-black warm ink, and per skin a bold primary, its accent and four cream-blended
-     domain tints (the same for every stage). A more defined card shadow. UI colours only; charts keep theirs. Every
-     pair is AA on every surface (lib/appearance.test.mjs). */
-  dawn: {
-    light: {
-      "--primary": "#9C2F4C", "--accent": "#8A4A1C", "--paper": "#F6EFE2", "--card": "#FFFAF0", "--ink": "#1C1814", "--soft": "#4A423A", "--line": "#7C7266",
-      "--edge": "#E6DBC8", "--wash-a": "rgba(200,90,110,.07)", "--wash-b": "rgba(235,170,110,.08)", "--wash-c": "rgba(215,120,140,.05)",
-      "--tint-mind": "#F1E3E6", "--tint-body": "#F7E0D8", "--tint-patterns": "#F6E6C9", "--tint-you": "#EFE6D6",
-      "--good": "#2B5A40", "--bad": "#9A3232", "--on-primary": "#FFF", "--toast-dot": "var(--accent)", "--brand": "#9C2F4C",
-      "--sh-card": "0 1px 2px rgba(40,28,12,.07), 0 16px 34px -16px rgba(40,28,12,.24)",
-    },
-    dark: {
-      "--primary": "#F0A2B4", "--accent": "#E8B98A", "--paper": "#15120E", "--card": "#1E1A15", "--ink": "#F5EEE0", "--soft": "#C6BBA8", "--line": "#8B8070",
-      "--edge": "#362F26", "--wash-a": "rgba(220,120,140,.07)", "--wash-b": "rgba(235,180,120,.05)", "--wash-c": "rgba(215,120,140,.05)",
-      "--tint-mind": "#33222A", "--tint-body": "#38261F", "--tint-patterns": "#352C1A", "--tint-you": "#2A2620",
-      "--good": "#8FCBA4", "--bad": "#F29B91", "--on-primary": "var(--paper)", "--toast-dot": "var(--accent)", "--brand": "#F0A2B4",
-      "--sh-card": "0 1px 2px rgba(0,0,0,.4), 0 0 0 1px rgba(255,240,215,.04)",
-    },
-  },
-  sage: {
-    light: {
-      "--primary": "#24604A", "--accent": "#7E5A1C", "--paper": "#F6EFE2", "--card": "#FFFAF0", "--ink": "#1C1814", "--soft": "#4A423A", "--line": "#7C7266",
-      "--edge": "#E6DBC8", "--wash-a": "rgba(70,140,105,.07)", "--wash-b": "rgba(215,190,110,.08)", "--wash-c": "rgba(110,160,130,.05)",
-      "--tint-mind": "#E2ECE0", "--tint-body": "#E8EDD6", "--tint-patterns": "#F3E8C8", "--tint-you": "#ECE7D6",
-      "--good": "#2B5A40", "--bad": "#9A3232", "--on-primary": "#FFF", "--toast-dot": "var(--accent)", "--brand": "#24604A",
-      "--sh-card": "0 1px 2px rgba(40,28,12,.07), 0 16px 34px -16px rgba(40,28,12,.24)",
-    },
-    dark: {
-      "--primary": "#8FD1B2", "--accent": "#E0C083", "--paper": "#15120E", "--card": "#1E1A15", "--ink": "#F5EEE0", "--soft": "#C6BBA8", "--line": "#8B8070",
-      "--edge": "#362F26", "--wash-a": "rgba(90,170,130,.07)", "--wash-b": "rgba(215,190,120,.05)", "--wash-c": "rgba(110,160,130,.05)",
-      "--tint-mind": "#1F2B25", "--tint-body": "#262C1C", "--tint-patterns": "#322B18", "--tint-you": "#28261E",
-      "--good": "#8FCBA4", "--bad": "#F29B91", "--on-primary": "var(--paper)", "--toast-dot": "var(--accent)", "--brand": "#8FD1B2",
-      "--sh-card": "0 1px 2px rgba(0,0,0,.4), 0 0 0 1px rgba(255,240,215,.04)",
-    },
-  },
-  lilac: {
-    light: {
-      "--primary": "#4B3FA3", "--accent": "#93406E", "--paper": "#F6EFE2", "--card": "#FFFAF0", "--ink": "#1C1814", "--soft": "#4A423A", "--line": "#7C7266",
-      "--edge": "#E6DBC8", "--wash-a": "rgba(120,105,215,.07)", "--wash-b": "rgba(225,175,125,.07)", "--wash-c": "rgba(200,120,170,.05)",
-      "--tint-mind": "#E6E4F2", "--tint-body": "#EFE2EE", "--tint-patterns": "#F5E6D2", "--tint-you": "#ECE6DA",
-      "--good": "#2B5A40", "--bad": "#9A3232", "--on-primary": "#FFF", "--toast-dot": "var(--accent)", "--brand": "#4B3FA3",
-      "--sh-card": "0 1px 2px rgba(40,28,12,.07), 0 16px 34px -16px rgba(40,28,12,.24)",
-    },
-    dark: {
-      "--primary": "#B9B1F5", "--accent": "#E6A5C8", "--paper": "#15120E", "--card": "#1E1A15", "--ink": "#F5EEE0", "--soft": "#C6BBA8", "--line": "#8B8070",
-      "--edge": "#362F26", "--wash-a": "rgba(140,125,230,.08)", "--wash-b": "rgba(225,180,130,.05)", "--wash-c": "rgba(205,130,180,.05)",
-      "--tint-mind": "#252438", "--tint-body": "#30222F", "--tint-patterns": "#33291C", "--tint-you": "#282520",
-      "--good": "#8FCBA4", "--bad": "#F29B91", "--on-primary": "var(--paper)", "--toast-dot": "var(--accent)", "--brand": "#B9B1F5",
-      "--sh-card": "0 1px 2px rgba(0,0,0,.4), 0 0 0 1px rgba(255,240,215,.04)",
-    },
-  },
 };
 
 /* ---- Data viz (kept apart from PALETTES and SCHEME_TOKENS; never derived from a UI palette) ----
