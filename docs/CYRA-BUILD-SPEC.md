@@ -2380,6 +2380,14 @@ pure reference.
       clicks, sales and commission per brand (`IMPACT_ACCOUNT_SID`, `IMPACT_AUTH_TOKEN`; fails closed; cached 15 minutes;
       endpoints in `backend/src/modules/insights/impact.js`, to verify against Impact's docs) and an uploaded Amazon
       Associates earnings report as per-day totals. Owner guide: docs/AFFILIATES.md sections 4 and 5.
+- [x] Weekly owner report (2026-11-19, Task 4): every Monday 14:00 UTC the insights module emails the owners last
+      week's totals (accounts, RevenueCat, shop taps, affiliates, partner activity, AI use, and week-over-week moves over
+      30%), summarised by Claude through the ai module's client when `ANTHROPIC_API_KEY` is set, else as a plain template
+      with the same numbers; sent with Resend; never twice (a stamp in `DATA_DIR`); on/off, recipients, Preview and Send
+      now in the portal. The email says "Totals only; no personal or health data."
+- [x] Devices (2026-11-19, Task 4): a "Fitbit, Garmin or Whoop?" how-to under the device list (share with Apple Health
+      or Health Connect in the brand's app, then connect that here; HRV doesn't come through for Garmin and Whoop); the
+      Fitbit · Garmin · Whoop (Terra) row shows only where the server reports Terra configured or a connection exists.
 - [x] Installable web app that opens offline (A14.1); Render serves /, /index.html, /sw.js and /manifest.webmanifest
       with Cache-Control: no-cache.
 - [ ] Choose VITE_FEATURES for each release and list the matching backend modules (§9.1); the default offers Ask

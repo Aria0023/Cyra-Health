@@ -306,7 +306,7 @@ export async function disconnectSource(id, state, { timeoutMs = 15000 } = {}) {
 }
 
 /** Which server-mediated sources this server can connect (GET /api/integrations/sources → { oura, terra }); null when it
-    couldn't be asked. Nothing about her is sent. Task 2: the device list says "Not set up yet" for one that is false. */
+    couldn't be asked. Nothing about her is sent. Task 2: the device list says "Not set up yet" for Oura when it is false; 2026-11-19: the Fitbit · Garmin · Whoop row is hidden unless terra is true (lib/devices.js terraShown). */
 export async function fetchServerSources() {
   if (!API_BASE) return null;
   try {

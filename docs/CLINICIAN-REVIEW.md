@@ -732,7 +732,7 @@ Sources:
 - Status: Awaiting clinician sign-off
 
 ### shop.garmin (Garmin, Garmin smartwatch)
-- Reads heart rate, HRV and sleep; connects through the Fitbit · Garmin · Whoop row.
+- Reads heart rate, HRV and sleep. Its app can share sleep and heart rate with Apple Health or Health Connect, which Solia Health reads on your phone. (2026-11-19: no longer names the Fitbit · Garmin · Whoop row, which shows only where the server has Terra set up.)
 - Label: Mixed evidence · "Useful trends, not a diagnosis". Sources: medlinePulse
 - Status: Awaiting clinician sign-off
 

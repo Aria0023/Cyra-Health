@@ -58,7 +58,7 @@ export default function HomeScreen({
   todayEntry = null, scoreIds = [], scoreLabels = {},
   hero, tiles = [], onTile, tilePicker = null, step = null, onStep, onSkipStep, bodyRail = [], mindRail = [],
   recap, showRecap, setShowRecap,
-  showWear, setShowWear, wearSources, terraOffCount = 0, connectWear, disconnectWear, wearConfirm, setWearConfirm, wearBusy, wearData, wAvg,
+  showWear, setShowWear, wearSources, terraOffCount = 0, terraRow = true, connectWear, disconnectWear, wearConfirm, setWearConfirm, wearBusy, wearData, wAvg,
   showMeds, setShowMeds, meds, medLog, medEffects, setMedLog, newMed, setNewMed, setMeds, ping,
   showAppts, setShowAppts, upcoming, past, daysUntil, setAppts, newAppt, setNewAppt,
   showJournal, setShowJournal, journal, jDraft, setJDraft, setJournal,
@@ -353,7 +353,7 @@ export default function HomeScreen({
         <div className="bodypanel detached" id="home-wear">
           <p className="ptitle">{t("home.wearables")}</p>
           <p className="hint" style={{ margin: "10px 0" }}>{t("home.entirelyOptionalCyraWorksFully")}</p>
-          {SOURCES.map(({ id, name, what, viaServer }) => {
+          {SOURCES.filter((src) => src.id !== "terra" || terraRow).map(({ id, name, what, viaServer }) => {
             const st = wearSources[id];
             return (
               <div key={id}>

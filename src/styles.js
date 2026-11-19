@@ -469,6 +469,12 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 .devline { font-size:16px; line-height:1.45; color:var(--soft); margin:8px 0 0; }
 .devline b { color:var(--ink); font-weight:600; }
 .devlead { margin-top:0; }
+.devhowto { margin:12px 0 0; }
+.devhowto .bodypanel p { font-size:16px; line-height:1.45; color:var(--ink); margin:0 0 10px; }
+.devhow-name { margin:12px 0 2px !important; }
+.devhow ol { margin:0 0 8px; padding-left:22px; font-size:16px; line-height:1.45; color:var(--ink); }
+.devhow ol li { margin:0 0 4px; }
+.devhowto .bodypanel .devhow-note { color:var(--soft); }
 .devhome-acts { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin-top:10px; }
 .devhome-acts .linkbtn { min-height:44px; }
 .evcard .inp { margin-bottom:10px; }

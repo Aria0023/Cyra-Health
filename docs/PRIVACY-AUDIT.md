@@ -2525,3 +2525,66 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   field that is never part of the published catalog (tested).
 - **Access:** every route is owner-only on the server; a partner gets 403 (unit, smoke and e2e tested).
 - **No user-facing sentence changes.** Portal footer adds "affiliate network totals".
+
+## Weekly owner report; Fitbit, Garmin and Whoop how-to (2026-11-19, docs/plans/tracking-reports.md Task 4)
+
+### The weekly report — business totals to the owners; nothing about any user
+
+- **What it is:** an email every Monday 14:00 UTC (and on demand from the portal) to the owners (`ADMIN_EMAILS`, or
+  up to 10 addresses an owner sets). `backend/src/modules/insights/{weekly,report}.js`.
+- **What it is built from:** one JSON of totals (`buildTotals`): account counts (total, new, used, by sign-in method),
+  RevenueCat's overview numbers if configured, shop tap totals and the five most-opened products (names of products and
+  brands), Impact and Amazon totals if present, counts of partner applications and products waiting, and the month's AI
+  use summed over all accounts. Rows are reduced to counts before they reach the builder: accounts are passed as
+  `{ provider, createdAt, lastSeenDay }` only, AI usage rows lose their account id, applications as `{ status, at }`.
+  The unit test checks every key of the JSON against an allowlist and that it contains no "@" and no account id, and
+  that an email address typed into a product name is neutralised.
+- **Who receives it:** (1) **Anthropic**, when `ANTHROPIC_API_KEY` is set: the totals JSON and a fixed system prompt,
+  through the ai module's existing client (model from config, effort low, the server-side refusal fallback), to write
+  a summary of at most about 160 words. No personal data and no health data is in it. Anthropic's retention applies to
+  it as to any API request. A refusal, an error, a truncated or unusable answer (too short or long, or containing a
+  link or an address) falls back to the plain template. (2) **Resend**, to deliver the email to each recipient.
+  (3) The recipients. The email always carries the numbers themselves under the summary, and the line "Totals only; no
+  personal or health data."
+- **Never twice:** the week's slot is written to `insights_weekly` in `DATA_DIR` before the emails go out; a restart
+  or a second look that hour sends nothing (tested, including a second server on the same directory). Without a
+  persistent disk the stamp is lost on a redeploy, and a redeploy between Monday and Thursday sends the week again.
+- **Logs:** never an address or the report's text; a failed send logs a count and a category. A development server
+  without `RESEND_API_KEY` logs only the subject.
+- **Access:** settings, preview and send are owner-only on the server; a partner gets 403 (tested).
+- **Portal sentences:** "Totals only; no personal or health data. The report is built from counts: nothing in it is
+  about one person, and the server holds no health data. To write the summary the totals are sent to Anthropic, and
+  the email is delivered by Resend." Footer adds "a weekly report of those totals".
+- **Privacy draft:** no change needed for users: nothing about a user is sent. Anthropic and Resend are already listed
+  as service providers; their new use here involves business totals only.
+
+### The devices list — one row hidden, one how-to added; no new request, nothing new leaves the device
+
+- **What changed:** the "Fitbit · Garmin · Whoop" (Terra) row is shown only where it can do something: the server
+  reports Terra configured, a Terra connection already exists on the device (so it can still be synced or
+  disconnected), an unconfirmed disconnect is waiting, or the demo build. Elsewhere it is hidden instead of showing
+  "Not set up yet". Home's older Wearables panel follows the same rule.
+- **Added:** a "Fitbit, Garmin or Whoop?" disclosure under the device list: three steps per brand to turn on sharing
+  with Apple Health (iPhone) or Health Connect (Android) in the brand's own app and then connect that source in Solia
+  Health. That path is read on the phone by the app and never involves Solia Health's server or Terra, which is why it
+  is the privacy-preferred one.
+- **Sentences shown (iPhone wording; Android says Health Connect, a browser names both):**
+  - "Their own apps can share your readings with Apple Health, and Solia Health reads them from there, on your
+    iPhone. Solia Health's server is never involved this way."
+  - per brand: "Open the Fitbit app / the Garmin Connect app / the WHOOP app and go to its settings." "Look for Apple
+    Health there and turn on sharing for sleep and heart rate." "Come back here and connect Apple Health in the list
+    above."
+  - "On an iPhone, the Fitbit app may not offer Apple Health. If it isn't in the settings, Fitbit can't share this way
+    on an iPhone." (iPhone and browser only)
+  - "What doesn't come through: Garmin and Whoop don't share HRV this way, so HRV stays empty for them. Sleep and
+    heart rate come through when the brand's app shares them."
+  - "Menu names change from time to time. In the brand app's settings, look for Apple Health. If it isn't there, that
+    app can't share this way on your phone."
+- **Vendor facts these sentences rest on (re-check before each release; none could be checked from this container):**
+  the Fitbit app shares with Health Connect on Android and has not offered Apple Health sharing on iPhone; Garmin
+  Connect and WHOOP can share sleep and heart rate with Apple Health and with Health Connect; neither shares HRV that
+  way. The wording is hedged ("may not", "when the brand's app shares them", "if it isn't there") so that a vendor
+  change makes it less specific rather than false, except the HRV sentence, which states a fact and must be re-checked.
+- **Catalog text:** the bundled Garmin product line no longer says it "connects through the Fitbit · Garmin · Whoop
+  row" (false where the row is hidden); it now says its app can share sleep and heart rate with Apple Health or Health
+  Connect. The seed was regenerated; a portal catalog already imported keeps its own copy until an owner edits it.

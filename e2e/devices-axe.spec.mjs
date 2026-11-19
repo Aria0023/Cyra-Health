@@ -1,5 +1,6 @@
 /* axe-core on Task 2's screens, light and dark: the "Connect your devices" sheet in the API build (mocked:
-   Oura set up, Terra not), the Home card, and the "Connect your devices" sheet with a connected (demo) row. 0 violations. */
+   Oura set up, Terra not: its row hidden, the "Fitbit, Garmin or Whoop?" how-to closed and open), the Home card, and the
+   "Connect your devices" sheet with a connected (demo) row. 0 violations. */
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register, emailSignIn } from "./lib/onboard.mjs";
@@ -27,8 +28,16 @@ for (const scheme of ["light", "dark"]) {
     await page.getByRole("checkbox", { name: /I agree to/ }).click();
     await page.getByRole("button", { name: "Enter Solia Health" }).click();
     await page.locator("#home-devices").getByRole("button", { name: "See devices" }).click();
-    await expect(page.locator('#devices-sheet .devrow[data-device="terra"]')).toContainText("Not set up yet");
+    // 2026-11-19: Terra isn't set up on this (mock) server, so its row is hidden and the how-to stands in for it
+    await expect(page.locator('#devices-sheet .devrow[data-device="terra"]')).toHaveCount(0);
     await audit(page, `devices sheet, API build ${scheme}`);
+    const howto = page.locator("#devices-sheet .devhowto");
+    const toggle = howto.getByRole("button", { name: "Fitbit, Garmin or Whoop?" });
+    await toggle.scrollIntoViewIfNeeded();
+    expect((await toggle.boundingBox()).height, "the how-to toggle is a 44px target").toBeGreaterThanOrEqual(44);
+    await toggle.click();
+    await expect(howto.getByRole("list", { name: "Garmin" })).toBeVisible();
+    await audit(page, `devices sheet with the Fitbit, Garmin or Whoop how-to open ${scheme}`);
     await ctx.close();
 
     const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });

@@ -101,7 +101,7 @@ const ITEMS = [
   I({ id: "apple-watch", category: "wearables", brand: "Apple", name: "Apple Watch", url: "https://www.apple.com/watch/", kind: null,
     why: "Recent models read wrist temperature at night, plus heart rate and sleep, through Apple Health.", tone: "mixed", ev: "Useful trends, not a diagnosis", src: ["medlinePulse"] }),
   I({ id: "garmin", category: "wearables", brand: "Garmin", name: "Garmin smartwatch", url: "https://www.garmin.com/", kind: null,
-    why: "Reads heart rate, HRV and sleep; connects through the Fitbit · Garmin · Whoop row.", tone: "mixed", ev: "Useful trends, not a diagnosis", src: ["medlinePulse"] }),
+    why: "Reads heart rate, HRV and sleep. Its app can share sleep and heart rate with Apple Health or Health Connect, which Solia Health reads on your phone.", tone: "mixed", ev: "Useful trends, not a diagnosis", src: ["medlinePulse"] }),
   I({ id: "fitbit", category: "wearables", brand: "Fitbit", name: "Fitbit tracker", url: "https://www.fitbit.com/", kind: null,
     why: "Reads heart rate, sleep and, on some models, skin temperature.", tone: "mixed", ev: "Useful trends, not a diagnosis", src: ["medlinePulse"] }),
   I({ id: "whoop", category: "wearables", brand: "Whoop", name: "Whoop strap", url: "https://www.whoop.com/", kind: null,

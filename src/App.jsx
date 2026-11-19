@@ -81,7 +81,7 @@ import { learnFor } from "./lib/learn.js";
 import { cleanPartnerShare, partnerReminderAt, PARTNER_COPY } from "./lib/partner.js";
 import { shareText } from "./lib/files.js";
 import { DevicesSheet, DevicesHomeCard } from "./components/Devices.jsx";
-import { deviceRows, homeDevicesCard, cleanDevicesHint, DEVICE_COPY } from "./lib/devices.js";
+import { deviceRows, homeDevicesCard, cleanDevicesHint, deviceHowTo, terraShown, DEVICE_COPY } from "./lib/devices.js";
 import { fetchServerSources, connectGlucose } from "./lib/wearables.js";
 import { cleanGlucoseLog, summarize as glucoseDays, mergeGlucose, glucoseCard, demoReadings } from "./lib/glucose.js";
 import GlucoseCard from "./components/GlucoseCard.jsx";
@@ -1409,7 +1409,7 @@ export default function CyraDemo() {
     if (!left.length) setTrackStats((t) => noteSource(t, null));
   };
   // Task 2: the one device list. A row's own "Where it goes" is the disclosure, so a first connect starts on this tap.
-  const devRows = deviceRows({ native: isNative(), platform: platformNow, flags: FEATURES, server: hasServer(), serverSources, wearSources, glucose: glucoseLog, demo: DEMO_WEARABLES, nowMs: Date.now() });
+  const devRows = deviceRows({ native: isNative(), platform: platformNow, flags: FEATURES, server: hasServer(), serverSources, wearSources, terraOff: terraOff.length, glucose: glucoseLog, demo: DEMO_WEARABLES, nowMs: Date.now() });
   /* Task B: Dexcom / FreeStyle Libre through Apple Health or Health Connect. Connect asks the phone for read access to
      blood glucose and reads 14 days on the phone; the demo build adds illustrative readings instead. Disconnect stops
      reading for that row; what was read stays on this device. Nothing is sent anywhere. */
@@ -1444,11 +1444,14 @@ export default function CyraDemo() {
     if (!hydrated || !glucoseOn || glucoseSynced.current || !isNative() || DEMO_WEARABLES) return;
     glucoseSynced.current = true; syncGlucose(null, { quiet: true });
   }, [hydrated, glucoseOn]); // eslint-disable-line
-  const devList = { rows: devRows, busy: wearBusy, demo: DEMO_WEARABLES,
+  const devList = { rows: devRows, busy: wearBusy, demo: DEMO_WEARABLES, howto: deviceHowTo({ native: isNative(), platform: platformNow, flags: FEATURES }),
     onConnect: (r) => (r.glucose ? syncGlucose(r.id) : connectWear(r.source, r.name, { confirmed: true })),
     onDisconnect: (r) => (r.glucose ? disconnectGlucose(r.id) : disconnectAny(r.source, r.name, { deleteRows: false })) };
   const askServerSources = () => { if (FEATURES.wearables && hasServer() && !DEMO_WEARABLES && serverSources == null) fetchServerSources().then(setServerSources); };
   const openDevices = () => { askServerSources(); setDevicesOpen(true); };
+  // Home's Wearables panel lists the Fitbit · Garmin · Whoop row only where it can do something (lib/devices.js terraShown).
+  useEffect(() => { if (showWear) askServerSources(); }, [showWear]); // eslint-disable-line react-hooks/exhaustive-deps
+  const terraRow = terraShown({ server: hasServer(), serverSources, wearSources, demo: DEMO_WEARABLES, terraOff: terraOff.length });
   const preferSource = (metric, id) => { setWearSources((s) => setPreferred(s, metric, id)); ping(`${label2(metric)} now comes from ${sourcesModel.rows.find((r) => r.id === id)?.name || id} when both have it.`); };
   const label2 = (metric) => ({ temp: "Temperature", rhr: "Resting HR", hrv: "HRV", sleep: "Sleep" })[metric] || metric;
   const setDemo = (on) => {
@@ -2813,7 +2816,7 @@ export default function CyraDemo() {
       mindRail={mindSteps({ moodDone: tileLogged("mood", tileCtx), readReady: !!todayEntryNow && !homeInsight.empty })} todayIso={todayIso} homeInsight={homeInsight} patternsCard={patternsCard} wearInsights={wearInsights} milestones={milestones} justReached={justReached} nextUp={nextUp} pulse={FEATURES.counts ? pulse : null}
       todayEntry={todayEntryNow} scoreIds={stage === "preg" ? Object.keys(GSYM) : symIds} scoreLabels={stage === "preg" ? GSYM : symMap}
       recap={recap} showRecap={showRecap} setShowRecap={setShowRecap}
-      showWear={showWear} setShowWear={setShowWear} wearSources={wearSources} terraOffCount={terraOff.length} connectWear={connectWear} disconnectWear={disconnectWear} wearConfirm={wearConfirm} setWearConfirm={setWearConfirm} wearBusy={wearBusy} wearData={wearData} wAvg={wAvg}
+      showWear={showWear} setShowWear={setShowWear} wearSources={wearSources} terraOffCount={terraOff.length} terraRow={terraRow} connectWear={connectWear} disconnectWear={disconnectWear} wearConfirm={wearConfirm} setWearConfirm={setWearConfirm} wearBusy={wearBusy} wearData={wearData} wAvg={wAvg}
       showMeds={showMeds} setShowMeds={setShowMeds} meds={meds} medLog={medLog} medEffects={medEffects} setMedLog={setMedLog} newMed={newMed} setNewMed={setNewMed} setMeds={setMeds} ping={ping}
       showAppts={showAppts} setShowAppts={setShowAppts} upcoming={upcoming} past={past} daysUntil={daysUntil} setAppts={setAppts} newAppt={newAppt} setNewAppt={setNewAppt}
       showJournal={showJournal} setShowJournal={setShowJournal} journal={journal} jDraft={jDraft} setJDraft={setJDraft} setJournal={setJournal}
