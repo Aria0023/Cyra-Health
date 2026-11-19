@@ -24,7 +24,8 @@
     "backup",
     "shop",
     "portal",
-    "subscriptions"
+    "subscriptions",
+    "insights"
   ],
   "opsConsole": true,
   "storage": {

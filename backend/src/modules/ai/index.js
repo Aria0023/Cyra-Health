@@ -20,6 +20,9 @@
 // welcome and life-stage routing on the device, so POST /api/ai/{welcome,route,insight}
 // answer 404.
 //
+// 2026-11-19: writeText / ctx.aiWrite (below) lend the same client to the insights module for the owners' weekly
+// report, written from business totals only (docs/plans/tracking-reports.md Task 4). Nothing from a user goes that way.
+//
 // Provider selection: ANTHROPIC_API_KEY set → Claude via the official SDK, one attempt
 // (no retry) with a 12-second limit — inside the app's 15-second wait — and the
 // server-side refusal fallback on. Otherwise, or on any API error / refusal /
@@ -48,6 +51,34 @@ async function callClaude(client, model, task, value) {
   return task.clean(JSON.parse(text));
 }
 
+/** What went wrong, as a fixed category (never the request or the answer). */
+export const errorKind = (e) => (e instanceof Anthropic.RateLimitError ? "rate-limited" : e instanceof Anthropic.AuthenticationError ? "bad API key" : e instanceof Anthropic.APIConnectionTimeoutError ? "timed out" : e instanceof Anthropic.APIConnectionError ? "connection error" : e instanceof Anthropic.APIError ? `API ${e.status}` : e?.cat || e?.constructor?.name || "error");
+
+/**
+ * One plain-text answer from Claude for a server-side job that is not one of the app's tasks (the owners' weekly report,
+ * insights/report.js: business totals only, never anything from a user). The same client and model as the tasks above,
+ * effort "low", no thinking parameter (adaptive thinking is the model's default and can't be turned off), the
+ * server-side refusal fallback on. Throws an Error with a fixed `cat` on a refusal, a truncated answer or an API error,
+ * so the caller can fall back; it never logs.
+ */
+export async function writeText(client, model, { system, prompt, maxTokens = 4000, timeoutMs = 60_000 } = {}) {
+  let response;
+  try {
+    response = await client.beta.messages.create({
+      model,
+      max_tokens: maxTokens,
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      system,
+      output_config: { effort: "low" },
+      messages: [{ role: "user", content: prompt }],
+    }, { timeout: timeoutMs });
+  } catch (e) { throw Object.assign(new Error("ai call failed"), { cat: errorKind(e) }); }
+  if (response.stop_reason === "refusal") throw Object.assign(new Error("model declined"), { cat: `model declined (${String(response.stop_details?.category || "unspecified").slice(0, 40)})` });
+  if (response.stop_reason === "max_tokens") throw Object.assign(new Error("model output truncated"), { cat: `output truncated at max_tokens (${response.usage?.output_tokens ?? "?"} tokens)` });
+  return response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
+}
+
 export function mount(router, ctx) {
   const { config } = ctx;
   const model = process.env.AI_MODEL || config.ai?.model || "claude-opus-5-5";
@@ -58,6 +89,9 @@ export function mount(router, ctx) {
   const meter = usageMeter({ store: ctx.store, who: (req) => (ctx.accountWho ? ctx.accountWho(req) : null), signinReady: () => !!ctx.accountSigninReady?.(), requireSignin: config.ai?.signinRequired !== false, limits: limitsFrom(config.ai?.monthly) });
   // The monthly allowance applies to the paid tasks only; the free "ask" (with its rules fallback) is not counted.
   const METERED = new Set(["weekly", "chat"]);
+  // Shared with the insights module (the owners' weekly report): present only when a key is set, so "no key" is a plain
+  // template there. Read at call time, so the mount order of the two modules doesn't matter.
+  if (client) ctx.aiWrite = (args) => writeText(client, model, args);
   console.log(`[cyra] ai provider: ${client ? model : "rules fallback (ANTHROPIC_API_KEY not set)"}; tasks: ${Object.keys(TASKS).join(", ")}`);
 
   // Whether this server can reach Cyra's AI at all (the app shows "AI isn't set up on this server yet" when not).
@@ -97,7 +131,7 @@ export function mount(router, ctx) {
         const usage = gate ? await gate.commit() : undefined;
         res.json({ provider: model, ...out, ...(usage ? { usage } : {}) });
       } catch (e) {
-        const kind = e instanceof Anthropic.RateLimitError ? "rate-limited" : e instanceof Anthropic.AuthenticationError ? "bad API key" : e instanceof Anthropic.APIConnectionTimeoutError ? "timed out" : e instanceof Anthropic.APIConnectionError ? "connection error" : e instanceof Anthropic.APIError ? `API ${e.status}` : e.cat || e.constructor?.name || "error";
+        const kind = errorKind(e);
         if (!task.fallback) { console.warn(`[cyra] ai/${name}: ${kind} — no answer`); return res.status(502).json({ error: "no-answer" }); }
         console.warn(`[cyra] ai/${name}: ${kind} — serving rules fallback`);
         res.json({ provider: "rules", degraded: true, ...task.fallback(input.value) });

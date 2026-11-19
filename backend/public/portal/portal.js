@@ -6,6 +6,7 @@
    2026-11-15 (docs/plans/portal-subscriptions.md Task 2): the owner's Subscriptions, Promotions, Pro grants and Codes
    screens, and a partner's Codes, live in subs.js and talk to /api/subscriptions on this same origin. */
 import { subsViews } from "./subs.js";
+import { reportViews } from "./reports.js";
 
 const CATEGORY_LABEL = { fertility: "Ovulation & fertility", pregnancy: "Pregnancy", labs: "Lab tests", glucose: "Blood sugar", wearables: "Wearables", periods: "Periods", meno: "Perimenopause & menopause", sleep: "Sleep" };
 const AVAIL_LABEL = { home: "Kit sent to your home", lab: "Sample taken at a lab", visit: "Online visit", app: "In an app", online: "Sold online", stores: "Sold online and in stores", rx: "By prescription" };
@@ -74,8 +75,8 @@ function renderWho() {
   who.append(h("span", {}, "Signed in as ", h("b", { text: me().email }), ` · ${isOwner() ? "Owner" : "Partner"}`),
     h("button", { type: "button", class: "btn small", onclick: async () => { try { await api("POST", "/auth/sign-out", {}); } catch { /* ends locally anyway */ } endSession("You're signed out."); } }, "Sign out"));
   const links = isOwner()
-    ? [["#/", "Overview"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/subscriptions", "Subscriptions"], ["#/promotions", "Promotions"], ["#/grants", "Pro grants"], ["#/codes", "Codes"], ["#/activity", "Activity"]]
-    : [["#/products", "Products"], ["#/brands", "Brands"], ["#/codes", "Codes"]];
+    ? [["#/", "Overview"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/subscriptions", "Subscriptions"], ["#/promotions", "Promotions"], ["#/grants", "Pro grants"], ["#/codes", "Codes"], ["#/clicks", "Clicks"], ["#/people", "People"], ["#/affiliates", "Affiliates"], ["#/weekly", "Weekly report"], ["#/activity", "Activity"]]
+    : [["#/products", "Products"], ["#/brands", "Brands"], ["#/codes", "Codes"], ["#/clicks", "Clicks"]];
   for (const [href, label] of links) nav.append(h("a", { href, "data-nav": href }, label));
   nav.hidden = false;
   markNav();
@@ -182,7 +183,8 @@ async function renderOverview() {
     h("h2", {}, "Waiting for review"),
     waiting.length ? productRows(waiting, await brandMap()) : h("p", { class: "note" }, "Nothing is waiting for review."),
     h("h2", {}, "Applications"),
-    apps.length ? h("p", {}, `${apps.length} waiting. `, h("a", { href: "#/applications" }, "Review applications")) : h("p", { class: "note" }, "No applications are waiting."));
+    apps.length ? h("p", {}, `${apps.length} waiting. `, h("a", { href: "#/applications" }, "Review applications")) : h("p", { class: "note" }, "No applications are waiting."),
+    await reports.peopleCard());
 }
 async function brandMap() { const { brands } = await api("GET", "/brands"); return new Map(brands.map((b) => [b.id, b])); }
 
@@ -406,13 +408,14 @@ async function renderBrand(id) {
     owner ? h("div", { class: "ownerbox" }, h("h2", {}, "Set by Solia Health"),
       field("b-mono", "Monogram (1 to 3 letters)", textIn("b-mono", b.monogram, { maxlength: "3" })),
       field("b-tag", "Type (a short tag, e.g. AT-HOME TESTS)", textIn("b-tag", b.tag, { maxlength: "30" })),
-      field("b-hue", "Colour", select("b-hue", [["", "Chosen from the name"], ...HUES.map((x) => [x, x[0].toUpperCase() + x.slice(1)])], b.hue || ""))) : null,
+      field("b-hue", "Colour", select("b-hue", [["", "Chosen from the name"], ...HUES.map((x) => [x, x[0].toUpperCase() + x.slice(1)])], b.hue || "")),
+      field("b-impact", "Impact campaign ID (optional)", textIn("b-impact", b.impactCampaignId || "", { maxlength: "40", autocomplete: "off", "aria-describedby": "b-impact-help" }), "Links this brand to its campaign in the Impact affiliate network, so the Affiliates page shows its clicks, sales and commission beside its taps. The Affiliates page lists your campaigns and their IDs. Never shown in the app.")) : null,
     h("div", { class: "acts" }, h("button", { type: "submit", class: "btn primary" }, "Save changes"),
       owner ? h("button", { type: "button", class: "btn", onclick: async () => { try { await api("POST", `/brands/${encodeURIComponent(b.id)}/publish`, {}); await renderBrand(b.id); tell(document.querySelector(".msgbox"), "Brand published: the app's catalog shows these details."); } catch (err) { tell(box, err.message, "err"); } } }, "Publish brand details") : null));
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const body = { name: form.querySelector("#b-name").value, about: form.querySelector("#b-about").value, website: form.querySelector("#b-web").value.trim(), imageId };
-    if (owner) Object.assign(body, { monogram: form.querySelector("#b-mono").value, tag: form.querySelector("#b-tag").value, hue: form.querySelector("#b-hue").value || null });
+    if (owner) Object.assign(body, { monogram: form.querySelector("#b-mono").value, tag: form.querySelector("#b-tag").value, hue: form.querySelector("#b-hue").value || null, impactCampaignId: form.querySelector("#b-impact").value.trim() || null });
     try { await api("PATCH", `/brands/${encodeURIComponent(b.id)}`, body); await renderBrand(b.id); tell(document.querySelector(".msgbox"), b.published ? "Saved. The app keeps the published details until Solia Health publishes these." : "Saved."); }
     catch (err) { tell(box, err.message, "err"); }
   });
@@ -515,6 +518,9 @@ function renderApply() {
 /* ----- subscriptions, promotions, Pro grants and codes (subs.js) ----- */
 const subs = subsViews({ h, api, show, field, textIn, area, select, checks, checked, msgBox, tell, fmtTime, isOwner, brandList: async () => [...(await brandMap()).values()] });
 
+/* ----- clicks, people, affiliates and the weekly report (reports.js) ----- */
+const reports = reportViews({ h, api, show, field, textIn, area, select, msgBox, tell, fmtTime, isOwner, brandList: async () => [...(await brandMap()).values()] });
+
 /* ---------- router ---------- */
 async function route() {
   if (/\/apply\/?$/.test(location.pathname)) return renderApply();
@@ -526,10 +532,14 @@ async function route() {
     if (m) return await (m[1] === "product" ? renderProduct(decodeURIComponent(m[2])) : renderBrand(decodeURIComponent(m[2])));
     if (hash === "#/brands") return await renderBrands();
     if (hash === "#/codes") return await subs.renderCodes();
+    if (hash === "#/clicks") return await reports.renderClicks();
     if (isOwner() && hash === "#/subscriptions") return await subs.renderSubscriptions();
     if (isOwner() && hash === "#/promotions") return await subs.renderPromotions();
     if (isOwner() && hash.startsWith("#/promotion/")) return await subs.renderPromotion(decodeURIComponent(hash.slice("#/promotion/".length)));
     if (isOwner() && hash === "#/grants") return await subs.renderGrants();
+    if (isOwner() && hash === "#/people") return await reports.renderPeople();
+    if (isOwner() && hash === "#/affiliates") return await reports.renderAffiliates();
+    if (isOwner() && hash === "#/weekly") return await reports.renderWeekly();
     if (isOwner() && hash === "#/partners") return await renderPartners();
     if (isOwner() && hash === "#/applications") return await renderApplications();
     if (isOwner() && hash === "#/activity") return await renderActivity();

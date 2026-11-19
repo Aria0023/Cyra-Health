@@ -18,7 +18,7 @@ const DEF0 = parseFeatures("ai,webReminders,signin,deviceSync");
 /* Task 1 (sign-in required): with the signin flag and a server, bullets 2, 3 and the prefill bullet say there is an account. */
 const SIGNIN = {
   anon: "Anonymous Mode keeps your name and email off this device's record. Your account still has the email you signed in with, if the service shared one.",
-  keeps: "If you sign in, Solia Health's server keeps your account: how you signed in, your email and your name if the service shares it. It keeps no profile of you: no age, health history or check-ins. If you use Pro's AI, it also counts how many questions you sent this month, never what they said.",
+  keeps: "If you sign in, Solia Health's server keeps your account: how you signed in, your email and your name if the service shares it, and the last day you used your account. It keeps no profile of you: no age, health history or check-ins. If you use Pro's AI, it also counts how many questions you sent this month, never what they said.",
   memAll: "Signing in with Apple, Google or Facebook, and Oura connect, leave what the service sent there in memory for 5 minutes at most, until this device collects it.",
   mem: "Signing in with Apple, Google or Facebook leaves what the service sent there in memory for 5 minutes at most, until your account is made.",
 };

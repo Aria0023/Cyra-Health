@@ -642,7 +642,7 @@
       "stages": [],
       "modules": [],
       "kind": null,
-      "why": "Reads heart rate, HRV and sleep; connects through the Fitbit · Garmin · Whoop row.",
+      "why": "Reads heart rate, HRV and sleep. Its app can share sleep and heart rate with Apple Health or Health Connect, which Solia Health reads on your phone.",
       "evidence": {
         "tone": "mixed",
         "label": "Useful trends, not a diagnosis"

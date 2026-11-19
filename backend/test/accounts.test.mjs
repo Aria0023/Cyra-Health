@@ -119,7 +119,7 @@ test("email sign-in: code, verify, me, wrong code, expiry", async () => {
   const again = await (await post("/email/verify", { email: "ada@example.com", code: sent.at(-1).code })).json();
   assert.equal(again.account.id, account.id);
   // no health or extra field is ever stored
-  for (const a of rows("accounts")) assert.deepEqual(Object.keys(a).sort(), ["createdAt", "email", "id", "key", "name", "provider"]);
+  for (const a of rows("accounts")) { assert.deepEqual(Object.keys(a).sort(), ["createdAt", "email", "id", "key", "lastSeenDay", "name", "provider"]); assert.match(a.lastSeenDay, /^\d{4}-\d{2}-\d{2}$/, "a date only: no time of day"); }
 });
 
 test("email sign-in: five wrong codes lock the code", async () => {

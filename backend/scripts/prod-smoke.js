@@ -3,7 +3,7 @@
 //     value) when ADMIN_KEY or AUTH_SECRET is unset, a demo value, too short, or the two
 //     are equal — and, if partner webhooks are ever re-enabled, without real
 //     PARTNER_<ID>_WEBHOOK_SECRET values;
-//   - with real-looking secrets, starts and mounts exactly push, ai, oauth, accounts, integrations, shop, portal and subscriptions (what the
+//   - with real-looking secrets, starts and mounts exactly push, ai, oauth, accounts, integrations, shop, portal, subscriptions and insights (what the
 //     app's default build calls; sign-in and wearables since 2026-11-12; the Shop catalog and partner portal API since 2026-11-15): no weekly counts or backup routes, no
 //     partner/referral/FHIR/admin routes, no /r/:code, no ops console;
 //   - reversible by configuration: the same production server with pulse and
@@ -14,7 +14,7 @@ import { spawn } from "child_process";
 import crypto from "crypto";
 import fs from "fs";
 const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode = 1; } else console.log("ok  ", m); };
-const PROD = ["push", "ai", "oauth", "accounts", "integrations", "shop", "portal", "subscriptions"];
+const PROD = ["push", "ai", "oauth", "accounts", "integrations", "shop", "portal", "subscriptions", "insights"];
 const ALL = JSON.parse(fs.readFileSync("config/app-dev.json")).modules;
 const real = () => crypto.randomBytes(32).toString("hex");
 
@@ -78,6 +78,7 @@ for (const [label, env, want] of refusals) {
     assert(await st("/api/shop/catalog") === 200 && await st("/api/shop/brands") === 401 && await st("/api/shop/auth/config") === 200, "production: shop answers (public catalog; the portal API needs a portal sign-in)");
     const promos = await fetch(`${B}/api/promotions/active`);
     assert(promos.status === 200 && Array.isArray((await promos.json()).promotions) && await st("/api/subscriptions/metrics") === 401 && await st("/api/subscriptions/grants", jpost({})) === 401, "production: subscriptions answers (public live promotions; everything else needs an owner's portal sign-in)");
+    assert(await st("/api/insights/people") === 401 && await st("/api/shop/taps") === 401 && await st("/api/shop/tap", jpost({ productId: "oura" })) === 204, "production: insights and the tap totals need a portal sign-in; the anonymous tap count answers 204");
     const portal = await fetch(`${B}/portal/`);
     assert(portal.status === 200 && /Partner portal/.test(await portal.text()) && /frame-ancestors 'none'/.test(portal.headers.get("content-security-policy") || "") && await st("/portal/apply") === 200 && await st("/portal") === 301, "production: the portal page is served at /portal/ (and /portal/apply) with a strict CSP");
     const gone = [["GET", "/api/pulse"], ["POST", "/api/pulse/tally"], ["POST", "/api/backup"], ["GET", "/api/backup/AAAAAAAAAAAAAAAAAAAAAA"], ["GET", "/"], ["GET", "/index.html"], ["GET", "/r/abcdef1234"], ["GET", "/api/partners"], ["POST", "/api/referrals/link"], ["POST", "/api/webhooks/midi"], ["GET", "/api/payouts"], ["GET", "/api/reports/partners/midi"], ["GET", "/api/catalog?stage=peri"], ["POST", "/api/agent/run"], ["GET", "/api/orgs/cyra/config"], ["GET", "/api/users"], ["POST", "/api/auth/login"], ["GET", "/api/fhir/outbox"], ["POST", "/api/fhir/push"], ["GET", "/api/affiliates"], ["POST", "/api/ai/welcome"], ["POST", "/api/ai/route"], ["POST", "/api/ai/insight"]];
@@ -95,7 +96,7 @@ for (const [label, env, want] of refusals) {
   const r = await run({ NODE_ENV: "production", ADMIN_KEY: real(), AUTH_SECRET: real(), CYRA_CONFIG: "config/app.prod-test2.json", DATA_DIR: "" }, P);
   try {
     const m = mounted(r.out);
-    assert(!!r.proc && m.length === 10 && ["push", "ai", "oauth", "accounts", "integrations", "shop", "portal", "subscriptions", "pulse", "backup"].every((x) => m.includes(x)), `production + pulse, backup listed: mounts ${m.join(", ")}`);
+    assert(!!r.proc && m.length === 11 && ["push", "ai", "oauth", "accounts", "integrations", "shop", "portal", "subscriptions", "insights", "pulse", "backup"].every((x) => m.includes(x)), `production + pulse, backup listed: mounts ${m.join(", ")}`);
     const B = `http://127.0.0.1:${P}`;
     const st = async (path, init) => (await fetch(`${B}${path}`, { redirect: "manual", ...init })).status;
     const codes = [await st("/api/pulse"), await st("/api/oauth/providers"), await st("/api/integrations/sources"), await st("/api/backup", { method: "POST", headers: { "content-type": "application/octet-stream" }, body: crypto.randomBytes(16) })];

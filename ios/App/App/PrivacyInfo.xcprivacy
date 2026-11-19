@@ -312,6 +312,11 @@
 		  any other data.
 		  Could return to not linked only if Terra's return no longer passes through a logged
 		  backend URL and Render confirms query strings are not recorded.
+		  2026-11-19: also the anonymous Shop tap count (src/lib/shopTaps.js): opening a product
+		  from "Shop by need" sends that product's id, and nothing else, to Cyra's backend, which
+		  keeps one total per product per day (no account, device id, address or time). On by
+		  default; her switch in You, Privacy and your data turns it off. The totals themselves
+		  are not linked to her; the purpose Analytics below is declared for them.
 		-->
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
@@ -323,6 +328,7 @@
 			<key>NSPrivacyCollectedDataTypePurposes</key>
 			<array>
 				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+				<string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
 			</array>
 		</dict>
 	</array>

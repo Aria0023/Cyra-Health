@@ -71,6 +71,17 @@ try {
   assert(live.name === "Oura Ring 4" && live.imageId === img.id, "catalog: the published edit and its image");
   const g = await fetch(`${B}/images/${img.id}`);
   assert(g.status === 200 && g.headers.get("content-type") === "image/png" && /immutable/.test(g.headers.get("cache-control") || ""), "image: served with a long cache");
+  // anonymous shop taps (docs/plans/tracking-reports.md Task 1): totals only
+  const pre = await fetch(`${B}/tap`, { method: "OPTIONS", headers: { origin: "https://app.example", "access-control-request-method": "POST", "access-control-request-headers": "content-type" } });
+  const tap = (body, headers = {}) => fetch(`${B}/tap`, { method: "POST", headers: { "content-type": "application/json", origin: "https://app.example", ...headers }, body: JSON.stringify(body) });
+  const t1 = await tap({ productId: "oura" }, { cookie: "who=maya", "x-forwarded-for": "198.51.100.77" });
+  assert(pre.status === 204 && t1.status === 204 && !t1.headers.get("set-cookie") && (await tap({ productId: "mira" })).status === 204, "tap: the app's cross-origin POST is accepted and answered with an empty 204, no cookie");
+  assert((await tap({ productId: "nope-not-a-product" })).status === 404 && (await tap({ productId: "oura", stage: "peri" })).status === 400, "tap: an unknown id and a body with anything else are refused");
+  const ownerTaps = await (await call("GET", "/taps?days=7", undefined, owner)).json();
+  const partnerTaps = await (await call("GET", "/taps?days=7", undefined, partner)).json();
+  assert(ownerTaps.total === 2 && partnerTaps.total === 1 && partnerTaps.brands.length === 1 && partnerTaps.brands[0].brandId === "oura" && (await call("GET", "/taps")).status === 401, "taps: the owner sees every brand's totals, the partner only its own, nobody without a sign-in");
+  const tapDisk = fs.readFileSync(`${DATA}/shop_taps.json`, "utf8");
+  assert(JSON.parse(tapDisk).every((r) => Object.keys(r).sort().join() === "brandId,day,productId,taps") && !/198\.51\.100|maya/.test(tapDisk) && !/198\.51\.100|\/tap/.test(srv.log()), "taps: the disk holds one total per product per day and nothing else; the log holds nothing about a tap");
   // disk and log
   const partnerCode = codeOf("pat@oura.example"); const disk = fs.readdirSync(DATA).filter((f) => f.startsWith("shop_")).map((f) => fs.readFileSync(`${DATA}/${f}`, "utf8")).join("\n");
   assert(!/"(symptoms|mood|days|cycleLen|lastPeriod|dueDate|log)"\s*:/.test(disk) && !new RegExp(`"${partnerCode}"`).test(disk) && !disk.includes(partner.split(".")[1]), "disk: business data only — no health field, no code, no token");

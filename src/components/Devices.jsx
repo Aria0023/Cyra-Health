@@ -1,12 +1,15 @@
 import { Card, Sheet } from "./ui/index.js";
 import { DEVICE_COPY as C } from "../lib/devices.js";
+import Details from "./Details.jsx";
 
 /* "Connect your devices" (Task 2): the one list of device sources (lib/devices.js deviceRows), shown as the optional
    registration step, in a sheet opened from the Home card and from You → Data sources. Each row: name, status, what it
    reads, where it goes, and at most one button. Nothing here sends anything: onConnect / onDisconnect (App.jsx
    connectWear / disconnectAny) run the existing flows after her tap; the row itself is the disclosure, so a first
-   connect starts straight away. */
-export function DeviceList({ rows, busy = null, onConnect, onDisconnect, demo = false, extra = null }) {
+   connect starts straight away.
+   2026-11-19: `howto` (lib/devices.js deviceHowTo) is the "Fitbit, Garmin or Whoop?" disclosure under the list: three short
+   steps per brand to share with Apple Health / Health Connect in the brand's own app, and what doesn't come through. */
+export function DeviceList({ rows, busy = null, onConnect, onDisconnect, demo = false, extra = null, howto = null }) {
   const row = (r) => {
     const nameId = `dev-${r.id}`, whyId = `dev-${r.id}-st`;
     const going = busy === r.source, ending = busy === `${r.source}:off`;
@@ -30,6 +33,22 @@ export function DeviceList({ rows, busy = null, onConnect, onDisconnect, demo = 
   return (
     <>
       {main.length > 0 && <ul className="devlist">{main.map(row)}</ul>}
+      {howto && (
+        <div className="devhowto" data-howto="">
+          <Details label={howto.label}>
+            <p>{howto.lead}</p>
+            {howto.brands.map((b) => (
+              <div key={b.id} className="devhow" data-brand={b.id}>
+                <p className="devhow-name" id={`devhow-${b.id}`}><b>{b.name}</b></p>
+                <ol aria-labelledby={`devhow-${b.id}`}>{b.steps.map((t) => <li key={t}>{t}</li>)}</ol>
+                {b.note && <p className="devhow-note">{b.note}</p>}
+              </div>
+            ))}
+            <p>{howto.missing}</p>
+            <p>{howto.menus}</p>
+          </Details>
+        </div>
+      )}
       {/* Task B: blood glucose through Apple Health / Health Connect (Dexcom, FreeStyle Libre). */}
       {gluc.length > 0 && (
         <>

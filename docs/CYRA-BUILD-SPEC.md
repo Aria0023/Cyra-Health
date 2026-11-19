@@ -2367,6 +2367,27 @@ pure reference.
 - [ ] LATER: Dexcom cloud API (needs Dexcom partner approval; docs/PASSIVE-TRACKING-PLAN.md).
 - [x] Shop by need (2026-11-14, Task C): real products by category matched on the device, affiliate links from
       src/config/affiliates.json only (committed empty), flag `shop`. Owner: join programs and paste links (docs/AFFILIATES.md).
+- [x] Anonymous shop tap counts (2026-11-19, docs/plans/tracking-reports.md Task 1): opening a product sends
+      `POST /api/shop/tap {productId}` and nothing else (no token, cookie or referrer; `src/lib/shopTaps.js`); the server
+      keeps one total per product per day for 400 days; on by default with her device-only switch "Count my shop taps
+      anonymously" (You → Privacy & your data); the portal's Clicks page shows the totals (a partner: its own brands).
+      Only in a build with a server and the `shop` flag. docs/PRIVACY-AUDIT.md "Anonymous shop tap counts".
+- [x] Account and sign-in totals (2026-11-19, Task 2): the account record keeps `lastSeenDay` (a UTC date, written at
+      most once a day on sign-in or `GET /api/accounts/me`; the app calls it once per launch while signed in); the
+      portal's owner-only People page and Overview card show counts only (`backend/src/modules/insights`, mounted in
+      production). The sign-in disclosure names "the last day you used your account".
+- [x] Affiliate results (2026-11-19, Task 3): the portal's owner-only Affiliates page shows Solia's taps beside Impact's
+      clicks, sales and commission per brand (`IMPACT_ACCOUNT_SID`, `IMPACT_AUTH_TOKEN`; fails closed; cached 15 minutes;
+      endpoints in `backend/src/modules/insights/impact.js`, to verify against Impact's docs) and an uploaded Amazon
+      Associates earnings report as per-day totals. Owner guide: docs/AFFILIATES.md sections 4 and 5.
+- [x] Weekly owner report (2026-11-19, Task 4): every Monday 14:00 UTC the insights module emails the owners last
+      week's totals (accounts, RevenueCat, shop taps, affiliates, partner activity, AI use, and week-over-week moves over
+      30%), summarised by Claude through the ai module's client when `ANTHROPIC_API_KEY` is set, else as a plain template
+      with the same numbers; sent with Resend; never twice (a stamp in `DATA_DIR`); on/off, recipients, Preview and Send
+      now in the portal. The email says "Totals only; no personal or health data."
+- [x] Devices (2026-11-19, Task 4): a "Fitbit, Garmin or Whoop?" how-to under the device list (share with Apple Health
+      or Health Connect in the brand's app, then connect that here; HRV doesn't come through for Garmin and Whoop); the
+      Fitbit · Garmin · Whoop (Terra) row shows only where the server reports Terra configured or a connection exists.
 - [x] Installable web app that opens offline (A14.1); Render serves /, /index.html, /sw.js and /manifest.webmanifest
       with Cache-Control: no-cache.
 - [ ] Choose VITE_FEATURES for each release and list the matching backend modules (§9.1); the default offers Ask

@@ -2419,3 +2419,172 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   without an account"), and `VITE_GUEST_HOURS` can lengthen the window up to 168 hours.
 - **For counsel:** the terms and privacy drafts mention the guest time ("48 hours as of this draft"); keep that number in
   step with `VITE_GUEST_HOURS` before publishing.
+
+## Anonymous shop tap counts (2026-11-19, docs/plans/tracking-reports.md Task 1) — one new request, ON by default, one device-only key
+
+- **What changed:** in a build with a server and the shop flag, opening a product from the Shop page ("Visit <brand>" or
+  its picture) sends `POST /api/shop/tap` with the body `{"productId":"<id>"}`. This is the first request the app makes
+  **by default** that reflects something she did, so it is disclosed where she meets it (the Shop footer), in the
+  privacy dashboard (a row with its own switch) and in the privacy draft. Owner decision: on by default.
+- **What is sent:** the product id and nothing else. `src/lib/shopTaps.js` builds the request: no cookie
+  (`credentials: "omit"`), no `Authorization` header even when she is signed in, `referrerPolicy: "no-referrer"`,
+  `keepalive`, never awaited (a failure or a slow server never delays the link). e2e/shop-taps.spec.mjs asserts the
+  whole body is `{ productId }` and that no token, cookie or referrer goes with it.
+- **What a product id can imply:** a product belongs to a need (an ovulation test, a glucose sensor), so a single tap,
+  if it were tied to a person, would hint at her situation. That is why nothing that could tie it to a person is sent
+  or kept, and why the server refuses a body with any other field (400) instead of ignoring it.
+- **What the server keeps:** `shop_taps` rows `{ day (UTC date), productId, brandId, taps }`: one row per product per
+  day, a total. No row per request, no time of day, no address, no user agent, no account, no device id. Taps wait in
+  memory **as totals** for up to 10 seconds before being written. Rows older than 400 days are dropped at the next
+  write. Nothing about a tap is logged or audited. The request address is used only by the existing in-memory rate
+  limiter (salted daily hash, dropped about a minute after the last request; `core/memory.js`): 30 taps a minute per
+  client, 3000 overall. As with every request, the host (Render) may log the address in its own request log; the
+  app's sentence says "Solia Health's own code ... doesn't keep it", which is what is true.
+- **Who sees the totals:** the portal's Clicks page (`GET /api/shop/taps`, `/taps.csv`): owners see every brand; a
+  partner sees only rows whose brand is one of its own (checked on the server on every read; tested in
+  backend/test/shop-taps.test.mjs and e2e/portal-clicks.spec.mjs). No threshold is applied to small totals: a total of
+  1 says one tap happened that day, not who tapped. **Residual risk:** an owner or partner who knows that exactly one
+  named person uses the app on a given day could infer her tap from a daily total; with real traffic this is not
+  possible. If the app launches to a very small group, consider showing a brand only totals of 5 or more.
+- **Her control:** "Count my shop taps anonymously" (You → Privacy & your data → How this works → What can leave this
+  device), on by default, a device-only key (`shopTapsOff`, never in a backup, kept across a restore). Off: no tap
+  request is made at all (unit and e2e tested). Delete everything resets it to on, like every other device setting.
+  A total already added can't be removed for one person, because nothing links it to her.
+- **Builds where nothing is sent:** no `VITE_API_BASE`, or the shop flag off: no request, no row, no switch.
+- **Sentences added or changed so each stays literally true:**
+  - Shop footer and You's Shop card, where a tap can be sent: "Matched on this device: your stage and what you log are
+    never sent." (was "Matched on this device; nothing about you is sent.", which is still shown where no tap can be
+    sent: no server, or her switch off), plus "When you open a product, Solia Health counts one anonymous tap for that
+    product. It isn't linked to you or to anything you log. You can turn this off in You → Privacy & your data."
+  - Privacy dashboard row: "When you open a product in the Shop, Solia Health's server gets that product's id and
+    nothing else, and adds one to that product's total for the day. No account, no device id, no stage and nothing you
+    logged goes with it." and three Details sentences (no cookie/token/referrer and 400-day totals; the address used
+    only in memory; who sees the totals and how to turn it off).
+  - "Every feature that can send something is off right now." is no longer shown in a server build while the tap count
+    is on: the same line now reads "Turned on now: Count my shop taps anonymously."
+  - Privacy draft (public/legal/privacy.html): section 3 gains a row for the tap counts; section 5's Shop paragraph no
+    longer says "nothing about you is sent to us" and describes the tap total and its switch. Attorney review as before.
+  - Portal footer: lists "anonymous daily totals of Shop taps per product".
+  - Privacy draft, "The short version" and Section 6: "no advertising, analytics or tracking code" became "no
+    advertising and no third-party analytics or tracking code", followed by a sentence naming the one count kept (the
+    Shop tap totals). README.md says the same. docs/…/health-data.html gains a counsel note: confirm the anonymous
+    totals are not consumer health data under the Washington / Nevada Acts, or make the count opt-in.
+- **Store declarations:** `ios/App/App/PrivacyInfo.xcprivacy` already declares Product Interaction (for the host's
+  request log); its purposes now include Analytics and its comment describes the tap count. App Store Connect → App
+  Privacy → Product Interaction must list Analytics as a purpose too, and Google Play's Data safety form should list
+  "App interactions" (collected, not shared, optional, for analytics). Data Used to Track You stays: none.
+
+## Account and sign-in totals (2026-11-19, docs/plans/tracking-reports.md Task 2) — one new account field, one new request while signed in
+
+- **What changed:** the account record gains `lastSeenDay`, the last UTC day the account was used, and the portal gains
+  an owner-only People page (and a card on Overview) of counts built from the account records.
+- **What the server keeps, exactly:** `lastSeenDay` is a date (`YYYY-MM-DD`, UTC): no time of day, no address, no
+  device, no count of uses, no history (one value, overwritten). It is written on sign-in and on
+  `GET /api/accounts/me`, at most once a day per account (`accounts/index.js` touchSeen). The app is never sent it
+  (`publicAccount`). It is deleted with the account. Tested in backend/test/insights-people.test.mjs.
+- **The new request:** before this change the app never called `GET /api/accounts/me`, so "in use" could not be known
+  after sign-in. Now, while she is signed in, the app calls it once per launch (`src/lib/signinClient.js` accountSeen,
+  App.jsx): the session token in `Authorization`, no body, no query, and the answer is not used. A guest, a build
+  without sign-in and a build without a server send nothing (e2e/account-seen.spec.mjs). This is a presence signal tied
+  to an account, which is why it is disclosed in three places (below) rather than left implicit.
+- **What an owner sees (`GET /api/insights/people`, owner only; a partner gets 403):** total accounts, new accounts per
+  day for 30 days, new in 7 / 30 days, used today / in 7 / in 30 days, and accounts by sign-in method. Numbers and
+  dates only: no email, name, account id or list of people (the test checks every value in the answer is a number or
+  a date). **Residual risk:** with very few accounts a count can describe one person (for example "1 account, used
+  today"). Owners already hold the account records on the server, so this page gives them nothing they could not
+  already read; partners never see it.
+- **Sentences added or changed:**
+  - sign-in step, "What signing in shares": "Solia Health's server keeps your account: how you signed in, your email,
+    your name if the service shares it, when you made the account and the last day you used your account (a date, not
+    a time). Never your health log." and the new item "While you're signed in, Solia Health tells its server the
+    account is in use when the app opens. That request carries your sign-in and nothing from your log."
+  - You → Privacy & your data → Other connections: "...when you made the account and the last day you used your
+    account (a date, not a time; the app tells the server the account is in use when it opens). Never your health log."
+  - Consent step (`serverSees`): "...your email and your name if the service shares it, and the last day you used your
+    account. It keeps no profile of you..."
+  - Privacy draft, Section 3 "Your account (sign-in)": names the last day used and what the dates are used for.
+  - Portal footer: adds "counts of accounts and sign-ins".
+- **Store declarations:** no new data type: the account identifier (User ID), email and name are already declared as
+  linked. The last-day-used date is part of that account record.
+
+## Affiliate results in the portal (2026-11-19, docs/plans/tracking-reports.md Task 3) — business totals only; nothing about any user
+
+- **What changed:** an owner-only Affiliates page: Solia's own tap totals (above) beside what Impact reports per
+  campaign (clicks, actions, sale amount, commission), and the totals of an Amazon Associates earnings report the owner
+  uploads. `backend/src/modules/insights/{impact,amazon,affiliates}.js`.
+- **Whose data:** none of it is a user's. Impact's and Amazon's reports describe links and sales in aggregate; they hold
+  no Solia Health account, device or health field, and nothing from the app is sent to either network by this feature
+  (the server only reads). The app's links are unchanged: an affiliate link still carries nothing about her.
+- **What is sent out:** `GET` requests from the server to Impact's API with the owner's Account SID and Auth Token
+  (HTTP Basic) and a date range. Nothing else.
+- **Secrets:** `IMPACT_AUTH_TOKEN` is read from the environment, used only in the `Authorization` header to Impact's
+  host, never logged (errors are fixed categories), never returned to the portal (tested), never on disk.
+- **What is kept:** `insights_amazon` = one row per day `{ day, items, revenue, earnings }` from the uploaded report
+  (product names, ASINs and tracking ids are read past and dropped; tested), and when it was uploaded and by which owner.
+  Impact's numbers are held in memory for 15 minutes and never written. A brand's `impactCampaignId` is an owner-only
+  field that is never part of the published catalog (tested).
+- **Access:** every route is owner-only on the server; a partner gets 403 (unit, smoke and e2e tested).
+- **No user-facing sentence changes.** Portal footer adds "affiliate network totals".
+
+## Weekly owner report; Fitbit, Garmin and Whoop how-to (2026-11-19, docs/plans/tracking-reports.md Task 4)
+
+### The weekly report — business totals to the owners; nothing about any user
+
+- **What it is:** an email every Monday 14:00 UTC (and on demand from the portal) to the owners (`ADMIN_EMAILS`, or
+  up to 10 addresses an owner sets). `backend/src/modules/insights/{weekly,report}.js`.
+- **What it is built from:** one JSON of totals (`buildTotals`): account counts (total, new, used, by sign-in method),
+  RevenueCat's overview numbers if configured, shop tap totals and the five most-opened products (names of products and
+  brands), Impact and Amazon totals if present, counts of partner applications and products waiting, and the month's AI
+  use summed over all accounts. Rows are reduced to counts before they reach the builder: accounts are passed as
+  `{ provider, createdAt, lastSeenDay }` only, AI usage rows lose their account id, applications as `{ status, at }`.
+  The unit test checks every key of the JSON against an allowlist and that it contains no "@" and no account id, and
+  that an email address typed into a product name is neutralised.
+- **Who receives it:** (1) **Anthropic**, when `ANTHROPIC_API_KEY` is set: the totals JSON and a fixed system prompt,
+  through the ai module's existing client (model from config, effort low, the server-side refusal fallback), to write
+  a summary of at most about 160 words. No personal data and no health data is in it. Anthropic's retention applies to
+  it as to any API request. A refusal, an error, a truncated or unusable answer (too short or long, or containing a
+  link or an address) falls back to the plain template. (2) **Resend**, to deliver the email to each recipient.
+  (3) The recipients. The email always carries the numbers themselves under the summary, and the line "Totals only; no
+  personal or health data."
+- **Never twice:** the week's slot is written to `insights_weekly` in `DATA_DIR` before the emails go out; a restart
+  or a second look that hour sends nothing (tested, including a second server on the same directory). Without a
+  persistent disk the stamp is lost on a redeploy, and a redeploy between Monday and Thursday sends the week again.
+- **Logs:** never an address or the report's text; a failed send logs a count and a category. A development server
+  without `RESEND_API_KEY` logs only the subject.
+- **Access:** settings, preview and send are owner-only on the server; a partner gets 403 (tested).
+- **Portal sentences:** "Totals only; no personal or health data. The report is built from counts: nothing in it is
+  about one person, and the server holds no health data. To write the summary the totals are sent to Anthropic, and
+  the email is delivered by Resend." Footer adds "a weekly report of those totals".
+- **Privacy draft:** no change needed for users: nothing about a user is sent. Anthropic and Resend are already listed
+  as service providers; their new use here involves business totals only.
+
+### The devices list — one row hidden, one how-to added; no new request, nothing new leaves the device
+
+- **What changed:** the "Fitbit · Garmin · Whoop" (Terra) row is shown only where it can do something: the server
+  reports Terra configured, a Terra connection already exists on the device (so it can still be synced or
+  disconnected), an unconfirmed disconnect is waiting, or the demo build. Elsewhere it is hidden instead of showing
+  "Not set up yet". Home's older Wearables panel follows the same rule.
+- **Added:** a "Fitbit, Garmin or Whoop?" disclosure under the device list: three steps per brand to turn on sharing
+  with Apple Health (iPhone) or Health Connect (Android) in the brand's own app and then connect that source in Solia
+  Health. That path is read on the phone by the app and never involves Solia Health's server or Terra, which is why it
+  is the privacy-preferred one.
+- **Sentences shown (iPhone wording; Android says Health Connect, a browser names both):**
+  - "Their own apps can share your readings with Apple Health, and Solia Health reads them from there, on your
+    iPhone. Solia Health's server is never involved this way."
+  - per brand: "Open the Fitbit app / the Garmin Connect app / the WHOOP app and go to its settings." "Look for Apple
+    Health there and turn on sharing for sleep and heart rate." "Come back here and connect Apple Health in the list
+    above."
+  - "On an iPhone, the Fitbit app may not offer Apple Health. If it isn't in the settings, Fitbit can't share this way
+    on an iPhone." (iPhone and browser only)
+  - "What doesn't come through: Garmin and Whoop don't share HRV this way, so HRV stays empty for them. Sleep and
+    heart rate come through when the brand's app shares them."
+  - "Menu names change from time to time. In the brand app's settings, look for Apple Health. If it isn't there, that
+    app can't share this way on your phone."
+- **Vendor facts these sentences rest on (re-check before each release; none could be checked from this container):**
+  the Fitbit app shares with Health Connect on Android and has not offered Apple Health sharing on iPhone; Garmin
+  Connect and WHOOP can share sleep and heart rate with Apple Health and with Health Connect; neither shares HRV that
+  way. The wording is hedged ("may not", "when the brand's app shares them", "if it isn't there") so that a vendor
+  change makes it less specific rather than false, except the HRV sentence, which states a fact and must be re-checked.
+- **Catalog text:** the bundled Garmin product line no longer says it "connects through the Fitbit · Garmin · Whoop
+  row" (false where the row is hidden); it now says its app can share sleep and heart rate with Apple Health or Health
+  Connect. The seed was regenerated; a portal catalog already imported keeps its own copy until an owner edits it.

@@ -4,7 +4,8 @@
 //                         (push, ai, oauth, accounts, integrations, shop and portal: sign-in is
 //                         required and wearables are on since 2026-11-12; shop, the published
 //                         Shop catalog, the partner portal API and its page, since 2026-11-15; subscriptions, the
-//                         portal's subscriptions / promotions / Pro grants / codes, since 2026-11-15; VITE_FEATURES
+//                         portal's subscriptions / promotions / Pro grants / codes, since 2026-11-15; insights, the
+//                         portal's owner-only totals, since 2026-11-19; VITE_FEATURES
 //                         unset, src/lib/features.js). pulse and backup stay in the code and
 //                         are mounted by listing them there, for a build whose
 //                         VITE_FEATURES turns them on. ADMIN_KEY and AUTH_SECRET come
@@ -20,7 +21,7 @@ import path from "path";
 import crypto from "crypto";
 import express from "express";
 
-export const PRODUCTION_MODULES = ["push", "ai", "oauth", "accounts", "integrations", "shop", "portal", "subscriptions"];
+export const PRODUCTION_MODULES = ["push", "ai", "oauth", "accounts", "integrations", "shop", "portal", "subscriptions", "insights"];
 const DEMO_VALUES = ["demo-admin-key-change-me", "demo-auth-secret-change-me"];
 const env = (k) => (process.env[k] || "").trim();
 const isProduction = () => env("NODE_ENV") === "production";

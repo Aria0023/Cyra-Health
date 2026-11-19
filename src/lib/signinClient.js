@@ -42,3 +42,10 @@ export async function deleteAccountServer(token, { timeoutMs = 10000 } = {}) {
   const r = await apiFetch("/api/accounts/me", { method: "DELETE", headers: bearer(token) }, { timeoutMs });
   if (!r.ok && r.status !== 401) throw fail(r, await json(r));
 }
+/** Tells the server this account is in use (GET /api/accounts/me: the server notes today's date on the account, at most
+    once a day; docs/plans/tracking-reports.md Task 2). Carries the session token and nothing else; the answer is not
+    used. Never throws: → true when the server answered 2xx. */
+export async function accountSeen(token) {
+  try { const r = await apiFetch("/api/accounts/me", { method: "GET", headers: bearer(token) }, { timeoutMs: 10000 }); return r.ok; }
+  catch { return false; }
+}

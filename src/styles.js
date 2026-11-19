@@ -469,6 +469,12 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 .devline { font-size:16px; line-height:1.45; color:var(--soft); margin:8px 0 0; }
 .devline b { color:var(--ink); font-weight:600; }
 .devlead { margin-top:0; }
+.devhowto { margin:12px 0 0; }
+.devhowto .bodypanel p { font-size:16px; line-height:1.45; color:var(--ink); margin:0 0 10px; }
+.devhow-name { margin:12px 0 2px !important; }
+.devhow ol { margin:0 0 8px; padding-left:22px; font-size:16px; line-height:1.45; color:var(--ink); }
+.devhow ol li { margin:0 0 4px; }
+.devhowto .bodypanel .devhow-note { color:var(--soft); }
 .devhome-acts { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin-top:10px; }
 .devhome-acts .linkbtn { min-height:44px; }
 .evcard .inp { margin-bottom:10px; }
@@ -2036,7 +2042,7 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
   .shopgrid.multi > .shopcard { flex:0 0 85%; scroll-snap-align:start; }
 }
 .shopcard { display:flex; flex-direction:column; border-radius:16px; background:var(--card); box-shadow:var(--sh-card); border:1px solid var(--edge); overflow:hidden; }
-.shopimg { position:relative; overflow:hidden; aspect-ratio:16 / 10; width:100%; background:linear-gradient(135deg, color-mix(in srgb, var(--hue) 25%, var(--card)), color-mix(in srgb, var(--hue) 7%, var(--card)) 75%); display:flex; align-items:center; justify-content:center; }
+.shopimg { cursor:pointer; position:relative; overflow:hidden; aspect-ratio:16 / 10; width:100%; background:linear-gradient(135deg, color-mix(in srgb, var(--hue) 25%, var(--card)), color-mix(in srgb, var(--hue) 7%, var(--card)) 75%); display:flex; align-items:center; justify-content:center; }
 @media (min-width:700px) { .shopimg { aspect-ratio:4 / 3; } }
 .shopimg img { width:100%; height:100%; object-fit:cover; display:block; }
 .shopimg-blobs { position:absolute; inset:0; width:100%; height:100%; }

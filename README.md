@@ -109,7 +109,8 @@ encrypted on her device, is kept on Cyra's server under a hash of her email and 
 write token derived from her passphrase; never the email, the passphrase or the key
 (docs/ARCHITECTURE.md §10.5a). The default build has no such flag and production doesn't
 mount the module. Fonts are bundled, and there is no
-analytics, advertising or tracking code. **Delete everything** asks Cyra's server to remove
+advertising and no third-party analytics or tracking code; the one usage count is the anonymous
+Shop tap total (a product id only, on by default, her switch turns it off; src/lib/shopTaps.js). **Delete everything** asks Cyra's server to remove
 the reminder subscription and, in a build with wearables, disconnect Oura and Terra (collecting
 Terra's waiting readings first), and deletes the record on the device only after the server has confirmed every step:
 if one can't be confirmed, the app says which step failed and why, and what already ended (a

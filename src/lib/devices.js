@@ -12,6 +12,11 @@
      daily readings in memory, never on disk, until the phone collects them, 7 days at most (the same module's mailbox).
      So this row does NOT say "not kept": it says how long the server holds them.
 
+   2026-11-19 (docs/plans/tracking-reports.md Task 4): the Fitbit · Garmin · Whoop row (through Terra) shows only where
+   it can do something: the server said Terra is set up, a connection already exists, or the demo build. Everywhere else
+   the list carries a "Fitbit, Garmin or Whoop?" how-to instead (deviceHowTo): turn on sharing to Apple Health or Health
+   Connect in the brand's own app, then connect Apple Health / Health Connect here. That path never involves a server.
+
    Row states:
      connected   Connected · synced <when>      → Disconnect
      pending     Waiting to finish               → Sync
@@ -48,7 +53,46 @@ export const DEVICE_COPY = Object.freeze({
   inPhone: "In the iPhone or Android app",
   glucoseLead: "Blood glucose from a Dexcom or FreeStyle Libre sensor comes through Apple Health or Health Connect. In the Dexcom or Libre app, turn on sharing to Apple Health or Health Connect first.",
   noDevice: "Don't have a device? See options",
+  howtoLabel: "Fitbit, Garmin or Whoop?",
 });
+
+/* The how-to (2026-11-19). Worded to stay true as the brands' menus change: it says where to look ("in the app's
+   settings, look for Apple Health / Health Connect"), never a menu path, and says what to conclude when it isn't there.
+   Facts to re-check before each release (docs/PRIVACY-AUDIT.md lists them): the Fitbit app shares with Health Connect on
+   Android and has not offered Apple Health on iPhone; Garmin Connect and WHOOP share sleep and heart rate with Apple
+   Health and Health Connect but not HRV. */
+const HOWTO_BRANDS = [
+  { id: "fitbit", name: "Fitbit", app: "the Fitbit app", iosNote: "On an iPhone, the Fitbit app may not offer Apple Health. If it isn't in the settings, Fitbit can't share this way on an iPhone." },
+  { id: "garmin", name: "Garmin", app: "the Garmin Connect app" },
+  { id: "whoop", name: "Whoop", app: "the WHOOP app" },
+];
+
+/** The "Fitbit, Garmin or Whoop?" how-to for this platform, or null in a build without the on-phone sources.
+    c = { native, platform: "ios" | "android" | "web", flags: { deviceSync } } */
+export function deviceHowTo(c = {}) {
+  if (!c.flags?.deviceSync) return null;
+  const plat = c.native ? c.platform : "web";
+  const target = plat === "ios" ? "Apple Health" : plat === "android" ? "Health Connect" : "Apple Health (iPhone) or Health Connect (Android)";
+  const phone = plat === "ios" ? "on your iPhone" : plat === "android" ? "on your Android phone" : "on your phone, in the Solia Health app";
+  const last = plat === "web" ? "In the Solia Health app on that phone, open Connect your devices and connect Apple Health or Health Connect."
+    : `Come back here and connect ${target} in the list above.`;
+  return {
+    label: DEVICE_COPY.howtoLabel,
+    lead: `Their own apps can share your readings with ${target}, and Solia Health reads them from there, ${phone}. Solia Health's server is never involved this way.`,
+    brands: HOWTO_BRANDS.map((b) => ({
+      id: b.id, name: b.name,
+      steps: [`Open ${b.app} and go to its settings.`, `Look for ${target} there and turn on sharing for sleep and heart rate.`, last],
+      note: b.iosNote && plat !== "android" ? b.iosNote : null,
+    })),
+    missing: "What doesn't come through: Garmin and Whoop don't share HRV this way, so HRV stays empty for them. Sleep and heart rate come through when the brand's app shares them.",
+    menus: `Menu names change from time to time. In the brand app's settings, look for ${target}. If it isn't there, that app can't share this way on your phone.`,
+  };
+}
+
+/** Whether the Fitbit · Garmin · Whoop (Terra) row is shown: the server reports Terra set up, a connection exists
+    (so it can be synced or disconnected), a disconnect is still waiting, or the demo build. */
+export const terraShown = ({ server = false, serverSources = null, wearSources = {}, demo = false, terraOff = 0 } = {}) =>
+  !!demo || !!(wearSources && wearSources.terra) || terraOff > 0 || (!!server && !!serverSources && serverSources.terra === true);
 
 const ROWS = [
   { id: "apple", source: "healthkit", name: "Apple Health", app: "ios",
@@ -82,14 +126,14 @@ export function syncedWords(ms, nowMs = Date.now()) {
   return n <= 0 ? "today" : n === 1 ? "yesterday" : `${n} days ago`;
 }
 
-/** The rows, in order: Apple Health, Health Connect, Oura, Fitbit · Garmin · Whoop.
+/** The rows, in order: Apple Health, Health Connect, Oura, Fitbit · Garmin · Whoop (only where terraShown).
     c = { native, platform: "ios" | "android" | "web", flags: { deviceSync, wearables }, server, serverSources: { oura, terra } | null,
           wearSources, demo, nowMs } */
 export function deviceRows(c = {}) {
   const f = c.flags || {};
   const plat = c.native ? c.platform : "web";
   const ws = c.wearSources || {};
-  return ROWS.filter((r) => (r.server ? !!f.wearables : !!f.deviceSync)).map((r) => {
+  return ROWS.filter((r) => (r.server ? !!f.wearables : !!f.deviceSync)).filter((r) => r.id !== "terra" || terraShown({ server: c.server, serverSources: c.serverSources, wearSources: ws, demo: c.demo, terraOff: c.terraOff })).map((r) => {
     const st = ws[r.source] && typeof ws[r.source] === "object" ? ws[r.source] : null;
     let state, note = null;
     if (!r.server && plat !== r.app) state = "elsewhere"; // Apple Health on Android or the web, Health Connect on iPhone or the web

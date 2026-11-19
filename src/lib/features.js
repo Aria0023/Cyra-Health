@@ -31,7 +31,9 @@
    and its quiet contextual links (lib/shop.js). ON by default. Its backend module is shop (2026-11-15, partner portal:
    the published catalog and the portal API): with a server, the Shop downloads the published catalog with a plain
    request that carries nothing about her (lib/shopLive.js), else it shows the bundled one; matching runs on the device and
-   a link opens in the browser only on her tap. Off, the shop and every link to it are gone.
+   a link opens in the browser only on her tap. 2026-11-19: with a server, opening a product also sends that product's id
+   (only) for an anonymous daily total, unless she turned it off (lib/shopTaps.js). Off, the shop and every link to it
+   are gone, and no tap is sent.
 
    Pure, with NO imports: Node (unit tests, vite.config.js) imports this file, where import.meta.env is
    undefined; the optional chaining below keeps it importable there, and Vite still inlines the value. */
@@ -42,8 +44,9 @@ export const DEFAULT_FEATURES = Object.freeze({ wearables: true, counts: false, 
 export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts: "pulse", ai: "ai", webReminders: "push", cloudBackup: "backup", signin: "accounts", deviceSync: null, shop: "shop" });
 /** Further backend modules a server feature also needs: sign-in with Apple, Google or Facebook runs through oauth; the
     shop's partner portal page (where its catalog is edited) is the portal module, and the portal's subscriptions part
-    (promotions the app downloads with GET /api/promotions/active, Pro grants, partner codes) is the subscriptions module. */
-export const FEATURE_ALSO = Object.freeze({ signin: Object.freeze(["oauth"]), shop: Object.freeze(["portal", "subscriptions"]) });
+    (promotions the app downloads with GET /api/promotions/active, Pro grants, partner codes) is the subscriptions module;
+    insights (2026-11-19) is the portal's owner-only totals (accounts and sign-ins; the app never calls it). */
+export const FEATURE_ALSO = Object.freeze({ signin: Object.freeze(["oauth"]), shop: Object.freeze(["portal", "subscriptions", "insights"]) });
 
 const words = (raw) => String(raw).split(",").map((w) => w.trim()).filter(Boolean);
 const known = (w) => FEATURE_NAMES.find((n) => n.toLowerCase() === w.toLowerCase());
