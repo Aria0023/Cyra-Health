@@ -60,7 +60,7 @@ const SRC = () => ({
   partners: 3,
   aiUsage: [{ id: ":2026-11", evidence: 10, chat: 40, weekly: 2 }, { id: ":2026-11", evidence: 5, chat: 1 }, { id: ":2026-10", evidence: 99, chat: 99, weekly: 9 }],
 });
-const ALLOWED = new Set(["week", "weekBefore", "from", "to", "people", "total", "newThisWeek", "newWeekBefore", "activeSinceWeekStart", "activeLast30Days", "bySignIn", "apple", "google", "facebook", "email", "subscriptions", "connected", "notSet", "error", "numbers", "id", "name", "value", "unit", "period", "shop", "taps", "tapsWeekBefore", "mostOpened", "product", "brand", "affiliates", "impact", "thisWeek", "clicks", "sales", "saleAmount", "commission", "amazon", "uploadedOn", "items", "revenue", "earnings", "daysCovered", "partners", "applicationsWaiting", "applicationsThisWeek", "productsWaitingForReview", "ai", "month", "evidenceQuestions", "chatMessages", "weeklyWriteUps", "estimatedCostThisWeekUsd", "estimatedCostMonthUsd", "monthlyBudgetUsd", "budgetUsedPercent", "feedback", "open", "receivedThisWeek", "unusual", "metric", "changePercent"]);
+const ALLOWED = new Set(["week", "weekBefore", "from", "to", "people", "total", "newThisWeek", "newWeekBefore", "activeSinceWeekStart", "activeLast30Days", "bySignIn", "apple", "google", "facebook", "email", "subscriptions", "connected", "notSet", "error", "numbers", "id", "name", "value", "unit", "period", "shop", "taps", "tapsWeekBefore", "mostOpened", "product", "brand", "affiliates", "impact", "thisWeek", "clicks", "sales", "saleAmount", "commission", "amazon", "uploadedOn", "items", "revenue", "earnings", "daysCovered", "partners", "applicationsWaiting", "applicationsThisWeek", "productsWaitingForReview", "ai", "month", "evidenceQuestions", "chatMessages", "weeklyWriteUps", "mealPhotos", "estimatedCostThisWeekUsd", "estimatedCostMonthUsd", "monthlyBudgetUsd", "budgetUsedPercent", "feedback", "open", "receivedThisWeek", "unusual", "metric", "changePercent"]);
 const keysOf = (v, out = new Set()) => { if (Array.isArray(v)) v.forEach((x) => keysOf(x, out)); else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) { out.add(k); keysOf(x, out); } return out; };
 
 test("totals: counts and sums only; every key is on the allowlist; nothing that names a person", () => {
@@ -75,7 +75,7 @@ test("totals: counts and sums only; every key is on the allowlist; nothing that 
   assert.deepEqual(t.affiliates.impact, { connected: true, thisWeek: { clicks: 120, sales: 6, saleAmount: 1794, commission: 143.52 }, weekBefore: { clicks: 60, sales: 5, saleAmount: 1495, commission: 119.6 } });
   assert.deepEqual(t.affiliates.amazon, { uploadedOn: "2026-11-16", items: 3, revenue: 50, earnings: 2, daysCovered: 1 });
   assert.deepEqual(t.partners, { applicationsWaiting: 2, applicationsThisWeek: 2, productsWaitingForReview: 2, partners: 3 });
-  assert.deepEqual(t.ai, { month: "2026-11", evidenceQuestions: 15, chatMessages: 41, weeklyWriteUps: 2 });
+  assert.deepEqual(t.ai, { month: "2026-11", evidenceQuestions: 15, chatMessages: 41, weeklyWriteUps: 2, mealPhotos: 0 });
   assert.deepEqual(t.unusual.map((u) => [u.metric, u.changePercent]), [["New accounts", 100], ["Shop taps", 125], ["Affiliate clicks (Impact)", 100]]);
   const raw = JSON.stringify(t);
   assert.doesNotMatch(raw, /@|acct_secret|Maya|person\d|founder|Brand Co|call me/);

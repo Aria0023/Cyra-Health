@@ -53,7 +53,7 @@ test("spendRecorder: one row per day and kind, totals only, 400 days kept", asyn
   ]);
   assert.equal(pings, 4);
   assert.doesNotMatch(fs.readFileSync(path.join(dir, "ai_spend.json"), "utf8"), /acct_|period|text|account/);
-  assert.deepEqual([...SPEND_KINDS], ["ask", "evidence", "chat", "weekly", "report"]);
+  assert.deepEqual([...SPEND_KINDS], ["ask", "evidence", "chat", "weekly", "report", "meal"]);
 });
 
 test("spendReport: this month so far, by kind, by day, the projection and the average per person", () => {
@@ -67,7 +67,7 @@ test("spendReport: this month so far, by kind, by day, the projection and the av
   const r = spendReport({ rows, nowMs: T0, people: 4 });
   assert.deepEqual([r.month, r.asOf, r.daysInMonth, r.estimateUsd, r.people, r.perPersonUsd], ["2026-11", "2026-11-10", 30, 10, 4, 2.5]);
   assert.equal(r.projectedUsd, Math.round((10 / 9.5) * 30 * 10000) / 10000, "9.5 days gone of 30");
-  assert.deepEqual(r.byKind.map((k) => [k.kind, k.requests, k.usd]), [["ask", 0, 0], ["evidence", 2, 4], ["chat", 10, 6], ["weekly", 0, 0], ["report", 0, 0]]);
+  assert.deepEqual(r.byKind.map((k) => [k.kind, k.requests, k.usd]), [["ask", 0, 0], ["evidence", 2, 4], ["chat", 10, 6], ["weekly", 0, 0], ["report", 0, 0], ["meal", 0, 0]]);
   assert.equal(r.byDay.length, 10);
   assert.deepEqual([r.byDay[0], r.byDay[9]], [{ day: "2026-11-01", requests: 10, usd: 6 }, { day: "2026-11-10", requests: 2, usd: 4 }]);
   assert.equal(spendReport({ rows, nowMs: T0, people: 0 }).perPersonUsd, null);
@@ -95,7 +95,7 @@ test("budgetState, alertDue and the alert's words", () => {
 test("the weekly report's numbers carry the estimate", () => {
   const week = weekOf(Date.UTC(2026, 10, 16, 14));
   const t = buildTotals({ week, nowMs: Date.UTC(2026, 10, 16, 14), aiCost: { weekUsd: 12.345, monthUsd: 40.1, budgetUsd: 50, budgetPercent: 80 } });
-  assert.deepEqual(t.ai, { month: "2026-11", evidenceQuestions: 0, chatMessages: 0, weeklyWriteUps: 0, estimatedCostThisWeekUsd: 12.35, estimatedCostMonthUsd: 40.1, monthlyBudgetUsd: 50, budgetUsedPercent: 80 });
+  assert.deepEqual(t.ai, { month: "2026-11", evidenceQuestions: 0, chatMessages: 0, weeklyWriteUps: 0, mealPhotos: 0, estimatedCostThisWeekUsd: 12.35, estimatedCostMonthUsd: 40.1, monthlyBudgetUsd: 50, budgetUsedPercent: 80 });
   assert.ok(numbersText(t).includes("- Estimated AI cost: $12.35 this week; $40.10 in 2026-11 so far (80% of the $50.00 monthly budget). An estimate from token totals; Anthropic's console is the bill of record."));
   const none = buildTotals({ week, nowMs: Date.UTC(2026, 10, 16, 14) });
   assert.ok(!numbersText(none).includes("Estimated AI cost"));

@@ -9,7 +9,7 @@
 // Rows older than 400 days are deleted (once a day, on the first write of the day).
 //
 // Kinds: ask (the free Ask fallback), evidence (Ask with evidence; each turn of a long search is one request), chat,
-// weekly (her weekly write-up) and report (the owners' weekly report). Every answered request is counted, also a
+// weekly (her weekly write-up), report (the owners' weekly report) and meal (a meal photo read, meal.js). Every answered request is counted, also a
 // refusal or a truncated answer: the API bills those too. A request that got no answer (network error, 5xx) has no
 // usage and is not counted.
 //
@@ -17,7 +17,7 @@
 // change (insights/spend.js keeps the edit). The defaults below are Claude Opus 5.5's list prices on 2026-11-03, the
 // model config/app.json names; a different AI_MODEL needs its own prices. The estimate always uses these prices, also
 // for a request the API's refusal fallback moved to another model.
-export const SPEND_KINDS = Object.freeze(["ask", "evidence", "chat", "weekly", "report"]);
+export const SPEND_KINDS = Object.freeze(["ask", "evidence", "chat", "weekly", "report", "meal"]);
 export const SPEND_KEEP_DAYS = 400;
 export const PRICE_FIELDS = Object.freeze(["inputPerMTok", "outputPerMTok", "cacheWritePerMTok", "cacheReadPerMTok", "webSearchPer1000"]);
 export const DEFAULT_PRICES = Object.freeze({ model: "claude-opus-5-5", inputPerMTok: 4, outputPerMTok: 20, cacheWritePerMTok: 5, cacheReadPerMTok: 0.2, webSearchPer1000: 10 });
