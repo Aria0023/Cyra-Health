@@ -59,7 +59,7 @@ export function unusualMoves(pairs, threshold = 0.3) {
  *   week { from, to, prevFrom, prevTo }, accounts [{ provider, createdAt, lastSeenDay }], taps [{ day, productId, brandId, taps }],
  *   names { product(id), brand(id) }, rc { configured, missing, metrics, error }, impact { configured, missing, now[], before[], error },
  *   amazon { uploadedAt, days[] } | null, applications [{ status, at }], products [{ status }], partners (count),
- *   aiUsage [{ id: "<account>:<YYYY-MM>", evidence, chat, weekly }], nowMs,
+ *   aiUsage [{ id: "<account>:<YYYY-MM>", evidence, chat, weekly, meal }], nowMs,
  *   feedback [{ status, day }] (counts only: the text never comes here),
  *   aiCost { weekUsd, monthUsd, budgetUsd, budgetPercent } | null (insights/spend.js: an estimate from token totals)
  * Only counts and sums leave this function; no row is copied through.
@@ -113,8 +113,8 @@ export function buildTotals(src) {
   };
   // AI use: this calendar month so far, summed over every account
   const month = w.to.slice(0, 7);
-  const ai = { month, evidenceQuestions: 0, chatMessages: 0, weeklyWriteUps: 0 };
-  for (const r of src.aiUsage || []) if (typeof r.id === "string" && r.id.endsWith(`:${month}`)) { ai.evidenceQuestions += int(r.evidence); ai.chatMessages += int(r.chat); ai.weeklyWriteUps += int(r.weekly); }
+  const ai = { month, evidenceQuestions: 0, chatMessages: 0, weeklyWriteUps: 0, mealPhotos: 0 };
+  for (const r of src.aiUsage || []) if (typeof r.id === "string" && r.id.endsWith(`:${month}`)) { ai.evidenceQuestions += int(r.evidence); ai.chatMessages += int(r.chat); ai.weeklyWriteUps += int(r.weekly); ai.mealPhotos += int(r.meal); }
   if (src.aiCost) { ai.estimatedCostThisWeekUsd = money(src.aiCost.weekUsd); ai.estimatedCostMonthUsd = money(src.aiCost.monthUsd); ai.monthlyBudgetUsd = src.aiCost.budgetUsd == null ? null : money(src.aiCost.budgetUsd); ai.budgetUsedPercent = src.aiCost.budgetPercent == null ? null : int(src.aiCost.budgetPercent); }
   const fb = src.feedback || [];
   const feedback = { open: fb.filter((r) => r.status !== "handled").length, receivedThisWeek: fb.filter((r) => inWeek(String(r.day || ""))).length };
@@ -159,7 +159,7 @@ export function numbersText(t) {
   L.push(`- Products waiting for your review: ${n(pa.productsWaitingForReview)}`);
   L.push(`- Partners with portal access: ${n(pa.partners)}`);
   L.push("", `AI USE (${t.ai.month} so far, all accounts together)`);
-  L.push(`- Evidence questions: ${n(t.ai.evidenceQuestions)}; chat messages: ${n(t.ai.chatMessages)}; weekly write-ups: ${n(t.ai.weeklyWriteUps)}`);
+  L.push(`- Evidence questions: ${n(t.ai.evidenceQuestions)}; chat messages: ${n(t.ai.chatMessages)}; weekly write-ups: ${n(t.ai.weeklyWriteUps)}; meal photos read: ${n(t.ai.mealPhotos)}`);
   if (t.ai.estimatedCostMonthUsd != null) L.push(`- Estimated AI cost: $${amt(t.ai.estimatedCostThisWeekUsd)} this week; $${amt(t.ai.estimatedCostMonthUsd)} in ${t.ai.month} so far${t.ai.monthlyBudgetUsd != null ? ` (${n(t.ai.budgetUsedPercent)}% of the $${amt(t.ai.monthlyBudgetUsd)} monthly budget)` : ""}. An estimate from token totals; Anthropic's console is the bill of record.`);
   if (t.feedback) L.push("", "FEEDBACK FROM THE APP (counts only; read it in the portal)", `- Open: ${n(t.feedback.open)} (${n(t.feedback.receivedThisWeek)} received this week)`);
   L.push("", "WORTH A LOOK (moved more than 30% week over week)");

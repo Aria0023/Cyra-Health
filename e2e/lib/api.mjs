@@ -14,6 +14,7 @@ export function newApiState(over = {}) {
     code: "123456",
     sources: { oura: true, terra: true },
     evidence: null, // (body) => { status, json } for POST /api/ai/evidence
+    meal: null, // (body) => { status, json } for POST /api/ai/meal (Meal photos)
     promotions: null, // GET /api/promotions/active answers { version: 1, promotions: this } when set; null = 404
     catalog: null, // GET /api/shop/catalog answers this (any JSON) when set; null = 404, so the app keeps its bundled catalog
     tapStatus: 204, // POST /api/shop/tap (the anonymous shop tap count)
@@ -51,6 +52,7 @@ export async function mockApi(target, state) {
     if (p === "/api/ai/status") return json(200, { ready: true });
     if (p === "/api/ai/usage") return state.usage ? json(200, state.usage) : json(401, { error: "not signed in" });
     if (p === "/api/ai/evidence" && state.evidence) { const r = state.evidence(body); return json(r.status, r.json); }
+    if (p === "/api/ai/meal" && state.meal) { const r = state.meal(body); return json(r.status, r.json); }
     if (p === "/api/promotions/active") return state.promotions == null ? json(404, { error: "not in the mock" }) : json(200, { version: 1, promotions: state.promotions });
     if (p === "/api/shop/tap" && method === "POST") return route.fulfill({ status: state.tapStatus || 204, headers: CORS }); // the anonymous tap count: an empty answer
     if (p === "/api/feedback" && method === "POST") return json(state.feedbackStatus || 201, state.feedbackStatus && state.feedbackStatus >= 400 ? { error: "refused" } : { ok: true });

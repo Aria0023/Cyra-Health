@@ -33,7 +33,8 @@ test("AI costs: an estimate from real usage, editable prices, a budget with its 
   await expect(page.locator('[data-stat="ai-person"] b')).toHaveText("–");
   const kinds = page.getByRole("table", { name: "Estimated AI cost by kind" });
   await expect(kinds.locator('tr[data-kind="report"] td')).toHaveText(["1", "1,000,000", "100,000", "500,000", "0", "$6.10"]);
-  await expect(kinds.locator("tbody tr")).toHaveCount(5);
+  await expect(kinds.locator("tbody tr")).toHaveCount(6); // ask, evidence, chat, weekly, report and (2026-11-19) meal
+  await expect(kinds.locator('tr[data-kind="meal"]')).toContainText("Meal photos");
   await expect(page.getByRole("table", { name: "Estimated AI cost by day" }).locator("tbody tr").first().locator("td").last()).toHaveText("$6.10");
   await expect(page.getByRole("img", { name: /Estimated cost per day, .*: \$6\.10 in all/ })).toBeVisible();
 

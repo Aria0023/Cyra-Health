@@ -19,13 +19,13 @@ const states = (rows) => rows.map((r) => `${r.id}:${r.state}${r.note ? "+" + r.n
 test("privacyFlows: web, no server, a custom flag set → only files is available", () => {
   const rows = flowRows({ ...base, server: false, flags: { wearables: false, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: false } });
   assert.deepEqual(rows.map((r) => r.id), [...FLOW_IDS], "FLOW_IDS order");
-  assert.equal(states(rows), "reminders:na counts:na ai:na aiWeekly:na aiChat:na wearables:na shopTaps:na feedback:na files:you cloud:na");
+  assert.equal(states(rows), "reminders:na counts:na ai:na aiWeekly:na aiChat:na aiMeals:na wearables:na shopTaps:na feedback:na files:you cloud:na");
   assert.equal(byId(rows).reminders.name, "Browser reminders");
 });
 
 test("privacyFlows: web, server, all flags, everything off → off rows; then on", () => {
   let r = byId(flowRows(base));
-  assert.equal(states(flowRows(base)), "reminders:off counts:off ai:off aiWeekly:na aiChat:na wearables:off shopTaps:on feedback:send files:you cloud:na");
+  assert.equal(states(flowRows(base)), "reminders:off counts:off ai:off aiWeekly:na aiChat:na aiMeals:na wearables:off shopTaps:on feedback:send files:you cloud:na");
   r = byId(flowRows({ ...base, reminders: { enabled: true, status: "on", pending: [] }, research: true, askAI: true, wearLive: 1 }));
   for (const id of ["reminders", "counts", "ai", "wearables"]) assert.equal(r[id].state, "on", id);
   assert.equal(r.files.state, "you"); assert.equal(r.cloud.state, "na");
@@ -126,4 +126,14 @@ test("calm R8: the write-up and chat rows need the ai flag, a server and the pla
   assert.equal(states(flowRows({ ...base, flags: { ...ALL, ai: false }, aiPlan: pro, aiPrefs: pro })).includes("aiWeekly:na aiChat:na"), true, "no ai flag");
   for (const k of ["aiWeekly", "aiChat"]) { assert.ok(FLOW_COPY.names[k] && FLOW_COPY.lines[k], k); assert.match(FLOW_COPY.lines[k], /exactly what will be sent first/); }
   assert.match(FLOW_COPY.details.summaryNever, /never holds a date, a note/);
+  // Meal photos: its own row, with the plan (and a stage that offers Meal notes) and her switch
+  const st = (c) => byId(flowRows(c)).aiMeals.state;
+  assert.equal(st({ ...base, aiPlan: { meals: true } }), "off");
+  assert.equal(st({ ...base, aiPlan: { meals: true }, aiPrefs: { meals: true } }), "on");
+  assert.equal(st({ ...base, aiPlan: { meals: "yes" }, aiPrefs: { meals: true } }), "na");
+  assert.equal(st({ ...base, server: false, aiPlan: { meals: true }, aiPrefs: { meals: true } }), "na");
+  assert.equal(st({ ...base, flags: { ...ALL, ai: false }, aiPlan: { meals: true }, aiPrefs: { meals: true } }), "na");
+  assert.match(FLOW_COPY.lines.aiMeals, /exactly what will be sent first/);
+  assert.match(FLOW_COPY.lines.aiMeals, /nothing from your log/);
+  assert.match(FLOW_COPY.lines.aiMeals, /doesn't keep the photo or the answer/);
 });

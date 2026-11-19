@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Sheet } from "./ui/index.js";
 import Icon from "./Icon.jsx";
 import Details from "./Details.jsx";
@@ -9,6 +9,8 @@ import {
 } from "../lib/bodylog.js";
 import { t, fmtDate } from "../lib/i18n.js";
 import { HAND_KINDS, dailyQuestion } from "../lib/trying.js";
+import { MEAL_COPY, dayTotal, kcalRange, kcalRangeSaid, totalOf } from "../lib/mealPhoto.js";
+import { downsizePhoto, PhotoPick, MealSendBody, MealAnswerBody, MealEstimate, CalSwitch } from "./ai/MealPhoto.jsx";
 
 /* The fast log's sheets (calm R4, spec §3.5b). Each one writes on tap: there is no Save to forget, and she can close it
    whenever. Everything is on this device only (lib/bodylog.js keys bodyLog / labs / bodyPrefs, and the existing meds /
@@ -223,11 +225,63 @@ export function PcosSheet({ day, dayWord, todayIso, log, labs, units, onToggle, 
 }
 
 /* ---------- Meal notes (optional, off by default): which meal, what it was mostly, energy after ----------
-   Calorie-free on purpose: no foods, amounts, photos or scores. Picking a meal adds it (or opens the one already noted,
-   except Snack, which can repeat); every chip below saves on tap. Up to MEALS_PER_DAY a day. */
-export function MealsSheet({ day, dayWord, log, onAdd, onSet, onRemove, onClose }) {
+   No scores or targets. Picking a meal adds it (or opens the one already noted, except Snack, which can repeat); every
+   chip below saves on tap. Up to MEALS_PER_DAY a day.
+   Meal photos (Pro, her own switch, off by default; lib/mealPhoto.js): `photo` = { inBuild, on, showCal, setShowCal,
+   signedIn, online, preg, left, block, send(body), ping } or null. While photo.on is false and no estimate was ever
+   saved, this sheet has no photo button, no calorie figure and sends nothing. With it on, the selected meal gets "Add
+   from a photo": the picture is made smaller on this device, "What Solia Health will send" shows it, and it goes only
+   on Send. The answer is shown to edit or discard; only what she saves is kept, in that meal note. The three steps
+   share this one dialog (its title changes), so there is never a dialog on top of a dialog. */
+export function MealsSheet({ day, dayWord, log, onAdd, onSet, onRemove, onClose, photo = null }) {
   const meals = bodyDay(log, day).meals || [];
   const [sel, setSel] = useState(meals.length ? meals[meals.length - 1].id : null);
+  const [shot, setShot] = useState(null); // { body, w, h, bytes, mealId }: the picture waiting for Send, in memory only
+  const [answer, setAnswer] = useState(null); // { items, sure, mealId }: waiting for Save or Discard
+  const [prep, setPrep] = useState(false), [busy, setBusy] = useState(false), [note, setNote] = useState(null);
+  const step = shot ? "send" : answer ? "answer" : "log";
+  const sheetId = step === "send" ? "meal-send-sheet" : step === "answer" ? "meal-answer-sheet" : "meals-sheet";
+  const first = useRef(true);
+  useEffect(() => { if (first.current) { first.current = false; return; } document.getElementById(`${sheetId}-t`)?.focus(); }, [sheetId]);
+  const showCal = !photo || photo.showCal !== false;
+  const photoOn = !!photo && photo.on === true;
+  const pickFile = async (file, mealId) => {
+    setNote(null);
+    if (photo.block) { setNote(photo.block); return; }
+    if (!photo.online) { setNote(MEAL_COPY.offline); return; }
+    setPrep(true);
+    const made = await downsizePhoto(file);
+    setPrep(false);
+    if (!made) { setNote(MEAL_COPY.badPhoto); return; }
+    setShot({ ...made, mealId });
+  };
+  const sendShot = async () => {
+    if (!shot || busy) return;
+    setBusy(true);
+    const r = await photo.send(shot.body);
+    setBusy(false); setShot(null); // the picture is dropped whatever came back
+    if (!r.ok) { setNote(r.line); return; }
+    if (!r.answer.food) { setNote(MEAL_COPY.notFood); return; }
+    setAnswer({ ...r.answer, mealId: shot.mealId });
+  };
+  if (step === "send") {
+    const cancel = () => { if (busy) return; setShot(null); photo.ping(MEAL_COPY.cancelSaid); };
+    return (
+      <Sheet id={sheetId} title="What Solia Health will send" closeLabel="Close what Solia Health will send" onClose={cancel} className="bsheet aisend mealsend">
+        <MealSendBody shot={shot} signedIn={photo.signedIn} busy={busy} onSend={sendShot} onClose={cancel} />
+      </Sheet>
+    );
+  }
+  if (step === "answer") {
+    const discard = () => { setAnswer(null); photo.ping(MEAL_COPY.discardSaid); };
+    return (
+      <Sheet id={sheetId} title={MEAL_COPY.answerTitle} closeLabel={MEAL_COPY.closeAnswer} onClose={discard} className="bsheet aisend mealanswer">
+        <MealAnswerBody answer={answer} showCal={showCal} preg={photo.preg} onDiscard={discard}
+          onSave={(est) => { onSet(answer.mealId, { est }); setSel(answer.mealId); setAnswer(null); }} />
+      </Sheet>
+    );
+  }
+  const dayTot = dayTotal(meals);
   const cur = meals.find((m) => m.id === sel) || null;
   const full = meals.length >= MEALS_PER_DAY;
   const pickSlot = (slot) => {
@@ -248,12 +302,16 @@ export function MealsSheet({ day, dayWord, log, onAdd, onSet, onRemove, onClose 
           {meals.map((m) => (
             <li key={m.id} className={m.id === sel ? "on" : ""}>
               <button type="button" className="mealpick" aria-pressed={m.id === sel} onClick={() => setSel(m.id)}>
-                <span className="mealpick-ico" aria-hidden="true"><Icon name="bowl" size={16} /></span><span>{mealText(m)}</span>
+                <span className="mealpick-ico" aria-hidden="true"><Icon name="bowl" size={16} /></span>
+                <span>{mealText(m)}{m.est && <span className="mealpick-est">{m.est.items.map((it) => it.name).join(", ")}{showCal && <> · <span aria-hidden="true">{kcalRange(totalOf(m.est.items))}</span><span className="sr-only">{kcalRangeSaid(totalOf(m.est.items))}</span></>}</span>}</span>
               </button>
               <button type="button" className="linkbtn" aria-label={t("bodySheets.removeMeal", { what: mealText(m) })} onClick={() => { onRemove(m.id); if (m.id === sel) setSel(null); }}>{t("bodySheets.remove")}</button>
             </li>
           ))}
         </ul>
+      )}
+      {dayTot && showCal && (
+        <p className="mealday-total"><span aria-hidden="true">{MEAL_COPY.dayTotal(kcalRange(dayTot), dayTot.meals)}</span><span className="sr-only">{MEAL_COPY.dayTotal(kcalRangeSaid(dayTot), dayTot.meals)}</span>. {MEAL_COPY.calNote}</p>
       )}
       <p className="lab" id="meal-slot-lab">{meals.length ? t("bodySheets.whichMealAnother") : t("bodySheets.whichMeal")}</p>
       <div className="typechips mealslots" role="group" aria-labelledby="meal-slot-lab">
@@ -279,11 +337,17 @@ export function MealsSheet({ day, dayWord, log, onAdd, onSet, onRemove, onClose 
               {MEAL_ENERGY.map((e) => chip(cur.energy === e.id, e.label, () => onSet(cur.id, { energy: cur.energy === e.id ? null : e.id }), e.id))}
             </div>
           </div>
+          {cur.est && <MealEstimate est={cur.est} showCal={showCal} preg={!!photo && photo.preg} onRemove={() => { onSet(cur.id, { est: null }); photo?.ping(MEAL_COPY.removedSaid); }} />}
+          {photoOn && <PhotoPick replace={!!cur.est} busy={prep} onFile={(f) => pickFile(f, cur.id)} />}
+          {photoOn && prep && <p className="rfoot" role="status">{MEAL_COPY.preparing}</p>}
+          {photoOn && photo.left && <p className="rfoot aileft">{photo.left}</p>}
         </div>
       ) : (
         <p className="hint mealhint">{t("bodySheets.mealsPickFirst")}</p>
       )}
-      <p className="rfoot">{t("bodySheets.mealsFoot")}</p>
+      {note && <p className="ainote mealphoto-note" role="status">{note}</p>}
+      {photo && (photoOn || meals.some((m) => m.est)) && <CalSwitch id="meal-cal" shown={showCal} onChange={photo.setShowCal} />}
+      <p className="rfoot">{photoOn ? t("bodySheets.mealsFootPhotosOn") : photo && photo.inBuild ? t("bodySheets.mealsFootPhotos") : t("bodySheets.mealsFoot")}</p>
       <div className="bsheet-foot"><button type="button" className="cta" onClick={onClose}>{t("bodySheets.done")}</button></div>
     </Sheet>
   );

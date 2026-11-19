@@ -21,6 +21,10 @@
   "ai": {
     "model": "claude-opus-5-5",
     "perMinute": 20,
+    "monthly": {
+      "_note": "Per-person monthly caps (ai/usage.js). meal = Meal photos read (docs/plans/meal-photos.md); the others keep their defaults (30 evidence, 100 chat, 6 weekly) unless listed here.",
+      "meal": 60
+    },
     "prices": {
       "_note": "USD list prices for the model above, for the portal's AI costs ESTIMATE only (checked 2026-11-03; an owner can edit them in the portal). Per million tokens, and per 1000 web searches.",
       "model": "claude-opus-5-5",

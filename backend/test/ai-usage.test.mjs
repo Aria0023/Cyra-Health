@@ -14,9 +14,9 @@ function memStore() {
 }
 const req = (ip = "1.2.3.4", auth = null) => ({ ip, get: (h) => (h.toLowerCase() === "authorization" ? auth : undefined) });
 
-test("defaults are 30 evidence, 100 chat, 6 weekly; config can override within bounds", () => {
-  assert.deepEqual(DEFAULT_MONTHLY, { evidence: 30, chat: 100, weekly: 6 });
-  assert.deepEqual(limitsFrom({ evidence: 10, chat: -1, weekly: "x" }), { evidence: 10, chat: 100, weekly: 6 });
+test("defaults are 30 evidence, 100 chat, 6 weekly, 60 meal photos; config can override within bounds", () => {
+  assert.deepEqual(DEFAULT_MONTHLY, { evidence: 30, chat: 100, weekly: 6, meal: 60 });
+  assert.deepEqual(limitsFrom({ evidence: 10, chat: -1, weekly: "x" }), { evidence: 10, chat: 100, weekly: 6, meal: 60 });
 });
 
 test("resetsOn is the first day of next UTC month", () => {

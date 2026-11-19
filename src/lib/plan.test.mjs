@@ -11,10 +11,10 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`\\])\/\/[^\n]*/g, "$1");
 
 test("FREE_PLAN is the D1 entitlements object", () => {
-  assert.deepEqual(FREE_PLAN, { tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false, aiChat: false, aiEvidence: false });
+  assert.deepEqual(FREE_PLAN, { tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false, aiChat: false, aiEvidence: false, aiMealPhotos: false });
   assert.ok(Object.isFrozen(FREE_PLAN));
   assert.equal(PLAN, FREE_PLAN);
-  assert.deepEqual([...PLAN_FEATURES], ["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup", "aiChat", "aiEvidence"]);
+  assert.deepEqual([...PLAN_FEATURES], ["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup", "aiChat", "aiEvidence", "aiMealPhotos"]);
   assert.ok(Object.isFrozen(PLAN_FEATURES));
 });
 
@@ -114,6 +114,8 @@ test("Task 3: aiEvidence is Pro only, practices are no longer a plan feature; th
 
 test("calm R8: PRO_PLAN from an owned purchase; proDev wins; aiChat fails closed", () => {
   assert.equal(can("aiChat"), false);
+  assert.equal(can("aiMealPhotos"), false);
+  assert.equal(can("aiMealPhotos", { ...FREE_PLAN, aiMealPhotos: "yes" }), false, "fails closed");
   assert.equal(can("aiChat", { ...FREE_PLAN, aiChat: 1 }), false);
   assert.equal(planFor({}, true), PRO_PLAN);
   assert.equal(planFor({}, "true"), PLAN, "only a real true counts as owned");
@@ -121,7 +123,7 @@ test("calm R8: PRO_PLAN from an owned purchase; proDev wins; aiChat fails closed
   assert.equal(planFor({ proDev: true }, false), DEV_PRO_PLAN);
   assert.ok(Object.isFrozen(PRO_PLAN));
   for (const p of [PRO_PLAN, DEV_PRO_PLAN]) {
-    for (const f of ["aiChat", "aiPatternReports", "aiEvidence"]) assert.equal(can(f, p), true, `${p.tier} ${f}`);
+    for (const f of ["aiChat", "aiPatternReports", "aiEvidence", "aiMealPhotos"]) assert.equal(can(f, p), true, `${p.tier} ${f}`);
     assert.equal(can("pdfExport", p), true, "the basic PDF stays free");
     assert.equal(p.pdfExportsPerMonth, null);
     assert.equal(can("cloudBackup", p), true, "calm R9: the encrypted account backup is part of Pro");

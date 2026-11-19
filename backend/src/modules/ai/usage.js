@@ -1,12 +1,12 @@
 // Monthly AI allowance (owner decision 2026-11-15): each person gets at most `limits[kind]` answers per calendar month
 // (UTC), so one heavy user can't cost more than a subscription brings in. Defaults: 30 "Ask with evidence" questions,
-// 100 chat messages and 6 weekly write-ups a month; config.ai.monthly overrides any of them.
+// 100 chat messages, 6 weekly write-ups and 60 meal photos a month; config.ai.monthly overrides any of them.
 //
 // Who is counted:
 //   - signed in (a valid Solia Health session token in Authorization: Bearer, checked by the accounts module): her
 //     account id. Stored: one row per account per month in the "ai_usage" collection, { id: "<account>:<YYYY-MM>",
-//     evidence, chat, weekly } — counts only, never a question, an answer or anything she logged. Deleted with the
-//     account.
+//     evidence, chat, weekly, meal } — counts only, never a question, an answer, a photo or anything she logged.
+//     Deleted with the account.
 //   - not signed in, on a server where sign-in is set up: refused with 401 "sign-in-required" (Pro AI needs an account).
 //   - not signed in, on a server with no sign-in at all (demo), or with config.ai.signinRequired false (the smoke
 //     tests only): counted in memory only, by the request
@@ -14,7 +14,7 @@
 // Only a delivered answer counts: a refusal, an error, a safety answer or a request over the limit does not.
 import crypto from "crypto";
 
-export const DEFAULT_MONTHLY = Object.freeze({ evidence: 30, chat: 100, weekly: 6 });
+export const DEFAULT_MONTHLY = Object.freeze({ evidence: 30, chat: 100, weekly: 6, meal: 60 });
 
 export const monthOf = (ms) => new Date(ms).toISOString().slice(0, 7);
 /** The first day of the next UTC month, YYYY-MM-DD. */

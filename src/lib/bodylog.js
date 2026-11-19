@@ -11,7 +11,10 @@
                  weight  { v, unit } optional, only when she turned weight on; never on Home, never charted
                  meals   [{ id, meal, kind?, late?, energy? }] optional meal notes (only while Meal notes is on): which
                          meal (MEAL_SLOTS), what it was mostly (MEAL_KINDS, one), whether she ate late, and how her energy
-                         felt after (MEAL_ENERGY). No foods, no calories, no photos, no free text; at most MEALS_PER_DAY.
+                         felt after (MEAL_ENERGY); at most MEALS_PER_DAY. Only if she turned on Meal photos (Pro, her own
+                         switch; lib/mealPhoto.js) and saved an answer: est { items: [{ name, portion, low, high }], sure },
+                         the foods, portion words and calorie RANGES estimated from a photo (names are plain words she
+                         can edit). No photo is ever stored, and nothing else here is free text.
    - labs      [{ id, kind, value, unit, date }] values she types from her own results (fasting glucose, HbA1c) and
                  waist measures, each dated. Stored exactly as typed in her unit; Cyra never interprets them.
    - bodyPrefs { weightOn, weightUnit, glucoseUnit, hba1cUnit, waistUnit, mealsOn? } her units, whether weight is in her
@@ -19,6 +22,7 @@
 
    Tone rules (plan §7): no streaks, no grades, no "complete" counts; empty is calm ("Nothing yet"). */
 import { MODULES } from "./modules.js";
+import { cleanEst } from "./mealPhoto.js";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const ID_RE = /^[a-z][a-z0-9_]{0,15}$/;
@@ -166,8 +170,10 @@ export function cleanBodyPrefs(raw) {
 export const unitsOf = (prefs, locale) => { const p = cleanBodyPrefs(prefs), d = unitsFor(locale); return { ...p, weightUnit: p.weightUnit || d.weightUnit, glucoseUnit: p.glucoseUnit || d.glucoseUnit, hba1cUnit: p.hba1cUnit || d.hba1cUnit, waistUnit: p.waistUnit || d.waistUnit }; };
 
 /* ---------------- meal notes (optional, off by default; bodyPrefs.mealsOn) ----------------
-   A light, calorie-free note: which meal, what it was mostly, whether she ate late and how her energy felt after.
-   No foods, no amounts, no calories or macros, no photos, no scores, no "good" or "bad" food. */
+   A light note: which meal, what it was mostly, whether she ate late and how her energy felt after.
+   No scores, no targets, no "good" or "bad" food, and no photo is ever stored. Foods, portion words and calorie ranges
+   appear only as `est`, an estimate she saved from a photo with Meal photos on (lib/mealPhoto.js); nothing else reads it:
+   mealCounts, the patterns, the AI summary and the appointment PDF use the fixed chips only. */
 export const MEAL_SLOTS = Object.freeze([
   Object.freeze({ id: "breakfast", label: "Breakfast" }),
   Object.freeze({ id: "lunch", label: "Lunch" }),
@@ -200,6 +206,8 @@ export function cleanMeal(m) {
   if (KIND_IDS.includes(m.kind)) out.kind = m.kind;
   if (m.late === true) out.late = true;
   if (ENERGY_IDS.includes(m.energy)) out.energy = m.energy;
+  const est = cleanEst(m.est);
+  if (est) out.est = est;
   return out;
 }
 
@@ -277,7 +285,7 @@ export function addMeal(log, iso, { meal, id } = {}) {
   if (!ISO.test(String(iso)) || !m || cur.length >= MEALS_PER_DAY || cur.some((x) => x.id === m.id)) return { ok: false, log, id: null };
   return { ok: true, log: withDay(log, iso, { ...d, meals: [...cur, m] }), id: m.id };
 }
-/** Change one meal note: patch { meal?, kind? (null clears), late? (boolean), energy? (null clears) }. Unknown id → unchanged. */
+/** Change one meal note: patch { meal?, kind? (null clears), late? (boolean), energy? (null clears), est? (null clears) }. Unknown id → unchanged. */
 export function setMeal(log, iso, id, patch = {}) {
   const d = bodyDay(log, iso);
   const cur = d.meals || [];
@@ -289,6 +297,7 @@ export function setMeal(log, iso, id, patch = {}) {
     if ("kind" in patch) { if (KIND_IDS.includes(patch.kind)) o.kind = patch.kind; else delete o.kind; }
     if ("late" in patch) { if (patch.late === true) o.late = true; else delete o.late; }
     if ("energy" in patch) { if (ENERGY_IDS.includes(patch.energy)) o.energy = patch.energy; else delete o.energy; }
+    if ("est" in patch) { const est = cleanEst(patch.est); if (est) o.est = est; else delete o.est; }
     return o;
   });
   return withDay(log, iso, { ...d, meals: next });

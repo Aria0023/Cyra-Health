@@ -237,6 +237,28 @@
 			</array>
 		</dict>
 		<!--
+		  Photos: Meal photos (Pro, her own switch, off by default; docs/plans/meal-photos.md).
+		  Only a photo she takes in Meal notes and sends by pressing Send on "What Solia Health
+		  will send", which shows the exact picture. It is made smaller and re-encoded on the
+		  device first (no EXIF data). Solia Health's server forwards it to Anthropic and stores
+		  neither the photo nor the answer; Anthropic keeps requests for a limited time, which
+		  is why it is declared. Linked: the request carries her sign-in so the server can
+		  count it toward her month (the count is kept, never the photo). The app never reads
+		  the photo library.
+		-->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePhotosorVideos</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!--
 		  Email address and name: optional social sign-in (Apple, Google, Facebook) through
 		  /api/oauth. Of the provider's answer, the backend passes on only the name and, when
 		  Apple or Google says it is verified, the email (Facebook's email is never passed on).

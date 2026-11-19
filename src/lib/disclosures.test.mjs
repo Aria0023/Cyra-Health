@@ -18,7 +18,7 @@ const DEF0 = parseFeatures("ai,webReminders,signin,deviceSync");
 /* Task 1 (sign-in required): with the signin flag and a server, bullets 2, 3 and the prefill bullet say there is an account. */
 const SIGNIN = {
   anon: "Anonymous Mode keeps your name and email off this device's record. Your account still has the email you signed in with, if the service shared one.",
-  keeps: "If you sign in, Solia Health's server keeps your account: how you signed in, your email and your name if the service shares it, and the last day you used your account. It keeps no profile of you: no age, health history or check-ins. If you use Pro's AI, it also counts how many questions you sent this month, never what they said. If you send feedback from You → Help with \"It's OK to reply to me\" on, it keeps that message with your account.",
+  keeps: "If you sign in, Solia Health's server keeps your account: how you signed in, your email and your name if the service shares it, and the last day you used your account. It keeps no profile of you: no age, health history or check-ins. If you use Pro's AI, it also counts how many questions and meal photos you sent this month, never what they said or showed. If you send feedback from You → Help with \"It's OK to reply to me\" on, it keeps that message with your account.",
   memAll: "Signing in with Apple, Google or Facebook, and Oura connect, leave what the service sent there in memory for 5 minutes at most, until this device collects it.",
   mem: "Signing in with Apple, Google or Facebook leaves what the service sent there in memory for 5 minutes at most, until your account is made.",
 };
@@ -41,7 +41,7 @@ const PRE = {
     "Features that send something: weekly counts, Solia Health's AI and wearable syncs. Each one tells you what it sends before you turn it on.",
     "Taking it out yourself means a doctor summary you open in email or copy, an appointment PDF, POTS report or spreadsheet you save or share, which isn't locked, or a backup file you save, which stays locked with your passphrase.",
     "If Delete everything can't confirm that reminders are off and Oura and Fitbit/Garmin/Whoop are disconnected, Solia Health tells you what did and didn't happen, and keeps your record on this device until you choose.",
-    "Deleting can't pull back what already left: anonymous counts you shared stay counted, questions already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy.",
+    "Deleting can't pull back what already left: anonymous counts you shared stay counted, questions and meal photos already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy.",
   ],
   // L10 retired leaveDevice (its first paragraph is gone: the live dashboard names each flow and its state instead); its
   // second and third sentences live on as WEAR_RESTORE_LINE and filesSentence, byte-identical.
@@ -59,7 +59,7 @@ const PRE = {
   wipeConfirm: " Every check-in, POTS log, note, appointment and setting goes for good. This also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop. Solia Health's servers keep no copy of your log, so it can't be recovered unless you saved a backup.",
   wipeMoreWeb: [
     "If Solia Health's server, Oura or Fitbit/Garmin/Whoop can't confirm that, Solia Health tells you what did and didn't end and keeps your record on this device until you choose.",
-    "Anonymous counts you already shared stay counted. Questions already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy.",
+    "Anonymous counts you already shared stay counted. Questions and meal photos already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy.",
     "Report files you already saved or shared aren't on this device's record. Delete them wherever you put them.",
   ],
   appleHealth: "Apple Health or Health Connect access stays on until you turn it off in your phone's settings.",
@@ -159,7 +159,7 @@ test("disclosures: the shipping defaults before Task 2 (ai, webReminders, signin
     "A feature that sends something: Solia Health's AI. It tells you what it sends before you turn it on.",
     PRE.consentDetails[1],
     "If Delete everything can't confirm that reminders are off, Solia Health tells you what did and didn't happen, and keeps your record on this device until you choose.",
-    "Deleting can't pull back what already left: questions already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms.",
+    "Deleting can't pull back what already left: questions and meal photos already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms.",
   ]);
   assert.deepEqual(consentDetails(DEF0, true), [consentDetails(DEF0, false)[0], PRE.consentDetails[1], consentDetails(DEF0, false)[3]], "phone: a cancel never needs the server");
   assert.equal(filesSentence(DEF0), "Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase.");
@@ -167,11 +167,11 @@ test("disclosures: the shipping defaults before Task 2 (ai, webReminders, signin
   assert.deepEqual(restoreChanges(DEF0), ["Your settings are replaced too, except this device's choices about Solia Health's AI, browser reminders and appearance (light or dark, and the style).", "If you're trying Solia Health as a guest, a restore doesn't restart or extend your guest time: the earlier start, the backup's or this device's, is kept.", PRE.restoreChanges[3], PRE.restoreChanges[4]]);
   assert.deepEqual(wipeMore(DEF0, false), [
     "If Solia Health's server can't confirm that, Solia Health tells you what did and didn't end and keeps your record on this device until you choose.",
-    "Questions already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms.",
+    "Questions and meal photos already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms.",
     PRE.wipeMoreWeb[2],
   ]);
   // S3: the default build offers the on-phone sources (deviceSync), so the phone's Apple Health / Health Connect line is here too.
-  assert.deepEqual(wipeMore(DEF0, true), ["Questions already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms.", PRE.appleHealth, PRE.wipeMoreWeb[2]]);
+  assert.deepEqual(wipeMore(DEF0, true), ["Questions and meal photos already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms.", PRE.appleHealth, PRE.wipeMoreWeb[2]]);
   assert.equal(intakeHint(DEF0), "Four quick taps. Your answers shape the whole app — one experience, built for where you are. Your answers stay on this device.");
   assert.equal(startOverText(DEF0), " This deletes this phone's record for good and turns off reminders. Solia Health keeps no copy of your record on its servers, so the only way back is an encrypted backup you saved — you can restore one on the next screen.");
   assert.equal(potsTodayFoot(DEF0), "Saved on this device as you tap. Solia Health's server never gets your POTS log.");

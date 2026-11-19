@@ -72,7 +72,7 @@ import { cleanPromoCache, cleanPromoHidden } from "./promos.js";
  * @property {string|null} pulseLastSend [device-only] the local day this device last sent a tally.
  * @property {number} pulseRev [device-only] version of the sharing state, so a stale tab can't roll it back.
  * @property {boolean} askAI [device-only] "Also ask Cyra's AI", a consent given on this device.
- * @property {{weekly: boolean, chat: boolean, labs: boolean}} aiPrefs [device-only] calm R8: her switches for Cyra's weekly write-up and chat (Pro) and "Include lab values".
+ * @property {{weekly: boolean, chat: boolean, labs: boolean}} aiPrefs [device-only] calm R8: her switches for Cyra's weekly write-up and chat (Pro) and "Include lab values"; plus, only when true, `meals` (Meal photos on) and `hideCal` ("Show calorie estimates" off), lib/mealPhoto.js.
  * @property {Array<{role: "me"|"cyra", text: string, kind?: "urgent", ask?: string}>} aiChat [device-only, not-in-backup] calm R8: the chat about her log, on this device only.
  * @property {{writeup: string, ask: string|null, day: string|null}|null} aiWeekly [device-only, not-in-backup] calm R8: the last weekly write-up, on this device only.
  * @property {null|"hidden"} devicesHint [device-only, not-in-backup] Task 2: Home's "Connect a device" card hidden with Not now.
@@ -526,7 +526,7 @@ export const RULES = Object.freeze({
   pulseRev: (v, p) => (inRange(v, 0, Infinity) ? [] : [`${p}: expected a number ≥ 0, got ${show(v)}`]),
   askAI: boolRule,
   // Cyra's AI write-up and chat (calm R8): a problem whenever the clean function would change anything.
-  aiPrefs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanAiPrefs(v)) ? [] : [`${p}: expected { weekly, chat, labs } (true or false), got ${show(v)}`]),
+  aiPrefs: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanAiPrefs(v)) ? [] : [`${p}: expected { weekly, chat, labs } (true or false; meals and hideCal only when true), got ${show(v)}`]),
   aiChat: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanAiChat(v)) ? [] : [`${p}: expected a list of { role: me|cyra, text } (at most 40), got ${show(v)}`]),
   aiWeekly: (v, p) => (v === null || JSON.stringify(v) === JSON.stringify(cleanAiWeekly(v)) ? [] : [`${p}: expected null or { writeup, ask, day }, got ${show(v)}`]),
   cloudAccount: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanCloudAccount(v)) ? [] : [`${p}: expected { rev, acct } (lib/account.js), got ${show(v)}`]),
