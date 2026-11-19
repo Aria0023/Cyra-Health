@@ -98,11 +98,11 @@ test("S2: Trying to conceive shows the contraception line once under the cycles 
   await expect(page.locator(".cycttc")).toHaveText("Solia Health is not a contraceptive.");
 });
 
-test("S2 shots: the card in Soft light, Clear dark and Bloom light", async ({ page }) => {
+test("S2 shots: the card in Soft light, Clear dark and Journal light", async ({ page }) => {
   await register(page, { stage: "My Cycle", pcos: "yes", name: "Maya" });
   await connectDemo(page);
   fs.mkdirSync("e2e/shots", { recursive: true });
-  for (const [style, scheme] of [["Soft", "light"], ["Clear", "dark"], ["Bloom", "light"]]) {
+  for (const [style, scheme] of [["Soft", "light"], ["Clear", "dark"], ["Journal", "light"]]) {
     await page.emulateMedia({ colorScheme: scheme });
     await gotoTab(page, "You");
     await page.getByRole("radio", { name: style }).click();
@@ -115,13 +115,13 @@ test("S2 shots: the card in Soft light, Clear dark and Bloom light", async ({ pa
   }
   await gotoTab(page, "Body"); await gotoSegment(page, "Cycles");
   await expect(page.locator(".toast.show")).toHaveCount(0, { timeout: 12_000 });
-  await page.locator(".cyclespage").screenshot({ path: "e2e/shots/cycles-markers-bloom-light.png" });
+  await page.locator(".cyclespage").screenshot({ path: "e2e/shots/cycles-markers-journal-light.png" });
   await gotoTab(page, "Patterns"); await gotoSegment(page, "Report");
   await expect(page.locator(".toast.show")).toHaveCount(0, { timeout: 12_000 });
   await page.locator(".cspreview").first().screenshot({ path: "e2e/shots/report-preview-table.png" });
   await gotoTab(page, "You");
   await page.locator("#you-sources").getByRole("button", { name: "How this is going" }).click();
-  await page.locator("#you-sources").screenshot({ path: "e2e/shots/data-sources-bloom-light.png" });
+  await page.locator("#you-sources").screenshot({ path: "e2e/shots/data-sources-journal-light.png" });
 });
 
 /* ---------- S3: Data sources, the demo switch, the deep link a notification opens, the gallery ---------- */
@@ -174,17 +174,17 @@ test("S3: You → Data sources manages the source; How this is going counts the 
   await expect(page.getByRole("button", { name: /^Wearables/ })).toContainText("optional");
 });
 
-test("S3 gallery: the card in all five styles and the notification mock; shots", async ({ page }) => {
+test("S3 gallery: the card in all nine styles and the notification mock; shots", async ({ page }) => {
   await gotoGallery(page, { stage: "cycle", scheme: "light", style: "soft" });
-  await expect(page.locator(".dgstyles .autocard")).toHaveCount(5);
-  await expect(page.locator(".dgstyles .cy[data-style]")).toHaveCount(5);
+  await expect(page.locator(".dgstyles .autocard")).toHaveCount(9);
+  await expect(page.locator(".dgstyles .cy[data-style]")).toHaveCount(9);
   const mock = page.getByRole("group", { name: "Notification mock" });
   await expect(mock).toContainText("Last night synced. Looks right?");
   await expect(mock.getByRole("button", { name: "Looks right" })).toBeVisible();
   await expect(mock.getByRole("button", { name: "Open" })).toBeVisible();
   fs.mkdirSync("e2e/shots", { recursive: true });
-  await page.locator(".dgstyles").screenshot({ path: "e2e/shots/gallery-card-five-styles.png" });
+  await page.locator(".dgstyles").screenshot({ path: "e2e/shots/gallery-card-nine-styles.png" });
   await mock.screenshot({ path: "e2e/shots/gallery-notification-mock.png" });
   await gotoGallery(page, { stage: "cycle", scheme: "dark", style: "clear" });
-  await expect(page.locator(".dgstyles .autocard")).toHaveCount(5);
+  await expect(page.locator(".dgstyles .autocard")).toHaveCount(9);
 });

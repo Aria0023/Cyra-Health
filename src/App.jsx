@@ -1,3 +1,4 @@
+import { planBadge } from "./lib/planBadge.js";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
@@ -645,6 +646,7 @@ export default function CyraDemo() {
   // The free week: today counts as day one until the start is known; the start is set once she is in the app.
   const logOk = canLog({ gateOn: TRIAL_GATE, owned: proOwnedNow, startIso: trialStart || todayIso, todayIso });
   logOkRef.current = logOk;
+  const planNow = planBadge({ owned: proOwnedNow, guest, gateOn: TRIAL_GATE, startIso: trialStart || todayIso, todayIso });
   const trialNow = trialLine({ gateOn: TRIAL_GATE, owned: proOwnedNow, startIso: trialStart || todayIso, todayIso });
   // The free week starts the first day she is in the app with a stage (a new registration, or the first launch of this
   // version for someone already registered). It is kept in her record, so a restored backup keeps its start.
@@ -1665,7 +1667,7 @@ export default function CyraDemo() {
 
   // The palette (UI) and data-viz custom properties, inline on .cy; data-scheme picks the dark token rule (Shell).
   const style = { ...paletteVars(t), ...vizVars(scheme, stage) };
-  const shell = { style, scheme, uiStyle };
+  const shell = { style, scheme, uiStyle: cleanStyle(uiStyle) }; // a withdrawn style (Bloom) kept in an old record reads as Soft
 
   /* ---------- agentic intake routing (lib/engine.js routeIntake) ---------- */
   const finishOnboarding = async () => {
@@ -3222,6 +3224,8 @@ export default function CyraDemo() {
       <header className="mast">
         <span className="mark">{org.name}<span className="sub">{org.tag}</span></span>
         {stage && <span className="acctchip" title={`${acct.anon ? "Anonymous" : acct.name || "You"}${research && FEATURES.counts && hasServer() ? " · sharing counts ✓" : ""}`}>{acct.anon ? "Anonymous" : acct.name || "You"}{research && FEATURES.counts && hasServer() ? " · sharing counts ✓" : ""}</span>}
+        {/* Plan badge (2026-11-19): Pro, free week, guest and free never look the same; a tap opens the plans. */}
+        {stage && orgId === "cyra" && <button type="button" className="stagechip planbadge" data-plan={planNow.key} aria-label={planNow.say} title={planNow.say} onClick={() => setProOpen(true)}>{planNow.label}</button>}
         {/* One sheet at a time: opening either closes the other (UI S1). */}
         {stage && orgId === "cyra" && <button ref={palBtnRef} className="stagechip icon" onClick={() => { setShowSettings(false); setShowPal((s) => !s); }} aria-label="Color palette" aria-expanded={showPal} aria-controls="palette-sheet"><Icon name="palette" size={18} /></button>}
         {/* Shop by need (2026-11-15): the bag opens the Shop page on every main tab */}
