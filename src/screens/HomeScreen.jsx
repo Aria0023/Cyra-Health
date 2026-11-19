@@ -233,7 +233,7 @@ export default function HomeScreen({
           (owner: Home isn't the main place for it; Body, the "+" sheet and You keep their own ways in). */}
       {devicesCard}
 
-      <section className="v2card insightcard" aria-labelledby="insight-t">
+      <section className="v2card insightcard" data-tint="mind" aria-labelledby="insight-t">
         <p className="section-lab" id="insight-t">{t("home.todaysInsight")}</p>
         {homeInsight.empty
           ? <EmptyNote>{homeInsight.text}</EmptyNote>
