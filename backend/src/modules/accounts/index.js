@@ -1,6 +1,6 @@
 // Accounts (owner request 2026-11-12, docs/plans/account-wearables-evidence.md Task 1): sign-in with Apple, Google,
 // Facebook or a one-time email code. The server keeps the ACCOUNT RECORD ONLY — never health data:
-//   { id, provider, key, email, name, createdAt }
+//   { id, provider, key, email, name, createdAt, lastSeenDay }
 //     id         random, 22 characters (what the app's session token names)
 //     provider   "apple" | "google" | "facebook" | "email"
 //     key        HMAC-SHA256(AUTH_SECRET-derived key, "<provider>:<provider account id or email>"), so the same
@@ -10,6 +10,10 @@
 //                no email (the oauth module never passes an unverified one on).
 //     name       the display name the provider sent, if any (never asked for by email sign-in)
 //     createdAt  ISO time
+//     lastSeenDay  the last UTC day (YYYY-MM-DD) she used the account: noted on sign-in and on GET /me, at most one
+//                write a day. A date only: no time of day, no address, no device, no count of uses. It exists so the
+//                portal's People page can say how many accounts were used in the last 1 / 7 / 30 days
+//                (docs/plans/tracking-reports.md Task 2; insights/people.js); the app is never sent it.
 // and one row per signed-in device in "account_sessions": { sid (SHA-256 of the session id), accountId, createdAt }.
 // Both collections live in the JSON store under DATA_DIR like the other modules. Nothing else is kept: no IP
 // address, no device name, no check-in, no health field.
@@ -19,7 +23,7 @@
 //   POST   /api/accounts/email/verify {email, code} → { token, account }
 //   POST   /api/accounts/provider {code[, verifier]} → { token, account }: completes an Apple/Google/Facebook sign-in
 //          started at /api/oauth/:provider/start (the oauth module's one-time code, taken here instead of /exchange)
-//   GET    /api/accounts/me                    (Authorization: Bearer <token>) → { account }
+//   GET    /api/accounts/me                    (Authorization: Bearer <token>) → { account }; also notes lastSeenDay
 //   POST   /api/accounts/sign-out              ends this device's session (always 204)
 //   DELETE /api/accounts/me                    deletes the account record and every session of it (204)
 //
@@ -163,7 +167,10 @@ export function emailSender({ production }) {
   return { ready: false, dev: false, async send() { throw Object.assign(new Error("send"), { cat: "email not configured" }); } };
 }
 
-/** What the app sees of an account. */
+/** The UTC day of a time, YYYY-MM-DD. */
+export const seenDay = (ms) => new Date(ms).toISOString().slice(0, 10);
+
+/** What the app sees of an account (never lastSeenDay). */
 export const publicAccount = (a) => ({ id: a.id, provider: a.provider, email: a.email || "", name: a.name || "", createdAt: a.createdAt });
 
 export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, sender = null } = {}) {
@@ -187,15 +194,23 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, sender 
   const runHooks = (list, arg) => { for (const fn of list || []) Promise.resolve().then(() => fn(arg)).catch(() => console.warn("[cyra] accounts: a sign-in hook failed")); };
   const oauthProviders = () => { try { return ctx.oauth?.configured?.() || {}; } catch { return {}; } };
 
+  /** Notes today (UTC) as the account's last day of use: one write a day at most, a date and nothing else. */
+  async function touchSeen(acct) {
+    const day = seenDay(clock());
+    if (acct.lastSeenDay === day) return;
+    try { await store.update("accounts", (a) => a.id === acct.id, { lastSeenDay: day }); } catch { /* a total, not worth failing a request for */ }
+  }
+
   async function signInAs(provider, subject, { email = "", name = "" } = {}) {
     const key = lookupKey(keys.lookup, provider, subject);
     let acct = await store.findOne("accounts", (a) => a.key === key);
     if (!acct) {
-      acct = { id: crypto.randomBytes(16).toString("base64url").slice(0, 22), provider, key, email: text(email, 320), name: text(name, 200), createdAt: new Date(clock()).toISOString() };
+      acct = { id: crypto.randomBytes(16).toString("base64url").slice(0, 22), provider, key, email: text(email, 320), name: text(name, 200), createdAt: new Date(clock()).toISOString(), lastSeenDay: seenDay(clock()) };
       await store.insert("accounts", acct);
     } else {
       // Keep what the provider says now (Apple sends the name only on a first authorization: an empty one keeps the old).
       const patch = {};
+      if (acct.lastSeenDay !== seenDay(clock())) patch.lastSeenDay = seenDay(clock());
       if (email && email !== acct.email) patch.email = text(email, 320);
       if (name && name !== acct.name) patch.name = text(name, 200);
       if (Object.keys(patch).length) { await store.update("accounts", (a) => a.id === acct.id, patch); acct = { ...acct, ...patch }; }
@@ -267,6 +282,7 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, sender 
     if (!otherLimit(req.ip)) return res.status(429).json({ error: "too many requests — try again in a minute" });
     const w = await who(req);
     if (!w) return res.status(401).json({ error: "not signed in" });
+    await touchSeen(w.acct);
     res.json({ account: publicAccount(w.acct) });
   });
 

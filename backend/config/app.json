@@ -1,5 +1,5 @@
 {
-  "_note": "Production (NODE_ENV=production): push, ai, oauth, accounts, integrations, shop, portal and subscriptions — what the app's default build calls (sign-in is required and wearables are on: owner request 2026-11-12; shop = the published Shop catalog the app downloads and the partner portal API, owner request 2026-11-15, needs ADMIN_EMAILS for its owners; portal = the partner portal's web page at /portal/; subscriptions = the portal's owner-only subscriptions dashboard, promotions, Pro grants and partner codes plus the public GET /api/promotions/active, owner request 2026-11-15, after shop and accounts, needs REVENUECAT_SECRET_KEY and REVENUECAT_PROJECT_ID for metrics and grants and reports \"not configured\" without them). pulse and backup are in the code and in config/app-dev.json; list one here to serve a build whose VITE_FEATURES turns it on (counts → pulse, cloudBackup → backup). ADMIN_KEY and AUTH_SECRET come from the environment; the server refuses to start without real values. Sign-in providers need APPLE_*/GOOGLE_*/FACEBOOK_* and email needs RESEND_API_KEY + EMAIL_FROM; a provider without its keys is reported as not configured and the app offers the others. Oura needs OURA_CLIENT_ID/SECRET and Fitbit/Garmin/Whoop need TERRA_API_KEY/DEV_ID/SIGNING_SECRET; without them the app shows those rows as \"Not set up yet\".",
+  "_note": "Production (NODE_ENV=production): push, ai, oauth, accounts, integrations, shop, portal, subscriptions and insights — what the app's default build calls (sign-in is required and wearables are on: owner request 2026-11-12; shop = the published Shop catalog the app downloads and the partner portal API, owner request 2026-11-15, needs ADMIN_EMAILS for its owners; portal = the partner portal's web page at /portal/; subscriptions = the portal's owner-only subscriptions dashboard, promotions, Pro grants and partner codes plus the public GET /api/promotions/active, owner request 2026-11-15, after shop and accounts, needs REVENUECAT_SECRET_KEY and REVENUECAT_PROJECT_ID for metrics and grants and reports \"not configured\" without them). insights = the portal's owner-only totals (People: account and sign-in counts; owner request 2026-11-19, after shop and accounts). pulse and backup are in the code and in config/app-dev.json; list one here to serve a build whose VITE_FEATURES turns it on (counts → pulse, cloudBackup → backup). ADMIN_KEY and AUTH_SECRET come from the environment; the server refuses to start without real values. Sign-in providers need APPLE_*/GOOGLE_*/FACEBOOK_* and email needs RESEND_API_KEY + EMAIL_FROM; a provider without its keys is reported as not configured and the app offers the others. Oura needs OURA_CLIENT_ID/SECRET and Fitbit/Garmin/Whoop need TERRA_API_KEY/DEV_ID/SIGNING_SECRET; without them the app shows those rows as \"Not set up yet\".",
   "baseUrl": "http://localhost:3000",
   "port": 3000,
   "modules": [
@@ -10,7 +10,8 @@
     "integrations",
     "shop",
     "portal",
-    "subscriptions"
+    "subscriptions",
+    "insights"
   ],
   "storage": {
     "driver": "json",

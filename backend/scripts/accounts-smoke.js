@@ -91,7 +91,7 @@ try {
   // --- disk and log ---
   const disk = fs.readFileSync(`${DATA}/accounts.json`, "utf8") + fs.readFileSync(`${DATA}/account_sessions.json`, "utf8");
   const accts = JSON.parse(fs.readFileSync(`${DATA}/accounts.json`, "utf8"));
-  assert(accts.length === 2 && accts.every((a) => Object.keys(a).sort().join() === "createdAt,email,id,key,name,provider"), `disk: two accounts left (email, google), each only id/provider/key/email/name/createdAt`);
+  assert(accts.length === 2 && accts.every((a) => Object.keys(a).sort().join() === "createdAt,email,id,key,lastSeenDay,name,provider" && /^\d{4}-\d{2}-\d{2}$/.test(a.lastSeenDay)), `disk: two accounts left (email, google), each only id/provider/key/email/name/createdAt and lastSeenDay (a date, no time)`);
   assert(!disk.includes("sub-1") && !disk.includes("fb1") && !disk.includes(code) && !disk.includes(vj.token), "disk: no raw provider account id, no code, no token");
   assert(!srv.log().includes("maya@example.com") && !srv.log().includes(code) && !srv.log().includes("ada@"), "log: no email address and no code");
 } finally {
