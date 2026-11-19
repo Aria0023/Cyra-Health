@@ -402,6 +402,14 @@ Business data only (brands, products, the people at partner companies who edit t
   persistent disk every portal edit is lost on each deploy.** Tests: `npm test` (`test/shop.test.mjs`) and
   `npm run smoke:shop`.
 
+## Launch tools (`src/modules/insights/readiness.js`, ...) — production, owner only
+
+docs/plans/launch-tools.md. `GET /api/insights/readiness` answers one row per dependency (status, what it is for, the
+variable names and whether each is set: never a value), the summary line, the mounted modules and the app's build
+settings; `POST /api/insights/readiness/test-email` sends one test email to the signed-in owner and
+`POST /api/insights/readiness/storage-check` writes, reads back and deletes a temp file in the data directory. Nothing
+else is called. `src/core/appSeen.js` keeps the time of the last request from an app origin, in memory only.
+
 ## Subscriptions, promotions, Pro grants and partner codes (`src/modules/subscriptions/`) — production
 
 The portal's owner-only business tools (docs/plans/portal-subscriptions.md). Never health data, never her stage.

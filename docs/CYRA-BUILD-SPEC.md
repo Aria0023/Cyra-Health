@@ -2385,6 +2385,10 @@ pure reference.
       30%), summarised by Claude through the ai module's client when `ANTHROPIC_API_KEY` is set, else as a plain template
       with the same numbers; sent with Resend; never twice (a stamp in `DATA_DIR`); on/off, recipients, Preview and Send
       now in the portal. The email says "Totals only; no personal or health data."
+- [x] Launch readiness (2026-11-19, docs/plans/launch-tools.md Task 1): the portal's owner-only Readiness page lists
+      every server dependency as Ready / Not set up / Problem with the variable NAMES to set (never a value), the
+      mounted modules, the app's build settings, and the time of the last request from an app origin (in memory only);
+      two owner buttons send a test email and check storage (`backend/src/modules/insights/readiness.js`).
 - [x] Devices (2026-11-19, Task 4): a "Fitbit, Garmin or Whoop?" how-to under the device list (share with Apple Health
       or Health Connect in the brand's app, then connect that here; HRV doesn't come through for Garmin and Whoop); the
       Fitbit · Garmin · Whoop (Terra) row shows only where the server reports Terra configured or a connection exists.

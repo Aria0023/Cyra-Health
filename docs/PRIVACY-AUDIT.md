@@ -2588,3 +2588,26 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
 - **Catalog text:** the bundled Garmin product line no longer says it "connects through the Fitbit · Garmin · Whoop
   row" (false where the row is hidden); it now says its app can share sleep and heart rate with Apple Health or Health
   Connect. The seed was regenerated; a portal catalog already imported keeps its own copy until an owner edits it.
+
+## Launch tools (2026-11-19, docs/plans/launch-tools.md)
+
+### Task 1: the portal's Readiness page — settings by name only; one time in memory; nothing about any user
+
+- **What it shows (owners only):** one row per thing the server depends on (AUTH_SECRET, ADMIN_KEY, ADMIN_EMAILS,
+  email, each sign-in provider, AI, RevenueCat, Impact, Oura, storage, the mounted modules) as Ready / Not set up /
+  Problem, with the NAMES of the variables to set. `backend/src/modules/insights/readiness.js`.
+- **Secrets:** the page and `GET /api/insights/readiness` carry variable names and fixed sentences only. No value, not
+  even part of one, is returned, logged or shown (`backend/test/insights-readiness.test.mjs` and
+  `e2e/portal-readiness.spec.mjs` search the answers and the log for the values they set).
+- **No outbound calls on load:** presence and shape checks only. Two owner buttons make the only live checks: "Send me
+  a test email" (one email to the signed-in owner through Resend) and "Check storage" (a temp file written, read back
+  and deleted in the data directory). Nothing calls Anthropic, RevenueCat, Impact, Oura or a sign-in provider.
+- **"Last request from an app origin":** `backend/src/core/appSeen.js` keeps ONE timestamp in memory: the time of the
+  last request whose Origin is one CORS allows and is not the server's own. Not the address, the origin, the path or
+  anything else; nothing on disk; cleared by a restart. It is not about any one person.
+- **New stored row:** `server_starts` (`{ key, firstAt, lastAt, count }`), so the page can tell whether data written
+  before this server start is still there (a persistent disk). No personal data.
+- **Portal sentences:** "Only variable names are shown: a secret's value never leaves the server." · "These are
+  presence and shape checks: opening this page calls no other service. The two buttons below are the only live
+  checks." · "Only the time is kept, in memory: no address, and it is forgotten on a restart."
+

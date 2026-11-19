@@ -14,18 +14,21 @@
 //   GET/PUT /api/insights/weekly · POST /weekly/preview · POST /weekly/send
 //                                 the weekly owner report by email: every Monday 14:00 UTC, from totals only, written by
 //                                 Claude when a key is set, else a plain template (report.js, weekly.js)
+//   GET /api/insights/readiness · POST /readiness/test-email · POST /readiness/storage-check
+//                                 launch readiness: what is set up on this server, by variable NAME only (readiness.js)
 // Needs the shop module (the portal's sign-in) mounted before it; reads the accounts module's collection.
 import { rateLimiter } from "../../core/memory.js";
 import { peopleStats, dayOf } from "./people.js";
 import { impactClient } from "./impact.js";
 import { mountAffiliates } from "./affiliates.js";
 import { mountWeekly } from "./report.js";
+import { mountReadiness } from "./readiness.js";
 import { revenueCat } from "../subscriptions/revenuecat.js";
 import { resendMailer } from "../accounts/index.js";
 
 export const basePath = "/api/insights";
 
-export function mount(router, ctx, { clock = Date.now, impact: impactOpt = null, rc: rcOpt = null, mailer, timerMs } = {}) {
+export function mount(router, ctx, { clock = Date.now, impact: impactOpt = null, rc: rcOpt = null, mailer, timerMs, env = process.env } = {}) {
   const { config, store } = ctx;
   if (!ctx.portal) throw new Error("insights needs the shop module (the portal's sign-in) mounted before it");
   const { auth } = ctx.portal;
@@ -51,8 +54,12 @@ export function mount(router, ctx, { clock = Date.now, impact: impactOpt = null,
   const affiliates = mountAffiliates(router, { ctx, store, clock, reading, writing, owner, impact });
 
   /* ---------- the weekly owner report ---------- */
-  mountWeekly(router, { ctx, store, clock, reading, writing, sending: limited(L.send), owner, rc: rcOpt || revenueCat(), affiliates, impact,
-    mailer: mailer !== undefined ? mailer : resendMailer(), production: !!config.production, ...(timerMs !== undefined ? { timerMs } : {}) });
+  const rc = rcOpt || revenueCat(), mail = mailer !== undefined ? mailer : resendMailer(), sending = limited(L.send);
+  mountWeekly(router, { ctx, store, clock, reading, writing, sending, owner, rc, affiliates, impact,
+    mailer: mail, production: !!config.production, ...(timerMs !== undefined ? { timerMs } : {}) });
+
+  /* ---------- launch readiness (docs/plans/launch-tools.md Task 1) ---------- */
+  mountReadiness(router, { ctx, store, clock, reading, sending, owner, rc, impact, mailer: mail, production: !!config.production, env });
 
   router.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
     console.warn(`[cyra] insights: ${String(err?.type || err?.code || "error").slice(0, 40)}`);

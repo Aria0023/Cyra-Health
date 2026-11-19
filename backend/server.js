@@ -11,6 +11,7 @@ import path from "path";
 import express from "express";
 import { loadConfig, mountModules, ConfigError } from "./src/core/registry.js";
 import { createStore } from "./src/core/store.js";
+import { appSeen } from "./src/core/appSeen.js";
 
 const root = new URL(".", import.meta.url).pathname;
 let config;
@@ -31,6 +32,10 @@ app.set("trust proxy", 1); // Render / any reverse proxy: req.ip is the client, 
 
 // CORS: the static app lives on another origin. CORS_ORIGIN = comma-separated allowlist; unset = any origin (no credentials are ever sent).
 const origins = (process.env.CORS_ORIGIN || "*").split(",").map((s) => s.trim()).filter(Boolean);
+// The portal's Readiness page shows WHEN an app origin last called this server (core/appSeen.js): one time, in memory.
+const seen = appSeen({ origins });
+ctx.appLastSeen = seen.last;
+app.use(seen.middleware);
 app.use((req, res, next) => {
   const origin = req.get("origin");
   if (origin && (origins.includes("*") || origins.includes(origin))) {

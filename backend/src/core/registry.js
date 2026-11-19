@@ -22,14 +22,14 @@ import crypto from "crypto";
 import express from "express";
 
 export const PRODUCTION_MODULES = ["push", "ai", "oauth", "accounts", "integrations", "shop", "portal", "subscriptions", "insights"];
-const DEMO_VALUES = ["demo-admin-key-change-me", "demo-auth-secret-change-me"];
+export const DEMO_VALUES = Object.freeze(["demo-admin-key-change-me", "demo-auth-secret-change-me"]);
 const env = (k) => (process.env[k] || "").trim();
 const isProduction = () => env("NODE_ENV") === "production";
 /** The environment variable that holds a partner's webhook secret, e.g. PARTNER_MIDI_WEBHOOK_SECRET. */
 export const partnerSecretVar = (id) => `PARTNER_${String(id).toUpperCase().replace(/[^A-Z0-9]/g, "_")}_WEBHOOK_SECRET`;
 
 /** Why `value` can't be a production secret, or null when it can. Never includes the value. */
-function secretProblem(name, value, demoValues) {
+export function secretProblem(name, value, demoValues) {
   if (!value) return `${name} is not set`;
   if (demoValues.includes(value) || /change-?me|^demo[-_]|^test[-_]|^example/i.test(value)) return `${name} is still a demo/placeholder value`;
   if (value.length < 16) return `${name} is shorter than 16 characters`;
