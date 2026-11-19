@@ -1,6 +1,14 @@
 import { Card, Sheet } from "./ui/index.js";
 import { DEVICE_COPY as C } from "../lib/devices.js";
 import Details from "./Details.jsx";
+import Icon from "./Icon.jsx";
+
+/* 2026-11-19 (owner: "monotone writings, should have soft colors or distinction"): each row has an icon tile in a
+   soft UI tint for its kind (phone health, ring, glucose) and its status as a pill, so connected, available and
+   not-available rows look different at a glance. UI tints only (never a data-viz ramp); the words are unchanged. */
+const ROW_ICON = { apple: "heart", healthconnect: "heart", oura: "moon", terra: "watch" };
+const rowIcon = (r) => (r.glucose ? "drop" : ROW_ICON[r.id] || "watch");
+const rowKind = (r) => (r.glucose ? "glucose" : r.server ? "ring" : "phone");
 
 /* "Connect your devices" (Task 2): the one list of device sources (lib/devices.js deviceRows), shown as the optional
    registration step, in a sheet opened from the Home card and from You → Data sources. Each row: name, status, what it
@@ -14,11 +22,12 @@ export function DeviceList({ rows, busy = null, onConnect, onDisconnect, demo = 
     const nameId = `dev-${r.id}`, whyId = `dev-${r.id}-st`;
     const going = busy === r.source, ending = busy === `${r.source}:off`;
     return (
-      <li key={r.id} className={`devrow st-${r.state}`} data-device={r.id}>
+      <li key={r.id} className={`devrow st-${r.state}`} data-device={r.id} data-kind={rowKind(r)}>
         <div className="devrow-main">
+          <span className="devicon" aria-hidden="true"><Icon name={rowIcon(r)} size={20} /></span>
           <div className="devinfo">
             <b id={nameId}>{r.name}</b>
-            <span className="devstatus" id={whyId}>{r.status}{r.note ? ` ${r.note}` : ""}</span>
+            <span className="devstatus" id={whyId}><span className="devpill">{r.status}</span>{r.note ? <span className="devnote"> {r.note}</span> : null}</span>
           </div>
           {r.state === "available" && <button type="button" className="takebtn devgo" aria-describedby={`${nameId} ${whyId}`} disabled={!!busy} aria-busy={going} onClick={() => onConnect(r)}>{going ? C.connecting : C.connect}</button>}
           {r.state === "pending" && <button type="button" className="takebtn devgo" aria-describedby={nameId} disabled={!!busy} aria-busy={going} onClick={() => onConnect(r)}>{C.sync}</button>}

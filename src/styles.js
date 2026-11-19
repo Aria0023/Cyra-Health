@@ -474,6 +474,18 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 .devinfo b { font-size:16px; color:var(--ink); }
 .devstatus { font-size:15px; color:var(--soft); }
 .devrow.st-connected .devstatus { color:var(--ink); font-weight:600; }
+.devrow[data-kind="phone"] { --devtint:var(--tint-body); } .devrow[data-kind="ring"] { --devtint:var(--tint-mind); } .devrow[data-kind="glucose"] { --devtint:var(--tint-patterns); }
+.devrow { background:linear-gradient(180deg, color-mix(in srgb, var(--devtint, var(--tint-you)) 55%, var(--card)) 0, var(--card) 76px); }
+.devicon { flex:0 0 44px; width:44px; height:44px; border-radius:14px; display:inline-flex; align-items:center; justify-content:center; background:var(--devtint, var(--tint-you)); color:var(--primary-text); border:1px solid var(--edge); }
+.devrow-main .devinfo { flex:1 1 auto; }
+.devpill { display:inline-block; font-size:13px; font-weight:700; line-height:1.3; color:var(--ink); padding:3px 10px; border-radius:999px; border:1px solid var(--line); background:var(--card); margin-top:2px; }
+.devrow.st-connected { border-color:var(--good); }
+.devrow.st-connected .devpill { border-color:var(--good); background:color-mix(in srgb, var(--good) 14%, var(--card)); }
+.devrow.st-connected .devpill::before { content:""; display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--good); margin-right:6px; }
+.devrow.st-pending .devpill { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 10%, var(--card)); }
+.devrow.st-elsewhere .devpill, .devrow.st-notSetUp .devpill { border-style:dashed; }
+.devrow.st-elsewhere .devicon, .devrow.st-notSetUp .devicon { background:var(--card); border-style:dashed; color:var(--soft); }
+.devnote { display:block; margin-top:4px; }
 .devrow .takebtn { min-height:44px; flex-shrink:0; }
 .devline { font-size:16px; line-height:1.45; color:var(--soft); margin:8px 0 0; }
 .devline b { color:var(--ink); font-weight:600; }
