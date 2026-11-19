@@ -60,6 +60,7 @@ export function unusualMoves(pairs, threshold = 0.3) {
  *   names { product(id), brand(id) }, rc { configured, missing, metrics, error }, impact { configured, missing, now[], before[], error },
  *   amazon { uploadedAt, days[] } | null, applications [{ status, at }], products [{ status }], partners (count),
  *   aiUsage [{ id: "<account>:<YYYY-MM>", evidence, chat, weekly }], nowMs,
+ *   feedback [{ status, day }] (counts only: the text never comes here),
  *   aiCost { weekUsd, monthUsd, budgetUsd, budgetPercent } | null (insights/spend.js: an estimate from token totals)
  * Only counts and sums leave this function; no row is copied through.
  */
@@ -115,9 +116,11 @@ export function buildTotals(src) {
   const ai = { month, evidenceQuestions: 0, chatMessages: 0, weeklyWriteUps: 0 };
   for (const r of src.aiUsage || []) if (typeof r.id === "string" && r.id.endsWith(`:${month}`)) { ai.evidenceQuestions += int(r.evidence); ai.chatMessages += int(r.chat); ai.weeklyWriteUps += int(r.weekly); }
   if (src.aiCost) { ai.estimatedCostThisWeekUsd = money(src.aiCost.weekUsd); ai.estimatedCostMonthUsd = money(src.aiCost.monthUsd); ai.monthlyBudgetUsd = src.aiCost.budgetUsd == null ? null : money(src.aiCost.budgetUsd); ai.budgetUsedPercent = src.aiCost.budgetPercent == null ? null : int(src.aiCost.budgetPercent); }
+  const fb = src.feedback || [];
+  const feedback = { open: fb.filter((r) => r.status !== "handled").length, receivedThisWeek: fb.filter((r) => inWeek(String(r.day || ""))).length };
   const pairs = [{ metric: "New accounts", now: acc.newThisWeek, before: acc.newWeekBefore }, { metric: "Shop taps", now: taps, before: tapsBefore }];
   if (impact.thisWeek) pairs.push({ metric: "Affiliate clicks (Impact)", now: impact.thisWeek.clicks, before: impact.weekBefore.clicks }, { metric: "Affiliate sales (Impact)", now: impact.thisWeek.sales, before: impact.weekBefore.sales }, { metric: "Affiliate commission (Impact)", now: impact.thisWeek.commission, before: impact.weekBefore.commission });
-  return { week: { from: w.from, to: w.to }, weekBefore: { from: w.prevFrom, to: w.prevTo }, people: acc, subscriptions, shop: { taps, tapsWeekBefore: tapsBefore, mostOpened: top }, affiliates: { impact, amazon }, partners, ai, unusual: unusualMoves(pairs) };
+  return { week: { from: w.from, to: w.to }, weekBefore: { from: w.prevFrom, to: w.prevTo }, people: acc, subscriptions, shop: { taps, tapsWeekBefore: tapsBefore, mostOpened: top }, affiliates: { impact, amazon }, partners, ai, feedback, unusual: unusualMoves(pairs) };
 }
 
 const n = (v) => Number(v || 0).toLocaleString("en-US");
@@ -158,6 +161,7 @@ export function numbersText(t) {
   L.push("", `AI USE (${t.ai.month} so far, all accounts together)`);
   L.push(`- Evidence questions: ${n(t.ai.evidenceQuestions)}; chat messages: ${n(t.ai.chatMessages)}; weekly write-ups: ${n(t.ai.weeklyWriteUps)}`);
   if (t.ai.estimatedCostMonthUsd != null) L.push(`- Estimated AI cost: $${amt(t.ai.estimatedCostThisWeekUsd)} this week; $${amt(t.ai.estimatedCostMonthUsd)} in ${t.ai.month} so far${t.ai.monthlyBudgetUsd != null ? ` (${n(t.ai.budgetUsedPercent)}% of the $${amt(t.ai.monthlyBudgetUsd)} monthly budget)` : ""}. An estimate from token totals; Anthropic's console is the bill of record.`);
+  if (t.feedback) L.push("", "FEEDBACK FROM THE APP (counts only; read it in the portal)", `- Open: ${n(t.feedback.open)} (${n(t.feedback.receivedThisWeek)} received this week)`);
   L.push("", "WORTH A LOOK (moved more than 30% week over week)");
   if (!t.unusual.length) L.push("- Nothing moved more than 30%.");
   else for (const u of t.unusual) L.push(`- ${u.metric}: ${n(u.thisWeek)} this week, ${n(u.weekBefore)} the week before${u.changePercent == null ? " (from nothing)" : ` (${u.changePercent > 0 ? "up" : "down"} ${Math.abs(u.changePercent)}%)`}`);
@@ -188,7 +192,7 @@ export function composeReport(totals, summary = "") {
   return { subject: `Solia Health weekly report: ${totals.week.from} to ${totals.week.to}`, text, writer: s ? "claude" : "template" };
 }
 
-export const WEEKLY_SYSTEM = `You write the short weekly business summary for the owners of Solia Health, a women's health app. You are given one JSON object of TOTALS for the week (accounts, subscriptions, shop taps, affiliate results, partner activity, AI use). It contains no personal data and no health data, and you must not speculate about any individual.
+export const WEEKLY_SYSTEM = `You write the short weekly business summary for the owners of Solia Health, a women's health app. You are given one JSON object of TOTALS for the week (accounts, subscriptions, shop taps, affiliate results, partner activity, AI use, and how many feedback messages are open). It contains no personal data and no health data, and you must not speculate about any individual.
 Rules: use only the numbers in the JSON, exactly as given; never invent, estimate or extrapolate a number, a cause or a name. If a section says it is not connected or had an error, say that in a few words and move on. Mention every entry in "unusual" plainly (what moved, from what to what). Do not give medical or legal advice. Plain text only: no markdown, no bullet symbols, no headings, no greeting and no sign-off. At most 160 words, in two or three short paragraphs, most important first.`;
 export const weeklyPrompt = (totals) => `This week's totals as JSON:\n${JSON.stringify(totals)}\n\nWrite the summary.`;
 

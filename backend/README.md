@@ -418,6 +418,14 @@ owner can edit with `PUT /api/insights/ai-costs/prices`; `PUT /api/insights/ai-c
 that emails the weekly report's recipients once at 80% and once at 100%. Nothing is switched off; Anthropic's console
 is the bill of record.
 
+Feedback (Task 3, `src/modules/feedback/`, mounted in production after shop and accounts): `POST /api/feedback` takes
+`{ kind, message, build, platform, language }` and, only with her reply switch, `{ reply: true, email }` plus her
+session token; every other field is dropped. Stored with the UTC date it arrived, kept 365 days, linked to an account
+only with reply (and deleted with it), rate-limited per address in memory, never logged (its own JSON parser in
+`server.js`). Owners read it with `GET /api/feedback` (`?kind=`, `?status=`), `PATCH /api/feedback/:id {status}` and
+`DELETE /api/feedback/:id`; `GET /api/feedback/count` feeds the Overview. It is free text: treat the `feedback`
+collection as possibly holding health details.
+
 ## Subscriptions, promotions, Pro grants and partner codes (`src/modules/subscriptions/`) — production
 
 The portal's owner-only business tools (docs/plans/portal-subscriptions.md). Never health data, never her stage.

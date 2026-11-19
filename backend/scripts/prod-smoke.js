@@ -3,7 +3,7 @@
 //     value) when ADMIN_KEY or AUTH_SECRET is unset, a demo value, too short, or the two
 //     are equal — and, if partner webhooks are ever re-enabled, without real
 //     PARTNER_<ID>_WEBHOOK_SECRET values;
-//   - with real-looking secrets, starts and mounts exactly push, ai, oauth, accounts, integrations, shop, portal, subscriptions and insights (what the
+//   - with real-looking secrets, starts and mounts exactly push, ai, oauth, accounts, integrations, shop, portal, subscriptions, insights and feedback (what the
 //     app's default build calls; sign-in and wearables since 2026-11-12; the Shop catalog and partner portal API since 2026-11-15): no weekly counts or backup routes, no
 //     partner/referral/FHIR/admin routes, no /r/:code, no ops console;
 //   - reversible by configuration: the same production server with pulse and
@@ -14,7 +14,7 @@ import { spawn } from "child_process";
 import crypto from "crypto";
 import fs from "fs";
 const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exitCode = 1; } else console.log("ok  ", m); };
-const PROD = ["push", "ai", "oauth", "accounts", "integrations", "shop", "portal", "subscriptions", "insights"];
+const PROD = ["push", "ai", "oauth", "accounts", "integrations", "shop", "portal", "subscriptions", "insights", "feedback"];
 const ALL = JSON.parse(fs.readFileSync("config/app-dev.json")).modules;
 const real = () => crypto.randomBytes(32).toString("hex");
 

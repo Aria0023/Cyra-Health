@@ -213,5 +213,7 @@ input[type="date"], input[type="datetime-local"] { font: inherit; color: var(--i
 .ready-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: space-between; margin: 0 0 6px; }
 .ready-need { font: 600 13px var(--ff-body); color: var(--soft); }
 .ready-row p { margin: 0 0 8px; }
+.fb-h { font-size: 18px; margin: 0; }
+.fb-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0; }
 .ready-sum { border-left: 6px solid var(--st-pending); }
 .ready-sum.ok { border-left-color: var(--st-published); }

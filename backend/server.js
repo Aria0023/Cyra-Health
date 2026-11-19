@@ -68,7 +68,14 @@ app.use("/api/ai", express.json({ limit: "32kb" }), (err, req, res, next) => {
   console.warn(`[cyra] ai: ${String(err.type || "bad body").slice(0, 40)}`);
   res.status(err.status === 413 ? 413 : 400).json({ error: "body could not be read" });
 });
-// Both ignore application/octet-stream bodies, so the backup module's own raw parser gets those bytes untouched.
+// Feedback from the app (docs/plans/launch-tools.md Task 3): free text, so the same care. Its own parser with an 8 kB cap
+// (a 2000-character message fits several times over), and a parse failure never reaches Express's default handler.
+app.use("/api/feedback", express.json({ limit: "8kb" }), (err, req, res, next) => {
+  if (!err) return next();
+  console.warn(`[cyra] feedback: ${String(err.type || "bad body").slice(0, 40)}`);
+  res.status(err.status === 413 ? 413 : 400).json({ error: "body could not be read" });
+});
+// All of these ignore application/octet-stream bodies, so the backup module's own raw parser gets those bytes untouched.
 app.use(express.json({ verify: keepRaw }));
 app.use(express.urlencoded({ extended: false })); // Apple Sign-In posts its callback as a form
 

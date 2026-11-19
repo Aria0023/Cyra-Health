@@ -215,6 +215,28 @@
 			</array>
 		</dict>
 		<!--
+		  Customer support (2026-11-19, src/lib/feedback.js): the message she types in You, Help
+		  ("Send feedback" / "Report a problem", up to 2000 characters) with the app build, the
+		  platform and the app language: POST /api/feedback, sent only when she presses Send,
+		  after a preview of exactly what goes. The backend stores it for 365 days for the team
+		  to read. Her account email goes with it only when she turns on "It's OK to reply to
+		  me"; then it is linked to her account and deleted with it (the Email address entry
+		  below covers the address). Linked: free text can contain anything she types, and with
+		  the reply switch it is tied to her account. Never sent to Anthropic.
+		-->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeCustomerSupport</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!--
 		  Email address and name: optional social sign-in (Apple, Google, Facebook) through
 		  /api/oauth. Of the provider's answer, the backend passes on only the name and, when
 		  Apple or Google says it is verified, the email (Facebook's email is never passed on).

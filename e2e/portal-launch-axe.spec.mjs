@@ -1,7 +1,8 @@
 /* axe-core on the portal's launch tools (docs/plans/launch-tools.md), light and dark, phone and wide, against a real
    development backend (e2e/lib/portal.mjs): Readiness with rows in every status and after both live checks; AI costs
    with a real request's totals, its chart and tables, a form error and a budget past 80%, and the Overview's card.
-   Every target is checked at 44px. */
+   The Feedback inbox empty, with messages (a reply link, a long unbroken message), a handled one, and the Overview's
+   count. Every target is checked at 44px. */
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { startBackend, portalSignIn, OWNER } from "./lib/portal.mjs";
@@ -65,6 +66,29 @@ for (const scheme of ["light", "dark"]) {
       await nav(page, "Readiness");
       await expect(page.locator('[data-row="ai-budget"]')).toHaveAttribute("data-status", "problem");
       await audit(page, `readiness with the budget row ${scheme}`);
+      // Feedback (Task 3): empty, with messages (one with a reply link), a handled one, and the Overview count
+      await nav(page, "Feedback");
+      await expect(page.locator("[data-empty]")).toBeVisible();
+      await audit(page, `feedback, empty ${scheme}`);
+      const email = "maya@clinic.example";
+      await fetch(`${be.url}/api/accounts/email/start`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email }) });
+      await expect.poll(() => be.codeFor(email)).not.toBeNull();
+      const session = await (await fetch(`${be.url}/api/accounts/email/verify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, code: be.codeFor(email) }) })).json();
+      const post = (body, token) => fetch(`${be.url}/api/feedback`, { method: "POST", headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ build: "BUILD 2026.10.07-D", platform: "web", language: "en", ...body }) });
+      await post({ kind: "feedback", message: "A long message without spaces: " + "x".repeat(300) });
+      await post({ kind: "problem", message: "The chart is blank\nsince the update.", reply: true, email }, session.token);
+      await nav(page, "Overview");
+      await expect(page.locator('[data-stat="ov-fb-open"] b')).toHaveText("2");
+      await audit(page, `overview with the feedback count ${scheme}`);
+      await nav(page, "Feedback");
+      await expect(page.locator("[data-feedback]")).toHaveCount(2);
+      await audit(page, `feedback with messages ${scheme}`);
+      await page.locator("[data-feedback]").first().getByRole("button", { name: /^Mark handled/ }).click();
+      await page.getByRole("group", { name: "Status" }).getByRole("button", { name: "All", exact: true }).click();
+      await expect(page.locator('[data-feedback][data-status="handled"]')).toHaveCount(1);
+      await audit(page, `feedback with a handled message ${scheme}`);
+      await page.setViewportSize({ width: 1200, height: 900 });
+      await audit(page, `feedback, wide ${scheme}`);
     } finally { await ctx.close(); await be.stop(); await ai.stop(); }
   });
 }

@@ -19,13 +19,13 @@ const states = (rows) => rows.map((r) => `${r.id}:${r.state}${r.note ? "+" + r.n
 test("privacyFlows: web, no server, a custom flag set → only files is available", () => {
   const rows = flowRows({ ...base, server: false, flags: { wearables: false, counts: false, ai: true, webReminders: true, cloudBackup: false, signin: false } });
   assert.deepEqual(rows.map((r) => r.id), [...FLOW_IDS], "FLOW_IDS order");
-  assert.equal(states(rows), "reminders:na counts:na ai:na aiWeekly:na aiChat:na wearables:na shopTaps:na files:you cloud:na");
+  assert.equal(states(rows), "reminders:na counts:na ai:na aiWeekly:na aiChat:na wearables:na shopTaps:na feedback:na files:you cloud:na");
   assert.equal(byId(rows).reminders.name, "Browser reminders");
 });
 
 test("privacyFlows: web, server, all flags, everything off → off rows; then on", () => {
   let r = byId(flowRows(base));
-  assert.equal(states(flowRows(base)), "reminders:off counts:off ai:off aiWeekly:na aiChat:na wearables:off shopTaps:on files:you cloud:na");
+  assert.equal(states(flowRows(base)), "reminders:off counts:off ai:off aiWeekly:na aiChat:na wearables:off shopTaps:on feedback:send files:you cloud:na");
   r = byId(flowRows({ ...base, reminders: { enabled: true, status: "on", pending: [] }, research: true, askAI: true, wearLive: 1 }));
   for (const id of ["reminders", "counts", "ai", "wearables"]) assert.equal(r[id].state, "on", id);
   assert.equal(r.files.state, "you"); assert.equal(r.cloud.state, "na");
@@ -67,23 +67,25 @@ test("privacyFlows: cloud is 'na' unless the flag and the plan allow it; every i
   for (const native of [false, true]) for (const server of [false, true]) for (const flags of [ALL, DEF, NONE]) for (const planCloud of [false, true]) {
     const rows = flowRows({ ...base, native, server, flags, planCloud, reminderSupport: native ? "native" : "web" });
     assert.deepEqual(rows.map((r) => r.id), [...FLOW_IDS]);
-    for (const r of rows) assert.ok(["on", "off", "you", "na"].includes(r.state));
+    for (const r of rows) assert.ok(["on", "off", "you", "send", "na"].includes(r.state));
   }
   // D2 / D3 acceptance: the rows a build renders (state ≠ na)
   const shown = (c) => flowRows(c).filter((r) => r.state !== "na").map((r) => r.name);
   assert.deepEqual(shown({ ...base, server: false, flags: DEF }), ["Backups and files you make"]);
-  assert.deepEqual(shown({ ...base, server: true, flags: DEF }), ["Browser reminders", "Ask Solia Health's AI", "Wearable connections", "Count my shop taps anonymously", "Backups and files you make"], "Task 2: wearables on by default; 2026-11-19: the anonymous shop tap count, on unless she turns it off");
-  assert.deepEqual(shown({ ...base, server: true, flags: ALL }), ["Browser reminders", "Weekly counts", "Ask Solia Health's AI", "Wearable connections", "Count my shop taps anonymously", "Backups and files you make"]);
+  assert.deepEqual(shown({ ...base, server: true, flags: DEF }), ["Browser reminders", "Ask Solia Health's AI", "Wearable connections", "Count my shop taps anonymously", "Feedback you send", "Backups and files you make"], "Task 2: wearables on by default; 2026-11-19: the anonymous shop tap count, on unless she turns it off");
+  assert.deepEqual(shown({ ...base, server: true, flags: ALL }), ["Browser reminders", "Weekly counts", "Ask Solia Health's AI", "Wearable connections", "Count my shop taps anonymously", "Feedback you send", "Backups and files you make"]);
+  assert.deepEqual(shown({ ...base, server: true, flags: NONE }), ["Feedback you send", "Backups and files you make"], "2026-11-19: feedback is offered in any build with a server, and never sends on its own");
+  assert.equal(byId(flowRows({ ...base, server: true })).feedback.state, "send");
   assert.deepEqual(shown({ ...base, server: true, flags: ALL, shopTapsOff: true }).includes("Count my shop taps anonymously"), true, "off is still listed, as Off");
 });
 
-test("privacyFlows: otherConnections — the server bullet only with a server flow, sign-in only with its flag", () => {
+test("privacyFlows: otherConnections — the server bullet in any build with a server, sign-in only with its flag", () => {
   assert.deepEqual(otherConnections({ native: false, server: false, flags: DEF }), ["web"]);
   assert.deepEqual(otherConnections({ native: false, server: true, flags: DEF }), ["web", "server", "signin"], "Task 1: sign-in is in the default build");
   assert.deepEqual(otherConnections({ native: false, server: true, flags: ALL }), ["web", "server", "signin"]);
-  assert.deepEqual(otherConnections({ native: false, server: true, flags: NONE }), ["web"]);
+  assert.deepEqual(otherConnections({ native: false, server: true, flags: NONE }), ["web", "server"], "2026-11-19: the feedback sheet is a server flow in every build with a server");
   assert.deepEqual(otherConnections({ native: true, server: true, flags: DEF }), ["server", "signin"], "the phone default build has Solia Health's AI and sign-in");
-  assert.deepEqual(otherConnections({ native: true, server: true, flags: parseFeatures("webReminders") }), [], "a phone with only web reminders has no server flow");
+  assert.deepEqual(otherConnections({ native: true, server: true, flags: parseFeatures("webReminders") }), ["server"], "a phone with only web reminders still has the feedback sheet");
   assert.deepEqual(otherConnections({ native: true, server: true, flags: ALL }), ["server", "signin"]);
   assert.deepEqual(otherConnections({ native: true, server: false, flags: ALL }), []);
 });

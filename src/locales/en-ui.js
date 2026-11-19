@@ -489,7 +489,7 @@ export const UI = {
   "splash.seeYourRealPatterns": "See your real patterns.",
   "splash.walkIntoAppointmentsWithEvidence": "Walk into appointments with evidence — cycles, symptoms, PCOS signals.",
   "splash.yourPrivacyPlainly": "Your privacy, plainly",
-  "splash.yourHealthLogLivesOn": "Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that tells you exactly what it sends.",
+  "splash.yourHealthLogLivesOn": "Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that tells you exactly what it sends, or you write it in a message you send us.",
   "splash.guidanceNeverADiagnosisFor": "Guidance, never a diagnosis. For anything medical, talk with your clinician.",
   "splash.getStarted": "Get started",
   "splash.restoreFromAnEncryptedBackup": "Restore from an encrypted backup",

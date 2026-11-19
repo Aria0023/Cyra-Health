@@ -25,7 +25,8 @@
     "shop",
     "portal",
     "subscriptions",
-    "insights"
+    "insights",
+    "feedback"
   ],
   "opsConsole": true,
   "storage": {

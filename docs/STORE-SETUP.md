@@ -41,6 +41,9 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
 - [ ] App Information → **App-Specific Shared Secret**: generate it (for RevenueCat).
 - [ ] App Privacy: add **Purchases** and **User ID** → "Linked to the user", "Not used for tracking" (the app tells
       RevenueCat her account number while she is signed in; see section 6).
+- [ ] App Privacy: add **Customer Support** → "Linked to the user", "Not used for tracking", for App Functionality
+      (You → Help's "Send feedback" / "Report a problem": the message she types, kept 365 days; her account email
+      only if she allows a reply). `ios/App/App/PrivacyInfo.xcprivacy` declares the same.
 
 ## 2. Google Play Console (Android)
 
@@ -51,6 +54,8 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
       consumes them).
 - [ ] Data safety form: declare purchase history and user IDs collected for app functionality and account
       management, not shared (see section 6).
+- [ ] Data safety form: declare the feedback message (user-generated content sent to customer support; the email
+      address only if she allows a reply), collected for app functionality, not shared, optional.
 - [ ] Create a Google Cloud **service account** with Play access for RevenueCat (RevenueCat's
       dashboard walks you through it).
 
@@ -71,7 +76,8 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
 ## 4. Put the keys into the builds
 
 - [ ] Render → static site "cyra-health" → Environment: `VITE_REVENUECAT_IOS_KEY`,
-      `VITE_REVENUECAT_ANDROID_KEY` (public, safe in the app). Optional: `VITE_TIP_URL` for a web tip page.
+      `VITE_REVENUECAT_ANDROID_KEY` (public, safe in the app). Optional: `VITE_TIP_URL` for a web tip page, and
+      `VITE_SUPPORT_EMAIL` for the support mail link in You → Help.
 - [ ] Phone builds: put the same two values in your local `.env`, then `npm run cap:sync`, which also
       bundles RevenueCat's native code (the npm dependency `@revenuecat/purchases-capacitor`).
 - [ ] iOS: in Xcode, Signing & Capabilities → **+ In-App Purchase**.

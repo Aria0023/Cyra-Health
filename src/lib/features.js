@@ -45,8 +45,10 @@ export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts:
 /** Further backend modules a server feature also needs: sign-in with Apple, Google or Facebook runs through oauth; the
     shop's partner portal page (where its catalog is edited) is the portal module, and the portal's subscriptions part
     (promotions the app downloads with GET /api/promotions/active, Pro grants, partner codes) is the subscriptions module;
-    insights (2026-11-19) is the portal's owner-only totals (accounts and sign-ins; the app never calls it). */
-export const FEATURE_ALSO = Object.freeze({ signin: Object.freeze(["oauth"]), shop: Object.freeze(["portal", "subscriptions", "insights"]) });
+    insights (2026-11-19) is the portal's owner-only totals (accounts and sign-ins; the app never calls it); feedback
+    (2026-11-19) takes You → Help's "Send feedback" / "Report a problem" (POST /api/feedback, lib/feedback.js: offered in
+    any build with a server) and holds the portal's owner-only inbox, which needs the shop module's portal sign-in. */
+export const FEATURE_ALSO = Object.freeze({ signin: Object.freeze(["oauth"]), shop: Object.freeze(["portal", "subscriptions", "insights", "feedback"]) });
 
 const words = (raw) => String(raw).split(",").map((w) => w.trim()).filter(Boolean);
 const known = (w) => FEATURE_NAMES.find((n) => n.toLowerCase() === w.toLowerCase());

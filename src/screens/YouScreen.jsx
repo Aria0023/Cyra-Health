@@ -37,7 +37,8 @@ import { youAccountLine } from "../lib/signin.js";
    - Account: Task 1's sign-in card (who is signed in, Sign out, Delete account) while this device is signed in;
      otherwise "Your account" (2026-11-15: sign-in isn't switched on yet, or she hasn't signed in) in a build without the optional account; calm R9: where the
      build offers it (`account`, lib/cloudBackup.js ACCOUNTS_HERE) the AccountCard (guest by default; create, sign in,
-     back up now, sign out, delete, and the "backup is newer" choice); the Shop by need entry card (components/Shop.jsx ShopEntryCard; since 2026-11-15 it opens the Shop page), About & legal (not a medical device, links, build).
+     back up now, sign out, delete, and the "backup is newer" choice); Help (2026-11-19, components/Feedback.jsx: short answers;
+     in a build with a server "Send feedback" / "Report a problem", which send only on her Send); the Shop by need entry card (components/Shop.jsx ShopEntryCard; since 2026-11-15 it opens the Shop page), About & legal (not a medical device, links, build).
    - Cyra's AI (calm R8): with Pro, the ai flag and a server, the weekly write-up and chat switches (off by default) and
      "Include lab values"; without Pro, one line and "See what Pro adds". The switches send nothing themselves.
    Calm R10 (compaction): each card is a title row, one summary line and its primary control; the longer explanations
@@ -45,7 +46,7 @@ import { youAccountLine } from "../lib/signin.js";
    with three short facts (components/settingsParts.jsx privacyFacts) and the backup / restore / delete actions.
    Every sentence that moved is listed in docs/PRIVACY-AUDIT.md "Calm R10". The Language card (`language`) shows only
    when the build has two or more catalogues (lib/i18n.js pickerShown); today only English ships, so it is hidden.
-   Nothing on this page sends anything anywhere. */
+   Nothing on this page sends anything anywhere; the feedback sheet it opens sends one request when she presses Send. */
 /* A quiet illustration for the stage card: soft rings and a blob in the stage accent (tokens only, decorative). */
 const StageArt = () => (
   <svg className="youart" viewBox="0 0 200 150" aria-hidden="true" focusable="false">
@@ -56,7 +57,7 @@ const StageArt = () => (
     <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
   </svg>
 );
-export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, language = null, meals = null, dataSources = null, partner = null, learn = null, signMode = "none", store = null, native = false, promo = null, onHidePromo = null, proUntil = null, guest = null }) {
+export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, help = null, language = null, meals = null, dataSources = null, partner = null, learn = null, signMode = "none", store = null, native = false, promo = null, onHidePromo = null, proUntil = null, guest = null }) {
   const offer = ai.offer || { any: false, weekly: false, chat: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
@@ -246,6 +247,9 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
       )}
 
       {care}
+
+      {/* 2026-11-19: Help (components/Feedback.jsx): short answers, and in a build with a server the feedback sheet. */}
+      {help}
 
       <Card id="you-about-legal" tint="you" icon="book" eyebrow={t("you.about")} title={t("you.aboutLegal")} level={2} className="youlegal-card">
         <p className="aboutbrand"><BrandMark size={30} /><span><b>{t("you.brandName")}</b><span className="slogan">{t("splash.slogan")}</span></span></p>

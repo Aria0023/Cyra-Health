@@ -159,5 +159,51 @@ export function launchViews(L) {
       h("p", {}, h("a", { href: "#/ai-costs" }, "See AI costs"), " ", h("span", { class: "note" }, "An estimate; Anthropic's console is the bill of record.")));
   }
 
-  return { renderReadiness, renderAiCosts, aiCostsCard };
+  /* ----- Feedback: what people sent from the app (free text; treat as private) ----- */
+  const KIND_WORD = { feedback: "Feedback", problem: "Problem" };
+  const PLATFORM_WORD = { web: "Web", ios: "iOS", android: "Android" };
+  let fbKind = "", fbStatus = "open";
+  async function renderFeedback(note = null) {
+    const q = [fbKind && `kind=${fbKind}`, fbStatus && `status=${fbStatus}`].filter(Boolean).join("&");
+    const r = await api("GET", `/api/feedback${q ? `?${q}` : ""}`);
+    const box = msgBox();
+    const fail = (err) => tell(box, err.message, "err");
+    const redraw = (n) => renderFeedback(n).catch(fail);
+    const seg = (label, opts, cur, pick) => h("div", { class: "seg", role: "group", "aria-label": label }, opts.map(([v, l]) => h("button", { type: "button", "aria-pressed": String(cur === v), onclick: () => pick(v) }, l)));
+    const item = (m) => {
+      const what = `${KIND_WORD[m.kind]} from ${m.day}`;
+      return h("li", { class: "panel fb-item", "data-feedback": m.id, "data-kind": m.kind, "data-status": m.status },
+        h("div", { class: "ready-head" },
+          h("h2", { class: "fb-h" }, KIND_WORD[m.kind], " ", h("span", { class: "ready-need" }, `${m.day} (UTC) · ${PLATFORM_WORD[m.platform] || m.platform} · ${m.build || "no build"} · ${m.language}`)),
+          h("span", { class: `badge ${m.status === "open" ? "pending" : "published"}` }, m.status === "open" ? "Open" : `Handled ${m.handledDay || ""}`.trim())),
+        h("p", { class: "fb-text" }, m.message),
+        m.reply ? h("p", { class: "note" }, "She said it's OK to reply: ", h("a", { href: `mailto:${m.email}?subject=${encodeURIComponent("Your message to Solia Health")}`, "data-reply": "" }, `Reply to ${m.email}`), ".")
+          : h("p", { class: "note" }, "Sent without a reply address: it isn't linked to an account, so there is nobody to answer."),
+        h("div", { class: "acts" },
+          h("button", { type: "button", class: "btn", "aria-label": `${m.status === "open" ? "Mark handled" : "Reopen"}: ${what}`, onclick: async () => { try { await api("PATCH", `/api/feedback/${encodeURIComponent(m.id)}`, { status: m.status === "open" ? "handled" : "open" }); await redraw(m.status === "open" ? "Marked handled." : "Reopened."); } catch (err) { fail(err); } } }, m.status === "open" ? "Mark handled" : "Reopen"),
+          h("button", { type: "button", class: "btn danger", "aria-label": `Delete: ${what}`, onclick: async () => { if (!confirm("Delete this message for good?")) return; try { await api("DELETE", `/api/feedback/${encodeURIComponent(m.id)}`); await redraw("Deleted."); } catch (err) { fail(err); } } }, "Delete")));
+    };
+    show("Feedback",
+      h("p", { class: "lead" }, "What people sent from the app's You → Help: feedback and problem reports, newest first."),
+      box,
+      h("ul", { class: "stats", "aria-label": "Feedback" },
+        h("li", { "data-stat": "fb-open" }, h("b", {}, num(r.open)), h("span", {}, "Open")),
+        h("li", { "data-stat": "fb-total" }, h("b", {}, num(r.total)), h("span", {}, `Kept (last ${r.keptDays} days)`))),
+      seg("Kind", [["", "All kinds"], ["feedback", "Feedback"], ["problem", "Problems"]], fbKind, (v) => { fbKind = v; redraw(); }),
+      seg("Status", [["open", "Open"], ["handled", "Handled"], ["", "All"]], fbStatus, (v) => { fbStatus = v; redraw(); }),
+      r.items.length ? h("ul", { class: "ready-list", "aria-label": "Messages" }, r.items.map(item)) : h("p", { class: "note", "data-empty": "" }, r.total ? "No messages match these filters." : "No feedback yet."),
+      h("p", { class: "note" }, `Each message is what its writer typed, with the app version, platform and language, and the date it arrived (no time). Nothing from anyone's log is attached, and people are asked not to include health details; if someone did, treat it as private and delete the message once it is dealt with. An email address shows only where the writer turned on "It's OK to reply to me". Messages are deleted after ${r.keptDays} days, and a message linked to an account is deleted with that account. The text is never sent to the AI or put in the weekly report, which carries the count of open messages only.`));
+    if (note) tell(document.querySelector(".msgbox"), note);
+  }
+  /** The Overview's count of open feedback (null when the server has no feedback module). */
+  async function feedbackCard() {
+    let c;
+    try { c = await api("GET", "/api/feedback/count"); } catch { return null; }
+    return h("section", { "aria-labelledby": "ov-fb" },
+      h("h2", { id: "ov-fb" }, "Feedback"),
+      h("ul", { class: "stats", "aria-label": "Feedback" }, h("li", { "data-stat": "ov-fb-open" }, h("b", {}, num(c.open)), h("span", {}, c.open === 1 ? "Open message" : "Open messages"))),
+      h("p", {}, h("a", { href: "#/feedback" }, "Read feedback")));
+  }
+
+  return { renderReadiness, renderAiCosts, aiCostsCard, renderFeedback, feedbackCard };
 }

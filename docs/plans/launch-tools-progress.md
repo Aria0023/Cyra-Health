@@ -21,5 +21,15 @@ Branch `feature/launch-tools`, worktree `/home/user/cyra-launch`. Resume from he
 - Verified 2026-11-19: lint 0 errors (23 warnings); app unit 691/691; backend 111/111; smoke:all passed (exit 0); build
   stamp once; e2e 69/69; axe 46/46 (full runs, after the last change to this task's files).
 - A kind "ask" (the free Ask) is recorded too, beside the brief's four: it spends tokens as well.
-## Task 3: feedback — not started
+## Task 3: feedback — verification in progress
+- backend: module `feedback` (POST + owner inbox), in PRODUCTION_MODULES / app.json / app-dev.json / prod-smoke /
+  features.js FEATURE_ALSO; `server.js` gives /api/feedback its own parser; weekly report counts.
+- app: `src/lib/feedback.js` (payload, preview rows, send, copy, Help answers, VITE_SUPPORT_EMAIL),
+  `src/components/Feedback.jsx` (HelpCard, FeedbackSheet), YouScreen `help` prop, App.jsx wiring, privacy row
+  "Feedback you send", sentences updated (see PRIVACY-AUDIT Task 3).
+- portal: Feedback page + Overview count (`launch.js`), nav after AI costs, footer reworded.
+- docs: privacy.html row + short version, health-data.html counsel note, iOS privacy manifest (Customer support),
+  .env.example + render.yaml (VITE_SUPPORT_EMAIL), STORE-SETUP, spec, backend/README.
+- tests: `src/lib/feedback.test.mjs`, `backend/test/feedback.test.mjs`, `e2e/feedback.spec.mjs`,
+  `e2e/feedback-axe.spec.mjs`, `e2e/portal-feedback.spec.mjs`, launch axe spec extended.
 ## Task 4: store-submission checks — not started

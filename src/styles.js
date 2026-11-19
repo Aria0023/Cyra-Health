@@ -800,7 +800,7 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .flowhead b { font-size:14px; color:var(--ink); line-height:1.3; }
 .flowstate { flex-shrink:0; font:700 11px var(--ff-body); line-height:1.2; border:1px solid var(--line); border-radius:var(--r-chip); padding:4px 10px; color:var(--soft); background:var(--card); }
 .flowstate.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 12%, var(--card)); color:var(--primary-text); }
-.flowstate.you { border-color:color-mix(in srgb, var(--accent) 55%, var(--line)); color:var(--accent-text); }
+.flowstate.you, .flowstate.send { border-color:color-mix(in srgb, var(--accent) 55%, var(--line)); color:var(--accent-text); }
 .flowstate.na { border-style:dashed; }
 .flowline { margin:3px 0 0; font-size:var(--fs-sm); line-height:1.45; color:var(--soft); }
 .flownote { margin:4px 0 0; font-size:var(--fs-sm); line-height:1.45; color:var(--primary-text); font-weight:600; }
@@ -1995,6 +1995,22 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
 .partnerpicks { display:grid; gap:8px; margin:6px 0 12px; }
 .partnerpicks .consentopt { min-height:48px; font-size:16px; } .partnerpicks .consentopt:disabled { opacity:.6; cursor:not-allowed; }
 .partnersheet textarea.inp { width:100%; font-size:16px; resize:vertical; }
+/* You → Help and the feedback sheet (components/Feedback.jsx) */
+.youhelp .helplist p { margin:0 0 8px; }
+.helpsend { margin-top:14px; }
+.helpsend .section-lab { margin:0 0 4px; }
+.helpmail { color:var(--primary-text); font-weight:700; display:inline-block; min-height:44px; line-height:44px; overflow-wrap:anywhere; }
+.feedbacksheet textarea.inp { width:100%; font-size:16px; resize:vertical; }
+.feedbacksheet .fbwarn { display:flex; gap:8px; align-items:flex-start; background:var(--warn-bg, color-mix(in srgb, var(--accent) 10%, var(--card))); border-radius:var(--r-inner); padding:10px 12px; }
+.feedbacksheet .fbwarn svg { flex-shrink:0; margin-top:3px; }
+.feedbacksheet .fbcount { text-align:right; margin:4px 0 8px; }
+.feedbacksheet .fbreply { border-top:none; padding:4px 0 8px; }
+.fbpreview { margin:8px 0; border:1.5px solid var(--line); border-radius:var(--r-inner); padding:4px 12px; background:var(--card); }
+.fbpreview .fbrow { padding:8px 0; border-top:1px solid color-mix(in srgb, var(--ink) 10%, transparent); }
+.fbpreview .fbrow:first-child { border-top:none; }
+.fbpreview dt { font:700 12px var(--ff-body); color:var(--soft); margin:0 0 2px; }
+.fbpreview dd { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; }
+.feedbacksheet .fbacts { margin-top:14px; }
 .partnerpreview { border:1px dashed var(--line); border-radius:var(--r-card); padding:12px 14px; margin:6px 0 12px; background:var(--paper); }
 .partnerpreview p { margin:0 0 4px; font-size:16px; line-height:1.5; overflow-wrap:anywhere; }
 .partnergo { display:inline-flex; align-items:center; gap:8px; justify-content:center; width:100%; min-height:48px; }

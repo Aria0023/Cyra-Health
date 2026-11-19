@@ -486,7 +486,8 @@ with evidence — cycles, symptoms, PCOS signals." — the PCOS clause since cal
 **L11: the promise, stated once, before any personal question.** Under the value rows an `h2.section-lab#splash-promise`
 "Your privacy, plainly" labels `ul.splashpromise` (three `li`, one 16px `Icon` each; `p.splashpriv` is gone):
 1. lock — "Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that
-   tells you exactly what it sends." (unchanged sentence; it appears nowhere else in onboarding)
+   tells you exactly what it sends, or you write it in a message you send us." (2026-11-19: the last clause was added
+   with You → Help's feedback sheet, the first free text she can send; it appears nowhere else in onboarding)
 2. user — 2026-11-15 (owner: accounts are required, never "No account needed"): a build without sign-in says "Accounts are
    on the way: sign-in isn't switched on in this version yet. Your name and email are optional."; a build that offers the
    optional account, "An account is optional and only keeps an encrypted backup, and your name and email are optional
@@ -2394,6 +2395,13 @@ pure reference.
       page multiplies them by `config.ai.prices` (owner-editable) and labels every amount an estimate; a monthly budget
       emails the weekly report's recipients once at 80% and once at 100% (markers persisted), with no shut-off; shown on
       Overview and Readiness and in the weekly report (`backend/src/modules/ai/spend.js`, `insights/spend.js`).
+- [x] Feedback and Help (2026-11-19, launch-tools Task 3): You → Help (short answers; `VITE_SUPPORT_EMAIL` mail link) and,
+      in a build with a server, "Send feedback" / "Report a problem": one sheet, a 2000-character box under "Please
+      don't include health details. Nothing from your log is attached.", an optional "It's OK to reply to me" switch
+      (signed in only, off by default) and a "What will be sent" preview built from the posted object. `POST
+      /api/feedback` (backend module `feedback`, mounted in production): whitelisted, rate-limited, never logged, kept
+      365 days, linked to an account only with reply and deleted with it. The portal's owner-only Feedback inbox; the
+      open count on Overview and in the weekly report (never the text, never to Anthropic).
 - [x] Devices (2026-11-19, Task 4): a "Fitbit, Garmin or Whoop?" how-to under the device list (share with Apple Health
       or Health Connect in the brand's app, then connect that here; HRV doesn't come through for Garmin and Whoop); the
       Fitbit · Garmin · Whoop (Terra) row shows only where the server reports Terra configured or a connection exists.
@@ -2509,7 +2517,7 @@ Appearance and Privacy & your data (A14.1), so the groups run Check-ins, Add-ons
 (`shield` glyph) → the unchanged `p.datastat` strip → the unchanged "where it lives" `p.hint` (rendered exactly once; L1's
 offline-copy `p.rfoot` directly under it) → `p.section-lab#set-flows` "What can leave this device" (`share` glyph) →
 `p.hint.flowintro` "What this version of Cyra can send, and when. Nothing about your health leaves this device unless a
-row below says On, or you take it out yourself as a backup, file or summary." → `ul.flowlist[role=list]` → an optional
+row below says On, or you take it out yourself as a backup, file or summary, or type it into feedback you send." → `ul.flowlist[role=list]` → an optional
 `Details` "Other connections Cyra makes" → `p.section-lab#set-data` "Backup, restore or delete" (`file` glyph) over the
 unchanged Encrypted backup / Restore / Delete everything pills → the App lock block (below) → Done. The rows come from the
 pure `flowRows(c)` in `src/lib/privacyFlows.js` (`components/PrivacyFlows.jsx` renders them; App.jsx builds `c` from

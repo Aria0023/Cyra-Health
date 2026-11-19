@@ -69,6 +69,8 @@ export function mountWeekly(router, { ctx, store, clock, reading, writing, sendi
       partners: (await store.find("shop_partners")).length,
       aiUsage: (await store.find("ai_usage")).map((r) => ({ id: `:${String(r.id || "").split(":").pop()}`, evidence: r.evidence, chat: r.chat, weekly: r.weekly })),
       aiCost: spend ? await spend.forWeek(week) : null,
+      // feedback from the app: COUNTS only. The text is never read here and never goes to Anthropic or into the email.
+      feedback: (await store.find("feedback")).map((r) => ({ status: r.status === "handled" ? "handled" : "open", day: typeof r.day === "string" ? r.day : "" })),
     });
   }
 
