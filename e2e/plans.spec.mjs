@@ -6,13 +6,13 @@
      one day's first Home visit; never beside the free-week bar (the no-server build has the gate on). */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab } from "./lib/nav.mjs";
+import { gotoTab, gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
 test("the web: You → Plan shows Yearly with the 7-day free trial and Monthly; the Pro sheet opens with them", async ({ page }) => {
   await register(page, { stage: "My Cycle", pcos: "no" });
   await expect(page.locator(".prochip")).toHaveCount(0); // the free-week bar is on in this build: one note at a time
-  await gotoTab(page, "You");
+  await gotoYou(page, "Plan & account");
   const card = page.locator("#you-plan");
   const tiles = card.locator(".plantile");
   await expect(tiles).toHaveCount(2);

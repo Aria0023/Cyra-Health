@@ -30,7 +30,7 @@ export const APP_SIDE = Object.freeze([
   { name: "VITE_APP_STORE_URL", required: false, line: "The app's App Store page, for the web's \"Get Solia Health Pro in the app\" button." },
   { name: "VITE_PLAY_STORE_URL", required: false, line: "The app's Google Play page, for the same button." },
   { name: "VITE_APP_STORE_ID", required: false, line: "The app's numeric Apple id, for \"Have a code?\" on iPhone." },
-  { name: "VITE_SUPPORT_EMAIL", required: false, line: "The support address shown in You → Help. Unset = no support link." },
+  { name: "VITE_SUPPORT_EMAIL", required: false, line: "The support address shown in You → Help & about. Unset = no support link." },
   { name: "VITE_FEATURES", required: false, line: "Which optional features the build offers. Unset = the shipping defaults." },
   { name: "VITE_REQUIRE_SIGNIN", required: false, line: "\"true\" (default) requires sign-in where the server offers one; \"false\" offers it with a skip." },
   { name: "VITE_GUEST_HOURS", required: false, line: "Hours of \"Try it first\" before sign-in is asked. Unset = 48." },

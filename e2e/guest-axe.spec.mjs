@@ -1,10 +1,10 @@
 /* axe-core on the guest window's new states (lib/guest.js), light and dark: "Create your account" with "Try it first",
-   Home's guest line, You → Account as a guest, the "Create your account" sheet, and the screen after the window with
+   Home's guest line, You → Plan & account as a guest, the "Create your account" sheet, and the screen after the window with
    its backup and delete panels open. 0 violations. */
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab } from "./lib/nav.mjs";
+import { gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
@@ -29,7 +29,7 @@ for (const scheme of ["light", "dark"]) {
     await register(page, { url: process.env.E2E_API_URL, stage: "Perimenopause", pcos: "no", signin: null, resume: true });
     await expect(page.locator(".guestbar")).toBeVisible();
     await audit(page, `Home with the guest line ${scheme}`);
-    await gotoTab(page, "You");
+    await gotoYou(page, "Plan & account");
     await expect(page.locator("#you-guest")).toBeVisible();
     await audit(page, `You as a guest ${scheme}`);
     await page.locator("#you-guest").getByRole("button", { name: "Create account" }).click();

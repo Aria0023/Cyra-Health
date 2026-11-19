@@ -44,7 +44,7 @@ export const canSkip = (mode) => mode === "none" || mode === "unset" || mode ===
 export const signinOff = (mode) => mode === "none" || mode === "unset";
 /** The skip button's words in a mode. */
 export const skipLabel = (mode) => (signinOff(mode) ? SIGNIN_COPY.skipForNow : SIGNIN_COPY.skip);
-/** You → Account's line while this device isn't signed in (none: no server or no signin flag; unset: the server has none). */
+/** You → Plan & account's line while this device isn't signed in (none: no server or no signin flag; unset: the server has none). */
 export const youAccountLine = (mode) => (mode === "none" ? SIGNIN_COPY.youNone : mode === "unset" ? SIGNIN_COPY.youUnset : SIGNIN_COPY.noneLine);
 
 /** Whether a record that is already on this device has to sign in before the app opens: an existing record with no
@@ -131,9 +131,9 @@ export const SIGNIN_COPY = Object.freeze({
     "Facebook doesn't say whether an email is confirmed, so a Facebook account keeps your name and no email.",
     "With email, our email provider (Resend) delivers a 6-digit code to your address. The code works once, for 10 minutes.",
     "In the iPhone and Android apps, RevenueCat, which handles Pro for the stores, gets your account number while you're signed in, never your email or anything you log. If a clinic or partner arranges free Pro for you, Solia Health keeps that grant with your sign-in email.",
-    "This device keeps your sign-in in a place that is never part of a backup. Sign out or delete your account any time in You → Account.",
+    "This device keeps your sign-in in a place that is never part of a backup. Sign out or delete your account any time in You → Plan & account.",
   ]),
-  // You → Account
+  // You → Plan & account
   eyebrow: "Account",
   cardTitle: "Your account",
   cardWho: (who) => `Signed in as ${who}`,

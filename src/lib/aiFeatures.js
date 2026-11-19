@@ -122,7 +122,7 @@ export const ASK_COPY = Object.freeze({
   soonChip: "Coming soon",
   soon: "Solia Health's AI isn't connected in this build yet, so there is nothing to ask here for now.",
   hide: "Hide the Ask Solia card",
-  hidden: "Ask Solia is hidden. You can bring it back from You.",
+  hidden: "Ask Solia is hidden. You can bring it back in You → App settings.",
   shown: "Ask Solia is back on Home.",
   // the write-up on Home
   wuOpen: "Open in Patterns",

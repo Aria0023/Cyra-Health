@@ -73,7 +73,7 @@ const failLine = (kind, steps) => {
     steps.includes("account") && "Solia Health's server didn't confirm it deleted your account. Try again."].filter(Boolean).join(" ");
 };
 const STAYS = {
-  account: "your Solia Health account (how you signed in, your email and name) stays on Solia Health's server; sign in again the same way and delete it in You → Account",
+  account: "your Solia Health account (how you signed in, your email and name) stays on Solia Health's server; sign in again the same way and delete it in You → Plan & account",
   oura: "Oura stays connected to Solia Health until you remove Solia Health (it may be listed as Cyra or Heard Health) in your Oura account's connected apps",
   terra: "your Fitbit, Garmin or Whoop account stays connected until you remove Solia Health (it may be listed as Cyra, Heard Health or Terra) in that account's connected apps; until then Terra keeps sending that account's new readings to Solia Health's server, where each day waits up to 7 days for a device that will never collect it and is then deleted",
   reminders: "Solia Health's server keeps this browser's push address and its keys, the reminder days and time you chose, your time zone and the last day it sent a reminder, until the browser's push service reports the address gone (no reminder will be shown here)",

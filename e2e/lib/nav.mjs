@@ -8,9 +8,17 @@ export async function gotoTab(page, label) {
   await page.getByRole("tab", { name: label, exact: true }).click();
   await expect(page.locator(".viewpanel main h1")).toBeVisible();
 }
-/** Picks a style (Soft, Mono, Clear, Journal, Aura, Sky, Blush, Mint, Sunset) with You's style picker; ends on You. */
+/* You is a short menu (2026-11-19, src/lib/youMenu.js): each card lives on one of its pages. */
+export const YOU_PAGES = ["Your profile", "Privacy & your data", "Solia Health's AI", "Plan & account", "Devices & reminders", "App settings", "Help & about"];
+/** Opens one of You's pages from the menu (the You tab always opens on the menu) and waits for its heading. */
+export async function gotoYou(page, title) {
+  await page.getByRole("tab", { name: "You", exact: true }).click();
+  await page.locator(".youmenu .yourow", { hasText: title }).click();
+  await expect(page.locator(".yousub h1")).toHaveText(title);
+}
+/** Picks a style (Soft, Mono, Clear, Journal, Aura, Sky, Blush, Mint, Sunset) with You → App settings' style picker; ends there. */
 export async function setStyle(page, name) {
-  await gotoTab(page, "You");
+  await gotoYou(page, "App settings");
   await page.getByRole("radio", { name, exact: true }).click();
   await expect(page.locator(".cy")).toHaveAttribute("data-style", name.toLowerCase());
 }

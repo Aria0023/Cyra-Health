@@ -1144,6 +1144,24 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .youpage { position:relative; }
 .youpage > .eyebrow { margin-top:4px; }
 .youname { margin:0 0 14px; }
+/* You as a short menu (2026-11-19, lib/youMenu.js): one row per page under the stage card; a page has a "You" back link. */
+.youmenu-nav { margin:0 0 var(--stack); }
+.yourows { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+.yourow { display:flex; align-items:center; gap:14px; width:100%; min-height:68px; padding:12px 14px; text-align:left; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--card); box-shadow:var(--sh-card); color:var(--ink); font:inherit; cursor:pointer; transition:background-color var(--t-fast), border-color var(--t-fast); }
+.yourow:hover { border-color:var(--line); }
+.yourow .ibadge { flex:none; }
+.yourow-txt { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.yourow-txt b { font:var(--label-wght) var(--fs-md) var(--ff-label); color:var(--ink); }
+.yourow-line { font-size:var(--fs-sm); line-height:1.4; color:var(--soft); }
+.yourow-state { align-self:flex-start; margin-top:4px; padding:3px 10px; border-radius:var(--r-pill); border:1px solid var(--line); background:color-mix(in srgb, var(--primary) 8%, var(--card)); font:700 11px var(--ff-body); letter-spacing:.02em; color:var(--ink); }
+.yourow-state[data-plan="pro"] { background:var(--primary); border-color:var(--primary); color:var(--on-primary); }
+.yourow-go { flex:none; color:var(--soft); }
+.yousub > .subback { margin:0 0 4px; min-width:44px; padding-right:8px; }
+.yousub-title { margin:0 0 14px; }
+.youailink { display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+.youailink .hint { margin:0; }
+.youailink .linkbtn { min-height:44px; gap:6px; }
+.youstage2 .ghostbtn { margin-top:10px; }
 .youstage .hint { margin:0 0 6px; }
 .youstage .stagechip.quiet { min-height:44px; padding:6px 0; font-size:var(--fs-md); }
 .youlist { list-style:none; margin:0 0 4px; padding:0; display:grid; gap:8px; }
@@ -1242,7 +1260,7 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .autocard .morewrap { margin:8px 0 -6px; }
 .autocard .disclosure.more { border:none; border-top:var(--rule); border-radius:0; background:none; padding:8px 0; color:var(--primary-text); justify-content:space-between; }
 .autocard .bodypanel.more { border:none; padding:2px 0 4px; } .autocard .bodypanel.more p { margin:0 0 6px; font-size:var(--fs-sm); line-height:1.5; }
-/* Passive tracking S3: You → Data sources (components/DataSourcesCard.jsx). */
+/* Passive tracking S3: You → Devices & reminders → Data sources (components/DataSourcesCard.jsx). */
 .srclist .modrow:first-child { border-top:none; padding-top:4px; }
 .srcstatus { font-variant-numeric:tabular-nums; }
 .srcrow.st-connected .srcstatus::before, .srcrow.st-paused .srcstatus::before, .srcrow.st-pending .srcstatus::before { content:""; display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background:var(--primary); vertical-align:middle; }
@@ -1799,7 +1817,7 @@ button.plantile.on { border-color:var(--primary); box-shadow:inset 0 0 0 1px var
 .prochip { display:inline-flex; align-items:center; gap:2px; margin:0 0 12px; border:1px solid var(--line); border-radius:var(--r-pill); background:var(--card); }
 .prochip-open { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 6px 0 14px; border:0; background:none; color:var(--ink); font:600 var(--fs-sm) var(--ff-body); cursor:pointer; border-radius:var(--r-pill); }
 .prochip-hide { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border:0; background:none; color:var(--soft); cursor:pointer; border-radius:50%; }
-/* ---------- calm R9: the optional account (You → Account, its sheets, the splash sign-in) ---------- */
+/* ---------- calm R9: the optional account (You → Plan & account, its sheets, the splash sign-in) ---------- */
 .acctcard { position:relative; overflow:hidden; }
 .acctart { position:absolute; right:-6px; top:8px; width:120px; height:60px; pointer-events:none; }
 .acctart-blob { fill:var(--primary); opacity:.10; }
@@ -2063,7 +2081,7 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
 .partnerpicks { display:grid; gap:8px; margin:6px 0 12px; }
 .partnerpicks .consentopt { min-height:48px; font-size:16px; } .partnerpicks .consentopt:disabled { opacity:.6; cursor:not-allowed; }
 .partnersheet textarea.inp { width:100%; font-size:16px; resize:vertical; }
-/* You → Help and the feedback sheet (components/Feedback.jsx) */
+/* You → Help & about and the feedback sheet (components/Feedback.jsx) */
 .youhelp .helplist p { margin:0 0 8px; }
 .helpsend { margin-top:14px; }
 .helpsend .section-lab { margin:0 0 4px; }

@@ -2774,3 +2774,44 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   (then it stays, so that statement is never hidden). Her name is in Home's greeting. No sentence changed.
 - No privacy sentence changed. "the shop never shows in insights, Patterns or Home" (e2e/shop.spec.mjs) still holds:
   the pill is in the header, not in a Home card.
+
+### Task 3: You as a short menu — where things are found, not what they do; no new request, no new key
+
+- **What changed.** You shows the stage card and seven rows (`lib/youMenu.js`): Your profile, Privacy & your data,
+  Solia Health's AI, Plan & account, Devices & reminders, App settings, Help & about. Each opens a page inside the You
+  tab (`#/you/<slug>`). Every card keeps its id, controls and sentences; none was removed. The card JSX in
+  `screens/YouScreen.jsx` is byte-for-byte what it was (the pages only place it).
+- **Solia Health's AI has its own row**, so "Turn it on or off in You → Solia Health's AI." (privacy list), "Turn on in
+  You → Solia Health's AI" (Home) and "Unless you turn it off (You → Privacy & your data → …)" (privacy.html) are the
+  taps they name. Privacy & your data also links to the AI page: "Solia Health's AI has its own page: its switches,
+  and exactly what each one sends."
+- **Sentences changed so the path they name is the path on screen** (old → new):
+  - privacy list, encrypted cloud backup: "…or delete it in You → Account." → "…in You → Plan & account."
+  - privacy list, account row; sign-in disclosure; "what stays" after Delete everything: "You → Account" → "You →
+    Plan & account" (`lib/privacyFlows.js`, `lib/signin.js`, `components/DataControls.jsx`)
+  - feedback: "Only when you press Send in You → Help: …" → "…in You → Help & about: …" (`lib/feedback.js`); the
+    sign-in disclosure's "If you send feedback from You → Help with …" → "…from You → Help & about with …"
+    (`lib/disclosures.js`)
+  - Help answers: "Open You → Data sources and connect …" / "…connected from You → Data sources" → "You → Devices &
+    reminders" (`lib/feedback.js`)
+  - toasts: "…resume it in You → Data sources to sync again." → "…in You → Devices & reminders to sync again.";
+    "Hidden. Connect a device any time from You → Data sources." → "…from You → Devices & reminders."; "Getting
+    started is hidden. You can bring it back from You." → "…bring it back in You → App settings."; "Ask Solia is
+    hidden. You can bring it back from You." → "…in You → App settings."; "Hidden for today. You can create your
+    account any time in You." → "…any time in You → Plan & account."
+  - Getting started, backup step: "Open You and choose Encrypted backup …" → "Open You → Privacy & your data and
+    choose Encrypted backup …"; its button "Open You" → "Open Privacy & your data" (it opens that page).
+  - `public/legal/privacy.html` (three places): "(You → Account, or Delete everything)" → "(You → Plan & account, or
+    Delete everything)"; "only when you press Send in You → Help" → "…in You → Help & about"; "Delete your account in
+    the app at any time (You → Account)" → "(You → Plan & account)". Wording of a path only; an attorney should still
+    see the page before it is published, as before.
+  - Portal (owner-facing): "What people sent from the app's You → Help" → "…You → Help & about"; readiness line "The
+    support address shown in You → Help." → "…You → Help & about."
+- **Kept on purpose:** "you can change it in You" (the PCOS question at registration; true: You → Your profile);
+  "Your settings, your plan, backups, privacy choices and Delete everything are all here." (the You tip; true of the
+  menu's pages); every "You → Privacy & your data" and "You → Solia Health's AI".
+- **New control, same key:** App settings has "Voice guide in practices", the same device-only `practiceVoice` the
+  switch inside a practice sets ("Reads each step of a Mind practice aloud. The same switch is inside every practice."),
+  shown only where this device can speak. Nothing is recorded or sent.
+- **History:** opening a page adds a browser history entry with the page's hash; nothing is sent (a hash never
+  leaves the browser), and the hash names a page, never anything about her.

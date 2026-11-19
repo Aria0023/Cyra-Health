@@ -206,7 +206,9 @@ import { cleanBodyLog, cleanLabs, cleanBodyPrefs, unitsOf, bodyDay, setSleepH, a
 import { NavPill } from "./components/ui/index.js";
 import { localTabs, localItems, localPractice } from "./locales/index.js";
 import { cleanLocale, setLocale, resolveLocale, applyDocumentLocale, getLocale, pickerShown, availableLocales } from "./lib/i18n.js";
-import { TABS, viewsOf, tabOf, viewForTab, parseRoute, logItemsFor, segmentOf } from "./lib/routes.js";
+import { TABS, viewsOf, tabOf, viewForTab, parseRoute, routeOf, logItemsFor, segmentOf } from "./lib/routes.js";
+import { isYouPage, youRowId, pageOfSection } from "./lib/youMenu.js";
+import { voiceSupported } from "./lib/voice.js";
 import AskScreen from "./screens/AskScreen.jsx";
 import MindTodayScreen from "./screens/MindTodayScreen.jsx";
 import PracticesScreen from "./screens/PracticesScreen.jsx";
@@ -920,7 +922,7 @@ export default function CyraDemo() {
   };
   const curTab = stage === "preg" ? pregTab : appTab;
   // Promotions: downloaded when the Pro sheet or You opens, at most once a day (refreshPromos above; nothing about her).
-  const promoMoment = proOpen || trialSheet || curTab === "you";
+  const promoMoment = proOpen || trialSheet || curTab === "youplan"; // the plan card is on You → Plan & account
   // The one promotion for her, decided on this device from her own record: her stage, and "new" = her record's first date
   // (the free week's start, or an earlier logged day) within the last 14 days. Nobody with Pro sees one.
   const firstDay = days.reduce((m, d) => (d && typeof d.date === "string" && d.date < m ? d.date : m), trialStart || todayIso);
@@ -962,7 +964,7 @@ export default function CyraDemo() {
   }, [hydrated, phase, stage, curTab, todayIso, proOwnedNow, trialNow, guest, signMode]); // eslint-disable-line react-hooks/exhaustive-deps
   /* The guest window (lib/guest.js). The clock is read when the record has loaded and whenever the app comes back to the
      front; while she is a guest the latest time seen is kept (it only moves forward). Home's guest line shows on the
-     first Home visit of a day, and goes when she hides it or creates her account; You → Account always says it. */
+     first Home visit of a day, and goes when she hides it or creates her account; You → Plan & account always says it. */
   useEffect(() => {
     if (!hydrated) return undefined;
     const tick = () => { if (document.visibilityState !== "hidden") setGuestClock(Date.now()); };
@@ -1014,17 +1016,62 @@ export default function CyraDemo() {
     }); });
     return () => { cancelAnimationFrame(id); cancelAnimationFrame(id2); };
   }, [appTab, pregTab, potsOpen, logOpen]); // eslint-disable-line
-  // The You page's "Support & care" section, when an old #/care link asked for it.
+  /* A card on one of You's pages, brought into view (lib/youMenu.js pageOfSection says which page holds it). */
+  const openYouSection = (id) => { setYouSection(id); showView(pageOfSection(id) || "you", { head: false }); };
   useEffect(() => {
-    if (!youSection || curTab !== "you") return;
+    if (!youSection || curTab !== (pageOfSection(youSection) || "you")) return;
     const id = requestAnimationFrame(() => { const el = document.getElementById(youSection); if (el) { el.scrollIntoView?.({ block: "start" }); el.focus?.({ preventScroll: true }); } setYouSection(null); });
     return () => cancelAnimationFrame(id);
   }, [youSection, curTab]);
-  /* Calm R7: the header's sliders button on the You tab brings the page's Check-ins card into view (the sheet is not drawn
-     there; settingsSheet above), so the old "open settings" gesture keeps working from every tab. */
+  /* Calm R7: the header's sliders button on the You tab opens You → Devices & reminders at its Check-ins card (the sheet
+     is not drawn on You; settingsSheet above), so the old "open settings" gesture keeps working from every tab. */
   useEffect(() => {
-    if (showSettings && stage && curNavTab === "you") { setShowSettings(false); setYouSection("you-checkins"); }
-  }, [showSettings, stage, curNavTab]);
+    if (showSettings && stage && curNavTab === "you") { setShowSettings(false); openYouSection("you-checkins"); }
+  }, [showSettings, stage, curNavTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* You's pages and the address bar (2026-11-19, lib/youMenu.js, lib/routes.js SUBPAGES). Opening a page from the menu
+     adds a history entry at #/you/<slug>, so the browser's Back returns to the menu (focus on the row she came from)
+     and a link to the page works. Page to page (Privacy & your data → Solia Health's AI) replaces the entry, so Back is
+     always the menu. Leaving a page any other way (a tab, the "You" link on a page opened by a link) clears the hash. */
+  const curTabRef = useRef(curTab); curTabRef.current = curTab;
+  const youPrev = useRef(null);
+  const youBacking = useRef(false);
+  const youHash = () => { const r = parseRoute(window.location.hash, { preg: stage === "preg", meno: isMeno }); return r && isYouPage(r.view) ? r.view : null; };
+  useEffect(() => {
+    const prev = youPrev.current; youPrev.current = curTab;
+    if (!stage || phase !== "app") return;
+    const at = youHash();
+    try {
+      if (isYouPage(curTab)) {
+        if (at === curTab) return; // opened by its link, or by the browser's Forward
+        const url = window.location.pathname + window.location.search + routeOf(curTab, { preg: stage === "preg", meno: isMeno });
+        if (isYouPage(prev) && at === prev) history.replaceState(history.state, "", url);
+        else history.pushState({ ...(history.state || {}), youPushed: true }, "", url);
+      } else if (isYouPage(prev) && at) {
+        if (youBacking.current) { youBacking.current = false; return; } // backYou's history.back() is about to move the address itself
+        const { youPushed: _gone, ...rest } = history.state || {};
+        history.replaceState(rest, "", window.location.pathname + window.location.search);
+      }
+    } catch { /* no history here: the pages still open and close */ }
+  }, [curTab, stage, phase]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const onPop = () => {
+      const cur = curTabRef.current;
+      if (!isYouPage(cur) || youHash()) return; // another You page: the hashchange handler below opens it
+      pendingFocus.current = [`#${youRowId(cur)}`, ".viewpanel main h1"];
+      showViewRef.current("you", { head: false });
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [stage, isMeno]); // eslint-disable-line react-hooks/exhaustive-deps
+  /* The "You" link at the top of a page: back to the menu, focus on the row that opened it. */
+  const backYou = () => {
+    const cur = curTabRef.current;
+    pendingFocus.current = [`#${youRowId(cur)}`, ".viewpanel main h1"];
+    const pushed = !!(history.state && history.state.youPushed) && youHash() === cur;
+    if (pushed) youBacking.current = true;
+    showView("you", { head: false });
+    if (pushed) { try { history.back(); } catch { youBacking.current = false; } }
+  };
   /* Deep links (spec §3): #/body/calendar, #/patterns/report, … and the old tab names (#/today, #/report, #/care, …)
      open the view they name once she is in the app; the hash is then cleared, so a reload opens Home as before. Other
      hashes (#restored, #oauth=…, #/dev/ui) are not routes and are left alone. */
@@ -1033,8 +1080,10 @@ export default function CyraDemo() {
     const apply = () => {
       const r = parseRoute(window.location.hash, { preg: stage === "preg", meno: isMeno });
       if (!r) return;
-      try { history.replaceState(history.state, "", window.location.pathname + window.location.search); } catch { /* keep the hash */ }
+      // One of You's pages keeps its hash while it is open (the effect above looks after it); every other link is cleared.
+      if (!(r.view && isYouPage(r.view))) { try { history.replaceState(history.state, "", window.location.pathname + window.location.search); } catch { /* keep the hash */ } }
       if (r.page === "shop") { if (FEATURES.shop) openShop(r.category); return; } // #/shop[/<need>], and the old #/care, #/shelf
+      if (isYouPage(r.view) && curTabRef.current === r.view) return; // already there (the address was just set for it)
       showView(r.view);
       if (r.section) setYouSection(r.section);
     };
@@ -1287,7 +1336,7 @@ export default function CyraDemo() {
       return ping(`Demo mode — ${label} isn't really connected; showing 90 days of illustrative data`);
     }
     const existing = wearSources[id];
-    if (existing && existing.paused) { ping(`${label} is paused — resume it in You → Data sources to sync again.`); return; }
+    if (existing && existing.paused) { ping(`${label} is paused — resume it in You → Devices & reminders to sync again.`); return; }
     // Oura and Terra go through Cyra's server: say exactly what that means before every first connect.
     if (!existing && VIA_SERVER.has(id) && !confirmed && API_BASE) { setWearConfirm(id); return; }
     setWearConfirm(null);
@@ -1409,7 +1458,7 @@ export default function CyraDemo() {
   const skipNightFor = (day, reason) => { setNightSkips((sk) => skipNight(sk, day, reason)); ping(`${fmt(day)} skipped: ${skipLabel(reason).toLowerCase()}. That night stays out of your baselines and the rise test.`); };
   const unskipNightFor = (day) => { setNightSkips((sk) => unskipNight(sk, day)); ping(`${fmt(day)} counts again.`); };
   const confirmNightRef = useRef(confirmNight); confirmNightRef.current = confirmNight;
-  /* ---- Passive tracking S3: You → Data sources (plan §2.4). Pause keeps the connection and stops syncing; Disconnect ends it
+  /* ---- Passive tracking S3: You → Devices & reminders → Data sources (plan §2.4). Pause keeps the connection and stops syncing; Disconnect ends it
      (the server sources through disconnectWear, the on-phone and demo ones here) and, with "Delete readings too" (the default),
      drops that source's rows from this device; the preferred source per metric is her choice; the demo switch exists in
      demo builds only. trackStats.sourceSince is cleared when no real source is left. ---- */
@@ -2605,7 +2654,7 @@ export default function CyraDemo() {
   const onSigninStep = phase === "register" && regStep === 0 && FEATURES.signin;
   const needsGateCheck = hydrated && phase === "app" && SIGNIN_BUILD && !signin;
   useEffect(() => { if (SIGNIN_BUILD && signinCfg == null && (onSigninStep || needsGateCheck)) accountsConfig().then(setSigninCfg); }, [onSigninStep, needsGateCheck]); // eslint-disable-line
-  // You → Account: sign out (this device's session) and delete the account (the record on the server). Both need the
+  // You → Plan & account: sign out (this device's session) and delete the account (the record on the server). Both need the
   // server's confirmation; then this device forgets the session. Her log is not touched.
   const signOutAccount = async () => {
     try { await signOutServer(signin.token); } catch { throw new Error(SIGNIN_COPY.errSignOut); }
@@ -2829,7 +2878,7 @@ export default function CyraDemo() {
      "What Solia Health will send" sheet. The card makes no request. Hidden with × (askCardOff, this device). */
   const askNow = askCard({ flag: FEATURES.ai, server: hasServer(), serverAi: aiState, guest: guest === "in", canChat: can("aiChat", planLive), chatOn: aiPrefs.chat, canEvidence: can("aiEvidence", planLive) });
   const askTo = (kind, text) => { setAskSeed({ kind, text, n: Date.now() }); pendingFocus.current = [kind === "chat" ? "#ai-chat-q" : "#ai-evidence-q", ".viewpanel main h1"]; showView("ask", { head: true }); };
-  const openYouAi = () => { setYouSection("you-ai"); showView("you", { head: false }); };
+  const openYouAi = () => showView("youai", { head: true }); // You → Solia Health's AI, its own page
   const weeklyShown = can("aiPatternReports", planLive) && FEATURES.ai && hasServer() && aiPrefs.weekly && aiWeekly?.writeup ? aiWeekly : null;
   const homeView = (
     <HomeScreen
@@ -2843,7 +2892,7 @@ export default function CyraDemo() {
       tiles={homeTileIds.map((id) => ({ ...TILE_CATALOG.find((t) => t.id === id), logged: tileLogged(id, tileCtx) }))} onTile={(id) => pickLog(id)}
       tilePicker={{ choices: TILE_CATALOG.filter((t) => tileAvail.includes(t.id)), chosen: homeTileIds, custom: homeTiles != null, set: (ids) => setHomeTiles(ids == null ? null : cleanHomeTiles(ids)) }}
       step={homeStepSkip && homeStepSkip.day === todayIso ? null : gettingStarted(guide, { startIso: trialStart || todayIso, todayIso, preg: stage === "preg", meno: isMeno, logged: days.length > 0 || Object.keys(pregLog || {}).length > 0, periodKnown: days.some((d) => d && d.period) || !!(regAnswers && regAnswers.lastPeriod), practiced: Array.isArray(practiceLog) && practiceLog.length > 0, backedUp: !!lastBackupAt }) || (stage !== "preg" && experimentStep(experiments, todayIso)) || smallStep({ stage, entry: todayEntryNow, pcosOn: pcosHere, todayIso, skip: homeStepSkip })}
-      onStep={(a) => { if (a.hideGuide) { setGuide((g) => ({ ...cleanGuide(g), off: true })); ping("Getting started is hidden. You can bring it back from You."); return; } if (a.view) { showView(a.view); return; } if (a.exp) { setExperiments((s) => markDay(s, todayIso, a.exp === "done")); ping(a.exp === "done" ? "Ticked for today" : "Unticked for today"); focusSel([".stepcard .stepgo"]); } else if (a.practice) setPracticeOpen({ id: a.practice, need: null }); else if (a.log) pickLog(a.log); else if (a.go) goTab(a.go); else if (a.open === "appts") setShowAppts(true); }}
+      onStep={(a) => { if (a.hideGuide) { setGuide((g) => ({ ...cleanGuide(g), off: true })); ping("Getting started is hidden. You can bring it back in You → App settings."); return; } if (a.view) { showView(a.view); return; } if (a.exp) { setExperiments((s) => markDay(s, todayIso, a.exp === "done")); ping(a.exp === "done" ? "Ticked for today" : "Unticked for today"); focusSel([".stepcard .stepgo"]); } else if (a.practice) setPracticeOpen({ id: a.practice, need: null }); else if (a.log) pickLog(a.log); else if (a.go) goTab(a.go); else if (a.open === "appts") setShowAppts(true); }}
       onSkipStep={() => { const st = (stage !== "preg" && experimentStep(experiments, todayIso)) || smallStep({ stage, entry: todayEntryNow, pcosOn: pcosHere, todayIso }); setHomeStepSkip({ day: todayIso, id: st ? st.id : "" }); ping("Okay, not today"); }}
       bodyRail={bodySteps({ entry: todayEntryNow, moveCount: tileCtx.moveCount, moveMin: potsMoves ? 0 : moveToday.min, preg: stage === "preg", sleepH: tileCtx.sleepH, auto: autoModel && autoModel.fresh ? { confirmed: autoModel.confirmed } : null })}
       devicesCard={homeDevicesCard({ rows: devRows, hidden: devicesHint === "hidden" }) ? <DevicesHomeCard onOpen={openDevices} onHide={() => { setDevicesHint("hidden"); ping(DEVICE_COPY.homeHidden); }} /> : null}
@@ -3188,7 +3237,9 @@ export default function CyraDemo() {
       onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: shelfKind(s), started: todayIso }]); ping(shelfKind(s) === "care" ? "Added to What I'm trying" : "Added — your days before and after will be compared"); }} />
   ) : null;
   const youView = (
-    <YouScreen onTour={() => { setGuide(replayGuide(todayIso)); setHomeStepSkip(null); goTab("home"); ping("Getting started is back on Home, and each screen will show its tip again."); }} trial={{ gateOn: TRIAL_GATE && !proOwnedNow, line: trialNow }} acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
+    <YouScreen page={isYouPage(curTab) ? curTab : null} onOpenPage={(v) => showView(v, { head: true })} onBack={backYou} planLabel={planNow.label} planKey={planNow.key}
+      voice={voiceSupported() ? { on: practiceVoice, set: (on) => { setPracticeVoice(on === true); ping(on ? "Voice guide on" : "Voice guide off"); } } : null}
+      onTour={() => { setGuide(replayGuide(todayIso)); setHomeStepSkip(null); goTab("home"); ping("Getting started is back on Home, and each screen will show its tip again."); }} trial={{ gateOn: TRIAL_GATE && !proOwnedNow, line: trialNow }} acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={proOn} proOwned={proOwnedNow} storeReady={STORE.available} onPro={() => setProOpen(true)}
       ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line || (isNative() ? null : WEB_PRICE_LINE)} meals={mealsOffered ? { on: mealsHere, onToggle: () => { const on = !mealsHere; setBodyPrefs((p) => cleanBodyPrefs({ ...p, mealsOn: on })); ping(on ? "Meal notes on" : "Meal notes off. What you noted is kept"); } } : null} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
       guest={guest === "in" ? { youLine: GUEST_COPY.youLine(guestWhen), story: guestStoryNow, createLabel: GUEST_COPY.create, onCreate: () => setCreateOpen(true) } : null}
@@ -3287,7 +3338,7 @@ export default function CyraDemo() {
             {pregIs("ask") && journeyView()}
             {pregIs("connect") && connPage}
             {pregIs("home") && homeView}
-            {pregIs("you") && youView}
+            {(pregIs("you") || (!overPage && isYouPage(pregTab))) && youView}
           </>
         ) : (
           <>
@@ -3307,7 +3358,7 @@ export default function CyraDemo() {
             {appIs("ask") && journeyView()}
             {appIs("connect") && connPage}
             {appIs("home") && homeView}
-            {appIs("you") && youView}
+            {(appIs("you") || (!overPage && isYouPage(appTab))) && youView}
           </>
         )}
         </div>
@@ -3317,7 +3368,7 @@ export default function CyraDemo() {
       {bodySheetView}
       {practiceSheet}
       {devicesOpen && <DevicesSheet {...devList} extra={FEATURES.shop ? <p className="learnrow-wrap devshop"><ShopLink category="wearables" label="Don't have a device? See options" /><ShopLink category="glucose" label="Glucose sensors: see options" /></p> : null} onClose={() => setDevicesOpen(false)} />}
-      {/* 2026-11-19: You → Help's feedback sheet. One request, made by its Send button, with exactly the previewed payload;
+      {/* 2026-11-19: You → Help & about's feedback sheet. One request, made by its Send button, with exactly the previewed payload;
           the sign-in token goes with it only when she turned on "It's OK to reply to me" (lib/feedback.js). */}
       {feedbackKind && hasServer() && (
         <FeedbackSheet kind={feedbackKind} build={BUILD_STAMP} platform={isNative() ? platform() : "web"} language={getLocale()} account={signin ? { email: signin.email } : null} onClose={() => setFeedbackKind(null)}

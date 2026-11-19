@@ -4,7 +4,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab } from "./lib/nav.mjs";
+import { gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
@@ -26,7 +26,7 @@ for (const scheme of ["light", "dark"]) {
     await expect(shop.locator(".shoptaps")).toContainText("counts one anonymous tap");
     await audit(page, `Shop footer with the tap sentence ${scheme}`);
     await shop.getByRole("button", { name: "Back" }).click();
-    await gotoTab(page, "You");
+    await gotoYou(page, "Privacy & your data");
     const privacy = page.locator("#you-privacy");
     await privacy.getByRole("button", { name: "How this works" }).click();
     const row = privacy.locator(".flowrow", { hasText: "Count my shop taps anonymously" });

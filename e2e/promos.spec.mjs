@@ -7,7 +7,7 @@
      offering, the tiles and the purchase use that offering, "Have a code?" and what RevenueCat is told are there. */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, gotoGallery } from "./lib/nav.mjs";
+import { gotoGallery, gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
 const promo = (id, who, stages, title) => ({ id, offeringId: "spring_clinic", platforms: ["ios", "android", "web"], audience: { who, stages }, startsAt: "2026-01-01T00:00:00.000Z", endsAt: "2099-01-01T00:00:00.000Z", banner: { title, body: "A longer free trial on the yearly plan." } });
@@ -16,7 +16,7 @@ test("the web: the promotion for her stage, chosen on the device, without a pric
   const state = newApiState({ promotions: [promo("promo_meno01", "stages", ["meno"], "For menopause"), promo("promo_peri01", "stages", ["peri"], "For perimenopause"), promo("promo_every1", "everyone", [], "For everyone")] });
   await mockApi(page, state);
   await register(page, { url: process.env.E2E_API_URL, stage: "Perimenopause", signin: "email" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Plan & account");
   const card = page.locator("#you-plan");
   const banner = card.locator(".promobanner");
   await expect(banner).toHaveCount(1);
@@ -40,7 +40,7 @@ test("the web: the promotion for her stage, chosen on the device, without a pric
   await expect(banner).toContainText("For everyone");
   await page.waitForTimeout(1500); // saved on this device
   await page.reload();
-  await gotoTab(page, "You");
+  await gotoYou(page, "Plan & account");
   await expect(page.locator("#you-plan .promobanner")).toContainText("For everyone");
   await expect(page.locator("#you-plan")).not.toContainText("For perimenopause");
   expect(state.sent.filter((r) => r.path === "/api/promotions/active").length, "not downloaded again the same day").toBe(1);
@@ -50,7 +50,7 @@ test("the web: no promotion for her stage shows nothing; a broken answer shows n
   const state = newApiState({ promotions: [promo("promo_meno01", "stages", ["meno"], "For menopause"), { id: "<x>", banner: "nope" }] });
   await mockApi(page, state);
   await register(page, { url: process.env.E2E_API_URL, stage: "My Cycle", signin: "email" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Plan & account");
   await expect(page.locator("#you-plan .plantile").first()).toBeVisible();
   await expect(page.locator(".promobanner")).toHaveCount(0);
 });

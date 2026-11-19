@@ -100,16 +100,16 @@ Both are required by Apple's App Store review (and Google Play asks for in-app a
 
 - [ ] **Restore purchases is on the plans screen, with the plans.** Open the plans (Home or You → "See Pro plans", or
       the "Your free week is over" sheet): "Restore purchases" sits directly under the two plan tiles and is on screen
-      without scrolling. It is also on You → Your plan. Tap it on a device that already bought Pro with the same store
+      without scrolling. It is also on You → Plan & account. Tap it on a device that already bought Pro with the same store
       account: Pro turns on.
-- [ ] **Delete my account is two taps from You → Account.** While signed in: You → Account → "Delete account", then
+- [ ] **Delete my account is two taps from You → Plan & account.** While signed in: You → Plan & account → "Delete account", then
       "Delete my account". Between the two taps the app says what is deleted (the account on Solia Health's server:
       sign-in email, name and how she signed in, her monthly AI use counts, any feedback she allowed a reply to), that
       it can't be undone, that it does not cancel a Pro subscription (that is done in the App Store or Google Play),
       and that the health log on the device is not touched (Delete everything erases that). Nothing is deleted before
       the second tap.
 - [ ] In App Store Connect → App Review Information, say where both are: "Restore purchases: on the plans sheet under
-      the plan tiles, and in You → Your plan. Account deletion: You → Account → Delete account."
+      the plan tiles, and in You → Plan & account. Account deletion: You → Plan & account → Delete account."
 - [ ] Google Play → Data safety → account deletion: Play also asks for a web address where someone can ask for their
       account to be deleted without the app. There is none in this repo yet: publish one (a page or the support
       address) before filling in that form.

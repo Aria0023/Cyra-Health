@@ -5,7 +5,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab } from "./lib/nav.mjs";
+import { gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
@@ -26,11 +26,11 @@ for (const scheme of ["light", "dark"]) {
     const state = newApiState();
     await mockApi(page, state);
     await register(page, { url: process.env.E2E_API_URL, stage: "Perimenopause", pcos: "no", signin: "email" });
-    await gotoTab(page, "You");
+    await gotoYou(page, "Help & about");
     const help = page.locator("#you-help");
     await help.scrollIntoViewIfNeeded();
     await help.getByRole("button", { name: "How do I cancel Pro?" }).click();
-    await audit(page, `You → Help ${scheme}`);
+    await audit(page, `You → Help & about ${scheme}`);
     await targets(page, "#you-help button, #you-help a", `Help ${scheme}`);
     await help.getByRole("button", { name: "Report a problem" }).click();
     const sheet = page.getByRole("dialog", { name: "Report a problem" });
@@ -49,6 +49,7 @@ for (const scheme of ["light", "dark"]) {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(help.getByRole("button", { name: "Report a problem" })).toBeFocused();
+    await gotoYou(page, "Privacy & your data");
     const privacy = page.locator("#you-privacy");
     await privacy.getByRole("button", { name: "How this works" }).click();
     const row = privacy.locator(".flowrow", { hasText: "Feedback you send" });
@@ -62,7 +63,7 @@ for (const scheme of ["light", "dark"]) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });
     const page = await ctx.newPage();
     await register(page, { stage: "My Cycle", pcos: "no" });
-    await gotoTab(page, "You");
+    await gotoYou(page, "Help & about");
     const help = page.locator("#you-help");
     await help.scrollIntoViewIfNeeded();
     await help.getByRole("button", { name: "How do I connect a watch or ring?" }).click();

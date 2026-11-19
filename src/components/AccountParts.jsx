@@ -9,7 +9,7 @@ import { relDay } from "../lib/engine.js";
 import { t } from "../lib/i18n.js";
 import { SIGNIN_COPY as S, whoLine } from "../lib/signin.js";
 
-/* The optional account (calm R9): You → Account and its two sheets. Shown only in a build that offers it (lib/cloudBackup.js
+/* The optional account (calm R9): You → Plan & account and its two sheets. Shown only in a build that offers it (lib/cloudBackup.js
    ACCOUNTS_HERE: the cloudBackup flag and a server); otherwise YouScreen shows its plain "Your account" card (sign-in isn't switched on yet).
    Guest is the default and stays first: the card says she's a guest and her log lives on this device; "Create an
    account" and "Sign in" are offered (with Pro, plan.can("cloudBackup")), or one Pro line and "See what Pro adds".
@@ -48,7 +48,7 @@ export function AccountChoice({ head, body, busy, onUse, onKeep, onCancel = null
   );
 }
 
-/** You → Account. a = { can, acct, sync: {state, conflict, error}, todayIso, onCreate, onSignIn, onBackup, onSignOut,
+/** You → Plan & account. a = { can, acct, sync: {state, conflict, error}, todayIso, onCreate, onSignIn, onBackup, onSignOut,
     onDelete, onUseBackup, onKeepDevice, onPro } */
 export function AccountCard({ a, person }) {
   const [confirm, setConfirm] = useState(false);
@@ -174,7 +174,7 @@ export function AccountSheet({ mode, onClose, onSubmit, onUse, onKeep, choice = 
 
 export { accountLine };
 
-/** You → Account for the sign-in account (Task 1): who is signed in, Sign out and Delete account (with a confirm that says
+/** You → Plan & account for the sign-in account (Task 1): who is signed in, Sign out and Delete account (with a confirm that says
     the log on this device isn't touched). si = { s: session, required, onSignOut, onDelete }; both handlers throw a
     plain-words error when the server can't confirm, and the card shows it. */
 export function SignedInCard({ si }) {

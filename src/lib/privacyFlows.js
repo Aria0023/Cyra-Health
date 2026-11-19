@@ -43,7 +43,7 @@ export function flowRows(c = {}) {
   // 2026-11-19 (lib/shopTaps.js): the anonymous shop tap count — needs the shop flag and a server; ON unless she turned
   // it off on this device (c.shopTapsOff). The one row with its own switch (components/PrivacyFlows.jsx).
   rows.push({ id: "shopTaps", name: FLOW_COPY.names.shopTaps, state: f.shop && c.server ? (c.shopTapsOff === true ? "off" : "on") : "na", note: null });
-  // 2026-11-19 (lib/feedback.js): feedback she types and sends from You → Help — any build with a server; never on its own.
+  // 2026-11-19 (lib/feedback.js): feedback she types and sends from You → Help & about — any build with a server; never on its own.
   rows.push({ id: "feedback", name: FLOW_COPY.names.feedback, state: c.server ? "send" : "na", note: null });
   rows.push({ id: "files", name: FLOW_COPY.names.files, state: "you", note: null });
   // Calm R9: the optional account's encrypted backup — needs the flag, a server and the plan; "on" while signed in here.
@@ -56,7 +56,7 @@ export function flowRows(c = {}) {
 export function otherConnections({ native = false, server = false, flags = {} } = {}) {
   const out = [];
   if (!native) out.push("web");
-  // 2026-11-19: every build with a server has at least one server flow, the feedback sheet in You → Help (lib/feedback.js).
+  // 2026-11-19: every build with a server has at least one server flow, the feedback sheet in You → Help & about (lib/feedback.js).
   if (server) out.push("server");
   if (server && flags.signin) out.push("signin");
   return out;
@@ -99,7 +99,7 @@ export const FLOW_COPY = Object.freeze({
     wearWhere: "Connect or disconnect under Wearables on Home.",
     cloudHolds: "Solia Health's server keeps your encrypted backup, a one-way hash of your email, a hash of a key made from your passphrase, and when the backup was last changed and its size. It's deleted a year after the last back-up.",
     cloudLost: "A lost passphrase can't be recovered, and nobody can open the backup without it.",
-    cloudWhere: "Create an account, sign in or out, or delete it in You → Account. Signing out keeps your log on this device; deleting the account deletes the backup from Solia Health's server.",
+    cloudWhere: "Create an account, sign in or out, or delete it in You → Plan & account. Signing out keeps your log on this device; deleting the account deletes the backup from Solia Health's server.",
     backupLocked: "An encrypted backup is locked with your passphrase on this device before it becomes a file. Without the passphrase it can't be opened.",
     summary: "The doctor summary on the Report tab goes only where you take it: a draft in your email app, your clipboard, the share sheet or a printout. Those apps may keep a copy under their own terms.",
   }),
@@ -107,7 +107,7 @@ export const FLOW_COPY = Object.freeze({
   other: Object.freeze({
     web: "Solia Health's app files come from Solia Health's website when you open or update it online. Like any request, that shows your device's internet address and browser type, and nothing about your health.",
     server: "Any request to Solia Health's server shows your device's internet address and app or browser type. Solia Health's own code doesn't keep the address.",
-    signin: "Your Solia Health account: when you sign in, Solia Health's server keeps how you signed in, your email and your name if the service shared it, when you made the account and the last day you used your account (a date, not a time; the app tells the server the account is in use when it opens). Never your health log. Apple, Google or Facebook learns that you signed in to Solia Health. Sign out or delete the account in You → Account.",
+    signin: "Your Solia Health account: when you sign in, Solia Health's server keeps how you signed in, your email and your name if the service shared it, when you made the account and the last day you used your account (a date, not a time; the app tells the server the account is in use when it opens). Never your health log. Apple, Google or Facebook learns that you signed in to Solia Health. Sign out or delete the account in You → Plan & account.",
   }),
   detailsLabel: "Details",
 });

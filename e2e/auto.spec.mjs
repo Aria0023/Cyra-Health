@@ -4,7 +4,7 @@
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, gotoSegment, toast, gotoGallery } from "./lib/nav.mjs";
+import { gotoTab, gotoSegment, toast, gotoGallery, gotoYou } from "./lib/nav.mjs";
 import { pdfPages } from "./lib/pdf.mjs";
 
 const WORDS = /^(at your usual|lower than usual|higher than usual|(lower|higher), usual for your [a-z]+ days|a few more nights will show your usual|no reading|left out)$/;
@@ -104,7 +104,7 @@ test("S2 shots: the card in Soft light, Clear dark and Journal light", async ({ 
   fs.mkdirSync("e2e/shots", { recursive: true });
   for (const [style, scheme] of [["Soft", "light"], ["Clear", "dark"], ["Journal", "light"]]) {
     await page.emulateMedia({ colorScheme: scheme });
-    await gotoTab(page, "You");
+    await gotoYou(page, "App settings");
     await page.getByRole("radio", { name: style }).click();
     await gotoTab(page, "Home");
     const card = page.locator("#auto-tracked");
@@ -119,15 +119,15 @@ test("S2 shots: the card in Soft light, Clear dark and Journal light", async ({ 
   await gotoTab(page, "Patterns"); await gotoSegment(page, "Report");
   await expect(page.locator(".toast.show")).toHaveCount(0, { timeout: 12_000 });
   await page.locator(".cspreview").first().screenshot({ path: "e2e/shots/report-preview-table.png" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Devices & reminders");
   await page.locator("#you-sources").getByRole("button", { name: "How this is going" }).click();
   await page.locator("#you-sources").screenshot({ path: "e2e/shots/data-sources-journal-light.png" });
 });
 
 /* ---------- S3: Data sources, the demo switch, the deep link a notification opens, the gallery ---------- */
-test("S3: You → Data sources manages the source; How this is going counts the Looks right; #/confirm/<day> writes a confirmation", async ({ page }) => {
+test("S3: You → Devices & reminders manages the source; How this is going counts the Looks right; #/confirm/<day> writes a confirmation", async ({ page }) => {
   await register(page, { stage: "My Cycle", pcos: "yes", name: "Maya" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Devices & reminders");
   const card = page.locator("#you-sources");
   await expect(card).toBeVisible();
   await expect(card).toContainText("Data sources");
@@ -153,7 +153,7 @@ test("S3: You → Data sources manages the source; How this is going counts the 
   await expect(page.getByRole("tab", { name: "Home" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#auto-tracked")).toContainText("Confirmed");
   expect(page.url()).not.toContain("#/confirm");
-  await gotoTab(page, "You");
+  await gotoYou(page, "Devices & reminders");
   await card.getByRole("button", { name: "How this is going" }).click();
   await expect(card.locator(".srcgoing")).toContainText(/1 night confirmed with Looks right since \d{4}-\d{2}-\d{2}\./);
   // Pause → the row says so and the Home door's Sync is refused; Resume

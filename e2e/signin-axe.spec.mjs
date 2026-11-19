@@ -1,9 +1,9 @@
 /* axe-core on Task 1's screens, light and dark: "Create your account" (the choices, the email form and the code form),
-   the one-time sign-in screen for an existing record, and You → Account with its delete confirm. 0 violations. */
+   the one-time sign-in screen for an existing record, and You → Plan & account with its delete confirm. 0 violations. */
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab } from "./lib/nav.mjs";
+import { gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
@@ -40,15 +40,15 @@ for (const scheme of ["light", "dark"]) {
     await ctx.close();
   });
 
-  test(`the one-time sign-in screen and You → Account, ${scheme}`, async ({ browser }) => {
+  test(`the one-time sign-in screen and You → Plan & account, ${scheme}`, async ({ browser }) => {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });
     const page = await ctx.newPage();
     const state = newApiState();
     await mockApi(page, state);
     await register(page, { url: process.env.E2E_API_URL, stage: "Menopause & beyond", signin: "email" });
-    await gotoTab(page, "You");
+    await gotoYou(page, "Plan & account");
     await page.locator("#you-signin").getByRole("button", { name: "Delete account" }).click();
-    await audit(page, `You → Account, delete confirm ${scheme}`);
+    await audit(page, `You → Plan & account, delete confirm ${scheme}`);
     await page.locator("#you-signin").getByRole("button", { name: "Cancel" }).click();
     await page.locator("#you-signin").getByRole("button", { name: "Sign out" }).click();
     await expect(page.getByRole("heading", { name: "Sign in to keep going" })).toBeVisible();

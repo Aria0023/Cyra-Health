@@ -18,7 +18,7 @@ export function newApiState(over = {}) {
     promotions: null, // GET /api/promotions/active answers { version: 1, promotions: this } when set; null = 404
     catalog: null, // GET /api/shop/catalog answers this (any JSON) when set; null = 404, so the app keeps its bundled catalog
     tapStatus: 204, // POST /api/shop/tap (the anonymous shop tap count)
-    feedbackStatus: 201, // POST /api/feedback (You → Help's feedback sheet)
+    feedbackStatus: 201, // POST /api/feedback (You → Help & about's feedback sheet)
     usage: null, // the GET /api/ai/usage answer ({ usage, resetsOn }), or null for 401
     sent: [],
     ...over,

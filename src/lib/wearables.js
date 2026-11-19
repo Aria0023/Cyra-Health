@@ -46,7 +46,7 @@ export const SOURCES = [
     { id: "terra", name: "Fitbit · Garmin · Whoop", what: "through Terra, a health-data service · waits on Solia Health's server up to 7 days", viaServer: true },
   ] : []),
 ];
-/** Whether this build offers any source at all (the Wearables door, the signals, You → Data sources). */
+/** Whether this build offers any source at all (the Wearables door, the signals, You → Devices & reminders → Data sources). */
 export const SOURCES_HERE = SOURCES.length > 0;
 /** Sources that go through Cyra's server, need a disclosure before connecting, and can be disconnected. */
 export const VIA_SERVER = new Set(SOURCES.filter((s) => s.viaServer).map((s) => s.id));

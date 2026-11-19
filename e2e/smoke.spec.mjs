@@ -3,7 +3,7 @@
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, gotoSegment, openLog, closeSheet, TABS } from "./lib/nav.mjs";
+import { gotoTab, gotoSegment, openLog, closeSheet, TABS, gotoYou } from "./lib/nav.mjs";
 import { pdfPages } from "./lib/pdf.mjs";
 
 test("register (My Cycle, PCOS on), the five tabs, the log sheet, the one-page PDF, the build stamp", async ({ page }) => {
@@ -15,9 +15,10 @@ test("register (My Cycle, PCOS on), the five tabs, the log sheet, the one-page P
     await expect(page.getByRole("tab", { name: tab, exact: true })).toHaveAttribute("aria-selected", "true");
   }
   // PCOS module on: You → Modules shows its switch on
-  await gotoTab(page, "You");
+  await gotoYou(page, "Your profile");
   await expect(page.locator("#you-modules")).toBeVisible();
   await expect(page.locator('#you-modules [role="switch"][aria-labelledby="mod-pcos"]')).toHaveAttribute("aria-checked", "true");
+  await gotoYou(page, "Help & about"); // the build stamp sits with About & legal
   await expect(page.locator(".youbuild")).toContainText("BUILD 2026.10.07-D");
   // the "+" sheet lists the loggers this stage has, PCOS signals included
   const sheet = await openLog(page);

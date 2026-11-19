@@ -4,7 +4,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, toast } from "./lib/nav.mjs";
+import { gotoTab, toast, gotoYou } from "./lib/nav.mjs";
 
 const DAY = 86400000;
 
@@ -39,7 +39,7 @@ test("free week: days left on Home; after it, saving opens 'Your free week is ov
   await sheet.getByRole("button", { name: "Done" }).click();
 
   // You: the plan card says so, and the first check-in is still in her record.
-  await gotoTab(page, "You");
+  await gotoYou(page, "Plan & account");
   await expect(page.locator("#you-plan")).toContainText("Your free week is over.");
   // Her record (IndexedDB or localStorage, whichever this browser uses) still has the day she logged in her free week.
   const rec = await page.evaluate(async () => {

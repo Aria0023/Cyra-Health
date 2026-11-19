@@ -47,7 +47,7 @@ export const DEVICE_COPY = Object.freeze({
   homeBody: "Add sleep, temperature and heart-rate readings from your watch, ring or phone. Optional, and you choose what connects.",
   homeOpen: "See devices",
   homeHide: "Not now",
-  homeHidden: "Hidden. Connect a device any time from You → Data sources.",
+  homeHidden: "Hidden. Connect a device any time from You → Devices & reminders.",
   youOpen: "Connect a device",
   demoNote: "This demo build shows illustrative readings. Nothing is really connected or sent.",
   inPhone: "In the iPhone or Android app",

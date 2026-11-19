@@ -5,7 +5,7 @@
    a tap and has no switch. */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab } from "./lib/nav.mjs";
+import { gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
 const API_URL = () => process.env.E2E_API_URL;
@@ -56,7 +56,7 @@ test("opening a product sends exactly { productId }: no token, no cookie, no ref
 
   // You → Privacy & your data: the row says exactly what is sent, and its switch turns it off
   await shop.getByRole("button", { name: "Back" }).click();
-  await gotoTab(page, "You");
+  await gotoYou(page, "Privacy & your data");
   const privacy = page.locator("#you-privacy");
   await privacy.getByRole("button", { name: "How this works" }).click();
   const row = privacy.locator(".flowrow", { hasText: "Count my shop taps anonymously" });
@@ -67,6 +67,7 @@ test("opening a product sends exactly { productId }: no token, no cookie, no ref
   await sw.click();
   await expect(sw).toHaveAttribute("aria-checked", "false");
   await expect(page.locator(".toast")).toContainText("Shop taps are no longer counted from this device.");
+  await gotoYou(page, "Help & about");
   await expect(page.locator("#you-shop")).toContainText("Matched on this device; nothing about you is sent.");
 
   await openShop(page);
@@ -81,7 +82,7 @@ test("opening a product sends exactly { productId }: no token, no cookie, no ref
 
   // the choice is this device's: it is still off after a reload
   await page.reload();
-  await gotoTab(page, "You");
+  await gotoYou(page, "Privacy & your data");
   await page.locator("#you-privacy").getByRole("button", { name: "How this works" }).click();
   await expect(page.locator("#you-privacy").getByRole("switch", { name: "Count my shop taps anonymously" })).toHaveAttribute("aria-checked", "false");
 });
@@ -98,7 +99,7 @@ test("a build without a server sends no tap and shows no switch", async ({ page 
   const [popup] = await Promise.all([page.waitForEvent("popup"), shop.locator('.shopcard[data-item="easyhome-lh"]').getByRole("link", { name: /Visit Easy@Home/ }).click()]);
   await popup.close();
   await shop.getByRole("button", { name: "Back" }).click();
-  await gotoTab(page, "You");
+  await gotoYou(page, "Privacy & your data");
   await expect(page.locator("#you-privacy")).not.toContainText("Count my shop taps anonymously");
   expect(api).toEqual([]);
 });

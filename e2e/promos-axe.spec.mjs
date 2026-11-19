@@ -4,7 +4,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, gotoGallery } from "./lib/nav.mjs";
+import { gotoGallery, gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
@@ -23,7 +23,7 @@ for (const scheme of ["light", "dark"]) {
     const page = await ctx.newPage();
     await mockApi(page, newApiState({ promotions: [PROMO] }));
     await register(page, { url: process.env.E2E_API_URL, stage: "My Cycle", signin: "email" });
-    await gotoTab(page, "You");
+    await gotoYou(page, "Plan & account");
     await page.locator("#you-plan .promobanner").scrollIntoViewIfNeeded();
     await audit(page, `You → Plan with a promotion ${scheme}`);
     await page.locator("#you-plan").getByRole("button", { name: /See what Pro adds|See Pro plans/ }).click();

@@ -24,7 +24,7 @@
    sign-in and says so on the first registration step.
    deviceSync (passive tracking S3, plan W9) is the seventh: the on-phone sources (Apple Health / Health Connect, read
    by the app on the phone, never through a server) and everything built on their rows (the Home card, the cycle
-   markers, the PDF table, You → Data sources). ON by default, since it needs no backend module (FEATURE_MODULE null)
+   markers, the PDF table, You → Devices & reminders). ON by default, since it needs no backend module (FEATURE_MODULE null)
    and sends nothing; it offers nothing in a browser. Oura and Fitbit/Garmin/Whoop stay behind `wearables`.
 
    shop (2026-11-14, Task C) is the eighth: the Shop by need page (2026-11-15: the header's button, a labelled "Shop" pill since 2026-11-19; You's entry card; the "+" sheet's row; #/shop)
@@ -46,7 +46,7 @@ export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts:
     shop's partner portal page (where its catalog is edited) is the portal module, and the portal's subscriptions part
     (promotions the app downloads with GET /api/promotions/active, Pro grants, partner codes) is the subscriptions module;
     insights (2026-11-19) is the portal's owner-only totals (accounts and sign-ins; the app never calls it); feedback
-    (2026-11-19) takes You → Help's "Send feedback" / "Report a problem" (POST /api/feedback, lib/feedback.js: offered in
+    (2026-11-19) takes You → Help & about's "Send feedback" / "Report a problem" (POST /api/feedback, lib/feedback.js: offered in
     any build with a server) and holds the portal's owner-only inbox, which needs the shop module's portal sign-in. */
 export const FEATURE_ALSO = Object.freeze({ signin: Object.freeze(["oauth"]), shop: Object.freeze(["portal", "subscriptions", "insights", "feedback"]) });
 

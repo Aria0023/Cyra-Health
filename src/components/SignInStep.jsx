@@ -147,7 +147,7 @@ export function SignInGate({ children, title = C.gateTitle, sub = C.gateSub, dat
   );
 }
 
-/** "Create your account" for a guest inside her window (Home's guest line, You → Account): the same choices, no skip.
+/** "Create your account" for a guest inside her window (Home's guest line, You → Plan & account): the same choices, no skip.
     A finished sign-in closes it (App.jsx adoptSession) and she is exactly where she was. */
 export function GuestCreateSheet({ onClose, step }) {
   return (

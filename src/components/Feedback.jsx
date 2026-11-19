@@ -4,7 +4,7 @@ import Details from "./Details.jsx";
 import Icon from "./Icon.jsx";
 import { FEEDBACK_COPY as C, HELP_COPY as H, FEEDBACK_MAX, FEEDBACK_KINDS, feedbackPayload, previewRows, canReply, cleanMessage, supportHref } from "../lib/feedback.js";
 
-/* You → Help, and the feedback sheet (2026-11-19, docs/plans/launch-tools.md Task 3; lib/feedback.js has the payload,
+/* You → Help & about, and the feedback sheet (2026-11-19, docs/plans/launch-tools.md Task 3; lib/feedback.js has the payload,
    the request and every sentence).
    HelpCard: a few short answers, each true of this build (helpItems, computed in App.jsx from the build's facts), then,
    in a build with a server, "Send feedback" and "Report a problem" (one sheet, two kinds), and the support email link

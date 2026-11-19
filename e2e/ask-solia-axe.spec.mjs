@@ -4,7 +4,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, gotoGallery } from "./lib/nav.mjs";
+import { gotoTab, gotoGallery, gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
@@ -27,7 +27,7 @@ for (const scheme of ["light", "dark"]) {
     await expect(page.locator("#home-ask")).toHaveAttribute("data-state", "ask");
     await audit(page, `Home, Ask Solia with the chat off ${scheme}`);
     await targets(page, "#home-ask button, #home-ask textarea", `Ask Solia, chat off ${scheme}`);
-    await gotoTab(page, "You");
+    await gotoYou(page, "Solia Health's AI");
     await page.locator("#you-ai").getByRole("switch", { name: "Chat about your log" }).click();
     await page.locator("#you-ai").getByRole("switch", { name: "Weekly write-up" }).click();
     await gotoTab(page, "Patterns");

@@ -1,4 +1,4 @@
-/* Feedback and Help (2026-11-19, docs/plans/launch-tools.md Task 3). You → Help has a few short answers and, in a build
+/* Feedback and Help (2026-11-19, docs/plans/launch-tools.md Task 3). You → Help & about has a few short answers and, in a build
    with a server, "Send feedback" and "Report a problem": one sheet, two kinds. Pure, with NO imports: Node (unit tests)
    imports this file, where import.meta.env is undefined.
 
@@ -107,7 +107,7 @@ export const FEEDBACK_COPY = Object.freeze({
   // the privacy dashboard's row (lib/privacyFlows.js)
   flowName: "Feedback you send",
   flowState: "When you send one",
-  flowLine: "Only when you press Send in You → Help: your message, whether it's feedback or a problem, the app version, web, iOS or Android, and the app's language. Nothing from your log is attached. Your account email goes with it only if you turn on \"It's OK to reply to me\".",
+  flowLine: "Only when you press Send in You → Help & about: your message, whether it's feedback or a problem, the app version, web, iOS or Android, and the app's language. Nothing from your log is attached. Your account email goes with it only if you turn on \"It's OK to reply to me\".",
   flowDetail1: "It's the one place you can type free text that goes to Solia Health's server. Whatever you type is sent as you wrote it, so please don't include health details: if you do, they are stored with your message.",
   flowDetail2: "Solia Health's team reads it in a private page. It's kept for 365 days, then deleted. Without \"It's OK to reply to me\" it's sent with no sign-in and isn't linked to your account. With it on, it's linked to your account and deleted when you delete your account.",
   flowDetail3: "Like any request, it shows your device's internet address and app or browser type. Solia Health's own code uses the address only in memory, to limit repeated requests, and doesn't keep it. Feedback is never sent to the AI.",
@@ -130,8 +130,8 @@ export function helpItems(f = {}) {
     "That also means Solia Health can't get it back for you. Save an encrypted backup now and then in You → Privacy & your data, and keep the file and its passphrase somewhere safe.",
     "The same card shows everything that can leave this device, and Delete everything."] });
   const watch = [];
-  if (f.deviceSync && f.native) watch.push("Open You → Data sources and connect Apple Health (iPhone) or Health Connect (Android). Your watch's or ring's own app shares with it, and Solia Health reads it on your phone: those readings are never sent to a server.");
-  if (f.wearables && f.server) watch.push(`${f.deviceSync && f.native ? "An Oura ring can also be connected" : "An Oura ring is connected"} from You → Data sources, where the list offers it: you sign in with Oura, and each sync goes through Solia Health's server, which passes your readings to this device without keeping them.`);
+  if (f.deviceSync && f.native) watch.push("Open You → Devices & reminders and connect Apple Health (iPhone) or Health Connect (Android). Your watch's or ring's own app shares with it, and Solia Health reads it on your phone: those readings are never sent to a server.");
+  if (f.wearables && f.server) watch.push(`${f.deviceSync && f.native ? "An Oura ring can also be connected" : "An Oura ring is connected"} from You → Devices & reminders, where the list offers it: you sign in with Oura, and each sync goes through Solia Health's server, which passes your readings to this device without keeping them.`);
   if (f.deviceSync && !f.native) watch.push("Apple Health and Health Connect are read on the phone, so they need the Solia Health phone app; a browser can't reach them.");
   if (!watch.length) watch.push("This version of Solia Health doesn't connect to a watch or ring. Everything works without one.");
   else watch.push("Solia Health works fully without a device, and you can disconnect any time.");

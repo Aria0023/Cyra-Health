@@ -153,7 +153,7 @@ export const mergeCloudAccount = (mine, stored) => { const a = cleanCloudAccount
 /** The next state: `acct` (or null) with rev + 1. */
 export const nextCloudAccount = (cur, acct) => ({ rev: cleanCloudAccount(cur).rev + 1, acct: acct ?? null });
 
-/* ---------- every sentence the account shows (You → Account, its sheets, the splash sign-in) ---------- */
+/* ---------- every sentence the account shows (You → Plan & account, its sheets, the splash sign-in) ---------- */
 export const ACCOUNT_COPY = Object.freeze({
   eyebrow: "Account",
   guestTitle: "Your account",

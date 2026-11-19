@@ -1,6 +1,6 @@
 /* The guest window (owner request 2026-11-16, lib/guest.js), in the API build against the mock backend (sign-in required):
    - "Create your account" offers the sign-ins, Apple first, AND "Try it first" with the whole story once; as a guest the
-     whole app works with saving, Home shows one quiet line (hidden for the day with one tap), You → Account says until when,
+     whole app works with saving, Home shows one quiet line (hidden for the day with one tap), You → Plan & account says until when,
      and the server holds nothing about her: the only request about accounts is "which sign-ins do you have?".
    - 49 hours later, on the next open: "Your 2 guest days are up". No skip. The encrypted backup and Delete everything
      work right there without signing in. After signing in she is back in the app with what she logged, and isn't asked again.
@@ -8,7 +8,7 @@
 import { test, expect } from "@playwright/test";
 import path from "node:path";
 import { register, emailSignIn } from "./lib/onboard.mjs";
-import { gotoTab } from "./lib/nav.mjs";
+import { gotoTab, gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
 const API_URL = () => process.env.E2E_API_URL;
@@ -64,8 +64,8 @@ test("guest window: try it first → the guest line → 49 hours later the gate,
   await page.getByRole("button", { name: "Save today's check-in" }).click();
   await gotoTab(page, "Body");
   await expect(page.locator(".savedline")).toContainText("Today's check-in is saved.");
-  // You → Account says she's a guest and until when, always
-  await gotoTab(page, "You");
+  // You → Plan & account says she's a guest and until when, always
+  await gotoYou(page, "Plan & account");
   const card = page.locator("#you-guest");
   await expect(card).toContainText("You're trying Solia Health as a guest until Wednesday, 10:00 AM.");
   await expect(card).toContainText("Solia Health's server holds no account for you");
@@ -121,9 +121,10 @@ test("guest window: try it first → the guest line → 49 hours later the gate,
   await expect(page.locator(".navpill")).toBeVisible();
   await expect(page.locator(".viewpanel main h1")).toContainText("Maya");
   await expect(page.locator(".guestbar")).toHaveCount(0);
-  await gotoTab(page, "You");
+  await gotoYou(page, "Plan & account");
   await expect(page.locator("#you-signin")).toContainText("Signed in as maya@example.com");
   await expect(page.locator("#you-guest")).toHaveCount(0);
+  await gotoYou(page, "Privacy & your data");
   await expect(page.locator('[data-fact="days"]')).toContainText("1 day logged");
   // and she isn't asked again
   await page.clock.runFor(2000);
@@ -181,7 +182,7 @@ test("guest window: signing in from Home's line inside the window ends it; signi
   await expect(page.locator("#guest-create")).toHaveCount(0);
   await expect(page.locator(".guestbar")).toHaveCount(0);
   await expect(page.locator(".viewpanel main h1")).toContainText("Maya"); // exactly where she was
-  await gotoTab(page, "You");
+  await gotoYou(page, "Plan & account");
   await expect(page.locator("#you-signin")).toContainText("Signed in as maya@example.com");
   await page.locator("#you-signin").getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByRole("heading", { name: "Sign in to keep going" })).toBeVisible(); // not a guest again

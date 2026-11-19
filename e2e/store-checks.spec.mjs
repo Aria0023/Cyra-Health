@@ -3,12 +3,12 @@
    1. "Restore purchases" is on the plans screen WITH the plans: visible without any scrolling when the Pro sheet opens
       (a pretend App Store, the dev gallery), directly after the plan tiles and before the long "what Pro adds" list;
       with a promotion banner above the plans too. It is also on You → Plan.
-   2. "Delete my account" is reachable from You → Account in two taps while signed in ("Delete account", then "Delete
+   2. "Delete my account" is reachable from You → Plan & account in two taps while signed in ("Delete account", then "Delete
       my account"), after a confirmation that says exactly what is deleted and what is not; nothing is deleted before
       the second tap. */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, gotoGallery } from "./lib/nav.mjs";
+import { gotoGallery, gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState, TOKEN } from "./lib/api.mjs";
 
 test.use({ viewport: { width: 390, height: 844 } });
@@ -43,7 +43,7 @@ test("Restore purchases is on screen with the plans, without scrolling (390x844)
 
 test("Restore purchases is also on You → Plan, and says what happened", async ({ page }) => {
   await register(page, { stage: "My Cycle", pcos: "no" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Plan & account");
   const restore = page.locator("#you-plan").getByRole("button", { name: "Restore purchases", exact: true });
   await expect(restore).toBeVisible();
   expect((await restore.boundingBox()).height).toBeGreaterThanOrEqual(44);
@@ -51,11 +51,11 @@ test("Restore purchases is also on You → Plan, and says what happened", async 
   await expect(page.locator(".toast")).toBeVisible(); // this bundle has no store: it says so instead of doing nothing
 });
 
-test("Delete my account: two taps from You → Account, after saying exactly what is deleted (390x844)", async ({ page }) => {
+test("Delete my account: two taps from You → Plan & account, after saying exactly what is deleted (390x844)", async ({ page }) => {
   const state = newApiState();
   await mockApi(page, state);
   await register(page, { url: process.env.E2E_API_URL, stage: "My Cycle", pcos: "no", signin: "email" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Plan & account");
   const account = page.locator("#you-signin");
   await expect(account.getByRole("heading", { level: 2 })).toContainText("Your account");
   await expect(account).toContainText("Signed in as maya@example.com");

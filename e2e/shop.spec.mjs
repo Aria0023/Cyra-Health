@@ -6,7 +6,7 @@
    "+" sheet's row and the one-time "New: Shop by need" hint; the header (with the plan badge) at 320px and 390px. */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, openLog, setStyle } from "./lib/nav.mjs";
+import { gotoTab, openLog, setStyle, gotoYou } from "./lib/nav.mjs";
 
 const page$ = (page) => page.locator("main.shoppage");
 
@@ -36,7 +36,7 @@ test("Trying to conceive: needs first, products grouped by brand, plain brand li
   const outside = [];
   page.on("request", (r) => { if (!r.url().startsWith(process.env.E2E_URL)) outside.push(r.url()); });
   await register(page, { stage: "Trying to conceive", pcos: "no" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Help & about");
   // the single, distinct entry card on You
   const entry = page.locator("#you-shop");
   await expect(entry).toContainText("Shop by need");

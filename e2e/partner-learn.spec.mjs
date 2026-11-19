@@ -1,7 +1,7 @@
 /* Task A (docs/plans/partner-learn-glucose-shop.md): Share with a partner, more feelings, Learn. Demo build (no server). */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab } from "./lib/nav.mjs";
+import { gotoTab, gotoYou } from "./lib/nav.mjs";
 
 test("Learn: 'What does this mean?' beside the ring and the fertile row opens a sourced explainer; You → Learn lists them all", async ({ page }) => {
   await register(page, { stage: "Trying to conceive", pcos: "no" });
@@ -17,7 +17,7 @@ test("Learn: 'What does this mean?' beside the ring and the fertile row opens a 
   await expect(sheet).toContainText("ACOG Committee Opinion 651");
   await sheet.getByRole("button", { name: /^Close/ }).click();
   await expect(page.locator("#learn-sheet")).toHaveCount(0);
-  await gotoTab(page, "You");
+  await gotoYou(page, "Help & about");
   const card = page.locator("#you-learn");
   await expect(card.locator(".learnrow")).toHaveCount(9);
   await expect(card.locator(".learnrow").first()).toContainText("fertile window"); // Trying to conceive: the fertile window first
@@ -52,7 +52,7 @@ test("Share with a partner: only what she ticks is in the message; the fertile w
   const page = await ctx.newPage();
   await page.addInitScript(() => { try { Object.defineProperty(navigator, "share", { value: undefined, configurable: true }); } catch { /* none */ } });
   await register(page, { stage: "Trying to conceive", pcos: "no" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Your profile");
   await page.locator("#you-partner").getByRole("button", { name: "Share with a partner" }).click();
   const sheet = page.getByRole("dialog", { name: "Share with a partner" });
   const box = (name) => sheet.getByRole("checkbox", { name });
@@ -82,7 +82,7 @@ test("Share with a partner: only what she ticks is in the message; the fertile w
   const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
   const p2 = await ctx2.newPage();
   await register(p2, { stage: "My Cycle" });
-  await gotoTab(p2, "You");
+  await gotoYou(p2, "Your profile");
   await p2.locator("#you-partner").getByRole("button", { name: "Share with a partner" }).click();
   await expect(p2.getByRole("dialog", { name: "Share with a partner" }).getByRole("checkbox")).toHaveCount(2);
   await expect(p2.locator(".partnerpreview")).not.toContainText("fertile");
@@ -91,7 +91,9 @@ test("Share with a partner: only what she ticks is in the message; the fertile w
 
 test("Share with a partner is not offered in pregnancy or menopause", async ({ page }) => {
   await register(page, { stage: "Pregnant" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Your profile");
+  await expect(page.locator("#you-about")).toBeVisible(); // the page is there, without the card
   await expect(page.locator("#you-partner")).toHaveCount(0);
+  await gotoYou(page, "Help & about");
   await expect(page.locator("#you-learn")).toBeVisible();
 });

@@ -8,7 +8,7 @@
    - the weekly write-up, once she has one, shows on Home under Today's insight and leads Patterns. */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, toast } from "./lib/nav.mjs";
+import { gotoTab, toast, gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
 const aiSent = (state) => state.sent.filter((r) => r.method === "POST" && r.path.startsWith("/api/ai/"));
@@ -33,7 +33,7 @@ test("no server: a Coming soon card with no dead buttons; hide it, and You bring
   await page.reload();
   await expect(page.locator(".navpill")).toBeVisible();
   await expect(page.locator("#home-ask")).toHaveCount(0); // kept on this device
-  await gotoTab(page, "You");
+  await gotoYou(page, "App settings");
   const sw = page.getByRole("switch", { name: "Ask Solia on Home" });
   await expect(sw).toHaveAttribute("aria-checked", "false");
   await sw.click();
@@ -107,7 +107,7 @@ test("the weekly write-up shows on Home under Today's insight and leads Patterns
   await mockApi(page, state);
   await register(page, { url: process.env.E2E_API_URL, stage: "Perimenopause", signin: "email" });
   await expect(page.locator("#home-writeup")).toHaveCount(0); // none yet
-  await gotoTab(page, "You");
+  await gotoYou(page, "Solia Health's AI");
   await aiSwitch(page, "Weekly write-up").click();
   await gotoTab(page, "Patterns");
   // without a write-up the card keeps its place below the patterns
@@ -128,7 +128,7 @@ test("the weekly write-up shows on Home under Today's insight and leads Patterns
   await expect(page.locator(".viewpanel main h1")).toHaveText("What your log is showing");
   await expect(page.locator("#ai-writeup .aiout")).toBeFocused();
   // switching the write-up off clears it everywhere (the existing rule)
-  await gotoTab(page, "You");
+  await gotoYou(page, "Solia Health's AI");
   await aiSwitch(page, "Weekly write-up").click();
   await gotoTab(page, "Home");
   await expect(page.locator("#home-writeup")).toHaveCount(0);

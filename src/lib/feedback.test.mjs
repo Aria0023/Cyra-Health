@@ -92,7 +92,7 @@ test("help: four answers, each matching the build it is given", () => {
   const phone = text({ deviceSync: true, native: true, wearables: true, server: true }, "watch");
   assert.match(phone, /Apple Health \(iPhone\) or Health Connect \(Android\)/); assert.match(phone, /never sent to a server/); assert.match(phone, /An Oura ring can also be connected/);
   const web = text({ deviceSync: true, native: false, wearables: true, server: true }, "watch");
-  assert.match(web, /^An Oura ring is connected from You → Data sources/); assert.match(web, /need the Solia Health phone app/); assert.doesNotMatch(web, /never sent to a server/);
+  assert.match(web, /^An Oura ring is connected from You → Devices & reminders/); assert.match(web, /need the Solia Health phone app/); assert.doesNotMatch(web, /never sent to a server/);
   assert.doesNotMatch(text({ deviceSync: true, native: true, wearables: true, server: false }, "watch"), /Oura/, "no server, no Oura");
   for (const f of [{}, { trialGate: true, native: true, server: true, wearables: true, deviceSync: true, accounts: true }]) for (const it of helpItems(f)) { assert.ok(it.q.endsWith("?")); assert.ok(it.a.length >= 1 && it.a.every((p) => typeof p === "string" && p.length > 20)); }
 });
