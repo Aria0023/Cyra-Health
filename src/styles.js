@@ -2036,7 +2036,7 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
   .shopgrid.multi > .shopcard { flex:0 0 85%; scroll-snap-align:start; }
 }
 .shopcard { display:flex; flex-direction:column; border-radius:16px; background:var(--card); box-shadow:var(--sh-card); border:1px solid var(--edge); overflow:hidden; }
-.shopimg { position:relative; overflow:hidden; aspect-ratio:16 / 10; width:100%; background:linear-gradient(135deg, color-mix(in srgb, var(--hue) 25%, var(--card)), color-mix(in srgb, var(--hue) 7%, var(--card)) 75%); display:flex; align-items:center; justify-content:center; }
+.shopimg { cursor:pointer; position:relative; overflow:hidden; aspect-ratio:16 / 10; width:100%; background:linear-gradient(135deg, color-mix(in srgb, var(--hue) 25%, var(--card)), color-mix(in srgb, var(--hue) 7%, var(--card)) 75%); display:flex; align-items:center; justify-content:center; }
 @media (min-width:700px) { .shopimg { aspect-ratio:4 / 3; } }
 .shopimg img { width:100%; height:100%; object-fit:cover; display:block; }
 .shopimg-blobs { position:absolute; inset:0; width:100%; height:100%; }

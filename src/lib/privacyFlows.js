@@ -4,11 +4,13 @@
    settings, all passed in by App.jsx. Nothing here reads storage or the network. A flow this build cannot use
    gets state "na" and is not rendered at all (decisions D2 and D3: a feature that is off leaves no trace). */
 
-export const FLOW_IDS = Object.freeze(["reminders", "counts", "ai", "aiWeekly", "aiChat", "wearables", "files", "cloud"]);
+import { TAP_COPY } from "./shopTaps.js";
+
+export const FLOW_IDS = Object.freeze(["reminders", "counts", "ai", "aiWeekly", "aiChat", "wearables", "shopTaps", "files", "cloud"]);
 
 /**
  * @typedef {Object} FlowRow
- * @property {"reminders"|"counts"|"ai"|"aiWeekly"|"aiChat"|"wearables"|"files"|"cloud"} id
+ * @property {"reminders"|"counts"|"ai"|"aiWeekly"|"aiChat"|"wearables"|"shopTaps"|"files"|"cloud"} id
  * @property {string} name
  * @property {"on"|"off"|"you"|"na"} state on: sending as configured; off: available, not sending; you: only when she makes one; na: not in this build.
  * @property {null|"pending"|"unsupported"|"terraOff"|"demo"} note
@@ -37,6 +39,9 @@ export function flowRows(c = {}) {
   if (f.wearables && c.demoWear) rows.push({ id: "wearables", name: FLOW_COPY.names.wearables, state: "off", note: "demo" });
   else if (f.wearables && c.server) rows.push({ id: "wearables", name: FLOW_COPY.names.wearables, state: (c.wearLive || 0) + (c.terraOff || 0) > 0 ? "on" : "off", note: (c.terraOff || 0) > 0 ? "terraOff" : null });
   else rows.push({ id: "wearables", name: FLOW_COPY.names.wearables, state: "na", note: null });
+  // 2026-11-19 (lib/shopTaps.js): the anonymous shop tap count — needs the shop flag and a server; ON unless she turned
+  // it off on this device (c.shopTapsOff). The one row with its own switch (components/PrivacyFlows.jsx).
+  rows.push({ id: "shopTaps", name: FLOW_COPY.names.shopTaps, state: f.shop && c.server ? (c.shopTapsOff === true ? "off" : "on") : "na", note: null });
   rows.push({ id: "files", name: FLOW_COPY.names.files, state: "you", note: null });
   // Calm R9: the optional account's encrypted backup — needs the flag, a server and the plan; "on" while signed in here.
   rows.push({ id: "cloud", name: FLOW_COPY.names.cloud, state: f.cloudBackup && c.server && c.planCloud ? (c.cloudOn === true ? "on" : "off") : "na", note: null });
@@ -48,7 +53,7 @@ export function flowRows(c = {}) {
 export function otherConnections({ native = false, server = false, flags = {} } = {}) {
   const out = [];
   if (!native) out.push("web");
-  const anyServer = (!native && !!flags.webReminders) || !!flags.counts || !!flags.ai || !!flags.wearables || !!flags.signin || !!flags.cloudBackup;
+  const anyServer = (!native && !!flags.webReminders) || !!flags.counts || !!flags.ai || !!flags.wearables || !!flags.signin || !!flags.cloudBackup || !!flags.shop;
   if (server && anyServer) out.push("server");
   if (server && flags.signin) out.push("signin");
   return out;
@@ -57,8 +62,10 @@ export function otherConnections({ native = false, server = false, flags = {} } 
 export const FLOW_COPY = Object.freeze({
   label: "What can leave this device",
   intro: "What this version of Solia Health can send, and when. Nothing about your health leaves this device unless a row below says On, or you take it out yourself as a backup, file or summary.",
+  shopTapsOffSaid: "Shop taps are no longer counted from this device.",
+  shopTapsOnSaid: "Shop taps are counted anonymously again.",
   states: Object.freeze({ on: "On", off: "Off", you: "When you make one" }),
-  names: Object.freeze({ remindersWeb: "Browser reminders", remindersPhone: "Reminders", counts: "Weekly counts", ai: "Ask Solia Health's AI", aiWeekly: "Solia Health's weekly write-up", aiChat: "Chat about your log", wearables: "Wearable connections", files: "Backups and files you make", cloud: "Cloud backup" }),
+  names: Object.freeze({ remindersWeb: "Browser reminders", remindersPhone: "Reminders", counts: "Weekly counts", ai: "Ask Solia Health's AI", aiWeekly: "Solia Health's weekly write-up", aiChat: "Chat about your log", wearables: "Wearable connections", shopTaps: TAP_COPY.name, files: "Backups and files you make", cloud: "Cloud backup" }),
   lines: Object.freeze({
     remindersWeb: "This browser's push address, and the days, time and time zone you chose, go to Solia Health's server. Nothing about your health.",
     remindersPhone: "Your phone shows them itself. Nothing is sent.",
@@ -67,6 +74,7 @@ export const FLOW_COPY = Object.freeze({
     aiWeekly: "When you ask for one: a summary of your last 8 weeks (counts, averages and cycle lengths; no dates, notes or anything that names you). You see exactly what will be sent first. It goes through Solia Health's server to Anthropic, which keeps it for a limited time.",
     aiChat: "Each message you send: your question, your last few chat messages and the same summary. You see exactly what will be sent first. It goes through Solia Health's server to Anthropic, which keeps it for a limited time.",
     wearables: "This device sends its Oura sign-in, or its Fitbit, Garmin or Whoop connection key, to Solia Health's server, which brings your readings back without saving them to disk. Terra, which connects Fitbit, Garmin and Whoop, keeps its own copy.",
+    shopTaps: TAP_COPY.line,
     files: "They go only where you save or send them. Solia Health's servers don't receive them.",
     cloud: "While you're signed in to your account: your log, encrypted on this device first, after each change. Solia Health's server can't read it and never gets your email or passphrase.",
   }),

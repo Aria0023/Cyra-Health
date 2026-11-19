@@ -6,6 +6,7 @@ import { SHOP_COPY as C, SHOP_PAGE_COPY as P, AFFILIATE_LINE, TONE_LABEL, AVAIL_
 import { itemsIn, itemsOf } from "../lib/shopCatalog.js";
 import { isNative } from "../lib/native.js";
 import { openExternal } from "../lib/links.js";
+import { TAP_COPY } from "../lib/shopTaps.js";
 
 /* Shop by need (Task C, 2026-11-14; its own page since 2026-11-15, docs/plans/plans-shop-page.md Task 3 and the owner's
    design update). A full-screen page under the current tab (#/shop, and the old #/care and #/shelf), opened from the
@@ -20,7 +21,10 @@ import { openExternal } from "../lib/links.js";
    only where the owner placed a licensed one (src/config/shop-images.json), otherwise a calm placeholder; where it comes
    from and the owner's price when there is one; the name, what it covers, why, "Sold by", the evidence pill; "Visit
    <brand>" and "Learn more" (evidence, price note, sources). "Affiliate link" and the commission line only where
-   src/config/affiliates.json has a link. Nothing here sends anything or adds anything about her to a link.
+   src/config/affiliates.json has a link. Nothing here adds anything about her to a link.
+   2026-11-19 (docs/plans/tracking-reports.md Task 1): opening a product ("Visit <brand>" or the picture) calls onTap(id),
+   App.jsx's anonymous tap count (lib/shopTaps.js: the product id only, never awaited; nothing in a build without a
+   server or with her switch off). `taps` says whether a tap can be sent, so the footer's sentences stay true.
    2026-11-15 (partner portal, Task 3): the page draws `shop` (lib/shopCatalog.js), the published catalog downloaded from
    the server when the build has one, else the bundled catalog; both have the same shape, so the page is the same. */
 export const ShopContext = createContext(null);
@@ -37,17 +41,19 @@ export const Monogram = ({ brand, info = null, size = "sm" }) => (
   <span className={`shopmono ${size}`} data-hue={info?.hue || brandHue(brand)} aria-hidden="true">{info?.mono || monogram(brand)}</span>
 );
 
-function ProductCard({ item, brands, onTry }) {
+function ProductCard({ item, brands, onTry, onTap }) {
   const link = { href: item.href, affiliate: item.affiliate };
   const price = item.price;
   const img = item.image ? (item.image.url || `${import.meta.env.BASE_URL || "/"}${item.image.bundled}`) : null;
   const info = brands[item.brand] || null;
   const hue = info?.hue || brandHue(item.brand);
   const nameId = `shop-${item.id}`;
-  const go = (e) => { if (isNative()) { e.preventDefault(); openExternal(link.href); } };
+  const go = (e) => { onTap?.(item.id); if (isNative()) { e.preventDefault(); openExternal(link.href); } };
+  // The picture opens the same page for a mouse or a finger; the "Visit" link below is the one a keyboard and a screen reader use.
+  const goPic = () => { onTap?.(item.id); openExternal(link.href); };
   return (
     <li className="shopcard" data-item={item.id}>
-      <div className="shopimg" data-hue={hue}>
+      <div className="shopimg" data-hue={hue} onClick={goPic}>
         {img ? <img src={img} alt="" loading="lazy" referrerPolicy="no-referrer" /> : (
           <>
             <svg className="shopimg-blobs" viewBox="0 0 200 125" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
@@ -108,7 +114,7 @@ function BrandSection({ brand, items, ...card }) {
 
 /** The Shop page. shop: lib/shopCatalog.js (live or bundled); initial: a category id to preselect (a contextual link or
     #/shop/<category>); live: this build downloads the catalog from its server (the footer says what that request carries). */
-export function ShopPage({ shop, categories, initial = null, allow = null, live = false, onTry = null, onBack }) {
+export function ShopPage({ shop, categories, initial = null, allow = null, live = false, taps = false, onTap = null, onTry = null, onBack }) {
   const firstCat = categories.some((c) => c.id === initial) ? initial : categories[0]?.id;
   const [mode, setMode] = useState("need");
   const [cat, setCat] = useState(firstCat);
@@ -118,7 +124,7 @@ export function ShopPage({ shop, categories, initial = null, allow = null, live 
   useEffect(() => { if (initial && categories.some((c) => c.id === initial)) { setMode("need"); setCat(initial); } }, [initial]); // eslint-disable-line react-hooks/exhaustive-deps
   const items = mode === "need" ? itemsIn(shop, cat, { allow }) : itemsOf(shop, { brand, allow });
   const brands = brandsOf(itemsOf(shop, { allow }));
-  const card = { brands: shop.brands, onTry };
+  const card = { brands: shop.brands, onTry, onTap };
   return (
     <main className="shoppage" aria-labelledby="shop-h">
       <div className="shophero">
@@ -143,8 +149,9 @@ export function ShopPage({ shop, categories, initial = null, allow = null, live 
       {items.length ? groupByBrand(items).map((g) => <BrandSection key={g.brand} brand={g.brand} items={g.items} {...card} />) : <p className="hint">{P.noneHere}</p>}
       <footer className="shopfoot">
         <h2 className="shopfoot-h">{P.footHead}</h2>
-        <p className="rfoot">{P.footMatched}</p>
+        <p className="rfoot">{P.footMatched(taps)}</p>
         {live && <p className="rfoot">{P.footList}</p>}
+        {taps && <p className="rfoot shoptaps">{TAP_COPY.foot}</p>}
         <p className="rfoot">{C.privacy}</p>
         <p className="rfoot">{C.notAdvice}</p>
       </footer>
@@ -153,10 +160,10 @@ export function ShopPage({ shop, categories, initial = null, allow = null, live 
 }
 
 /** You → one distinct entry card that opens the page. */
-export function ShopEntryCard({ onOpen }) {
+export function ShopEntryCard({ onOpen, taps = false }) {
   return (
     <Card id="you-shop" tint="patterns" icon="bag" eyebrow={C.eyebrow} title={P.entryLine} level={2} className="youshop" tabIndex={-1}>
-      <p className="hint">{C.lead}</p>
+      <p className="hint">{C.lead(taps)}</p>
       <button type="button" className="ghostbtn youshopgo" onClick={onOpen}>{P.entryTitle}<Icon name="arrow-right" size={16} /></button>
     </Card>
   );

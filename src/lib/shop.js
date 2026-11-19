@@ -4,8 +4,11 @@
    are passed in, so the tests read the same file.
 
    Rules:
-   - Matching happens here, on the device: her stage and modules choose which categories come first. Nothing about her
-     is sent anywhere, and a link never carries her stage, an id or any UTM with health information.
+   - Matching happens here, on the device: her stage and modules choose which categories come first. Her stage, her
+     modules and what she logs are never sent, and a link never carries her stage, an id or any UTM with health
+     information. 2026-11-19: in a build with a server, opening a product sends that product's id (only) so the server
+     can keep an anonymous daily total (lib/shopTaps.js), unless she turned that off; so "nothing about you is sent" is
+     said only where no tap can be sent (lead / footMatched take `taps`).
    - An item with an affiliate URL shows "Affiliate link" and AFFILIATE_LINE; an item without one shows the plain brand
      link and no affiliate label, so the claim stays true. Affiliate tags are public by design, never a secret.
    - Every "why" is one plain line with an honest evidence label (strong / mixed / comfort / clinical) and a named
@@ -16,7 +19,7 @@
 export const SHOP_COPY = Object.freeze({
   eyebrow: "Shop by need",
   title: "Products and services, by need",
-  lead: "Real products people often use at your stage, with an honest note on the evidence. Matched on this device; nothing about you is sent.",
+  lead: (taps = false) => `Real products people often use at your stage, with an honest note on the evidence. ${taps ? "Matched on this device: your stage and what you log are never sent." : "Matched on this device; nothing about you is sent."}`,
   forYou: "For your stage first",
   catLab: "Category",
   affiliate: "Affiliate link",
@@ -203,7 +206,7 @@ export const itemSources = (item) => (item.src || []).map((k) => SHOP_SOURCES[k]
 export const SHOP_PAGE_COPY = Object.freeze({
   title: "Shop by need",
   lead: "Real products and services for your stage, with an honest note on the evidence.",
-  footMatched: "Matched on this device; nothing about you is sent.",
+  footMatched: (taps = false) => (taps ? "Matched on this device: your stage and what you log are never sent." : "Matched on this device; nothing about you is sent."),
   back: "Back",
   byNeed: "By need",
   byBrand: "By brand",
@@ -221,7 +224,6 @@ export const SHOP_PAGE_COPY = Object.freeze({
   footHead: "About this shop",
   footList: "The product list comes from Solia Health's server, like loading a web page: the request carries nothing about you.",
   fromBrand: (brand) => `From ${brand}:`,
-  footLearns: "What the shop learns: nothing from Solia Health. Matching happens on this device. A shop learns only that you visited, and, through an affiliate link, that you came from Solia Health.",
   entryTitle: "Shop by need",
   entryLine: "Real products for your stage",
   headerLabel: "Shop",

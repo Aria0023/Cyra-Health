@@ -18,6 +18,9 @@
 //   shop_sessions      { sid (SHA-256 of the session id), email, createdAt, exp }
 //   shop_images        { id, type, bytes, by, at }
 //   shop_meta          { key: "seeded", at } — the bundled catalog was imported once (never again, even if emptied)
+//   shop_taps          { day (UTC, YYYY-MM-DD), productId, brandId, taps } — anonymous shop taps (2026-11-19,
+//                      docs/plans/tracking-reports.md Task 1): ONE ROW PER PRODUCT PER DAY, a total and nothing else. No
+//                      row per request, no time of day, no account, device, address, stage or module. Kept 400 days.
 //
 // Roles: "owner" = an address in ADMIN_EMAILS (comma list, environment); "partner" = an address an owner invited, scoped
 // to its brands. A partner may edit its brands' name / about / website / image and its products' name, covers,
@@ -37,11 +40,15 @@
 //            GET  /api/shop/images/:id         an uploaded image (long cache)
 //            POST /api/shop/apply              "Apply to partner" (company, email, category, website, note)
 //            GET  /api/shop/auth/config        { email: ready, sso: [] }
+//            POST /api/shop/tap {productId}    adds one to that published product's total for today (204). The body may
+//                                              hold nothing else; no token or cookie is read; the address is used only by
+//                                              the in-memory rate limiter (core/memory.js) and is never stored or logged
 //   Sign-in: POST /api/shop/auth/start {email} · POST /api/shop/auth/verify {email, code} · POST /api/shop/auth/sign-out
 //   Signed in (Authorization: Bearer <portal token>):
 //            GET /me · GET/POST /brands · PATCH /brands/:id · POST /brands/:id/publish (owner)
 //            GET/POST /products · PATCH /products/:id · POST /products/:id/{submit|publish|unpublish|archive|restore}
 //            GET /products.csv · POST /images (raw png/jpeg/webp, at most 1 MB, checked by magic bytes)
+//            GET /taps?days=7|30|90 · GET /taps.csv?days=… (owner: every brand; partner: its own brands' totals only)
 //            owner: GET /partners · POST /invites · PATCH/DELETE /partners/:email · GET /applications ·
 //                   POST /applications/:id/{approve|reject} · GET /audit
 // Logs: never an email address, code or token in production — only fixed categories.
@@ -65,6 +72,49 @@ const BRAND_CONTENT = ["name", "monogram", "hue", "tag", "about", "website", "im
 export const PRODUCT_PARTNER = ["name", "covers", "description", "availability", "price", "url", "affiliateUrl", "imageId"];
 export const PRODUCT_OWNER = ["brandId", "categories", "stages", "modules", "kind", "why", "evidence", "sources", "clinicianStatus"];
 const PRODUCT_CONTENT = ["brandId", ...PRODUCT_PARTNER, ...PRODUCT_OWNER.filter((k) => k !== "brandId")];
+export const TAP_KEEP_DAYS = 400;
+export const TAP_WINDOWS = Object.freeze([7, 30, 90]);
+const DAY_MS = 86_400_000;
+const dayOf = (ms) => new Date(ms).toISOString().slice(0, 10);
+/** The first UTC day of a window of `days` days ending today. */
+export const tapSince = (days, nowMs) => dayOf(nowMs - (days - 1) * DAY_MS);
+/** body → { productId } | null. The tap body is exactly { productId }: anything else in it is refused, never read. */
+export function cleanTap(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const keys = Object.keys(body);
+  if (keys.length !== 1 || keys[0] !== "productId" || typeof body.productId !== "string" || !V.ID_RE.test(body.productId)) return null;
+  return { productId: body.productId };
+}
+/** Adds `counts` (Map "day|productId" → { brandId, n }) into the rows and drops rows older than `keepFrom` (a UTC day). */
+export function mergeTaps(rows, counts, keepFrom) {
+  for (const [k, c] of counts) {
+    const [day, productId] = k.split("|");
+    const row = rows.find((r) => r.day === day && r.productId === productId);
+    if (row) { row.taps += c.n; row.brandId = c.brandId; } else rows.push({ day, productId, brandId: c.brandId, taps: c.n });
+  }
+  for (let i = rows.length - 1; i >= 0; i--) if (!(rows[i].day >= keepFrom)) rows.splice(i, 1);
+  return rows;
+}
+/** rows (already limited to what the reader may see) → totals by brand, by product and by day, from `since` on. */
+export function tapTotals(rows, since, { brandName = () => null, productName = () => null } = {}) {
+  const brands = new Map(), products = new Map(), days = new Map();
+  let total = 0;
+  for (const r of rows) {
+    if (!(r.day >= since) || !Number.isInteger(r.taps) || r.taps <= 0) continue;
+    total += r.taps;
+    brands.set(r.brandId, (brands.get(r.brandId) || 0) + r.taps);
+    const p = products.get(r.productId) || { productId: r.productId, brandId: r.brandId, taps: 0 };
+    p.taps += r.taps; p.brandId = r.brandId; products.set(r.productId, p);
+    days.set(r.day, (days.get(r.day) || 0) + r.taps);
+  }
+  const byTaps = (a, b) => b.taps - a.taps || String(a.name).localeCompare(String(b.name));
+  return {
+    total,
+    brands: [...brands].map(([brandId, taps]) => ({ brandId, name: brandName(brandId) || brandId, taps })).sort(byTaps),
+    products: [...products.values()].map((p) => ({ ...p, name: productName(p.productId) || p.productId, brand: brandName(p.brandId) || p.brandId })).sort(byTaps),
+    byDay: [...days].map(([day, taps]) => ({ day, taps })).sort((a, b) => (a.day < b.day ? -1 : 1)),
+  };
+}
 const LIMITS = { brands: 500, products: 3000, partners: 2000, pendingApplications: 500, imagesPer: 300, images: 5000, audit: 5000 };
 
 /** The portal token key: AUTH_SECRET through HKDF with the portal's own label (never the app's session key). */
@@ -167,7 +217,7 @@ export function buildCatalog(brands, products) {
 
 const seedFile = new URL("../../../config/shop-seed.json", import.meta.url);
 
-export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, mailer, owners: ownersOpt } = {}) {
+export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, mailer, owners: ownersOpt, tapFlushMs = 10_000 } = {}) {
   const { config, store } = ctx;
   const production = !!config.production;
   const cfg = config.shop || {};
@@ -197,6 +247,7 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, mailer,
     upload: rateLimiter({ perMinute: cfg.uploadPerMinute || 20, globalPerMinute: 200 }),
     apply: rateLimiter({ perMinute: cfg.applyPerMinute || 3, globalPerMinute: cfg.applyGlobalPerMinute || 30 }),
     catalog: rateLimiter({ perMinute: cfg.catalogPerMinute || 120 }),
+    tap: rateLimiter({ perMinute: cfg.tapPerMinute || 30, globalPerMinute: cfg.tapGlobalPerMinute || 3000 }),
   };
   ctx.onShutdown?.push(async () => { codes.stop(); for (const l of Object.values(L)) l.stop(); });
   const limited = (lim, msg = "too many requests — try again in a minute") => (req, res, next) => (lim(req.ip) ? next() : res.status(429).json({ error: msg }));
@@ -204,7 +255,7 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, mailer,
 
   /* ---------- the catalog cache ---------- */
   let cached = null; // { body, etag }
-  const invalidate = () => { cached = null; };
+  const invalidate = () => { cached = null; liveIds = null; };
   async function catalog() {
     if (cached) return cached;
     const body = JSON.stringify(buildCatalog(await store.find("shop_brands"), await store.find("shop_products")));
@@ -267,7 +318,7 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, mailer,
   const reading = limited(L.read), writing = limited(L.write);
   // The portal's sign-in, shared with modules mounted after this one (subscriptions, docs/plans/portal-subscriptions.md):
   // the same token check and roles, and the same audit log, so the Activity page lists every change in one place.
-  ctx.portal = { auth, audit, brandIds: async () => (await store.find("shop_brands")).map((b) => ({ id: b.id, name: b.name })) };
+  ctx.portal = { auth, audit, owners, brandIds: async () => (await store.find("shop_brands")).map((b) => ({ id: b.id, name: b.name })), tapReport: (days, who = { role: "owner" }) => tapReport(who, days) };
 
   /** An image id a user may attach: it exists and, for a partner, they uploaded it. */
   async function imageOk(who, id) {
@@ -311,6 +362,39 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, mailer,
     await store.insert("shop_applications", row);
     await audit("public", "apply", `application:${row.id}`, { company: row.company });
     res.status(201).json({ received: true });
+  });
+
+  /* ---------- anonymous shop taps: daily totals per product, nothing else ---------- */
+  // Taps wait in memory as totals (never as requests) and are written every few seconds, so a busy day isn't one file
+  // write per tap; a restart loses at most that window. tapFlushMs 0 (tests) writes at once.
+  const pendingTaps = new Map(); // "day|productId" → { brandId, n }
+  let liveIds = null; // productId → brandId of the published catalog; rebuilt when the catalog changes
+  async function liveProducts() {
+    if (liveIds && cached) return liveIds;
+    const c = JSON.parse((await catalog()).body);
+    liveIds = new Map(c.products.map((p) => [p.id, p.brandId]));
+    return liveIds;
+  }
+  async function flushTaps() {
+    if (!pendingTaps.size) return;
+    const batch = new Map(pendingTaps); pendingTaps.clear();
+    try { await store.apply("shop_taps", (rows) => { mergeTaps(rows, batch, tapSince(TAP_KEEP_DAYS, clock())); }); }
+    catch { for (const [k, c] of batch) { const e = pendingTaps.get(k); pendingTaps.set(k, { brandId: c.brandId, n: (e?.n || 0) + c.n }); } console.warn("[cyra] shop: tap totals not written (kept in memory)"); }
+  }
+  const tapTimer = tapFlushMs > 0 ? setInterval(() => { flushTaps(); }, tapFlushMs) : null;
+  tapTimer?.unref?.();
+  ctx.onShutdown?.push(async () => { if (tapTimer) clearInterval(tapTimer); await flushTaps(); });
+  ctx.shopFlushTaps = flushTaps; // tests
+
+  router.post("/tap", noStore, limited(L.tap), async (req, res) => {
+    const t = cleanTap(req.body);
+    if (!t) return res.status(400).json({ error: "send { productId } and nothing else" });
+    const brandId = (await liveProducts()).get(t.productId);
+    if (!brandId) return res.status(404).json({ error: "no such product" });
+    const k = `${dayOf(clock())}|${t.productId}`;
+    pendingTaps.set(k, { brandId, n: (pendingTaps.get(k)?.n || 0) + 1 });
+    if (!tapTimer) await flushTaps();
+    res.status(204).end();
   });
 
   router.get("/auth/config", noStore, (req, res) => res.json({ email: mail.ready === true, sso: [] }));
@@ -501,6 +585,32 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, mailer,
   action("unpublish", "owner", async (p) => (!p.published ? { error: "it isn't published" } : { patch: { status: "draft", published: null } }));
   action("archive", "owner", async (p) => (p.status === "archived" ? { error: "already archived" } : { patch: { status: "archived", published: null } }));
   action("restore", "owner", async (p) => (p.status !== "archived" ? { error: "it isn't archived" } : { patch: { status: "draft" } }));
+
+  /* ================= shop taps (totals) ================= */
+  /** The totals a reader may see: an owner every brand, a partner only rows of its own brands. */
+  async function tapReport(who, days) {
+    await flushTaps();
+    const t = clock(), since = tapSince(days, t);
+    const rows = await store.find("shop_taps", (r) => r.day >= since && mayBrand(who, r.brandId));
+    const brands = new Map((await store.find("shop_brands")).map((b) => [b.id, b.name]));
+    const products = new Map((await store.find("shop_products")).map((p) => [p.id, p.published?.name || p.name]));
+    return { days, from: since, to: dayOf(t), rows, ...tapTotals(rows, since, { brandName: (id) => brands.get(id), productName: (id) => products.get(id) }) };
+  }
+  const tapDays = (req) => { const n = Number.parseInt(req.query.days, 10); return TAP_WINDOWS.includes(n) ? n : 30; };
+
+  router.get("/taps", reading, auth(), async (req, res) => {
+    const { rows, ...out } = await tapReport(req.portal, tapDays(req)); // eslint-disable-line no-unused-vars
+    res.json(out);
+  });
+
+  router.get("/taps.csv", reading, auth(), async (req, res) => {
+    const r = await tapReport(req.portal, tapDays(req));
+    const pname = new Map(r.products.map((p) => [p.productId, p])), cols = ["day", "brand", "product", "productId", "taps"];
+    const lines = r.rows.slice().sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : a.productId < b.productId ? -1 : 1))
+      .map((x) => [x.day, pname.get(x.productId)?.brand || x.brandId, pname.get(x.productId)?.name || x.productId, x.productId, x.taps].map(csvCell).join(","));
+    res.set({ "content-type": "text/csv; charset=utf-8", "content-disposition": `attachment; filename="solia-shop-taps-${r.days}d.csv"` });
+    res.send([cols.join(","), ...lines].join("\r\n") + "\r\n");
+  });
 
   /* ================= images ================= */
   const raw = express.raw({ type: () => true, limit: IMAGE_MAX_BYTES });

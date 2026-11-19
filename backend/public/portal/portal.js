@@ -6,6 +6,7 @@
    2026-11-15 (docs/plans/portal-subscriptions.md Task 2): the owner's Subscriptions, Promotions, Pro grants and Codes
    screens, and a partner's Codes, live in subs.js and talk to /api/subscriptions on this same origin. */
 import { subsViews } from "./subs.js";
+import { reportViews } from "./reports.js";
 
 const CATEGORY_LABEL = { fertility: "Ovulation & fertility", pregnancy: "Pregnancy", labs: "Lab tests", glucose: "Blood sugar", wearables: "Wearables", periods: "Periods", meno: "Perimenopause & menopause", sleep: "Sleep" };
 const AVAIL_LABEL = { home: "Kit sent to your home", lab: "Sample taken at a lab", visit: "Online visit", app: "In an app", online: "Sold online", stores: "Sold online and in stores", rx: "By prescription" };
@@ -74,8 +75,8 @@ function renderWho() {
   who.append(h("span", {}, "Signed in as ", h("b", { text: me().email }), ` · ${isOwner() ? "Owner" : "Partner"}`),
     h("button", { type: "button", class: "btn small", onclick: async () => { try { await api("POST", "/auth/sign-out", {}); } catch { /* ends locally anyway */ } endSession("You're signed out."); } }, "Sign out"));
   const links = isOwner()
-    ? [["#/", "Overview"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/subscriptions", "Subscriptions"], ["#/promotions", "Promotions"], ["#/grants", "Pro grants"], ["#/codes", "Codes"], ["#/activity", "Activity"]]
-    : [["#/products", "Products"], ["#/brands", "Brands"], ["#/codes", "Codes"]];
+    ? [["#/", "Overview"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/subscriptions", "Subscriptions"], ["#/promotions", "Promotions"], ["#/grants", "Pro grants"], ["#/codes", "Codes"], ["#/clicks", "Clicks"], ["#/activity", "Activity"]]
+    : [["#/products", "Products"], ["#/brands", "Brands"], ["#/codes", "Codes"], ["#/clicks", "Clicks"]];
   for (const [href, label] of links) nav.append(h("a", { href, "data-nav": href }, label));
   nav.hidden = false;
   markNav();
@@ -515,6 +516,9 @@ function renderApply() {
 /* ----- subscriptions, promotions, Pro grants and codes (subs.js) ----- */
 const subs = subsViews({ h, api, show, field, textIn, area, select, checks, checked, msgBox, tell, fmtTime, isOwner, brandList: async () => [...(await brandMap()).values()] });
 
+/* ----- clicks, people, affiliates and the weekly report (reports.js) ----- */
+const reports = reportViews({ h, api, show, field, textIn, area, select, msgBox, tell, fmtTime, isOwner, brandList: async () => [...(await brandMap()).values()] });
+
 /* ---------- router ---------- */
 async function route() {
   if (/\/apply\/?$/.test(location.pathname)) return renderApply();
@@ -526,6 +530,7 @@ async function route() {
     if (m) return await (m[1] === "product" ? renderProduct(decodeURIComponent(m[2])) : renderBrand(decodeURIComponent(m[2])));
     if (hash === "#/brands") return await renderBrands();
     if (hash === "#/codes") return await subs.renderCodes();
+    if (hash === "#/clicks") return await reports.renderClicks();
     if (isOwner() && hash === "#/subscriptions") return await subs.renderSubscriptions();
     if (isOwner() && hash === "#/promotions") return await subs.renderPromotions();
     if (isOwner() && hash.startsWith("#/promotion/")) return await subs.renderPromotion(decodeURIComponent(hash.slice("#/promotion/".length)));
