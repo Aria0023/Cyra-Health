@@ -91,3 +91,52 @@ Shown only for an item whose `docs/CLINICIAN-REVIEW.md` entry says `Status: Sign
 - **Privacy policy** (`public/legal/privacy.html`, still Draft): section 5 "Shops you choose to visit (affiliate links)"
   describes what the merchant learns; list the programs you joined there before publishing (attorney review).
 - **Turning it off**: build with `VITE_FEATURES` that omits `shop` (the default list includes it).
+
+## 4. Seeing what gets opened: Clicks (2026-11-19)
+
+Portal → **Clicks** shows how often each product was opened from the app's Shop, by brand and by product, for the last 7,
+30 or 90 days, with a CSV export. These are Solia Health's own anonymous totals: when someone opens a product the app sends
+the product's id and nothing else, and the server keeps one total per product per day for 400 days
+(docs/PRIVACY-AUDIT.md "Anonymous shop tap counts"). A partner sees the same page for its own brands only. A tap is not a
+sale and not the network's "click": networks count a click when their link is loaded, and may filter some.
+
+## 5. Seeing what was earned: Affiliates (2026-11-19)
+
+Portal → **Affiliates** (owners only) puts Solia's taps beside what the affiliate networks report, per brand, for the
+last 7, 30 or 90 days.
+
+### 5a. Impact (impact.com)
+
+1. In Impact: **Settings → API** (partner account). Copy the **Account SID** and the **Auth Token**.
+2. In Render → cyra-backend → Environment, add:
+   - `IMPACT_ACCOUNT_SID` = the Account SID
+   - `IMPACT_AUTH_TOKEN` = the Auth Token (a secret: only here, never in the app, never in a `VITE_` variable)
+   - optional `IMPACT_REPORT_ID` = the handle of the report to read, if the default `mp_performance_by_campaign` is not the
+     name of the "Performance by Campaign" report in your account (Impact → Reports → open the report → its API link).
+3. Redeploy. The Affiliates page lists every campaign (brand program) Impact reports, with its **campaign ID**.
+4. Link each brand: Portal → Brands → the brand → **Impact campaign ID** → Save. (Owner only; never shown in the app or
+   in the public catalog.) Its row then shows clicks, sales (Impact calls them actions), sale amount and commission.
+5. Numbers are read from Impact at most once every 15 minutes per period ("Last updated …"; "Refresh now" reads again).
+   Amounts are in your Impact account's currency.
+
+**Before you rely on the numbers:** the two Impact endpoints and their field names are in one file,
+`backend/src/modules/insights/impact.js`, written without access to Impact's documentation. Check both against Impact's
+current partner API reference, and compare one week on the page with the same week in Impact's own dashboard. Without the
+two variables the page says "Impact isn't connected to this server yet" and names them; nothing is requested.
+
+### 5b. Amazon Associates (manual upload)
+
+Amazon has no simple reporting API for a new Associates account, so its numbers are uploaded by hand:
+
+1. Associates Central → **Reports** → **Download reports** → report type **Earnings**, CSV, for the period you want.
+2. Portal → Affiliates → **Upload report** (at most 1 MB and 20,000 rows; download a shorter period if it is larger).
+3. The server reads four columns by name (**Date Shipped** or Date, **Items Shipped**, **Revenue**, **Ad Fees** or
+   Earnings) and keeps **one total per day**. Product names, ASINs and tracking IDs are not kept. Rows it can't read are
+   counted and skipped. Days in a new upload replace the same days from an earlier one.
+4. The page shows items shipped, revenue and earnings for the chosen period, labelled "Uploaded <date>". They are for the
+   whole Associates account (Amazon's report is not per brand). "Remove the Amazon totals" deletes them.
+5. If the upload says "no header row found", open the CSV and check the column names; Amazon changes them from time to
+   time (`backend/src/modules/insights/amazon.js` lists the names it accepts).
+
+None of this involves anyone's data: both sources report totals about links and sales, and the tap totals hold no
+account, device or address.

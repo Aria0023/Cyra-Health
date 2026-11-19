@@ -113,5 +113,76 @@ export function reportViews(L) {
       h("p", { class: "note" }, `As of ${p.asOf} (UTC). A deleted account leaves every count at once.`));
   }
 
-  return { renderClicks, renderPeople, peopleCard, table, td, num, barChart, windowSeg, download };
+  /* ----- Affiliates (owner): Solia taps beside what the networks report, per brand ----- */
+  const money = (v) => (v == null ? "–" : Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const count = (v) => (v == null ? "–" : num(v));
+  let affDays = 30;
+  function impactSetup(im) {
+    return h("div", { class: "panel" },
+      h("h2", {}, "Impact isn't connected to this server yet"),
+      h("p", {}, "Clicks, sales and commission come from your Impact account. Add these to the backend's environment (Render → cyra-backend → Environment), then redeploy:"),
+      h("ul", { class: "envlist" }, [im.env.sid, im.env.token].map((k) => h("li", {}, h("code", {}, k), im.missing.includes(k) ? " (not set)" : " (set)"))),
+      h("p", { class: "note" }, "Both are on Impact → Settings → API. ", h("code", {}, im.env.token), " is a secret: it stays on the server and is never shown here or put in the app. ", h("code", {}, im.env.report), " is optional (the report to read). Step by step: see ", h("code", {}, "docs/AFFILIATES.md"), ", section 5. Your taps below don't need Impact."));
+  }
+  async function renderAffiliates(refresh = false) {
+    const a = await api("GET", `/api/insights/affiliates?days=${affDays}${refresh ? "&refresh=1" : ""}`);
+    const box = msgBox();
+    const redraw = (r = false) => renderAffiliates(r).catch((e) => tell(box, e.message, "err"));
+    const im = a.impact;
+    const file = h("input", { id: "az-file", type: "file", accept: ".csv,.tsv,.txt,text/csv,text/plain", "aria-describedby": "az-file-help" });
+    const upload = h("form", { class: "panel narrow", novalidate: true },
+      h("h3", {}, a.amazon.uploaded ? "Upload a newer report" : "Upload the earnings report"),
+      h("div", { class: "field" }, h("label", { for: "az-file" }, "Amazon Associates earnings report (CSV)"),
+        h("p", { class: "help", id: "az-file-help" }, "Associates Central → Reports → Download reports → Earnings, as CSV, at most 1 MB. Only the date, items shipped, revenue and earnings are read, as one total per day; product names and tracking IDs are not kept. Days in a new upload replace the same days from an earlier one."), file),
+      h("div", { class: "acts" }, h("button", { type: "submit", class: "btn primary" }, "Upload report"),
+        a.amazon.uploaded ? h("button", { type: "button", class: "btn danger", onclick: async () => { if (!confirm("Remove the uploaded Amazon totals?")) return; try { await api("DELETE", "/api/insights/amazon"); await renderAffiliates(); tell(document.querySelector(".msgbox"), "The Amazon totals were removed."); } catch (err) { tell(box, err.message, "err"); } } }, "Remove the Amazon totals") : null));
+    upload.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const f = file.files?.[0];
+      if (!f) { tell(box, "Choose the report file first.", "err"); file.focus(); return; }
+      if (f.size > 1024 * 1024) { tell(box, "That file is larger than 1 MB. Download a shorter period.", "err"); return; }
+      try {
+        const r = await api("POST", "/api/insights/amazon", await f.text(), { raw: true, type: "text/csv" });
+        await renderAffiliates();
+        tell(document.querySelector(".msgbox"), `Report read: ${num(r.rows)} rows over ${num(r.days)} days, ${r.from} to ${r.to}${r.skipped ? `; ${num(r.skipped)} rows couldn't be read and were skipped` : ""}.`);
+      } catch (err) { tell(box, err.message, "err"); }
+    });
+    const az = a.amazon;
+    show("Affiliates",
+      h("p", { class: "lead" }, "Taps on each brand's products in the app's Shop, beside the clicks, sales and commission the affiliate networks report for that brand. Totals only."),
+      box,
+      windowSeg(affDays, (d) => { affDays = d; redraw(); }),
+      h("ul", { class: "stats", "aria-label": "Affiliate totals" },
+        h("li", { "data-stat": "aff-taps" }, h("b", {}, num(a.totals.taps)), h("span", {}, "Solia taps")),
+        ...(im.configured && !im.error ? [
+          h("li", { "data-stat": "aff-clicks" }, h("b", {}, num(a.totals.clicks)), h("span", {}, "Impact clicks")),
+          h("li", { "data-stat": "aff-sales" }, h("b", {}, num(a.totals.actions)), h("span", {}, "Impact sales")),
+          h("li", { "data-stat": "aff-amount" }, h("b", {}, money(a.totals.saleAmount)), h("span", {}, "Sale amount")),
+          h("li", { "data-stat": "aff-commission" }, h("b", {}, money(a.totals.commission)), h("span", {}, "Commission"))] : [])),
+      h("p", { class: "note" }, `${a.from} to ${a.to} (UTC). Amounts are in your Impact account's currency.`),
+      h("h2", {}, "Impact"),
+      !im.configured ? impactSetup(im) : null,
+      im.configured && im.error ? h("p", { class: "err", role: "alert" }, `Impact couldn't be read: ${im.error}. Your taps are below; Impact's numbers will show once it answers.`) : null,
+      im.configured ? h("p", { class: "note", "data-updated": im.fetchedAt || "" }, im.fetchedAt ? `Last updated ${fmtTimeOf(im.fetchedAt)}; kept for ${im.cachedMinutes} minutes. ` : "", h("button", { type: "button", class: "linkbtn", onclick: () => redraw(true) }, "Refresh now")) : null,
+      a.rows.length ? table("Taps and Impact results by brand", ["Brand", "Solia taps", "Impact campaign", "Clicks", "Sales", "Sale amount", "Commission"], a.rows.map((r) => h("tr", { "data-brand": r.brandId },
+        h("th", { scope: "row" }, h("a", { href: `#/brand/${encodeURIComponent(r.brandId)}` }, r.brand)), td(num(r.taps), true),
+        td(r.campaign ? `${r.campaign} (${r.campaignId})` : r.linked ? `${r.campaignId}: no results in this period` : "Not linked"),
+        td(count(r.clicks), true), td(count(r.actions), true), td(money(r.saleAmount), true), td(money(r.commission), true))))
+        : h("p", { class: "note" }, "No taps and no linked campaigns in this period yet."),
+      h("p", { class: "note" }, "A dash means there is no number: the brand isn't linked to a campaign, or Impact reported nothing for it. To link a brand, open it and fill in \"Impact campaign ID\"."),
+      a.unlinked.length ? h("h3", {}, "Impact campaigns not linked to a brand") : null,
+      a.unlinked.length ? table("Impact campaigns not linked to a brand", ["Campaign", "Campaign ID", "Clicks", "Sales", "Sale amount", "Commission"], a.unlinked.map((u) => h("tr", { "data-campaign": u.campaignId || "" },
+        h("th", { scope: "row" }, u.campaign), td(u.campaignId || "–"), td(num(u.clicks), true), td(num(u.actions), true), td(money(u.saleAmount), true), td(money(u.commission), true)))) : null,
+      h("h2", {}, "Amazon Associates"),
+      h("p", { class: "note" }, "Amazon has no reporting connection for a new Associates account, so its numbers come from the earnings report you upload. They are for your whole Associates account, not per brand."),
+      az.uploaded ? h("ul", { class: "stats", "aria-label": "Amazon Associates totals" },
+        h("li", { "data-stat": "az-items" }, h("b", {}, num(az.window.items)), h("span", {}, "Items shipped")),
+        h("li", { "data-stat": "az-revenue" }, h("b", {}, money(az.window.revenue)), h("span", {}, "Revenue")),
+        h("li", { "data-stat": "az-earnings" }, h("b", {}, money(az.window.earnings)), h("span", {}, "Earnings"))) : h("p", { class: "note" }, "No report uploaded yet."),
+      az.uploaded ? h("p", { class: "note", "data-uploaded": az.uploadedAt }, `Uploaded ${fmtTimeOf(az.uploadedAt)}. The report covers ${az.from} to ${az.to}; ${num(az.window.days)} of its days fall in this period.`) : null,
+      upload);
+  }
+  const fmtTimeOf = (iso) => L.fmtTime(iso);
+
+  return { renderClicks, renderPeople, peopleCard, renderAffiliates, table, td, num, barChart, windowSeg, download };
 }

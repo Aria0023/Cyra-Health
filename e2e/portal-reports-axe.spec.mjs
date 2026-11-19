@@ -1,9 +1,11 @@
 /* axe-core on the portal's reporting pages (docs/plans/tracking-reports.md), light and dark, phone and wide, against a
    real development backend (e2e/lib/portal.mjs): Clicks with totals, its chart and tables, and empty; the Overview's
-   People card and the People page with its chart and the 30-day table open. Every target is checked at 44px. */
+   People card and the People page with its chart and the 30-day table open; Affiliates with Impact connected (a local
+   stand-in), an upload error and the Amazon totals, and the brand editor's Impact field. Every target is checked at 44px. */
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { startBackend, portalSignIn, appAccount, OWNER } from "./lib/portal.mjs";
+import { startImpact } from "./lib/impact.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 const audit = async (page, name) => {
@@ -19,7 +21,8 @@ const tap = (base, productId) => fetch(`${base}/api/shop/tap`, { method: "POST",
 
 for (const scheme of ["light", "dark"]) {
   test(`portal reporting pages, ${scheme}`, async ({ browser }) => {
-    const be = await startBackend();
+    const impact = await startImpact();
+    const be = await startBackend({ env: impact.env });
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });
     const page = await ctx.newPage();
     try {
@@ -46,6 +49,25 @@ for (const scheme of ["light", "dark"]) {
       await audit(page, `people ${scheme}`);
       await page.setViewportSize({ width: 1200, height: 900 });
       await audit(page, `people, wide ${scheme}`);
-    } finally { await ctx.close(); await be.stop(); }
+      // Affiliates (Task 3): Impact connected, the upload form, an error, and the uploaded Amazon totals
+      await page.setViewportSize({ width: 390, height: 844 });
+      await nav(page, "Affiliates");
+      await expect(page.getByRole("table", { name: "Taps and Impact results by brand" })).toBeVisible();
+      await audit(page, `affiliates ${scheme}`);
+      await page.getByRole("button", { name: "Upload report" }).click();
+      await expect(page.getByRole("alert")).toBeVisible();
+      await audit(page, `affiliates with an error ${scheme}`);
+      const day = new Date().toISOString().slice(0, 10);
+      await page.getByLabel("Amazon Associates earnings report (CSV)").setInputFiles({ name: "earnings.csv", mimeType: "text/csv", buffer: Buffer.from(`Date Shipped,Items Shipped,Revenue($),Ad Fees($)\n${day},3,49.97,2.00\n`) });
+      await page.getByRole("button", { name: "Upload report" }).click();
+      await expect(page.locator('[data-stat="az-earnings"] b')).toHaveText("2.00");
+      await audit(page, `affiliates with Amazon totals ${scheme}`);
+      await page.setViewportSize({ width: 1200, height: 900 });
+      await audit(page, `affiliates, wide ${scheme}`);
+      await nav(page, "Brands");
+      await page.getByRole("link", { name: "Oura", exact: true }).click();
+      await expect(page.getByLabel("Impact campaign ID (optional)")).toBeVisible();
+      await audit(page, `brand editor with the Impact field ${scheme}`);
+    } finally { await ctx.close(); await be.stop(); await impact.stop(); }
   });
 }

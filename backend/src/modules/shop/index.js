@@ -3,7 +3,8 @@
 // the published catalog with one plain GET that carries nothing about the person using it (no query, no id, no token).
 //
 // Data (JSON store under DATA_DIR, like the other modules; images as files in DATA_DIR/shop-images/):
-//   shop_brands        { id, name, monogram, hue, tag, about, website, imageId, published: <snapshot>|null, changed, … }
+//   shop_brands        { id, name, monogram, hue, tag, about, website, imageId, published: <snapshot>|null, changed,
+//                        impactCampaignId (owner only; the brand's Impact campaign, never published), … }
 //   shop_products      { id, brandId, name, covers, description, availability, price, url, affiliateUrl, imageId,
 //                        categories[], stages[], modules[], kind, why, evidence {tone,label}|null, sources[],
 //                        clinicianStatus "awaiting"|"signed", status "draft"|"pending"|"published"|"archived",
@@ -67,7 +68,7 @@ const env = (k) => (process.env[k] || "").trim();
 const HOUR = 3_600_000;
 
 const BRAND_PARTNER = ["name", "about", "website", "imageId"];
-const BRAND_OWNER = ["monogram", "hue", "tag"];
+const BRAND_OWNER = ["monogram", "hue", "tag", "impactCampaignId"]; // impactCampaignId: never in BRAND_CONTENT, so never published
 const BRAND_CONTENT = ["name", "monogram", "hue", "tag", "about", "website", "imageId"];
 export const PRODUCT_PARTNER = ["name", "covers", "description", "availability", "price", "url", "affiliateUrl", "imageId"];
 export const PRODUCT_OWNER = ["brandId", "categories", "stages", "modules", "kind", "why", "evidence", "sources", "clinicianStatus"];
@@ -150,6 +151,9 @@ function brandField(k, v, row) {
     case "website": return V.cleanUrl(v, { required: true });
     case "monogram": return V.cleanMonogram(v, row?.name);
     case "hue": return V.cleanOne(v, V.HUES, { nullable: true });
+    // The brand's campaign in the Impact affiliate network (docs/plans/tracking-reports.md Task 3): owner only, kept on the
+    // working row only, used by the insights module to put Impact's numbers beside the brand's taps.
+    case "impactCampaignId": return v == null || v === "" ? { value: null } : typeof v === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(v.trim()) ? { value: v.trim() } : { error: "must be a campaign id (letters, digits, - and _)" };
     case "imageId": return v == null || v === "" ? { value: null } : V.IMAGE_ID_RE.test(String(v)) ? { value: String(v) } : { error: "is not an uploaded image" };
     default: return { error: "is not a field" };
   }
@@ -477,7 +481,8 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, mailer,
     if ("imageId" in c.patch && !(await imageOk(req.portal, c.patch.imageId))) return res.status(400).json({ error: "imageId is not an image you uploaded" });
     const changed = Object.keys(c.patch).filter((k) => JSON.stringify(brand[k]) !== JSON.stringify(c.patch[k]));
     if (!changed.length) return res.json({ brand });
-    const patch = { ...pick(c.patch, changed), changed: true, updatedBy: req.portal.email, updatedAt: now() };
+    // "changed" means the published details differ: the Impact campaign link is never published, so it alone changes nothing there
+    const patch = { ...pick(c.patch, changed), changed: !!brand.changed || changed.some((k) => BRAND_CONTENT.includes(k)), updatedBy: req.portal.email, updatedAt: now() };
     await store.update("shop_brands", (b) => b.id === brand.id, patch);
     await audit(req.portal.email, "edit", `brand:${brand.id}`, pick(c.patch, changed));
     res.json({ brand: { ...brand, ...patch } });

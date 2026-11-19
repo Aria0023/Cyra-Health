@@ -2506,3 +2506,22 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   - Portal footer: adds "counts of accounts and sign-ins".
 - **Store declarations:** no new data type: the account identifier (User ID), email and name are already declared as
   linked. The last-day-used date is part of that account record.
+
+## Affiliate results in the portal (2026-11-19, docs/plans/tracking-reports.md Task 3) — business totals only; nothing about any user
+
+- **What changed:** an owner-only Affiliates page: Solia's own tap totals (above) beside what Impact reports per
+  campaign (clicks, actions, sale amount, commission), and the totals of an Amazon Associates earnings report the owner
+  uploads. `backend/src/modules/insights/{impact,amazon,affiliates}.js`.
+- **Whose data:** none of it is a user's. Impact's and Amazon's reports describe links and sales in aggregate; they hold
+  no Solia Health account, device or health field, and nothing from the app is sent to either network by this feature
+  (the server only reads). The app's links are unchanged: an affiliate link still carries nothing about her.
+- **What is sent out:** `GET` requests from the server to Impact's API with the owner's Account SID and Auth Token
+  (HTTP Basic) and a date range. Nothing else.
+- **Secrets:** `IMPACT_AUTH_TOKEN` is read from the environment, used only in the `Authorization` header to Impact's
+  host, never logged (errors are fixed categories), never returned to the portal (tested), never on disk.
+- **What is kept:** `insights_amazon` = one row per day `{ day, items, revenue, earnings }` from the uploaded report
+  (product names, ASINs and tracking ids are read past and dropped; tested), and when it was uploaded and by which owner.
+  Impact's numbers are held in memory for 15 minutes and never written. A brand's `impactCampaignId` is an owner-only
+  field that is never part of the published catalog (tested).
+- **Access:** every route is owner-only on the server; a partner gets 403 (unit, smoke and e2e tested).
+- **No user-facing sentence changes.** Portal footer adds "affiliate network totals".

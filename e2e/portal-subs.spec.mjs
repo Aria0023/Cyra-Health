@@ -18,7 +18,7 @@ test.afterAll(async () => { await be?.stop(); await rc?.stop(); });
 
 test("owner: subscriptions, a promotion with its preview, Pro grants and codes; a partner sees only its own codes", async ({ page, browser }) => {
   await portalSignIn(page, be, OWNER, "Overview");
-  await expect(page.getByRole("navigation", { name: "Portal" }).getByRole("link")).toHaveText(["Overview", "Products", "Brands", "Applications", "Partners", "Subscriptions", "Promotions", "Pro grants", "Codes", "Clicks", "People", "Activity"]);
+  await expect(page.getByRole("navigation", { name: "Portal" }).getByRole("link")).toHaveText(["Overview", "Products", "Brands", "Applications", "Partners", "Subscriptions", "Promotions", "Pro grants", "Codes", "Clicks", "People", "Affiliates", "Activity"]);
 
   // Subscriptions: RevenueCat's numbers, read-only
   await nav(page, "Subscriptions").click();

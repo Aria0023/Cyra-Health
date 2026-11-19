@@ -8,28 +8,40 @@
 //
 //   GET /api/insights/people      account and sign-in totals: how many accounts, new per day (30 days), used in the last
 //                                 1 / 7 / 30 days, by sign-in method. Counts only (people.js).
+//   GET /api/insights/affiliates · GET /impact/campaigns · POST/DELETE /amazon
+//                                 Solia's shop taps beside Impact's clicks, sales and commission per brand, and the
+//                                 uploaded Amazon Associates totals (affiliates.js; Impact's endpoints are in impact.js)
 // Needs the shop module (the portal's sign-in) mounted before it; reads the accounts module's collection.
 import { rateLimiter } from "../../core/memory.js";
 import { peopleStats, dayOf } from "./people.js";
+import { impactClient } from "./impact.js";
+import { mountAffiliates } from "./affiliates.js";
 
 export const basePath = "/api/insights";
 
-export function mount(router, ctx, { clock = Date.now } = {}) {
+export function mount(router, ctx, { clock = Date.now, impact: impactOpt = null } = {}) {
   const { config, store } = ctx;
   if (!ctx.portal) throw new Error("insights needs the shop module (the portal's sign-in) mounted before it");
   const { auth } = ctx.portal;
   const cfg = config.insights || {};
-  const L = { read: rateLimiter({ perMinute: cfg.readPerMinute || 120 }) };
+  const L = {
+    read: rateLimiter({ perMinute: cfg.readPerMinute || 120 }),
+    write: rateLimiter({ perMinute: cfg.writePerMinute || 20, globalPerMinute: 200 }),
+  };
   ctx.onShutdown?.push(async () => { for (const l of Object.values(L)) l.stop(); });
   const limited = (lim) => (req, res, next) => (lim(req.ip) ? next() : res.status(429).json({ error: "too many requests — try again in a minute" }));
-  const reading = limited(L.read);
+  const reading = limited(L.read), writing = limited(L.write);
   const owner = auth("owner");
+  const impact = impactOpt || impactClient();
 
   /* ---------- people: counts only ---------- */
   router.get("/people", reading, owner, async (req, res) => {
     const t = clock();
     res.json({ asOf: dayOf(t), ...peopleStats(await store.find("accounts"), t) });
   });
+
+  /* ---------- affiliates: Impact and the Amazon upload ---------- */
+  mountAffiliates(router, { ctx, store, clock, reading, writing, owner, impact });
 
   router.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
     console.warn(`[cyra] insights: ${String(err?.type || err?.code || "error").slice(0, 40)}`);

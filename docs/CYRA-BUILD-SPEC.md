@@ -2376,6 +2376,10 @@ pure reference.
       most once a day on sign-in or `GET /api/accounts/me`; the app calls it once per launch while signed in); the
       portal's owner-only People page and Overview card show counts only (`backend/src/modules/insights`, mounted in
       production). The sign-in disclosure names "the last day you used your account".
+- [x] Affiliate results (2026-11-19, Task 3): the portal's owner-only Affiliates page shows Solia's taps beside Impact's
+      clicks, sales and commission per brand (`IMPACT_ACCOUNT_SID`, `IMPACT_AUTH_TOKEN`; fails closed; cached 15 minutes;
+      endpoints in `backend/src/modules/insights/impact.js`, to verify against Impact's docs) and an uploaded Amazon
+      Associates earnings report as per-day totals. Owner guide: docs/AFFILIATES.md sections 4 and 5.
 - [x] Installable web app that opens offline (A14.1); Render serves /, /index.html, /sw.js and /manifest.webmanifest
       with Cache-Control: no-cache.
 - [ ] Choose VITE_FEATURES for each release and list the matching backend modules (§9.1); the default offers Ask
