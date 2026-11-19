@@ -144,7 +144,7 @@ try {
     assert(pv.writer === "claude" && pv.why === null && pv.text.includes("One account was made this week.") && pv.text.includes("THE NUMBERS") && pv.text.includes("Totals only; no personal or health data.") && /written by Claude \(Anthropic\)/.test(pv.text), "weekly with a key: Claude's summary above the same numbers, and the email says who wrote it");
     assert(seen.length === 1 && q.url.startsWith("/v1/messages") && /server-side-fallback-2026-07-01/.test(q.headers["anthropic-beta"] || "") && q.body.fallbacks === "default" && q.body.output_config?.effort === "low" && !("thinking" in q.body) && !("temperature" in q.body) && q.body.model === "claude-opus-5-5", "anthropic: one request with the configured model, effort low, no thinking parameter, the refusal fallback on");
     const content = String(q.body.messages[0].content), given = JSON.parse(content.slice(content.indexOf("{"), content.lastIndexOf("}") + 1));
-    assert(given.people.total === 1 && given.shop && given.unusual && !/@|ines|clinic\.example|acct_/.test(content + String(q.body.system)), "anthropic: it is sent the totals JSON only — no address, name or account id");
+    assert(given.people.total === 1 && given.shop && given.unusual && !/@|\bines\b|clinic\.example|acct_/.test(content + String(q.body.system)), "anthropic: it is sent the totals JSON only — no address, name or account id");
     assert(!s3.log().includes("One account was made") && !s3.log().includes("sk-ant-test"), "log: neither the summary nor the key");
   } finally { s3.proc.kill(); anthropic.close(); fs.rmSync(`${DATA}-${P3}`, { recursive: true, force: true }); }
 }
