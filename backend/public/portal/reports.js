@@ -7,7 +7,7 @@ const WINDOWS = [[7, "7 days"], [30, "30 days"], [90, "90 days"]];
 const SVG = "http://www.w3.org/2000/svg";
 
 export function reportViews(L) {
-  const { h, api, show, msgBox, tell, isOwner } = L;
+  const { h, api, show, field, area, msgBox, tell, isOwner } = L;
   const num = (n) => Number(n || 0).toLocaleString();
   const svg = (tag, attrs = {}, ...kids) => { const el = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) if (v != null) el.setAttribute(k, String(v)); el.append(...kids); return el; };
   const table = (caption, cols, rows) => h("div", { class: "tablewrap", role: "region", tabindex: "0", "aria-label": caption },
@@ -184,5 +184,70 @@ export function reportViews(L) {
   }
   const fmtTimeOf = (iso) => L.fmtTime(iso);
 
-  return { renderClicks, renderPeople, peopleCard, renderAffiliates, table, td, num, barChart, windowSeg, download };
+  /* ----- Weekly report (owner): on/off, who gets it, preview, send now ----- */
+  const sentLine = (st) => {
+    const r = st.lastResult;
+    if (!st.lastSentAt || !r) return "Not sent yet.";
+    const what = r.ok ? `sent to ${num(r.sent)} ${r.sent === 1 ? "address" : "addresses"}${r.failed ? `, ${num(r.failed)} failed` : ""}` : `not sent (${r.error || "the email couldn't be sent"})`;
+    return `Last one: ${fmtTimeOf(st.lastSentAt)}, the week of ${r.week?.from} to ${r.week?.to}, ${what}; ${r.scheduled ? "on schedule" : "sent by hand"}; ${r.writer === "claude" ? "summary by Claude" : "plain template"}${r.dev ? " (development server: written to the console, not emailed)" : ""}.`;
+  };
+  async function renderWeekly(note = null, draft = null) {
+    const st = await api("GET", "/api/insights/weekly");
+    const box = msgBox();
+    const fail = (err) => tell(box, err.message, "err");
+    const onOff = h("button", { type: "button", class: "btn", role: "switch", "aria-checked": String(st.enabled), "aria-labelledby": "wk-on-lab", "data-weekly-switch": "" }, st.enabled ? "On" : "Off");
+    onOff.addEventListener("click", async () => { try { const next = await api("PUT", "/api/insights/weekly", { enabled: !st.enabled }); await renderWeekly(next.enabled ? "The weekly report is on." : "The weekly report is off. Nothing is sent on Mondays; Send now still works."); } catch (err) { fail(err); } });
+    const who = area("wk-to", st.recipients.join("\n"), { rows: "3", maxlength: "2000", autocomplete: "off", spellcheck: "false", "aria-describedby": "wk-to-help" });
+    const form = h("form", { class: "panel narrow", novalidate: true },
+      h("h2", {}, "Who gets it"),
+      field("wk-to", "Email addresses", who, st.usingOwners ? "One per line, at most 10. Right now it goes to the portal's owners (ADMIN_EMAILS on the server)." : "One per line, at most 10. Leave empty and save to go back to the portal's owners (ADMIN_EMAILS)."),
+      h("div", { class: "acts" }, h("button", { type: "submit", class: "btn primary" }, "Save addresses")));
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try { await api("PUT", "/api/insights/weekly", { recipients: who.value.trim() ? who.value : null }); await renderWeekly("Saved."); } catch (err) { fail(err); }
+    });
+    const previewBox = h("div", { id: "wk-preview" });
+    const drawDraft = (d) => previewBox.replaceChildren(
+      h("h2", { id: "wk-prev-h", tabindex: "-1" }, "Preview: exactly what would be sent"),
+      h("p", { class: "note" }, d.writer === "claude" ? "The summary at the top was written by Claude from this week's totals." : `The plain template (${d.why || "no AI summary"}).`, ` To: ${d.recipients.join(", ")}. This preview can be sent as it is for ${d.goodForMinutes} minutes.`),
+      h("div", { class: "panel mail", role: "group", "aria-labelledby": "wk-prev-h" },
+        h("p", { class: "mail-subject" }, h("b", {}, "Subject: "), d.subject),
+        h("pre", { class: "mail-body", tabindex: "0", "aria-label": "The email's text" }, d.text)),
+      h("div", { class: "acts" }, h("button", { type: "button", class: "btn primary", onclick: () => send(d.id) }, "Send this now")));
+    const busy = (btn, on, label) => { btn.disabled = on; if (label) btn.textContent = label; };
+    const previewBtn = h("button", { type: "button", class: "btn primary" }, "Preview");
+    previewBtn.addEventListener("click", async () => {
+      busy(previewBtn, true, "Writing the preview…");
+      try { const d = await api("POST", "/api/insights/weekly/preview", {}); drawDraft(d); busy(previewBtn, false, "Preview again"); document.getElementById("wk-prev-h").focus(); tell(box, "The preview is ready below."); }
+      catch (err) { busy(previewBtn, false, "Preview"); fail(err); }
+    });
+    const sendBtn = h("button", { type: "button", class: "btn" }, "Send now");
+    async function send(previewId = null) {
+      if (!confirm(`Send the weekly report now to ${st.recipients.join(", ")}?`)) return;
+      busy(sendBtn, true);
+      try {
+        const r = await api("POST", "/api/insights/weekly/send", previewId ? { previewId } : {});
+        await renderWeekly(r.dev ? "Development server: the report was written to the server's console, not emailed." : `Sent to ${num(r.sent)} ${r.sent === 1 ? "address" : "addresses"}${r.failed ? `; ${num(r.failed)} could not be sent` : ""}.`);
+      } catch (err) { busy(sendBtn, false); fail(err); }
+    }
+    sendBtn.addEventListener("click", () => send(null));
+    show("Weekly report",
+      h("p", { class: "lead" }, "A short email every Monday at 14:00 UTC with last week's numbers: accounts, subscriptions, shop taps, affiliate results, partner activity and AI use, and anything that moved more than 30%."),
+      box,
+      h("div", { class: "panel narrow" },
+        h("p", { class: "switchrow" }, h("b", { id: "wk-on-lab" }, "Send the weekly report"), onOff),
+        h("p", { class: "note", "data-next": st.nextAt || "" }, st.enabled ? `Next: ${fmtTimeOf(st.nextAt)}, for the week of ${st.week.from} to ${st.week.to} if that hasn't been sent, else the week after.` : "Off: nothing is sent on Mondays."),
+        h("p", { class: "note", "data-last": st.lastSentAt || "" }, sentLine(st))),
+      st.email === "not set up" ? h("p", { class: "err", role: "alert" }, "Email isn't set up on this server (RESEND_API_KEY and EMAIL_FROM), so nothing can be sent. Preview still works.") : null,
+      st.email === "development" ? h("p", { class: "note" }, "Development server: reports are written to the server's console instead of being emailed.") : null,
+      h("p", { class: "note" }, st.ai ? "The summary is written by Claude (Anthropic) from the week's totals; the same totals are listed under it. If Claude can't be reached, the plain template is sent." : "ANTHROPIC_API_KEY isn't set on the server, so the report is the plain template: the same numbers without a written summary."),
+      h("div", { class: "acts" }, previewBtn, sendBtn),
+      previewBox,
+      form,
+      h("p", { class: "note" }, "Totals only; no personal or health data. The report is built from counts: nothing in it is about one person, and the server holds no health data. To write the summary the totals are sent to Anthropic, and the email is delivered by Resend."));
+    if (draft) drawDraft(draft);
+    if (note) tell(document.querySelector(".msgbox"), note);
+  }
+
+  return { renderClicks, renderPeople, peopleCard, renderAffiliates, renderWeekly, table, td, num, barChart, windowSeg, download };
 }

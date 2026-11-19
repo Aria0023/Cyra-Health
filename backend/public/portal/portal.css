@@ -197,3 +197,9 @@ input[type="date"], input[type="datetime-local"] { font: inherit; color: var(--i
 .bars-axis { stroke: var(--line); stroke-width: 1; }
 .cols .bars-lab { fill: var(--soft); }
 .guide .tablewrap { margin: 12px 18px 18px; }
+.switchrow { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin: 0 0 8px; }
+.btn[role="switch"] { min-width: 72px; justify-content: center; }
+.btn[role="switch"][aria-checked="true"] { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+.mail { max-width: 760px; }
+.mail-subject { margin: 0 0 10px; overflow-wrap: anywhere; }
+.mail-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 14.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--ink); background: var(--paper); border: 1px solid var(--edge); border-radius: 10px; padding: 12px 14px; max-height: 70vh; overflow: auto; }

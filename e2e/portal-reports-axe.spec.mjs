@@ -1,11 +1,13 @@
 /* axe-core on the portal's reporting pages (docs/plans/tracking-reports.md), light and dark, phone and wide, against a
    real development backend (e2e/lib/portal.mjs): Clicks with totals, its chart and tables, and empty; the Overview's
    People card and the People page with its chart and the 30-day table open; Affiliates with Impact connected (a local
-   stand-in), an upload error and the Amazon totals, and the brand editor's Impact field. Every target is checked at 44px. */
+   stand-in), an upload error and the Amazon totals, and the brand editor's Impact field; the Weekly report page with a
+   preview, an error and switched off. Every target is checked at 44px. */
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { startBackend, portalSignIn, appAccount, OWNER } from "./lib/portal.mjs";
 import { startImpact } from "./lib/impact.mjs";
+import { startAnthropic } from "./lib/anthropic.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 const audit = async (page, name) => {
@@ -21,8 +23,8 @@ const tap = (base, productId) => fetch(`${base}/api/shop/tap`, { method: "POST",
 
 for (const scheme of ["light", "dark"]) {
   test(`portal reporting pages, ${scheme}`, async ({ browser }) => {
-    const impact = await startImpact();
-    const be = await startBackend({ env: impact.env });
+    const impact = await startImpact(), ai = await startAnthropic();
+    const be = await startBackend({ env: { ...impact.env, ...ai.env } });
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });
     const page = await ctx.newPage();
     try {
@@ -68,6 +70,25 @@ for (const scheme of ["light", "dark"]) {
       await page.getByRole("link", { name: "Oura", exact: true }).click();
       await expect(page.getByLabel("Impact campaign ID (optional)")).toBeVisible();
       await audit(page, `brand editor with the Impact field ${scheme}`);
-    } finally { await ctx.close(); await be.stop(); await impact.stop(); }
+      // Weekly report (Task 4): settings, a preview written by the stand-in for Claude, an error, and off
+      await page.setViewportSize({ width: 390, height: 844 });
+      await nav(page, "Weekly report");
+      await expect(page.getByRole("switch", { name: "Send the weekly report" })).toBeVisible();
+      await audit(page, `weekly report ${scheme}`);
+      await page.getByRole("button", { name: "Preview", exact: true }).click();
+      await expect(page.locator(".mail-body")).toContainText("Totals only; no personal or health data.");
+      await audit(page, `weekly report with a preview ${scheme}`);
+      await page.getByLabel("Email addresses").fill("not an address");
+      await page.getByRole("button", { name: "Save addresses" }).click();
+      await expect(page.getByRole("alert")).toBeVisible();
+      await audit(page, `weekly report with an error ${scheme}`);
+      await page.getByRole("switch", { name: "Send the weekly report" }).click();
+      await expect(page.getByRole("switch", { name: "Send the weekly report" })).toHaveAttribute("aria-checked", "false");
+      await audit(page, `weekly report, off ${scheme}`);
+      await page.setViewportSize({ width: 1200, height: 900 });
+      await page.getByRole("button", { name: "Preview", exact: true }).click();
+      await expect(page.locator(".mail-body")).toBeVisible();
+      await audit(page, `weekly report, wide ${scheme}`);
+    } finally { await ctx.close(); await be.stop(); await impact.stop(); await ai.stop(); }
   });
 }

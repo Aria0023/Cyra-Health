@@ -75,7 +75,7 @@ function renderWho() {
   who.append(h("span", {}, "Signed in as ", h("b", { text: me().email }), ` · ${isOwner() ? "Owner" : "Partner"}`),
     h("button", { type: "button", class: "btn small", onclick: async () => { try { await api("POST", "/auth/sign-out", {}); } catch { /* ends locally anyway */ } endSession("You're signed out."); } }, "Sign out"));
   const links = isOwner()
-    ? [["#/", "Overview"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/subscriptions", "Subscriptions"], ["#/promotions", "Promotions"], ["#/grants", "Pro grants"], ["#/codes", "Codes"], ["#/clicks", "Clicks"], ["#/people", "People"], ["#/affiliates", "Affiliates"], ["#/activity", "Activity"]]
+    ? [["#/", "Overview"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/subscriptions", "Subscriptions"], ["#/promotions", "Promotions"], ["#/grants", "Pro grants"], ["#/codes", "Codes"], ["#/clicks", "Clicks"], ["#/people", "People"], ["#/affiliates", "Affiliates"], ["#/weekly", "Weekly report"], ["#/activity", "Activity"]]
     : [["#/products", "Products"], ["#/brands", "Brands"], ["#/codes", "Codes"], ["#/clicks", "Clicks"]];
   for (const [href, label] of links) nav.append(h("a", { href, "data-nav": href }, label));
   nav.hidden = false;
@@ -539,6 +539,7 @@ async function route() {
     if (isOwner() && hash === "#/grants") return await subs.renderGrants();
     if (isOwner() && hash === "#/people") return await reports.renderPeople();
     if (isOwner() && hash === "#/affiliates") return await reports.renderAffiliates();
+    if (isOwner() && hash === "#/weekly") return await reports.renderWeekly();
     if (isOwner() && hash === "#/partners") return await renderPartners();
     if (isOwner() && hash === "#/applications") return await renderApplications();
     if (isOwner() && hash === "#/activity") return await renderActivity();

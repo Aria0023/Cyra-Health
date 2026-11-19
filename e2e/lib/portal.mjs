@@ -13,11 +13,12 @@ import { ROOT } from "./serve.mjs";
 export const OWNER = "owner@solia.example";
 const freePort = () => new Promise((resolve, reject) => { const s = createServer(); s.on("error", reject); s.listen(0, "127.0.0.1", () => { const { port } = s.address(); s.close(() => resolve(port)); }); });
 
-/** extra: more environment for the server (e.g. REVENUECAT_* pointing at e2e/lib/revenuecat.mjs). */
+/** extra: more environment for the server (e.g. REVENUECAT_* pointing at e2e/lib/revenuecat.mjs, IMPACT_* at lib/impact.mjs,
+    ANTHROPIC_* at lib/anthropic.mjs). Every key that would reach a real service is blanked first, so nothing leaves the machine. */
 export async function startBackend({ env: extra = {} } = {}) {
   const port = await freePort();
   const data = fs.mkdtempSync(path.join(os.tmpdir(), "portal-e2e-"));
-  const env = { ...process.env, NODE_ENV: "", PORT: String(port), DATA_DIR: data, CYRA_CONFIG: "", ADMIN_EMAILS: OWNER, RESEND_API_KEY: "", EMAIL_FROM: "", PUBLIC_BASE_URL: `http://127.0.0.1:${port}`, AUTH_SECRET: "portal-e2e-secret-0123456789abcdef", ADMIN_KEY: "portal-e2e-admin-0123456789abcdef", REVENUECAT_SECRET_KEY: "", REVENUECAT_PROJECT_ID: "", REVENUECAT_API_BASE: "", ...extra };
+  const env = { ...process.env, NODE_ENV: "", PORT: String(port), DATA_DIR: data, CYRA_CONFIG: "", ADMIN_EMAILS: OWNER, RESEND_API_KEY: "", EMAIL_FROM: "", PUBLIC_BASE_URL: `http://127.0.0.1:${port}`, AUTH_SECRET: "portal-e2e-secret-0123456789abcdef", ADMIN_KEY: "portal-e2e-admin-0123456789abcdef", REVENUECAT_SECRET_KEY: "", REVENUECAT_PROJECT_ID: "", REVENUECAT_API_BASE: "", ANTHROPIC_API_KEY: "", ANTHROPIC_BASE_URL: "", IMPACT_ACCOUNT_SID: "", IMPACT_AUTH_TOKEN: "", IMPACT_API_BASE: "", IMPACT_REPORT_ID: "", ...extra };
   const proc = spawn(process.execPath, ["server.js"], { cwd: path.join(ROOT, "backend"), env, stdio: ["ignore", "pipe", "pipe"] });
   let log = "";
   proc.stdout.on("data", (d) => { log += d; });
