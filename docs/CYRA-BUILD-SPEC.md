@@ -2389,6 +2389,11 @@ pure reference.
       every server dependency as Ready / Not set up / Problem with the variable NAMES to set (never a value), the
       mounted modules, the app's build settings, and the time of the last request from an app origin (in memory only);
       two owner buttons send a test email and check storage (`backend/src/modules/insights/readiness.js`).
+- [x] AI spend estimate (2026-11-19, launch-tools Task 2): the ai module sums each API response's usage per UTC day
+      and kind (`ai_spend`: requests, tokens, web searches; totals only, 400 days); the portal's owner-only AI costs
+      page multiplies them by `config.ai.prices` (owner-editable) and labels every amount an estimate; a monthly budget
+      emails the weekly report's recipients once at 80% and once at 100% (markers persisted), with no shut-off; shown on
+      Overview and Readiness and in the weekly report (`backend/src/modules/ai/spend.js`, `insights/spend.js`).
 - [x] Devices (2026-11-19, Task 4): a "Fitbit, Garmin or Whoop?" how-to under the device list (share with Apple Health
       or Health Connect in the brand's app, then connect that here; HRV doesn't come through for Garmin and Whoop); the
       Fitbit · Garmin · Whoop (Terra) row shows only where the server reports Terra configured or a connection exists.

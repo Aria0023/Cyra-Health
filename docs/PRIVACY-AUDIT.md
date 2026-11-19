@@ -2611,3 +2611,39 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   presence and shape checks: opening this page calls no other service. The two buttons below are the only live
   checks." · "Only the time is kept, in memory: no address, and it is forgotten on a restart."
 
+### Task 2: AI spend estimate, budget and alert — daily totals only; nothing about any user or request
+
+- **What the server now keeps:** `ai_spend`, one row per UTC day per kind (ask, evidence, chat, weekly, report):
+  `{ day, kind, requests, input, output, cacheWrite, cacheRead, searches }`, summed from each API response's `usage`
+  (`input_tokens`, `output_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`,
+  `server_tool_use.web_search_requests`). No account id, address, time of day, question, answer or summary
+  (`backend/src/modules/ai/spend.js`; `backend/test/ai-spend.test.mjs` reads the file back). Deleted after 400 days.
+  Also `ai_spend_settings`: the owner's prices, the budget and the month's two "alert sent" markers.
+- **Nothing new leaves the device and nothing new goes to Anthropic.** The budget alert goes to the weekly report's
+  recipients through Resend and holds the month's estimate, the budget and the projection only.
+- **Every amount is labelled an estimate**, the prices and their last edit are shown, and the page says "Estimate
+  only: token totals multiplied by the prices shown. Anthropic's console is the bill of record." No automatic
+  shut-off: "Nothing is switched off when the budget is passed. The per-person monthly caps remain the hard limit."
+- **"Per person"** is the month's estimate divided by the number of `ai_usage` rows for the month: a count of accounts,
+  never a list.
+- **Statements updated to stay true** (each used to say the server "keeps only" the monthly count):
+  - You → Solia Health's AI: "Both are off until you turn them on. Solia Health's server passes a request on and never
+    keeps what you sent. It keeps two counts: how many you've used this month, and a daily total of how much AI
+    processing everyone's requests used together, which isn't linked to you. Turning one off clears what it kept on
+    this device."
+  - "What Solia Health will send" (both AI sheets): "… Solia Health's server never keeps the text. It keeps two counts:
+    how many you've sent this month, and a daily total of how much AI processing everyone's requests used together,
+    which isn't linked to you. Nothing else from your log is sent."
+  - Ask with evidence, "Kept": "Solia Health's server never keeps the question. It keeps how many questions you asked
+    this month, and a daily total of how much AI processing everyone's requests used together, which isn't linked to
+    you. Anthropic keeps the request for a limited time under its own terms."
+  - `public/legal/privacy.html`, AI row: "… It keeps two kinds of count: how many questions, chat messages and
+    write-ups each signed-in account used this month, to apply the monthly allowance (deleted with the account); and,
+    to estimate what the AI costs us, a total per day and per kind of request of how many requests, tokens and web
+    searches were used by everyone together. Those daily totals are not linked to any account or request and are
+    deleted after 400 days."
+  - Portal footer adds "which settings are in place on the server, an estimate of what the AI costs from daily token
+    totals".
+- **The weekly owner report** adds one line under AI USE: the estimate for the week and the month so far, and the
+  share of the budget (totals; the allowlist test covers the four new keys).
+

@@ -59,7 +59,8 @@ export function unusualMoves(pairs, threshold = 0.3) {
  *   week { from, to, prevFrom, prevTo }, accounts [{ provider, createdAt, lastSeenDay }], taps [{ day, productId, brandId, taps }],
  *   names { product(id), brand(id) }, rc { configured, missing, metrics, error }, impact { configured, missing, now[], before[], error },
  *   amazon { uploadedAt, days[] } | null, applications [{ status, at }], products [{ status }], partners (count),
- *   aiUsage [{ id: "<account>:<YYYY-MM>", evidence, chat, weekly }], nowMs
+ *   aiUsage [{ id: "<account>:<YYYY-MM>", evidence, chat, weekly }], nowMs,
+ *   aiCost { weekUsd, monthUsd, budgetUsd, budgetPercent } | null (insights/spend.js: an estimate from token totals)
  * Only counts and sums leave this function; no row is copied through.
  */
 export function buildTotals(src) {
@@ -113,6 +114,7 @@ export function buildTotals(src) {
   const month = w.to.slice(0, 7);
   const ai = { month, evidenceQuestions: 0, chatMessages: 0, weeklyWriteUps: 0 };
   for (const r of src.aiUsage || []) if (typeof r.id === "string" && r.id.endsWith(`:${month}`)) { ai.evidenceQuestions += int(r.evidence); ai.chatMessages += int(r.chat); ai.weeklyWriteUps += int(r.weekly); }
+  if (src.aiCost) { ai.estimatedCostThisWeekUsd = money(src.aiCost.weekUsd); ai.estimatedCostMonthUsd = money(src.aiCost.monthUsd); ai.monthlyBudgetUsd = src.aiCost.budgetUsd == null ? null : money(src.aiCost.budgetUsd); ai.budgetUsedPercent = src.aiCost.budgetPercent == null ? null : int(src.aiCost.budgetPercent); }
   const pairs = [{ metric: "New accounts", now: acc.newThisWeek, before: acc.newWeekBefore }, { metric: "Shop taps", now: taps, before: tapsBefore }];
   if (impact.thisWeek) pairs.push({ metric: "Affiliate clicks (Impact)", now: impact.thisWeek.clicks, before: impact.weekBefore.clicks }, { metric: "Affiliate sales (Impact)", now: impact.thisWeek.sales, before: impact.weekBefore.sales }, { metric: "Affiliate commission (Impact)", now: impact.thisWeek.commission, before: impact.weekBefore.commission });
   return { week: { from: w.from, to: w.to }, weekBefore: { from: w.prevFrom, to: w.prevTo }, people: acc, subscriptions, shop: { taps, tapsWeekBefore: tapsBefore, mostOpened: top }, affiliates: { impact, amazon }, partners, ai, unusual: unusualMoves(pairs) };
@@ -155,6 +157,7 @@ export function numbersText(t) {
   L.push(`- Partners with portal access: ${n(pa.partners)}`);
   L.push("", `AI USE (${t.ai.month} so far, all accounts together)`);
   L.push(`- Evidence questions: ${n(t.ai.evidenceQuestions)}; chat messages: ${n(t.ai.chatMessages)}; weekly write-ups: ${n(t.ai.weeklyWriteUps)}`);
+  if (t.ai.estimatedCostMonthUsd != null) L.push(`- Estimated AI cost: $${amt(t.ai.estimatedCostThisWeekUsd)} this week; $${amt(t.ai.estimatedCostMonthUsd)} in ${t.ai.month} so far${t.ai.monthlyBudgetUsd != null ? ` (${n(t.ai.budgetUsedPercent)}% of the $${amt(t.ai.monthlyBudgetUsd)} monthly budget)` : ""}. An estimate from token totals; Anthropic's console is the bill of record.`);
   L.push("", "WORTH A LOOK (moved more than 30% week over week)");
   if (!t.unusual.length) L.push("- Nothing moved more than 30%.");
   else for (const u of t.unusual) L.push(`- ${u.metric}: ${n(u.thisWeek)} this week, ${n(u.weekBefore)} the week before${u.changePercent == null ? " (from nothing)" : ` (${u.changePercent > 0 ? "up" : "down"} ${Math.abs(u.changePercent)}%)`}`);

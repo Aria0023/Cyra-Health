@@ -50,11 +50,11 @@ export const AI_COPY = Object.freeze({
   chatAdds: "Each message sends your question, your last few chat messages and the same summary, the same way. You see exactly what will be sent first, every time. Your chat history stays on this device.",
   labsName: "Include lab values",
   labsHint: "Adds the latest fasting glucose, HbA1c and waist values you typed, rounded and without their dates.",
-  offLine: "Both are off until you turn them on. Solia Health's server passes a request on and keeps only a count of how many you've used this month, never what you sent. Turning one off clears what it kept on this device.",
+  offLine: "Both are off until you turn them on. Solia Health's server passes a request on and never keeps what you sent. It keeps two counts: how many you've used this month, and a daily total of how much AI processing everyone's requests used together, which isn't linked to you. Turning one off clears what it kept on this device.",
   locked: "Pro adds a weekly write-up and a chat about your own log, written by Solia Health's AI from a summary you see before it's sent. Both stay off until you turn them on.",
   // the preview sheet
   sheetTitle: "What Solia Health will send",
-  sheetLead: "Exactly the text below goes through Solia Health's server to Anthropic, maker of the Claude AI, which keeps it for a limited time. Solia Health's server keeps only a count of how many you've sent this month, never the text. Nothing else from your log is sent.",
+  sheetLead: "Exactly the text below goes through Solia Health's server to Anthropic, maker of the Claude AI, which keeps it for a limited time. Solia Health's server never keeps the text. It keeps two counts: how many you've sent this month, and a daily total of how much AI processing everyone's requests used together, which isn't linked to you. Nothing else from your log is sent.",
   sheetPlain: "In plain words",
   sheetExact: "Exactly as sent",
   sheetQuestion: "Your question",

@@ -12,6 +12,11 @@ Branch `feature/launch-tools`, worktree `/home/user/cyra-launch`. Resume from he
   stamp once; e2e 68: 66 passed + portal.spec and portal-subs.spec failed on the nav list (now with "Readiness"), fixed
   and those two files re-run (2/2); axe 46/46.
 
-## Task 2: AI spend meter — not started
+## Task 2: AI spend meter — verification in progress
+- backend: `ai/spend.js` (recorder, prices, cost), hooks in `ai/index.js` + `ai/evidence.js`; `insights/spend.js`
+  (report, budget, alert, routes); `config.ai.prices` in both config files; weekly report line; readiness row `ai-budget`.
+- portal: AI costs page + Overview card (`launch.js`), nav after Weekly report.
+- copy: four "keeps only a count" sentences reworded (aiFeatures.js x2, evidence.js, privacy.html); see PRIVACY-AUDIT.
+- tests: `backend/test/ai-spend.test.mjs`, insights smoke, `e2e/portal-ai-costs.spec.mjs`, launch axe spec extended.
 ## Task 3: feedback — not started
 ## Task 4: store-submission checks — not started

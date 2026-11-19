@@ -76,7 +76,7 @@ function renderWho() {
   who.append(h("span", {}, "Signed in as ", h("b", { text: me().email }), ` · ${isOwner() ? "Owner" : "Partner"}`),
     h("button", { type: "button", class: "btn small", onclick: async () => { try { await api("POST", "/auth/sign-out", {}); } catch { /* ends locally anyway */ } endSession("You're signed out."); } }, "Sign out"));
   const links = isOwner()
-    ? [["#/", "Overview"], ["#/readiness", "Readiness"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/subscriptions", "Subscriptions"], ["#/promotions", "Promotions"], ["#/grants", "Pro grants"], ["#/codes", "Codes"], ["#/clicks", "Clicks"], ["#/people", "People"], ["#/affiliates", "Affiliates"], ["#/weekly", "Weekly report"], ["#/activity", "Activity"]]
+    ? [["#/", "Overview"], ["#/readiness", "Readiness"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/subscriptions", "Subscriptions"], ["#/promotions", "Promotions"], ["#/grants", "Pro grants"], ["#/codes", "Codes"], ["#/clicks", "Clicks"], ["#/people", "People"], ["#/affiliates", "Affiliates"], ["#/weekly", "Weekly report"], ["#/ai-costs", "AI costs"], ["#/activity", "Activity"]]
     : [["#/products", "Products"], ["#/brands", "Brands"], ["#/codes", "Codes"], ["#/clicks", "Clicks"]];
   for (const [href, label] of links) nav.append(h("a", { href, "data-nav": href }, label));
   nav.hidden = false;
@@ -185,7 +185,8 @@ async function renderOverview() {
     waiting.length ? productRows(waiting, await brandMap()) : h("p", { class: "note" }, "Nothing is waiting for review."),
     h("h2", {}, "Applications"),
     apps.length ? h("p", {}, `${apps.length} waiting. `, h("a", { href: "#/applications" }, "Review applications")) : h("p", { class: "note" }, "No applications are waiting."),
-    await reports.peopleCard());
+    await reports.peopleCard(),
+    await launch.aiCostsCard());
 }
 async function brandMap() { const { brands } = await api("GET", "/brands"); return new Map(brands.map((b) => [b.id, b])); }
 
@@ -542,6 +543,7 @@ async function route() {
     if (isOwner() && hash.startsWith("#/promotion/")) return await subs.renderPromotion(decodeURIComponent(hash.slice("#/promotion/".length)));
     if (isOwner() && hash === "#/grants") return await subs.renderGrants();
     if (isOwner() && hash === "#/readiness") return await launch.renderReadiness();
+    if (isOwner() && hash === "#/ai-costs") return await launch.renderAiCosts();
     if (isOwner() && hash === "#/people") return await reports.renderPeople();
     if (isOwner() && hash === "#/affiliates") return await reports.renderAffiliates();
     if (isOwner() && hash === "#/weekly") return await reports.renderWeekly();

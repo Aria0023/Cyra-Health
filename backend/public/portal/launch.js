@@ -71,5 +71,93 @@ export function launchViews(L) {
     if (note) tell(document.querySelector(".msgbox"), note);
   }
 
-  return { renderReadiness };
+  /* ----- AI costs (an estimate) ----- */
+  const SVG = "http://www.w3.org/2000/svg";
+  const svg = (tag, attrs = {}, ...kids) => { const el = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) if (v != null) el.setAttribute(k, String(v)); el.append(...kids); return el; };
+  const usd = (v) => (v == null ? "–" : `$${Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+  const num = L.num;
+  const BUDGET_WORD = { none: "No budget set", ok: "Within budget", warn: "Past 80% of budget", over: "Budget passed" };
+  const budgetLine = (b, est) => (b.level === "none" ? "No monthly budget is set." : `${usd(est)} of ${usd(b.budgetUsd)}: ${b.percent}% of this month's budget.`);
+  /** A small column chart of the estimate per day (decorative beside its table, which holds every number). */
+  function costChart(label, days) {
+    const top = Math.max(0.01, ...days.map((d) => d.usd)), W = 640, H = 150, pad = 22, bw = (W - 8) / Math.max(days.length, 1);
+    const best = days.reduce((a, b) => (b.usd > a.usd ? b : a), days[0]), total = days.reduce((n, d) => n + d.usd, 0);
+    const g = svg("svg", { class: "bars cols", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${label}: ${usd(total)} in all${total ? `; the most on ${best.day} (${usd(best.usd)})` : ""}` });
+    g.append(svg("line", { class: "bars-axis", x1: 4, x2: W - 4, y1: H - pad, y2: H - pad }));
+    days.forEach((d, i) => { const bh = Math.round((d.usd / top) * (H - pad - 14)); if (d.usd > 0) g.append(svg("rect", { class: "bars-bar", x: 4 + i * bw + 2, y: H - pad - Math.max(bh, 2), width: Math.max(2, bw - 4), height: Math.max(bh, 2), rx: 2 })); });
+    g.append(svg("text", { class: "bars-lab", x: 4, y: H - 5 }, days[0].day), svg("text", { class: "bars-lab", x: W - 4, y: H - 5, "text-anchor": "end" }, days.at(-1).day), svg("text", { class: "bars-val", x: 4, y: 12 }, `Most in a day: ${usd(best.usd)}`));
+    return h("figure", { class: "panel chart" }, h("figcaption", { class: "preview-lab" }, label), g);
+  }
+  const PRICE_LABEL = [["inputPerMTok", "Input, per million tokens"], ["outputPerMTok", "Output, per million tokens"], ["cacheWritePerMTok", "Cache writes, per million tokens"], ["cacheReadPerMTok", "Cache reads, per million tokens"], ["webSearchPer1000", "Web searches, per 1,000"]];
+  async function renderAiCosts(note = null) {
+    const c = await api("GET", "/api/insights/ai-costs");
+    const box = msgBox();
+    const fail = (err) => tell(box, err.message, "err");
+    const b = c.budget;
+    const budgetIn = L.textIn("ai-budget", b.budgetUsd ?? "", { inputmode: "decimal", autocomplete: "off", "aria-describedby": "ai-budget-help" });
+    const budgetForm = h("form", { class: "panel narrow", novalidate: true },
+      h("h2", {}, "Monthly budget"),
+      h("p", { "data-budget": b.level }, h("span", { class: `badge st-${b.level === "ok" ? "ready" : b.level === "none" ? "not-set-up" : "problem"}` }, BUDGET_WORD[b.level]), " ", budgetLine(b, c.estimateUsd)),
+      L.field("ai-budget", "Budget in US dollars per month", budgetIn, "One email goes to the weekly report's addresses when the estimate first passes 80% of this in a month, and one more at 100%. Leave empty and save for no budget."),
+      h("div", { class: "acts" }, h("button", { type: "submit", class: "btn primary" }, "Save budget")),
+      h("p", { class: "note" }, c.noShutoffLine),
+      b.alerts.p80 || b.alerts.p100 ? h("p", { class: "note", "data-alerts": "" }, `Alerts sent this month: ${[b.alerts.p80 && `80% on ${fmtTime(b.alerts.p80)}`, b.alerts.p100 && `100% on ${fmtTime(b.alerts.p100)}`].filter(Boolean).join("; ")}.`) : null,
+      c.email === "not set up" ? h("p", { class: "err", role: "alert" }, "Email isn't set up on this server (RESEND_API_KEY and EMAIL_FROM), so no alert can be sent.") : null,
+      c.email === "development" ? h("p", { class: "note" }, "Development server: an alert is written to the server's console instead of being emailed.") : null);
+    budgetForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const raw = budgetIn.value.trim().replace(/^\$/, "");
+      const v = raw === "" ? null : Number(raw);
+      if (v !== null && !(Number.isFinite(v) && v > 0)) { tell(box, "Enter the budget as a number above 0, like 150, or leave it empty for no budget.", "err"); budgetIn.focus(); return; }
+      try { await api("PUT", "/api/insights/ai-costs/budget", { usd: v }); await renderAiCosts(v === null ? "The budget is removed." : `The budget is ${usd(v)} a month.`); } catch (err) { fail(err); }
+    });
+    const priceIns = PRICE_LABEL.map(([k, label]) => [k, label, L.textIn(`ai-price-${k}`, c.prices[k], { inputmode: "decimal", autocomplete: "off" })]);
+    const priceForm = h("form", { class: "panel narrow", novalidate: true },
+      h("h2", {}, "Prices used for the estimate"),
+      h("p", { "data-prices-edited": c.prices.editedAt || "" }, c.prices.editedAt ? `Last edited ${fmtTime(c.prices.editedAt)}.` : `Never edited here: these are the defaults in the server's config for ${c.prices.model}, checked 2026-11-03.`),
+      c.prices.modelDiffers ? h("p", { class: "err", role: "alert" }, `The server's model is ${c.model}, but these prices are for ${c.prices.model}. Enter ${c.model}'s prices.`) : null,
+      priceIns.map(([k, label, input]) => L.field(`ai-price-${k}`, `${label} (USD)`, input)),
+      h("div", { class: "acts" }, h("button", { type: "submit", class: "btn primary" }, "Save prices"),
+        c.prices.editedAt ? h("button", { type: "button", class: "btn", onclick: async () => { try { await api("PUT", "/api/insights/ai-costs/prices", { reset: true }); await renderAiCosts("The prices are back to the config's defaults."); } catch (err) { fail(err); } } }, "Back to the defaults") : null),
+      h("p", { class: "note" }, "Prices change. Check them against Anthropic's pricing page and edit them here; every amount on this page is recalculated with the prices shown."));
+    priceForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const body = {};
+      for (const [k, label, input] of priceIns) { const v = Number(input.value.trim()); if (input.value.trim() === "" || !Number.isFinite(v) || v < 0) { tell(box, `${label}: enter a number, 0 or more.`, "err"); input.focus(); return; } body[k] = v; }
+      try { await api("PUT", "/api/insights/ai-costs/prices", body); await renderAiCosts("The prices are saved, and the amounts are recalculated."); } catch (err) { fail(err); }
+    });
+    show("AI costs",
+      h("p", { class: "lead" }, "What the app's AI features have used this month, as an estimate in US dollars."),
+      h("p", { class: "panel", "data-estimate-note": "" }, h("b", {}, c.estimateLine)),
+      box,
+      h("ul", { class: "stats", "aria-label": "AI cost estimate" },
+        h("li", { "data-stat": "ai-month" }, h("b", {}, usd(c.estimateUsd)), h("span", {}, `Estimate, ${c.month} so far (UTC)`)),
+        h("li", { "data-stat": "ai-projected" }, h("b", {}, usd(c.projectedUsd)), h("span", {}, "Estimated month end, at this pace")),
+        h("li", { "data-stat": "ai-person" }, h("b", {}, usd(c.perPersonUsd)), h("span", {}, `Estimated average per person (${num(c.people)} used AI this month)`)),
+        h("li", { "data-stat": "ai-requests" }, h("b", {}, num(c.totals.requests)), h("span", {}, "Answered requests"))),
+      h("h2", {}, "By kind"),
+      L.table("Estimated AI cost by kind", ["Kind", "Requests", "Input tokens", "Output tokens", "Cache tokens", "Web searches", "Estimated cost"], c.byKind.map((k) => h("tr", { "data-kind": k.kind },
+        h("th", { scope: "row" }, k.label), L.td(num(k.requests), true), L.td(num(k.input), true), L.td(num(k.output), true), L.td(num(k.cacheWrite + k.cacheRead), true), L.td(num(k.searches), true), L.td(usd(k.usd), true)))),
+      h("h2", {}, "By day"),
+      costChart(`Estimated cost per day, ${c.month} (UTC)`, c.byDay),
+      L.table("Estimated AI cost by day", ["Day (UTC)", "Requests", "Estimated cost"], c.byDay.slice().reverse().map((d) => h("tr", {}, h("th", { scope: "row" }, d.day), L.td(num(d.requests), true), L.td(usd(d.usd), true)))),
+      h("div", { class: "acts" }, h("button", { type: "button", class: "btn", onclick: () => L.download("/api/insights/ai-costs.csv", "solia-ai-costs.csv", box) }, "Export CSV")),
+      budgetForm,
+      priceForm,
+      h("p", { class: "note" }, `Totals only: the server keeps how many tokens and web searches each kind of request used per day, for ${c.keptDays} days. It keeps no question, no answer and nothing about who asked. "Per person" is this month's estimate divided by the number of accounts that used a counted AI feature this month. The estimate uses the prices above for every request, also when Anthropic answered with a different model.`));
+    if (note) tell(document.querySelector(".msgbox"), note);
+  }
+  /** The Overview's AI costs card (null when the server has no insights module). */
+  async function aiCostsCard() {
+    let c;
+    try { c = await api("GET", "/api/insights/ai-costs"); } catch { return null; }
+    return h("section", { "aria-labelledby": "ov-ai" },
+      h("h2", { id: "ov-ai" }, "AI costs"),
+      h("ul", { class: "stats", "aria-label": "AI costs" },
+        h("li", { "data-stat": "ov-ai-month" }, h("b", {}, usd(c.estimateUsd)), h("span", {}, `Estimate, ${c.month} so far`)),
+        h("li", { "data-stat": "ov-ai-budget" }, h("b", {}, c.budget.level === "none" ? "–" : `${c.budget.percent}%`), h("span", {}, c.budget.level === "none" ? "No budget set" : `Of the ${usd(c.budget.budgetUsd)} budget: ${BUDGET_WORD[c.budget.level].toLowerCase()}`))),
+      h("p", {}, h("a", { href: "#/ai-costs" }, "See AI costs"), " ", h("span", { class: "note" }, "An estimate; Anthropic's console is the bill of record.")));
+  }
+
+  return { renderReadiness, renderAiCosts, aiCostsCard };
 }

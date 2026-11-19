@@ -23,6 +23,9 @@
 // 2026-11-19: writeText / ctx.aiWrite (below) lend the same client to the insights module for the owners' weekly
 // report, written from business totals only (docs/plans/tracking-reports.md Task 4). Nothing from a user goes that way.
 //
+// 2026-11-19: spend.js keeps what each answered request used (token and web-search totals per UTC day and kind, nothing
+// about who asked or what was said), for the portal's AI costs estimate (docs/plans/launch-tools.md Task 2).
+//
 // Provider selection: ANTHROPIC_API_KEY set → Claude via the official SDK, one attempt
 // (no retry) with a 12-second limit — inside the app's 15-second wait — and the
 // server-side refusal fallback on. Otherwise, or on any API error / refusal /
@@ -32,10 +35,11 @@ import { TASKS } from "./tasks.js";
 import { mountEvidence } from "./evidence.js";
 import { rateLimiter } from "../../core/memory.js";
 import { usageMeter, limitsFrom } from "./usage.js";
+import { spendRecorder } from "./spend.js";
 
 export const basePath = "/api/ai";
 
-async function callClaude(client, model, task, value) {
+async function callClaude(client, model, task, value, onUsage = null) {
   const response = await client.beta.messages.create({
     model,
     max_tokens: task.maxTokens || 1024,
@@ -45,6 +49,7 @@ async function callClaude(client, model, task, value) {
     output_config: { effort: task.effort || "low", format: { type: "json_schema", schema: task.schema } },
     messages: task.messages ? task.messages(value) : [{ role: "user", content: task.prompt(value) }],
   });
+  onUsage?.(response.usage); // spend totals (spend.js): token counts only, also for a refusal or a truncated answer
   if (response.stop_reason === "refusal") throw Object.assign(new Error("model declined"), { cat: `model declined (${String(response.stop_details?.category || "unspecified").slice(0, 40)})` });
   if (response.stop_reason === "max_tokens") throw Object.assign(new Error("model output truncated"), { cat: `output truncated at max_tokens (${response.usage?.output_tokens ?? "?"} tokens)` });
   const text = response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
@@ -61,7 +66,7 @@ export const errorKind = (e) => (e instanceof Anthropic.RateLimitError ? "rate-l
  * server-side refusal fallback on. Throws an Error with a fixed `cat` on a refusal, a truncated answer or an API error,
  * so the caller can fall back; it never logs.
  */
-export async function writeText(client, model, { system, prompt, maxTokens = 4000, timeoutMs = 60_000 } = {}) {
+export async function writeText(client, model, { system, prompt, maxTokens = 4000, timeoutMs = 60_000, onUsage = null } = {}) {
   let response;
   try {
     response = await client.beta.messages.create({
@@ -74,6 +79,7 @@ export async function writeText(client, model, { system, prompt, maxTokens = 400
       messages: [{ role: "user", content: prompt }],
     }, { timeout: timeoutMs });
   } catch (e) { throw Object.assign(new Error("ai call failed"), { cat: errorKind(e) }); }
+  onUsage?.(response.usage);
   if (response.stop_reason === "refusal") throw Object.assign(new Error("model declined"), { cat: `model declined (${String(response.stop_details?.category || "unspecified").slice(0, 40)})` });
   if (response.stop_reason === "max_tokens") throw Object.assign(new Error("model output truncated"), { cat: `output truncated at max_tokens (${response.usage?.output_tokens ?? "?"} tokens)` });
   return response.content.filter((b) => b.type === "text").map((b) => b.text).join("");
@@ -91,7 +97,12 @@ export function mount(router, ctx) {
   const METERED = new Set(["weekly", "chat"]);
   // Shared with the insights module (the owners' weekly report): present only when a key is set, so "no key" is a plain
   // template there. Read at call time, so the mount order of the two modules doesn't matter.
-  if (client) ctx.aiWrite = (args) => writeText(client, model, args);
+  // Spend totals (spend.js, docs/plans/launch-tools.md Task 2): what each answered request used, summed per UTC day and
+  // kind. Token and web-search counts only; never who asked or what was said. ctx.onAiSpend (insights: the budget alert)
+  // is read at call time, so the mount order doesn't matter.
+  const spend = spendRecorder({ store: ctx.store, onRecord: () => ctx.onAiSpend?.() });
+  ctx.aiSpend = spend;
+  if (client) ctx.aiWrite = (args) => writeText(client, model, { ...args, onUsage: (u) => spend.record("report", u) });
   console.log(`[cyra] ai provider: ${client ? model : "rules fallback (ANTHROPIC_API_KEY not set)"}; tasks: ${Object.keys(TASKS).join(", ")}`);
 
   // Whether this server can reach Cyra's AI at all (the app shows "AI isn't set up on this server yet" when not).
@@ -110,7 +121,7 @@ export function mount(router, ctx) {
   // attempt) and its own, tighter rate limit. See evidence.js.
   const evTimeout = Number(config.ai?.evidenceTimeoutMs) > 0 ? Number(config.ai.evidenceTimeoutMs) : 60_000;
   const evClient = key ? new Anthropic({ apiKey: key, timeout: evTimeout, maxRetries: 0 }) : null;
-  mountEvidence(router, { client: evClient, model, allow: rateLimiter({ perMinute: config.ai?.evidencePerMinute || 6 }), meter });
+  mountEvidence(router, { client: evClient, model, allow: rateLimiter({ perMinute: config.ai?.evidencePerMinute || 6 }), meter, onUsage: (u) => spend.record("evidence", u) });
 
   for (const [name, task] of Object.entries(TASKS)) {
     router.post(`/${name}`, async (req, res) => {
@@ -127,7 +138,7 @@ export function mount(router, ctx) {
       const gate = METERED.has(name) ? await meter.check(req, name) : null;
       if (gate && !gate.ok) return res.status(gate.status).json(gate.body);
       try {
-        const out = await callClaude(client, model, task, input.value);
+        const out = await callClaude(client, model, task, input.value, (u) => spend.record(name, u));
         const usage = gate ? await gate.commit() : undefined;
         res.json({ provider: model, ...out, ...(usage ? { usage } : {}) });
       } catch (e) {

@@ -123,7 +123,7 @@ test("GET /readiness: owner only; statuses, the summary, modules and the app's s
     assert.doesNotMatch(raw, /SECRETVALUE|proj1234/, "no secret value, whole or in part");
     const rows = byId(r.rows);
     assert.equal(rows.storage.status, "not-set-up", "first start with this folder: not confirmed yet");
-    assert.equal(r.summary.line, "12 of 13 ready. Needed for launch: Storage.");
+    assert.equal(r.summary.line, "12 of 14 ready. Needed for launch: Storage.");
     assert.deepEqual(r.modules.mounted, [...PRODUCTION_MODULES]);
     assert.deepEqual([r.app.lastSeenAt, r.app.tracked, r.email, r.production], ["2026-11-19T09:00:00.000Z", true, "ready", true]);
     assert.deepEqual(r.app.vars, JSON.parse(JSON.stringify(APP_SIDE)));

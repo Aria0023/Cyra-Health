@@ -19,7 +19,16 @@
   },
   "ai": {
     "model": "claude-opus-5-5",
-    "perMinute": 20
+    "perMinute": 20,
+    "prices": {
+      "_note": "USD list prices for the model above, for the portal's AI costs ESTIMATE only (checked 2026-11-03; an owner can edit them in the portal). Per million tokens, and per 1000 web searches.",
+      "model": "claude-opus-5-5",
+      "inputPerMTok": 4,
+      "outputPerMTok": 20,
+      "cacheWritePerMTok": 5,
+      "cacheReadPerMTok": 0.2,
+      "webSearchPer1000": 10
+    }
   },
   "pulse": {
     "k": 50

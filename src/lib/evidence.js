@@ -42,7 +42,7 @@ export const EVIDENCE_COPY = Object.freeze({
   sendLines: (summary) => [
     ["Who answers", `Claude, made by Anthropic, through Solia Health's server. Anthropic's search provider runs the search, only on ${EVIDENCE_SITES}.`],
     ["Summary of your log", summary ? "Included, shown in full below." : "Not included."],
-    ["Kept", "Solia Health's server keeps only how many questions you asked this month, never the question. Anthropic keeps the request for a limited time under its own terms."],
+    ["Kept", "Solia Health's server never keeps the question. It keeps how many questions you asked this month, and a daily total of how much AI processing everyone's requests used together, which isn't linked to you. Anthropic keeps the request for a limited time under its own terms."],
   ],
   sourcesLab: "Sources",
   opensIn: "opens in a new tab",

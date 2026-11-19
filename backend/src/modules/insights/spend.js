@@ -186,5 +186,14 @@ export function mountSpend(router, { ctx, store, clock, reading, writing, owner,
     Promise.resolve().then(check);
   });
 
-  return { state, check, settings };
+  /** For the weekly report: the estimate for the report's week and for its month so far, and the budget. */
+  async function forWeek(week) {
+    const st = await settings();
+    await ctx.aiSpend?.idle?.();
+    const rows = await store.find("ai_spend"), month = week.to.slice(0, 7);
+    const monthUsd = costBetween(rows, `${month}-01`, `${month}-31`, st.prices), b = budgetState(monthUsd, st.budgetUsd);
+    return { weekUsd: costBetween(rows, week.from, week.to, st.prices), monthUsd, budgetUsd: b.budgetUsd, budgetPercent: b.percent };
+  }
+
+  return { state, check, settings, forWeek };
 }

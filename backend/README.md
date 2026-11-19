@@ -410,6 +410,14 @@ settings; `POST /api/insights/readiness/test-email` sends one test email to the 
 `POST /api/insights/readiness/storage-check` writes, reads back and deletes a temp file in the data directory. Nothing
 else is called. `src/core/appSeen.js` keeps the time of the last request from an app origin, in memory only.
 
+AI costs (Task 2): `src/modules/ai/spend.js` adds what each answered Anthropic request used (from the response's
+`usage`: input, output and cache tokens, web searches) to one `ai_spend` row per UTC day and kind: totals only, kept
+400 days. `GET /api/insights/ai-costs` (and `.csv`) turns them into an ESTIMATE with `config.ai.prices` (USD per
+million tokens and per 1000 web searches; the defaults are Claude Opus 5.5's list prices as checked 2026-11-03), which an
+owner can edit with `PUT /api/insights/ai-costs/prices`; `PUT /api/insights/ai-costs/budget` sets a monthly budget
+that emails the weekly report's recipients once at 80% and once at 100%. Nothing is switched off; Anthropic's console
+is the bill of record.
+
 ## Subscriptions, promotions, Pro grants and partner codes (`src/modules/subscriptions/`) — production
 
 The portal's owner-only business tools (docs/plans/portal-subscriptions.md). Never health data, never her stage.

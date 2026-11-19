@@ -17,7 +17,7 @@ test("Readiness: statuses, exact variable names, the two checks, the app's side;
   await links.nth(1).click();
   await expect(page.getByRole("heading", { level: 1, name: "Readiness" })).toBeFocused();
   await expect(links.nth(1)).toHaveAttribute("aria-current", "page");
-  await expect(page.locator(".ready-sum")).toContainText(/^\d+ of 13 ready\. Needed for launch: /);
+  await expect(page.locator(".ready-sum")).toContainText(/^\d+ of 14 ready\. Needed for launch: /);
   await expect(page.locator(".ready-sum")).toContainText("AI");
   const row = (id) => page.locator(`[data-row="${id}"]`);
   await expect(row("auth-secret")).toHaveAttribute("data-status", "ready");
