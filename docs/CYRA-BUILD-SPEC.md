@@ -357,7 +357,19 @@ of `config/app.json` until the owner adds a persistent disk and enables it.
   (meal notes as the unit, PATTERN_RULES thresholds, shown only with enough notes; association wording, the not-advice
   line, no advice); Report tick "Include meal notes" → a "Meal notes" PDF section of counts in words; AI summary
   `meals` counts (no meal names, foods or dates).
-- **Never.** Calories, macros, foods, amounts, barcodes, scanners, photos, scores, weight, "good/bad food", "you should eat".
+- **Never.** Macros, barcodes, scanners, scores, targets or goals, "over/under", streaks, grades, colours for good or
+  bad, weight, weight-loss or diet advice, "good/bad food", "you should eat". No calorie, food name, amount or photo
+  either, with ONE owner-approved exception (2026-11-19, `docs/plans/meal-photos.md`):
+- **Meal photos (Pro, her own switch in You → Solia Health's AI, off by default).** With it on, the selected meal note
+  gets "Add from a photo" (a plain file input, `accept="image/*" capture="environment"`). The picture is redrawn on a
+  canvas on the device (at most 1024 px on the long side, JPEG 0.8, so no EXIF), shown in "What Solia Health will
+  send", and posted only on Send as `{ image: { media_type, data } }` and nothing else (`POST /api/ai/meal`,
+  `backend/src/modules/ai/meal.js`: never stored or logged; counts only: `ai_usage.meal`, default 60 a month, and spend
+  kind `meal`). The answer (foods, a portion guess and a calorie RANGE each, how sure) can be edited, trimmed or
+  discarded; what she saves is `meal.est = { items: [{ name, portion, low, high }], sure }`, labelled "Estimated from a
+  photo", on the device and in backups. The photo is never kept. "Show calorie estimates" off (`aiPrefs.hideCal`) hides
+  every calorie figure and portion guess. Patterns, the AI summary and the PDF never read `est`. With the switch off
+  (and no saved estimate) Meal notes is exactly as above and nothing is sent.
 
 ### 3.6 Her symptom list (symPrefs, local-first L6)
 ```js

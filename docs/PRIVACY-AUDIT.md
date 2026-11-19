@@ -2726,6 +2726,91 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   the grant list after the account is deleted (the grant row only drops the account id). The confirmation's "your
   sign-in email" is true of the account record; the grant list is the owner's own record.
 
+## Meal photos (2026-11-19, docs/plans/meal-photos.md) — the second thing that can leave the device by her own Send
+
+Owner-approved widening of CLAUDE.md's first hard rule, which now reads: "Health data never goes to a server, except
+the opt-in, previewed AI summary and the opt-in, previewed meal photo she chooses to send". Nothing else widened.
+
+### What is new
+- **A switch**, You → Solia Health's AI → "Meal photos": Pro (`plan.js aiMealPhotos`), the ai flag, a server, and a
+  life stage that offers Meal notes. Off by default (`aiPrefs.meals`, device-only, present only when true).
+- **One new request**, `POST /api/ai/meal`, made only when she presses Send in "What Solia Health will send".
+  Body: `{ image: { media_type: "image/jpeg", data: <base64> } }` and nothing else. Her session token rides in the
+  Authorization header, as for every Pro AI request. No log, stage, note, meal chip, name or date is in it
+  (`src/lib/mealPhoto.js photoBody`, `src/lib/aiClient.js mealSend`; e2e/meal-photos.spec.mjs compares the posted
+  bytes with the previewed picture).
+- **On the device before anything is sent**: the picked file is redrawn on a canvas, at most 1024 px on the long side,
+  and saved again as a JPEG at quality 0.8 (`components/ai/MealPhoto.jsx downsizePhoto`). A redrawn picture carries no
+  EXIF block, so no location, time or device model is in what is sent (the e2e spec checks there is no "Exif" marker).
+  What IS sent is everything visible in the picture, which is why the sheet says "Photograph only the food."
+- **The server** (`backend/src/modules/ai/meal.js`): checks it is a JPEG, PNG or WebP by its first bytes and at most
+  1 MB, forwards it to Anthropic, cleans the answer, returns it. It writes nothing to disk about the photo or the
+  answer and logs only a failure's kind. Kept: `ai_usage.<account>:<month>.meal` (a count, default cap 60 a month,
+  deleted with the account) and the day's `ai_spend` row for kind `meal` (token totals, not linked to anyone).
+  `backend/test/ai-meal.test.mjs` reads the data directory after a request and finds only those two files.
+- **Anthropic** receives the photo and keeps it for a limited time under its own terms, as it does the other AI
+  requests. [Counsel / owner: confirm the agreement's retention and no-training terms cover images.]
+- **On the device afterwards**: only what she saves: `bodyLog[day].meals[i].est = { items: [{ name, portion, low,
+  high }], sure }`, in the record and in backups (encrypted backups included) like the rest of the meal note. The
+  picture exists only in the Meals sheet's memory between choosing it and Send / Cancel; Solia Health keeps no copy.
+  The camera app or photo library may keep its own copy; the app says so.
+- **Who else reads `est`**: nobody. `mealCounts`, the "Energy after meals" pattern, the AI summary (`meals` counts) and
+  the appointment PDF use the fixed chips only (`src/lib/mealPhoto.test.mjs` "nothing else reads an estimate").
+- **Native**: iOS `Info.plist` gains `NSCameraUsageDescription`; `PrivacyInfo.xcprivacy` declares Photos or Videos
+  (linked, not tracking, app functionality). Android needs no new permission for a file input's camera capture
+  [unverified on a device].
+
+### Sentences made true (each was false or incomplete once a photo can be sent)
+| Where | Before | Now |
+|---|---|---|
+| Meals sheet footer | "No calories, no photos, no scores. Kept on this device and in your backups, like the rest of your log." | Unchanged in a build that cannot offer Meal photos (no ai flag or no server). Otherwise, switch off: "No scores and no targets. No photos or calorie estimates unless you turn on Meal photos in You → Solia Health's AI. Kept on this device and in your backups, like the rest of your log." Switch on: "No scores and no targets. A photo goes only when you tap Send, and Solia Health doesn't keep it. Foods and calorie ranges you save are estimates, kept on this device and in your backups, like the rest of your log." |
+| You → Modules, Meal notes row | "Note what kind of meal it was and how your energy felt after. No calories, no photos, no scores." | Unchanged without AI in the build; otherwise "Note what kind of meal it was and how your energy felt after. No scores and no targets. No photos or calorie estimates unless you turn on Meal photos." |
+| You → Solia Health's AI, under "Exactly what the summary holds" (AI_COPY.offLine) | "Both are off until you turn them on. […] Turning one off clears what it kept on this device." | "Each of these is off until you turn it on. […] Turning the write-up or the chat off clears what it kept on this device." (Turning Meal photos off keeps saved estimates, and its own row says so.) |
+| Registration, "What Solia Health's server sees" (serverSees, sign-in builds) | "If you use Pro's AI, it also counts how many questions you sent this month, never what they said." | "If you use Pro's AI, it also counts how many questions and meal photos you sent this month, never what they said or showed." |
+| Delete everything, "what can't be pulled back" (consentDetails / wipeMore in lib/disclosures.js) | "questions already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms" | "questions and meal photos already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms" |
+| public/legal/privacy.html, after the Section 3 table | "We do not collect your precise location, contacts, photos, advertising identifier or browsing activity on other sites." | "We do not collect your precise location, contacts, photo library, advertising identifier or browsing activity on other sites. The only photo that ever reaches us is a meal photo you choose to send with Meal photos (see the table above); our server passes it on and does not keep it." |
+| privacy.html Section 3 table | (no row) | new row "Meal photos (opt-in, Pro)" |
+| privacy.html: service providers; Delete everything; California table | "Anthropic (AI Features you turn on)"; "AI questions already sent"; "AI questions you send, weekly-count flags, …" | each now also names meal photos |
+| public/legal/health-data.html | (not listed) | Section 1 row, Section 3 Anthropic line, the deletion sentence, and a counsel note: a meal photo plus a calorie estimate is likely consumer health data and is sent to Anthropic through our server |
+| docs/CYRA-BUILD-SPEC.md §3.5 "Never" | listed calories, foods, amounts and photos without exception | names the one owner-approved exception |
+
+### Sentences checked and left as they are (still literally true)
+- Splash: "Your health log lives on your device. Nothing about your health leaves it unless you turn on a feature that
+  tells you exactly what it sends, or you write it in a message you send us." Meal photos is such a feature.
+- "What can leave this device" intro: "Nothing about your health leaves this device unless a row below says On, …":
+  the list gains the row "Meal photos" (On / Off), so it stays true.
+- "Your account holds how you sign in, never your health log." The account row gains only the `meal` count.
+- You → Modules, Meal notes "What each one adds": "… An AI summary, if you use one, holds counts only." Still so.
+- The appointment PDF's "(no foods, amounts or calories)": the PDF section is built from the chips only.
+- "What Solia Health will send" for the write-up, chat and evidence ("Nothing else from your log is sent."): those
+  bodies are unchanged.
+
+### New sentences (all in src/lib/mealPhoto.js MEAL_COPY and src/lib/privacyFlows.js)
+- Switch: "When you choose a photo in Meal notes, Solia Health makes it smaller on this device, shows you the exact
+  picture, and sends it only when you tap Send. It goes through Solia Health's server to Anthropic, maker of the Claude
+  AI, which keeps it for a limited time. Nothing from your log goes with it. Solia Health's server never keeps the
+  photo or the answer. Turning this off stops photos; estimates you already saved stay in your meal notes until you
+  remove them."
+- Sheet lead: "Exactly the photo below goes through Solia Health's server to Anthropic, maker of the Claude AI, which
+  keeps it for a limited time. Solia Health's server never keeps the photo or the answer. It keeps two counts: how many
+  photos you've sent this month, and a daily total of how much AI processing everyone's requests used together, which
+  isn't linked to you."
+- Sheet: "Made smaller on this device: W × H pixels, about N kB. It was saved again as a new JPEG, which leaves out the
+  camera's hidden details, such as where and when it was taken." / "Nothing from your log: no stage, no notes, no meal
+  details." / "Your sign-in goes with the request, so Solia Health's server can count it toward this month." (shown
+  only while she is signed in) / "Photograph only the food. Everything in the picture is sent, so leave out faces,
+  papers and screens."
+- After the answer: "Solia Health doesn't keep the photo, on this device or on its server. If you took it with your
+  camera or picked it from your library, that copy is yours to keep or delete."
+- Privacy list row "Meal photos": "Each photo you choose to send from Meal notes, made smaller on this device first,
+  with nothing from your log. You see exactly what will be sent first. It goes through Solia Health's server to
+  Anthropic, which keeps it for a limited time. Solia Health's server doesn't keep the photo or the answer." Details:
+  "Only the foods, portion words and calorie ranges you save are kept, in that meal note on this device and in your
+  backups. Solia Health keeps no copy of the photo." / "Turn it on or off in You → Solia Health's AI. Turning it off
+  stops photos; estimates you saved stay in your meal notes until you remove them."
+- Failures, each saying what did and did not go: a 401 / 413 / 415 / 429 from Solia Health's server is answered AFTER
+  the server received the photo, so those lines say "nothing went to Anthropic", never "nothing was sent". Only the
+  checks made on the device (guest, offline, a file that is not a picture, Cancel) say "Nothing was sent."
 
 ## Visible features (2026-11-19, docs/plans/visible-features.md)
 

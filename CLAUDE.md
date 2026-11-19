@@ -4,7 +4,8 @@ Read `docs/CYRA-BUILD-SPEC.md` completely before changing anything. It is the
 normative spec; `src/App.jsx` is the working reference implementation.
 
 ## Hard rules (no exceptions)
-- Health data never goes to a server, except the opt-in, previewed AI summary. On-device storage only; optional backup must be
+- Health data never goes to a server, except the opt-in, previewed AI summary and the opt-in, previewed meal photo
+  she chooses to send (Meal photos; owner-approved 2026-11-19, docs/plans/meal-photos.md). On-device storage only; optional backup must be
   encrypted with a user-held key.
 - No API key in client code. All Anthropic calls go through the backend proxy. The one exception is RevenueCat's
   *public* SDK key (VITE_REVENUECAT_*_KEY), which is designed to ship in apps; its secret key never goes in the app.

@@ -16,6 +16,8 @@ import { BUILD_STAMP, MODULE_ADDS, PLAN_COPY, ACCOUNT_LINES, NOT_MEDICAL, AI_OFF
 import { freeKeepsFor, untilLine } from "../components/ProSheet.jsx";
 import { AI_DISCLOSURE } from "./AskScreen.jsx";
 import { AI_COPY, ASK_COPY } from "../lib/aiFeatures.js";
+import { MEAL_COPY } from "../lib/mealPhoto.js";
+import { CalSwitch } from "../components/ai/MealPhoto.jsx";
 import { FLOW_COPY } from "../lib/privacyFlows.js";
 import { AccountCard, SignedInCard } from "../components/AccountParts.jsx";
 import { PlanCardTiles } from "../components/PlanTiles.jsx";
@@ -61,7 +63,7 @@ const StageArt = () => (
   </svg>
 );
 export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, help = null, language = null, meals = null, dataSources = null, partner = null, learn = null, signMode = "none", store = null, native = false, promo = null, onHidePromo = null, proUntil = null, guest = null, homeCards = null, page = null, onOpenPage = () => {}, onBack = () => {}, planLabel = null, planKey = null, voice = null }) {
-  const offer = ai.offer || { any: false, weekly: false, chat: false };
+  const offer = ai.offer || { any: false, weekly: false, chat: false, meals: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
   const { remindersHere, unavailable: remindersOff } = reminderModel({ reminders: sp.reminders, reminderSupport: sp.reminderSupport, cadence: sp.cadence });
@@ -105,7 +107,7 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
               ? pots && <PotsAddon key="pots" module pots={pots.pots} stageName={stageName} onOn={pots.onOn} onOff={pots.onOff} storageDriver={sp.storageDriver} />
               : [<ModuleRow key={m.id} id={m.id} icon="sparkle" name={m.name} short={m.short} adds={MODULE_ADDS[m.id] || m.adds} on={m.on} onToggle={m.onToggle} />,
                 /* Meal notes: an optional switch under the PCOS module (offered where PCOS is; works whether or not PCOS is on). */
-                m.id === "pcos" && meals && <ModuleRow key="meals" id="meals" icon="bowl" name={t("you.mealsName")} short={t("you.mealsShort")} adds={t("you.mealsAdds")} on={!!meals.on} onToggle={meals.onToggle} />]))}
+                m.id === "pcos" && meals && <ModuleRow key="meals" id="meals" icon="bowl" name={t("you.mealsName")} short={meals.photosInBuild ? t("you.mealsShortPhotos") : t("you.mealsShort")} adds={t("you.mealsAdds")} on={!!meals.on} onToggle={meals.onToggle} />]))}
             {fertRow && (
               <ModuleRow id="fert" icon="thermometer" name={FERT_COPY.settingTitle} short={t("you.fertShort")} adds={MODULE_ADDS.fert} on={!!fertRow.on} onToggle={() => fertRow.setOn(!fertRow.on)} />
             )}
@@ -227,7 +229,7 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
             </button>
             <p className="rfoot" id="you-ai-disclosure">{AI_DISCLOSURE}</p>
             <Details label={t("you.exactlyWhatsSent")}><AiFacts /><p className="rfoot">{t("you.offUntilYouTurnIt")}</p></Details>
-            {offer.any && (offer.weekly || offer.chat ? (
+            {offer.any && (offer.weekly || offer.chat || offer.meals ? (
               <div className="youaipro">
                 <p className="section-lab youaipro-lab"><Chip variant="pro" /> {t("you.yourLogWithCyrasAi")}</p>
                 <ul className="modlist aiswitches">
@@ -245,6 +247,15 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
                       <p className="modadds" id="ai-chat-d">{AI_COPY.chatAdds}</p>
                     </li>
                   )}
+                  {offer.meals && (
+                    <li className="modrow airow" data-ai="meals">
+                      <div className="modrow-main"><div className="modinfo"><b id="ai-meals-n">{MEAL_COPY.name}</b><span className="hint">{MEAL_COPY.short}</span></div>
+                        <Switch checked={prefs.meals === true} onChange={(v) => ai.setPref("meals", v)} labelledBy="ai-meals-n" describedBy="ai-meals-d" /></div>
+                      <p className="modadds" id="ai-meals-d">{MEAL_COPY.adds}</p>
+                      {ai.mealNotesOn === false && <p className="modadds" id="ai-meals-needs">{MEAL_COPY.needsNotes}</p>}
+                    </li>
+                  )}
+                  {offer.meals && prefs.meals === true && <li className="airow-cal"><CalSwitch id="ai-mealcal" shown={prefs.hideCal !== true} onChange={(v) => ai.setPref("hideCal", !v)} /></li>}
                 </ul>
                 {(prefs.weekly || prefs.chat) && (
                   <button type="button" role="checkbox" aria-checked={!!prefs.labs} aria-describedby="ai-labs-d" className={`consentopt ${prefs.labs ? "on" : ""}`} onClick={() => ai.setPref("labs", !prefs.labs)}>

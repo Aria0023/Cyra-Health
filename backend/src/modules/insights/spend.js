@@ -22,7 +22,7 @@ const monthOf = (ms) => new Date(ms).toISOString().slice(0, 7);
 const r4 = (v) => Math.round(Number(v || 0) * 10_000) / 10_000;
 const ZERO = () => ({ requests: 0, input: 0, output: 0, cacheWrite: 0, cacheRead: 0, searches: 0 });
 const addTo = (t, r) => { for (const k of Object.keys(t)) t[k] += Number.isFinite(Number(r?.[k])) ? Math.max(0, Math.round(Number(r[k]))) : 0; return t; };
-export const KIND_LABEL = Object.freeze({ ask: "Ask (free)", evidence: "Ask with evidence", chat: "Chat about your log", weekly: "Weekly write-up", report: "Owner report" });
+export const KIND_LABEL = Object.freeze({ ask: "Ask (free)", evidence: "Ask with evidence", chat: "Chat about your log", weekly: "Weekly write-up", report: "Owner report", meal: "Meal photos" });
 export const ESTIMATE_LINE = "Estimate only: token totals multiplied by the prices shown. Anthropic's console is the bill of record.";
 export const NO_SHUTOFF_LINE = "Nothing is switched off when the budget is passed. The per-person monthly caps remain the hard limit.";
 

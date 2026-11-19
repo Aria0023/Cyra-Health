@@ -7,18 +7,18 @@
 import { TAP_COPY } from "./shopTaps.js";
 import { FEEDBACK_COPY } from "./feedback.js";
 
-export const FLOW_IDS = Object.freeze(["reminders", "counts", "ai", "aiWeekly", "aiChat", "wearables", "shopTaps", "feedback", "files", "cloud"]);
+export const FLOW_IDS = Object.freeze(["reminders", "counts", "ai", "aiWeekly", "aiChat", "aiMeals", "wearables", "shopTaps", "feedback", "files", "cloud"]);
 
 /**
  * @typedef {Object} FlowRow
- * @property {"reminders"|"counts"|"ai"|"aiWeekly"|"aiChat"|"wearables"|"shopTaps"|"feedback"|"files"|"cloud"} id
+ * @property {"reminders"|"counts"|"ai"|"aiWeekly"|"aiChat"|"aiMeals"|"wearables"|"shopTaps"|"feedback"|"files"|"cloud"} id
  * @property {string} name
  * @property {"on"|"off"|"you"|"send"|"na"} state on: sending as configured; off: available, not sending; you: only when she makes one; send: only when she sends one; na: not in this build.
  * @property {null|"pending"|"unsupported"|"terraOff"|"demo"} note
  */
 
 /** Rows in FLOW_IDS order. c = { native, server, flags:{wearables,counts,ai,webReminders,cloudBackup,signin}, planCloud,
-    reminderSupport, reminders:{enabled,status,pending}, research, askAI, aiPlan:{weekly,chat}, aiPrefs:{weekly,chat}, wearLive, terraOff, demoWear }.
+    reminderSupport, reminders:{enabled,status,pending}, research, askAI, aiPlan:{weekly,chat,meals}, aiPrefs:{weekly,chat,meals}, wearLive, terraOff, demoWear }.
     Calm R8: aiWeekly and aiChat (Cyra's weekly write-up and chat) exist only with the ai flag, a server and a plan that
     includes them (aiPlan, from lib/plan.js); "on" while her switch is on (each send still waits for her Send). */
 export function flowRows(c = {}) {
@@ -37,6 +37,9 @@ export function flowRows(c = {}) {
   const ap = c.aiPlan || {}, apr = c.aiPrefs || {};
   rows.push({ id: "aiWeekly", name: FLOW_COPY.names.aiWeekly, state: f.ai && c.server && ap.weekly === true ? (apr.weekly === true ? "on" : "off") : "na", note: null });
   rows.push({ id: "aiChat", name: FLOW_COPY.names.aiChat, state: f.ai && c.server && ap.chat === true ? (apr.chat === true ? "on" : "off") : "na", note: null });
+  // 2026-11-19 (lib/mealPhoto.js): Meal photos — the ai flag, a server and a plan and life stage that offer it
+  // (aiPlan.meals); "on" while her switch is on (each photo still waits for her Send).
+  rows.push({ id: "aiMeals", name: FLOW_COPY.names.aiMeals, state: f.ai && c.server && ap.meals === true ? (apr.meals === true ? "on" : "off") : "na", note: null });
   if (f.wearables && c.demoWear) rows.push({ id: "wearables", name: FLOW_COPY.names.wearables, state: "off", note: "demo" });
   else if (f.wearables && c.server) rows.push({ id: "wearables", name: FLOW_COPY.names.wearables, state: (c.wearLive || 0) + (c.terraOff || 0) > 0 ? "on" : "off", note: (c.terraOff || 0) > 0 ? "terraOff" : null });
   else rows.push({ id: "wearables", name: FLOW_COPY.names.wearables, state: "na", note: null });
@@ -68,7 +71,7 @@ export const FLOW_COPY = Object.freeze({
   shopTapsOffSaid: "Shop taps are no longer counted from this device.",
   shopTapsOnSaid: "Shop taps are counted anonymously again.",
   states: Object.freeze({ on: "On", off: "Off", you: "When you make one", send: FEEDBACK_COPY.flowState }),
-  names: Object.freeze({ remindersWeb: "Browser reminders", remindersPhone: "Reminders", counts: "Weekly counts", ai: "Ask Solia Health's AI", aiWeekly: "Solia Health's weekly write-up", aiChat: "Chat about your log", wearables: "Wearable connections", shopTaps: TAP_COPY.name, feedback: FEEDBACK_COPY.flowName, files: "Backups and files you make", cloud: "Cloud backup" }),
+  names: Object.freeze({ remindersWeb: "Browser reminders", remindersPhone: "Reminders", counts: "Weekly counts", ai: "Ask Solia Health's AI", aiWeekly: "Solia Health's weekly write-up", aiChat: "Chat about your log", aiMeals: "Meal photos", wearables: "Wearable connections", shopTaps: TAP_COPY.name, feedback: FEEDBACK_COPY.flowName, files: "Backups and files you make", cloud: "Cloud backup" }),
   lines: Object.freeze({
     remindersWeb: "This browser's push address, and the days, time and time zone you chose, go to Solia Health's server. Nothing about your health.",
     remindersPhone: "Your phone shows them itself. Nothing is sent.",
@@ -76,6 +79,7 @@ export const FLOW_COPY = Object.freeze({
     ai: "Only a question you type, and only when Solia Health's written library can't answer it. It goes through Solia Health's server to Anthropic, which keeps it for a limited time.",
     aiWeekly: "When you ask for one: a summary of your last 8 weeks (counts, averages and cycle lengths; no dates, notes or anything that names you). You see exactly what will be sent first. It goes through Solia Health's server to Anthropic, which keeps it for a limited time.",
     aiChat: "Each message you send: your question, your last few chat messages and the same summary. You see exactly what will be sent first. It goes through Solia Health's server to Anthropic, which keeps it for a limited time.",
+    aiMeals: "Each photo you choose to send from Meal notes, made smaller on this device first, with nothing from your log. You see exactly what will be sent first. It goes through Solia Health's server to Anthropic, which keeps it for a limited time. Solia Health's server doesn't keep the photo or the answer.",
     wearables: "This device sends its Oura sign-in, or its Fitbit, Garmin or Whoop connection key, to Solia Health's server, which brings your readings back without saving them to disk. Terra, which connects Fitbit, Garmin and Whoop, keeps its own copy.",
     shopTaps: TAP_COPY.line,
     feedback: FEEDBACK_COPY.flowLine,
@@ -95,6 +99,8 @@ export const FLOW_COPY = Object.freeze({
     aiWhere: "Turn it on or off on the Ask tab.",
     summaryFields: "The summary holds your life stage; how many days you checked in; your recent cycle lengths and today's cycle day; how many days each logged symptom came up, by cycle day; sleep hours and rough nights; movement per week; mood check-ins and feeling tags as counts; PCOS signals as counts if the PCOS module is on; if Meal notes is on, how many days had each kind of meal and how often your energy was steady, dipped or crashed after a meal (counts only, never a meal or a food); your experiment's ticked days; and, only if you tick \"Include lab values\", your latest lab values rounded and without dates.",
     summaryNever: "It never holds a date, a note, your journal, anything you typed elsewhere, your name, email, ZIP or age band, fertility signs, weight, your POTS log or wearable readings. Solia Health's server keeps none of it.",
+    mealsKept: "Only the foods, portion words and calorie ranges you save are kept, in that meal note on this device and in your backups. Solia Health keeps no copy of the photo.",
+    mealsWhere: "Turn it on or off in You → Solia Health's AI. Turning it off stops photos; estimates you saved stay in your meal notes until you remove them.",
     aiTwoWhere: "Turn it on or off in You → Solia Health's AI. Turning it off clears what it kept on this device.",
     wearWhere: "Connect or disconnect under Wearables on Home.",
     cloudHolds: "Solia Health's server keeps your encrypted backup, a one-way hash of your email, a hash of a key made from your passphrase, and when the backup was last changed and its size. It's deleted a year after the last back-up.",

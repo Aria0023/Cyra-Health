@@ -61,6 +61,14 @@ app.use("/api/integrations/terra/webhook", express.json({ limit: "5mb", verify: 
   console.warn(`[cyra] terra webhook: ${String(err.type || "bad body").slice(0, 40)}`);
   res.status(err.status === 413 ? 413 : 400).json({ error: "body could not be read" });
 });
+// Meal photos (docs/plans/meal-photos.md): the one AI request that carries a photo, so the one path with a larger cap
+// (a 1 MB image is about 1.4 MB as base64; the route re-checks the decoded size). Mounted before the 32 kB AI parser,
+// which then leaves the already-parsed body alone. A parse failure never reaches Express's default handler.
+app.use("/api/ai/meal", express.json({ limit: "1500kb" }), (err, req, res, next) => {
+  if (!err) return next();
+  console.warn(`[cyra] ai/meal: ${String(err.type || "bad body").slice(0, 40)}`);
+  res.status(err.status === 413 ? 413 : 400).json({ error: err.status === 413 ? "image too large" : "body could not be read" });
+});
 // Cyra's AI (calm R8): its own parser with a 32 kB cap, and a parse failure answered without Express's default
 // handler, which would log part of the body (a summary or a question). Only the error type is logged.
 app.use("/api/ai", express.json({ limit: "32kb" }), (err, req, res, next) => {

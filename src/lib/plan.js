@@ -36,20 +36,20 @@
  */
 
 /** @type {Readonly<Plan>} */
-export const FREE_PLAN = Object.freeze({ tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false, aiChat: false, aiEvidence: false });
+export const FREE_PLAN = Object.freeze({ tier: "free", pdfExportsPerMonth: null, aiPatternReports: false, extraCustomisation: false, cloudBackup: false, aiChat: false, aiEvidence: false, aiMealPhotos: false });
 /** The plan this build runs on unless a dev unlock applies (planFor). */
 export const PLAN = FREE_PLAN;
 /** The dev/QA unlock (dev flag proDev): Pro's in-app parts on, with the free plan's PDF rule. cloudBackup on too (calm R9;
     it still needs the build's cloudBackup flag and a server, so QA tests the account against a local backend). */
-export const DEV_PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro-dev", aiPatternReports: true, extraCustomisation: true, aiChat: true, cloudBackup: true, aiEvidence: true });
+export const DEV_PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro-dev", aiPatternReports: true, extraCustomisation: true, aiChat: true, cloudBackup: true, aiEvidence: true, aiMealPhotos: true });
 /** What a Pro purchase unlocks (calm R8). The basic PDF stays free and unlimited. Calm R9: cloudBackup (the optional
     account's encrypted backup, the first paid server feature: docs/MONETIZATION.md D3) is part of Pro; it also needs the
     build's cloudBackup flag and a server with the backup module (lib/cloudBackup.js). */
-export const PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro", aiPatternReports: true, extraCustomisation: true, aiChat: true, cloudBackup: true, aiEvidence: true });
+export const PRO_PLAN = Object.freeze({ ...FREE_PLAN, tier: "pro", aiPatternReports: true, extraCustomisation: true, aiChat: true, cloudBackup: true, aiEvidence: true, aiMealPhotos: true });
 /** The plan for this build's dev flags ({ proDev }) and whether a store purchase of Pro is owned (`owned`, from
     lib/purchase.js; only a real true counts): DEV_PRO_PLAN when proDev is on, PRO_PLAN when owned, else PLAN. */
 export const planFor = (devFlags = {}, owned = false) => (devFlags && devFlags.proDev === true ? DEV_PRO_PLAN : owned === true ? PRO_PLAN : PLAN);
-export const PLAN_FEATURES = Object.freeze(["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup", "aiChat", "aiEvidence"]);
+export const PLAN_FEATURES = Object.freeze(["pdfExport", "aiPatternReports", "extraCustomisation", "cloudBackup", "aiChat", "aiEvidence", "aiMealPhotos"]);
 
 /** Whether `feature` is available on `plan`. The PDF export is free core (off only when a plan
     allows 0); the paid extensions need an explicit true; anything else is false (fails closed).
@@ -61,7 +61,8 @@ export function can(feature, plan = PLAN) {
     case "extraCustomisation":
     case "cloudBackup":
     case "aiChat":
-    case "aiEvidence": return plan[feature] === true;
+    case "aiEvidence":
+    case "aiMealPhotos": return plan[feature] === true;
     default: return false;
   }
 }

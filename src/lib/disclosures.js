@@ -38,7 +38,7 @@ export function serverSees(f, server = true, accounts = false) {
     "An encrypted backup keeps your name, email and other sign-up answers, except your ZIP and age band.",
     signin ? "Anonymous Mode keeps your name and email off this device's record. Your account still has the email you signed in with, if the service shared one." : "Anonymous Mode skips your name and email entirely.",
     signin
-      ? `If you sign in, Solia Health's server keeps your account: how you signed in, your email and your name if the service shares it, and the last day you used your account. It keeps no profile of you: no age, health history or check-ins. If you use Pro's AI, it also counts how many questions you sent this month, never what they said. If you send feedback from You → Help & about with "It's OK to reply to me" on, it keeps that message with your account.${accounts ? " If you also make the optional backup account, it keeps your encrypted backup, which it can't read, and a one-way hash of that email." : ""}`
+      ? `If you sign in, Solia Health's server keeps your account: how you signed in, your email and your name if the service shares it, and the last day you used your account. It keeps no profile of you: no age, health history or check-ins. If you use Pro's AI, it also counts how many questions and meal photos you sent this month, never what they said or showed. If you send feedback from You → Help & about with "It's OK to reply to me" on, it keeps that message with your account.${accounts ? " If you also make the optional backup account, it keeps your encrypted backup, which it can't read, and a one-way hash of that email." : ""}`
       : accounts && server
       ? "Solia Health's servers keep no profile of you in either mode: no age, health history or check-ins. If you later make the optional account, they keep only your encrypted backup, which they can't read, and a one-way hash of your email."
       : "Solia Health's servers keep no account and no profile of you in either mode: no age, health history or check-ins.",
@@ -85,7 +85,7 @@ export function consentDetails(f, native) {
     : f.wearables ? "If Delete everything can't confirm that Oura and Fitbit/Garmin/Whoop are disconnected, Solia Health tells you what did and didn't happen, and keeps your record on this device until you choose."
     : f.webReminders && !native ? "If Delete everything can't confirm that reminders are off, Solia Health tells you what did and didn't happen, and keeps your record on this device until you choose."
     : null;
-  const gone = on([f.counts && "anonymous counts you shared stay counted", f.ai && "questions already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms", f.wearables && "readings Terra already collected stay under Terra's policy"]);
+  const gone = on([f.counts && "anonymous counts you shared stay counted", f.ai && "questions and meal photos already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms", f.wearables && "readings Terra already collected stay under Terra's policy"]);
   const li4 = gone.length ? `Deleting can't pull back what already left: ${oxfordList(gone)}.` : null;
   return on([li1, li2, li3, li4]);
 }
@@ -135,8 +135,8 @@ export function wipeMore(f, native) {
   const li1 = f.wearables ? "If Solia Health's server, Oura or Fitbit/Garmin/Whoop can't confirm that, Solia Health tells you what did and didn't end and keeps your record on this device until you choose."
     : f.webReminders && !native ? "If Solia Health's server can't confirm that, Solia Health tells you what did and didn't end and keeps your record on this device until you choose."
     : null;
-  const tail = f.ai && f.wearables ? "Questions already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy."
-    : f.ai ? "Questions already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms."
+  const tail = f.ai && f.wearables ? "Questions and meal photos already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy."
+    : f.ai ? "Questions and meal photos already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms."
     : f.wearables ? "Readings Terra already collected stay under Terra's policy."
     : null;
   const li2 = on([f.counts && "Anonymous counts you already shared stay counted.", tail]).join(" ") || null;

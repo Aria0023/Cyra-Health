@@ -32,6 +32,8 @@ import { TERMS_URL, PRIVACY_URL, POLICY_LINKS_READY, TIP_URL, APP_STORE_ID, open
    ai flag and a server (`ai`), the backup line the optional account (`cloud`). */
 export const PRO_EVIDENCE = Object.freeze(["book", "Ask with evidence", "Answers that cite their sources, with links: PubMed, MedlinePlus, CDC, NIH, ACOG, WHO, NICE and others. You see exactly what is sent first, and only your question goes, plus a summary of your log if you tick it."]);
 export const PRO_AI = Object.freeze(["note", "A weekly write-up and chat about your log, only if you turn them on", "Written by Solia Health's AI from a summary of your log with no dates, notes or anything that names you. Each shows exactly what it would send before anything is sent."]);
+/* Meal photos (2026-11-19): listed with the other AI lines, since it needs the same server and sign-in. */
+export const PRO_MEAL = Object.freeze(["bowl", "Meal photos, only if you turn them on", "Photograph a meal and Solia Health's AI names the foods with a rough calorie range. You see the exact photo before it is sent, and Solia Health doesn't keep it. No targets and no scores."]);
 export const PRO_PLANNED = Object.freeze(["Your own experiments, beyond the starter ones", "Medicine and supplement reminders", "A richer PDF with trends and the write-up"]);
 export const FREE_KEEPS = "Free stays free: logging, the calendar, cycles, every pattern Solia Health finds, your weekly review, every guided practice with its voice guide, safety guidance and the basic doctor-ready PDF.";
 /* The free week (lib/trial.js, owner decision 2026-11-12), only where the gate is on (a store to pay in, or the dev flag
@@ -43,7 +45,7 @@ export const PRO_LOG = Object.freeze(["check", "Keep logging after your free wee
 export const PRO_CLOUD = Object.freeze(["shield", "An encrypted backup to Solia Health's server, if you make an account", "Bring your log back on a new phone or browser with your email and passphrase. It's encrypted on your device first; Solia Health can't read it."]);
 /** Said when this build has none of Pro's parts (no AI server and no account backup): nothing is claimed that isn't here. */
 export const PRO_NONE = "In this version Pro adds nothing yet: its features need Solia Health's server.";
-export const proAddsFor = (ai, cloud = false, gateOn = false) => [...(gateOn ? [PRO_LOG] : []), ...(ai ? [PRO_EVIDENCE, PRO_AI] : []), ...(cloud ? [PRO_CLOUD] : [])];
+export const proAddsFor = (ai, cloud = false, gateOn = false) => [...(gateOn ? [PRO_LOG] : []), ...(ai ? [PRO_EVIDENCE, PRO_AI, PRO_MEAL] : []), ...(cloud ? [PRO_CLOUD] : [])];
 
 const PLANS_LAB = "Pro plans";
 /* 2026-11-15 (docs/plans/portal-subscriptions.md Task 3): a matching promotion's banner (lib/promos.js; its offering's

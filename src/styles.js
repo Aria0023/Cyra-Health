@@ -1896,6 +1896,35 @@ button.plantile.on { border-color:var(--primary); box-shadow:inset 0 0 0 1px var
 .mealline b { margin-inline-end:4px; }
 .rmeals li { display:block; }
 @media (prefers-reduced-motion: reduce) { .mealedit { animation:none; } .mealpick { transition:none; } }
+/* Meal photos (docs/plans/meal-photos.md): the photo button, the preview, the answer and a saved estimate. Neutral ink
+   only: no colour carries a judgement, and a calorie range looks the same whatever its size. */
+.mealphoto-pick { margin-top:12px; }
+.mealphoto-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:48px; margin:0; }
+.mealphoto-file { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+.mealphoto-pick .rfoot { margin:8px 0 0; }
+.mealphoto-note { margin:12px 0 0; }
+.mealsend-img { display:block; max-width:100%; width:auto; height:auto; max-height:42vh; margin:0 auto 8px; border-radius:var(--r-inner); border:1px solid var(--edge); background:var(--card); }
+.mealsend-with { margin:0; padding-left:18px; font-size:var(--fs-sm); line-height:1.5; color:var(--ink); }
+.mealsend-only { margin:0 0 12px; }
+.mealfoods { list-style:none; margin:0 0 12px; padding:0; display:grid; gap:10px; }
+.mealfood { display:grid; grid-template-columns:1fr auto; align-items:center; gap:4px 8px; padding:10px 12px; border-radius:16px; border:1px solid var(--edge); background:var(--card); }
+.mealfood-name { margin:0; }
+.mealfood-rm { min-height:44px; min-width:44px; font-size:var(--fs-sm); }
+.mealfood-facts { font-size:var(--fs-sm); color:var(--ink); }
+.mealfood .mealfood-facts { grid-column:1 / -1; }
+.mealest { margin-top:12px; padding-top:12px; border-top:var(--rule); }
+.mealest-list { list-style:none; margin:0 0 8px; padding:0; display:grid; gap:6px; font-size:var(--fs-sm); line-height:1.45; color:var(--ink); }
+.mealest-list li { display:flex; flex-wrap:wrap; gap:2px 8px; justify-content:space-between; }
+.mealest-name { font-weight:700; overflow-wrap:anywhere; }
+.mealest-total { margin:0 0 6px; font-size:var(--fs-sm); color:var(--ink); }
+.mealest-note, .mealest-preg { margin:0 0 6px; }
+.mealest-rm { min-height:44px; font-size:var(--fs-sm); }
+.mealpick-est { display:block; font-weight:500; color:var(--ink); }
+.mealday-total { margin:0 0 12px; font-size:var(--fs-sm); line-height:1.5; color:var(--ink); }
+.mealsheet .calswitch { margin-top:12px; padding:12px 0 0; border-top:var(--rule); }
+.mealsheet .calswitch .modadds { margin:6px 0 0; font-size:var(--fs-sm); line-height:1.5; color:var(--ink); }
+.airow-cal { list-style:none; }
+.airow-cal .calswitch { border-top:none; padding-top:0; }
 /* ---- Mono style (Solia, 2026-11-01): a quieter single-colour skin of the same layout. The token layer is
    lib/constants.js MONO (neutral warm-grey paper and cards, one soft ink, one slate accent for every stage, domain tints
    resolved to one grey, no wash, no shadows); the few rules below make surfaces flat with hairlines, and icon badges

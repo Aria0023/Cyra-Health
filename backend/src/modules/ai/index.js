@@ -26,6 +26,10 @@
 // 2026-11-19: spend.js keeps what each answered request used (token and web-search totals per UTC day and kind, nothing
 // about who asked or what was said), for the portal's AI costs estimate (docs/plans/launch-tools.md Task 2).
 //
+// 2026-11-19: POST /api/ai/meal { image } (Pro "Meal photos", her own switch; meal.js): the one request that carries a
+// photo. She sees the exact image before every send. The photo and the answer are never stored or logged; only the
+// month's count (usage.js, kind "meal") and the day's token totals (spend.js, kind "meal") are kept.
+//
 // Provider selection: ANTHROPIC_API_KEY set → Claude via the official SDK, one attempt
 // (no retry) with a 12-second limit — inside the app's 15-second wait — and the
 // server-side refusal fallback on. Otherwise, or on any API error / refusal /
@@ -33,6 +37,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { TASKS } from "./tasks.js";
 import { mountEvidence } from "./evidence.js";
+import { mountMeal } from "./meal.js";
 import { rateLimiter } from "../../core/memory.js";
 import { usageMeter, limitsFrom } from "./usage.js";
 import { spendRecorder } from "./spend.js";
@@ -103,12 +108,12 @@ export function mount(router, ctx) {
   const spend = spendRecorder({ store: ctx.store, onRecord: () => ctx.onAiSpend?.() });
   ctx.aiSpend = spend;
   if (client) ctx.aiWrite = (args) => writeText(client, model, { ...args, onUsage: (u) => spend.record("report", u) });
-  console.log(`[cyra] ai provider: ${client ? model : "rules fallback (ANTHROPIC_API_KEY not set)"}; tasks: ${Object.keys(TASKS).join(", ")}`);
+  console.log(`[cyra] ai provider: ${client ? model : "rules fallback (ANTHROPIC_API_KEY not set)"}; tasks: ${Object.keys(TASKS).join(", ")}, evidence, meal`);
 
   // Whether this server can reach Cyra's AI at all (the app shows "AI isn't set up on this server yet" when not).
   router.get("/status", (req, res) => { res.set("cache-control", "no-store"); res.json({ ready: !!client }); });
 
-  // This month's allowance for the person asking: { usage: { evidence|chat|weekly: { used, limit } }, resetsOn }.
+  // This month's allowance for the person asking: { usage: { evidence|chat|weekly|meal: { used, limit } }, resetsOn }.
   router.get("/usage", async (req, res) => {
     res.set("cache-control", "no-store");
     if (!allow(req.ip)) return res.status(429).json({ error: "too many requests — try again in a minute" });
@@ -122,6 +127,12 @@ export function mount(router, ctx) {
   const evTimeout = Number(config.ai?.evidenceTimeoutMs) > 0 ? Number(config.ai.evidenceTimeoutMs) : 60_000;
   const evClient = key ? new Anthropic({ apiKey: key, timeout: evTimeout, maxRetries: 0 }) : null;
   mountEvidence(router, { client: evClient, model, allow: rateLimiter({ perMinute: config.ai?.evidencePerMinute || 6 }), meter, onUsage: (u) => spend.record("evidence", u) });
+
+  // Meal photos (Pro; meal.js): its own client (reading a photo can take longer than the 12 s ask: 30 s, one attempt)
+  // and its own, tighter rate limit. server.js gives this one path a larger body parser.
+  const mealTimeout = Number(config.ai?.mealTimeoutMs) > 0 ? Number(config.ai.mealTimeoutMs) : 30_000;
+  const mealClient = key ? new Anthropic({ apiKey: key, timeout: mealTimeout, maxRetries: 0 }) : null;
+  mountMeal(router, { client: mealClient, model, allow: rateLimiter({ perMinute: config.ai?.mealPerMinute || 6 }), meter, onUsage: (u) => spend.record("meal", u) });
 
   for (const [name, task] of Object.entries(TASKS)) {
     router.post(`/${name}`, async (req, res) => {

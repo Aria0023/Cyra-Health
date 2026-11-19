@@ -313,7 +313,9 @@ clinician, not a diagnosis or medical advice."; their advice text is the L8 copy
 
 ## Meal notes (optional, PCOS-linked; 2026-10-30)
 No foods, calories, macros, photos or scores; no diet advice, no "good" or "bad" food, no weight. The existing PCOS
-"high-sugar day" marker is unchanged.
+"high-sugar day" marker is unchanged. (2026-11-19: this holds while Meal photos is off, the default. With that Pro
+switch on, a meal note can also hold food names and calorie ranges estimated from a photo: see "Meal photos" at the
+end of this file. The two sentences below that said "No calories, no photos, no scores." are reworded there.)
 
 ### meals.setting
 - Where: You → Modules → Meal notes (under PCOS), the row's line and "What each one adds"
@@ -859,3 +861,55 @@ New sources (confirm editions at review):
 - Quest Diagnostics (LAB NETWORK): A US lab network; on its consumer site you order a test and give the sample at a Quest location.
 - Labcorp OnDemand (LAB NETWORK): Labcorp's consumer site: you order a test online and give the sample at a Labcorp location or with a home kit.
 - Everlywell (AT-HOME TESTS): Home test kits: you collect a sample and mail it to a lab.
+
+## Meal photos: food names and calorie ranges estimated from a photo (2026-11-19, docs/plans/meal-photos.md)
+
+Owner request. A Pro feature she turns on herself (You → Solia Health's AI → "Meal photos", off by default). In a meal
+note she can take a photo; Solia Health's AI (Claude) names the foods and gives a portion guess and a calorie RANGE for
+each. She can edit or remove anything before saving, or discard it all.
+
+**Please review in particular:** showing calorie figures at all. Calorie display may be unsuitable for people with a
+history of disordered eating. What the build does about it: the feature is off by default; every figure is a range and
+is labelled an estimate; there are no targets, goals, "over" or "under", scores, streaks, grades or good/bad colours,
+and no diet or weight advice anywhere; and a switch, "Show calorie estimates", hides every calorie figure and portion
+guess while keeping the food names (it sits in the Meals sheet beside the numbers and in You → Solia Health's AI).
+Please say whether the hide switch should instead be OFF by default (numbers hidden until she asks), whether a short
+notice should appear the first time the feature is turned on, and whether any wording below should change. The
+feature is not offered in the Pregnancy stage today (Meal notes is not offered there); the pregnancy line below is
+written and wired for the day it is.
+
+### mealphotos.setting
+- Where: You → Solia Health's AI → "Meal photos" row, and "Show calorie estimates" under it
+- Text: Meal photos / Photograph a meal in Meal notes; the AI names the foods and gives a rough calorie range / When you choose a photo in Meal notes, Solia Health makes it smaller on this device, shows you the exact picture, and sends it only when you tap Send. It goes through Solia Health's server to Anthropic, maker of the Claude AI, which keeps it for a limited time. Nothing from your log goes with it. Solia Health's server never keeps the photo or the answer. Turning this off stops photos; estimates you already saved stay in your meal notes until you remove them. / Show calorie estimates / Turn this off to hide every calorie figure and portion guess. The food names stay.
+- Sources: describes the feature; no clinical claim.
+- Status: Awaiting clinician sign-off
+
+### mealphotos.estimate
+- Where: Meals sheet: the answer ("What the photo shows"), a saved estimate, the meal list and the day total
+- Text: A rough estimate from a photo. It can be well off. / Estimated from a photo / Total {low}–{high} kcal / Day total from {N} photos: {low}–{high} kcal / How sure the AI is: Not very sure · Fairly sure · Quite sure / Named and estimated by Solia Health's AI (Claude, made by Anthropic) from your photo. Guidance, not a diagnosis or advice. / Change a name or remove anything that's wrong, then save. Nothing is saved until you do.
+- Sources: none; an estimate from an image. No reference intake, target or comparison is shown anywhere.
+- Status: Awaiting clinician sign-off
+
+### mealphotos.notfood
+- Where: Meals sheet, after a photo that could not be read
+- Text: That didn't look like food, or it was too unclear to read, so nothing was added. It still counted toward this month.
+- Sources: none.
+- Status: Awaiting clinician sign-off
+
+### mealphotos.pregnancy
+- Where: Meals sheet, under an estimate, only in the Pregnancy stage (not reachable today: Meal notes is not offered in pregnancy)
+- Text: Energy needs change in pregnancy. Ask your clinician what's right for you.
+- Sources: general statement, deliberately without a number; please confirm it is acceptable as written or supply a source.
+- Status: Awaiting clinician sign-off
+
+### mealphotos.footers
+- Where: Meals sheet footer and You → Modules → Meal notes row (these replace "No calories, no photos, no scores." in a build that can offer Meal photos; a build without AI keeps the old sentence)
+- Text: No scores and no targets. No photos or calorie estimates unless you turn on Meal photos in You → Solia Health's AI. Kept on this device and in your backups, like the rest of your log. / No scores and no targets. A photo goes only when you tap Send, and Solia Health doesn't keep it. Foods and calorie ranges you save are estimates, kept on this device and in your backups, like the rest of your log. / Note what kind of meal it was and how your energy felt after. No scores and no targets. No photos or calorie estimates unless you turn on Meal photos.
+- Sources: describes the feature; no clinical claim.
+- Status: Awaiting clinician sign-off
+
+### mealphotos.prompt
+- Where: backend/src/modules/ai/meal.js MEAL_SYSTEM (the instruction the AI gets with the photo; she never sees it)
+- Text: If the photo does not show food or drink, or is too dark, blurred or far away to tell, set is_food to false […] Do not guess. / kcal_low and kcal_high: a RANGE of kilocalories for that portion […] keep the range honest and wide; never give a single figure. / Never judge the food or the person: no words such as healthy, unhealthy, good, bad, junk, clean, light, heavy, indulgent or treat. No advice, no targets, no comparison with what anyone should eat, nothing about weight or diets.
+- Sources: product rule; the server also drops any item whose name carries a judgement word, and any range outside 0–3000 kcal.
+- Status: Awaiting clinician sign-off
