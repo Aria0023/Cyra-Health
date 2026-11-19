@@ -26,7 +26,7 @@ export const SUPPORT_EMAIL = cleanSupportEmail(import.meta.env?.VITE_SUPPORT_EMA
 export const supportHref = (email, subject = "Solia Health support") => (email ? `mailto:${email}?subject=${encodeURIComponent(subject)}` : "");
 
 /** Her text as it will be sent: line endings made plain, control characters dropped, trimmed. Never shortened. */
-export const cleanMessage = (v) => String(v ?? "").replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, "").trim();
+export const cleanMessage = (v) => String(v ?? "").replace(/\r\n?/g, "\n").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, "").trim(); // eslint-disable-line no-control-regex
 
 /** May the reply switch be shown? Only while signed in with an account that has an email. */
 export const canReply = (account) => !!(account && typeof account.email === "string" && EMAIL_RE.test(account.email.trim()));

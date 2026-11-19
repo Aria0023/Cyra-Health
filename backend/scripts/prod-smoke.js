@@ -96,7 +96,7 @@ for (const [label, env, want] of refusals) {
   const r = await run({ NODE_ENV: "production", ADMIN_KEY: real(), AUTH_SECRET: real(), CYRA_CONFIG: "config/app.prod-test2.json", DATA_DIR: "" }, P);
   try {
     const m = mounted(r.out);
-    assert(!!r.proc && m.length === 11 && ["push", "ai", "oauth", "accounts", "integrations", "shop", "portal", "subscriptions", "insights", "pulse", "backup"].every((x) => m.includes(x)), `production + pulse, backup listed: mounts ${m.join(", ")}`);
+    assert(!!r.proc && m.length === 12 && ["push", "ai", "oauth", "accounts", "integrations", "shop", "portal", "subscriptions", "insights", "feedback", "pulse", "backup"].every((x) => m.includes(x)), `production + pulse, backup listed: mounts ${m.join(", ")}`);
     const B = `http://127.0.0.1:${P}`;
     const st = async (path, init) => (await fetch(`${B}${path}`, { redirect: "manual", ...init })).status;
     const codes = [await st("/api/pulse"), await st("/api/oauth/providers"), await st("/api/integrations/sources"), await st("/api/backup", { method: "POST", headers: { "content-type": "application/octet-stream" }, body: crypto.randomBytes(16) })];

@@ -21,7 +21,7 @@ Branch `feature/launch-tools`, worktree `/home/user/cyra-launch`. Resume from he
 - Verified 2026-11-19: lint 0 errors (23 warnings); app unit 691/691; backend 111/111; smoke:all passed (exit 0); build
   stamp once; e2e 69/69; axe 46/46 (full runs, after the last change to this task's files).
 - A kind "ask" (the free Ask) is recorded too, beside the brief's four: it spends tokens as well.
-## Task 3: feedback — verification in progress
+## Task 3: feedback — DONE (final commit "Feedback: send from the app, inbox in the portal")
 - backend: module `feedback` (POST + owner inbox), in PRODUCTION_MODULES / app.json / app-dev.json / prod-smoke /
   features.js FEATURE_ALSO; `server.js` gives /api/feedback its own parser; weekly report counts.
 - app: `src/lib/feedback.js` (payload, preview rows, send, copy, Help answers, VITE_SUPPORT_EMAIL),
@@ -32,4 +32,7 @@ Branch `feature/launch-tools`, worktree `/home/user/cyra-launch`. Resume from he
   .env.example + render.yaml (VITE_SUPPORT_EMAIL), STORE-SETUP, spec, backend/README.
 - tests: `src/lib/feedback.test.mjs`, `backend/test/feedback.test.mjs`, `e2e/feedback.spec.mjs`,
   `e2e/feedback-axe.spec.mjs`, `e2e/portal-feedback.spec.mjs`, launch axe spec extended.
+- Verified 2026-11-19: lint 0 errors (23 warnings); app unit 696/696; backend 119/119; smoke:all passed (exit 0); build
+  stamp once; e2e 73/73; axe 50/50. The axe run's bundle was built after Task 4's ProSheet / delete-confirmation edits
+  had started, so it covers this task's screens plus those two edits.
 ## Task 4: store-submission checks — not started
