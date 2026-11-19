@@ -30,8 +30,15 @@ Branch `feature/tracking-reports`, worktree `/home/user/cyra-track`. Resume from
 - NOTE: `insights/report.js` and `test/insights-weekly.test.mjs` (Task 4, unfinished) are NOT in this commit; they are in
   commit 2353bcc and come back in the next WIP commit.
 
-## Task 4: weekly report + wearable how-to — IN PROGRESS
-Written, not yet wired or run: `insights/weekly.js` (pure), `insights/report.js` (routes + hourly timer),
-`test/insights-weekly.test.mjs`. Left: `writeText` + `ctx.aiWrite` in the ai module, mount in insights/index.js, portal
-Weekly report page, devices how-to (Devices.jsx, lib/devices.js; hide the Terra row unless the server reports it),
-e2e + axe, docs.
+## Task 4: weekly report + wearable how-to — DONE (final commit "Weekly owner report by email; Fitbit, Garmin and Whoop how-to")
+- ai module: `writeText` + `ctx.aiWrite` (effort low, no thinking parameter, refusal fallback). insights: `weekly.js`
+  (schedule, totals, email text), `report.js` (settings, preview, send, hourly timer, stamp in `insights_weekly`).
+- Portal: Weekly report page (switch, recipients, Preview, Send now). Smoke: weekly parts of `insights-smoke.js`,
+  including the real SDK path against a mock Anthropic.
+- App: `deviceHowTo` + `terraShown` (lib/devices.js), the disclosure in Devices.jsx, Terra row hidden unless the server
+  reports it (device list and Home's Wearables panel), Garmin product line reworded (seed regenerated).
+- Verified 2026-11-19: lint 0 errors; app unit 686/686; backend 97/97; smoke:all 13/13 passed; build stamp once;
+  e2e 67/67; axe 44/44. After that run one portal sentence ("Next: … for the week of …") and two status fields were
+  corrected; backend tests (97/97), insights smoke, portal-weekly e2e (2/2) and portal-reports-axe (2/2) were re-run.
+
+## All four tasks are done. Nothing is in progress.

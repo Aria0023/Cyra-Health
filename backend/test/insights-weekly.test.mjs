@@ -178,6 +178,7 @@ test("settings: on by default, to the owners; an owner can change both; validati
   owner = await portalSignIn("owner@solia.example");
   const s = await (await req("GET", "/api/insights/weekly", undefined, owner)).json();
   assert.deepEqual([s.enabled, s.recipients, s.usingOwners, s.lastSentAt, s.nextAt, s.email, s.ai], [true, ["owner@solia.example", "second@solia.example"], true, null, "2026-11-16T14:00:00.000Z", "ready", true]);
+  assert.deepEqual([s.nextWeek, s.week, s.dueNow], [{ from: "2026-11-09", to: "2026-11-15" }, { from: "2026-11-02", to: "2026-11-08" }, false], "Saturday: Monday's report covers this week; last Monday's slot is past its grace");
   assert.equal((await req("PUT", "/api/insights/weekly", { recipients: "not an address" }, owner)).status, 400);
   assert.equal((await req("PUT", "/api/insights/weekly", { enabled: "yes" }, owner)).status, 400);
   assert.equal((await req("PUT", "/api/insights/weekly", { cron: "* * * * *" }, owner)).status, 400);

@@ -236,7 +236,7 @@ export function reportViews(L) {
       box,
       h("div", { class: "panel narrow" },
         h("p", { class: "switchrow" }, h("b", { id: "wk-on-lab" }, "Send the weekly report"), onOff),
-        h("p", { class: "note", "data-next": st.nextAt || "" }, st.enabled ? `Next: ${fmtTimeOf(st.nextAt)}, for the week of ${st.week.from} to ${st.week.to} if that hasn't been sent, else the week after.` : "Off: nothing is sent on Mondays."),
+        h("p", { class: "note", "data-next": st.nextAt || "" }, st.enabled ? `${st.dueNow ? `The report for ${st.week.from} to ${st.week.to} hasn't gone out yet: it is sent at the server's next hourly check. ` : ""}Next: ${fmtTimeOf(st.nextAt)}, for the week of ${st.nextWeek.from} to ${st.nextWeek.to}.` : "Off: nothing is sent on Mondays."),
         h("p", { class: "note", "data-last": st.lastSentAt || "" }, sentLine(st))),
       st.email === "not set up" ? h("p", { class: "err", role: "alert" }, "Email isn't set up on this server (RESEND_API_KEY and EMAIL_FROM), so nothing can be sent. Preview still works.") : null,
       st.email === "development" ? h("p", { class: "note" }, "Development server: reports are written to the server's console instead of being emailed.") : null,

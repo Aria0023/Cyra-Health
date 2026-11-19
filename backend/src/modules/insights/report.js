@@ -132,7 +132,9 @@ export function mountWeekly(router, { ctx, store, clock, reading, writing, sendi
   const drafts = new Map(); // id → { report, at }
   const view = async () => {
     const st = await state(), t = clock();
-    return { enabled: st.enabled, recipients: recipientsOf(st), usingOwners: !st.recipients, lastSentAt: st.lastSentAt, lastResult: st.lastResult, nextAt: st.enabled ? nextSlot(t) : null, week: (({ from, to }) => ({ from, to }))(weekOf(dueSlot(t))), email: mail.ready ? (mail.dev ? "development" : "ready") : "not set up", ai: typeof ctx.aiWrite === "function" };
+    return { enabled: st.enabled, recipients: recipientsOf(st), usingOwners: !st.recipients, lastSentAt: st.lastSentAt, lastResult: st.lastResult, nextAt: st.enabled ? nextSlot(t) : null, nextWeek: (({ from, to }) => ({ from, to }))(weekOf(Date.parse(nextSlot(t)))),
+      dueNow: !!slotToSend({ nowMs: t, enabled: st.enabled, lastSlot: st.lastSlot }) && mail.ready && recipientsOf(st).length > 0, // this week's is still to go out, at the next hourly check
+      week: (({ from, to }) => ({ from, to }))(weekOf(dueSlot(t))), email: mail.ready ? (mail.dev ? "development" : "ready") : "not set up", ai: typeof ctx.aiWrite === "function" };
   };
   router.get("/weekly", reading, owner, async (req, res) => res.json(await view()));
 
