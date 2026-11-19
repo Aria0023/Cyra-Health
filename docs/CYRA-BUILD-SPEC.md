@@ -1624,6 +1624,16 @@ pass on the new dark cards (unit tests).
 
 ### 8.6 Styles: five looks of one layout (Mono 2026-11-01; Bloom, Clear and Journal 2026-11-02)
 
+> **2026-11-19, owner decision: Bloom is withdrawn.** The picker offers four styles (Soft, Mono, Clear, Journal). A device
+> that had chosen Bloom reads as Soft (`cleanStyle`, applied where Shell gets `uiStyle`). Bloom's token layer remains in
+> lib/constants.js, unselectable. Where this section says "five", read four.
+>
+> **2026-11-19:** three trial styles (pastel, then richer, then cream-and-bold) were shown to the owner and withdrawn the
+> same day: Soft stays the default. Then, from the owner's reference screens, five gradient looks were added to the picker
+> to test with users: **Aura, Sky, Blush, Mint, Sunset** (`STYLE_SKINS`; a full-screen pastel gradient, frosted cards,
+> colourful icon circles; layout unchanged; AA on every surface in both schemes). The picker shows nine. Tinted cards (all styles but Clear and Journal, which keep their own) carry a slanted
+> fade of their domain tint and a hairline in a deeper shade of the same hue; no hard bands.
+
 You → Appearance → **Style** is a small visual picker: five radio cards, each a live mini preview drawn in that style
 (wordmark, a chip, a button and a card corner). **Soft** stays the default. A style changes type, shape, density,
 surfaces and motion; it never changes layout, components, content or behaviour, and there is no per-screen style code

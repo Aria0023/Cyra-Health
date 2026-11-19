@@ -202,7 +202,6 @@ export default function HomeScreen({
       {installTip && <InstallTip tip={installTip} returnFocusRef={ctaRef} />}
       {/* Passive tracking S2: "Today's auto-tracked" sits above the Quick log while a source synced in the last 36 h (App.jsx). */}
       {autoCard}
-      {devicesCard}
 
       {/* ---- Quick log: 2–4 tiles (her choice, You can change them here); each opens its logger. ---- */}
       <section className="quicklog" aria-labelledby="quicklog-t">
@@ -230,7 +229,11 @@ export default function HomeScreen({
         </section>
       </div>
 
-      <section className="v2card insightcard" aria-labelledby="insight-t">
+      {/* 2026-11-19: the one-time "Connect your devices" invite sits below the day's own cards, not above Quick log
+          (owner: Home isn't the main place for it; Body, the "+" sheet and You keep their own ways in). */}
+      {devicesCard}
+
+      <section className="v2card insightcard" data-tint="mind" aria-labelledby="insight-t">
         <p className="section-lab" id="insight-t">{t("home.todaysInsight")}</p>
         {homeInsight.empty
           ? <EmptyNote>{homeInsight.text}</EmptyNote>

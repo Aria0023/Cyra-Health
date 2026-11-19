@@ -48,7 +48,14 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
    The chips can still narrow (their text wraps inside) and only when even that doesn't fit does the last one move to a second row, so the page never scrolls sideways. */
 .mast > .mark { margin-right:auto; }
 .mast > .stagechip, .mast > .acctchip { flex:1 1 min-content; max-width:max-content; margin-right:0; }
-.mast > .stagechip.icon { flex:0 0 44px; max-width:44px; }
+.mast > /* Plan badge in the header: one look per plan state (lib/planBadge.js). 44px tall like the icon chips beside it. */
+.stagechip.planbadge { min-height:44px; padding:6px 12px; white-space:nowrap; letter-spacing:.02em; }
+.planbadge[data-plan="pro"] { background:var(--primary); border-color:var(--primary); color:var(--on-primary); }
+.planbadge[data-plan="trial"] { background:color-mix(in srgb, var(--primary) 12%, var(--card)); border-color:var(--primary); color:var(--ink); }
+.planbadge[data-plan="ended"] { background:var(--card); border:2px solid var(--ink); color:var(--ink); }
+.planbadge[data-plan="guest"] { background:var(--card); border-style:dashed; border-color:var(--soft); color:var(--ink); }
+.planbadge[data-plan="free"] { background:var(--card); color:var(--ink); }
+.stagechip.icon { flex:0 0 44px; max-width:44px; }
 .mark { font-family:var(--ff-display); font-weight:600; font-size:22px; }
 .sub { font-size:10.5px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--primary-text); margin-left:7px; vertical-align:3px; }
 .orgsel { display:flex; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:3px; }
@@ -467,6 +474,20 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 .devinfo b { font-size:16px; color:var(--ink); }
 .devstatus { font-size:15px; color:var(--soft); }
 .devrow.st-connected .devstatus { color:var(--ink); font-weight:600; }
+.devrow[data-kind="phone"] { --devtint:var(--tint-body); } .devrow[data-kind="ring"] { --devtint:var(--tint-mind); } .devrow[data-kind="glucose"] { --devtint:var(--tint-patterns); }
+.devrow { background:linear-gradient(180deg, var(--devtint, var(--tint-you)) 0, color-mix(in srgb, var(--devtint, var(--tint-you)) 35%, var(--card)) 84px, var(--card) 100%); border-left:4px solid color-mix(in srgb, var(--primary) 45%, var(--devtint, var(--tint-you))); }
+.devrow .devline b { color:var(--primary-text); }
+.devicon { flex:0 0 44px; width:44px; height:44px; border-radius:14px; display:inline-flex; align-items:center; justify-content:center; background:var(--devtint, var(--tint-you)); color:var(--primary-text); border:1px solid var(--edge); }
+.devrow-main .devinfo { flex:1 1 auto; }
+.devpill { display:inline-block; font-size:13px; font-weight:700; line-height:1.3; color:var(--ink); padding:3px 10px; border-radius:999px; border:1px solid var(--line); background:var(--card); margin-top:2px; }
+.devrow.st-connected { border-color:var(--good); }
+.devrow.st-connected .devpill { border-color:var(--good); background:color-mix(in srgb, var(--good) 14%, var(--card)); }
+.devrow.st-connected .devpill::before { content:""; display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--good); margin-right:6px; }
+.devrow.st-pending .devpill { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 10%, var(--card)); }
+.devrow.st-elsewhere .devpill, .devrow.st-notSetUp .devpill { border-style:dashed; }
+.devrow.st-elsewhere, .devrow.st-notSetUp { border-left-color:var(--line); }
+.devrow.st-elsewhere .devicon, .devrow.st-notSetUp .devicon { background:var(--card); border-style:dashed; color:var(--soft); }
+.devnote { display:block; margin-top:4px; }
 .devrow .takebtn { min-height:44px; flex-shrink:0; }
 .devline { font-size:16px; line-height:1.45; color:var(--soft); margin:8px 0 0; }
 .devline b { color:var(--ink); font-weight:600; }
@@ -983,6 +1004,17 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .serif { font-family:var(--ff-display); }
 .v2card { position:relative; background:var(--card); border:1px solid var(--edge); border-radius:var(--r-card); box-shadow:var(--sh-card); padding:var(--pad-card); margin-bottom:var(--stack); }
 .v2card[data-tint] { background:linear-gradient(180deg, var(--tintc) 0, var(--card) 92px) var(--card); }
+/* 2026-11-19 (owner: "each box should have a distinct shade ... but a more blended feel like the original Soft"): a
+   tinted card keeps a light shade of its domain colour all the way down, fading on a slant, with a hairline in a
+   slightly deeper shade of the same hue (--tintedge, derived from the tint so every style, palette and scheme
+   follows). No hard bands. Decorative only: controls keep --line. Journal and Clear keep their own backgrounds
+   below. Browsers without relative colours keep the plain card above. */
+@supports (color: oklch(from red l c h)) {
+  .cy [data-tint] { --tintedge:oklch(from var(--tintc) calc(l - .12) calc(c * 2.6) h); }
+  .cy[data-scheme="dark"] [data-tint] { --tintedge:oklch(from var(--tintc) calc(l + .16) calc(c * 1.8) h); }
+  .v2card[data-tint] { background:linear-gradient(168deg, var(--tintc) 0, color-mix(in srgb, var(--tintc) 62%, var(--card)) 45%, color-mix(in srgb, var(--tintc) 34%, var(--card)) 100%) var(--card); border:1px solid color-mix(in srgb, var(--tintedge) 34%, var(--card)); }
+}
+
 .v2card.hero { padding:var(--pad-hero); }
 .v2card-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
 .v2card-head:only-child { margin-bottom:0; }
@@ -1868,6 +1900,19 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
 .cy[data-style="clear"] .navtab.on { box-shadow:inset 0 -3px 0 var(--primary); }
 /* Journal: ruled paper, paper-stack cards, outlined ink badges, stamp chips and dashed dividers. */
 .cy[data-style="journal"] .v2card[data-tint] { background:linear-gradient(180deg, var(--tintc) 0, var(--tintc) 6px, var(--card) 6px) var(--card); }
+/* Aura, Sky, Blush, Mint, Sunset (2026-11-19): what their tokens can't say. The pastel gradient runs the whole screen, not just the
+   top 340px (it repeats seamlessly down a long page and scrolls with it); cards are frosted white over it; tinted cards hold a fuller slanted fade of their colour; quick-log and
+   badge icons sit on colourful gradient circles (--ico-*, decorative: each has its text label beside it). */
+.cy:is([data-style="aura"], [data-style="sky"], [data-style="blush"], [data-style="mint"], [data-style="sunset"]) { background:linear-gradient(100deg, transparent 0, color-mix(in srgb, var(--card) 45%, transparent) 55%, transparent 100%), repeating-linear-gradient(168deg, var(--wash-a) 0, var(--wash-b) 320px, var(--wash-c) 640px, var(--wash-a) 960px), var(--card); }
+.cy:is([data-style="aura"], [data-style="sky"], [data-style="blush"], [data-style="mint"], [data-style="sunset"]) :is(.v2card, .plaincard, .qtile) { background:color-mix(in srgb, var(--card) 66%, transparent); border:1px solid color-mix(in srgb, var(--card) 80%, transparent); -webkit-backdrop-filter:blur(16px) saturate(140%); backdrop-filter:blur(16px) saturate(140%); }
+.cy:is([data-style="aura"], [data-style="sky"], [data-style="blush"], [data-style="mint"], [data-style="sunset"]) .v2card[data-tint] { background:linear-gradient(150deg, color-mix(in srgb, var(--tintc) 92%, transparent) 0, color-mix(in srgb, var(--tintc) 55%, transparent) 55%, color-mix(in srgb, var(--card) 60%, transparent) 100%); border:1px solid color-mix(in srgb, var(--card) 75%, transparent); box-shadow:var(--sh-card); }
+.cy:is([data-style="aura"], [data-style="sky"], [data-style="blush"], [data-style="mint"], [data-style="sunset"]) .railcard[data-tint] { background:linear-gradient(135deg, var(--tintc) 0, color-mix(in srgb, var(--tintc) 70%, transparent) 100%); }
+.cy:is([data-style="aura"], [data-style="sky"], [data-style="blush"], [data-style="mint"], [data-style="sunset"]) :is(.qtile-ico, .v2card .ibadge) { color:var(--ico-ink); box-shadow:var(--sh-ico); background:var(--ico-0); }
+.cy:is([data-style="aura"], [data-style="sky"], [data-style="blush"], [data-style="mint"], [data-style="sunset"]) :is(.qtile:nth-child(4n+1) .qtile-ico, .v2card[data-tint="body"] .ibadge) { background:var(--ico-1); }
+.cy:is([data-style="aura"], [data-style="sky"], [data-style="blush"], [data-style="mint"], [data-style="sunset"]) :is(.qtile:nth-child(4n+2) .qtile-ico, .v2card[data-tint="mind"] .ibadge) { background:var(--ico-2); }
+.cy:is([data-style="aura"], [data-style="sky"], [data-style="blush"], [data-style="mint"], [data-style="sunset"]) :is(.qtile:nth-child(4n+3) .qtile-ico, .v2card[data-tint="patterns"] .ibadge) { background:var(--ico-3); }
+.cy:is([data-style="aura"], [data-style="sky"], [data-style="blush"], [data-style="mint"], [data-style="sunset"]) .qtile:nth-child(4n+4) .qtile-ico { background:var(--ico-4); }
+@media (prefers-reduced-transparency: reduce) { .cy:is([data-style="aura"], [data-style="sky"], [data-style="blush"], [data-style="mint"], [data-style="sunset"]) :is(.v2card, .plaincard, .qtile) { background:var(--card); -webkit-backdrop-filter:none; backdrop-filter:none; } }
 .cy[data-style="journal"] :is(.ibadge, .ibadge[data-tint], .v2card[data-tint] .ibadge, .qtile-ico, .tileopt-ico) { background:var(--card); color:var(--primary-text); box-shadow:inset 0 0 0 1.5px var(--primary); }
 .cy[data-style="journal"] :is(.vchip, .tchip, .uchip, .ppill) { text-transform:uppercase; letter-spacing:.09em; font-size:10.5px; box-shadow:inset 0 0 0 1px currentColor; padding:4px 8px; }
 .cy[data-style="journal"] .section-lab::before { content:'\\2014'; width:auto; height:auto; background:none; color:var(--accent-text); margin-right:6px; vertical-align:0; font-style:normal; }
