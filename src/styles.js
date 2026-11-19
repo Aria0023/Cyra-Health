@@ -143,6 +143,8 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 .sname { font-family:var(--ff-display); font-weight:600; font-size:15.5px; margin-bottom:3px; font-style:var(--disp-style); }
 .smatch { font-size:11.5px; color:var(--primary-text); font-weight:700; margin-bottom:5px; }
 .ev { display:inline-block; font-size:11px; font-weight:700; border-radius:var(--r-chip); padding:3px 10px; margin-bottom:8px; }
+/* The bold lead of a suggestion (components/Lead.jsx): same colour as its text, so contrast is unchanged. */
+.lead { font-weight:700; color:inherit; }
 .ev-strong { background:color-mix(in srgb, var(--good) 13%, var(--card)); color:var(--good); } .ev-mixed { background:var(--ev-mixed-bg); color:var(--ev-mixed-ink); } .ev-comfort { background:var(--ev-comfort-bg); color:var(--ev-comfort-ink); }
 /* Clinical care is a kind of option, not a grade of evidence, so it takes the palette primary rather than the "strong" green. */
 .ev-clinical { background:color-mix(in srgb, var(--primary) 16%, var(--card)); color:color-mix(in srgb, var(--primary) 80%, var(--ink)); }

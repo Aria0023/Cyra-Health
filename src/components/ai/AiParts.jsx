@@ -3,6 +3,7 @@ import { Card, Chip, Sheet } from "../ui/index.js";
 import Icon from "../Icon.jsx";
 import Advice from "../Advice.jsx";
 import { t } from "../../lib/i18n.js";
+import Lead from "../Lead.jsx";
 
 /* Cyra's AI write-up and chat (calm R8). Three parts, all driven by App.jsx:
    - AiSendSheet: "What Cyra will send". Opens before EVERY send. It shows the request body in plain words and then
@@ -56,7 +57,7 @@ export function WriteUpCard({ status, last = null, busy = false, note = null, le
       <AiArt />
       {last ? (
         <div className="aiout" tabIndex={-1}>
-          {paras.map((tv, i) => <p key={i} className="aitext">{tv}</p>)}
+          {paras.map((tv, i) => <p key={i} className="aitext">{i === 0 ? <Lead>{tv}</Lead> : tv}</p>)}
           {last.ask && <Advice urgency="visit">{t("aiParts.worthAsking", { ask: last.ask })}</Advice>}
           <p className="aichips"><span className="aisent"><Icon name="check" size={12} />{t("ai.sentSummary")}</span></p>
           <p className="rfoot">{t("ai.byAI")} {t("ai.notAdvice")}</p>
@@ -89,7 +90,7 @@ export function ChatCard({ status, chat = [], busy = false, note = null, left = 
         {chat.map((m, i) => (
           <li key={i} className={`aimsg ${m.role === "me" ? "me" : "cyra"}${m.kind === "urgent" ? " urgent" : ""}`}>
             <span className="sr-only">{m.role === "me" ? t("aiParts.you") : t("aiParts.cyra")}</span>
-            {String(m.text).split(/\n\s*\n/).map((tv, j) => <p key={j}>{tv}</p>)}
+            {String(m.text).split(/\n\s*\n/).map((tv, j) => <p key={j}>{m.role !== "me" && j === 0 ? <Lead>{tv}</Lead> : tv}</p>)}
             {m.ask && <p className="aiask">{t("aiParts.worthAsking", { ask: m.ask })}</p>}
             {m.role === "me" && m.kind !== "local" && <span className="aisent"><Icon name="check" size={12} />{t("ai.sentChat")}</span>}
           </li>

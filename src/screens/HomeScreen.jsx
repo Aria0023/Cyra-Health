@@ -16,6 +16,7 @@ import { dateEyebrow, greeting, TILES_MIN, TILES_MAX } from "../lib/home.js";
 import { MODULE_FRAMING } from "../lib/modules.js";
 import { t, fmtDate, fmtNumber } from "../lib/i18n.js";
 import { HAND_KINDS, kindLabel, dailyQuestion, doneWord, tryChip, tryWaitLine, TRY_MIN } from "../lib/trying.js";
+import Lead from "../components/Lead.jsx";
 
 /* Home v2 (calm R3, spec §5 Home). Top to bottom: the date eyebrow and her greeting; the hero, a large cycle-day ring
    over a soft stage-coloured shape (lib/home.js heroModel: "Day 23" in the serif, the phase under it, then the
@@ -116,7 +117,7 @@ export default function HomeScreen({
   const guideStep = !!(step && typeof step.id === "string" && step.id.startsWith("gs-"));
   const stepCard = step ? (
         <Card className="stepcard" eyebrow={step.eyebrow || t("home.todaysSmallStep")} title={step.title} icon={step.id === "breathe" ? "breath" : "sparkle"} tint="patterns" level={2}>
-          <p className="stepbody">{step.body}</p>
+          <p className="stepbody"><Lead>{step.body}</Lead></p>
           <div className="stepacts">
             {step.action && <button type="button" className="stepgo" onClick={() => onStep(step.action)}>{step.action.label}</button>}
             <button type="button" className="stepskip" onClick={onSkipStep}>{t("home.notToday")}</button>
@@ -124,7 +125,7 @@ export default function HomeScreen({
           {/* calm R6: an experiment from the weekly review may offer its practice as a second, quieter action */}
           {step.alt && <p className="stepalt"><button type="button" className="linkbtn" onClick={() => onStep(step.alt)}>{step.alt.label} →</button></p>}
           <Details label={t("home.why")}>
-            <p>{step.why}</p>
+            <p><Lead>{step.why}</Lead></p>
             {step.src && <p className="stepsrc">{t("home.source", { title: step.src.title, body: step.src.body, year: step.src.year })}</p>}
           </Details>
         </Card>
@@ -233,7 +234,7 @@ export default function HomeScreen({
         <p className="section-lab" id="insight-t">{t("home.todaysInsight")}</p>
         {homeInsight.empty
           ? <EmptyNote>{homeInsight.text}</EmptyNote>
-          : <div className="card insight"><div className="num">{homeInsight.num}</div><p>{homeInsight.fam && <i className="fdot" aria-hidden="true" style={{ background: famVar(homeInsight.fam) }} />}{homeInsight.text}</p></div>}
+          : <div className="card insight"><div className="num">{homeInsight.num}</div><p>{homeInsight.fam && <i className="fdot" aria-hidden="true" style={{ background: famVar(homeInsight.fam) }} />}<Lead>{homeInsight.text}</Lead></p></div>}
         {!homeInsight.empty && stage !== "preg" && <p className="insightnote">{MODULE_FRAMING}</p>}
       </section>
 
@@ -245,7 +246,7 @@ export default function HomeScreen({
           <p className="section-lab">{t("home.fromYourWearable")}</p>
           {wearInsights.map((w, i) => (
             <div className="icard" key={i}>
-              <div className="card"><div className="num">{w.num}</div><p>{w.text}</p></div>
+              <div className="card"><div className="num">{w.num}</div><p><Lead>{w.text}</Lead></p></div>
               {w.advice && <Advice urgency={w.urgency || "self"}>{w.advice}</Advice>}
             </div>
           ))}
