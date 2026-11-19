@@ -5,15 +5,15 @@
      trial  the free week is running (only where the gate is on, i.e. where she can subscribe)
      ended  the free week is over and she has no Pro
      free   everywhere else: nothing is time-limited in this build
-   label is what the chip shows; say is the full sentence for a screen reader and the tooltip. */
+   label is what the chip shows; say is its accessible name and tooltip (the label, then what a tap does). */
 import { trialDaysLeft } from "./trial.js";
 
+const badge = (key, label) => ({ key, label, say: `${label}. Open plans.` }); // the spoken name starts with the words on the chip
 export function planBadge({ owned = false, guest = null, gateOn = false, startIso = null, todayIso = null } = {}) {
-  if (owned === true) return { key: "pro", label: "Pro", say: "Your plan: Pro. Open plans." };
-  if (guest === "in") return { key: "guest", label: "Guest", say: "You're trying Solia Health as a guest. Open plans." };
-  if (!gateOn) return { key: "free", label: "Free", say: "Your plan: Free. Open plans." };
+  if (owned === true) return badge("pro", "Pro");
+  if (guest === "in") return badge("guest", "Guest");
+  if (!gateOn) return badge("free", "Free");
   const n = trialDaysLeft(startIso, todayIso);
-  if (n <= 0) return { key: "ended", label: "Free week over", say: "Your free week is over. Open plans." };
-  const days = n === 1 ? "last day" : `${n} days left`;
-  return { key: "trial", label: `Free week \u00b7 ${days}`, say: `Free week: ${days}. Open plans.` };
+  if (n <= 0) return badge("ended", "Free week over");
+  return badge("trial", `Free week \u00b7 ${n === 1 ? "last day" : `${n} days left`}`);
 }

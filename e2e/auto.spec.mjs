@@ -174,17 +174,17 @@ test("S3: You → Data sources manages the source; How this is going counts the 
   await expect(page.getByRole("button", { name: /^Wearables/ })).toContainText("optional");
 });
 
-test("S3 gallery: the card in all five styles and the notification mock; shots", async ({ page }) => {
+test("S3 gallery: the card in all four styles and the notification mock; shots", async ({ page }) => {
   await gotoGallery(page, { stage: "cycle", scheme: "light", style: "soft" });
-  await expect(page.locator(".dgstyles .autocard")).toHaveCount(5);
-  await expect(page.locator(".dgstyles .cy[data-style]")).toHaveCount(5);
+  await expect(page.locator(".dgstyles .autocard")).toHaveCount(4);
+  await expect(page.locator(".dgstyles .cy[data-style]")).toHaveCount(4);
   const mock = page.getByRole("group", { name: "Notification mock" });
   await expect(mock).toContainText("Last night synced. Looks right?");
   await expect(mock.getByRole("button", { name: "Looks right" })).toBeVisible();
   await expect(mock.getByRole("button", { name: "Open" })).toBeVisible();
   fs.mkdirSync("e2e/shots", { recursive: true });
-  await page.locator(".dgstyles").screenshot({ path: "e2e/shots/gallery-card-five-styles.png" });
+  await page.locator(".dgstyles").screenshot({ path: "e2e/shots/gallery-card-four-styles.png" });
   await mock.screenshot({ path: "e2e/shots/gallery-notification-mock.png" });
   await gotoGallery(page, { stage: "cycle", scheme: "dark", style: "clear" });
-  await expect(page.locator(".dgstyles .autocard")).toHaveCount(5);
+  await expect(page.locator(".dgstyles .autocard")).toHaveCount(4);
 });

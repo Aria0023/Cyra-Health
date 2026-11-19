@@ -22,6 +22,6 @@ test("where nobody can subscribe there is no countdown: the plan is Free", () =>
 test("every badge has a label and a sentence", () => {
   for (const a of [{ owned: true }, { guest: "in" }, {}, { gateOn: true, startIso: day(1), todayIso: day(2) }, { gateOn: true }]) {
     const b = planBadge(a);
-    assert.ok(b.label && b.say.endsWith("Open plans."), b.key);
+    assert.equal(b.say, `${b.label}. Open plans.`, b.key);
   }
 });
