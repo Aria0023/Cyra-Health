@@ -2402,6 +2402,10 @@ pure reference.
       /api/feedback` (backend module `feedback`, mounted in production): whitelisted, rate-limited, never logged, kept
       365 days, linked to an account only with reply and deleted with it. The portal's owner-only Feedback inbox; the
       open count on Overview and in the weekly report (never the text, never to Anthropic).
+- [x] Store review checks (2026-11-19, launch-tools Task 4): "Restore purchases" moved from the bottom of the Pro sheet
+      to directly under the plan tiles (on screen with the plans at 390x844; still on You → Your plan); the delete-account
+      confirmation (You → Account → "Delete account" → "Delete my account", two taps) now also says it can't be undone
+      and doesn't cancel a Pro subscription. Pinned by `e2e/store-checks.spec.mjs`; docs/STORE-SETUP.md section 5a.
 - [x] Devices (2026-11-19, Task 4): a "Fitbit, Garmin or Whoop?" how-to under the device list (share with Apple Health
       or Health Connect in the brand's app, then connect that here; HRV doesn't come through for Garmin and Whoop); the
       Fitbit · Garmin · Whoop (Terra) row shows only where the server reports Terra configured or a connection exists.

@@ -35,4 +35,8 @@ Branch `feature/launch-tools`, worktree `/home/user/cyra-launch`. Resume from he
 - Verified 2026-11-19: lint 0 errors (23 warnings); app unit 696/696; backend 119/119; smoke:all passed (exit 0); build
   stamp once; e2e 73/73; axe 50/50. The axe run's bundle was built after Task 4's ProSheet / delete-confirmation edits
   had started, so it covers this task's screens plus those two edits.
-## Task 4: store-submission checks — not started
+## Task 4: store-submission checks — verification in progress
+- `ProSheet.jsx`: "Restore purchases" directly under the plan tiles (was at the bottom, below the Pro list); styles.
+- `signin.js` deleteBody: + "It can't be undone. It doesn't cancel a Pro subscription: cancel that in the App Store or
+  Google Play."
+- `e2e/store-checks.spec.mjs` (3 tests); docs/STORE-SETUP.md section 5a; spec checklist; PRIVACY-AUDIT Task 4.

@@ -2716,3 +2716,13 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   Apple Health / Health Connect are read on the phone; Oura goes through the server. The store's menu names are not
   given (they change).
 
+### Task 4: store-submission checks — copy and layout only; no new request, nothing new leaves the device
+
+- "Restore purchases" moved up in the Pro sheet (directly under the plan tiles). No behaviour change.
+- The delete-account confirmation gained two sentences, both true of the build: "It can't be undone. It doesn't
+  cancel a Pro subscription: cancel that in the App Store or Google Play." (`DELETE /api/accounts/me` removes the
+  account, its sessions, its AI counts and its linked feedback, and never calls a store or RevenueCat.)
+- Not changed, and worth an owner's look: a free Pro grant an owner made BY EMAIL in the portal keeps that email in
+  the grant list after the account is deleted (the grant row only drops the account id). The confirmation's "your
+  sign-in email" is true of the account record; the grant list is the owner's own record.
+

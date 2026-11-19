@@ -93,6 +93,27 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
 - [ ] Turn Pro off (cancel and let it lapse in sandbox): nothing she logged is locked or hidden.
 - [ ] Without keys set, the phone app must say "The app store isn't connected in this build".
 
+## 5a. Store review checks: restore purchases and delete account (2026-11-19)
+
+Both are required by Apple's App Store review (and Google Play asks for in-app account deletion too) and are pinned by
+`e2e/store-checks.spec.mjs`, on a 390x844 screen. Check them by hand in the store build before each submission.
+
+- [ ] **Restore purchases is on the plans screen, with the plans.** Open the plans (Home or You → "See Pro plans", or
+      the "Your free week is over" sheet): "Restore purchases" sits directly under the two plan tiles and is on screen
+      without scrolling. It is also on You → Your plan. Tap it on a device that already bought Pro with the same store
+      account: Pro turns on.
+- [ ] **Delete my account is two taps from You → Account.** While signed in: You → Account → "Delete account", then
+      "Delete my account". Between the two taps the app says what is deleted (the account on Solia Health's server:
+      sign-in email, name and how she signed in, her monthly AI use counts, any feedback she allowed a reply to), that
+      it can't be undone, that it does not cancel a Pro subscription (that is done in the App Store or Google Play),
+      and that the health log on the device is not touched (Delete everything erases that). Nothing is deleted before
+      the second tap.
+- [ ] In App Store Connect → App Review Information, say where both are: "Restore purchases: on the plans sheet under
+      the plan tiles, and in You → Your plan. Account deletion: You → Account → Delete account."
+- [ ] Google Play → Data safety → account deletion: Play also asks for a web address where someone can ask for their
+      account to be deleted without the app. There is none in this repo yet: publish one (a page or the support
+      address) before filling in that form.
+
 ## 6. Promotions, Pro grants and the subscriptions dashboard (partner portal)
 
 The portal's **Subscriptions**, **Promotions** and **Pro grants** pages (owner only) read and write RevenueCat from the

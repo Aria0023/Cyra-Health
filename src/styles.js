@@ -1719,6 +1719,7 @@ button.plantile.on { border-color:var(--primary); box-shadow:inset 0 0 0 1px var
 .plantile-note { font-size:var(--fs-sm); color:var(--soft); }
 .plantile-trial { display:inline-flex; align-items:center; gap:4px; margin-top:2px; padding:3px 9px; border-radius:var(--r-pill); background:var(--tint-mind); color:var(--primary-text); font:700 var(--fs-sm) var(--ff-body); }
 .proplanstop { margin:0 0 14px; }
+.proplanstop .prorestore { display:inline-flex; align-items:center; min-height:44px; margin-top:6px; }
 .protrialline { margin:0 0 10px; font-size:var(--fs-md); line-height:1.5; color:var(--ink); }
 .youplantiles { margin:10px 0 6px; }
 /* Promotions (2026-11-15, portal subscriptions Task 3, components/PromoBanner.jsx): one calm banner tied to a store offer, on You → Plan and the Pro sheet only. */
