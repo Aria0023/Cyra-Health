@@ -1623,6 +1623,10 @@ pass on the new dark cards (unit tests).
 
 ### 8.6 Styles: five looks of one layout (Mono 2026-11-01; Bloom, Clear and Journal 2026-11-02)
 
+> **2026-11-19, owner decision: Bloom is withdrawn.** The picker offers four styles (Soft, Mono, Clear, Journal). A device
+> that had chosen Bloom reads as Soft (`cleanStyle`, applied where Shell gets `uiStyle`). Bloom's token layer remains in
+> lib/constants.js, unselectable. Where this section says "five", read four.
+
 You → Appearance → **Style** is a small visual picker: five radio cards, each a live mini preview drawn in that style
 (wordmark, a chip, a button and a card corner). **Soft** stays the default. A style changes type, shape, density,
 surfaces and motion; it never changes layout, components, content or behaviour, and there is no per-screen style code

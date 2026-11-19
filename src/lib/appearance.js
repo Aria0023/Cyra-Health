@@ -9,7 +9,9 @@ export const APPEARANCES = [["system", "System"], ["light", "Light"], ["dark", "
 export const DEFAULT_APPEARANCE = "system";
 /* Anything that isn't one of the three keys (missing, an old record, a typo) reads as System. */
 export const cleanAppearance = (v) => (APPEARANCES.some(([k]) => k === v) ? v : DEFAULT_APPEARANCE);
-/* Style (Solia 2026-11-01: Soft, Mono; skins 2026-11-02: Bloom, Clear, Journal). Five looks of the same layout: a
+/* Style (Solia 2026-11-01: Soft, Mono; skins 2026-11-02: Clear, Journal). Four looks of the same layout (Bloom was
+   withdrawn on 2026-11-19, owner decision: a device that had chosen it reads as Soft; its token layer stays in
+   lib/constants.js but nothing selects it): a
    device preference like Appearance, saved with the on-device record (record.js DEVICE_PREFS uiStyle), followed by every
    open tab of this browser, never sent anywhere and never put in a backup. Shell puts it on .cy as data-style; styles.js
    and the token layer in lib/constants.js (STYLE_SHAPE, STYLE_SKINS) do the rest (no per-screen code).
@@ -17,13 +19,12 @@ export const cleanAppearance = (v) => (APPEARANCES.some(([k]) => k === v) ? v : 
 export const STYLES = [
   ["soft", "Soft", "Pastel, gentle"],
   ["mono", "Mono", "Quiet, one colour"],
-  ["bloom", "Bloom", "Warm, editorial"],
   ["clear", "Clear", "Crisp, easy reading"],
   ["journal", "Journal", "Paper, handmade"],
 ];
 export const STYLE_KEYS = STYLES.map(([k]) => k);
 export const DEFAULT_STYLE = "soft";
-/* Anything that isn't one of the five keys (missing, an old record, a typo) reads as Soft. */
+/* Anything that isn't one of the four keys (missing, an old record, a typo) reads as Soft. */
 export const cleanStyle = (v) => (STYLE_KEYS.includes(v) ? v : DEFAULT_STYLE);
 export const SYSTEM_DARK_QUERY = "(prefers-color-scheme: dark)";
 /* The scheme on screen: printing → light; then her explicit choice; else the device setting. */

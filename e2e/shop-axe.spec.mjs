@@ -41,12 +41,12 @@ for (const scheme of ["light", "dark"]) {
   });
 }
 
-test("Shop page in every style (Mono, Bloom, Clear, Journal), light and dark", async ({ browser }) => {
+test("Shop page in every style (Mono, Clear, Journal), light and dark", async ({ browser }) => {
   for (const scheme of ["light", "dark"]) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });
     const page = await ctx.newPage();
     await register(page, { stage: "Perimenopause", pcos: "no" });
-    for (const style of ["Mono", "Bloom", "Clear", "Journal"]) {
+    for (const style of ["Mono", "Clear", "Journal"]) {
       await gotoTab(page, "You");
       await page.getByRole("radio", { name: style }).click();
       await expect(page.locator(".cy")).toHaveAttribute("data-style", style.toLowerCase());

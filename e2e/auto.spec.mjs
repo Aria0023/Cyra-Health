@@ -98,11 +98,11 @@ test("S2: Trying to conceive shows the contraception line once under the cycles 
   await expect(page.locator(".cycttc")).toHaveText("Solia Health is not a contraceptive.");
 });
 
-test("S2 shots: the card in Soft light, Clear dark and Bloom light", async ({ page }) => {
+test("S2 shots: the card in Soft light, Clear dark and Journal light", async ({ page }) => {
   await register(page, { stage: "My Cycle", pcos: "yes", name: "Maya" });
   await connectDemo(page);
   fs.mkdirSync("e2e/shots", { recursive: true });
-  for (const [style, scheme] of [["Soft", "light"], ["Clear", "dark"], ["Bloom", "light"]]) {
+  for (const [style, scheme] of [["Soft", "light"], ["Clear", "dark"], ["Journal", "light"]]) {
     await page.emulateMedia({ colorScheme: scheme });
     await gotoTab(page, "You");
     await page.getByRole("radio", { name: style }).click();
@@ -115,13 +115,13 @@ test("S2 shots: the card in Soft light, Clear dark and Bloom light", async ({ pa
   }
   await gotoTab(page, "Body"); await gotoSegment(page, "Cycles");
   await expect(page.locator(".toast.show")).toHaveCount(0, { timeout: 12_000 });
-  await page.locator(".cyclespage").screenshot({ path: "e2e/shots/cycles-markers-bloom-light.png" });
+  await page.locator(".cyclespage").screenshot({ path: "e2e/shots/cycles-markers-journal-light.png" });
   await gotoTab(page, "Patterns"); await gotoSegment(page, "Report");
   await expect(page.locator(".toast.show")).toHaveCount(0, { timeout: 12_000 });
   await page.locator(".cspreview").first().screenshot({ path: "e2e/shots/report-preview-table.png" });
   await gotoTab(page, "You");
   await page.locator("#you-sources").getByRole("button", { name: "How this is going" }).click();
-  await page.locator("#you-sources").screenshot({ path: "e2e/shots/data-sources-bloom-light.png" });
+  await page.locator("#you-sources").screenshot({ path: "e2e/shots/data-sources-journal-light.png" });
 });
 
 /* ---------- S3: Data sources, the demo switch, the deep link a notification opens, the gallery ---------- */

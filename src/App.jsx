@@ -1660,7 +1660,7 @@ export default function CyraDemo() {
 
   // The palette (UI) and data-viz custom properties, inline on .cy; data-scheme picks the dark token rule (Shell).
   const style = { ...paletteVars(t), ...vizVars(scheme, stage) };
-  const shell = { style, scheme, uiStyle };
+  const shell = { style, scheme, uiStyle: cleanStyle(uiStyle) }; // a withdrawn style (Bloom) kept in an old record reads as Soft
 
   /* ---------- agentic intake routing (lib/engine.js routeIntake) ---------- */
   const finishOnboarding = async () => {

@@ -319,10 +319,10 @@ test("v2 soft ramp (R1): ordinal, single hue, separate from UI palettes, arrives
 
 /* ---------- Mono style (Solia): a device preference, one token layer, AA in both schemes ---------- */
 test("Mono style: Soft is the default; anything unknown reads as Soft", () => {
-  assert.deepEqual(STYLES.map(([k]) => k), ["soft", "mono", "bloom", "clear", "journal"]);
+  assert.deepEqual(STYLES.map(([k]) => k), ["soft", "mono", "clear", "journal"]);
   assert.equal(DEFAULT_STYLE, "soft");
-  for (const v of [undefined, null, "", "Mono", "dark", 1, "Bloom", "clear ", "paper", "__proto__", {}, ["clear"]]) assert.equal(cleanStyle(v), "soft");
-  for (const k of ["soft", "mono", "bloom", "clear", "journal"]) assert.equal(cleanStyle(k), k);
+  for (const v of [undefined, null, "", "Mono", "dark", 1, "Bloom", "bloom", "clear ", "paper", "__proto__", {}, ["clear"]]) assert.equal(cleanStyle(v), "soft");
+  for (const k of ["soft", "mono", "clear", "journal"]) assert.equal(cleanStyle(k), k);
   for (const [, name, note] of STYLES) { assert.ok(name && note && note.length <= 22, name); }
 });
 
