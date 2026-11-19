@@ -555,7 +555,7 @@ export const RULES = Object.freeze({
   lastBackupAt: isoOrNullRule,
   installHint: enumRule(INSTALL_HINTS, { nullable: true }),
   appearance: enumRule(APPEARANCES),
-  uiStyle: enumRule(["soft", "mono", "bloom", "clear", "journal", "velvet", "evergreen", "marine"]),
+  uiStyle: enumRule(["soft", "mono", "bloom", "clear", "journal", "dawn", "sage", "lilac"]),
   visitQuestions: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanQuestions(v)) ? [] : [`${p}: expected a list of at most 8 questions, each at most 200 characters, got ${show(v)}`]),
   // Passive tracking S1 (lib/sources.js): a problem whenever the clean function would change anything.
   nightSkips: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanNightSkips(v)) ? [] : [`${p}: expected { YYYY-MM-DD: fever | alcohol | travel | other } (at most 400), got ${show(v)}`]),
