@@ -35,8 +35,16 @@ Branch `feature/launch-tools`, worktree `/home/user/cyra-launch`. Resume from he
 - Verified 2026-11-19: lint 0 errors (23 warnings); app unit 696/696; backend 119/119; smoke:all passed (exit 0); build
   stamp once; e2e 73/73; axe 50/50. The axe run's bundle was built after Task 4's ProSheet / delete-confirmation edits
   had started, so it covers this task's screens plus those two edits.
-## Task 4: store-submission checks — verification in progress
+## Task 4: store-submission checks — DONE (final commit "Store checks: restore purchases and delete account are easy to find")
 - `ProSheet.jsx`: "Restore purchases" directly under the plan tiles (was at the bottom, below the Pro list); styles.
 - `signin.js` deleteBody: + "It can't be undone. It doesn't cancel a Pro subscription: cancel that in the App Store or
   Google Play."
 - `e2e/store-checks.spec.mjs` (3 tests); docs/STORE-SETUP.md section 5a; spec checklist; PRIVACY-AUDIT Task 4.
+- Verified 2026-11-19: lint 0 errors (23 warnings); app unit 696/696; backend 119/119; smoke:all passed (exit 0); build
+  stamp once; e2e 76/76; axe 50/50 (full runs). After those runs one CSS rule was added (6px between the icon and the
+  words on Help's "Send feedback" button); lint, the build stamp, feedback.spec (3/3), portal-feedback.spec (1/1), store-checks.spec (3/3) and
+  feedback-axe.spec (4/4) were re-run.
+- Screenshots (2x): scratchpad `shots11/` (1 Readiness, 2 AI costs, 3 Feedback inbox, 4 feedback sheet with the preview
+  open, 5 Help, 6 Overview, 7 plans with Restore purchases). The temporary `e2e/zz-shots.spec.mjs` is deleted.
+
+## All four tasks are done. Nothing is in progress.

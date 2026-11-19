@@ -2000,6 +2000,7 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
 .youhelp .helplist p { margin:0 0 8px; }
 .helpsend { margin-top:14px; }
 .helpsend .section-lab { margin:0 0 4px; }
+.helpsend .ghostbtn > svg { margin:0 6px 0 0; }
 .helpmail { color:var(--primary-text); font-weight:700; display:inline-block; min-height:44px; line-height:44px; overflow-wrap:anywhere; }
 .feedbacksheet textarea.inp { width:100%; font-size:16px; resize:vertical; }
 .feedbacksheet .fbwarn { display:flex; gap:8px; align-items:flex-start; background:var(--warn-bg, color-mix(in srgb, var(--accent) 10%, var(--card))); border-radius:var(--r-inner); padding:10px 12px; }
