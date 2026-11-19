@@ -11,6 +11,7 @@ import path from "path";
 import express from "express";
 import { loadConfig, mountModules, ConfigError } from "./src/core/registry.js";
 import { createStore } from "./src/core/store.js";
+import { appSeen } from "./src/core/appSeen.js";
 
 const root = new URL(".", import.meta.url).pathname;
 let config;
@@ -31,6 +32,10 @@ app.set("trust proxy", 1); // Render / any reverse proxy: req.ip is the client, 
 
 // CORS: the static app lives on another origin. CORS_ORIGIN = comma-separated allowlist; unset = any origin (no credentials are ever sent).
 const origins = (process.env.CORS_ORIGIN || "*").split(",").map((s) => s.trim()).filter(Boolean);
+// The portal's Readiness page shows WHEN an app origin last called this server (core/appSeen.js): one time, in memory.
+const seen = appSeen({ origins });
+ctx.appLastSeen = seen.last;
+app.use(seen.middleware);
 app.use((req, res, next) => {
   const origin = req.get("origin");
   if (origin && (origins.includes("*") || origins.includes(origin))) {
@@ -63,7 +68,14 @@ app.use("/api/ai", express.json({ limit: "32kb" }), (err, req, res, next) => {
   console.warn(`[cyra] ai: ${String(err.type || "bad body").slice(0, 40)}`);
   res.status(err.status === 413 ? 413 : 400).json({ error: "body could not be read" });
 });
-// Both ignore application/octet-stream bodies, so the backup module's own raw parser gets those bytes untouched.
+// Feedback from the app (docs/plans/launch-tools.md Task 3): free text, so the same care. Its own parser with an 8 kB cap
+// (a 2000-character message fits several times over), and a parse failure never reaches Express's default handler.
+app.use("/api/feedback", express.json({ limit: "8kb" }), (err, req, res, next) => {
+  if (!err) return next();
+  console.warn(`[cyra] feedback: ${String(err.type || "bad body").slice(0, 40)}`);
+  res.status(err.status === 413 ? 413 : 400).json({ error: "body could not be read" });
+});
+// All of these ignore application/octet-stream bodies, so the backup module's own raw parser gets those bytes untouched.
 app.use(express.json({ verify: keepRaw }));
 app.use(express.urlencoded({ extended: false })); // Apple Sign-In posts its callback as a form
 

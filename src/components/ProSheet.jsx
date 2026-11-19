@@ -121,6 +121,10 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
           {tLine && <p className="protrialline">{tLine}</p>}
           <PlanTiles tiles={tiles} labelledBy="pro-plans-lab" pick={selling ? pick : null} onPick={selling ? setPick : null} />
           {!native && <GetInApp id="pro-getinapp" />}
+          {/* Store check (2026-11-19, docs/plans/launch-tools.md Task 4): Apple requires "Restore purchases" where
+              purchases are offered. It sits directly under the plans, so it is on screen with them, never below the
+              long "what Pro adds" list. */}
+          {selling && onRestore && <button type="button" className="linkbtn prorestore" onClick={onRestore}>{t("pro.restorePurchases")}</button>}
         </div>
       )}
       {!proAddsFor(ai, cloud, gateOn).length && <p className="hint pronone">{PRO_NONE}</p>}
@@ -148,7 +152,6 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
           <p className="rfoot">{KEEP_LINE}</p>
           <p className="rfoot">{STORE_LINES.whoKnows}</p>
           <div className="prolinks">
-            {onRestore && <button type="button" className="linkbtn" onClick={onRestore}>{t("pro.restorePurchases")}</button>}
             {POLICY_LINKS_READY && <button type="button" className="linkbtn" onClick={() => openExternal(TERMS_URL)}>{t("pro.termsOfUse")}</button>}
             {POLICY_LINKS_READY && <button type="button" className="linkbtn" onClick={() => openExternal(PRIVACY_URL)}>{t("pro.privacyPolicy")}</button>}
           </div>

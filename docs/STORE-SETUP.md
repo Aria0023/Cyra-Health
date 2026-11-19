@@ -41,6 +41,9 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
 - [ ] App Information → **App-Specific Shared Secret**: generate it (for RevenueCat).
 - [ ] App Privacy: add **Purchases** and **User ID** → "Linked to the user", "Not used for tracking" (the app tells
       RevenueCat her account number while she is signed in; see section 6).
+- [ ] App Privacy: add **Customer Support** → "Linked to the user", "Not used for tracking", for App Functionality
+      (You → Help's "Send feedback" / "Report a problem": the message she types, kept 365 days; her account email
+      only if she allows a reply). `ios/App/App/PrivacyInfo.xcprivacy` declares the same.
 
 ## 2. Google Play Console (Android)
 
@@ -51,6 +54,8 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
       consumes them).
 - [ ] Data safety form: declare purchase history and user IDs collected for app functionality and account
       management, not shared (see section 6).
+- [ ] Data safety form: declare the feedback message (user-generated content sent to customer support; the email
+      address only if she allows a reply), collected for app functionality, not shared, optional.
 - [ ] Create a Google Cloud **service account** with Play access for RevenueCat (RevenueCat's
       dashboard walks you through it).
 
@@ -71,7 +76,8 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
 ## 4. Put the keys into the builds
 
 - [ ] Render → static site "cyra-health" → Environment: `VITE_REVENUECAT_IOS_KEY`,
-      `VITE_REVENUECAT_ANDROID_KEY` (public, safe in the app). Optional: `VITE_TIP_URL` for a web tip page.
+      `VITE_REVENUECAT_ANDROID_KEY` (public, safe in the app). Optional: `VITE_TIP_URL` for a web tip page, and
+      `VITE_SUPPORT_EMAIL` for the support mail link in You → Help.
 - [ ] Phone builds: put the same two values in your local `.env`, then `npm run cap:sync`, which also
       bundles RevenueCat's native code (the npm dependency `@revenuecat/purchases-capacitor`).
 - [ ] iOS: in Xcode, Signing & Capabilities → **+ In-App Purchase**.
@@ -86,6 +92,27 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
       should change), and that "Start 7-day free trial" appears only on the yearly plan.
 - [ ] Turn Pro off (cancel and let it lapse in sandbox): nothing she logged is locked or hidden.
 - [ ] Without keys set, the phone app must say "The app store isn't connected in this build".
+
+## 5a. Store review checks: restore purchases and delete account (2026-11-19)
+
+Both are required by Apple's App Store review (and Google Play asks for in-app account deletion too) and are pinned by
+`e2e/store-checks.spec.mjs`, on a 390x844 screen. Check them by hand in the store build before each submission.
+
+- [ ] **Restore purchases is on the plans screen, with the plans.** Open the plans (Home or You → "See Pro plans", or
+      the "Your free week is over" sheet): "Restore purchases" sits directly under the two plan tiles and is on screen
+      without scrolling. It is also on You → Your plan. Tap it on a device that already bought Pro with the same store
+      account: Pro turns on.
+- [ ] **Delete my account is two taps from You → Account.** While signed in: You → Account → "Delete account", then
+      "Delete my account". Between the two taps the app says what is deleted (the account on Solia Health's server:
+      sign-in email, name and how she signed in, her monthly AI use counts, any feedback she allowed a reply to), that
+      it can't be undone, that it does not cancel a Pro subscription (that is done in the App Store or Google Play),
+      and that the health log on the device is not touched (Delete everything erases that). Nothing is deleted before
+      the second tap.
+- [ ] In App Store Connect → App Review Information, say where both are: "Restore purchases: on the plans sheet under
+      the plan tiles, and in You → Your plan. Account deletion: You → Account → Delete account."
+- [ ] Google Play → Data safety → account deletion: Play also asks for a web address where someone can ask for their
+      account to be deleted without the app. There is none in this repo yet: publish one (a page or the support
+      address) before filling in that form.
 
 ## 6. Promotions, Pro grants and the subscriptions dashboard (partner portal)
 

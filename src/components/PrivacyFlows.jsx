@@ -4,6 +4,7 @@ import { FLOW_COPY, otherConnections } from "../lib/privacyFlows.js";
 import { FEATURES } from "../lib/features.js";
 import { filesSentence, WEAR_RESTORE_LINE } from "../lib/disclosures.js";
 import { TAP_COPY } from "../lib/shopTaps.js";
+import { FEEDBACK_COPY } from "../lib/feedback.js";
 import { Switch } from "./ui/index.js";
 
 /* Settings → Privacy & your data → "What can leave this device" (local-first L10, brief item 6): one row per flow this
@@ -23,6 +24,7 @@ function RowDetails({ id, native, stage }) {
   if (id === "aiWeekly" || id === "aiChat") return <ul><li>{C.details.summaryFields}</li><li>{C.details.summaryNever}</li><li>{C.details.aiTwoWhere}</li></ul>;
   if (id === "wearables") return <><WearableFacts native={native} /><p>{WEAR_RESTORE_LINE}</p><p>{C.details.wearWhere}</p></>;
   if (id === "shopTaps") return <ul><li>{TAP_COPY.detail1}</li><li>{TAP_COPY.detail2}</li><li>{TAP_COPY.detail3}</li></ul>;
+  if (id === "feedback") return <ul><li>{FEEDBACK_COPY.flowDetail1}</li><li>{FEEDBACK_COPY.flowDetail2}</li><li>{FEEDBACK_COPY.flowDetail3}</li></ul>;
   if (id === "cloud") return <ul><li>{C.details.cloudHolds}</li><li>{C.details.cloudLost}</li><li>{C.details.cloudWhere}</li></ul>;
   if (id === "files") return (
     <ul>

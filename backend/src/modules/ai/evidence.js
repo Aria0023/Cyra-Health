@@ -74,7 +74,7 @@ export function buildAnswer(content = []) {
 const prompt = (v) => `Her question: "${v.question}"${v.summary ? `\nA pseudonymized summary of her own logs (JSON, counts only): ${JSON.stringify(v.summary)}` : ""}\nSearch the evidence sources, then answer under the rules.`;
 
 /** Calls Claude with the web search tool. → { refused } | { answer, sources, searchError }. Throws on API errors. */
-export async function askWithEvidence(client, model, v, { maxContinues = 2 } = {}) {
+export async function askWithEvidence(client, model, v, { maxContinues = 2, onUsage = null } = {}) {
   const messages = [{ role: "user", content: prompt(v) }];
   const blocks = [];
   for (let turn = 0; turn <= maxContinues; turn++) {
@@ -88,6 +88,7 @@ export async function askWithEvidence(client, model, v, { maxContinues = 2 } = {
       tools: [{ ...EVIDENCE_TOOL, allowed_domains: [...EVIDENCE_DOMAINS] }],
       messages,
     });
+    onUsage?.(r.usage); // spend totals (spend.js): each turn is one billed request
     if (r.stop_reason === "refusal") return { refused: true, category: String(r.stop_details?.category || "unspecified").slice(0, 40) };
     blocks.push(...(r.content || []));
     if (r.stop_reason !== "pause_turn") break;
@@ -96,7 +97,7 @@ export async function askWithEvidence(client, model, v, { maxContinues = 2 } = {
   return buildAnswer(blocks);
 }
 
-export function mountEvidence(router, { client, model, allow, meter = null }) {
+export function mountEvidence(router, { client, model, allow, meter = null, onUsage = null }) {
   router.post("/evidence", async (req, res) => {
     res.set("cache-control", "no-store");
     if (!allow(req.ip)) return res.status(429).json({ error: "too many requests — try again in a minute" });
@@ -109,7 +110,7 @@ export function mountEvidence(router, { client, model, allow, meter = null }) {
     const gate = meter ? await meter.check(req, "evidence") : null;
     if (gate && !gate.ok) return res.status(gate.status).json(gate.body);
     try {
-      const out = await askWithEvidence(client, model, input.value);
+      const out = await askWithEvidence(client, model, input.value, { onUsage });
       if (out.refused) { console.warn(`[cyra] ai/evidence: model declined (${out.category})`); return res.json({ provider: model, refused: true, answer: "", sources: [] }); }
       if (!out.sources.length || !out.answer) { console.warn(`[cyra] ai/evidence: no sources${out.searchError ? ` (search: ${out.searchError})` : ""}`); return res.status(502).json({ error: "no-sources", searchError: out.searchError }); }
       const usage = gate ? await gate.commit() : undefined;

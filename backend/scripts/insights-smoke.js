@@ -146,6 +146,12 @@ try {
     const content = String(q.body.messages[0].content), given = JSON.parse(content.slice(content.indexOf("{"), content.lastIndexOf("}") + 1));
     assert(given.people.total === 1 && given.shop && given.unusual && !/@|\bines\b|clinic\.example|acct_/.test(content + String(q.body.system)), "anthropic: it is sent the totals JSON only — no address, name or account id");
     assert(!s3.log().includes("One account was made") && !s3.log().includes("sk-ant-test"), "log: neither the summary nor the key");
+    // AI costs (docs/plans/launch-tools.md Task 2): the real SDK response's usage became one "report" total, priced as an estimate
+    const costs = await (await call("GET", "/api/insights/ai-costs", undefined, owner)).json();
+    const rep = costs.byKind.find((k) => k.kind === "report");
+    assert(costs.estimate === true && rep.requests === 1 && rep.input === 1 && rep.output === 1 && costs.prices.inputPerMTok === 4 && costs.prices.outputPerMTok === 20 && costs.budget.level === "none" && /bill of record/.test(costs.estimateLine), "ai costs: the report's usage is counted once (1 in, 1 out), as an estimate at the config's prices");
+    const ready = await (await call("GET", "/api/insights/readiness", undefined, owner)).text();
+    assert(JSON.parse(ready).rows.find((r) => r.id === "ai").status === "ready" && !ready.includes("sk-ant-test"), "readiness: AI is Ready and the key's value is not in the answer");
   } finally { s3.proc.kill(); anthropic.close(); fs.rmSync(`${DATA}-${P3}`, { recursive: true, force: true }); }
 }
 resend.close(); impact.close();

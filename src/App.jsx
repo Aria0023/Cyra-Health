@@ -78,6 +78,9 @@ import AutoTrackedCard from "./components/AutoTrackedCard.jsx";
 import DataSourcesCard from "./components/DataSourcesCard.jsx";
 import { LearnContext, LearnSheet, LearnCard } from "./components/Learn.jsx";
 import { PartnerCard, PartnerSheet } from "./components/PartnerShare.jsx";
+import { HelpCard, FeedbackSheet } from "./components/Feedback.jsx";
+import { helpItems, sendFeedback, SUPPORT_EMAIL, FEEDBACK_COPY } from "./lib/feedback.js";
+import { BUILD_STAMP } from "./lib/about.js";
 import { learnFor } from "./lib/learn.js";
 import { cleanPartnerShare, partnerReminderAt, PARTNER_COPY } from "./lib/partner.js";
 import { shareText } from "./lib/files.js";
@@ -522,6 +525,7 @@ export default function CyraDemo() {
      backups; lib/partner.js); partnerOpen and learnOpen (an explainer id from lib/learn.js) are UI only. */
   const [partnerShare, setPartnerShare] = useState(() => cleanPartnerShare(null));
   const [partnerOpen, setPartnerOpen] = useState(false);
+  const [feedbackKind, setFeedbackKind] = useState(null); // 2026-11-19 (lib/feedback.js): "feedback" | "problem" while the sheet is open
   const [learnOpen, setLearnOpen] = useState(null);
   /* Task B: blood glucose read on the phone from Apple Health / Health Connect (lib/glucose.js glucoseLog: which apps she
      connected, when it last synced, one summary per day; record, in backups). */
@@ -3162,7 +3166,8 @@ export default function CyraDemo() {
       dataSources={SOURCES_HERE || sourcesModel.rows.length ? <DataSourcesCard m={sourcesModel} busy={wearBusy} onDevices={openDevices} onConnect={connectWear} onPause={pauseSource} onDisconnect={disconnectAny} onPrefer={preferSource} onDemo={setDemo} /> : null}
       partner={partnerShown ? <PartnerCard onOpen={() => setPartnerOpen(true)} /> : null}
       learn={<LearnCard items={learnFor({ stage, ttc, meno: isMeno })} onOpen={openLearn} />}
-      care={FEATURES.shop ? <ShopEntryCard onOpen={() => openShop(null)} taps={shopTapsNow} /> : null} />
+      care={FEATURES.shop ? <ShopEntryCard onOpen={() => openShop(null)} taps={shopTapsNow} /> : null}
+      help={<HelpCard items={helpItems({ trialGate: TRIAL_GATE, native: isNative(), server: hasServer(), wearables: FEATURES.wearables, deviceSync: FEATURES.deviceSync, accounts: ACCOUNTS_HERE })} canSend={hasServer()} onOpen={setFeedbackKind} supportEmail={SUPPORT_EMAIL} />} />
   );
   const practicesView = () => <PracticesScreen favs={practiceFavs} onOpen={openPractice} featured={{ practice: localPractice(practiceOf("slow")), need: "calm" }} />;
   const journeyView = () => {
@@ -3278,6 +3283,12 @@ export default function CyraDemo() {
       {bodySheetView}
       {practiceSheet}
       {devicesOpen && <DevicesSheet {...devList} extra={FEATURES.shop ? <p className="learnrow-wrap devshop"><ShopLink category="wearables" label="Don't have a device? See options" /><ShopLink category="glucose" label="Glucose sensors: see options" /></p> : null} onClose={() => setDevicesOpen(false)} />}
+      {/* 2026-11-19: You → Help's feedback sheet. One request, made by its Send button, with exactly the previewed payload;
+          the sign-in token goes with it only when she turned on "It's OK to reply to me" (lib/feedback.js). */}
+      {feedbackKind && hasServer() && (
+        <FeedbackSheet kind={feedbackKind} build={BUILD_STAMP} platform={isNative() ? platform() : "web"} language={getLocale()} account={signin ? { email: signin.email } : null} onClose={() => setFeedbackKind(null)}
+          onSend={async (payload) => { const r = await sendFeedback(payload, { base: API_BASE, token: signin?.token || null }); if (r.ok) { setFeedbackKind(null); ping(FEEDBACK_COPY.sent[payload.kind]); } return r; }} />
+      )}
       {partnerOpen && partnerShown && <PartnerSheet prefs={partnerShare} setPrefs={setPartnerPrefs} pred={pred} ttc={ttc} phone={isNative()} onShare={sharePartner} onClose={() => setPartnerOpen(false)} />}
       {learnOpen && <LearnSheet id={learnOpen} onClose={() => setLearnOpen(null)} />}
       {proOpen && <ProSheet gateOn={TRIAL_GATE} unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} promo={promoNow} onHidePromo={hidePromo} until={proUntilNow} onCodeDone={() => startStore(STORE).then(takeStore)} onClose={() => setProOpen(false)} />}

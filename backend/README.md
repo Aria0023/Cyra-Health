@@ -402,6 +402,30 @@ Business data only (brands, products, the people at partner companies who edit t
   persistent disk every portal edit is lost on each deploy.** Tests: `npm test` (`test/shop.test.mjs`) and
   `npm run smoke:shop`.
 
+## Launch tools (`src/modules/insights/readiness.js`, ...) — production, owner only
+
+docs/plans/launch-tools.md. `GET /api/insights/readiness` answers one row per dependency (status, what it is for, the
+variable names and whether each is set: never a value), the summary line, the mounted modules and the app's build
+settings; `POST /api/insights/readiness/test-email` sends one test email to the signed-in owner and
+`POST /api/insights/readiness/storage-check` writes, reads back and deletes a temp file in the data directory. Nothing
+else is called. `src/core/appSeen.js` keeps the time of the last request from an app origin, in memory only.
+
+AI costs (Task 2): `src/modules/ai/spend.js` adds what each answered Anthropic request used (from the response's
+`usage`: input, output and cache tokens, web searches) to one `ai_spend` row per UTC day and kind: totals only, kept
+400 days. `GET /api/insights/ai-costs` (and `.csv`) turns them into an ESTIMATE with `config.ai.prices` (USD per
+million tokens and per 1000 web searches; the defaults are Claude Opus 5.5's list prices as checked 2026-11-03), which an
+owner can edit with `PUT /api/insights/ai-costs/prices`; `PUT /api/insights/ai-costs/budget` sets a monthly budget
+that emails the weekly report's recipients once at 80% and once at 100%. Nothing is switched off; Anthropic's console
+is the bill of record.
+
+Feedback (Task 3, `src/modules/feedback/`, mounted in production after shop and accounts): `POST /api/feedback` takes
+`{ kind, message, build, platform, language }` and, only with her reply switch, `{ reply: true, email }` plus her
+session token; every other field is dropped. Stored with the UTC date it arrived, kept 365 days, linked to an account
+only with reply (and deleted with it), rate-limited per address in memory, never logged (its own JSON parser in
+`server.js`). Owners read it with `GET /api/feedback` (`?kind=`, `?status=`), `PATCH /api/feedback/:id {status}` and
+`DELETE /api/feedback/:id`; `GET /api/feedback/count` feeds the Overview. It is free text: treat the `feedback`
+collection as possibly holding health details.
+
 ## Subscriptions, promotions, Pro grants and partner codes (`src/modules/subscriptions/`) — production
 
 The portal's owner-only business tools (docs/plans/portal-subscriptions.md). Never health data, never her stage.

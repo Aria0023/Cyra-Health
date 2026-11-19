@@ -203,3 +203,17 @@ input[type="date"], input[type="datetime-local"] { font: inherit; color: var(--i
 .mail { max-width: 760px; }
 .mail-subject { margin: 0 0 10px; overflow-wrap: anywhere; }
 .mail-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 14.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--ink); background: var(--paper); border: 1px solid var(--edge); border-radius: 10px; padding: 12px 14px; max-height: 70vh; overflow: auto; }
+
+/* launch tools (launch.js): readiness rows, AI costs, feedback */
+.badge.st-ready { background: var(--st-published-bg); color: var(--st-published); }
+.badge.st-not-set-up { background: var(--st-pending-bg); color: var(--st-pending); }
+.badge.st-problem { background: var(--bad-bg); color: var(--bad); }
+.ready-list { list-style: none; margin: 0 0 18px; padding: 0; }
+.ready-row h3 { margin: 0; }
+.ready-head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: space-between; margin: 0 0 6px; }
+.ready-need { font: 600 13px var(--ff-body); color: var(--soft); }
+.ready-row p { margin: 0 0 8px; }
+.fb-h { font-size: 18px; margin: 0; }
+.fb-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0; }
+.ready-sum { border-left: 6px solid var(--st-pending); }
+.ready-sum.ok { border-left-color: var(--st-published); }

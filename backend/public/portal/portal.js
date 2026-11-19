@@ -7,6 +7,7 @@
    screens, and a partner's Codes, live in subs.js and talk to /api/subscriptions on this same origin. */
 import { subsViews } from "./subs.js";
 import { reportViews } from "./reports.js";
+import { launchViews } from "./launch.js";
 
 const CATEGORY_LABEL = { fertility: "Ovulation & fertility", pregnancy: "Pregnancy", labs: "Lab tests", glucose: "Blood sugar", wearables: "Wearables", periods: "Periods", meno: "Perimenopause & menopause", sleep: "Sleep" };
 const AVAIL_LABEL = { home: "Kit sent to your home", lab: "Sample taken at a lab", visit: "Online visit", app: "In an app", online: "Sold online", stores: "Sold online and in stores", rx: "By prescription" };
@@ -75,7 +76,7 @@ function renderWho() {
   who.append(h("span", {}, "Signed in as ", h("b", { text: me().email }), ` · ${isOwner() ? "Owner" : "Partner"}`),
     h("button", { type: "button", class: "btn small", onclick: async () => { try { await api("POST", "/auth/sign-out", {}); } catch { /* ends locally anyway */ } endSession("You're signed out."); } }, "Sign out"));
   const links = isOwner()
-    ? [["#/", "Overview"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/subscriptions", "Subscriptions"], ["#/promotions", "Promotions"], ["#/grants", "Pro grants"], ["#/codes", "Codes"], ["#/clicks", "Clicks"], ["#/people", "People"], ["#/affiliates", "Affiliates"], ["#/weekly", "Weekly report"], ["#/activity", "Activity"]]
+    ? [["#/", "Overview"], ["#/readiness", "Readiness"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/subscriptions", "Subscriptions"], ["#/promotions", "Promotions"], ["#/grants", "Pro grants"], ["#/codes", "Codes"], ["#/clicks", "Clicks"], ["#/people", "People"], ["#/affiliates", "Affiliates"], ["#/weekly", "Weekly report"], ["#/ai-costs", "AI costs"], ["#/feedback", "Feedback"], ["#/activity", "Activity"]]
     : [["#/products", "Products"], ["#/brands", "Brands"], ["#/codes", "Codes"], ["#/clicks", "Clicks"]];
   for (const [href, label] of links) nav.append(h("a", { href, "data-nav": href }, label));
   nav.hidden = false;
@@ -184,7 +185,9 @@ async function renderOverview() {
     waiting.length ? productRows(waiting, await brandMap()) : h("p", { class: "note" }, "Nothing is waiting for review."),
     h("h2", {}, "Applications"),
     apps.length ? h("p", {}, `${apps.length} waiting. `, h("a", { href: "#/applications" }, "Review applications")) : h("p", { class: "note" }, "No applications are waiting."),
-    await reports.peopleCard());
+    await reports.peopleCard(),
+    await launch.aiCostsCard(),
+    await launch.feedbackCard());
 }
 async function brandMap() { const { brands } = await api("GET", "/brands"); return new Map(brands.map((b) => [b.id, b])); }
 
@@ -521,6 +524,9 @@ const subs = subsViews({ h, api, show, field, textIn, area, select, checks, chec
 /* ----- clicks, people, affiliates and the weekly report (reports.js) ----- */
 const reports = reportViews({ h, api, show, field, textIn, area, select, msgBox, tell, fmtTime, isOwner, brandList: async () => [...(await brandMap()).values()] });
 
+/* ----- readiness, AI costs and feedback (launch.js) ----- */
+const launch = launchViews({ h, api, show, field, textIn, area, select, msgBox, tell, fmtTime, isOwner, table: reports.table, td: reports.td, num: reports.num, download: reports.download });
+
 /* ---------- router ---------- */
 async function route() {
   if (/\/apply\/?$/.test(location.pathname)) return renderApply();
@@ -537,6 +543,9 @@ async function route() {
     if (isOwner() && hash === "#/promotions") return await subs.renderPromotions();
     if (isOwner() && hash.startsWith("#/promotion/")) return await subs.renderPromotion(decodeURIComponent(hash.slice("#/promotion/".length)));
     if (isOwner() && hash === "#/grants") return await subs.renderGrants();
+    if (isOwner() && hash === "#/readiness") return await launch.renderReadiness();
+    if (isOwner() && hash === "#/feedback") return await launch.renderFeedback();
+    if (isOwner() && hash === "#/ai-costs") return await launch.renderAiCosts();
     if (isOwner() && hash === "#/people") return await reports.renderPeople();
     if (isOwner() && hash === "#/affiliates") return await reports.renderAffiliates();
     if (isOwner() && hash === "#/weekly") return await reports.renderWeekly();

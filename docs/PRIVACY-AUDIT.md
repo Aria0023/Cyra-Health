@@ -1015,7 +1015,7 @@ Traced on 23 October 2026 to `src/lib/insights.js` (new), `src/lib/engine.js` (`
 - "Files you make yourself, like your appointment PDF or a POTS report or spreadsheet, go only where you save or send them. They aren't locked with a passphrase[ and never include readings Cyra gets from a connected watch, ring or health app]." — moved verbatim (`filesSentence(FEATURES)`, unchanged builder) into the always-rendered "Backups and files you make" row's Details; `pots/s7/native-pots-s5-on-s7.mjs:125` still finds it in the Settings text (hidden Details count toward `textContent`).
 - "What this version of Cyra can send, and when. Nothing about your health leaves this device unless a row below says On, or you take it out yourself as a backup, file or summary." — new (`p.flowintro`). True in every configuration: the only flows that carry health data are weekly counts and Cyra's AI, which appear as On rows when on, and her own exports; wearable connections send tokens, and reminders, sign-in, app files and the counts read carry no health data (each verified against the code paths in the A12 audit above).
 - Rows, each `On` / `Off` / `When you make one` with one line and a Details (a flow this build cannot use is not rendered at all, D2 / D3; there is no cloud row while `plan.cloudBackup` is false):
-  - **Browser reminders** (web, webReminders flag and a server; "Reminders" on the phone): "This browser's push address, and the days, time and time zone you chose, go to Cyra's server. Nothing about your health." (Details: the existing `WebReminderFacts`, verbatim) — `lib/notifications.js` sends `{ subscription, cadence, nudge, tz }` only. Notes: "Cyra's server hasn't confirmed it erased this browser's reminder address yet. Cyra keeps asking while it's open and each time you open it." (pending addresses, mirrors the Settings reminders text and `retryPushForget`) and "This browser can't show reminders, so nothing is sent." (unsupported browser). Phone: "Your phone shows them itself. Nothing is sent." with Details "Cyra asks this phone to show one reminder on the days and at the time you chose. No server is involved." / "The reminder only says \"Time for your 30-second check-in.\"" — `LocalNotifications` scheduled on the device, body string in `lib/notifications.js`; the harness-counted "Scheduled on this phone — no server involved." still occurs exactly once.
+  - **Browser reminders** (web, webReminders flag and a server; "Reminders" on the phone): "This browser's push address, and the days, time and time zone you chose, go to Cyra's server. Nothing about your health." (Details: the existing `WebReminderFacts`, verbatim) — `lib/notifications.js` sends `{ subscription, cadence, nudge, tz }` only. Notes: "Cyra's server hasn't confirmed it erased this browser's reminder address yet. Cyra keeps asking while it's open and each time you open it." (pending addresses, mirrors the Settings reminders text and `retryPushForget`) and "This browser can't show reminders, so nothing is sent." (unsupported browser). Phone: "Your phone shows them itself. Nothing is sent." with Details "Cyra asks this phone to show one reminder on the days and at the time you chose. No server is involved." / "The reminder only says "Time for your 30-second check-in."" — `LocalNotifications` scheduled on the device, body string in `lib/notifications.js`; the harness-counted "Scheduled on this phone — no server involved." still occurs exactly once.
   - **Weekly counts** (counts flag and a server): "Your life-stage group and yes/no flags for a few symptoms, each at most once a week. No dates, values or name." (Details: `CountsFacts`, verbatim, then "Whether or not you share, Cyra loads last week's totals once each time it opens. That request carries nothing about you except, like any request, your device's internet address and app or browser type." — the `fetchPulse` read, once per launch with no stage, now disclosed where it runs regardless of her switch). The chip follows `research` live.
   - **Ask Cyra's AI** (ai flag and a server): "Only a question you type, and only when Cyra's written library can't answer it. It goes through Cyra's server to Anthropic, which keeps it for a limited time." (Details: `AiFacts`, verbatim, then "Turn it on or off on the Ask tab.") — `runAsk` posts `{ question }` only when `askAI` and the library has no match. The chip follows `askAI`.
   - **Wearable connections** (wearables flag and a server): "This device sends its Oura sign-in, or its Fitbit, Garmin or Whoop connection key, to Cyra's server, which brings your readings back without saving them to disk. Terra, which connects Fitbit, Garmin and Whoop, keeps its own copy." (Details: `WearableFacts`, verbatim, then the moved restore line and "Connect or disconnect under Wearables on Home.") — `lib/wearables.js`; On while any Oura / Terra entry or an unconfirmed Terra disconnect exists; notes "A Fitbit, Garmin or Whoop disconnect isn't confirmed yet. Cyra keeps asking until Cyra's server confirms it." (terraOff) and, in `VITE_DEMO_WEARABLES` builds, "This demo build shows illustrative readings. Nothing is sent." (Off).
@@ -1025,10 +1025,10 @@ Traced on 23 October 2026 to `src/lib/insights.js` (new), `src/lib/engine.js` (`
 - App lock row: "Off — Ask for a PIN each time Cyra opens on this device." / "On — {PIN | PIN, or fingerprint, face or screen lock}. Cyra locks when it opens and {as soon as you leave it | after a minute away | after 5 minutes away}." — from the slot's `after` and `cred` (and whether a platform authenticator exists).
 - The honest note (always visible, web and phone wording quoted under "Now disclosed").
 - Lock Details: "Cyra never stores your PIN, only a one-way hash of it made with a random salt. It stays on this device, isn't in your backups and is never sent anywhere. A 4 to 6 digit PIN could still be worked out from that hash by someone who copies it off the device, which is one reason the lock isn't encryption." / "After 5 wrong tries Cyra makes you wait before the next one: 30 seconds at first, longer each time, up to 15 minutes." (`BACKOFF_SEC` 30, 60, 120, 300, 900) / "If you forget your PIN there's no reset. On the lock screen you can restore an encrypted backup, which replaces everything on this device, or erase Cyra's record here. Anyone holding the device can do either, as they could by deleting the app, but neither shows them your record." / "Delete everything, or restoring a backup from the lock screen, also removes the lock. Restoring a backup from Settings keeps it." (verified both ways) / "Anything you turned on keeps working while Cyra is locked." (the record, its autosave, reminders, the counts queue and wearable retries are untouched by `locked`) / with POTS on: "Cyra waits to lock while a stand test or movement session is running, and locks the next time you leave it." (`shouldLock` running → false; verified) / phone: "The phone app unlocks with your PIN only."
-- Passkey row (web, lock on, platform authenticator available): "Fingerprint, face or screen lock — Unlock with a passkey this device keeps. Your PIN always works too." and its Details: "The passkey is made and checked on this device. Cyra's servers aren't involved." / "Anyone whose fingerprint or face this device accepts, or who knows its screen lock, can open Cyra with it." / "Your password manager lists it as \"Cyra lock\" for this website and may sync it to your other devices. It holds nothing about your health, and only this device's lock accepts it." / "Turning it off here doesn't delete it from your password manager; you can delete it there." (`cred` is only the id; nothing else is touched).
+- Passkey row (web, lock on, platform authenticator available): "Fingerprint, face or screen lock — Unlock with a passkey this device keeps. Your PIN always works too." and its Details: "The passkey is made and checked on this device. Cyra's servers aren't involved." / "Anyone whose fingerprint or face this device accepts, or who knows its screen lock, can open Cyra with it." / "Your password manager lists it as "Cyra lock" for this website and may sync it to your other devices. It holds nothing about your health, and only this device's lock accepts it." / "Turning it off here doesn't delete it from your password manager; you can delete it there." (`cred` is only the id; nothing else is touched).
 - Panels: "If you forget it, Cyra can't reset it: you'd restore an encrypted backup or erase Cyra's record on this device.[ You haven't made a backup on this device yet.]" (from `lastBackupAt`), "Turn off the app lock? Cyra will open without a PIN on this device."
 - Lock screen: "Cyra is locked" / "Enter your PIN to open it." / "Cyra can't reset your PIN. There's no account and no back door. You can restore an encrypted backup, which replaces everything on this device and turns the lock off, or erase Cyra's record on this device." / "Opened on this device with your passphrase. Nothing changes until you confirm on the next step." / "Cyra couldn't read its lock settings on this device." — the restore confirm's intro "Your backup opened. Restore it on this device? Cyra first deletes everything on this device, the same as Delete everything: every check-in, POTS log, note, appointment and setting here, and the app lock.[ This also {deleteAlso}.] Then it puts your backup in their place and opens without a PIN." is true because the restore runs `wipe()` and writes `forgotPinRecord` into the empty store before reloading; "Erase this device's record" shows the existing "Delete everything on this device?" card (same `WipeConfirm`, same Details and blocked card).
-- Toasts: "App lock on. Cyra asks for your PIN when it opens and when you come back to it." / "PIN changed." / "App lock off. Cyra opens without a PIN on this device.[ You can delete the \"Cyra lock\" passkey from your password manager.]" / "Fingerprint, face or screen lock can now unlock Cyra on this device." / "Fingerprint, face or screen lock is off. Your PIN still unlocks Cyra. You can delete the \"Cyra lock\" passkey from your password manager." / "Backup restored. The app lock is off — set a new PIN in Settings if you want one." / "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here. The app lock is off — set a new PIN in Settings if you want one." (the reminders clause only where `remindersInBuild(false)`, as L4's fix) / "Cyra deleted this device's record but couldn't put your backup in its place. Choose the backup file again to restore it." No app toast shows while locked (the lock Shell takes no toast).
+- Toasts: "App lock on. Cyra asks for your PIN when it opens and when you come back to it." / "PIN changed." / "App lock off. Cyra opens without a PIN on this device.[ You can delete the "Cyra lock" passkey from your password manager.]" / "Fingerprint, face or screen lock can now unlock Cyra on this device." / "Fingerprint, face or screen lock is off. Your PIN still unlocks Cyra. You can delete the "Cyra lock" passkey from your password manager." / "Backup restored. The app lock is off — set a new PIN in Settings if you want one." / "Backup restored. Reminders stay off in this browser — turn them on in Settings if you want them here. The app lock is off — set a new PIN in Settings if you want one." (the reminders clause only where `remindersInBuild(false)`, as L4's fix) / "Cyra deleted this device's record but couldn't put your backup in its place. Choose the backup file again to restore it." No app toast shows while locked (the lock Shell takes no toast).
 - Code comments: the App.jsx egress header gains the app-lock line; `storage.js` documents the slot.
 
 **Harness.** No suite sets a lock, and no suite file was edited except one check in `lf/l7/fert-e2e.mjs`: it assumed the weekly-counts POTS line was the last `li` in the whole Settings sheet, which the dashboard and lock Details lists now follow, so it checks per list that every fertility line is directly followed by the POTS line (the asserted behaviour is unchanged). Every asserted class, label, button name and sentence is kept: dashboard rows are `li.flowrow` (never `.medrow`, no `.takebtn`), their Details read "Details" / "Other connections Cyra makes" (never "Exactly what's sent" / "Exactly what's kept"), the lock rows contain none of the strings the suites locate rows by (unit-tested in `privacyFlows.test.mjs`), and the lock screen never appears in a harness run.
@@ -1981,9 +1981,9 @@ markers match her cycles) and the card says "Illustrative readings from this dem
 the appendix adds the skipped-nights count. The file still goes only where she saves or sends it (lib/files.js).
 
 **Sentences changed or added (every one literally true of the build):**
-- Phone reminders, You → Privacy → Reminders → Details: "The reminder only says \"Time for your 30-second check-in.\"" →
-  "The reminder only says \"Time for your 30-second check-in.\" or, while a wearable has synced in the last 36 hours,
-  \"Confirm today (10 s)\"." (`lib/privacyFlows.js` `FLOW_COPY.details.phoneReminders2`; the body comes from
+- Phone reminders, You → Privacy → Reminders → Details: "The reminder only says "Time for your 30-second check-in."" →
+  "The reminder only says "Time for your 30-second check-in." or, while a wearable has synced in the last 36 hours,
+  "Confirm today (10 s)"." (`lib/privacyFlows.js` `FLOW_COPY.details.phoneReminders2`; the body comes from
   `lib/notifications.js` `REMINDER_BODY` / `lib/autoTracked.js` `CONFIRM_BODY`, scheduled on the phone, no server). The web push
   payload is unchanged (the server sends the plain reminder it always did).
 - Home card: "Illustrative readings from this demo build. Nothing is sent." (demo builds only); "Looks right only notes that you
@@ -2588,3 +2588,141 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
 - **Catalog text:** the bundled Garmin product line no longer says it "connects through the Fitbit · Garmin · Whoop
   row" (false where the row is hidden); it now says its app can share sleep and heart rate with Apple Health or Health
   Connect. The seed was regenerated; a portal catalog already imported keeps its own copy until an owner edits it.
+
+## Launch tools (2026-11-19, docs/plans/launch-tools.md)
+
+### Task 1: the portal's Readiness page — settings by name only; one time in memory; nothing about any user
+
+- **What it shows (owners only):** one row per thing the server depends on (AUTH_SECRET, ADMIN_KEY, ADMIN_EMAILS,
+  email, each sign-in provider, AI, RevenueCat, Impact, Oura, storage, the mounted modules) as Ready / Not set up /
+  Problem, with the NAMES of the variables to set. `backend/src/modules/insights/readiness.js`.
+- **Secrets:** the page and `GET /api/insights/readiness` carry variable names and fixed sentences only. No value, not
+  even part of one, is returned, logged or shown (`backend/test/insights-readiness.test.mjs` and
+  `e2e/portal-readiness.spec.mjs` search the answers and the log for the values they set).
+- **No outbound calls on load:** presence and shape checks only. Two owner buttons make the only live checks: "Send me
+  a test email" (one email to the signed-in owner through Resend) and "Check storage" (a temp file written, read back
+  and deleted in the data directory). Nothing calls Anthropic, RevenueCat, Impact, Oura or a sign-in provider.
+- **"Last request from an app origin":** `backend/src/core/appSeen.js` keeps ONE timestamp in memory: the time of the
+  last request whose Origin is one CORS allows and is not the server's own. Not the address, the origin, the path or
+  anything else; nothing on disk; cleared by a restart. It is not about any one person.
+- **New stored row:** `server_starts` (`{ key, firstAt, lastAt, count }`), so the page can tell whether data written
+  before this server start is still there (a persistent disk). No personal data.
+- **Portal sentences:** "Only variable names are shown: a secret's value never leaves the server." · "These are
+  presence and shape checks: opening this page calls no other service. The two buttons below are the only live
+  checks." · "Only the time is kept, in memory: no address, and it is forgotten on a restart."
+
+### Task 2: AI spend estimate, budget and alert — daily totals only; nothing about any user or request
+
+- **What the server now keeps:** `ai_spend`, one row per UTC day per kind (ask, evidence, chat, weekly, report):
+  `{ day, kind, requests, input, output, cacheWrite, cacheRead, searches }`, summed from each API response's `usage`
+  (`input_tokens`, `output_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`,
+  `server_tool_use.web_search_requests`). No account id, address, time of day, question, answer or summary
+  (`backend/src/modules/ai/spend.js`; `backend/test/ai-spend.test.mjs` reads the file back). Deleted after 400 days.
+  Also `ai_spend_settings`: the owner's prices, the budget and the month's two "alert sent" markers.
+- **Nothing new leaves the device and nothing new goes to Anthropic.** The budget alert goes to the weekly report's
+  recipients through Resend and holds the month's estimate, the budget and the projection only.
+- **Every amount is labelled an estimate**, the prices and their last edit are shown, and the page says "Estimate
+  only: token totals multiplied by the prices shown. Anthropic's console is the bill of record." No automatic
+  shut-off: "Nothing is switched off when the budget is passed. The per-person monthly caps remain the hard limit."
+- **"Per person"** is the month's estimate divided by the number of `ai_usage` rows for the month: a count of accounts,
+  never a list.
+- **Statements updated to stay true** (each used to say the server "keeps only" the monthly count):
+  - You → Solia Health's AI: "Both are off until you turn them on. Solia Health's server passes a request on and never
+    keeps what you sent. It keeps two counts: how many you've used this month, and a daily total of how much AI
+    processing everyone's requests used together, which isn't linked to you. Turning one off clears what it kept on
+    this device."
+  - "What Solia Health will send" (both AI sheets): "… Solia Health's server never keeps the text. It keeps two counts:
+    how many you've sent this month, and a daily total of how much AI processing everyone's requests used together,
+    which isn't linked to you. Nothing else from your log is sent."
+  - Ask with evidence, "Kept": "Solia Health's server never keeps the question. It keeps how many questions you asked
+    this month, and a daily total of how much AI processing everyone's requests used together, which isn't linked to
+    you. Anthropic keeps the request for a limited time under its own terms."
+  - `public/legal/privacy.html`, AI row: "… It keeps two kinds of count: how many questions, chat messages and
+    write-ups each signed-in account used this month, to apply the monthly allowance (deleted with the account); and,
+    to estimate what the AI costs us, a total per day and per kind of request of how many requests, tokens and web
+    searches were used by everyone together. Those daily totals are not linked to any account or request and are
+    deleted after 400 days."
+  - Portal footer adds "which settings are in place on the server, an estimate of what the AI costs from daily token
+    totals".
+- **The weekly owner report** adds one line under AI USE: the estimate for the week and the month so far, and the
+  share of the budget (totals; the allowlist test covers the four new keys).
+
+### Task 3: feedback — the first free text she can send to the server; one new request, only on her Send
+
+- **What changed:** You → Help (a new card: four short answers, each true of the build; `helpItems` in
+  `src/lib/feedback.js`) and, in a build with a server, "Send feedback" / "Report a problem" (one sheet, two kinds;
+  `src/components/Feedback.jsx`). A build without a server shows the answers and, if `VITE_SUPPORT_EMAIL` is set, a mail
+  link only, and makes no request.
+- **What is sent, and when:** only when she presses Send: `POST /api/feedback` with exactly
+  `{ kind, message, build, platform, language }`, plus `{ reply: true, email }` only with "It's OK to reply to me" on
+  (shown only while signed in with an email; off by default). The sheet's "What will be sent" list is built from that
+  same object (`previewRows(payload)`), and `e2e/feedback.spec.mjs` compares the request body with the preview and
+  checks nothing is sent before Send. Without reply the request carries no sign-in token (even when she is signed
+  in), no cookie and no referrer. With reply her token goes in the Authorization header.
+- **Nothing from her log**: no stage, module, device id or account id is in the payload; the server's whitelist
+  (`validateFeedback`) drops every other field before anything is stored (`backend/test/feedback.test.mjs`).
+- **What the server keeps** (`feedback` collection): `{ id, day, kind, message, build, platform, language, status,
+  handledDay }` — `day` is the UTC date it arrived, no time of day — and only with reply `{ reply, email, accountId }`,
+  where the email is her ACCOUNT's (the body's must match it). Kept 365 days, then deleted (on every write and read,
+  and hourly). A message linked to an account is deleted with the account. The address is used in memory for the rate
+  limit only (salted hash, about a minute). Never logged: `/api/feedback` has its own JSON parser so an unreadable
+  body is not logged by Express; failures log a fixed category.
+- **Who sees it:** the portal's owners only (Feedback page: newest first, filters, mark handled, delete, a mailto
+  link only where she allowed a reply; the account id is never shown). The Overview and the weekly report carry the
+  COUNT of open messages; the text is never given to Anthropic or put in an email.
+- **The risk this adds:** it is free text. She is told "Please don't include health details. Nothing from your log is
+  attached." above the box, but whatever she types is stored as written, so the `feedback` collection may hold health
+  details. The portal says to treat messages as private; `public/legal/health-data.html` has a counsel note; the iOS
+  privacy manifest declares Customer support (linked).
+- **New and changed sentences (verbatim):**
+  - Sheet: "Please don't include health details. Nothing from your log is attached." · "It's OK to reply to me" ·
+    "Off: we can't tell who sent it. On: your account email (…) is sent with it so we can answer, and it's kept with
+    your account." · "What will be sent" · "Exactly this, and only when you press Send:" · "Solia Health's team reads
+    it. It's kept for 365 days, then deleted."
+  - Preview foot, reply off: "Nothing else: nothing from your log, no life stage, no device id, and no sign-in, so
+    Solia Health can't tell who sent it. Like any request, it shows your device's internet address and app or browser
+    type; Solia Health's code uses the address only in memory, to limit repeated requests, and doesn't keep it."
+  - Preview foot, reply on: "Nothing else: nothing from your log, no life stage and no device id. It's sent with your
+    sign-in, so Solia Health's server links it to your account and deletes it if you delete your account. Like any
+    request, it shows your device's internet address and app or browser type; Solia Health's code uses the address
+    only in memory, to limit repeated requests, and doesn't keep it."
+  - You → Privacy & your data → What can leave this device, new row "Feedback you send" (state "When you send one"):
+    "Only when you press Send in You → Help: your message, whether it's feedback or a problem, the app version, web,
+    iOS or Android, and the app's language. Nothing from your log is attached. Your account email goes with it only
+    if you turn on "It's OK to reply to me"." Details: "It's the one place you can type free text that goes to Solia
+    Health's server. Whatever you type is sent as you wrote it, so please don't include health details: if you do,
+    they are stored with your message." · "Solia Health's team reads it in a private page. It's kept for 365 days,
+    then deleted. Without "It's OK to reply to me" it's sent with no sign-in and isn't linked to your account. With
+    it on, it's linked to your account and deleted when you delete your account." · "Like any request, it shows your
+    device's internet address and app or browser type. Solia Health's own code uses the address only in memory, to
+    limit repeated requests, and doesn't keep it. Feedback is never sent to the AI."
+  - The list's intro now ends "…or you take it out yourself as a backup, file or summary, or type it into feedback
+    you send." The "server" line under "Other connections Solia Health makes" now shows in every build with a server.
+  - Splash promise: "Your health log lives on your device. Nothing about your health leaves it unless you turn on a
+    feature that tells you exactly what it sends, or you write it in a message you send us." (the last clause is new)
+  - Sign-in disclosure (`serverSees`) adds: "If you send feedback from You → Help with "It's OK to reply to me" on,
+    it keeps that message with your account."
+  - You → Account: "Your account holds how you sign in, your email and your name if the service shared it, and any
+    feedback you sent with "It's OK to reply to me" on. Your health log stays on this device."
+  - Delete account confirmation: "This deletes your account from Solia Health's server: your sign-in email, name and
+    how you signed in, your monthly AI use counts, and any feedback you sent with "It's OK to reply to me" on. …"
+  - `public/legal/privacy.html`: the short version gains "…, or you write it in a message you send us (Section 3,
+    "Feedback you send")", and Section 3 gains the row "Feedback you send (only when you press Send in You → Help)".
+  - Portal footer: "…and the feedback people send from the app. Nobody's health log is ever shown or stored here.
+    Feedback is free text: people are asked not to include health details, but a message may hold what its writer
+    chose to type, so treat it as private." (it used to say the portal never shows or stores anyone's health data)
+- **Help answers** rest on these build facts: the free-week gate is on only where a store is connected; Pro is sold
+  only through the App Store / Google Play; deleting the account does not call the store; the log is on the device;
+  Apple Health / Health Connect are read on the phone; Oura goes through the server. The store's menu names are not
+  given (they change).
+
+### Task 4: store-submission checks — copy and layout only; no new request, nothing new leaves the device
+
+- "Restore purchases" moved up in the Pro sheet (directly under the plan tiles). No behaviour change.
+- The delete-account confirmation gained two sentences, both true of the build: "It can't be undone. It doesn't
+  cancel a Pro subscription: cancel that in the App Store or Google Play." (`DELETE /api/accounts/me` removes the
+  account, its sessions, its AI counts and its linked feedback, and never calls a store or RevenueCat.)
+- Not changed, and worth an owner's look: a free Pro grant an owner made BY EMAIL in the portal keeps that email in
+  the grant list after the account is deleted (the grant row only drops the account id). The confirmation's "your
+  sign-in email" is true of the account record; the grant list is the owner's own record.
+

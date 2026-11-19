@@ -24,7 +24,7 @@ import { isEmail, normEmail } from "../accounts/index.js";
 
 const DRAFT_TTL_MS = 30 * 60_000;
 
-export function mountWeekly(router, { ctx, store, clock, reading, writing, sending, owner, rc, affiliates, impact, mailer, production, timerMs = 3_600_000 }) {
+export function mountWeekly(router, { ctx, store, clock, reading, writing, sending, owner, rc, affiliates, impact, mailer, production, timerMs = 3_600_000, spend = null }) {
   const { audit, owners } = ctx.portal;
   const now = () => new Date(clock()).toISOString();
   const mail = mailer
@@ -68,6 +68,9 @@ export function mountWeekly(router, { ctx, store, clock, reading, writing, sendi
       products: products.map((p) => ({ status: p.status })),
       partners: (await store.find("shop_partners")).length,
       aiUsage: (await store.find("ai_usage")).map((r) => ({ id: `:${String(r.id || "").split(":").pop()}`, evidence: r.evidence, chat: r.chat, weekly: r.weekly })),
+      aiCost: spend ? await spend.forWeek(week) : null,
+      // feedback from the app: COUNTS only. The text is never read here and never goes to Anthropic or into the email.
+      feedback: (await store.find("feedback")).map((r) => ({ status: r.status === "handled" ? "handled" : "open", day: typeof r.day === "string" ? r.day : "" })),
     });
   }
 
@@ -189,5 +192,5 @@ export function mountWeekly(router, { ctx, store, clock, reading, writing, sendi
     res.json({ ...result, writer: report.writer, week: report.week, recipients: to.length });
   });
 
-  return { tick, build };
+  return { tick, build, recipients: async () => recipientsOf(await state()) };
 }
