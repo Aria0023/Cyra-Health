@@ -216,7 +216,8 @@ import { proChipEligible, proChipNew, cleanProChip, PLANS_COPY } from "./lib/pla
 import { AiSendSheet, WriteUpCard, ChatCard } from "./components/ai/AiParts.jsx";
 import { buildSummary, checkSummary, summaryLines, weeklyBody, chatBody } from "./lib/aiSummary.js";
 import { cleanAiPrefs, cleanAiChat, cleanAiWeekly, aiOffer, AI_COPY } from "./lib/aiFeatures.js";
-import { aiStatus, aiSend, askEvidence, aiUsage } from "./lib/aiClient.js";
+import { aiStatus, aiSend, askEvidence, aiUsage, mealSend } from "./lib/aiClient.js";
+import { MEAL_COPY, cleanAnswer, failLine } from "./lib/mealPhoto.js";
 import EvidenceCard from "./components/ai/EvidenceCard.jsx";
 import { evidenceBody, evidenceOffer, cleanSources, EVIDENCE_COPY } from "./lib/evidence.js";
 import { storeFor, restorePurchases, proOwned, startStore, linkAccount, unlinkAccount } from "./lib/purchase.js";
@@ -486,7 +487,7 @@ export default function CyraDemo() {
     const token = signin?.token;
     if (!token || phase !== "app" || !aiPlan || !FEATURES.ai || !hasServer()) { setAiLeft({}); return undefined; }
     let live = true;
-    aiUsage(token).then((u) => { if (live && u) setAiLeft({ evidence: u.evidence, chat: u.chat, weekly: u.weekly }); });
+    aiUsage(token).then((u) => { if (live && u) setAiLeft({ evidence: u.evidence, chat: u.chat, weekly: u.weekly, ...(u.meal ? { meal: u.meal } : {}) }); });
     return () => { live = false; };
   }, [signin?.token, phase, aiPlan]);
   const signinRef = useRef(null); signinRef.current = signin;
@@ -2659,7 +2660,7 @@ export default function CyraDemo() {
 
   /* The privacy dashboard's rows (L10, lib/privacyFlows.js): each flow this build can use, with its live state from the
      flags, the plan, the server setting, the platform and her settings. */
-  const flows = useMemo(() => flowRows({ native: isNative(), server: hasServer(), flags: { wearables: feature("wearables"), counts: feature("counts"), ai: feature("ai"), webReminders: feature("webReminders"), cloudBackup: feature("cloudBackup"), signin: feature("signin"), shop: feature("shop") }, shopTapsOff, planCloud: can("cloudBackup", planLive), cloudOn: !!cloudAccount.acct, reminderSupport: reminderSupport(), reminders, research, askAI, aiPlan: { weekly: can("aiPatternReports", planLive), chat: can("aiChat", planLive) }, aiPrefs, wearLive: Object.entries(wearSources).filter(([k, v]) => VIA_SERVER.has(k) && v && !v.demo).length, terraOff: terraOff.length, demoWear: DEMO_WEARABLES }), [reminders, research, askAI, aiPrefs, wearSources, terraOff, cloudAccount, planLive, shopTapsOff]); // eslint-disable-line
+  const flows = useMemo(() => flowRows({ native: isNative(), server: hasServer(), flags: { wearables: feature("wearables"), counts: feature("counts"), ai: feature("ai"), webReminders: feature("webReminders"), cloudBackup: feature("cloudBackup"), signin: feature("signin"), shop: feature("shop") }, shopTapsOff, planCloud: can("cloudBackup", planLive), cloudOn: !!cloudAccount.acct, reminderSupport: reminderSupport(), reminders, research, askAI, aiPlan: { weekly: can("aiPatternReports", planLive), chat: can("aiChat", planLive), meals: can("aiMealPhotos", planLive) && mealsOffered }, aiPrefs, wearLive: Object.entries(wearSources).filter(([k, v]) => VIA_SERVER.has(k) && v && !v.demo).length, terraOff: terraOff.length, demoWear: DEMO_WEARABLES }), [reminders, research, askAI, aiPrefs, wearSources, terraOff, cloudAccount, planLive, shopTapsOff, mealsOffered]); // eslint-disable-line
 
   if (!hydrated) {
     // Start over runs the same clean-up as Delete everything, minus the wearable disconnects:
@@ -2942,6 +2943,21 @@ export default function CyraDemo() {
   );
   const sheetDay = bodySheet?.day || todayIso;
   const sheetWord = sheetDay === todayIso ? "today" : `on ${shortDay(sheetDay)}`;
+  /* Meal photos (docs/plans/meal-photos.md, lib/mealPhoto.js): offered with the ai flag, a server, Pro and Meal notes in
+     her stage; ON only while her own switch is on and Meal notes is on. With it off the Meals sheet has no photo button
+     and nothing is sent. The photo lives only in the Meals sheet's memory until she taps Send or Cancel there. */
+  const mealPhotoOn = aiOffer({ flag: FEATURES.ai, server: hasServer(), canMeals: can("aiMealPhotos", planLive) && mealsOffered }).meals && aiPrefs.meals === true && mealsHere;
+  const sendMealPhoto = async (body) => {
+    if (!mealPhotoOn || guest === "in" || !body || Object.keys(body).length !== 1 || !body.image) return { ok: false, line: MEAL_COPY.noAnswer };
+    const r = await mealSend(body, signinRef.current?.token || null);
+    if (!r.ok) {
+      if (r.why === "limit") setAiLeft((l) => ({ ...l, meal: { used: r.limit, limit: r.limit } }));
+      return { ok: false, line: failLine(r) };
+    }
+    const d = r.data || {};
+    if (d.usage && d.usage.kind === "meal") setAiLeft((l) => ({ ...l, meal: { used: Number(d.usage.used) || 0, limit: Number(d.usage.limit) || 0 } }));
+    return { ok: true, answer: cleanAnswer(d) };
+  };
   const bodySheetView = !bodySheet ? null
     : bodySheet.kind === "sleep" ? <SleepSheet day={sheetDay} dayWord={sheetWord} log={bodyLog} onSet={(h) => savedIf(setBodyLog((l) => setSleepH(l, sheetDay, h)))} onClose={closeSheet} />
     : bodySheet.kind === "move" ? <MoveSheet day={sheetDay} dayWord={sheetWord} log={bodyLog} lastType={lastMoveType} onClose={closeSheet}
@@ -2958,7 +2974,9 @@ export default function CyraDemo() {
     : bodySheet.kind === "meals" && mealsHere ? <MealsSheet day={sheetDay} dayWord={sheetWord} log={bodyLog} onClose={closeSheet}
         onAdd={(meal) => { const r = addMeal(bodyLog, sheetDay, { meal }); if (r.ok) { setBodyLog(r.log); ping("Meal note added"); return r.id; } ping("That's as many as one day holds"); return null; }}
         onSet={(mid, patch) => savedIf(setBodyLog((l) => setMeal(l, sheetDay, mid, patch)))}
-        onRemove={(mid) => setBodyLog((l) => removeMeal(l, sheetDay, mid))} />
+        onRemove={(mid) => setBodyLog((l) => removeMeal(l, sheetDay, mid))}
+        photo={{ inBuild: FEATURES.ai && hasServer(), on: mealPhotoOn, showCal: aiPrefs.hideCal !== true, setShowCal: (v) => setAiPref("hideCal", !v), signedIn: !!signin?.token, online, preg: stage === "preg",
+          left: aiLeft.meal ? MEAL_COPY.left(aiLeft.meal) : null, block: guest === "in" ? GUEST_COPY.ai : null, send: sendMealPhoto, ping }} />
     : bodySheet.kind === "pcos" ? <PcosSheet day={sheetDay} dayWord={sheetWord} todayIso={todayIso} log={bodyLog} labs={labs} units={units} onClose={closeSheet}
         onToggle={(pid) => savedIf(setBodyLog((l) => togglePcos(l, sheetDay, pid)))}
         onAddLab={(x) => { const r = addLab(labs, x); if (r.ok) { setLabs(r.labs); ping("Added on this device"); } return r; }}
@@ -2985,7 +3003,7 @@ export default function CyraDemo() {
      Offered only with the ai flag, a server and Pro (aiOffer); each runs only while her switch is on. The summary is
      built on this device (lib/aiSummary.js), proved by checkSummary, shown verbatim in "What Cyra will send", and
      posted as that same object only when she taps Send. A red-flag chat question is answered here and never sent. */
-  const offer = aiOffer({ flag: FEATURES.ai, server: hasServer(), canWeekly: can("aiPatternReports", plan), canChat: can("aiChat", plan) });
+  const offer = aiOffer({ flag: FEATURES.ai, server: hasServer(), canWeekly: can("aiPatternReports", plan), canChat: can("aiChat", plan), canMeals: can("aiMealPhotos", plan) && mealsOffered });
   const checkAi = () => {
     if (!online) { setAiState("offline"); return; }
     if (aiState === "ready" || aiState === "checking" || aiState === "unset") return;
@@ -2997,10 +3015,12 @@ export default function CyraDemo() {
     bodyLog, moodLog, labs, includeLabs: aiPrefs.labs, pcosOn: pcosHere, mealsOn: mealsHere, experiments, todayIso,
   });
   const setAiPref = (k, on) => {
-    setAiPrefs((p) => ({ ...p, [k]: on }));
+    setAiPrefs((p) => cleanAiPrefs({ ...p, [k]: on }));
     if (!on && k === "chat") { setAiChat([]); setAiNote((n) => ({ ...n, chat: null })); }
     if (!on && k === "weekly") { setAiWeekly(null); setAiNote((n) => ({ ...n, weekly: null })); }
-    if (k === "labs") ping(on ? "Lab values will be included in what you preview" : "Lab values left out");
+    if (k === "meals") ping(on ? MEAL_COPY.onSaid : MEAL_COPY.offSaid);
+    else if (k === "hideCal") ping(on ? MEAL_COPY.calOffSaid : MEAL_COPY.calOnSaid);
+    else if (k === "labs") ping(on ? "Lab values will be included in what you preview" : "Lab values left out");
     else ping(on ? `${k === "chat" ? "Chat" : "Weekly write-up"} on. Nothing is sent until you tap Send.` : `${k === "chat" ? "Chat off. Its messages on this device were cleared." : "Weekly write-up off. The write-up on this device was cleared."}`);
   };
   const prepareAi = (kind, question = "", then = null) => {
@@ -3157,7 +3177,7 @@ export default function CyraDemo() {
   const youView = (
     <YouScreen onTour={() => { setGuide(replayGuide(todayIso)); setHomeStepSkip(null); goTab("home"); ping("Getting started is back on Home, and each screen will show its tip again."); }} trial={{ gateOn: TRIAL_GATE && !proOwnedNow, line: trialNow }} acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={proOn} proOwned={proOwnedNow} storeReady={STORE.available} onPro={() => setProOpen(true)}
-      ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref }} onRestore={onRestore} storeLine={store.line || (isNative() ? null : WEB_PRICE_LINE)} meals={mealsOffered ? { on: mealsHere, onToggle: () => { const on = !mealsHere; setBodyPrefs((p) => cleanBodyPrefs({ ...p, mealsOn: on })); ping(on ? "Meal notes on" : "Meal notes off. What you noted is kept"); } } : null} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
+      ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref, mealNotesOn: mealsHere }} onRestore={onRestore} storeLine={store.line || (isNative() ? null : WEB_PRICE_LINE)} meals={mealsOffered ? { on: mealsHere, photosInBuild: FEATURES.ai && hasServer(), onToggle: () => { const on = !mealsHere; setBodyPrefs((p) => cleanBodyPrefs({ ...p, mealsOn: on })); ping(on ? "Meal notes on" : "Meal notes off. What you noted is kept"); } } : null} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
       guest={guest === "in" ? { youLine: GUEST_COPY.youLine(guestWhen), story: guestStoryNow, createLabel: GUEST_COPY.create, onCreate: () => setCreateOpen(true) } : null}
       signMode={signMode} store={STORE} native={isNative()} promo={promoNow} onHidePromo={hidePromo} proUntil={proUntilNow} signedIn={signin ? { s: signin, required: REQUIRE_SIGNIN, onSignOut: signOutAccount, onDelete: deleteSignedInAccount } : null}
       account={ACCOUNTS_HERE ? { can: ACCOUNTS.available(), acct: cloudAccount.acct, sync: cloudSync, todayIso, onCreate: () => setAcctSheet("create"), onSignIn: () => setAcctSheet("signin"), onBackup: () => backupToCloud(), onSignOut: signOut, onDelete: deleteAccount, onUseBackup: resolveUseBackup, onKeepDevice: resolveKeepDevice, onPro: () => setProOpen(true) } : null}

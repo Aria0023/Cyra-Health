@@ -17,8 +17,8 @@ One task, one final commit: "Meal notes: opt-in photo, AI names the food and est
 
 ## Status
 - [x] backend route + tests (backend 130/130 on 2026-11-19; meal.js, test/ai-meal.test.mjs, server.js parser, usage + spend kinds, weekly report count)
-- [ ] app lib + tests
-- [ ] UI
-- [ ] privacy / clinical copy, docs
-- [ ] e2e + axe
+- [x] app lib + tests (src/lib/mealPhoto.js + test, bodylog est, aiPrefs meals/hideCal, plan aiMealPhotos, aiClient mealSend)
+- [x] UI (components/ai/MealPhoto.jsx, MealsSheet steps in BodySheets.jsx, You → AI row, privacy list row, styles)
+- [x] privacy / clinical copy, docs (CLAUDE.md rule, privacy.html, health-data.html, PRIVACY-AUDIT, CLINICIAN-REVIEW, spec 3.5, backend README, Info.plist, PrivacyInfo, STORE-SETUP)
+- [x] e2e + axe written (e2e/meal-photos.spec.mjs, e2e/meal-photos-axe.spec.mjs, e2e/lib/photo.mjs, api mock); full runs pending
 - [ ] verification, screenshots, final commit

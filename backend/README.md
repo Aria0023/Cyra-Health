@@ -199,6 +199,17 @@ register `<PUBLIC_BASE_URL>/api/integrations/oura/callback` with Oura and
 smoke:integrations` runs both flows against local mocks.
 
 ## AI proxy (`src/modules/ai/`)
+**Meal photos (2026-11-19, `meal.js`, docs/plans/meal-photos.md):** `POST /api/ai/meal { image: { media_type, data } }`
+is the one request that carries a photo (Pro, her own switch; the app shows her the exact picture before every send).
+The body holds the image and nothing else; JPEG, PNG or WebP by its first bytes, at most 1 MB decoded (`server.js`
+gives this path its own 1500 kB JSON parser; every other AI path keeps 32 kB). It is forwarded to Anthropic as one
+`image` block with a text prompt and a JSON schema; the answer is cleaned (ranges 0–3000 kcal, low ≤ high, plain words,
+no judgement words) and returned as `{ food, items: [{ name, portion, low, high }], total, sure }`. The photo and the
+answer are never written to disk or logged. Kept: the month's count (`ai_usage.meal`, cap `config.ai.monthly.meal`,
+default 60; 429 `monthly-limit` over it; 401 `sign-in-required` signed out) and the spend totals (kind `meal`).
+`config.ai.mealTimeoutMs` (default 30 s) and `config.ai.mealPerMinute` (default 6) tune it. Tests:
+`test/ai-meal.test.mjs`.
+
 The app never calls Anthropic directly and never holds a key. One endpoint is
 mounted: `POST /api/ai/ask {question[, stage]}`. The app answers from its
 on-device evidence library first and calls this only when the person has turned

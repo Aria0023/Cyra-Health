@@ -6,6 +6,12 @@ import { cleanAiPrefs, cleanAiChat, cleanAiWeekly, aiOffer, AI_COPY, CHAT_MAX } 
 test("prefs: off unless a real true", () => {
   assert.deepEqual(cleanAiPrefs(undefined), { weekly: false, chat: false, labs: false });
   assert.deepEqual(cleanAiPrefs({ weekly: "yes", chat: 1, labs: true }), { weekly: false, chat: false, labs: true });
+  // Meal photos: its two keys exist only when really true, so a record saved before it stays byte-for-byte valid
+  assert.deepEqual(cleanAiPrefs({ meals: "yes", hideCal: 1 }), { weekly: false, chat: false, labs: false });
+  assert.deepEqual(cleanAiPrefs({ meals: true, hideCal: true, more: 1 }), { weekly: false, chat: false, labs: false, meals: true, hideCal: true });
+  assert.equal(aiOffer({ flag: true, server: true, canMeals: true }).meals, true);
+  assert.equal(aiOffer({ flag: true, server: false, canMeals: true }).meals, false);
+  assert.match(AI_COPY.offLine, /^Each of these is off until you turn it on\./);
 });
 
 test("chat history: roles, cap, no extra fields", () => {
@@ -24,10 +30,10 @@ test("write-up: kept or null", () => {
 });
 
 test("offer: needs the flag, a server and the plan", () => {
-  assert.deepEqual(aiOffer({}), { any: false, weekly: false, chat: false });
-  assert.deepEqual(aiOffer({ flag: true, server: false, canWeekly: true, canChat: true }), { any: false, weekly: false, chat: false });
-  assert.deepEqual(aiOffer({ flag: true, server: true }), { any: true, weekly: false, chat: false });
-  assert.deepEqual(aiOffer({ flag: true, server: true, canWeekly: true, canChat: true }), { any: true, weekly: true, chat: true });
+  assert.deepEqual(aiOffer({}), { any: false, weekly: false, chat: false, meals: false });
+  assert.deepEqual(aiOffer({ flag: true, server: false, canWeekly: true, canChat: true }), { any: false, weekly: false, chat: false, meals: false });
+  assert.deepEqual(aiOffer({ flag: true, server: true }), { any: true, weekly: false, chat: false, meals: false });
+  assert.deepEqual(aiOffer({ flag: true, server: true, canWeekly: true, canChat: true }), { any: true, weekly: true, chat: true, meals: false });
 });
 
 test("copy keeps the tone rules", () => {

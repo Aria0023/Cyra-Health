@@ -4,7 +4,7 @@
    aiStatus() asks the server whether Cyra's AI is set up (GET, no body, nothing about her).
    Monthly allowance (owner decision 2026-11-15; backend ai/usage.js): when she is signed in, each request carries her
    session token (Authorization: Bearer) so the server can count it against her month: 30 evidence questions, 100 chat
-   messages, 6 write-ups. The body is unchanged. A delivered answer returns { usage: { kind, used, limit, resetsOn } }. */
+   messages, 6 write-ups, 60 meal photos. The body is unchanged. A delivered answer returns { usage: { kind, used, limit, resetsOn } }. */
 import { apiFetch } from "./api.js";
 
 const authHead = (token) => (typeof token === "string" && token ? { authorization: `Bearer ${token}` } : {});
@@ -21,11 +21,13 @@ function why(e, extra = {}) {
   if (e?.status === 503) return { ok: false, why: "unset" };
   if (e?.status === 429) return { ok: false, why: "busy" };
   if (extra.nosources && e?.status === 502) return { ok: false, why: "nosources" };
+  if (extra.photo && e?.status === 413) return { ok: false, why: "toobig" };
+  if (extra.photo && (e?.status === 415 || e?.status === 400)) return { ok: false, why: "notimage" };
   if (e?.network) return { ok: false, why: "offline" };
   return { ok: false, why: "error" };
 }
 
-/** This month's allowance for the signed-in person: { evidence|chat|weekly: { used, limit } , resetsOn } or null. */
+/** This month's allowance for the signed-in person: { evidence|chat|weekly|meal: { used, limit } , resetsOn } or null. */
 export async function aiUsage(token) {
   try {
     const r = await apiFetch("/api/ai/usage", { method: "GET", headers: authHead(token) }, { timeoutMs: 8000 });
@@ -60,4 +62,13 @@ export async function askEvidence(body, token = null) {
   try {
     return { ok: true, data: await postAi("/api/ai/evidence", body, token, 75000) };
   } catch (e) { return why(e, { nosources: true }); }
+}
+
+/** Meal photos (Pro; docs/plans/meal-photos.md): POST the shown body, { image: { media_type, data } } and nothing else.
+    → { ok: true, data } | { ok: false, why: "unset" | "busy" | "offline" | "signin" | "limit" | "toobig" | "notimage" | "error" }.
+    Reading a photo takes longer than a chat answer, so this waits up to 40 seconds. */
+export async function mealSend(body, token = null) {
+  try {
+    return { ok: true, data: await postAi("/api/ai/meal", body, token, 40000) };
+  } catch (e) { return why(e, { photo: true }); }
 }

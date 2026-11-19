@@ -44,6 +44,11 @@ RevenueCat entitlement id: **`pro`** (both subscriptions attach to it; the tips 
 - [ ] App Privacy: add **Customer Support** → "Linked to the user", "Not used for tracking", for App Functionality
       (You → Help's "Send feedback" / "Report a problem": the message she types, kept 365 days; her account email
       only if she allows a reply). `ios/App/App/PrivacyInfo.xcprivacy` declares the same.
+- [ ] App Privacy: add **Photos or Videos** → "Linked to the user", "Not used for tracking", for App Functionality
+      (Meal photos, Pro and opt-in: a meal photo she chooses to send goes through our server to Anthropic; our server
+      keeps no photo, only a monthly count). `PrivacyInfo.xcprivacy` declares the same, and `Info.plist` now has
+      `NSCameraUsageDescription` (the camera opens only from "Add from a photo"). In Google Play's Data safety form,
+      declare **Photos** the same way (collected, shared with a service provider, optional, not stored by us).
 
 ## 2. Google Play Console (Android)
 

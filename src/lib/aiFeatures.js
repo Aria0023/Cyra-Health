@@ -12,8 +12,10 @@
    Listed in docs/PRIVACY-AUDIT.md "Calm R8". */
 
 export const AI_PREFS_DEFAULT = Object.freeze({ weekly: false, chat: false, labs: false });
-/** Her switches: { weekly, chat, labs }, each a real true or false (anything else is off). */
-export const cleanAiPrefs = (v) => ({ weekly: !!v && v.weekly === true, chat: !!v && v.chat === true, labs: !!v && v.labs === true });
+/** Her switches: { weekly, chat, labs }, each a real true or false (anything else is off). Meal photos
+    (docs/plans/meal-photos.md, lib/mealPhoto.js) adds two keys that are present only when true, so every record saved
+    before it stays valid: `meals` (the Meal photos switch) and `hideCal` ("Show calorie estimates" turned off). */
+export const cleanAiPrefs = (v) => ({ weekly: !!v && v.weekly === true, chat: !!v && v.chat === true, labs: !!v && v.labs === true, ...(!!v && v.meals === true ? { meals: true } : {}), ...(!!v && v.hideCal === true ? { hideCal: true } : {}) });
 
 export const CHAT_MAX = 40;
 export const CHAT_TEXT_MAX = 2000;
@@ -32,9 +34,9 @@ export function cleanAiWeekly(v) {
   return { writeup: v.writeup.slice(0, 2000), ask: typeof v.ask === "string" && v.ask.trim() ? v.ask.slice(0, 300) : null, day: typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) ? v.day : null };
 }
 
-/** Which of the two this build and plan can offer at all. */
-export const aiOffer = ({ flag = false, server = false, canWeekly = false, canChat = false } = {}) => ({
-  any: !!(flag && server), weekly: !!(flag && server && canWeekly), chat: !!(flag && server && canChat),
+/** Which of these this build and plan can offer at all. `meals` (Meal photos) also needs Meal notes in her life stage. */
+export const aiOffer = ({ flag = false, server = false, canWeekly = false, canChat = false, canMeals = false } = {}) => ({
+  any: !!(flag && server), weekly: !!(flag && server && canWeekly), chat: !!(flag && server && canChat), meals: !!(flag && server && canMeals),
 });
 
 /** "December 1" for an ISO date (YYYY-MM-DD); the date itself if it can't be read. */
@@ -50,7 +52,7 @@ export const AI_COPY = Object.freeze({
   chatAdds: "Each message sends your question, your last few chat messages and the same summary, the same way. You see exactly what will be sent first, every time. Your chat history stays on this device.",
   labsName: "Include lab values",
   labsHint: "Adds the latest fasting glucose, HbA1c and waist values you typed, rounded and without their dates.",
-  offLine: "Both are off until you turn them on. Solia Health's server passes a request on and never keeps what you sent. It keeps two counts: how many you've used this month, and a daily total of how much AI processing everyone's requests used together, which isn't linked to you. Turning one off clears what it kept on this device.",
+  offLine: "Each of these is off until you turn it on. Solia Health's server passes a request on and never keeps what you sent. It keeps two counts: how many you've used this month, and a daily total of how much AI processing everyone's requests used together, which isn't linked to you. Turning the write-up or the chat off clears what it kept on this device.",
   locked: "Pro adds a weekly write-up and a chat about your own log, written by Solia Health's AI from a summary you see before it's sent. Both stay off until you turn them on.",
   // the preview sheet
   sheetTitle: "What Solia Health will send",
