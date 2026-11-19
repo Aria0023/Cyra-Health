@@ -22,5 +22,15 @@ Branch `feature/visible-features`, worktree `/home/user/cyra-visible`. Resume fr
 - Verified 2026-11-19 (full runs, after the last change to this task's files): lint 0 errors (23 warnings); app unit
   704/704; backend 119/119; smoke:all passed (exit 0); build stamp once; e2e 80/80; axe 54/54.
 
-## Task 2: Shop entry points — TODO
+## Task 2: Shop entry points — DONE (final commit "Shop: header button and + menu row")
+- Ported from origin/feature/shop-findable-visuals (084da80; 6bb6317 is that branch's tip) ONLY: the labelled "Shop"
+  pill (`.shoppill`, App.jsx header), the "+" sheet row (`LogSheet` `onShop`), the one-time coach mark (`ShopCoach`,
+  `shopHint.coach`, device-only). NOT ported: Home shop card, `shopArt`, the "Illustration" tag, the You card's move.
+- Header: at 390px two rows (brand, name, plan badge / palette, Shop, settings); under 375px the name chip is not
+  drawn (unless it says "sharing counts ✓"), so 320px is two rows too (brand, plan badge / palette, Shop, settings).
+- Tests: `e2e/shop.spec.mjs` +5 (the + row, the hint x2, header fit at 320 and 390 in all nine styles: no overlap,
+  nothing outside the viewport, 44px targets); `e2e/shop-axe.spec.mjs` audits Home with the hint, the + sheet, and the
+  header in every style. `e2e/lib/nav.mjs` `setStyle()`.
+- Verified 2026-11-19 (full runs, after the last change to app or test files): lint 0 errors (23 warnings); app unit 704/704; backend
+  119/119; smoke:all passed (exit 0); build stamp once; e2e 85/85; axe 54/54.
 ## Task 3: You as a short menu — TODO

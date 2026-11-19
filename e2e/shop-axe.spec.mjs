@@ -19,6 +19,13 @@ for (const scheme of ["light", "dark"]) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });
     const page = await ctx.newPage();
     await register(page, { stage: "Trying to conceive", pcos: "no" });
+    // 2026-11-19 (entry points): the header's Shop pill with its one-time hint, and the + sheet's row
+    await expect(page.locator(".shopcoach")).toBeVisible();
+    await audit(page, `Home with the Shop pill and its hint ${scheme}`);
+    await page.getByRole("button", { name: "Log something" }).click();
+    await expect(page.getByRole("dialog", { name: "Log something" }).getByRole("button", { name: "Shop by need" })).toBeVisible();
+    await audit(page, `+ sheet with the Shop row ${scheme}`);
+    await page.locator(".v2sheet .v2sheet-close").click();
     await gotoTab(page, "You");
     await page.locator("#you-shop").scrollIntoViewIfNeeded();
     await audit(page, `You → Shop entry ${scheme}`);
@@ -50,6 +57,10 @@ test("Shop page in every style (Mono, Clear, Journal, Aura, Sky, Blush, Mint, Su
       await gotoTab(page, "You");
       await page.getByRole("radio", { name: style }).click();
       await expect(page.locator(".cy")).toHaveAttribute("data-style", style.toLowerCase());
+      { // the header with the labelled Shop pill and the plan badge, before the shop is open
+        const r = await new AxeBuilder({ page }).include("header.mast").withTags(TAGS).analyze();
+        expect(r.violations.map((v) => `${v.id}: ${v.nodes.slice(0, 3).map((n) => n.target.join(" ")).join(" | ")}`), `header ${style} ${scheme}`).toEqual([]);
+      }
       await page.locator("header.mast").getByRole("button", { name: "Shop", exact: true }).click();
       await expect(page.locator("main.shoppage")).toBeVisible();
       await audit(page, `Shop page ${style} ${scheme}`);

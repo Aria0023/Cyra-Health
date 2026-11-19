@@ -27,7 +27,7 @@
    markers, the PDF table, You → Data sources). ON by default, since it needs no backend module (FEATURE_MODULE null)
    and sends nothing; it offers nothing in a browser. Oura and Fitbit/Garmin/Whoop stay behind `wearables`.
 
-   shop (2026-11-14, Task C) is the eighth: the Shop by need page (2026-11-15: the header's bag, You's entry card, #/shop)
+   shop (2026-11-14, Task C) is the eighth: the Shop by need page (2026-11-15: the header's button, a labelled "Shop" pill since 2026-11-19; You's entry card; the "+" sheet's row; #/shop)
    and its quiet contextual links (lib/shop.js). ON by default. Its backend module is shop (2026-11-15, partner portal:
    the published catalog and the portal API): with a server, the Shop downloads the published catalog with a plain
    request that carries nothing about her (lib/shopLive.js), else it shows the bundled one; matching runs on the device and

@@ -8,6 +8,12 @@ export async function gotoTab(page, label) {
   await page.getByRole("tab", { name: label, exact: true }).click();
   await expect(page.locator(".viewpanel main h1")).toBeVisible();
 }
+/** Picks a style (Soft, Mono, Clear, Journal, Aura, Sky, Blush, Mint, Sunset) with You's style picker; ends on You. */
+export async function setStyle(page, name) {
+  await gotoTab(page, "You");
+  await page.getByRole("radio", { name, exact: true }).click();
+  await expect(page.locator(".cy")).toHaveAttribute("data-style", name.toLowerCase());
+}
 /** A segment of the current tab ("Cycles", "Report", "Calendar", "Journey", …). */
 export async function gotoSegment(page, label) {
   await page.locator(".subnav").getByRole("button", { name: label, exact: true }).click();

@@ -168,3 +168,14 @@ export function ShopEntryCard({ onOpen, taps = false }) {
     </Card>
   );
 }
+
+/** The one-time hint under the header's Shop pill: a small note with an arrow, in the page flow (it covers nothing and
+    never traps focus); "Got it" closes it and hands focus to the pill. No animation, so reduced motion needs nothing. */
+export function ShopCoach({ onClose }) {
+  return (
+    <aside className="shopcoach" aria-label={P.coachLab}>
+      <p id="shop-coach-t"><Icon name="bag" size={14} />{P.coach}</p>
+      <button type="button" className="linkbtn" onClick={onClose}>{P.coachOk}</button>
+    </aside>
+  );
+}

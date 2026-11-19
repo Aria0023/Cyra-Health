@@ -56,6 +56,19 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .planbadge[data-plan="guest"] { background:var(--card); border-style:dashed; border-color:var(--soft); color:var(--ink); }
 .planbadge[data-plan="free"] { background:var(--card); color:var(--ink); }
 .stagechip.icon { flex:0 0 44px; max-width:44px; }
+/* 2026-11-19 (visible-features Task 2): the header's labelled Shop pill, the one-time hint under it, the "+" sheet's row. */
+.mast > .stagechip.shoppill { flex:0 0 auto; max-width:none; display:inline-flex; align-items:center; gap:6px; height:44px; padding:0 14px 0 12px; border-color:transparent; border-radius:var(--r-pill); background:var(--primary); color:var(--on-primary); font:700 var(--fs-sm) var(--ff-body); box-shadow:var(--sh-opt); }
+/* A narrow phone (under 375px): her name's chip gives way (her name is in Home's greeting; the chip stays while it also
+   says "sharing counts"), so the brand and the plan badge share the first row and the three buttons the second. */
+@media (max-width:374px) { .mast > .acctchip.nameonly { display:none; } }
+.mast > .stagechip.shoppill[aria-current="page"] { background:var(--ink); color:var(--on-ink); }
+.mast > .shopcoach { flex:1 1 100%; position:relative; display:flex; align-items:center; justify-content:space-between; gap:8px; margin:8px 0 0; padding:2px 6px 2px 14px; border:1px solid var(--line); border-radius:var(--r-inner); background:var(--card); box-shadow:var(--sh-card); }
+.shopcoach::before { content:""; position:absolute; top:-7px; right:var(--coach-x, 62px); width:12px; height:12px; transform:rotate(45deg); background:var(--card); border-left:1px solid var(--line); border-top:1px solid var(--line); }
+.shopcoach p { display:flex; align-items:center; gap:8px; margin:0; font:700 var(--fs-sm) var(--ff-body); color:var(--ink); }
+.shopcoach .linkbtn { flex:none; min-height:44px; padding:0 10px; font-size:var(--fs-sm); }
+.logshop { margin-top:14px; padding-top:6px; border-top:1px solid var(--line); }
+.logshop-go { display:flex; width:100%; justify-content:flex-start; gap:8px; min-height:48px; font-size:var(--fs-md); text-decoration:none; color:var(--ink); }
+.logshop-go > svg:last-child { margin-left:auto; color:var(--soft); }
 .mark { font-family:var(--ff-display); font-weight:600; font-size:22px; }
 .sub { font-size:10.5px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--primary-text); margin-left:7px; vertical-align:3px; }
 .orgsel { display:flex; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:3px; }

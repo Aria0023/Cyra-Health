@@ -2759,3 +2759,18 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   raise with your clinician, not a diagnosis or medical advice." footers) and leads the Patterns page; without one
   the Patterns card keeps its place. Nothing new is stored or sent: it is the same `aiWeekly` (device-only, never in
   a backup), cleared when she switches the write-up off.
+
+### Task 2: Shop entry points — no new request, one device-only key
+
+- **What changed.** The header's bag icon is a labelled "Shop" pill; the "+" sheet has a "Shop by need" row at the
+  bottom; the first time this device lands on Home a one-time note "New: Shop by need" shows under the pill ("Got it"
+  closes it; it also leaves when she opens the shop or leaves Home). All three only open the existing Shop page.
+  Ported from `feature/shop-findable-visuals` (084da80), the entry points only: no Home shop card, no product
+  illustrations, no "Illustration" tag.
+- **One device-only key:** `shopHint` = `{ home, coach }` (`lib/shop.js` cleanShopHint): `coach` is true once the note
+  has shown. `home` is unused here (kept so the key has the same shape as on that branch). `DEVICE_ONLY` and
+  `NOT_IN_BACKUP`; nothing about her health; never sent.
+- **Header on a narrow phone (under 375px):** her name's chip is not drawn, unless it also says "sharing counts ✓"
+  (then it stays, so that statement is never hidden). Her name is in Home's greeting. No sentence changed.
+- No privacy sentence changed. "the shop never shows in insights, Patterns or Home" (e2e/shop.spec.mjs) still holds:
+  the pill is in the header, not in a Home card.
