@@ -1,9 +1,9 @@
 /* axe-core on the portal's reporting pages (docs/plans/tracking-reports.md), light and dark, phone and wide, against a
-   real development backend (e2e/lib/portal.mjs): Clicks with totals, its chart and tables, and empty. Every target is
-   checked at 44px. */
+   real development backend (e2e/lib/portal.mjs): Clicks with totals, its chart and tables, and empty; the Overview's
+   People card and the People page with its chart and the 30-day table open. Every target is checked at 44px. */
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { startBackend, portalSignIn, OWNER } from "./lib/portal.mjs";
+import { startBackend, portalSignIn, appAccount, OWNER } from "./lib/portal.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 const audit = async (page, name) => {
@@ -33,6 +33,19 @@ for (const scheme of ["light", "dark"]) {
       await audit(page, `clicks with totals ${scheme}`);
       await page.setViewportSize({ width: 1200, height: 900 });
       await audit(page, `clicks, wide ${scheme}`);
+      // People (Task 2)
+      await page.setViewportSize({ width: 390, height: 844 });
+      for (const e of ["maya@x.example", "noor@x.example"]) await appAccount(be, e);
+      await nav(page, "Overview");
+      await expect(page.locator('[data-stat="people-total"] b')).toHaveText("2");
+      await audit(page, `overview with the People card ${scheme}`);
+      await nav(page, "People");
+      await expect(page.getByRole("heading", { level: 1, name: "People" })).toBeVisible();
+      await page.getByText("The 30 days as a table").click();
+      await expect(page.getByRole("table", { name: "New accounts by day" })).toBeVisible();
+      await audit(page, `people ${scheme}`);
+      await page.setViewportSize({ width: 1200, height: 900 });
+      await audit(page, `people, wide ${scheme}`);
     } finally { await ctx.close(); await be.stop(); }
   });
 }

@@ -71,5 +71,47 @@ export function reportViews(L) {
       h("p", { class: "note" }, "A tap is counted when someone opens a product from the Shop page with tap counting on (it is on unless she turns it off in the app). The app sends only the product's id; the server keeps one total per product per day, for 400 days."));
   }
 
-  return { renderClicks, table, td, num, barChart, windowSeg, download };
+  /* ----- People: account and sign-in totals (owner). Counts only: no email, no name, no list of people. ----- */
+  const SIGNIN_LABEL = { apple: "Apple", google: "Google", facebook: "Facebook", email: "Email code" };
+  const PEOPLE_NOTE = "Counts only: this page never shows who. \"Used\" means the account signed in, or the app was opened while signed in, on that day (UTC). The server keeps one date per account for this, with no time of day.";
+  /** A small column chart of a daily series (decorative beside its table). points: [{ day, count }]. */
+  function dayChart(label, points) {
+    const top = Math.max(1, ...points.map((p) => p.count)), W = 640, H = 150, pad = 22, bw = (W - 8) / points.length;
+    const total = points.reduce((n, p) => n + p.count, 0), best = points.reduce((a, b) => (b.count > a.count ? b : a), points[0]);
+    const g = svg("svg", { class: "bars cols", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${label}: ${num(total)} in all${total ? `; the most on ${best.day} (${num(best.count)})` : ""}` });
+    g.append(svg("line", { class: "bars-axis", x1: 4, x2: W - 4, y1: H - pad, y2: H - pad }));
+    points.forEach((p, i) => {
+      const bh = Math.round((p.count / top) * (H - pad - 14));
+      if (p.count) g.append(svg("rect", { class: "bars-bar", x: 4 + i * bw + 2, y: H - pad - bh, width: Math.max(2, bw - 4), height: bh, rx: 2 }));
+    });
+    g.append(svg("text", { class: "bars-lab", x: 4, y: H - 5 }, points[0].day), svg("text", { class: "bars-lab", x: W - 4, y: H - 5, "text-anchor": "end" }, points.at(-1).day), svg("text", { class: "bars-val", x: 4, y: 12 }, `Most in a day: ${num(top === 1 && !total ? 0 : top)}`));
+    return h("figure", { class: "panel chart" }, h("figcaption", { class: "preview-lab" }, label), g);
+  }
+  const peopleStats = (p) => [["people-total", num(p.total), "Accounts"], ["people-new7", num(p.new7), "New, last 7 days"], ["people-new30", num(p.new30), "New, last 30 days"], ["people-active1", num(p.active1), "Used today"], ["people-active7", num(p.active7), "Used, last 7 days"], ["people-active30", num(p.active30), "Used, last 30 days"]];
+  /** The Overview's People card: three numbers and a link (null when the server has no insights module). */
+  async function peopleCard() {
+    let p;
+    try { p = await api("GET", "/api/insights/people"); } catch { return null; }
+    return h("section", { "aria-labelledby": "ov-people" },
+      h("h2", { id: "ov-people" }, "People"),
+      h("ul", { class: "stats", "aria-label": "People" }, peopleStats(p).filter(([id]) => ["people-total", "people-new7", "people-active7"].includes(id)).map(([id, v, l]) => h("li", { "data-stat": id }, h("b", {}, v), h("span", {}, l)))),
+      h("p", {}, h("a", { href: "#/people" }, "See People"), " ", h("span", { class: "note" }, "Counts only.")));
+  }
+  async function renderPeople() {
+    const p = await api("GET", "/api/insights/people");
+    const share = (n) => (p.total ? `${Math.round((n / p.total) * 100)}%` : "0%");
+    show("People",
+      h("p", { class: "lead" }, "How many accounts there are, how many are new, and how many are in use. Totals for the whole app."),
+      h("ul", { class: "stats", "aria-label": "Accounts" }, peopleStats(p).map(([id, v, l]) => h("li", { "data-stat": id }, h("b", {}, v), h("span", {}, l)))),
+      h("p", { class: "note" }, PEOPLE_NOTE, p.neverSeen ? ` ${num(p.neverSeen)} ${p.neverSeen === 1 ? "account has" : "accounts have"} no day noted yet: ${p.neverSeen === 1 ? "it hasn't" : "they haven't"} been used since this count began (2026-11-19).` : ""),
+      h("h2", {}, "By sign-in method"),
+      table("Accounts by sign-in method", ["Sign-in", "Accounts", "Share"], Object.entries(SIGNIN_LABEL).map(([k, l]) => h("tr", { "data-signin": k }, h("th", { scope: "row" }, l), td(num(p.byProvider[k]), true), td(share(p.byProvider[k] || 0), true)))),
+      h("h2", {}, "New accounts by day"),
+      dayChart("New accounts per day, last 30 days (UTC)", p.newByDay),
+      h("details", { class: "panel guide" }, h("summary", {}, "The 30 days as a table"),
+        table("New accounts by day", ["Day (UTC)", "New accounts"], p.newByDay.slice().reverse().map((d) => h("tr", {}, h("th", { scope: "row" }, d.day), td(num(d.count), true))))),
+      h("p", { class: "note" }, `As of ${p.asOf} (UTC). A deleted account leaves every count at once.`));
+  }
+
+  return { renderClicks, renderPeople, peopleCard, table, td, num, barChart, windowSeg, download };
 }

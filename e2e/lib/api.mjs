@@ -44,6 +44,7 @@ export async function mockApi(target, state) {
       return id ? json(200, { token: TOKEN, account: account(id, id === "facebook" ? "" : `maya@${id}.example`, "Maya Lin") }) : json(404, { error: "code unknown" });
     }
     if (p === "/api/accounts/sign-out") return route.fulfill({ status: 204, headers: CORS });
+    if (p === "/api/accounts/me" && method === "GET") return req.headers().authorization === `Bearer ${TOKEN}` ? json(200, { account: account("email", "maya@x.example") }) : json(401, { error: "not signed in" }); // "the account is in use" (Task 2)
     if (p === "/api/accounts/me" && method === "DELETE") return route.fulfill({ status: 204, headers: CORS });
     if (p === "/api/integrations/sources") return json(200, state.sources);
     if (p === "/api/ai/status") return json(200, { ready: true });

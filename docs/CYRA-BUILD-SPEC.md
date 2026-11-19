@@ -2372,6 +2372,10 @@ pure reference.
       keeps one total per product per day for 400 days; on by default with her device-only switch "Count my shop taps
       anonymously" (You → Privacy & your data); the portal's Clicks page shows the totals (a partner: its own brands).
       Only in a build with a server and the `shop` flag. docs/PRIVACY-AUDIT.md "Anonymous shop tap counts".
+- [x] Account and sign-in totals (2026-11-19, Task 2): the account record keeps `lastSeenDay` (a UTC date, written at
+      most once a day on sign-in or `GET /api/accounts/me`; the app calls it once per launch while signed in); the
+      portal's owner-only People page and Overview card show counts only (`backend/src/modules/insights`, mounted in
+      production). The sign-in disclosure names "the last day you used your account".
 - [x] Installable web app that opens offline (A14.1); Render serves /, /index.html, /sw.js and /manifest.webmanifest
       with Cache-Control: no-cache.
 - [ ] Choose VITE_FEATURES for each release and list the matching backend modules (§9.1); the default offers Ask

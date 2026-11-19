@@ -125,7 +125,8 @@ export const SIGNIN_COPY = Object.freeze({
   // what's shared
   sharedLab: "What signing in shares",
   shared: Object.freeze([
-    "Solia Health's server keeps your account: how you signed in, your email, your name if the service shares it, and when you made the account. Never your health log.",
+    "Solia Health's server keeps your account: how you signed in, your email, your name if the service shares it, when you made the account and the last day you used your account (a date, not a time). Never your health log.",
+    "While you're signed in, Solia Health tells its server the account is in use when the app opens. That request carries your sign-in and nothing from your log.",
     "Apple, Google or Facebook learns that you signed in to Solia Health, and nothing about your health. Apple lets you hide your email; Solia Health then gets a private relay address.",
     "Facebook doesn't say whether an email is confirmed, so a Facebook account keeps your name and no email.",
     "With email, our email provider (Resend) delivers a 6-digit code to your address. The code works once, for 10 minutes.",

@@ -98,7 +98,7 @@ import { AccountSheet } from "./components/AccountParts.jsx";
 import SignInStep, { SignInGate, GuestCreateSheet } from "./components/SignInStep.jsx";
 import DataControls from "./components/DataControls.jsx";
 import { signinMode, signinInBuild, gateNeeded, sessionFrom, cleanSignin, firstNameOf, whoLine, SIGNIN_COPY, REQUIRE_SIGNIN } from "./lib/signin.js";
-import { accountsConfig, emailStart, emailVerify, providerFinish, signOutServer, deleteAccountServer } from "./lib/signinClient.js";
+import { accountsConfig, emailStart, emailVerify, providerFinish, signOutServer, deleteAccountServer, accountSeen } from "./lib/signinClient.js";
 import { FEATURES, DEV_FLAGS, feature, remindersInBuild } from "./lib/features.js";
 import { fertPrivacyLine, deleteAlso } from "./lib/disclosures.js";
 import { cleanLock, hashPin, checkPin, newLock, afterFail, afterSuccess, awayMs, shouldLock, passkeyAvailable, createPasskey, verifyPasskey, forgotPinRecord, GRACE_MS, LOCK_COPY } from "./lib/lock.js";
@@ -646,6 +646,15 @@ export default function CyraDemo() {
   useEffect(() => { if (hydrated && phase === "app" && stage != null && !trialStart) setTrialStart(todayIso); }, [hydrated, phase, stage, trialStart, todayIso]);
   // The Shop catalog's background refresh: at most once a day, once she is in the app (refreshShop above; nothing about her).
   useEffect(() => { if (SHOP_LIVE && hydrated && phase === "app" && stage != null && catalogDue(shopCatalog)) refreshShop(); }, [hydrated, phase, stage]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 2026-11-19 (docs/plans/tracking-reports.md Task 2): while she is signed in, tell the server once per launch that the
+  // account is in use (the server notes today's date on the account, at most once a day). Her sign-in token and nothing
+  // else; the answer isn't used. A guest, or a build without sign-in or a server, sends nothing.
+  const seenSent = useRef(false);
+  useEffect(() => {
+    if (seenSent.current || !hydrated || phase !== "app" || !signin?.token || !hasServer() || !feature("signin")) return;
+    seenSent.current = true;
+    accountSeen(signin.token);
+  }, [hydrated, phase, signin]);
   const syncDay = () => { const now = localDay(); setTodayIso((cur) => (cur === now ? cur : now)); return now; };
   const isMeno = phaseOf(stage, stageName) === "meno";
   /* Summaries and links in her log (L8, lib/insights.js): worked out here on render from the on-device record, never

@@ -194,3 +194,6 @@ input[type="date"], input[type="datetime-local"] { font: inherit; color: var(--i
 .bars-bar { fill: var(--primary); }
 .bars-lab { fill: var(--ink); font: 600 13px var(--ff-body); }
 .bars-val { fill: var(--ink); font: 700 13px var(--ff-body); }
+.bars-axis { stroke: var(--line); stroke-width: 1; }
+.cols .bars-lab { fill: var(--soft); }
+.guide .tablewrap { margin: 12px 18px 18px; }

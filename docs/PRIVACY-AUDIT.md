@@ -2473,3 +2473,36 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
   request log); its purposes now include Analytics and its comment describes the tap count. App Store Connect → App
   Privacy → Product Interaction must list Analytics as a purpose too, and Google Play's Data safety form should list
   "App interactions" (collected, not shared, optional, for analytics). Data Used to Track You stays: none.
+
+## Account and sign-in totals (2026-11-19, docs/plans/tracking-reports.md Task 2) — one new account field, one new request while signed in
+
+- **What changed:** the account record gains `lastSeenDay`, the last UTC day the account was used, and the portal gains
+  an owner-only People page (and a card on Overview) of counts built from the account records.
+- **What the server keeps, exactly:** `lastSeenDay` is a date (`YYYY-MM-DD`, UTC): no time of day, no address, no
+  device, no count of uses, no history (one value, overwritten). It is written on sign-in and on
+  `GET /api/accounts/me`, at most once a day per account (`accounts/index.js` touchSeen). The app is never sent it
+  (`publicAccount`). It is deleted with the account. Tested in backend/test/insights-people.test.mjs.
+- **The new request:** before this change the app never called `GET /api/accounts/me`, so "in use" could not be known
+  after sign-in. Now, while she is signed in, the app calls it once per launch (`src/lib/signinClient.js` accountSeen,
+  App.jsx): the session token in `Authorization`, no body, no query, and the answer is not used. A guest, a build
+  without sign-in and a build without a server send nothing (e2e/account-seen.spec.mjs). This is a presence signal tied
+  to an account, which is why it is disclosed in three places (below) rather than left implicit.
+- **What an owner sees (`GET /api/insights/people`, owner only; a partner gets 403):** total accounts, new accounts per
+  day for 30 days, new in 7 / 30 days, used today / in 7 / in 30 days, and accounts by sign-in method. Numbers and
+  dates only: no email, name, account id or list of people (the test checks every value in the answer is a number or
+  a date). **Residual risk:** with very few accounts a count can describe one person (for example "1 account, used
+  today"). Owners already hold the account records on the server, so this page gives them nothing they could not
+  already read; partners never see it.
+- **Sentences added or changed:**
+  - sign-in step, "What signing in shares": "Solia Health's server keeps your account: how you signed in, your email,
+    your name if the service shares it, when you made the account and the last day you used your account (a date, not
+    a time). Never your health log." and the new item "While you're signed in, Solia Health tells its server the
+    account is in use when the app opens. That request carries your sign-in and nothing from your log."
+  - You → Privacy & your data → Other connections: "...when you made the account and the last day you used your
+    account (a date, not a time; the app tells the server the account is in use when it opens). Never your health log."
+  - Consent step (`serverSees`): "...your email and your name if the service shares it, and the last day you used your
+    account. It keeps no profile of you..."
+  - Privacy draft, Section 3 "Your account (sign-in)": names the last day used and what the dates are used for.
+  - Portal footer: adds "counts of accounts and sign-ins".
+- **Store declarations:** no new data type: the account identifier (User ID), email and name are already declared as
+  linked. The last-day-used date is part of that account record.
