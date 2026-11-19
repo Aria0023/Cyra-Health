@@ -184,7 +184,7 @@ export function launchViews(L) {
           h("button", { type: "button", class: "btn danger", "aria-label": `Delete: ${what}`, onclick: async () => { if (!confirm("Delete this message for good?")) return; try { await api("DELETE", `/api/feedback/${encodeURIComponent(m.id)}`); await redraw("Deleted."); } catch (err) { fail(err); } } }, "Delete")));
     };
     show("Feedback",
-      h("p", { class: "lead" }, "What people sent from the app's You → Help: feedback and problem reports, newest first."),
+      h("p", { class: "lead" }, "What people sent from the app's You → Help & about: feedback and problem reports, newest first."),
       box,
       h("ul", { class: "stats", "aria-label": "Feedback" },
         h("li", { "data-stat": "fb-open" }, h("b", {}, num(r.open)), h("span", {}, "Open")),

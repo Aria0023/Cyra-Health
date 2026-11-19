@@ -7,7 +7,7 @@ import { t } from "../lib/i18n.js";
 import { METRIC_WORDS } from "../lib/autoTracked.js";
 import { DEVICE_COPY } from "../lib/devices.js";
 
-/* You → Data sources (passive tracking S3, plan §2.4): the manage surface for every source this build offers. One row per
+/* You → Devices & reminders → Data sources (passive tracking S3, plan §2.4): the manage surface for every source this build offers. One row per
    source: status (Connected · Paused · Waiting to finish · Not connected), what it reads, "Where it goes" (this phone only /
    through Solia Health's server), last sync, how many nights it read, and Connect / Sync, Pause / Resume and Disconnect
    (with "Delete its readings from this device too", on by default). A preferred-source picker per metric once two sources

@@ -4,6 +4,7 @@ import Icon from "../Icon.jsx";
 import Advice from "../Advice.jsx";
 import { t } from "../../lib/i18n.js";
 import Lead from "../Lead.jsx";
+import { ASK_COPY as A } from "../../lib/aiFeatures.js";
 
 /* Cyra's AI write-up and chat (calm R8). Three parts, all driven by App.jsx:
    - AiSendSheet: "What Cyra will send". Opens before EVERY send. It shows the request body in plain words and then
@@ -73,8 +74,11 @@ export function WriteUpCard({ status, last = null, busy = false, note = null, le
   );
 }
 
-export function ChatCard({ status, chat = [], busy = false, note = null, left = null, online = true, onPrepare, onClear, onCheck }) {
-  const [q, setQ] = useState("");
+/* seed (2026-11-19, Home's Ask Solia card): { text, n } puts her question in the box, typed and NOT sent; onSeeded tells
+   App.jsx it was taken, so coming back to this screen later doesn't type it again. */
+export function ChatCard({ status, chat = [], busy = false, note = null, left = null, online = true, onPrepare, onClear, onCheck, seed = null, onSeeded = null }) {
+  const [q, setQ] = useState(seed?.text || "");
+  useEffect(() => { if (!seed) return; if (seed.text) setQ(seed.text); onSeeded?.(); }, [seed?.n]); // eslint-disable-line
   const listRef = useRef(null);
   useEffect(() => { onCheck?.(); }, []); // eslint-disable-line
   useEffect(() => { const el = listRef.current; if (el) el.scrollTop = el.scrollHeight; }, [chat.length]);
@@ -105,6 +109,60 @@ export function ChatCard({ status, chat = [], busy = false, note = null, left = 
         onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); send(); } }} />
       <button type="button" className="cta aichatgo" aria-haspopup="dialog" disabled={!can} onClick={send}>{t("ai.chatGo")}</button>
       <p className="rfoot">{t("ai.notAdvice")} {t("ai.chatKept")}</p>
+    </Card>
+  );
+}
+
+/* Home's "Ask Solia" card (lib/aiFeatures.js askCard, ASK_COPY). m.state: "ask" (her question and up to two ways to
+   ask it; each only opens the existing card with the question typed in), "plans", "guest" or "soon". It sends nothing
+   and asks the server nothing. onHide puts it away on this device (You brings it back). */
+export function AskSoliaCard({ id = "home-ask", title = A.title, m, onAsk, onEvidence, onTurnOn, onPlans, plansLabel, onCreate, createLabel, onHide }) {
+  const [q, setQ] = useState("");
+  const hide = <button type="button" className="prochip-hide asksolia-hide" aria-label={A.hide} onClick={onHide}><Icon name="close" size={14} /></button>;
+  return (
+    <Card id={id} tint="mind" icon="sparkle" eyebrow={m.state === "soon" ? A.soonChip : A.eyebrow} title={title} level={2} className="aicard asksolia" data-state={m.state} action={hide}
+      badge={m.state === "plans" || m.state === "guest" ? <Chip variant="pro" /> : null}>
+      {m.state === "soon" && <p className="hint">{A.soon}</p>}
+      {m.state === "guest" && (
+        <>
+          <p className="hint">{A.guest}</p>
+          <button type="button" className="ghostbtn" aria-haspopup="dialog" onClick={onCreate}>{createLabel}</button>
+        </>
+      )}
+      {m.state === "plans" && (
+        <>
+          <p className="hint">{A.plans}</p>
+          <button type="button" className="ghostbtn" aria-haspopup="dialog" onClick={onPlans}>{plansLabel}</button>
+        </>
+      )}
+      {m.state === "ask" && (
+        <>
+          <label className="section-lab" htmlFor={`${id}-q`}>{A.label}</label>
+          <textarea id={`${id}-q`} className="inp aiq" rows={2} maxLength={500} placeholder={A.placeholder} value={q} onChange={(e) => setQ(e.target.value)} aria-describedby={`${id}-lead`} />
+          <div className="asksolia-acts">
+            {m.chat && <button type="button" className="cta" onClick={() => onAsk(q.trim())}>{A.ask}</button>}
+            {m.evidence && <button type="button" className={m.chat ? "ghostbtn" : "cta"} onClick={() => onEvidence(q.trim())}>{A.askEvidence}</button>}
+          </div>
+          {m.chatOff && <p className="hint asksolia-off">{A.chatOff} <button type="button" className="linkbtn" onClick={onTurnOn}>{A.turnOn}</button></p>}
+          <p className="rfoot" id={`${id}-lead`}>{A.lead}</p>
+        </>
+      )}
+    </Card>
+  );
+}
+
+/* The weekly write-up where she already looks (Home, under Today's insight): the same text, the same "by AI / not
+   advice" footers as Patterns' card, and a way to that card. Read-only: preparing a new one stays on Patterns. */
+export function WriteUpHomeCard({ id = "home-writeup", last, onOpen }) {
+  const paras = String(last.writeup).split(/\n\s*\n/);
+  return (
+    <Card id={id} tint="patterns" icon="sparkle" eyebrow={t("aiParts.yourLast8Weeks")} badge={<Chip variant="pro" />} title={t("ai.wuTitle")} level={2} className="aicard aiwriteup homewriteup">
+      <div className="aiout">
+        {paras.map((tv, i) => <p key={i} className="aitext">{i === 0 ? <Lead>{tv}</Lead> : tv}</p>)}
+        {last.ask && <Advice urgency="visit">{t("aiParts.worthAsking", { ask: last.ask })}</Advice>}
+        <p className="rfoot">{t("ai.byAI")} {t("ai.notAdvice")}</p>
+      </div>
+      <button type="button" className="linkbtn homewriteup-open" onClick={onOpen}>{A.wuOpen}<Icon name="arrow-right" size={14} /></button>
     </Card>
   );
 }

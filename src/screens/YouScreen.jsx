@@ -1,4 +1,4 @@
-import { Card, Chip, Switch } from "../components/ui/index.js";
+import { Card, Chip, Switch, IBadge } from "../components/ui/index.js";
 import BrandMark from "../components/BrandMark.jsx";
 import Icon from "../components/Icon.jsx";
 import ModuleRow from "../components/ModuleRow.jsx";
@@ -15,7 +15,7 @@ import { TERMS_URL, PRIVACY_URL, openExternal } from "../lib/links.js";
 import { BUILD_STAMP, MODULE_ADDS, PLAN_COPY, ACCOUNT_LINES, NOT_MEDICAL, AI_OFF_LINE, accountLine } from "../lib/about.js";
 import { freeKeepsFor, untilLine } from "../components/ProSheet.jsx";
 import { AI_DISCLOSURE } from "./AskScreen.jsx";
-import { AI_COPY } from "../lib/aiFeatures.js";
+import { AI_COPY, ASK_COPY } from "../lib/aiFeatures.js";
 import { MEAL_COPY } from "../lib/mealPhoto.js";
 import { CalSwitch } from "../components/ai/MealPhoto.jsx";
 import { FLOW_COPY } from "../lib/privacyFlows.js";
@@ -23,32 +23,35 @@ import { AccountCard, SignedInCard } from "../components/AccountParts.jsx";
 import { PlanCardTiles } from "../components/PlanTiles.jsx";
 import { t } from "../lib/i18n.js";
 import { youAccountLine } from "../lib/signin.js";
+import { YOU_PAGES, youPageOf, YOU_COPY } from "../lib/youMenu.js";
 
-/* You (calm R7, spec "You tab"): one calm scrolling page of v2 Cards. It is where she controls her data, so the
-   privacy dashboard is the first thing under her stage. Top to bottom:
-   - her name and stage (one life-stage experience: changing it replaces it, what she logged stays);
-   - Privacy & your data (L10): what can leave this device, an encrypted backup and restore, the app lock, delete everything;
-   - Modules: PCOS, POTS (and fertility signs where the stage offers them), each a real switch with a one-line
-     "what it adds". The PCOS switch is this card's only PCOS control; POTS also has its row in the header's Settings
-     sheet (Add-ons), which App.jsx closes whenever the You tab is open, so one switch is ever on screen;
-   - Plan: Cyra Free, and a "See what Pro adds" sheet. Calm R8: "Restore purchases" asks lib/purchase.js, which in this
-     version has no store connected and says so (nothing is checked or sent); no nagging. 2026-11-15 (Task 2): the two plan
-     tiles (components/PlanTiles.jsx): the web's reference prices with "Get Solia Health Pro in the app", a phone's store prices;
-   - Check-ins, Reminders, (weekly counts where the build has them), Appearance, (Install), Cyra's AI, About you:
-     the same controls, ids and sentences the Settings sheet has (components/settingsParts.jsx);
-   - Account: Task 1's sign-in card (who is signed in, Sign out, Delete account) while this device is signed in;
-     otherwise "Your account" (2026-11-15: sign-in isn't switched on yet, or she hasn't signed in) in a build without the optional account; calm R9: where the
-     build offers it (`account`, lib/cloudBackup.js ACCOUNTS_HERE) the AccountCard (guest by default; create, sign in,
-     back up now, sign out, delete, and the "backup is newer" choice); Help (2026-11-19, components/Feedback.jsx: short answers;
-     in a build with a server "Send feedback" / "Report a problem", which send only on her Send); the Shop by need entry card (components/Shop.jsx ShopEntryCard; since 2026-11-15 it opens the Shop page), About & legal (not a medical device, links, build).
-   - Cyra's AI (calm R8): with Pro, the ai flag and a server, the weekly write-up and chat switches (off by default) and
-     "Include lab values"; without Pro, one line and "See what Pro adds". The switches send nothing themselves.
+/* You (calm R7, spec "You tab"; a short menu since 2026-11-19, docs/plans/visible-features.md Task 3, lib/youMenu.js).
+   With no `page`: her name, the stage card (one life-stage experience: changing it replaces it, what she logged stays)
+   and one row per page. Each row opens its page inside the You tab (App.jsx: a view of its own, #/you/<slug>, the "You"
+   back link returns focus to the row). Every card the long page had is on exactly one page, with the same id, controls
+   and sentences:
+   - Your profile: her stage (the same Change control), About you, Modules (PCOS, POTS, fertility signs where the
+     stage offers them, Meal notes: each a real switch with a one-line "what it adds"; the PCOS switch is this card's
+     only PCOS control; POTS also has its row in the header's Settings sheet (Add-ons), which App.jsx never draws on
+     the You tab, so one switch is ever on screen), Share with a partner;
+   - Privacy & your data (L10): what can leave this device, an encrypted backup and restore, the app lock, delete
+     everything, exactly as before; the anonymous weekly counts (builds with them); and the way to the AI's page;
+   - Solia Health's AI (calm R8): "Also ask Solia Health's AI", and with Pro, the ai flag and a server the weekly
+     write-up and chat switches (off by default) and "Include lab values"; without Pro, one line and "See what Pro
+     adds". The switches send nothing themselves;
+   - Plan & account: the plan card (Free / Pro / the free week, the plan tiles, "Restore purchases", which asks
+     lib/purchase.js) and the account: Task 1's sign-in card (who is signed in, Sign out, Delete account), a guest's
+     card, or "Your account" / the optional AccountCard (calm R9);
+   - Devices & reminders: Data sources, Check-ins and reminders, Install (web);
+   - App settings: Appearance and style, Language (only with two or more catalogues, lib/i18n.js pickerShown), the
+     voice guide (the same device choice as inside a practice), "Finding your way", Home cards;
+   - Help & about: Help (components/Feedback.jsx: short answers; with a server "Send feedback" / "Report a problem",
+     which send only on her Send), Learn, the Shop by need entry card, About & legal (not a medical device, links,
+     the build stamp).
    Calm R10 (compaction): each card is a title row, one summary line and its primary control; the longer explanations
-   sit behind a Details ("How this works"), which keeps its text in the page while closed. The privacy card leads
-   with three short facts (components/settingsParts.jsx privacyFacts) and the backup / restore / delete actions.
-   Every sentence that moved is listed in docs/PRIVACY-AUDIT.md "Calm R10". The Language card (`language`) shows only
-   when the build has two or more catalogues (lib/i18n.js pickerShown); today only English ships, so it is hidden.
-   Nothing on this page sends anything anywhere; the feedback sheet it opens sends one request when she presses Send. */
+   sit behind a Details ("How this works"), which keeps its text in the page while closed. Every sentence that moved is
+   listed in docs/PRIVACY-AUDIT.md "Calm R10". Nothing on these pages sends anything anywhere; the feedback sheet Help
+   opens sends one request when she presses Send. */
 /* A quiet illustration for the stage card: soft rings and a blob in the stage accent (tokens only, decorative). */
 const StageArt = () => (
   <svg className="youart" viewBox="0 0 200 150" aria-hidden="true" focusable="false">
@@ -59,7 +62,7 @@ const StageArt = () => (
     <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
   </svg>
 );
-export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, help = null, language = null, meals = null, dataSources = null, partner = null, learn = null, signMode = "none", store = null, native = false, promo = null, onHidePromo = null, proUntil = null, guest = null }) {
+export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, help = null, language = null, meals = null, dataSources = null, partner = null, learn = null, signMode = "none", store = null, native = false, promo = null, onHidePromo = null, proUntil = null, guest = null, homeCards = null, page = null, onOpenPage = () => {}, onBack = () => {}, planLabel = null, planKey = null, voice = null }) {
   const offer = ai.offer || { any: false, weekly: false, chat: false, meals: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
@@ -69,21 +72,34 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
   const NUDGE = { morning: "mornings", midday: "midday", evening: "evenings", never: "no nudge" };
   const checkinSummary = [cad ? `Rhythm: ${cad.label.toLowerCase()}` : null, remindersHere && !remindersOff && sp.cadence !== "me" && NUDGE[sp.quietHours] ? `nudge ${NUDGE[sp.quietHours]}` : null, sp.quickMode ? "quick check-in, 3 taps" : "full-detail check-in"].filter(Boolean).join(" · ") + ".";
   const link = (url, label) => <button type="button" className="linkbtn youlegal" onClick={() => openExternal(url)}>{label}<Icon name="arrow-right" size={14} /></button>;
-  return (
-    <main className="youpage">
+  const pg = youPageOf(page);
+  /* The cards, written here in the order the long page had them (their lines are unchanged, so another branch's edit
+     to a card merges cleanly); the menu and the pages below only place them. */
+  const head = (
+    <>
       <p className="eyebrow">{t("you.you")}</p>
       <h1 className="disp youname">{who}</h1>
+    </>
+  );
+  const stageCard = (
+    <>
       <Card hero tint="you" icon="user" eyebrow={t("you.yourStage")} title={stageName} level={2} className="youstage">
         <StageArt />
         <p className="hint">{t("you.cyraIsShapedAroundOne")}</p>
         <button type="button" className="stagechip quiet" onClick={onChangeStage}>{t("you.change", { stageName })}</button>
         {sp.daysLogged > 0 && <p className="youfact"><Icon name="calendar" size={14} />{sp.daysLogged === 1 ? t("you.1DayLogged") : t("you.daysLogged", { daysLogged: sp.daysLogged })}</p>}
       </Card>
-
+    </>
+  );
+  const privacyCard = (
+    <>
       <Card id="you-privacy" tint="mind" icon="shield" eyebrow={t("you.privacyYourData")} title={t("you.youDecideWhatLeavesThis")} level={2} className="youprivacy" tabIndex={-1}>
         <PrivacyBody hideLab compact storageDriver={sp.storageDriver} onExport={sp.onExport} onImport={sp.onImport} onWipe={sp.onWipe} ping={sp.ping} keepsWeekNote={sp.keepsWeekNote} daysLogged={sp.daysLogged} lastBackupAt={sp.lastBackupAt} todayIso={sp.todayIso} offlineCopy={sp.offlineCopy} legacyWear={sp.legacyWear} onHandoff={sp.onHandoff} flows={sp.flows} flowCtx={sp.flowCtx} lock={sp.lock} potsOn={sp.potsOn} />
       </Card>
-
+    </>
+  );
+  const modulesCard = (
+    <>
       {anyModule && (
         <Card id="you-modules" tint="body" icon="plus-circle" eyebrow={t("you.modules")} title={t("you.extraTrackingForACondition")} level={2} className="youmodules">
           <ul className="modlist">
@@ -106,21 +122,35 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
           </Details>
         </Card>
       )}
-
-      {/* Passive tracking S3: Data sources (components/DataSourcesCard.jsx), where she manages every source and reads the spike's numbers. */}
-      {dataSources}
-
-      {/* Task A (2026-11-14): Share with a partner (components/PartnerShare.jsx; cycle stages only) and Learn (components/Learn.jsx). */}
-      {partner}
-      {learn}
-
+    </>
+  );
+  const tourCard = (
+    <>
       {onTour && (
         <Card id="you-tour" tint="you" icon="sparkle" eyebrow="Finding your way" title="New here, or a bit lost?" level={2}>
           <p>Bring back Getting started on Home and the short tip at the top of each screen.</p>
           <button type="button" className="ghostbtn" onClick={onTour}>Show me around again</button>
         </Card>
       )}
-
+    </>
+  );
+  const homeCardsCard = (
+    <>
+      {/* 2026-11-19: Home cards she can hide come back here (today: Ask Solia; askCardOff, this device only). */}
+      {homeCards && (
+        <Card id="you-home-cards" tint="you" icon="home" eyebrow={t("you.settings")} title="Home cards" level={2} className="youset">
+          <ul className="modlist">
+            <li className="modrow">
+              <div className="modrow-main"><div className="modinfo"><b id="home-ask-n">{ASK_COPY.showName}</b><span className="hint" id="home-ask-d">{ASK_COPY.showHint}</span></div>
+                <Switch checked={!!homeCards.ask} onChange={(v) => homeCards.setAsk(v)} labelledBy="home-ask-n" describedBy="home-ask-d" /></div>
+            </li>
+          </ul>
+        </Card>
+      )}
+    </>
+  );
+  const planCard = (
+    <>
       <Card id="you-plan" tint="patterns" icon="sparkle" eyebrow={PLAN_COPY.eyebrow} title={proOwned ? PLAN_COPY.pro : planUnlocked ? PLAN_COPY.test : PLAN_COPY.free} level={2} className="youplan" badge={<Chip variant="pro" />}>
         <p>{proOwned ? PLAN_COPY.bodyOn : trial?.gateOn ? PLAN_COPY.bodyTrial : PLAN_COPY.body}</p>
         {proOwned && proUntil && <p className="prountil">{untilLine(proUntil)}</p>}
@@ -136,7 +166,10 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
           {storeLine && <p className="rfoot" id="you-store-line">{storeLine}</p>}
         </Details>
       </Card>
-
+    </>
+  );
+  const checkinsCard = (
+    <>
       <Card id="you-checkins" tint="you" icon="lightning" eyebrow={t("you.settings")} title={remindersHere ? t("you.checkInsAndReminders") : t("you.checkIns")} level={2} className="youset" tabIndex={-1}>
         <p className="hint yousum">{checkinSummary}</p>
         {remindersHere && !remindersOff && <div className="youreminders"><RemindersBody hideLab reminders={sp.reminders} reminderSupport={sp.reminderSupport} cadence={sp.cadence} onReminders={sp.onReminders} stage={sp.stage} lead /></div>}
@@ -145,17 +178,26 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
           <CheckinsBody cadence={sp.cadence} setCadence={sp.setCadence} quietHours={sp.quietHours} setQuietHours={sp.setQuietHours} quickMode={sp.quickMode} setQuickMode={sp.setQuickMode} ping={sp.ping} reminders={sp.reminders} reminderSupport={sp.reminderSupport} />
         </Details>
       </Card>
-
+    </>
+  );
+  const countsCard = (
+    <>
       {FEATURES.counts && hasServer() && (
         <Card id="you-counts" tint="mind" icon="people" title={t("you.anonymousWeeklyCounts")} level={2} className="youset">
           <CountsBody hideLab lead stage={sp.stage} research={sp.research} setResearch={sp.setResearch} />
         </Card>
       )}
-
+    </>
+  );
+  const appearanceCard = (
+    <>
       <Card id="you-appearance" tint="body" icon="moon" title={t("you.appearance")} level={2} className="youset">
         <AppearanceBody hideLab appearance={sp.appearance} onAppearance={sp.onAppearance} uiStyle={sp.uiStyle} onStyle={sp.onStyle} />
       </Card>
-
+    </>
+  );
+  const languageCard = (
+    <>
       {language && (
         <Card id="you-language" tint="you" icon="globe" title={t("you.language")} level={2} className="youset">
           <div className="mcrow seg" role="group" aria-label={t("you.language")}>
@@ -165,14 +207,20 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
           <p className="rfoot">{t("you.languageLead")}</p>
         </Card>
       )}
-
+    </>
+  );
+  const installCard = (
+    <>
       {install && (
         <Card id="you-install" tint="you" icon="download" title={t("you.installCyra")} level={2} className="youset youinstall">
           <InstallSettings install={install} />
         </Card>
       )}
-
-      <Card id="you-ai" tint="mind" icon="sparkle" title={t("you.cyrasAi")} level={2} className="youset youai">
+    </>
+  );
+  const aiCard = (
+    <>
+      <Card id="you-ai" tint="mind" icon="sparkle" title={t("you.cyrasAi")} level={2} className="youset youai" tabIndex={-1}>
         {ai.available ? (
           <>
             <button type="button" role="checkbox" aria-checked={!!ai.on} aria-describedby="you-ai-disclosure" className={`consentopt ${ai.on ? "on" : ""}`} onClick={() => ai.set(!ai.on)}>
@@ -230,11 +278,17 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
           <p>{AI_OFF_LINE}</p>
         )}
       </Card>
-
+    </>
+  );
+  const aboutCard = (
+    <>
       <Card id="you-about" tint="you" icon="user" title={t("you.aboutYou")} level={2} className="youset">
         <AboutBody hideLab compact regAnswers={sp.regAnswers} onAnswer={sp.onAnswer} stage={sp.stage} stageName={sp.stageName} todayIso={sp.todayIso} />
       </Card>
-
+    </>
+  );
+  const accountCards = (
+    <>
       {/* Task 1: the sign-in account, when this device is signed in. Otherwise "Your account" says why there is none yet
           (2026-11-15: never "No account needed"; signinMode none / unset: sign-in isn't switched on yet). */}
       {signedIn && <SignedInCard si={signedIn} />}
@@ -256,12 +310,10 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
           <p className="rfoot">{ACCOUNT_LINES.more}</p>
         </Card>
       )}
-
-      {care}
-
-      {/* 2026-11-19: Help (components/Feedback.jsx): short answers, and in a build with a server the feedback sheet. */}
-      {help}
-
+    </>
+  );
+  const legalCard = (
+    <>
       <Card id="you-about-legal" tint="you" icon="book" eyebrow={t("you.about")} title={t("you.aboutLegal")} level={2} className="youlegal-card">
         <p className="aboutbrand"><BrandMark size={30} /><span><b>{t("you.brandName")}</b><span className="slogan">{t("splash.slogan")}</span></span></p>
         <p>{NOT_MEDICAL}</p>
@@ -270,6 +322,98 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
           : <p className="hint">{t("you.cyrasTermsAndPrivacyPolicy")}</p>}
         <p className="rfoot youbuild">{t("you.freeToUse")}<br /><b>{BUILD_STAMP}</b></p>
       </Card>
+    </>
+  );
+
+  /* The menu (no page open): her name, the stage card (unchanged) and one row per page. */
+  if (!pg) {
+    return (
+      <main className="youpage youmenu">
+        {head}
+        {stageCard}
+        <nav className="youmenu-nav" aria-label="Pages in You">
+          <ul className="yourows">
+            {YOU_PAGES.map((r) => (
+              <li key={r.id}>
+                <button type="button" id={`you-row-${r.id}`} className="yourow" data-page={r.id} onClick={() => onOpenPage(r.view)}>
+                  <IBadge icon={r.icon} tint={r.tint} />
+                  <span className="yourow-txt">
+                    <b>{r.title}</b>
+                    <span className="yourow-line">{r.line}</span>
+                    {r.id === "plan" && planLabel && <span className="yourow-state" data-plan={planKey || undefined}>{planLabel}</span>}
+                  </span>
+                  <Icon name="arrow-right" size={16} className="yourow-go" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </main>
+    );
+  }
+  const on = (id) => pg.id === id;
+  return (
+    <main className="youpage yousub" data-page={pg.id}>
+      <button type="button" id="you-back" className="linkbtn subback" onClick={onBack}><Icon name="arrow-right" size={14} className="flipx" />{t("you.you")}</button>
+      <h1 className="disp youname yousub-title">{pg.title}</h1>
+
+      {/* ---- Your profile: her stage (the same Change control), about you, condition modules, sharing with a partner ---- */}
+      {on("profile") && (
+        <Card id="you-stage" tint="you" icon="user" eyebrow={t("you.yourStage")} title={stageName} level={2} className="youset youstage2">
+          <p className="hint">{t("you.cyraIsShapedAroundOne")}</p>
+          <button type="button" className="ghostbtn" onClick={onChangeStage}>{t("you.change", { stageName })}</button>
+        </Card>
+      )}
+      {on("profile") && aboutCard}
+      {on("profile") && modulesCard}
+      {/* Task A (2026-11-14): Share with a partner (components/PartnerShare.jsx; cycle stages only). */}
+      {on("profile") && partner}
+
+      {/* ---- Privacy & your data: the privacy card and list exactly as before, the anonymous counts, the way to the AI's page ---- */}
+      {on("privacy") && privacyCard}
+      {on("privacy") && countsCard}
+      {on("privacy") && (
+        <div id="you-ai-link" className="plaincard youailink">
+          <p className="hint">{YOU_COPY.aiLink}</p>
+          <button type="button" className="linkbtn" onClick={() => onOpenPage("youai")}>{t("you.cyrasAi")}<Icon name="arrow-right" size={14} /></button>
+        </div>
+      )}
+
+      {/* ---- Solia Health's AI: its own page, so "You → Solia Health's AI" is the two taps it says ---- */}
+      {on("ai") && aiCard}
+
+      {/* ---- Plan & account ---- */}
+      {on("plan") && planCard}
+      {on("plan") && accountCards}
+
+      {/* ---- Devices & reminders. Passive tracking S3: Data sources (components/DataSourcesCard.jsx), where she manages
+          every source and reads the spike's numbers. ---- */}
+      {on("devices") && dataSources}
+      {on("devices") && checkinsCard}
+      {on("devices") && installCard}
+
+      {/* ---- App settings: appearance and style, language, the voice guide, the tour, Home cards ---- */}
+      {on("app") && appearanceCard}
+      {on("app") && languageCard}
+      {on("app") && voice && (
+        <Card id="you-voice" tint="mind" icon="breath" eyebrow={t("you.settings")} title={YOU_COPY.voiceTitle} level={2} className="youset">
+          <ul className="modlist">
+            <li className="modrow">
+              <div className="modrow-main"><div className="modinfo"><b id="you-voice-n">{YOU_COPY.voiceName}</b><span className="hint" id="you-voice-d">{YOU_COPY.voiceHint}</span></div>
+                <Switch checked={!!voice.on} onChange={(v) => voice.set(v)} labelledBy="you-voice-n" describedBy="you-voice-d" /></div>
+            </li>
+          </ul>
+        </Card>
+      )}
+      {on("app") && tourCard}
+      {on("app") && homeCardsCard}
+
+      {/* ---- Help & about. 2026-11-19: Help (components/Feedback.jsx): short answers, and in a build with a server the
+          feedback sheet; Learn (components/Learn.jsx); the Shop by need entry; About & legal with the build stamp. ---- */}
+      {on("help") && help}
+      {on("help") && learn}
+      {on("help") && care}
+      {on("help") && legalCard}
     </main>
   );
 }

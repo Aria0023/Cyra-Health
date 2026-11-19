@@ -56,6 +56,19 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .planbadge[data-plan="guest"] { background:var(--card); border-style:dashed; border-color:var(--soft); color:var(--ink); }
 .planbadge[data-plan="free"] { background:var(--card); color:var(--ink); }
 .stagechip.icon { flex:0 0 44px; max-width:44px; }
+/* 2026-11-19 (visible-features Task 2): the header's labelled Shop pill, the one-time hint under it, the "+" sheet's row. */
+.mast > .stagechip.shoppill { flex:0 0 auto; max-width:none; display:inline-flex; align-items:center; gap:6px; height:44px; padding:0 14px 0 12px; border-color:transparent; border-radius:var(--r-pill); background:var(--primary); color:var(--on-primary); font:700 var(--fs-sm) var(--ff-body); box-shadow:var(--sh-opt); }
+/* A narrow phone (under 375px): her name's chip gives way (her name is in Home's greeting; the chip stays while it also
+   says "sharing counts"), so the brand and the plan badge share the first row and the three buttons the second. */
+@media (max-width:374px) { .mast > .acctchip.nameonly { display:none; } }
+.mast > .stagechip.shoppill[aria-current="page"] { background:var(--ink); color:var(--on-ink); }
+.mast > .shopcoach { flex:1 1 100%; position:relative; display:flex; align-items:center; justify-content:space-between; gap:8px; margin:8px 0 0; padding:2px 6px 2px 14px; border:1px solid var(--line); border-radius:var(--r-inner); background:var(--card); box-shadow:var(--sh-card); }
+.shopcoach::before { content:""; position:absolute; top:-7px; right:var(--coach-x, 62px); width:12px; height:12px; transform:rotate(45deg); background:var(--card); border-left:1px solid var(--line); border-top:1px solid var(--line); }
+.shopcoach p { display:flex; align-items:center; gap:8px; margin:0; font:700 var(--fs-sm) var(--ff-body); color:var(--ink); }
+.shopcoach .linkbtn { flex:none; min-height:44px; padding:0 10px; font-size:var(--fs-sm); }
+.logshop { margin-top:14px; padding-top:6px; border-top:1px solid var(--line); }
+.logshop-go { display:flex; width:100%; justify-content:flex-start; gap:8px; min-height:48px; font-size:var(--fs-md); text-decoration:none; color:var(--ink); }
+.logshop-go > svg:last-child { margin-left:auto; color:var(--soft); }
 .mark { font-family:var(--ff-display); font-weight:600; font-size:22px; }
 .sub { font-size:10.5px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--primary-text); margin-left:7px; vertical-align:3px; }
 .orgsel { display:flex; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:3px; }
@@ -1131,6 +1144,24 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .youpage { position:relative; }
 .youpage > .eyebrow { margin-top:4px; }
 .youname { margin:0 0 14px; }
+/* You as a short menu (2026-11-19, lib/youMenu.js): one row per page under the stage card; a page has a "You" back link. */
+.youmenu-nav { margin:0 0 var(--stack); }
+.yourows { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
+.yourow { display:flex; align-items:center; gap:14px; width:100%; min-height:68px; padding:12px 14px; text-align:left; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--card); box-shadow:var(--sh-card); color:var(--ink); font:inherit; cursor:pointer; transition:background-color var(--t-fast), border-color var(--t-fast); }
+.yourow:hover { border-color:var(--line); }
+.yourow .ibadge { flex:none; }
+.yourow-txt { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.yourow-txt b { font:var(--label-wght) var(--fs-md) var(--ff-label); color:var(--ink); }
+.yourow-line { font-size:var(--fs-sm); line-height:1.4; color:var(--soft); }
+.yourow-state { align-self:flex-start; margin-top:4px; padding:3px 10px; border-radius:var(--r-pill); border:1px solid var(--line); background:color-mix(in srgb, var(--primary) 8%, var(--card)); font:700 11px var(--ff-body); letter-spacing:.02em; color:var(--ink); }
+.yourow-state[data-plan="pro"] { background:var(--primary); border-color:var(--primary); color:var(--on-primary); }
+.yourow-go { flex:none; color:var(--soft); }
+.yousub > .subback { margin:0 0 4px; min-width:44px; padding-right:8px; }
+.yousub-title { margin:0 0 14px; }
+.youailink { display:flex; flex-direction:column; align-items:flex-start; gap:2px; }
+.youailink .hint { margin:0; }
+.youailink .linkbtn { min-height:44px; gap:6px; }
+.youstage2 .ghostbtn { margin-top:10px; }
 .youstage .hint { margin:0 0 6px; }
 .youstage .stagechip.quiet { min-height:44px; padding:6px 0; font-size:var(--fs-md); }
 .youlist { list-style:none; margin:0 0 4px; padding:0; display:grid; gap:8px; }
@@ -1229,7 +1260,7 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .autocard .morewrap { margin:8px 0 -6px; }
 .autocard .disclosure.more { border:none; border-top:var(--rule); border-radius:0; background:none; padding:8px 0; color:var(--primary-text); justify-content:space-between; }
 .autocard .bodypanel.more { border:none; padding:2px 0 4px; } .autocard .bodypanel.more p { margin:0 0 6px; font-size:var(--fs-sm); line-height:1.5; }
-/* Passive tracking S3: You → Data sources (components/DataSourcesCard.jsx). */
+/* Passive tracking S3: You → Devices & reminders → Data sources (components/DataSourcesCard.jsx). */
 .srclist .modrow:first-child { border-top:none; padding-top:4px; }
 .srcstatus { font-variant-numeric:tabular-nums; }
 .srcrow.st-connected .srcstatus::before, .srcrow.st-paused .srcstatus::before, .srcrow.st-pending .srcstatus::before { content:""; display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; background:var(--primary); vertical-align:middle; }
@@ -1702,6 +1733,15 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .aiart { position:absolute; right:-18px; bottom:-14px; width:150px; height:100px; z-index:0; pointer-events:none; opacity:.8; }
 .aiart-blob { fill:color-mix(in srgb, var(--primary) 11%, transparent); }
 .aiart-spark { fill:var(--accent); opacity:.55; }
+/* Home's Ask Solia card and the write-up on Home (2026-11-19, components/ai/AiParts.jsx). */
+.asksolia .v2card-action { align-self:flex-start; margin:-8px -8px 0 0; }
+.asksolia .section-lab { display:block; margin:2px 0 6px; }
+.asksolia-acts { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 0; }
+.asksolia-acts > button { flex:1 1 140px; margin:0; min-height:44px; }
+.asksolia-off { margin:10px 0 0; }
+.asksolia-off .linkbtn { min-height:44px; text-align:left; }
+.asksolia > .ghostbtn { margin-top:10px; }
+.homewriteup-open { min-height:44px; gap:6px; margin-top:4px; }
 .aiout { margin:2px 0 10px; } .aiout:focus { outline:none; } .aiout:focus-visible { outline:2px solid var(--primary); outline-offset:3px; border-radius:6px; }
 .aitext { margin:0 0 10px; font-size:var(--fs-md); line-height:1.6; color:var(--ink); }
 .aichips { margin:8px 0 4px; }
@@ -1777,7 +1817,7 @@ button.plantile.on { border-color:var(--primary); box-shadow:inset 0 0 0 1px var
 .prochip { display:inline-flex; align-items:center; gap:2px; margin:0 0 12px; border:1px solid var(--line); border-radius:var(--r-pill); background:var(--card); }
 .prochip-open { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 6px 0 14px; border:0; background:none; color:var(--ink); font:600 var(--fs-sm) var(--ff-body); cursor:pointer; border-radius:var(--r-pill); }
 .prochip-hide { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border:0; background:none; color:var(--soft); cursor:pointer; border-radius:50%; }
-/* ---------- calm R9: the optional account (You → Account, its sheets, the splash sign-in) ---------- */
+/* ---------- calm R9: the optional account (You → Plan & account, its sheets, the splash sign-in) ---------- */
 .acctcard { position:relative; overflow:hidden; }
 .acctart { position:absolute; right:-6px; top:8px; width:120px; height:60px; pointer-events:none; }
 .acctart-blob { fill:var(--primary); opacity:.10; }
@@ -2070,7 +2110,7 @@ ${["400", "700"].map((w) => `@font-face { font-family:'Atkinson Hyperlegible'; f
 .partnerpicks { display:grid; gap:8px; margin:6px 0 12px; }
 .partnerpicks .consentopt { min-height:48px; font-size:16px; } .partnerpicks .consentopt:disabled { opacity:.6; cursor:not-allowed; }
 .partnersheet textarea.inp { width:100%; font-size:16px; resize:vertical; }
-/* You → Help and the feedback sheet (components/Feedback.jsx) */
+/* You → Help & about and the feedback sheet (components/Feedback.jsx) */
 .youhelp .helplist p { margin:0 0 8px; }
 .helpsend { margin-top:14px; }
 .helpsend .section-lab { margin:0 0 4px; }

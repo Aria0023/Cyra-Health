@@ -108,7 +108,7 @@ export const GUEST_COPY = Object.freeze({
   line: (when) => `You're trying Solia Health as a guest. Create an account by ${when} to keep going.`,
   create: "Create account",
   hide: "Hide for today",
-  hidden: "Hidden for today. You can create your account any time in You.",
+  hidden: "Hidden for today. You can create your account any time in You → Plan & account.",
   youLine: (when) => `You're trying Solia Health as a guest until ${when}. Solia Health's server holds no account for you, and your log lives on this device.`,
   sheetTitle: "Create your account",
   sheetSub: "Sign in so Solia Health knows it's you. Everything you logged as a guest stays on this device, and your account never holds it.",

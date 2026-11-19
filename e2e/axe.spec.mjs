@@ -3,7 +3,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, gotoSegment, openLog, closeSheet, gotoGallery } from "./lib/nav.mjs";
+import { gotoTab, gotoSegment, openLog, closeSheet, gotoGallery, gotoYou } from "./lib/nav.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 const audit = async (page, name) => {
@@ -29,15 +29,16 @@ for (const style of ["Soft", "Clear"]) {
   for (const scheme of ["light", "dark"]) {
     test(`${style} ${scheme}: the main screens, the log sheet and the Report`, async () => {
       await page.emulateMedia({ colorScheme: scheme });
-      await gotoTab(page, "You");
+      await gotoYou(page, "App settings");
       await page.getByRole("radio", { name: style }).click();
       await expect(page.locator(".cy")).toHaveAttribute("data-style", style.toLowerCase());
       await expect(page.locator(".cy")).toHaveAttribute("data-scheme", scheme);
-      await audit(page, `You ${style} ${scheme}`);
+      await audit(page, `You → App settings ${style} ${scheme}`);
+      await gotoTab(page, "You"); await audit(page, `You ${style} ${scheme}`);
       for (const tab of ["Home", "Body", "Mind", "Patterns"]) { await gotoTab(page, tab); await audit(page, `${tab} ${style} ${scheme}`); }
       await gotoTab(page, "Home"); await page.locator("#auto-tracked").getByRole("button", { name: "Skip this night" }).click(); await audit(page, `auto-tracked skip picker ${style} ${scheme}`); await page.locator("#auto-tracked").getByRole("button", { name: "Keep it" }).click();
       await gotoTab(page, "Body"); await gotoSegment(page, "Cycles"); await audit(page, `Cycles ${style} ${scheme}`);
-      await gotoTab(page, "You"); await page.locator('#you-sources .srcrow[data-source="oura"]').getByRole("button", { name: "Disconnect", exact: true }).click(); await audit(page, `Data sources, disconnect open ${style} ${scheme}`); await page.locator("#you-sources").getByRole("button", { name: "Keep it" }).click();
+      await gotoYou(page, "Devices & reminders"); await page.locator('#you-sources .srcrow[data-source="oura"]').getByRole("button", { name: "Disconnect", exact: true }).click(); await audit(page, `Data sources, disconnect open ${style} ${scheme}`); await page.locator("#you-sources").getByRole("button", { name: "Keep it" }).click();
       await openLog(page); await audit(page, `log sheet ${style} ${scheme}`); await closeSheet(page);
       await gotoTab(page, "Patterns"); await gotoSegment(page, "Report"); await audit(page, `Report ${style} ${scheme}`);
     });
@@ -81,7 +82,7 @@ test("the Pro sheet on the web sells nothing: the two plan tiles and the price i
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
   const page = await ctx.newPage();
   await register(page, { stage: "Perimenopause", name: "Ana" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Plan & account");
   await page.locator("#you-plan").getByRole("button", { name: "See what Pro adds" }).click();
   const sheet = page.locator("#pro-sheet");
   await expect(sheet.locator(".protrialline")).toHaveText("Try Pro free for 7 days on the yearly plan, then $100 a year in the iPhone and Android apps. Cancel any time.");

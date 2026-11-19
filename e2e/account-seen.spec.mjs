@@ -3,7 +3,7 @@
    none; the sign-in step says the server keeps the last day she used her account. */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab } from "./lib/nav.mjs";
+import { gotoTab, gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState, TOKEN } from "./lib/api.mjs";
 
 const API_URL = () => process.env.E2E_API_URL;
@@ -30,7 +30,7 @@ test("signed in: one check-in per launch, with the token and nothing else; the d
   await expect(page.getByRole("tab", { name: "Home", exact: true })).toBeVisible();
   await expect.poll(() => seen(state).length, { message: "the next launch checks in again" }).toBe(2);
   // You → Privacy & your data → other connections says the same
-  await gotoTab(page, "You");
+  await gotoYou(page, "Privacy & your data");
   await page.locator("#you-privacy").getByRole("button", { name: "How this works" }).click();
   await page.locator("#you-privacy").getByRole("button", { name: "Other connections Solia Health makes" }).click();
   await expect(page.locator("#you-privacy")).toContainText("the last day you used your account (a date, not a time; the app tells the server the account is in use when it opens)");

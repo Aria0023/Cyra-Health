@@ -6,6 +6,7 @@ import { stagePalettes, vizVars } from "../lib/constants.js";
 import { paletteFor, paletteVars, applyDocumentScheme, SYSTEM_DARK_QUERY, STYLES, cleanStyle } from "../lib/appearance.js";
 import AutoTrackedCard from "../components/AutoTrackedCard.jsx";
 import ProSheet from "../components/ProSheet.jsx";
+import { AskSoliaCard, WriteUpHomeCard } from "../components/ai/AiParts.jsx";
 import { storeFor } from "../lib/purchase.js";
 
 /* A pretend store for the Pro sheet preview (dev gallery only): the store's answers in the shape RevenueCat gives them,
@@ -118,6 +119,14 @@ export default function DevGallery() {
           <p className="dgnotif-body">Last night synced. Looks right?</p>
           <div className="dgnotif-acts"><button type="button" className="mc" onClick={() => setAutoDone(true)}>Looks right</button><button type="button" className="mc">Open</button></div>
         </div>
+
+        {/* 2026-11-19: Home's Ask Solia card in each state (lib/aiFeatures.js askCard) and the write-up as Home shows it.
+            Illustrative: the buttons do nothing here. */}
+        <h2 className="section-lab">Ask Solia, each state</h2>
+        {[["ask", { state: "ask", chat: true, chatOff: false, evidence: true }], ["askoff", { state: "ask", chat: false, chatOff: true, evidence: true }], ["plans", { state: "plans" }], ["guest", { state: "guest" }], ["soon", { state: "soon" }]].map(([k, m]) => (
+          <AskSoliaCard key={k} id={`dg-ask-${k}`} title={`Ask Solia (${k})`} m={m} onAsk={() => {}} onEvidence={() => {}} onTurnOn={() => {}} onPlans={() => {}} plansLabel="See Pro plans" onCreate={() => {}} createLabel="Create account" onHide={() => {}} />
+        ))}
+        <WriteUpHomeCard id="dg-writeup" last={{ writeup: "Your sleep was steadier in the weeks you moved more.\n\nHot flashes came up on 9 days, mostly in the second half of your cycle.", ask: "Could the night sweats be worth a visit?", day: null }} onOpen={() => {}} />
 
         <Card level={2} hero eyebrow="Today's small step" title="A two-minute breathing practice" icon="breath" tint="mind" badge={<Chip variant="pro" />}>
           <p style={{ margin: "0 0 12px", color: "var(--soft)" }}>You logged a rough night. Slow breathing can make the afternoon feel steadier.</p>

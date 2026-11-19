@@ -205,6 +205,12 @@ export const itemSources = (item) => (item.src || []).map((k) => SHOP_SOURCES[k]
 /* ---------- the Shop page (2026-11-15, plans-shop-page Task 3 and the owner's design update) ---------- */
 export const SHOP_PAGE_COPY = Object.freeze({
   title: "Shop by need",
+  /* 2026-11-19 (docs/plans/visible-features.md Task 2; first built 2026-11-16 on feature/shop-findable-visuals): the
+     header's labelled pill (headerLabel, below), the "+" sheet's row and the one-time hint under the pill. */
+  sheetRow: "Shop by need",
+  coach: "New: Shop by need",
+  coachOk: "Got it",
+  coachLab: "New in this update",
   lead: "Real products and services for your stage, with an honest note on the evidence.",
   footMatched: (taps = false) => (taps ? "Matched on this device: your stage and what you log are never sent." : "Matched on this device; nothing about you is sent."),
   back: "Back",
@@ -305,3 +311,8 @@ export function imageFor(item, manifest = {}) {
 export const isReviewed = (item, signed = []) => Array.isArray(signed) && signed.includes(item.id);
 /** The icon of a category, for the image placeholder. */
 export const CATEGORY_ICON = Object.freeze({ fertility: "teststrip", pregnancy: "heart", labs: "clipboard", glucose: "drop", wearables: "watch", periods: "drop", meno: "sun", sleep: "moon" });
+
+/* The device-only record key shopHint (never in a backup): { home: "hidden" | null, coach: true | false }. coach is true
+   once this device has shown the one-time "New: Shop by need" hint. home is kept for the same key's other half on
+   feature/shop-findable-visuals (a Home shop card she can hide); this branch has no such card and never sets it. */
+export const cleanShopHint = (v) => ({ home: v && typeof v === "object" && v.home === "hidden" ? "hidden" : null, coach: !!(v && typeof v === "object" && v.coach === true) });

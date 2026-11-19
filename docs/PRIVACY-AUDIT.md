@@ -2811,3 +2811,92 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
 - Failures, each saying what did and did not go: a 401 / 413 / 415 / 429 from Solia Health's server is answered AFTER
   the server received the photo, so those lines say "nothing went to Anthropic", never "nothing was sent". Only the
   checks made on the device (guest, offline, a file that is not a picture, Cancel) say "Nothing was sent."
+
+## Visible features (2026-11-19, docs/plans/visible-features.md)
+
+### Task 1: Ask Solia on Home; the write-up where she already looks — no new request, one device-only key
+
+- **What changed.** Home has an "Ask Solia" card under the hero (`components/ai/AiParts.jsx` AskSoliaCard, state from
+  `lib/aiFeatures.js` askCard). It is a way in to two existing features and adds no AI logic: "Ask" opens Mind →
+  Journey's "Chat about your log" with her question typed into that card's own box, "Ask with evidence" opens that
+  card the same way. The question is NOT sent: the chat's "Preview and send" / the evidence card's "Review and send"
+  and the "What Solia Health will send" sheet are still the only way anything goes (e2e/ask-solia.spec.mjs asserts no
+  POST to `/api/ai/*` after either button, and none before Send in the sheet).
+- **The card makes no request.** It does not ask the server whether AI is set up (the existing check still runs only
+  from the chat and write-up cards, after she turned them on). So "Coming soon" shows when the build has no `ai` flag
+  or no server, or when this session already heard from the server that AI isn't set up; on a server whose AI isn't
+  set up, a person without Pro sees the Pro line until then (the same as You's existing locked card).
+- **New sentences, each true of the build:**
+  - "Nothing is sent from here. The next screen shows exactly what would go, and only your Send sends it." (the box
+    state: the card navigates and types; every send is previewed in the sheet first)
+  - "Chat about your log is off." with the link "Turn on in You → Solia Health's AI" (Pro, her chat switch off; the
+    link opens that card and turns nothing on)
+  - "With Pro, ask about your own log or get answers that cite their sources. Nothing is sent until you've seen it
+    and tapped Send." (no Pro)
+  - "Solia Health's AI is part of Pro and needs an account." with the existing "Create account" (a guest)
+  - "Solia Health's AI isn't connected in this build yet, so there is nothing to ask here for now." (Coming soon)
+  - "Ask Solia is hidden. You can bring it back from You." / "Ask Solia is back on Home."
+- **One device-only key:** `askCardOff` (true once she hides the card with ×). A display choice, nothing about her
+  health; `DEVICE_ONLY` and `NOT_IN_BACKUP` (never in a backup file, kept across a restore). You has the switch
+  "Ask Solia on Home" to bring it back.
+- **The weekly write-up** (when she has one: Pro, her switch on, a write-up kept on this device) also shows on Home
+  under Today's insight (read-only, the same text and the same "Written by Solia Health's AI …" and "Associations to
+  raise with your clinician, not a diagnosis or medical advice." footers) and leads the Patterns page; without one
+  the Patterns card keeps its place. Nothing new is stored or sent: it is the same `aiWeekly` (device-only, never in
+  a backup), cleared when she switches the write-up off.
+
+### Task 2: Shop entry points — no new request, one device-only key
+
+- **What changed.** The header's bag icon is a labelled "Shop" pill; the "+" sheet has a "Shop by need" row at the
+  bottom; the first time this device lands on Home a one-time note "New: Shop by need" shows under the pill ("Got it"
+  closes it; it also leaves when she opens the shop or leaves Home). All three only open the existing Shop page.
+  Ported from `feature/shop-findable-visuals` (084da80), the entry points only: no Home shop card, no product
+  illustrations, no "Illustration" tag.
+- **One device-only key:** `shopHint` = `{ home, coach }` (`lib/shop.js` cleanShopHint): `coach` is true once the note
+  has shown. `home` is unused here (kept so the key has the same shape as on that branch). `DEVICE_ONLY` and
+  `NOT_IN_BACKUP`; nothing about her health; never sent.
+- **Header on a narrow phone (under 375px):** her name's chip is not drawn, unless it also says "sharing counts ✓"
+  (then it stays, so that statement is never hidden). Her name is in Home's greeting. No sentence changed.
+- No privacy sentence changed. "the shop never shows in insights, Patterns or Home" (e2e/shop.spec.mjs) still holds:
+  the pill is in the header, not in a Home card.
+
+### Task 3: You as a short menu — where things are found, not what they do; no new request, no new key
+
+- **What changed.** You shows the stage card and seven rows (`lib/youMenu.js`): Your profile, Privacy & your data,
+  Solia Health's AI, Plan & account, Devices & reminders, App settings, Help & about. Each opens a page inside the You
+  tab (`#/you/<slug>`). Every card keeps its id, controls and sentences; none was removed. The card JSX in
+  `screens/YouScreen.jsx` is byte-for-byte what it was (the pages only place it).
+- **Solia Health's AI has its own row**, so "Turn it on or off in You → Solia Health's AI." (privacy list), "Turn on in
+  You → Solia Health's AI" (Home) and "Unless you turn it off (You → Privacy & your data → …)" (privacy.html) are the
+  taps they name. Privacy & your data also links to the AI page: "Solia Health's AI has its own page: its switches,
+  and exactly what each one sends."
+- **Sentences changed so the path they name is the path on screen** (old → new):
+  - privacy list, encrypted cloud backup: "…or delete it in You → Account." → "…in You → Plan & account."
+  - privacy list, account row; sign-in disclosure; "what stays" after Delete everything: "You → Account" → "You →
+    Plan & account" (`lib/privacyFlows.js`, `lib/signin.js`, `components/DataControls.jsx`)
+  - feedback: "Only when you press Send in You → Help: …" → "…in You → Help & about: …" (`lib/feedback.js`); the
+    sign-in disclosure's "If you send feedback from You → Help with …" → "…from You → Help & about with …"
+    (`lib/disclosures.js`)
+  - Help answers: "Open You → Data sources and connect …" / "…connected from You → Data sources" → "You → Devices &
+    reminders" (`lib/feedback.js`)
+  - toasts: "…resume it in You → Data sources to sync again." → "…in You → Devices & reminders to sync again.";
+    "Hidden. Connect a device any time from You → Data sources." → "…from You → Devices & reminders."; "Getting
+    started is hidden. You can bring it back from You." → "…bring it back in You → App settings."; "Ask Solia is
+    hidden. You can bring it back from You." → "…in You → App settings."; "Hidden for today. You can create your
+    account any time in You." → "…any time in You → Plan & account."
+  - Getting started, backup step: "Open You and choose Encrypted backup …" → "Open You → Privacy & your data and
+    choose Encrypted backup …"; its button "Open You" → "Open Privacy & your data" (it opens that page).
+  - `public/legal/privacy.html` (three places): "(You → Account, or Delete everything)" → "(You → Plan & account, or
+    Delete everything)"; "only when you press Send in You → Help" → "…in You → Help & about"; "Delete your account in
+    the app at any time (You → Account)" → "(You → Plan & account)". Wording of a path only; an attorney should still
+    see the page before it is published, as before.
+  - Portal (owner-facing): "What people sent from the app's You → Help" → "…You → Help & about"; readiness line "The
+    support address shown in You → Help." → "…You → Help & about."
+- **Kept on purpose:** "you can change it in You" (the PCOS question at registration; true: You → Your profile);
+  "Your settings, your plan, backups, privacy choices and Delete everything are all here." (the You tip; true of the
+  menu's pages); every "You → Privacy & your data" and "You → Solia Health's AI".
+- **New control, same key:** App settings has "Voice guide in practices", the same device-only `practiceVoice` the
+  switch inside a practice sets ("Reads each step of a Mind practice aloud. The same switch is inside every practice."),
+  shown only where this device can speak. Nothing is recorded or sent.
+- **History:** opening a page adds a browser history entry with the page's hash; nothing is sent (a hash never
+  leaves the browser), and the hash names a page, never anything about her.

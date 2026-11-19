@@ -1,10 +1,10 @@
 /* Task 2, connecting wearables later (never during registration, owner decision 2026-11-12): the dismissible Home card and its sheet, and
-   You → Data sources. The API build (mocked backend: Oura set up, Terra not) shows each row's state in a browser, hides the
+   You → Devices & reminders. The API build (mocked backend: Oura set up, Terra not) shows each row's state in a browser, hides the
    Terra row and carries the "Fitbit, Garmin or Whoop?" how-to (2026-11-19, tracking-reports Task 4); with Terra set up the
    row is back; the demo build connects illustrative data with one tap. */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab } from "./lib/nav.mjs";
+import { gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
 test("API build in a browser: registration skips devices; the Home card's sheet lists every device with what it reads and where it goes; You", async ({ page }) => {
@@ -59,8 +59,8 @@ test("API build in a browser: registration skips devices; the Home card's sheet 
   await sheet.getByRole("button", { name: "Close Connect your devices" }).click();
   await card.getByRole("button", { name: "Not now" }).click();
   await expect(page.locator("#home-devices")).toHaveCount(0);
-  // You → Data sources: the same list, at the top
-  await gotoTab(page, "You");
+  // You → Devices & reminders → Data sources: the same list, at the top
+  await gotoYou(page, "Devices & reminders");
   await page.locator("#you-sources").getByRole("button", { name: "Connect a device" }).click();
   await expect(page.locator("#devices-sheet .devrow")).toHaveCount(5); // Apple Health, Health Connect, Oura + Dexcom and FreeStyle Libre (Task B); no Terra row
 });

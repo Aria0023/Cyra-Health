@@ -7,7 +7,7 @@
    - not food, and the monthly limit, say so plainly and add nothing. */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, openLog, toast } from "./lib/nav.mjs";
+import { gotoTab, openLog, toast, gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState, TOKEN } from "./lib/api.mjs";
 import { plateFile } from "./lib/photo.mjs";
 
@@ -21,8 +21,9 @@ const mealCalls = (state) => state.sent.filter((r) => r.path === "/api/ai/meal")
 async function start(page, state) {
   await mockApi(page, state);
   await register(page, { url: process.env.E2E_API_URL, stage: "My Cycle", signin: "email" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Your profile");
   await page.locator("#you-modules").getByRole("switch", { name: "Meal notes" }).click();
+  await gotoYou(page, "Solia Health's AI"); // every test starts on the AI page, where the Meal photos switch is
 }
 async function openMeals(page, slot = "Lunch") {
   const log = await openLog(page);
@@ -32,7 +33,7 @@ async function openMeals(page, slot = "Lunch") {
   if (slot) await sheet.locator(".mealslots").getByRole("button", { name: slot, exact: true }).click();
   return sheet;
 }
-const photosOn = (page) => page.locator("#you-ai").getByRole("switch", { name: "Meal photos" }).click();
+const photosOn = async (page) => { if (!(await page.locator("#you-ai").count())) await gotoYou(page, "Solia Health's AI"); await page.locator("#you-ai").getByRole("switch", { name: "Meal photos" }).click(); };
 
 test("Meal photos off (the default): Meal notes has no photo button, no file input and no calorie figure, and nothing is sent", async ({ page }) => {
   const state = newApiState({ meal: () => ({ status: 200, json: ANSWER }) });
@@ -40,6 +41,7 @@ test("Meal photos off (the default): Meal notes has no photo button, no file inp
   const sw = page.locator("#you-ai").getByRole("switch", { name: "Meal photos" });
   await expect(sw).toHaveAttribute("aria-checked", "false");
   await expect(page.locator("#you-ai").getByRole("switch", { name: "Show calorie estimates" })).toHaveCount(0);
+  await gotoYou(page, "Your profile");
   await expect(page.locator("#you-modules")).toContainText("No photos or calorie estimates unless you turn on Meal photos.");
   const sheet = await openMeals(page);
   await sheet.getByRole("button", { name: "Balanced", exact: true }).click();
@@ -171,7 +173,7 @@ test("Meal photos on: the exact previewed picture is what is sent, with nothing 
   await sheet.getByRole("button", { name: "Done", exact: true }).click();
   await page.waitForTimeout(1500); // the record's save on this device settles
   await page.reload();
-  await gotoTab(page, "You");
+  await gotoYou(page, "Solia Health's AI");
   await expect(page.locator("#you-ai").getByRole("switch", { name: "Show calorie estimates" })).toHaveAttribute("aria-checked", "false");
   sheet = await openMeals(page, null);
   await expect(sheet.locator(".mealest-list li")).toHaveText(["Brown rice", "Lentil curry"]);
@@ -244,7 +246,7 @@ test("Meal photos: not food adds nothing; the monthly limit and a failed read sa
   expect(mealCalls(state)).toHaveLength(n);
   // switch off: the button and the input go
   await sheet.getByRole("button", { name: "Done", exact: true }).click();
-  await gotoTab(page, "You");
+  await gotoYou(page, "Solia Health's AI");
   await photosOn(page);
   await expect(toast(page)).toHaveText("Meal photos off. Nothing more will be sent.");
   sheet = await openMeals(page, null);

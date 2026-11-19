@@ -1,14 +1,16 @@
 /* Shop by need (Task C, 2026-11-14), its own page since 2026-11-15 (docs/plans/plans-shop-page.md Task 3 and the owner's
    design update). With src/config/affiliates.json committed empty, every link is the brand's own page with no affiliate
    label, no price and no "Clinician reviewed" badge; with src/config/shop-images.json empty, every card shows the calm
-   placeholder (no <img>). Links are checked, never followed: the app sends nothing. */
+   placeholder (no <img>). Links are checked, never followed: the app sends nothing.
+   2026-11-19 (docs/plans/visible-features.md Task 2, the entry points only): the header's labelled "Shop" pill, the
+   "+" sheet's row and the one-time "New: Shop by need" hint; the header (with the plan badge) at 320px and 390px. */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab } from "./lib/nav.mjs";
+import { gotoTab, openLog, setStyle, gotoYou } from "./lib/nav.mjs";
 
 const page$ = (page) => page.locator("main.shoppage");
 
-test("the header's bag opens the Shop page on every main tab; Back returns to where she came from, focus on the h1", async ({ page }) => {
+test("the header's labelled Shop pill opens the Shop page on every main tab; Back returns to where she came from, focus on the h1", async ({ page }) => {
   await register(page, { stage: "Trying to conceive", pcos: "no" });
   for (const tab of ["Home", "Body", "Mind", "Patterns", "You"]) {
     await gotoTab(page, tab);
@@ -16,6 +18,9 @@ test("the header's bag opens the Shop page on every main tab; Back returns to wh
     await expect(bag).toBeVisible();
     const box = await bag.boundingBox();
     expect(box.width).toBeGreaterThanOrEqual(44); expect(box.height).toBeGreaterThanOrEqual(44);
+    await expect(bag.locator("span")).toHaveText("Shop"); // a visible label beside the icon, not an icon alone
+    await expect(bag.locator("span")).toBeVisible();
+    await expect(bag.locator("svg")).toBeVisible();
     await bag.click();
     await expect(page$(page).getByRole("heading", { level: 1, name: "Shop by need" })).toBeFocused();
     await expect(page.locator("main")).toHaveCount(1); // the page replaces the view under the tab
@@ -31,7 +36,7 @@ test("Trying to conceive: needs first, products grouped by brand, plain brand li
   const outside = [];
   page.on("request", (r) => { if (!r.url().startsWith(process.env.E2E_URL)) outside.push(r.url()); });
   await register(page, { stage: "Trying to conceive", pcos: "no" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Help & about");
   // the single, distinct entry card on You
   const entry = page.locator("#you-shop");
   await expect(entry).toContainText("Shop by need");
@@ -143,3 +148,97 @@ test("wide screens: 2 to 4 columns of cards; phones: one", async ({ page }) => {
   expect(await cols()).toBeGreaterThanOrEqual(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
+
+test("the + sheet: a Shop by need row at the bottom, under a divider", async ({ page }) => {
+  await register(page, { stage: "My Cycle", pcos: "no" });
+  const sheet = await openLog(page);
+  const row = sheet.getByRole("button", { name: "Shop by need" });
+  await expect(row).toBeVisible();
+  expect((await row.boundingBox()).height).toBeGreaterThanOrEqual(44);
+  // the last control in the sheet, in a block with a top border
+  expect(await sheet.locator("button").last().evaluate((b) => b.classList.contains("logshop-go"))).toBe(true);
+  expect(await sheet.locator(".logshop").evaluate((d) => parseFloat(getComputedStyle(d).borderTopWidth))).toBeGreaterThanOrEqual(1);
+  expect((await row.boundingBox()).y).toBeGreaterThan((await sheet.locator(".logtiles").boundingBox()).y);
+  await row.click();
+  await expect(page.getByRole("dialog", { name: "Log something" })).toHaveCount(0);
+  await expect(page$(page).getByRole("heading", { level: 1, name: "Shop by need" })).toBeFocused();
+  await page$(page).getByRole("button", { name: "Back" }).click();
+  await expect(page$(page)).toHaveCount(0);
+  await expect(page.getByRole("tab")).toHaveCount(5); // still five tabs
+  await expect(page.getByRole("tab")).toHaveText(["Home", "Body", "Mind", "Patterns", "You"]);
+});
+
+test("the one-time hint: New: Shop by need under the pill, once, dismissible, never a focus trap", async ({ page }) => {
+  await register(page, { stage: "My Cycle", pcos: "no" });
+  const pill = page.locator("header.mast").getByRole("button", { name: "Shop", exact: true });
+  const coach = page.locator(".shopcoach");
+  await expect(coach).toBeVisible();
+  await expect(coach).toContainText("New: Shop by need");
+  await expect(pill).toHaveAttribute("aria-describedby", "shop-coach-t");
+  await expect(page.locator("[role=dialog]")).toHaveCount(0); // a note in the page, not a dialog
+  // it sits under the header's pill and covers nothing
+  const cb = await coach.boundingBox(); const pb = await pill.boundingBox();
+  expect(cb.y).toBeGreaterThanOrEqual(pb.y + pb.height);
+  expect(await coach.evaluate((el) => getComputedStyle(el).position)).not.toBe("fixed");
+  expect(await coach.evaluate((el) => getComputedStyle(el).animationName)).toBe("none"); // nothing moves
+  // Tab moves through it and on: focus is never held
+  const ok = coach.getByRole("button", { name: "Got it" });
+  await ok.focus();
+  await page.keyboard.press("Tab");
+  expect(await page.evaluate(() => !document.activeElement.closest(".shopcoach"))).toBe(true);
+  expect((await ok.boundingBox()).height).toBeGreaterThanOrEqual(44);
+  await ok.click();
+  await expect(coach).toHaveCount(0);
+  await expect(pill).toBeFocused();
+  await expect(pill).not.toHaveAttribute("aria-describedby", /.+/);
+  // once: not after a tab switch, and not after a reload
+  await gotoTab(page, "Body"); await gotoTab(page, "Home");
+  await expect(coach).toHaveCount(0);
+  await page.waitForTimeout(1500); // the record's autosave has run
+  await page.reload();
+  await expect(page.locator(".navpill")).toBeVisible();
+  await expect(page.locator(".quicklog")).toBeVisible();
+  await expect(coach).toHaveCount(0);
+});
+
+test("the one-time hint leaves when she opens the shop, and is counted as shown right away", async ({ page }) => {
+  await register(page, { stage: "My Cycle", pcos: "no" });
+  await expect(page.locator(".shopcoach")).toBeVisible();
+  await page.locator("header.mast").getByRole("button", { name: "Shop", exact: true }).click();
+  await expect(page.locator(".shopcoach")).toHaveCount(0);
+  await page$(page).getByRole("button", { name: "Back" }).click();
+  await expect(page.locator(".quicklog")).toBeVisible();
+  await expect(page.locator(".shopcoach")).toHaveCount(0);
+  await page.waitForTimeout(1500); // the record's autosave has run
+  await page.reload();
+  await expect(page.locator(".quicklog")).toBeVisible();
+  await expect(page.locator(".shopcoach")).toHaveCount(0);
+});
+
+/* The header carries the brand, her name, the plan badge, the palette, the Shop pill and the settings button. It may
+   wrap to a second row, but nothing may overlap, be cut off or push the page sideways, in any style. */
+for (const width of [320, 390]) {
+  test(`the header fits at ${width}px in every style: Shop pill and plan badge, no overlap`, async ({ browser }) => {
+    test.setTimeout(180_000);
+    const ctx = await browser.newContext({ viewport: { width, height: 844 }, reducedMotion: "reduce" });
+    const page = await ctx.newPage();
+    await register(page, { stage: "My Cycle", pcos: "no", name: "Alexandra" });
+    await page.locator(".shopcoach").getByRole("button", { name: "Got it" }).click();
+    for (const style of ["Soft", "Mono", "Clear", "Journal", "Aura", "Sky", "Blush", "Mint", "Sunset"]) {
+      await setStyle(page, style);
+      await gotoTab(page, "Home");
+      const pill = page.locator("header.mast").getByRole("button", { name: "Shop", exact: true });
+      await expect(pill.locator("span")).toBeVisible();
+      await expect(page.locator("header.mast .planbadge")).toBeVisible();
+      const r = await page.locator("header.mast").evaluate((mast) => {
+        const boxes = [...mast.children].filter((e) => e.offsetParent !== null).map((e) => { const b = e.getBoundingClientRect(); return { n: e.className, l: b.left, r: b.right, t: b.top, b: b.bottom, clip: e.scrollWidth > e.clientWidth + 1 && !e.classList.contains("acctchip") }; });
+        const overlaps = [];
+        for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) { const a = boxes[i], c = boxes[j]; if (a.l < c.r - 0.5 && c.l < a.r - 0.5 && a.t < c.b - 0.5 && c.t < a.b - 0.5) overlaps.push(`${a.n} / ${c.n}`); }
+        return { overlaps, outside: boxes.filter((b) => b.l < -0.5 || b.r > window.innerWidth + 0.5).map((b) => b.n), clipped: boxes.filter((b) => b.clip).map((b) => b.n), sideways: document.documentElement.scrollWidth > window.innerWidth };
+      });
+      expect(r, `${style} at ${width}px`).toEqual({ overlaps: [], outside: [], clipped: [], sideways: false });
+      for (const b of await page.locator("header.mast > button").all()) { const box = await b.boundingBox(); expect(box.height, `${style} ${width}px target`).toBeGreaterThanOrEqual(44); expect(box.width).toBeGreaterThanOrEqual(44); }
+    }
+    await ctx.close();
+  });
+}

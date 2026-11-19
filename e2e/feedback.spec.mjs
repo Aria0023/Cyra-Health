@@ -1,11 +1,11 @@
-/* Feedback and Help (docs/plans/launch-tools.md Task 3). The API build against the mock backend: You → Help's answers,
+/* Feedback and Help (docs/plans/launch-tools.md Task 3). The API build against the mock backend: You → Help & about's answers,
    the sheet's warning, and "What will be sent" — the one request, made only by Send, has a body that equals the preview
    exactly; signed in with the reply switch off it carries no sign-in token and no email; with it on, her account email
    and her token. The privacy dashboard lists it. The build without a server shows the answers and the support email
    link only, and makes no request at all. */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab } from "./lib/nav.mjs";
+import { gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState, TOKEN } from "./lib/api.mjs";
 
 const API_URL = () => process.env.E2E_API_URL;
@@ -17,7 +17,7 @@ test("Send feedback: nothing is sent before Send, and the request body equals th
   const state = newApiState();
   await mockApi(page, state);
   await register(page, { url: API_URL(), stage: "My Cycle", pcos: "no", signin: "email" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Help & about");
   const help = page.locator("#you-help");
   await expect(help.getByRole("heading", { level: 2 })).toContainText("Questions and feedback");
   for (const q of ["How does the free week work?", "How do I cancel Pro?", "Where does my data live?", "How do I connect a watch or ring?"]) await expect(help.getByRole("button", { name: q })).toHaveAttribute("aria-expanded", "false");
@@ -97,15 +97,17 @@ test("Send feedback: nothing is sent before Send, and the request body equals th
   expect(posts(state).length).toBe(3);
 
   // You → Privacy & your data lists it, truthfully
+  await gotoYou(page, "Privacy & your data");
   const privacy = page.locator("#you-privacy");
   await privacy.getByRole("button", { name: "How this works" }).click();
   await expect(privacy).toContainText("or you take it out yourself as a backup, file or summary, or type it into feedback you send.");
   const row = privacy.locator(".flowrow", { hasText: "Feedback you send" });
   await expect(row.locator(".flowstate")).toHaveText("When you send one");
-  await expect(row).toContainText("Only when you press Send in You → Help: your message, whether it's feedback or a problem, the app version, web, iOS or Android, and the app's language. Nothing from your log is attached.");
+  await expect(row).toContainText("Only when you press Send in You → Help & about: your message, whether it's feedback or a problem, the app version, web, iOS or Android, and the app's language. Nothing from your log is attached.");
   await row.getByRole("button", { name: "Details" }).click();
   await expect(row).toContainText("It's kept for 365 days, then deleted.");
   await expect(row).toContainText("Feedback is never sent to the AI.");
+  await gotoYou(page, "Plan & account");
   await expect(page.locator("#you-signin")).toContainText("and any feedback you sent with \"It's OK to reply to me\" on");
 });
 
@@ -113,7 +115,7 @@ test("signed out: the sheet has no reply switch and sends no email", async ({ pa
   const state = newApiState({ providers: { apple: false, google: false, facebook: false, email: false } });
   await mockApi(page, state);
   await register(page, { url: API_URL(), stage: "My Cycle", pcos: "no" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Help & about");
   await page.locator("#you-help").getByRole("button", { name: "Report a problem" }).click();
   const sheet = page.getByRole("dialog", { name: "Report a problem" });
   await expect(sheet.getByRole("switch")).toHaveCount(0);
@@ -128,7 +130,7 @@ test("a build without a server: Help's answers and the support email link only; 
   const api = [];
   page.on("request", (r) => { if (/\/api\//.test(r.url())) api.push(r.url()); });
   await register(page, { stage: "My Cycle", pcos: "no" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Help & about");
   const help = page.locator("#you-help");
   await expect(help.getByRole("button", { name: "How do I cancel Pro?" })).toBeVisible();
   await expect(help.getByRole("button", { name: "Send feedback" })).toHaveCount(0);
@@ -139,6 +141,8 @@ test("a build without a server: Help's answers and the support email link only; 
   await expect(help.locator('[data-help="free-week"]')).toContainText("Your first 7 days include everything. After that, saving new entries needs Pro."); // this bundle has the trial gate
   await help.getByRole("button", { name: "How do I connect a watch or ring?" }).click();
   await expect(help.locator('[data-help="watch"]')).toContainText("need the Solia Health phone app");
+  await gotoYou(page, "Privacy & your data");
+  await expect(page.locator("#you-privacy")).toBeVisible();
   await expect(page.locator("#you-privacy")).not.toContainText("Feedback you send");
   expect(api).toEqual([]);
 });

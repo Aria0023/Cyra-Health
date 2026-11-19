@@ -67,6 +67,7 @@ export default function HomeScreen({
   installTip = null,
   fertRead = null,
   autoCard = null, autoConfirmed = false, devicesCard = null,
+  askCard = null, aiWriteUp = null,
 }) {
   const hour = new Date().getHours();
   const connectedCount = Object.values(wearSources).filter((w) => w && !w.pending).length;
@@ -194,6 +195,10 @@ export default function HomeScreen({
         {todayLine && <button type="button" className="todayline" onClick={() => goTab("today")}>{todayEntry && <Icon name="check" size={14} className="todaytick" />}<i className="fdot" aria-hidden="true" style={{ background: todayLine.color }} />{todayLine.text}</button>}
       </div>
 
+      {/* 2026-11-19: Ask Solia (components/ai/AiParts.jsx AskSoliaCard): a way into the chat and Ask with evidence, right
+          under the hero. It sends nothing itself; × hides it on this device. */}
+      {askCard}
+
       {guideStep && stepCard}
 
       {/* POTS add-on (App.jsx): the "POTS today" card while it's on, or the one-time offer card. Never replaces Today's insight. */}
@@ -240,6 +245,9 @@ export default function HomeScreen({
           : <div className="card insight"><div className="num">{homeInsight.num}</div><p>{homeInsight.fam && <i className="fdot" aria-hidden="true" style={{ background: famVar(homeInsight.fam) }} />}<Lead>{homeInsight.text}</Lead></p></div>}
         {!homeInsight.empty && stage !== "preg" && <p className="insightnote">{MODULE_FRAMING}</p>}
       </section>
+
+      {/* 2026-11-19: her weekly AI write-up, when she has one, under Today's insight (the same text as on Patterns). */}
+      {aiWriteUp}
 
       {/* The compact, word-based patterns preview (components/HomePatterns.jsx); the full chart is in Patterns. */}
       {patternsCard}

@@ -2,7 +2,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, gotoSegment } from "./lib/nav.mjs";
+import { gotoTab, gotoSegment, gotoYou } from "./lib/nav.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 const audit = async (page, name) => {
@@ -41,7 +41,7 @@ for (const scheme of ["light", "dark"]) {
     await gotoTab(page, "Home");
     await page.locator(".stepcard").getByRole("button", { name: "Hide getting started" }).click();
     await expect(page.locator(".stepcard")).not.toContainText("Getting started");
-    await gotoTab(page, "You");
+    await gotoYou(page, "App settings");
     await page.locator("#you-tour").getByRole("button", { name: "Show me around again" }).click();
     await expect(page.locator(".stepcard")).toContainText("Getting started");
     await gotoTab(page, "Patterns");

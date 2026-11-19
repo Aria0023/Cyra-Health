@@ -93,3 +93,42 @@ export const AI_COPY = Object.freeze({
   chatKept: "Kept on this device only.",
   urgentLocal: "What you're describing needs care now, not an app. Please call your local emergency number (911 in the US) or go to urgent care. If you are thinking about harming yourself, call or text 988 (US) or your local crisis line. Nothing was sent.",
 });
+
+/* Home's "Ask Solia" card (owner request 2026-11-19: "everything seems hidden ... AI chat etc."). It is a way in, never
+   a new feature: "Ask" opens Mind → Journey's chat with her question typed into its box, "Ask with evidence" opens the
+   evidence card the same way. Nothing is sent from Home; the cards' own "Preview and send" / "Review and send" and the
+   "What Solia Health will send" sheet stay the only way anything goes. The card itself makes no request.
+   State, in this order (each one true of the build and of her plan):
+     soon   the build has no ai flag or no server, or this session already heard from the server that AI isn't set up;
+     guest  she is in the "Try it first" window: Pro's AI needs an account;
+     plans  her plan has neither the chat nor Ask with evidence;
+     ask    the text box. chat: the chat can open (Pro and her switch); chatOff: Pro, switch off; evidence: Pro. */
+export function askCard({ flag = false, server = false, serverAi = null, guest = false, canChat = false, chatOn = false, canEvidence = false } = {}) {
+  if (!flag || !server || serverAi === "unset") return { state: "soon" };
+  if (guest) return { state: "guest" };
+  if (!canChat && !canEvidence) return { state: "plans" };
+  return { state: "ask", chat: !!(canChat && chatOn), chatOff: !!(canChat && !chatOn), evidence: !!canEvidence };
+}
+export const ASK_COPY = Object.freeze({
+  title: "Ask Solia",
+  eyebrow: "Solia Health's AI",
+  lead: "Nothing is sent from here. The next screen shows exactly what would go, and only your Send sends it.",
+  label: "Your question",
+  placeholder: "e.g. What stands out in my last two cycles?",
+  ask: "Ask",
+  askEvidence: "Ask with evidence",
+  chatOff: "Chat about your log is off.",
+  turnOn: "Turn on in You → Solia Health's AI",
+  plans: "With Pro, ask about your own log or get answers that cite their sources. Nothing is sent until you've seen it and tapped Send.",
+  guest: "Solia Health's AI is part of Pro and needs an account.",
+  soonChip: "Coming soon",
+  soon: "Solia Health's AI isn't connected in this build yet, so there is nothing to ask here for now.",
+  hide: "Hide the Ask Solia card",
+  hidden: "Ask Solia is hidden. You can bring it back in You → App settings.",
+  shown: "Ask Solia is back on Home.",
+  // the write-up on Home
+  wuOpen: "Open in Patterns",
+  // You: Home cards
+  showName: "Ask Solia on Home",
+  showHint: "The card near the top of Home. Hiding it changes nothing else.",
+});

@@ -35,7 +35,18 @@ const PREG_VIEWS = {
 
 /* Sub-pages: views that open from inside another view and have no segment of their own. The segment of their parent
    view stays pressed. Connection (the relationship log, view "connect") opens from a card on Journey (plan §1). */
-const SUBPAGES = { connect: { parent: "ask", slug: "connection" } };
+const SUBPAGES = {
+  connect: { parent: "ask", slug: "connection" },
+  /* 2026-11-19: You is a short menu; each row opens one of these pages (lib/youMenu.js has their titles and what is on
+     each). #/you/<slug> is the deep link; #/you is the menu. */
+  youprofile: { parent: "you", slug: "profile" },
+  youprivacy: { parent: "you", slug: "privacy" },
+  youai: { parent: "you", slug: "ai" },
+  youplan: { parent: "you", slug: "plan" },
+  youdevices: { parent: "you", slug: "devices" },
+  youapp: { parent: "you", slug: "settings" },
+  youhelp: { parent: "you", slug: "help" },
+};
 /** The view whose segment a view sits under: itself, or a sub-page's parent. */
 export const segmentOf = (view) => SUBPAGES[view]?.parent || view;
 
@@ -52,11 +63,13 @@ export function tabOf(view, opts = {}) {
   return null;
 }
 
-/** The view a tab opens on: the one she last had open there (lastByTab[tab]) when it still belongs to it, else its first. */
+/** The view a tab opens on: the one she last had open there (lastByTab[tab]) when it still belongs to it, else its first.
+    You is the exception: it opens on its menu. */
 export function viewForTab(tab, lastByTab = {}, opts = {}) {
   const views = viewsOf(tab, opts);
   if (!views.length) return null;
   const last = lastByTab?.[tab];
+  if (tab === "you") return views[0][0]; // the You tab always opens on its menu, never on the page she last had open
   return views.some(([id]) => id === segmentOf(last)) ? last : views[0][0];
 }
 

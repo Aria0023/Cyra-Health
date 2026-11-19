@@ -9,8 +9,10 @@ import { isNative } from "../../lib/native.js";
    With Pro: her question, an optional "Include a summary of my log" tick, and "Review and send", which opens "What Solia
    Health will send" (App.jsx, AiSendSheet) with the exact body; nothing goes until Send there. The answer shows with
    numbered links to its sources. A red-flag question is answered on this device by App.jsx and never sent. */
-export default function EvidenceCard({ open = false, onPro, summaryOk = false, busy = false, out = null, note = null, left = null, onPrepare, id = "ai-evidence" }) {
-  const [q, setQ] = useState("");
+export default function EvidenceCard({ open = false, onPro, summaryOk = false, busy = false, out = null, note = null, left = null, onPrepare, id = "ai-evidence", seed = null, onSeeded = null }) {
+  const [q, setQ] = useState(seed?.text || "");
+  // seed (2026-11-19, Home's Ask Solia card): { text, n } types her question into the box; it is not sent.
+  useEffect(() => { if (!seed) return; if (seed.text) setQ(seed.text); onSeeded?.(); }, [seed?.n]); // eslint-disable-line
   const [inc, setInc] = useState(false);
   const [err, setErr] = useState("");
   const outRef = useRef(null);

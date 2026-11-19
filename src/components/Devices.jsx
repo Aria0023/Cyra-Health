@@ -11,7 +11,7 @@ const rowIcon = (r) => (r.glucose ? "drop" : ROW_ICON[r.id] || "watch");
 const rowKind = (r) => (r.glucose ? "glucose" : r.server ? "ring" : "phone");
 
 /* "Connect your devices" (Task 2): the one list of device sources (lib/devices.js deviceRows), shown as the optional
-   registration step, in a sheet opened from the Home card and from You → Data sources. Each row: name, status, what it
+   registration step, in a sheet opened from the Home card and from You → Devices & reminders. Each row: name, status, what it
    reads, where it goes, and at most one button. Nothing here sends anything: onConnect / onDisconnect (App.jsx
    connectWear / disconnectAny) run the existing flows after her tap; the row itself is the disclosure, so a first
    connect starts straight away.

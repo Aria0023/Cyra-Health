@@ -30,6 +30,7 @@ import { cleanLocale } from "./i18n.js";
 import { cleanQuestions } from "./visitQuestions.js";
 import { cleanNightSkips, cleanConfirmations, cleanTrackStats, cleanSourceExtras } from "./sources.js";
 import { cleanShopCatalog } from "./shopCatalog.js";
+import { cleanShopHint } from "./shop.js";
 import { cleanPromoCache, cleanPromoHidden } from "./promos.js";
 
 /* ======================= shapes (documentation only) =======================
@@ -59,7 +60,7 @@ import { cleanPromoCache, cleanPromoHidden } from "./promos.js";
  * @property {WearRow[]} wearData [record] daily wearable readings: one row per wake day and source; never an intraday series (backupCopy strips any `series` / `samples` field).
  * @property {Object<string, "fever"|"alcohol"|"travel"|"other">} nightSkips [record] passive tracking S1: nights she asked to skip ("Skip this night"), by wake day; the reading stays in wearData, the signals library leaves it out (lib/sources.js cleanNightSkips, at most 400).
  * @property {Object<string, {at: string, took?: number, via: "app"|"notification"}>} confirmations [record] passive tracking S1: her "Looks right" per wake day — when, how long from the card appearing (ms), and whether from the app or the notification (lib/sources.js cleanConfirmations, at most 400).
- * @property {{confirmed: number, fast: number, tooks: number[], sourceSince: (string|null), firstConfirm: (string|null)}} trackStats [device-only] [not-in-backup] passive tracking S1: the spike's success numbers (plan §8) — nights confirmed, how many under 15 s, the last 200 timings, the day a source was first connected; shown in You → Data sources → "How this is going"; never in any backup, never sent.
+ * @property {{confirmed: number, fast: number, tooks: number[], sourceSince: (string|null), firstConfirm: (string|null)}} trackStats [device-only] [not-in-backup] passive tracking S1: the spike's success numbers (plan §8) — nights confirmed, how many under 15 s, the last 200 timings, the day a source was first connected; shown in You → Devices & reminders → Data sources → "How this is going"; never in any backup, never sent.
  * @property {Account} acct [record] name and email (empty in Anonymous Mode).
  * @property {boolean} research [device-only] "Share anonymous weekly counts", a consent given on this device.
  * @property {"periods"|"preg"|"peri"|null} stage [record] the one life-stage experience (null while she chooses again).
@@ -102,6 +103,8 @@ import { cleanPromoCache, cleanPromoHidden } from "./promos.js";
  * @property {{active: ({id: string, start: string, done: string[]}|null), skip: (string|null), past: {id: string, start: string, days: string[], target: number}[]}} experiments [record] the weekly review's small experiment (calm R6, lib/experiments.js): the one running and the days she ticked, the week whose offer she skipped, the ones she finished.
  * @property {boolean} practiceHaptics [device-only] [not-in-backup] gentle vibration at each change of a practice, on this phone (calm R5).
  * @property {boolean} shopTapsOff [device-only] [not-in-backup] 2026-11-19 (lib/shopTaps.js): true once she turns off "Count my shop taps anonymously" on this device; false or missing = the anonymous tap count is on (only in a build with a server and the shop).
+ * @property {{home: null|"hidden", coach: boolean}} shopHint [device-only] [not-in-backup] 2026-11-19 (lib/shop.js cleanShopHint): whether this device already showed the one-time "New: Shop by need" hint under the header's Shop pill (coach). home is unused on this branch. Nothing about her health; never sent.
+ * @property {boolean} askCardOff [device-only] [not-in-backup] 2026-11-19 (lib/aiFeatures.js askCard): true once she hides Home's "Ask Solia" card on this device; false or missing = the card shows. A display choice: nothing about her health.
  * @property {boolean} practiceVoice [device-only] [not-in-backup] Task 3: the voice guide (this device's built-in voice reads each step), remembered on this device.
  * @property {{seen: string[], off: boolean, replay: (string|null)}} guide [device-only] [not-in-backup] finding her way around (lib/guide.js): tips seen, Getting started hidden, the day of a replay.
  * @property {null|string} proChip [device-only] [not-in-backup] 2026-11-15 (Task 2, lib/plans.js): the local day Home last showed its "Pro · 7-day free trial" note (at most one day's first visit).
@@ -300,7 +303,7 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    guestStart (2026-11-16, lib/guest.js) is when she first tapped "Try it first": part of her record and of backups (a
    restore keeps the earlier of the backup's and this device's, App.jsx applyRestore). guestSeen (the latest time this
    device has seen as a guest) and guestNote (the day Home last showed the guest line) are device-only, never in a backup. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "trialStart", "guide", "partnerShare", "glucoseLog", "proChip", "shopCatalog", "promos", "promoHidden", "guestStart", "guestSeen", "guestNote"]);
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "askCardOff", "shopHint", "trialStart", "guide", "partnerShare", "glucoseLog", "proChip", "shopCatalog", "promos", "promoHidden", "guestStart", "guestSeen", "guestNote"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -308,7 +311,7 @@ export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "ca
    is whether this browser's Home install tip should stay away (null | "dismissed" |
    "installed", lib/pwa.js), also left out of the backup file; exportLog is this device's count of
    appointment PDFs this month (L9), null while exports are unlimited, also left out of the file. */
-export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "guestSeen", "guestNote"]);
+export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "askCardOff", "shopHint", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "guestSeen", "guestNote"]);
 /* A display preference of this device (L2): appearance ("system" | "light" | "dark", lib/appearance.js).
    It is saved with the record and followed by every open tab of this browser (so it stays in RECORD,
    they are all the same device), but it is never in a backup file and never taken from one:
@@ -323,7 +326,7 @@ export const RECORD = Object.freeze(PERSISTED.filter((k) => !DEVICE_ONLY.include
    lastBackupAt (this device's own note of when it last backed up), installHint (whether this
    device's install tip is hidden), exportLog (this device's PDF count this month, L9) and appearance
    (this device's light/dark choice). */
-export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "guestSeen", "guestNote", ...DEVICE_PREFS]);
+export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "askCardOff", "shopHint", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "guestSeen", "guestNote", ...DEVICE_PREFS]);
 
 /** The record as it goes into an encrypted backup file, as a new object (the input is not
     changed): every saved key, except that regAnswers loses zip and age (neither is used after
@@ -586,6 +589,8 @@ export const RULES = Object.freeze({
   practiceHaptics: (v, p) => (typeof v === "boolean" ? [] : [`${p}: expected true or false, got ${show(v)}`]),
   practiceVoice: (v, p) => (v === undefined || typeof v === "boolean" ? [] : [`${p}: expected true or false, got ${show(v)}`]),
   shopTapsOff: (v, p) => (v === undefined || typeof v === "boolean" ? [] : [`${p}: expected true or false, got ${show(v)}`]),
+  askCardOff: (v, p) => (v === undefined || typeof v === "boolean" ? [] : [`${p}: expected true or false, got ${show(v)}`]),
+  shopHint: (v, p) => (v === undefined || JSON.stringify(v) === JSON.stringify(cleanShopHint(v)) ? [] : [`${p}: expected { home: null | "hidden", coach: boolean }, got ${show(v)}`]),
   // Finding her way around (lib/guide.js): missing (an older record) or exactly what cleanGuide keeps.
   glucoseLog: (v, p) => (v === undefined || JSON.stringify(v) === JSON.stringify(cleanGlucoseLog(v)) ? [] : [`${p}: expected { apps, connectedAt, lastSync, days: { YYYY-MM-DD: { n, min, max, mean, last, lastAt } } }, got ${show(v)}`]),
   partnerShare: (v, p) => (v === undefined || JSON.stringify(v) === JSON.stringify(cleanPartnerShare(v)) ? [] : [`${p}: expected { pick: ["next"|"fertile"|"today"…], remind: true|false }, got ${show(v)}`]),

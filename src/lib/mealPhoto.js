@@ -101,7 +101,7 @@ export const MEAL_COPY = Object.freeze({
   name: "Meal photos",
   short: "Photograph a meal in Meal notes; the AI names the foods and gives a rough calorie range",
   adds: "When you choose a photo in Meal notes, Solia Health makes it smaller on this device, shows you the exact picture, and sends it only when you tap Send. It goes through Solia Health's server to Anthropic, maker of the Claude AI, which keeps it for a limited time. Nothing from your log goes with it. Solia Health's server never keeps the photo or the answer. Turning this off stops photos; estimates you already saved stay in your meal notes until you remove them.",
-  needsNotes: "Meal notes is off. Turn it on in You → Modules to use this.",
+  needsNotes: "Meal notes is off. Turn it on in You → Your profile to use this.",
   showCal: "Show calorie estimates",
   showCalHint: "Turn this off to hide every calorie figure and portion guess. The food names stay.",
   onSaid: "Meal photos on. Nothing is sent until you tap Send.",

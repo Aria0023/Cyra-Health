@@ -74,7 +74,7 @@ test("autoCardModel: a demo build shows the card from demo rows without a live s
   assert.equal(signalsFor({ rows, sources: {}, days: reg.days }).hasTemps, false, "a production build never reads demo rows");
 });
 
-/* Passive tracking S3: You → Data sources. */
+/* Passive tracking S3: You → Devices & reminders → Data sources. */
 test("sourceRows / preferRows / howGoing: a row per offered or connected source, the picker only for contested metrics, the stats lines", async () => {
   const { sourceRows, preferRows, howGoing, METRIC_WORDS } = await import("./autoTracked.js");
   const offered = [{ id: "healthkit" }, { id: "oura" }, { id: "terra" }];

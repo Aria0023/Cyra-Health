@@ -2,7 +2,7 @@
    "<screen>.<first words>". Edit text here, not in the screens. */
 export const UI = {
   "home.unchanged": "unchanged",
-  // Passive tracking S3: You → Data sources (components/DataSourcesCard.jsx)
+  // Passive tracking S3: You → Devices & reminders → Data sources (components/DataSourcesCard.jsx)
   "sources.eyebrow": "Data sources",
   "sources.title": "Where your readings come from",
   "sources.lead": "Each source says what it reads and where that goes. Pause or disconnect any time; what was already read stays on this device unless you delete it too.",

@@ -3,7 +3,7 @@
    sent, the answer shows numbered source links, and a red-flag question is answered on the device and never sent. */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, gotoSegment } from "./lib/nav.mjs";
+import { gotoTab, gotoSegment, gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
 const ANSWER = { provider: "claude-opus-5-5", answer: "Several non-hormonal options reduce hot flashes. [1][2]\n\nThe evidence for supplements is mixed. [3]", sources: [{ n: 1, title: "Hot flashes | MedlinePlus", url: "https://medlineplus.gov/hotflashes.html" }, { n: 2, title: "Fezolinetant trial", url: "https://pubmed.ncbi.nlm.nih.gov/123/" }, { n: 3, title: "Black cohosh", url: "https://www.ncbi.nlm.nih.gov/books/1/" }] };
@@ -124,7 +124,7 @@ test("Ask with evidence: preview, send only what was shown, numbered sources; a 
 test("the Pro sheet leads with Ask with evidence and no longer sells practices", async ({ page }) => {
   await mockApi(page, newApiState());
   await register(page, { url: process.env.E2E_API_URL, stage: "My Cycle", signin: "email" });
-  await gotoTab(page, "You");
+  await gotoYou(page, "Plan & account");
   await page.locator("#you-plan").getByRole("button", { name: /See what Pro adds|See Pro plans/ }).click();
   const items = page.locator("#pro-sheet .prolist li b");
   await expect(items.first()).toHaveText("Ask with evidence");

@@ -3,7 +3,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab } from "./lib/nav.mjs";
+import { gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
@@ -18,7 +18,7 @@ for (const scheme of ["light", "dark"]) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });
     const page = await ctx.newPage();
     await register(page, { stage: "Pregnant" });
-    await gotoTab(page, "You");
+    await gotoYou(page, "Plan & account");
     await page.locator("#you-plan .plantiles").scrollIntoViewIfNeeded();
     await audit(page, `You → Plan tiles ${scheme}`);
     await page.locator("#you-plan").getByRole("button", { name: /See what Pro adds|See Pro plans/ }).click();

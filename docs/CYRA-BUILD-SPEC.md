@@ -240,6 +240,18 @@ experiment · day N of 7", "I did it today" / "Untick today", Not today, and its
 "Cyra's write-up" slot (AI deep dive, R8) renders nothing in R6.
 
 ### 3.5e You: privacy, modules, plan and settings on one page (calm R7, `lib/about.js`, `screens/YouScreen.jsx`)
+> **2026-11-19 (docs/plans/visible-features.md Task 3): You is a short menu.** The cards below are unchanged (ids,
+> controls, sentences) but no longer sit on one page. You shows her name, the stage card and seven rows; each row opens
+> a page inside the You tab (`lib/youMenu.js`, `lib/routes.js` SUBPAGES; deep links `#/you/profile`, `/privacy`, `/ai`,
+> `/plan`, `/devices`, `/settings`, `/help`; a "You" back link and the browser's Back return to the menu with focus on
+> the row; the You tab always opens on the menu). Your profile: stage, About you, Modules, Share with a partner.
+> Privacy & your data (second row): the privacy card, anonymous counts, a link to the AI page. Solia Health's AI: its
+> own row. Plan & account: the plan card with Restore purchases, the account cards with Delete account. Devices &
+> reminders: Data sources, Check-ins and reminders, Install. App settings: Appearance and style, Language, Voice
+> guide, Finding your way, Home cards. Help & about: Help, Learn, the Shop entry, About & legal with the build stamp.
+> Where older text in this spec or in docs/ says "You → Account", "You → Your plan", "You → Data sources", "You →
+> Modules", "You → Appearance", "You → Help" or "You → Learn", read the page above that holds that card.
+> The five tabs are unchanged. Home also has the "Ask Solia" card (Task 1) and the header a labelled Shop pill (Task 2).
 No new record key. You is one scrolling page of v2 Cards for the one life-stage experience she has, top to bottom: her name
 and stage ("<stage> · change" starts the stage questions again; everything she logged stays); **Privacy & your data** (the
 L10 dashboard inline: where the record lives, "What can leave this device", Encrypted backup / Restore / Delete everything,

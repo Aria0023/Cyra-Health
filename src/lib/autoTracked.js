@@ -59,7 +59,7 @@ export function autoCardModel({ signals, rows = [], sources = {}, skips = {}, co
   return { sourceId, sourceName: meta.name, onDevice: !!meta.onDevice, syncedAt, day: night.day, fresh, rows: words, confirmed: isConfirmed(confirmations, night.day), skipped: skips && typeof skips[night.day] === "string" ? skips[night.day] : null, demo: isDemo, platform };
 }
 
-/* ---------- You → Data sources (plan §2.4, S3) ---------- */
+/* ---------- You → Devices & reminders → Data sources (plan §2.4, S3) ---------- */
 /** The metric labels the preferred-source picker uses. */
 export const METRIC_WORDS = Object.freeze({ temp: "Temperature", rhr: "Resting HR", hrv: "HRV", sleep: "Sleep" });
 /**

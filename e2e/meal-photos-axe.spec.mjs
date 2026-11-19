@@ -4,7 +4,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, openLog } from "./lib/nav.mjs";
+import { gotoTab, openLog, gotoYou } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 import { plateFile } from "./lib/photo.mjs";
 
@@ -22,8 +22,9 @@ for (const scheme of ["light", "dark"]) {
     const page = await ctx.newPage();
     await mockApi(page, newApiState({ meal: () => ({ status: 200, json: ANSWER }) }));
     await register(page, { url: process.env.E2E_API_URL, stage: "My Cycle", signin: "email" });
-    await gotoTab(page, "You");
+    await gotoYou(page, "Your profile");
     await page.locator("#you-modules").getByRole("switch", { name: "Meal notes" }).click();
+    await gotoYou(page, "Solia Health's AI");
     await page.locator("#you-ai").getByRole("switch", { name: "Meal photos" }).click();
     await expect(page.locator("#you-ai").getByRole("switch", { name: "Show calorie estimates" })).toBeVisible();
     await audit(page, `You, Meal photos on ${scheme}`);

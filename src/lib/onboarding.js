@@ -98,7 +98,7 @@ export const STEP_COPY = {
 /** The steps for the primary stage card label (null before she picks one): 5 for the cycle stages (with the optional
     PCOS step), 4 for Pregnant, 3 for Menopause & beyond. Before a stage is picked the cycle flow is shown (the most common).
     Wearables are never asked about during registration (owner decision 2026-11-12: too early); she connects one later
-    from the Home card or You → Data sources. */
+    from the Home card or You → Devices & reminders. */
 export function regSteps(stageLabel, { signin = false } = {}) {
   const steps = stageLabel === "Pregnant" ? ["stage", "account", "pregnancy", "consent"]
     : stageLabel === "Menopause & beyond" ? ["stage", "account", "consent"]

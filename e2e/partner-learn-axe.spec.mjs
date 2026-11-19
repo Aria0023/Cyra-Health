@@ -3,7 +3,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab } from "./lib/nav.mjs";
+import { gotoTab, gotoYou } from "./lib/nav.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 const audit = async (page, name) => {
@@ -23,9 +23,12 @@ for (const scheme of ["light", "dark"]) {
     await page.locator("#learn-sheet").getByRole("button", { name: "Sources" }).click();
     await audit(page, `explainer sheet ${scheme}`);
     await page.locator("#learn-sheet .v2sheet-close").click();
-    await gotoTab(page, "You");
+    await gotoYou(page, "Help & about");
     await expect(page.locator("#you-learn")).toBeVisible();
-    await audit(page, `You with Learn and Share ${scheme}`);
+    await audit(page, `You → Help & about with Learn ${scheme}`);
+    await gotoYou(page, "Your profile");
+    await expect(page.locator("#you-partner")).toBeVisible();
+    await audit(page, `You → Your profile with Share with a partner ${scheme}`);
     await page.locator("#you-partner").getByRole("button", { name: "Share with a partner" }).click();
     await page.getByLabel("A short note (optional)").fill("Quiet weekend?");
     await audit(page, `partner sheet ${scheme}`);
