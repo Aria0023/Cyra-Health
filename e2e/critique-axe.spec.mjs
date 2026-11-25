@@ -59,3 +59,38 @@ for (const scheme of ["light", "dark"]) {
     await ctx.close();
   });
 }
+
+/* Task 6: the stage cards at registration, and in every style the You stage card, Your profile, the quick check-in with
+   a picked face and the Mind mood with a picked face, light and dark. */
+for (const scheme of ["light", "dark"]) {
+  test(`check-in faces and stage illustrations, every style, ${scheme}`, async ({ browser }) => {
+    test.setTimeout(300_000);
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });
+    const page = await ctx.newPage();
+    await page.goto(`${process.env.E2E_URL}/`);
+    await page.getByRole("button", { name: "Get started" }).click();
+    await page.getByRole("button", { name: "Continue for now" }).click();
+    await expect(page.locator(".stagecard svg.stageart")).toHaveCount(5);
+    await audit(page, `registration stage cards ${scheme}`);
+    await register(page, { stage: "Trying to conceive", pcos: "no", resume: true, signin: null });
+    await gotoYou(page, "Devices & reminders");
+    await page.locator("#you-checkins").getByRole("button", { name: /Check-in style|Rhythm, time and style/ }).click();
+    await page.getByRole("button", { name: "Quick · 3 taps" }).click();
+    for (const style of STYLES) {
+      await setStyle(page, style);
+      await page.getByRole("tab", { name: "You", exact: true }).click();
+      await audit(page, `You stage card, ${style} ${scheme}`);
+      await gotoYou(page, "Your profile");
+      await audit(page, `Your profile, ${style} ${scheme}`);
+      await gotoTab(page, "Body");
+      const yes = page.locator("button.qface", { hasText: "A little" }).first();
+      if ((await yes.getAttribute("aria-pressed")) !== "true") await yes.click();
+      await audit(page, `quick check-in with faces, ${style} ${scheme}`);
+      await gotoTab(page, "Mind");
+      const mood = page.locator("#mood-card .moodbtn").nth(3);
+      if ((await mood.getAttribute("aria-pressed")) !== "true") await mood.click();
+      await audit(page, `Mind mood, ${style} ${scheme}`);
+    }
+    await ctx.close();
+  });
+}

@@ -2981,3 +2981,7 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
   changed sentence, old and new: docs/plans/critique-fixes-progress.md Task 5. `public/legal/privacy.html` ("48 hours as of
   this draft") and `terms.html` are unchanged and still true.
 
+### Task 6: check-in faces and stage illustrations
+- Decorative inline SVG only (aria-hidden, drawn from the UI tokens); no new sentence, key, request or stored value. The
+  quick check-in still saves 0-3 in the same keys.
+

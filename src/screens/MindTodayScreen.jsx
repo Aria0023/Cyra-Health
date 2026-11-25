@@ -36,7 +36,7 @@ export default function MindTodayScreen({ eyebrow, day = {}, onMood, onTag, onLe
           {MOODS.map((m) => (
             <button key={m.v} type="button" className={`moodbtn${day.mood === m.v ? " on" : ""}`} aria-pressed={day.mood === m.v} onClick={() => onMood(day.mood === m.v ? null : m.v)}>
               <MoodFace v={m.v} />
-              <span className="moodlab">{t(`mood.${m.v}`)}</span>
+              <span className="moodlab">{day.mood === m.v && <Icon name="check" size={11} className="moodtick" />}{t(`mood.${m.v}`)}</span>
             </button>
           ))}
         </div>

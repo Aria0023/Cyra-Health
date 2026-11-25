@@ -1,4 +1,5 @@
 import PalettePicker from "../components/PalettePicker.jsx";
+import StageArt, { stageArtKey } from "../components/StageArt.jsx";
 import { Card, Chip, Switch, IBadge } from "../components/ui/index.js";
 import BrandMark from "../components/BrandMark.jsx";
 import Icon from "../components/Icon.jsx";
@@ -53,16 +54,8 @@ import { YOU_PAGES, youPageOf, YOU_COPY } from "../lib/youMenu.js";
    sit behind a Details ("How this works"), which keeps its text in the page while closed. Every sentence that moved is
    listed in docs/PRIVACY-AUDIT.md "Calm R10". Nothing on these pages sends anything anywhere; the feedback sheet Help
    opens sends one request when she presses Send. */
-/* A quiet illustration for the stage card: soft rings and a blob in the stage accent (tokens only, decorative). */
-const StageArt = () => (
-  <svg className="youart" viewBox="0 0 200 150" aria-hidden="true" focusable="false">
-    <path className="youart-blob" d="M128 8c26-6 56 10 62 38s-8 54-32 66-54 8-72-12-18-48-2-70S110 12 128 8z" />
-    <circle className="youart-ring r1" cx="150" cy="62" r="46" />
-    <circle className="youart-ring r2" cx="150" cy="62" r="30" />
-    <circle className="youart-dot" cx="150" cy="16" r="5" />
-    <path className="youart-arc" d="M150 62m-46 0a46 46 0 0 1 46-46" />
-  </svg>
-);
+/* The stage card's illustration (2026-11-25, critique-fixes Task 6): one calm picture per life stage, components/StageArt.jsx
+   (tokens only, decorative). It replaced the shared rings-and-blob drawing. */
 export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, help = null, language = null, meals = null, dataSources = null, partner = null, learn = null, signMode = "none", store = null, native = false, promo = null, onHidePromo = null, proUntil = null, guest = null, homeCards = null, page = null, onOpenPage = () => {}, onBack = () => {}, planLabel = null, planKey = null, voice = null }) {
   const offer = ai.offer || { any: false, weekly: false, chat: false, meals: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
@@ -85,7 +78,7 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
   const stageCard = (
     <>
       <Card hero tint="you" icon="user" eyebrow={t("you.yourStage")} title={stageName} level={2} className="youstage">
-        <StageArt />
+        <StageArt k={stageArtKey({ stage, stageName })} className="youart" />
         <p className="hint">{t("you.cyraIsShapedAroundOne")}</p>
         <button type="button" className="stagechip quiet" onClick={onChangeStage}>{t("you.change", { stageName })}</button>
         {sp.daysLogged > 0 && <p className="youfact"><Icon name="calendar" size={14} />{sp.daysLogged === 1 ? t("you.1DayLogged") : t("you.daysLogged", { daysLogged: sp.daysLogged })}</p>}
@@ -362,6 +355,7 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
       {/* ---- Your profile: her stage (the same Change control), about you, condition modules, sharing with a partner ---- */}
       {on("profile") && (
         <Card id="you-stage" tint="you" icon="user" eyebrow={t("you.yourStage")} title={stageName} level={2} className="youset youstage2">
+          <StageArt k={stageArtKey({ stage, stageName })} className="stageart-hero" />
           <p className="hint">{t("you.cyraIsShapedAroundOne")}</p>
           <button type="button" className="ghostbtn" onClick={onChangeStage}>{t("you.change", { stageName })}</button>
         </Card>

@@ -1,3 +1,4 @@
+import StageArt, { stageArtKey } from "../components/StageArt.jsx";
 import { ACCOUNTS_HERE } from "../lib/cloudBackup.js";
 import { useEffect, useId, useRef, useState } from "react";
 import { CADENCE, stagePalettes } from "../lib/constants.js";
@@ -133,7 +134,8 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
             {STAGE_CARDS.map(([lbl, d]) => {
               const on = picked.includes(lbl);
               return (
-                <button key={lbl} type="button" aria-pressed={on} className={`stagecard ${on ? "on" : ""}`} onClick={() => pickStage(lbl)}>
+                <button key={lbl} type="button" aria-pressed={on} className={`stagecard hasart ${on ? "on" : ""}`} onClick={() => pickStage(lbl)}>
+                  <StageArt k={stageArtKey({ card: lbl })} small />
                   <b>{lbl}</b><span>{d}</span>
                   <span className="swatch-dot" aria-hidden="true" style={{ background: paletteFor(stagePalettes(REG_STAGE[lbl], STAGE_LABELS[lbl])[0], scheme).primary }} />
                   {on && <Icon name="check" size={18} className="stagecheck" />}

@@ -1717,6 +1717,19 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .youart-ring { fill:none; stroke:color-mix(in srgb, var(--accent) 38%, transparent); stroke-width:1.5; stroke-dasharray:2 5; stroke-linecap:round; } .youart-ring.r2 { stroke:color-mix(in srgb, var(--primary) 34%, transparent); stroke-dasharray:none; }
 .youart-arc { fill:none; stroke:var(--primary); stroke-width:3.5; stroke-linecap:round; opacity:.55; }
 .youart-dot { fill:var(--accent); opacity:.8; }
+/* 2026-11-25 (critique-fixes Task 6): one illustration per life stage (components/StageArt.jsx, tokens only, decorative);
+   faces on the quick check-in's answers; a tick on a picked answer or mood, so the choice never rests on colour. */
+.stageart { display:block; }
+.youstage .stageart.youart { width:124px; height:81px; right:10px; top:auto; bottom:12px; opacity:.9; }
+.youstage2 .stageart-hero { width:100%; max-width:240px; height:auto; aspect-ratio:196 / 128; margin:2px auto 8px; }
+.stagecard.hasart { padding-right:96px; }
+.stagecard .stageart.small { position:absolute; right:30px; top:50%; width:58px; height:38px; transform:translateY(-50%); }
+.seg .mc.qface { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; padding:6px 2px 7px; }
+.seg .mc.qface .moodface { flex:none; color:currentColor; }
+.seg .mc.qface .moodface-bg { fill:transparent; }
+.qface-lab { display:inline-flex; align-items:center; justify-content:center; gap:2px; text-align:center; }
+.qface-tick, .moodtick { flex:none; }
+.moodlab { display:inline-flex; align-items:center; gap:2px; }
 .youfact { display:flex; align-items:center; gap:6px; margin:6px 0 0; font-size:var(--fs-sm); color:var(--soft); } .youfact svg { color:var(--accent-text); }
 .youreminders { margin-top:14px; padding-top:12px; border-top:var(--rule); }
 .youstage > .v2card-head, .youstage > p, .youstage > button { position:relative; z-index:1; } .youstage > .hint { max-width:78%; }

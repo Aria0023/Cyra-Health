@@ -141,3 +141,19 @@ Not user-facing or legal (unchanged): code comments; `public/legal/privacy.html`
   smoke:all exit 0; build stamp once in dist; e2e full run 102 passed + 1 failed (plans.spec), then plans.spec re-run in
   full: 2/2 → 103/103; axe full run 62 passed + 1 failed + 1 not run (axe.spec is serial), then axe.spec re-run in full
   twice (the second web Pro sheet test also needed its line changed): 7/7 → 64/64.
+
+## Task 6: check-in faces and stage illustrations — DONE (final commit "Check-in faces and stage illustrations")
+- Quick check-in (`components/QuickCheckin.jsx`): every 4-step answer gets a face over its word, drawn by the existing
+  Mind `MoodFace` (inline SVG, 24-unit grid, currentColor, aria-hidden), from a small smile (answer 0: "No / fine",
+  "Slept well", "Sharp", "Steady") to a frown with brows (answer 3). The word is always shown; a picked answer also
+  shows a tick before its word. Same values (0-3), same storage, same order; the button's name is still the word.
+- Mind check-in mood (`MindTodayScreen.jsx`): it already had a face per option with the word under it; the picked one now
+  also carries a tick, so the choice never rests on colour alone.
+- Stage illustrations (`components/StageArt.jsx`): cycle = moon phases on an arc; trying to conceive = seeds opening
+  along a curve; pregnancy = a seed held in nested rings; perimenopause = waves of changing height; menopause and
+  beyond = a full moon and a resting leaf. Only `var(--primary)`, `var(--accent)`, `var(--card)` and color-mix tints of
+  them; aria-hidden; no faces of people, no products. Shown on each registration stage card (small, `.stagecard.hasart`),
+  on the You menu's stage card (bottom right, replacing the shared rings drawing) and on You → Your profile's stage card.
+- Tests: new `e2e/faces-art.spec.mjs` (2); `e2e/critique-axe.spec.mjs` +2 (registration stage cards; in all nine styles,
+  light and dark: the You stage card, Your profile, the quick check-in with a picked face, the Mind mood picked).
+- Lint: 24 warnings from here (the old `YouScreen` "'stage' is defined but never used" warning went away: the art uses it).
