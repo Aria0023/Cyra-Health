@@ -100,3 +100,6 @@ labelled "Details" unless noted). Nothing deleted; the legal pages are unchanged
 - Tests: new `e2e/short-copy.spec.mjs` (2: each block's visible line, its Details closed, the full text inside and shown
   when opened; every privacy row line has at most two sentences); `e2e/critique-axe.spec.mjs` +2 (Shop footer closed and
   open, privacy rows, feedback foot; light and dark).
+- Verified 2026-11-25 on the Task 4 tree (full runs, after the last change to this task's files): lint 0 errors (25
+  warnings, same as main); app unit 721/721; backend 130/130; smoke:all exit 0; build stamp once in dist; e2e 102/102;
+  axe 64/64.
