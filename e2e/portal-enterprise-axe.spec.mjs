@@ -33,8 +33,10 @@ for (const scheme of ["light", "dark"]) {
       await audit(page, `App settings, an error ${scheme}`);
       await page.getByLabel("Announcement", { exact: true }).fill("New sleep picks in the Shop.");
       await page.getByRole("button", { name: "Save announcement" }).click();
+      await expect(page.locator(".msgbox .ok")).toHaveText("Announcement saved and on.");
       await page.getByLabel("Line 1").fill("Ask your clinic about its own visits.");
       await page.getByRole("button", { name: "Save Help lines" }).click();
+      await expect(page.locator(".msgbox .ok")).toHaveText("Help lines saved.");
       await expect(page.getByRole("region", { name: "Change log" }).locator("tbody tr")).toHaveCount(2);
       await audit(page, `App settings, saved ${scheme}`);
       await page.setViewportSize({ width: 1200, height: 900 });
