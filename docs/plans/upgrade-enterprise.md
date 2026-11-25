@@ -64,3 +64,28 @@ the session scratchpad `shots16/`. List every new user-facing sentence verbatim.
 
 ## Out of scope
 Web checkout, legal sign-off, a separate native white-label binary, App.jsx split, changing the nine styles.
+
+## Added by the owner on 2026-11-25 (after Task 4, before the eval)
+
+### Task 5 — "Devices card: colour distinction"
+- The owner says Home's "Connect a device" card (src/components/Devices.jsx, copy in src/lib/devices.js homeBody) still
+  reads monotone. Give it a distinct, soft tinted look in every style: a tinted surface, a coloured watch/ring icon chip,
+  and a filled or tinted primary "See devices" button, so it stands apart from the cards around it.
+- Use tokens in src/lib/constants.js and the existing devices colours (ROW_ICON, .devicon, .devpill) rather than new colour
+  literals. Keep UI palettes separate from data-viz ramps. Must pass WCAG AA contrast and axe in all nine styles, light
+  and dark.
+- Screenshot before and after into shots16/.
+
+### Task 6 — "Subscribe any time during the free week"
+- She can already open the Pro sheet during the free week, but nothing tells her she can subscribe now. Note that the
+  monthly plan has no store trial (src/lib/pricing.js planLines), so subscribing monthly on day 3 is charged that day.
+- During the free week, the Pro sheet shows one literally true line near the plan tiles: "You can subscribe now. Your free
+  week isn't extended: the yearly plan's 7 free days start when you subscribe, and monthly starts right away." Refine the
+  wording if it is not exact for this build, and read the trial days from the store and plan data, never hard-code them.
+- The new "Upgrade to Pro" button from Task 1 also shows during the free week.
+- After a purchase, the header badge switches to "Pro" immediately. Check this path in a test using the existing proDev or
+  mock store.
+- On the web the line instead says how to get Pro in the app; there is still no web checkout.
+- List the new sentences verbatim, as with the other tasks.
+
+The eval then also covers Tasks 5 and 6 (each ends in one final commit titled as quoted).

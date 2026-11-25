@@ -88,7 +88,7 @@ Branch `feature/upgrade-enterprise`, worktree `/home/user/cyra-enterprise` (base
   | e2e | full run 110 passed + 1 failed (account.spec, above); after the fix account.spec 6/6 → 111/111 |
   | axe | full run 68 passed + 2 failed (critique-axe race, above); after the fix critique-axe 6/6 → 70/70 |
 
-## Task 3: organizations — IN PROGRESS
+## Task 3: organizations — DONE (final commit "Organizations: branded versions for clinics and employers")
 - Backend `orgs` module rewritten and mounted in production (configs, PRODUCTION_MODULES, prod-smoke, readiness's module
   list, app `FEATURE_ALSO.shop`); in app-dev.json it moved after `shop` (it needs the portal sign-in). The demo
   `x-admin-key` writes are gone: every write is `ctx.portal.auth("owner")`. Public: `GET /api/orgs/:slug/config` (never
@@ -151,3 +151,15 @@ Branch `feature/upgrade-enterprise`, worktree `/home/user/cyra-enterprise` (base
   RECORD_IMPORTS), `features.test` (production modules + orgs), `youMenu` SECTION_PAGE `you-org`; e2e `orgs.spec.mjs` (4),
   `portal-orgs.spec.mjs` (2), `orgs-axe.spec.mjs` (2), `portal-enterprise-axe.spec.mjs` (+ Organizations pages); nav lists
   in `portal.spec` / `portal-subs.spec` gain "Organizations"; `e2e/lib/api.mjs` answers the three org routes.
+- Verified 2026-11-25 on the Task 3 tree (a clean worktree at the Task 3 WIP commit, full runs):
+
+  | Check | Result |
+  | --- | --- |
+  | `npm run lint` | 0 errors, 23 warnings (d227a3a's 24 less App.jsx's unused `setOrgId`, now used) |
+  | `npm run test:unit` | 733/733 (728 + 5) |
+  | `cd backend && npm test` | 142/142 (135 + 7) |
+  | `cd backend && npm run smoke:all` | exit 0 (prod-smoke: orgs mounted in production, `/api/orgs/cyra/config` 200 with Solia's palette, writes 401, the admin key 401) |
+  | `npm run build` | ok; "BUILD 2026.10.07-D" once in dist |
+  | e2e | 117/117 (111 + 6) |
+  | axe | 72/72 (70 + 2) |
+- The owner's Tasks 5 and 6 were appended to docs/plans/upgrade-enterprise.md in this commit (coordinator's request).
