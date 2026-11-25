@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Switch } from "../ui/index.js";
 import Icon from "../Icon.jsx";
+import Details from "../Details.jsx";
 import { MEAL_COPY as C, PHOTO_MAX_SIDE, PHOTO_QUALITY, fitWithin, photoBody, bodyDataUrl, base64Bytes, totalOf, kcalRange, kcalRangeSaid, plainWords } from "../../lib/mealPhoto.js";
 
 /* Meal photos (Pro, her own switch; docs/plans/meal-photos.md). The parts the Meals sheet (BodySheets.jsx) uses:
@@ -69,18 +70,21 @@ export function PhotoPick({ replace = false, busy = false, onFile }) {
 export function MealSendBody({ shot, signedIn = false, busy = false, onSend, onClose }) {
   return (
     <>
-      <p className="aisend-lead"><Icon name="shield" size={16} />{C.sheetLead}</p>
+      <p className="aisend-lead"><Icon name="shield" size={16} />{C.sheetShort(signedIn)}</p>
+      <Details>
+        <p className="aisend-full">{C.sheetLead}</p>
+        <section className="aisend-sec" aria-labelledby="mealsend-with-h">
+          <h3 className="section-lab" id="mealsend-with-h">{C.withLab}</h3>
+          <ul className="mealsend-with">
+            <li>{C.withNothing}</li>
+            {signedIn && <li>{C.withSignin}</li>}
+          </ul>
+        </section>
+      </Details>
       <section className="aisend-sec" aria-labelledby="mealsend-photo-h">
         <h3 className="section-lab" id="mealsend-photo-h">{C.photoLab}</h3>
         <img className="mealsend-img" src={bodyDataUrl(shot.body)} width={shot.w} height={shot.h} alt={C.photoAlt} />
         <p className="rfoot mealsend-facts">{C.photoFacts(shot.w, shot.h, shot.bytes)}</p>
-      </section>
-      <section className="aisend-sec" aria-labelledby="mealsend-with-h">
-        <h3 className="section-lab" id="mealsend-with-h">{C.withLab}</h3>
-        <ul className="mealsend-with">
-          <li>{C.withNothing}</li>
-          {signedIn && <li>{C.withSignin}</li>}
-        </ul>
       </section>
       <p className="hint mealsend-only">{C.onlyFood}</p>
       <div className="aisend-acts">

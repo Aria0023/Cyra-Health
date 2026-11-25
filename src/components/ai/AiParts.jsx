@@ -4,6 +4,7 @@ import Icon from "../Icon.jsx";
 import Advice from "../Advice.jsx";
 import { t } from "../../lib/i18n.js";
 import Lead from "../Lead.jsx";
+import Details from "../Details.jsx";
 import { ASK_COPY as A } from "../../lib/aiFeatures.js";
 
 /* Cyra's AI write-up and chat (calm R8). Three parts, all driven by App.jsx:
@@ -20,7 +21,8 @@ export function AiSendSheet({ kind, body, lines = [], busy = false, onSend, onCl
   const exact = JSON.stringify(body, null, 2);
   return (
     <Sheet id="ai-send-sheet" title={t("ai.sheetTitle")} onClose={onClose} closeLabel={t("aiParts.closeWhatCyraWillSend")} className="aisend">
-      <p className="aisend-lead"><Icon name="shield" size={16} />{t("ai.sheetLead")}</p>
+      <p className="aisend-lead"><Icon name="shield" size={16} />{t("ai.sheetShort")}</p>
+      <Details><p className="aisend-full">{t("ai.sheetLead")}</p></Details>
       <section className="aisend-sec" aria-labelledby="aisend-plain-h">
         <h3 className="section-lab" id="aisend-plain-h">{t("ai.sheetPlain")}</h3>
         <dl className="aisend-plain">

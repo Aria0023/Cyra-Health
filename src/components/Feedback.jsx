@@ -82,8 +82,8 @@ export function FeedbackSheet({ kind: kind0 = "feedback", build, platform, langu
             <dl className="fbpreview" data-feedback-preview>
               {rows.map(([k, label, value]) => <div key={k} className="fbrow" data-key={k}><dt>{label}</dt><dd>{value}</dd></div>)}
             </dl>
-            <p className="rfoot">{payload.reply ? C.previewFootReply : C.previewFootAnon}</p>
-            <p className="rfoot">{C.kept}</p>
+            <p className="rfoot fbfoot">{payload.reply ? C.footShortReply : C.footShortAnon}</p>
+            <Details><p className="rfoot">{payload.reply ? C.previewFootReply : C.previewFootAnon}</p><p className="rfoot">{C.kept}</p></Details>
           </>
         ) : <p>{tooLong ? C.tooLong : C.previewEmpty}</p>}
       </Details>

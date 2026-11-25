@@ -81,3 +81,22 @@ each task (compared line by line).
 - Verified 2026-11-25 on the Task 3 tree: lint 0 errors (25 warnings, same as main); app unit 721/721; backend 130/130;
   smoke:all exit 0; build stamp once in dist; e2e full run 99 passed + 1 failed (shop-live, above), then shop-live re-run
   in full: 2/2 → 100/100; axe full run 62/62.
+
+## Task 4: shorter visible copy — DONE (final commit "Copy: one plain line visible, the full text under Details")
+Each block: its new visible line, and the full text, word for word, under the app's Details disclosure (components/Details.jsx,
+labelled "Details" unless noted). Nothing deleted; the legal pages are unchanged by this task.
+
+| Block | New visible line | Full text under Details |
+| --- | --- | --- |
+| Meal photo "What Solia Health will send": intro + "What goes with it" (`MealPhoto.jsx`, `MEAL_COPY.sheetShort`) | "Only this photo[, with your sign-in so it counts toward this month,] goes through Solia Health's server to Anthropic, which keeps it for a limited time; nothing from your log goes, and Solia Health's server doesn't keep it." (the bracket only when signed in) | `sheetLead`, then "What goes with it" with its list (`withNothing`, `withSignin` when signed in) |
+| Feedback sheet, preview foot (`Feedback.jsx`, `FEEDBACK_COPY.footShortAnon` / `footShortReply`) | "Nothing else goes: nothing from your log and no sign-in, and Solia Health's team keeps it for 365 days." / with reply on: "Nothing else from your log goes; it's sent with your sign-in, linked to your account, and kept for 365 days or until you delete your account." | `previewFootAnon` or `previewFootReply`, and `kept` |
+| AI send sheets' intro, chat / write-up / evidence (`AiParts.jsx` AiSendSheet, `AI_COPY.sheetShort`) | "Only the text below goes, through Solia Health's server, to Anthropic, which keeps it for a limited time; Solia Health's server doesn't keep it." | `sheetLead` |
+| You → Privacy & your data → How this works, rows with more than two sentences (`PrivacyFlows.jsx`, `FLOW_COPY.short`): Solia Health's weekly write-up | "When you ask for one, a summary of your last 8 weeks (no dates, notes or name) goes through Solia Health's server to Anthropic, which keeps it for a limited time." | the row's full line first (`FLOW_COPY.lines.aiWeekly`), then its existing Details list |
+| … Chat about your log | "Each message you send, with your last few chat messages and the same summary, goes through Solia Health's server to Anthropic, which keeps it for a limited time." | `FLOW_COPY.lines.aiChat`, then the existing list |
+| … Meal photos | "Each photo you choose to send, with nothing from your log, goes through Solia Health's server to Anthropic, which keeps it for a limited time." | `FLOW_COPY.lines.aiMeals`, then the existing list |
+| … Feedback you send | "Only when you press Send: your message, the app's version, platform and language, and your email only if you allow a reply, go to Solia Health's server, which keeps them for 365 days." | `FEEDBACK_COPY.flowLine`, then the existing list |
+| Sign-in "What signing in shares" (`SignInStep.jsx`, `SIGNIN_COPY.sharedShort`) | "Signing in gives Solia Health's server an account (how you signed in, and your email or name), kept until you delete it, and never your health log." | the seven `shared` items, under the existing "What signing in shares" (already a Details; the new line sits above it) |
+| Shop footer privacy text (`Shop.jsx`, `SHOP_PAGE_COPY.footShort`) | taps off: "Matched on this device; nothing about you is sent." / taps on: "Matched on this device and nothing you log is sent; opening a product counts one anonymous tap, kept only as a daily total." | `footMatched`, `footList` (live catalog), `TAP_COPY.foot` (taps on), `SHOP_COPY.privacy`. Kept visible: the heading, the tap switch offer and "Not medical advice…" (not privacy text) |
+- Tests: new `e2e/short-copy.spec.mjs` (2: each block's visible line, its Details closed, the full text inside and shown
+  when opened; every privacy row line has at most two sentences); `e2e/critique-axe.spec.mjs` +2 (Shop footer closed and
+  open, privacy rows, feedback foot; light and dark).

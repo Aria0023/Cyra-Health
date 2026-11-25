@@ -1,9 +1,11 @@
 /* axe-core on the surfaces docs/plans/critique-fixes.md changed (2026-11-25), in all nine styles, light and dark:
-   the header (brand, plan badge, Shop, settings) and Home with "More for today" folded and open. 0 violations. */
+   the header (brand, plan badge, Shop, settings) and Home with "More for today" folded and open (Task 1-2); the
+   shortened blocks of Task 4. 0 violations. */
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, setStyle, openHomeMore } from "./lib/nav.mjs";
+import { gotoTab, setStyle, openHomeMore, gotoYou } from "./lib/nav.mjs";
+import { mockApi, newApiState } from "./lib/api.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 const STYLES = ["Soft", "Mono", "Clear", "Journal", "Aura", "Sky", "Blush", "Mint", "Sunset"];
@@ -28,6 +30,32 @@ for (const scheme of ["light", "dark"]) {
       await openHomeMore(page);
       await audit(page, `Home open, ${style} ${scheme}`);
     }
+    await ctx.close();
+  });
+}
+
+/* Task 4: the shortened blocks with their Details closed and open (API build), light and dark. */
+for (const scheme of ["light", "dark"]) {
+  test(`shortened copy: feedback foot, privacy rows, Shop footer, ${scheme}`, async ({ browser }) => {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });
+    const page = await ctx.newPage();
+    await mockApi(page, newApiState());
+    await register(page, { url: process.env.E2E_API_URL, stage: "Perimenopause", pcos: "no", signin: "email" });
+    await page.locator("header.mast").getByRole("button", { name: "Shop", exact: true }).click();
+    await page.locator("main.shoppage .shopfoot").scrollIntoViewIfNeeded();
+    await audit(page, `Shop footer, Details closed ${scheme}`);
+    await page.locator("main.shoppage .shopfoot .morewrap").getByRole("button").click();
+    await audit(page, `Shop footer, Details open ${scheme}`);
+    await page.locator("main.shoppage").getByRole("button", { name: "Back" }).click();
+    await gotoYou(page, "Privacy & your data");
+    await page.locator("#you-privacy").getByRole("button", { name: "How this works" }).click();
+    await audit(page, `privacy rows ${scheme}`);
+    await gotoYou(page, "Help & about");
+    await page.locator("#you-help").getByRole("button", { name: "Send feedback" }).click();
+    const fb = page.getByRole("dialog", { name: "Send feedback" });
+    await fb.getByRole("button", { name: "What will be sent" }).click();
+    await fb.getByLabel("Your feedback").fill("Lovely calendar.");
+    await audit(page, `feedback foot, Details closed ${scheme}`);
     await ctx.close();
   });
 }

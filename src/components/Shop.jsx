@@ -150,8 +150,7 @@ export function ShopPage({ shop, categories, initial = null, allow = null, live 
       {items.length ? groupByBrand(items).map((g) => <BrandSection key={g.brand} brand={g.brand} items={g.items} {...card} />) : <p className="hint">{P.noneHere}</p>}
       <footer className="shopfoot">
         <h2 className="shopfoot-h">{P.footHead}</h2>
-        <p className="rfoot">{P.footMatched(taps)}</p>
-        {live && <p className="rfoot">{P.footList}</p>}
+        <p className={`rfoot shopfoot-short${taps ? " shoptaps" : ""}`}>{P.footShort(taps)}</p>
         {/* 2026-11-25 (critique-fixes Task 3): the tap count is opt-in; the footer offers its switch once, quietly. */}
         {tapsAsk && (
           <div className="modrow shoptapask">
@@ -160,8 +159,12 @@ export function ShopPage({ shop, categories, initial = null, allow = null, live 
               <Switch checked={!!tapsAsk.on} onChange={tapsAsk.set} labelledBy="shoptap-n" describedBy="shoptap-q" /></div>
           </div>
         )}
-        {taps && <p className="rfoot shoptaps">{TAP_COPY.foot}</p>}
-        <p className="rfoot">{C.privacy}</p>
+        <Details>
+          <p className="rfoot">{P.footMatched(taps)}</p>
+          {live && <p className="rfoot">{P.footList}</p>}
+          {taps && <p className="rfoot">{TAP_COPY.foot}</p>}
+          <p className="rfoot">{C.privacy}</p>
+        </Details>
         <p className="rfoot">{C.notAdvice}</p>
       </footer>
     </main>

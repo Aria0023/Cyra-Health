@@ -72,6 +72,14 @@ export const FLOW_COPY = Object.freeze({
   shopTapsOnSaid: "Shop taps are now counted anonymously from this device.",
   states: Object.freeze({ on: "On", off: "Off", you: "When you make one", send: FEEDBACK_COPY.flowState }),
   names: Object.freeze({ remindersWeb: "Browser reminders", remindersPhone: "Reminders", counts: "Weekly counts", ai: "Ask Solia Health's AI", aiWeekly: "Solia Health's weekly write-up", aiChat: "Chat about your log", aiMeals: "Meal photos", wearables: "Wearable connections", shopTaps: TAP_COPY.name, feedback: FEEDBACK_COPY.flowName, files: "Backups and files you make", cloud: "Cloud backup" }),
+  /* 2026-11-25 (docs/plans/critique-fixes.md Task 4): the rows whose line had more than two sentences show ONE plain
+     sentence (what goes, to whom, whether it is kept); the full line, word for word, opens first under the row's Details. */
+  short: Object.freeze({
+    aiWeekly: "When you ask for one, a summary of your last 8 weeks (no dates, notes or name) goes through Solia Health's server to Anthropic, which keeps it for a limited time.",
+    aiChat: "Each message you send, with your last few chat messages and the same summary, goes through Solia Health's server to Anthropic, which keeps it for a limited time.",
+    aiMeals: "Each photo you choose to send, with nothing from your log, goes through Solia Health's server to Anthropic, which keeps it for a limited time.",
+    feedback: "Only when you press Send: your message, the app's version, platform and language, and your email only if you allow a reply, go to Solia Health's server, which keeps them for 365 days.",
+  }),
   lines: Object.freeze({
     remindersWeb: "This browser's push address, and the days, time and time zone you chose, go to Solia Health's server. Nothing about your health.",
     remindersPhone: "Your phone shows them itself. Nothing is sent.",

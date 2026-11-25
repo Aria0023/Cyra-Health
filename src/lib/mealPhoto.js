@@ -120,6 +120,8 @@ export const MEAL_COPY = Object.freeze({
   badPhoto: "That file couldn't be read as a photo. Nothing was sent.",
   // "What Solia Health will send"
   sheetLead: "Exactly the photo below goes through Solia Health's server to Anthropic, maker of the Claude AI, which keeps it for a limited time. Solia Health's server never keeps the photo or the answer. It keeps two counts: how many photos you've sent this month, and a daily total of how much AI processing everyone's requests used together, which isn't linked to you.",
+  // 2026-11-25 (critique-fixes Task 4): the one visible line; sheetLead and "What goes with it", word for word, under Details
+  sheetShort: (signedIn) => `Only this photo${signedIn ? ", with your sign-in so it counts toward this month," : ""} goes through Solia Health's server to Anthropic, which keeps it for a limited time; nothing from your log goes, and Solia Health's server doesn't keep it.`,
   photoLab: "The photo, exactly as sent",
   photoAlt: "The photo that will be sent",
   photoFacts: (w, h, bytes) => `Made smaller on this device: ${w} × ${h} pixels, about ${Math.max(1, Math.round(bytes / 1024))} kB. It was saved again as a new JPEG, which leaves out the camera's hidden details, such as where and when it was taken.`,

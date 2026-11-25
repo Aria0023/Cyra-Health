@@ -59,6 +59,8 @@ export const AI_COPY = Object.freeze({
   // the preview sheet
   sheetTitle: "What Solia Health will send",
   sheetLead: "Exactly the text below goes through Solia Health's server to Anthropic, maker of the Claude AI, which keeps it for a limited time. Solia Health's server never keeps the text. It keeps two counts: how many you've sent this month, and a daily total of how much AI processing everyone's requests used together, which isn't linked to you. Nothing else from your log is sent.",
+  // 2026-11-25 (critique-fixes Task 4): the one visible line; sheetLead, word for word, sits under Details below it
+  sheetShort: "Only the text below goes, through Solia Health's server, to Anthropic, which keeps it for a limited time; Solia Health's server doesn't keep it.",
   sheetPlain: "In plain words",
   sheetExact: "Exactly as sent",
   sheetQuestion: "Your question",

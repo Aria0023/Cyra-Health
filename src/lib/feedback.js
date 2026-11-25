@@ -93,6 +93,9 @@ export const FEEDBACK_COPY = Object.freeze({
   previewFootAnon: "Nothing else: nothing from your log, no life stage, no device id, and no sign-in, so Solia Health can't tell who sent it. Like any request, it shows your device's internet address and app or browser type; Solia Health's code uses the address only in memory, to limit repeated requests, and doesn't keep it.",
   previewFootReply: "Nothing else: nothing from your log, no life stage and no device id. It's sent with your sign-in, so Solia Health's server links it to your account and deletes it if you delete your account. Like any request, it shows your device's internet address and app or browser type; Solia Health's code uses the address only in memory, to limit repeated requests, and doesn't keep it.",
   kept: "Solia Health's team reads it. It's kept for 365 days, then deleted.",
+  // 2026-11-25 (critique-fixes Task 4): the foot's one visible line; previewFoot* and kept, word for word, under Details
+  footShortAnon: "Nothing else goes: nothing from your log and no sign-in, and Solia Health's team keeps it for 365 days.",
+  footShortReply: "Nothing else from your log goes; it's sent with your sign-in, linked to your account, and kept for 365 days or until you delete your account.",
   fields: Object.freeze({ kind: "Kind (feedback or problem)", message: "Your message", build: "App version", platform: "Platform (web, ios or android)", language: "App language", reply: "OK to reply", email: "Your account email" }),
   send: "Send",
   sending: "Sending…",

@@ -2953,3 +2953,23 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
   photo"; everything after the pick (made smaller on the device, previewed, sent only on Send) is unchanged.
   `ios/App/App/Info.plist` camera string and docs/STORE-SETUP.md now name "Take a photo".
 
+### Task 4: one plain line visible, the full text under Details
+- Seven blocks now show one new sentence; every earlier sentence is still on the page, word for word, under the app's
+  Details (closed by default, the text stays in the page while closed). Each new visible sentence says what goes, to
+  whom, and whether it is kept, and is literally true of the build:
+  - meal photo send sheet: "Only this photo[, with your sign-in so it counts toward this month,] goes through Solia
+    Health's server to Anthropic, which keeps it for a limited time; nothing from your log goes, and Solia Health's
+    server doesn't keep it."
+  - AI send sheets: "Only the text below goes, through Solia Health's server, to Anthropic, which keeps it for a limited
+    time; Solia Health's server doesn't keep it."
+  - feedback preview foot: "Nothing else goes: nothing from your log and no sign-in, and Solia Health's team keeps it for
+    365 days." / (reply on) "Nothing else from your log goes; it's sent with your sign-in, linked to your account, and
+    kept for 365 days or until you delete your account."
+  - privacy rows (How this works): weekly write-up, chat, meal photos and feedback each show one sentence (see
+    docs/plans/critique-fixes-progress.md Task 4 for the exact words); their full lines lead each row's Details.
+  - sign-in: "Signing in gives Solia Health's server an account (how you signed in, and your email or name), kept until
+    you delete it, and never your health log." above the existing "What signing in shares".
+  - Shop footer: "Matched on this device; nothing about you is sent." / (taps on) "Matched on this device and nothing you
+    log is sent; opening a product counts one anonymous tap, kept only as a daily total."
+- Legal pages unchanged by this task. Nothing new is sent.
+

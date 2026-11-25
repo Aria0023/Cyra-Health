@@ -124,6 +124,8 @@ export const SIGNIN_COPY = Object.freeze({
   signedIn: (who) => `Signed in as ${who}.`,
   // what's shared
   sharedLab: "What signing in shares",
+  // 2026-11-25 (critique-fixes Task 4): the one visible line above "What signing in shares" (its list, word for word, is under it)
+  sharedShort: "Signing in gives Solia Health's server an account (how you signed in, and your email or name), kept until you delete it, and never your health log.",
   shared: Object.freeze([
     "Solia Health's server keeps your account: how you signed in, your email, your name if the service shares it, when you made the account and the last day you used your account (a date, not a time). Never your health log.",
     "While you're signed in, Solia Health tells its server the account is in use when the app opens. That request carries your sign-in and nothing from your log.",

@@ -37,6 +37,8 @@ function RowDetails({ id, native, stage }) {
   return null;
 }
 const lineFor = (row, native) => (row.id === "reminders" ? (native ? C.lines.remindersPhone : C.lines.remindersWeb) : C.lines[row.id] || "");
+// 2026-11-25 (critique-fixes Task 4): a row with a short line shows it; its full line leads the row's Details, word for word.
+const shortFor = (row) => C.short[row.id] || null;
 
 export default function PrivacyFlows({ rows = [], native = false, server = false, stage = null, onShopTaps = null }) {
   const shown = rows.filter((r) => r.state !== "na");
@@ -53,9 +55,9 @@ export default function PrivacyFlows({ rows = [], native = false, server = false
                 ? <Switch checked={row.state === "on"} onChange={onShopTaps} labelledBy={`flow-${row.id}`} describedBy={`flow-${row.id}-line`} className="flowswt" />
                 : <span className={`flowstate ${row.state}`}>{C.states[row.state]}</span>}
             </div>
-            <p className="flowline" id={`flow-${row.id}-line`}>{lineFor(row, native)}</p>
+            <p className="flowline" id={`flow-${row.id}-line`}>{shortFor(row) || lineFor(row, native)}</p>
             {row.note && C.notes[row.note] && <p className="flownote">{C.notes[row.note]}</p>}
-            <Details label={C.detailsLabel} describedBy={`flow-${row.id}`}><RowDetails id={row.id} native={native} stage={stage} /></Details>
+            <Details label={C.detailsLabel} describedBy={`flow-${row.id}`}>{shortFor(row) && <p className="flowfull">{lineFor(row, native)}</p>}<RowDetails id={row.id} native={native} stage={stage} /></Details>
           </li>
         ))}
       </ul>

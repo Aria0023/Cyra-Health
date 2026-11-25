@@ -115,6 +115,7 @@ export default function SignInStep({ mode, providers = {}, busy = null, signedIn
           <button type="button" className="ghostbtn" disabled={!!busy || working} onClick={() => { guest.onTry?.(); onSkip?.(); }}>{G.tryFirst}</button>
         </div>
       )}
+      {mode !== "none" && <p className="hint signin-sharedshort">{C.sharedShort}</p>}
       {mode !== "none" && (
         <Details label={C.sharedLab}>
           <ul>{C.shared.map((s) => <li key={s}>{s}</li>)}</ul>

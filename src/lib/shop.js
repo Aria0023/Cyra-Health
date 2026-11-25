@@ -228,6 +228,10 @@ export const SHOP_PAGE_COPY = Object.freeze({
   reviewed: "Clinician reviewed",
   noneHere: "Nothing here for this plan.",
   footHead: "About this shop",
+  // 2026-11-25 (critique-fixes Task 4): the footer's one visible privacy line; the rest, word for word, is under Details
+  footShort: (taps = false) => (taps
+    ? "Matched on this device and nothing you log is sent; opening a product counts one anonymous tap, kept only as a daily total."
+    : "Matched on this device; nothing about you is sent."),
   footList: "The product list comes from Solia Health's server, like loading a web page: the request carries nothing about you.",
   fromBrand: (brand) => `From ${brand}:`,
   entryTitle: "Shop by need",
