@@ -157,3 +157,5 @@ Not user-facing or legal (unchanged): code comments; `public/legal/privacy.html`
 - Tests: new `e2e/faces-art.spec.mjs` (2); `e2e/critique-axe.spec.mjs` +2 (registration stage cards; in all nine styles,
   light and dark: the You stage card, Your profile, the quick check-in with a picked face, the Mind mood picked).
 - Lint: 24 warnings from here (the old `YouScreen` "'stage' is defined but never used" warning went away: the art uses it).
+- Verified 2026-11-25 on the Task 6 tree (full runs, after the last change to this task's files): lint 0 errors (24
+  warnings); app unit 722/722; backend 130/130; smoke:all exit 0; build stamp once in dist; e2e 105/105; axe 66/66.
