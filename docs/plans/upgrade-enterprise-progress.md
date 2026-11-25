@@ -231,7 +231,7 @@ Branch `feature/upgrade-enterprise`, worktree `/home/user/cyra-enterprise` (base
   warnings; unit 734/734; backend 148/148; smoke:all exit 0; build ok, "BUILD 2026.10.07-D" once in dist; e2e 118/118;
   axe 74/74 (72 + 2).
 
-## Task 6: subscribe any time during the free week — IN PROGRESS
+## Task 6: subscribe any time during the free week — DONE (final commit "Subscribe any time during the free week")
 - `src/lib/plans.js freeWeekLine({ where, daysLeft, tiles })`, shown by the Pro sheet right under the plan tiles
   (`#pro-freeweek`) while the free week runs (App.jsx passes `freeDays` = `trialDaysLeft` while the gate is on and she
   doesn't own Pro; never on the "free week is over" sheet). Each plan's trial days come from the same tiles the sheet shows
@@ -252,3 +252,6 @@ Branch `feature/upgrade-enterprise`, worktree `/home/user/cyra-enterprise` (base
   planBadge "Pro", plus the App.jsx and ProSheet.jsx wiring). Not checked in e2e: the web has no store, and the e2e
   harness has no phone store.
 - Tests: unit `freeweek.test.mjs` (3); e2e `freeweek.spec.mjs` (2).
+- Verified 2026-11-25 on the Task 6 tree (a clean worktree at the Task 6 WIP commit, full runs): lint 0 errors / 23
+  warnings; unit 737/737 (734 + 3); backend 148/148; smoke:all exit 0; build ok, "BUILD 2026.10.07-D" once in dist; e2e
+  120/120 (118 + 2); axe 74/74.
