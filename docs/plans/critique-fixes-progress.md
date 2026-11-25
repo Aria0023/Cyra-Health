@@ -159,3 +159,8 @@ Not user-facing or legal (unchanged): code comments; `public/legal/privacy.html`
 - Lint: 24 warnings from here (the old `YouScreen` "'stage' is defined but never used" warning went away: the art uses it).
 - Verified 2026-11-25 on the Task 6 tree (full runs, after the last change to this task's files): lint 0 errors (24
   warnings); app unit 722/722; backend 130/130; smoke:all exit 0; build stamp once in dist; e2e 105/105; axe 66/66.
+
+## Eval — DONE (commit "Eval: critique fixes, before and after")
+- docs/plans/critique-fixes-eval.md: note → change → check → result; measurements before (main 1628653) and after;
+  axe coverage; screenshots in scratchpad `shots15/`. The temporary measurement and screenshot specs were deleted and
+  the `/home/user/cyra-before` worktree removed.
