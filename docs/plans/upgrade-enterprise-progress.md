@@ -214,7 +214,7 @@ Branch `feature/upgrade-enterprise`, worktree `/home/user/cyra-enterprise` (base
   | e2e | 118/118 (117 + 1) |
   | axe | 72/72 (portal-enterprise-axe's two tests now also audit both dashboards) |
 
-## Task 5: devices card, colour distinction — IN PROGRESS
+## Task 5: devices card, colour distinction — DONE (final commit "Devices card: colour distinction")
 - Home's "Connect a device" card (`src/components/Devices.jsx DevicesHomeCard`): tint `mind` (the ring/watch tint the device
   rows use), its whole surface in that tint fading only to 70% (not the 92px top wash every tinted card has), a 4px left
   edge in `--primary` mixed with the tint (like `.devrow`), the device rows' own icon chips (`.devicon` with `--devtint`:
@@ -227,3 +227,6 @@ Branch `feature/upgrade-enterprise`, worktree `/home/user/cyra-enterprise` (base
 - Tests: new `e2e/devices-look-axe.spec.mjs` (2: all nine styles, light and dark: three chips, a `.cta` button at 44px, a
   4px edge, a surface unlike the other Home cards', axe 0 on the card and on Home).
 - Screenshots: shots16/devices-card-before-{light,dark}.png, devices-card-after-{light,dark}.png.
+- Verified 2026-11-25 on the Task 5 tree (a clean worktree at the Task 5 WIP commit, full runs): lint 0 errors / 23
+  warnings; unit 734/734; backend 148/148; smoke:all exit 0; build ok, "BUILD 2026.10.07-D" once in dist; e2e 118/118;
+  axe 74/74 (72 + 2).
