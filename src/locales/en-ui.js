@@ -729,6 +729,7 @@ export const UI = {
   "timeline.stillRunning": "Still running",
   "account.yourNameStaysWithIt": " Your name stays with it.",
   "account.seeWhatProAdds": "See what Pro adds",
+  "account.seePro": "See Pro",
   "account.closeCreateAnAccount": "Close create an account",
   "account.closeSignIn": "Close sign in",
   "account.accountEmail": "Account email",

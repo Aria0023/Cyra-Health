@@ -25,7 +25,7 @@ import { AccountCard, SignedInCard } from "../components/AccountParts.jsx";
 import { PlanCardTiles } from "../components/PlanTiles.jsx";
 import { t } from "../lib/i18n.js";
 import { youAccountLine } from "../lib/signin.js";
-import { YOU_PAGES, youPageOf, YOU_COPY } from "../lib/youMenu.js";
+import { YOU_PAGES, youPageOf, YOU_COPY, upgradeShown } from "../lib/youMenu.js";
 
 /* You (calm R7, spec "You tab"; a short menu since 2026-11-19, docs/plans/visible-features.md Task 3, lib/youMenu.js).
    With no `page`: her name, the stage card (one life-stage experience: changing it replaces it, what she logged stays)
@@ -326,6 +326,13 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
       <main className="youpage youmenu">
         {head}
         {stageCard}
+        {/* 2026-11-25 (docs/plans/upgrade-enterprise.md Task 1): one clear way to Pro, above the rows, only while she does
+            not own it. It opens the same Pro sheet as "See plans" on Plan & account; nothing is sold on the web. */}
+        {upgradeShown({ owned: proOwned }) && (
+          <div className="youupgrade">
+            <button type="button" id="you-upgrade" className="cta youupgrade-btn" aria-haspopup="dialog" onClick={onPro}><Icon name="sparkle" size={16} />{YOU_COPY.upgrade}</button>
+          </div>
+        )}
         <nav className="youmenu-nav" aria-label="Pages in You">
           <ul className="yourows">
             {YOU_PAGES.map((r) => (

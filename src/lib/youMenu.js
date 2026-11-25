@@ -35,6 +35,9 @@ export const SECTION_PAGE = Object.freeze({
   "you-appearance": "youapp", "you-language": "youapp", "you-voice": "youapp", "you-tour": "youapp", "you-home-cards": "youapp",
   "you-help": "youhelp", "you-learn": "youhelp", "you-shop": "youhelp", "you-about-legal": "youhelp",
 });
+/** Whether You shows "Upgrade to Pro": only while she does not own Pro (a guest sees it too; the Pro sheet handles guests). */
+export const upgradeShown = ({ owned = false } = {}) => owned !== true;
+
 /** The view that holds a card id ("you-plan" → "youplan"); null for an unknown id. */
 export const pageOfSection = (sectionId) => SECTION_PAGE[sectionId] || null;
 
@@ -43,6 +46,11 @@ export const pageOfSection = (sectionId) => SECTION_PAGE[sectionId] || null;
    - voice*: the same device-only choice as the "Voice guide" switch inside a practice (practiceVoice); shown only where
      this device can speak (lib/voice.js voiceSupported). Nothing is recorded or sent by turning it on. */
 export const YOU_COPY = Object.freeze({
+  /* 2026-11-25 (docs/plans/upgrade-enterprise.md Task 1): one clear way to Pro. "Upgrade to Pro" sits above the rows while
+     she does not own Pro and opens the same Pro sheet as every other Pro button (payment stays in the phone apps: on the
+     web the sheet says Pro is sold in the iPhone and Android apps). "See Pro" is the short button on a locked part. */
+  upgrade: "Upgrade to Pro",
+  seePro: "See Pro",
   aiLink: "Solia Health's AI has its own page: its switches, and exactly what each one sends.",
   voiceTitle: "Voice guide",
   voiceName: "Voice guide in practices",

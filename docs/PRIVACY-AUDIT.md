@@ -2985,3 +2985,14 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
 - Decorative inline SVG only (aria-hidden, drawn from the UI tokens); no new sentence, key, request or stored value. The
   quick check-in still saves 0-3 in the same keys.
 
+
+## Upgrade entry and the enterprise panel (2026-11-25, docs/plans/upgrade-enterprise.md)
+
+### Task 1: one clear way to Pro — no new request, no new key
+- You shows "Upgrade to Pro" above the seven rows while she does not own Pro. It opens the existing Pro sheet; nothing is
+  sold on the web (the sheet still says "Get Solia Health Pro in the app" and has no buy button there). Nothing is sent
+  or stored by opening it.
+- Locked parts that said they were Pro without a way to see it now have "See Pro": Home's Ask Solia card for a guest
+  (beside "Create account"), and the signed-in account card when the backup needs Pro (under "An encrypted backup to
+  Solia Health's server comes with Pro."). Both open the same sheet.
+- New user-facing text, verbatim: "Upgrade to Pro", "See Pro". No privacy sentence changed.

@@ -1154,6 +1154,9 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .youname { margin:0 0 14px; }
 /* You as a short menu (2026-11-19, lib/youMenu.js): one row per page under the stage card; a page has a "You" back link. */
 .youmenu-nav { margin:0 0 var(--stack); }
+/* 2026-11-25 (upgrade-enterprise Task 1): "Upgrade to Pro" above the rows (a filled primary .cta, at least 44px). */
+.youupgrade { margin:0 0 var(--stack); }
+.youupgrade-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:48px; }
 .yourows { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
 .yourow { display:flex; align-items:center; gap:14px; width:100%; min-height:68px; padding:12px 14px; text-align:left; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--card); box-shadow:var(--sh-card); color:var(--ink); font:inherit; cursor:pointer; transition:background-color var(--t-fast), border-color var(--t-fast); }
 .yourow:hover { border-color:var(--line); }

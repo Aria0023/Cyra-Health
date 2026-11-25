@@ -125,6 +125,7 @@ export const ASK_COPY = Object.freeze({
   turnOn: "Turn on in You → Solia Health's AI",
   plans: "With Pro, ask about your own log or get answers that cite their sources. Nothing is sent until you've seen it and tapped Send.",
   guest: "Solia Health's AI is part of Pro and needs an account.",
+  seePro: "See Pro", // 2026-11-25 (upgrade-enterprise Task 1): the guest state's way to the Pro sheet
   soonChip: "Coming soon",
   soon: "Solia Health's AI isn't connected in this build yet, so there is nothing to ask here for now.",
   hide: "Hide the Ask Solia card",

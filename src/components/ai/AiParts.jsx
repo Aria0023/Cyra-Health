@@ -128,7 +128,11 @@ export function AskSoliaCard({ id = "home-ask", title = A.title, m, onAsk, onEvi
       {m.state === "guest" && (
         <>
           <p className="hint">{A.guest}</p>
-          <button type="button" className="ghostbtn" aria-haspopup="dialog" onClick={onCreate}>{createLabel}</button>
+          <div className="asksolia-acts">
+            <button type="button" className="ghostbtn" aria-haspopup="dialog" onClick={onCreate}>{createLabel}</button>
+            {/* 2026-11-25 (upgrade-enterprise Task 1): it says Pro, so it shows Pro: the same sheet, which handles guests. */}
+            {onPlans && <button type="button" className="linkbtn asksolia-seepro" aria-haspopup="dialog" onClick={onPlans}>{A.seePro}</button>}
+          </div>
         </>
       )}
       {m.state === "plans" && (

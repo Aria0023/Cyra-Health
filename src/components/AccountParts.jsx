@@ -98,6 +98,8 @@ export function AccountCard({ a, person }) {
         </>
       )}
       {!a.can && <p className="hint acctpro">{C.proLine}</p>}
+      {/* 2026-11-25 (upgrade-enterprise Task 1): a locked part says how to see Pro, with the same Pro sheet. */}
+      {!a.can && a.onPro && <div className="acctacts"><button type="button" className="ghostbtn acctseepro" aria-haspopup="dialog" onClick={a.onPro}>{t("account.seePro")}</button></div>}
       {!confirm ? (
         <button type="button" className="linkbtn danger acctdel" aria-expanded={false} aria-controls="acct-del" disabled={busy} onClick={() => setConfirm(true)}>{C.deleteAcct}</button>
       ) : (

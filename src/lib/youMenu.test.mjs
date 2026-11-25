@@ -43,10 +43,23 @@ test("every card id on You has exactly one page, and every page has a card", () 
   assert.equal(pageOfSection("you-about-legal"), "youhelp");
   assert.equal(pageOfSection("nope"), null);
   // every id="you-…" card in the app's source is mapped (ids built at run time or inside a card are listed here)
-  const INNER = ["you-ai-disclosure", "you-store-line", "you-promo", "you-plans-lab", "you-getinapp", "you-row", "you-back", "you-voice-"];
+  const INNER = ["you-ai-disclosure", "you-store-line", "you-promo", "you-plans-lab", "you-getinapp", "you-row", "you-upgrade", "you-back", "you-voice-"];
   const files = ["screens/YouScreen.jsx", "components/AccountParts.jsx", "components/DataSourcesCard.jsx", "components/Feedback.jsx", "components/Learn.jsx", "components/PartnerShare.jsx", "components/Shop.jsx"];
   for (const f of files) {
     const src = readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
     for (const m of src.matchAll(/\bid="(you-[a-z-]+)"/g)) if (!INNER.some((x) => m[1].startsWith(x))) assert.ok(SECTION_PAGE[m[1]], `${f}: ${m[1]} has no page in SECTION_PAGE`);
   }
+});
+
+test("Upgrade to Pro (upgrade-enterprise Task 1): shown unless she owns Pro; the short Pro button reads See Pro", async () => {
+  const { upgradeShown, YOU_COPY } = await import("./youMenu.js");
+  assert.equal(upgradeShown({ owned: false }), true);
+  assert.equal(upgradeShown(), true, "a guest or a new person sees it too");
+  assert.equal(upgradeShown({ owned: true }), false);
+  assert.equal(YOU_COPY.upgrade, "Upgrade to Pro");
+  assert.equal(YOU_COPY.seePro, "See Pro");
+  const you = readFileSync(new URL("../screens/YouScreen.jsx", import.meta.url), "utf8");
+  // it sits above the rows and opens the same Pro sheet (onPro), never a checkout of its own
+  assert.ok(you.indexOf('id="you-upgrade"') > 0 && you.indexOf('id="you-upgrade"') < you.indexOf('className="youmenu-nav"'));
+  assert.match(you, /id="you-upgrade"[^>]*aria-haspopup="dialog" onClick=\{onPro\}/);
 });
