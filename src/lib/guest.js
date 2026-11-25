@@ -104,26 +104,30 @@ export function guestDeadline(endMs, locale = undefined) {
   return `${d.toLocaleDateString(locale, { weekday: "long" })}, ${d.toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" })}`;
 }
 
-/** The whole story, once. The free week and Pro are named only where the free-week gate is on (lib/trial.js: where she
-    can actually pay); elsewhere nothing ends after 7 days, so the sentence stops at the account. */
-export const guestStory = ({ hours = GUEST_HOURS, trialGate = false } = {}) => (trialGate
-  ? `${guestSpan(hours)} as a guest, 7 days free in all, then Pro if you want to keep logging.`
-  : `${guestSpan(hours)} as a guest, then a free account to keep going.`);
+/** The whole story, once. ONE free clock (2026-11-25, docs/plans/critique-fixes.md Task 5): she sees "7 days free" (the
+    free week, lib/trial.js) and never a second count in hours; the guest window still ends underneath, and its deadline
+    is named (as a day and a time) only in its last GUEST_NEAR_HOURS. The free week and Pro are named only where the
+    free-week gate is on (where she can actually pay); elsewhere nothing ends after 7 days, so the sentence is only about
+    the account. `hours` is accepted for older callers and no longer shown. */
+export const guestStory = ({ trialGate = false } = {}) => (trialGate
+  ? "7 days free, then Pro if you want to keep logging. Create your account to keep your free week going."
+  : "Create your free account to keep going.");
+/** The ending of the near-the-end lines: the free week where the gate is on, else just going on. */
+const keepGoing = (trialGate) => (trialGate ? "to keep your free week going" : "to keep going");
 
 export const GUEST_COPY = Object.freeze({
   tryFirst: "Try it first",
-  tryWhy: (hours = GUEST_HOURS) => `Or try Solia Health as a guest for ${guestSpan(hours)} before you make an account. What you log is saved on this device, and Solia Health's server holds no account for you.`,
-  started: (when) => `You're in as a guest until ${when}.`,
-  line: (when) => `You're trying Solia Health as a guest. Create an account by ${when} to keep going.`,
+  tryWhy: () => "Or try Solia Health first as a guest, before you make an account. What you log is saved on this device, and Solia Health's server holds no account for you.",
+  // Home's line, shown only in the window's last 12 hours (guestNear): the deadline as a day and a time, never hours
+  line: (when, trialGate = false) => `You're trying Solia Health as a guest. Create your account by ${when} ${keepGoing(trialGate)}.`,
   create: "Create account",
   hide: "Hide for today",
   hidden: "Hidden for today. You can create your account any time in You → Plan & account.",
-  youLine: (when) => `You're trying Solia Health as a guest until ${when}. Solia Health's server holds no account for you, and your log lives on this device.`,
+  // You → Plan & account: the deadline only once it is near (when = null before that)
+  youLine: (when = null) => `You're trying Solia Health as a guest${when ? ` until ${when}` : ""}. Solia Health's server holds no account for you, and your log lives on this device.`,
   sheetTitle: "Create your account",
   sheetSub: "Sign in so Solia Health knows it's you. Everything you logged as a guest stays on this device, and your account never holds it.",
-  gateTitle: (hours = GUEST_HOURS) => (hours > 0 && hours % 24 === 0
-    ? (hours === 24 ? "Your guest day is up" : `Your ${hours / 24} guest days are up`)
-    : "Your time as a guest is up"),
+  gateTitle: () => "Create your account to keep going",
   gateSub: "Sign in to keep going. Everything you logged is still on this device.",
   gateData: "Back up or delete your data without signing in",
   gateDataWhy: "Your log is yours with or without an account. You can save an encrypted backup of it, or delete everything, right here.",

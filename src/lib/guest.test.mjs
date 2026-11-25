@@ -110,18 +110,26 @@ test("guest: the copy tells the whole story once, and names Pro only where the f
   assert.equal(guestSpan(24), "1 day");
   assert.equal(guestSpan(36), "36 hours");
   assert.equal(guestSpan(1), "1 hour");
-  assert.equal(guestStory({ hours: 48, trialGate: true }), "2 days as a guest, 7 days free in all, then Pro if you want to keep logging.");
-  assert.equal(guestStory({ hours: 48, trialGate: false }), "2 days as a guest, then a free account to keep going.");
+  assert.equal(guestStory({ hours: 48, trialGate: true }), "7 days free, then Pro if you want to keep logging. Create your account to keep your free week going.");
+  assert.equal(guestStory({ hours: 48, trialGate: false }), "Create your free account to keep going.");
   assert.ok(!/Pro|7 days/.test(guestStory({ hours: 48, trialGate: false })), "no free week or Pro where nothing ends after 7 days");
   assert.equal(GUEST_COPY.tryFirst, "Try it first");
-  assert.equal(GUEST_COPY.gateTitle(48), "Your 2 guest days are up");
-  assert.equal(GUEST_COPY.gateTitle(24), "Your guest day is up");
-  assert.equal(GUEST_COPY.gateTitle(36), "Your time as a guest is up");
+  assert.equal(GUEST_COPY.gateTitle(48), "Create your account to keep going");
+  assert.equal(GUEST_COPY.gateTitle(24), "Create your account to keep going");
+  assert.equal(GUEST_COPY.gateTitle(36), "Create your account to keep going");
   assert.equal(GUEST_COPY.gateSub, "Sign in to keep going. Everything you logged is still on this device.");
   const when = guestDeadline(Date.UTC(2026, 10, 18, 10, 0), "en-US");
   assert.match(when, /^(Tuesday|Wednesday|Thursday), \d{1,2}:\d{2}\s?(AM|PM)$/);
-  assert.equal(GUEST_COPY.line("Wednesday, 10:00 AM"), "You're trying Solia Health as a guest. Create an account by Wednesday, 10:00 AM to keep going.");
+  assert.equal(GUEST_COPY.line("Wednesday, 10:00 AM"), "You're trying Solia Health as a guest. Create your account by Wednesday, 10:00 AM to keep going.");
   assert.equal(guestDeadline(NaN), "");
   assert.match(GUEST_COPY.ai, /^Create an account to use this\./);
   for (const v of Object.values(GUEST_COPY)) { const text = typeof v === "function" ? v(48) : v; assert.ok(!/—/.test(text), "no em dash"); }
+});
+
+test("guest (2026-11-25): one free clock; no line counts hours, the deadline only near the end", () => {
+  const all = [guestStory({ trialGate: true }), guestStory({ trialGate: false }), GUEST_COPY.tryWhy(48), GUEST_COPY.gateTitle(48), GUEST_COPY.youLine(), GUEST_COPY.line("Wednesday, 10:00 AM", true)];
+  for (const s of all) assert.doesNotMatch(s, /\bhours?\b|\b2 days\b|48/, s);
+  assert.equal(GUEST_COPY.line("Wednesday, 10:00 AM", true), "You're trying Solia Health as a guest. Create your account by Wednesday, 10:00 AM to keep your free week going.");
+  assert.equal(GUEST_COPY.youLine(), "You're trying Solia Health as a guest. Solia Health's server holds no account for you, and your log lives on this device.");
+  assert.match(GUEST_COPY.youLine("Wednesday, 10:00 AM"), /^You're trying Solia Health as a guest until Wednesday, 10:00 AM\./);
 });

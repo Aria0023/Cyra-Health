@@ -147,7 +147,7 @@ export default function HomeScreen({
           the whole story once, a way to create the account and "Hide for today". */}
       {guest && (
         <div className="trialbar guestbar" role="status">
-          <span>{guest.line} <span className="guestbar-story">{guest.story}</span></span>
+          <span>{guest.line}{guest.story && <> <span className="guestbar-story">{guest.story}</span></>}</span>
           <span className="guestbar-acts">
             <button type="button" className="linkbtn" aria-haspopup="dialog" onClick={guest.onCreate}>{guest.createLabel}</button>
             <button type="button" className="prochip-hide" aria-label={guest.hideLabel} onClick={() => { guest.onHide(); ctaRef.current?.focus({ preventScroll: true }); }}><Icon name="close" size={14} /></button>

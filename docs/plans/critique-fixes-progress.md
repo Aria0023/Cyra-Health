@@ -103,3 +103,35 @@ labelled "Details" unless noted). Nothing deleted; the legal pages are unchanged
 - Verified 2026-11-25 on the Task 4 tree (full runs, after the last change to this task's files): lint 0 errors (25
   warnings, same as main); app unit 721/721; backend 130/130; smoke:all exit 0; build stamp once in dist; e2e 102/102;
   axe 64/64.
+
+## Task 5: one free clock — DONE (final commit "Trial: she sees one free week")
+The story she sees: "7 days free" (the free week, counted from registration, lib/trial.js). The 48-hour guest window
+(lib/guest.js) still works underneath; no sentence counts it in hours or days any more, and its deadline (a day and a
+time) shows only in its last 12 hours (`guestNear`). The store's 7-day trial on yearly is separate and starts at purchase,
+so it is described on the yearly tile only, as "7-day free trial on yearly, starts when you subscribe".
+
+Every user-facing mention of a free period, hours, days or a trial (src, after this task):
+| Where | Text now | Was |
+| --- | --- | --- |
+| Header plan badge (`lib/planBadge.js`) | "Free week · N days left" / "Free week · last day" / "Free week over" / "Guest" / "Free" / "Pro" | unchanged (Task 1 made it the one place) |
+| You → Plan & account, plan line (`lib/trial.js trialLine`) | "Free week: N days left. Subscribe any time to keep saving after that." / "Free week: last day. Subscribe to keep saving." / "Your free week is over. Subscribe to keep logging." | unchanged |
+| "Your free week is over" sheet, blocked toast (`TRIAL_COPY`) | unchanged | unchanged |
+| Pro sheet and plan card, free part (`ProSheet.jsx FREE_KEEPS_TRIAL`, `PRO_LOG`; `about.js bodyTrial`) | "Your first 7 days include everything. After that…" / "Keep logging after your free week" | unchanged |
+| Help answer "How does the free week work?" (`lib/feedback.js`) | "Your first 7 days include everything. After that, saving new entries needs Pro." (gate) / "This version has no free-week limit… the first 7 days include everything…" | unchanged |
+| Yearly plan tile badge (`lib/plans.js trialBadge`; locale `pro.freeTrialDays`) | "7-day free trial on yearly, starts when you subscribe" | "7-day free trial" |
+| Pro sheet line above the tiles (`plans.js proTrialLine`) | REMOVED (the tile says it) | "Try Pro free for 7 days on the yearly plan, then $100 a year in the iPhone and Android apps. Cancel any time." |
+| Web price line (`lib/pricing.js WEB_PRICE_LINE`) | "Pro is $9.95 a month or $100 a year in the iPhone and Android apps." | "…, with a 7-day free trial on the yearly plan." |
+| Store purchase button and terms under it (`pricing.js planLines`, phones only) | "Start 7-day free trial" / "Free for 7 days, then … Cancel at least a day before the trial ends and you won't be charged." | KEPT (App Store 3.1.2 requires the trial terms at the point of purchase; they describe the store trial, which starts at purchase) |
+| Promotion banner price line (`lib/promos.js`, only with a partner promotion whose store offer has a trial) | "Yearly: … · N-day free trial" | KEPT (the store's own offer; see deviations) |
+| Sign-in step, "Try it first" (`GUEST_COPY.tryWhy`) | "Or try Solia Health first as a guest, before you make an account. What you log is saved on this device, and Solia Health's server holds no account for you." | "Or try Solia Health as a guest for 2 days before you make an account. …" |
+| Guest story (sign-in step, You → Plan & account) (`guestStory`) | gate: "7 days free, then Pro if you want to keep logging. Create your account to keep your free week going." / no gate: "Create your free account to keep going." | "2 days as a guest, 7 days free in all, then Pro if you want to keep logging." / "2 days as a guest, then a free account to keep going." |
+| Home guest line, last 12 hours only (`GUEST_COPY.line`) | "You're trying Solia Health as a guest. Create your account by {Wednesday, 10:00 AM} to keep your free week going." (no gate: "…to keep going.") | "…Create an account by {when} to keep going." + the story, shown from the first day |
+| You → Plan & account guest card (`GUEST_COPY.youLine`) | "You're trying Solia Health as a guest. Solia Health's server holds…"; in the last 12 hours "…as a guest until {when}. …" | always "…as a guest until {when}. …" |
+| Screen after the guest window (`GUEST_COPY.gateTitle`) | "Create your account to keep going" | "Your 2 guest days are up" |
+| Restore note (`disclosures.js GUEST_RESTORE_LINE`) | "…a restore doesn't restart or extend your guest time…" | unchanged (no count) |
+Not user-facing or legal (unchanged): code comments; `public/legal/privacy.html` "(48 hours as of this draft)" and
+`terms.html` (still true: the window exists; legal pages are for attorney review).
+- Tests: unit `guest.test` (story, gate title and line expectations; +1 test "one free clock"), `plans.test` (tile badge
+  lines; the three `proTrialLine` lines removed with the function); e2e `guest.spec` (the sign-in step's words, the You
+  card without a deadline until the last 12 hours, the gate heading "Create your account to keep going", Home's line
+  without the story), `guest-axe` (gate heading); new `e2e/one-clock.spec.mjs` (1).

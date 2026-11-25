@@ -2973,3 +2973,11 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
     log is sent; opening a product counts one anonymous tap, kept only as a daily total."
 - Legal pages unchanged by this task. Nothing new is sent.
 
+### Task 5: one free clock
+- Copy only; nothing new is stored or sent. The guest window (48 hours by default) works as before underneath; no
+  sentence in the app names it in hours or days, and its deadline shows only in its last 12 hours. The store's 7-day
+  trial is described on the yearly tile only ("7-day free trial on yearly, starts when you subscribe"); the Pro sheet's
+  "Try Pro free for 7 days…" line and the web price line's "with a 7-day free trial on the yearly plan" are gone. Every
+  changed sentence, old and new: docs/plans/critique-fixes-progress.md Task 5. `public/legal/privacy.html` ("48 hours as of
+  this draft") and `terms.html` are unchanged and still true.
+

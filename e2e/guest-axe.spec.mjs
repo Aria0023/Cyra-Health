@@ -43,7 +43,7 @@ for (const scheme of ["light", "dark"]) {
     await page.clock.runFor(2000);
     await page.clock.setSystemTime(new Date(START.getTime() + 49 * 3600000));
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Your 2 guest days are up" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Create your account to keep going" })).toBeVisible();
     await audit(page, `guest gate ${scheme}`);
     await page.locator(".gatedata").getByRole("button", { name: "Encrypted backup" }).click();
     await audit(page, `guest gate, backup panel ${scheme}`);

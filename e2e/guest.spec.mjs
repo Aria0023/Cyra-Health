@@ -3,7 +3,7 @@
      whole app works with saving, the header's badge says "Guest", Home shows one quiet line in the window's last 12 hours
      (hidden for the day with one tap), You → Plan & account says until when,
      and the server holds nothing about her: the only request about accounts is "which sign-ins do you have?".
-   - 49 hours later, on the next open: "Your 2 guest days are up". No skip. The encrypted backup and Delete everything
+   - 49 hours later, on the next open: "Create your account to keep going" (2026-11-25: no "2 guest days"). No skip. The encrypted backup and Delete everything
      work right there without signing in. After signing in she is back in the app with what she logged, and isn't asked again.
    - a clock moved back doesn't reopen the window; Delete everything from that screen really deletes. */
 import { test, expect } from "@playwright/test";
@@ -45,9 +45,9 @@ test("guest window: try it first → the guest line → 49 hours later the gate,
   // the sign-ins are all there, Apple first, and the one skip is "Try it first", with the story told once
   await expect(page.locator(".signin-list .signinbtn")).toHaveText(["Continue with Apple", "Continue with Google", "Continue with Facebook", "Continue with email"]);
   const tryBox = page.locator(".signin-try");
-  await expect(tryBox).toContainText("try Solia Health as a guest for 2 days before you make an account");
+  await expect(tryBox).toContainText("try Solia Health first as a guest, before you make an account"); // 2026-11-25: no second clock in days or hours
   await expect(tryBox).toContainText("Solia Health's server holds no account for you");
-  await expect(tryBox).toContainText("2 days as a guest, then a free account to keep going."); // this build has no free-week gate: no "7 days", no Pro
+  await expect(tryBox).toContainText("Create your free account to keep going."); // this build has no free-week gate: no "7 days", no Pro
   await expect(page.getByText(/7 days free in all|then Pro/)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Continue without an account" })).toHaveCount(0);
   await shot(page, "1-signin-step-try-it-first.png");
@@ -66,7 +66,8 @@ test("guest window: try it first → the guest line → 49 hours later the gate,
   // You → Plan & account says she's a guest and until when, always
   await gotoYou(page, "Plan & account");
   const card = page.locator("#you-guest");
-  await expect(card).toContainText("You're trying Solia Health as a guest until Wednesday, 10:00 AM.");
+  await expect(card).toContainText("You're trying Solia Health as a guest. Solia Health's server holds no account for you"); // the deadline only near the end (2026-11-25)
+  await expect(card).not.toContainText("until");
   await expect(card).toContainText("Solia Health's server holds no account for you");
   await expect(page.locator("#you-signin")).toHaveCount(0);
   await shot(page, "3-you-guest-card.png");
@@ -80,8 +81,11 @@ test("guest window: try it first → the guest line → 49 hours later the gate,
   // In the window's last 12 hours Home shows one quiet line with the deadline, a way to create the account and "Hide for today"
   await gotoTab(page, "Home");
   await laterOpen(page, 40);
-  await expect(bar).toContainText("You're trying Solia Health as a guest. Create an account by Wednesday, 10:00 AM to keep going.");
-  await expect(bar).toContainText("2 days as a guest, then a free account to keep going.");
+  await expect(bar).toContainText("You're trying Solia Health as a guest. Create your account by Wednesday, 10:00 AM to keep going.");
+  await expect(bar).not.toContainText(/\bhours?\b|2 days/);
+  await gotoYou(page, "Plan & account"); // near the end, You names the deadline too
+  await expect(page.locator("#you-guest")).toContainText("You're trying Solia Health as a guest until Wednesday, 10:00 AM.");
+  await gotoTab(page, "Home");
   await expect(bar.getByRole("button", { name: "Create account" })).toBeVisible();
   await shot(page, "2-home-guest-line.png");
   // Home's line hides for the day with one tap and doesn't come back on the same day
@@ -98,7 +102,7 @@ test("guest window: try it first → the guest line → 49 hours later the gate,
 
   // 49 hours after she started, on the next open: the gate, with the guest wording and no skip
   await laterOpen(page, 49);
-  await expect(page.getByRole("heading", { name: "Your 2 guest days are up" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Create your account to keep going" })).toBeVisible();
   await expect(page.getByText("Sign in to keep going. Everything you logged is still on this device.")).toBeVisible();
   await expect(page.locator(".navpill")).toHaveCount(0);
   await expect(page.locator(".signin-list .signinbtn").first()).toHaveText("Continue with Apple");
@@ -135,7 +139,7 @@ test("guest window: try it first → the guest line → 49 hours later the gate,
   await page.clock.runFor(2000);
   await page.reload();
   await expect(page.locator(".navpill")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Your 2 guest days are up" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Create your account to keep going" })).toHaveCount(0);
   // nothing from her log ever went to the server: every body is an email or a code
   for (const r of state.sent) if (r.body) for (const k of Object.keys(r.body)) expect(["email", "code", "verifier"]).toContain(k);
 });
@@ -144,12 +148,12 @@ test("guest window: moving the clock back doesn't reopen it; a server that can't
   const state = newApiState();
   await tryFirst(page, state);
   await laterOpen(page, 49);
-  await expect(page.getByRole("heading", { name: "Your 2 guest days are up" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Create your account to keep going" })).toBeVisible();
   // the clock goes back to the first hour: this device remembers the latest time it saw
   await page.clock.runFor(2000);
   await page.clock.setSystemTime(new Date(START.getTime() + 1 * HOUR));
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Your 2 guest days are up" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Create your account to keep going" })).toBeVisible();
   // the server can't be reached: the app opens as before rather than locking her out, and asks again when it can
   await page.unroute("**/*");
   await page.route("https://api.solia.test/**", (route) => route.abort());
@@ -159,14 +163,14 @@ test("guest window: moving the clock back doesn't reopen it; a server that can't
   await page.unroute("https://api.solia.test/**");
   await mockApi(page, state);
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Your 2 guest days are up" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Create your account to keep going" })).toBeVisible();
 });
 
 test("guest window: Delete everything works from the gate without signing in", async ({ page }) => {
   const state = newApiState();
   await tryFirst(page, state);
   await laterOpen(page, 50);
-  await expect(page.getByRole("heading", { name: "Your 2 guest days are up" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Create your account to keep going" })).toBeVisible();
   const data = page.locator(".gatedata");
   await data.getByRole("button", { name: "Delete everything" }).click();
   await data.getByRole("button", { name: "Yes, delete it all" }).click();

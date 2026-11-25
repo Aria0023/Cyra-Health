@@ -30,7 +30,9 @@ export function storeTrialDays(product) {
 export const PLANS_COPY = Object.freeze({
   label: "Pro plans",
   best: "Best value",
-  trialBadge: (n) => `${n}-day free trial`,
+  // 2026-11-25 (critique-fixes Task 5): the store's trial is separate from the free week and starts when she subscribes, so
+  // the yearly tile says so, and it is described on the tile only (never on Home, the badge or a second line).
+  trialBadge: (n) => `${n}-day free trial on yearly, starts when you subscribe`,
   getInApp: "Get Solia Health Pro in the app",
   appStore: "App Store",
   playStore: "Google Play",
@@ -62,15 +64,8 @@ export function planTiles({ where = "web", offer = null } = {}) {
   }).filter(Boolean);
 }
 
-/** The one line above the tiles in the Pro sheet. Web: the reference price "in the iPhone and Android apps". A phone: only
-    when the store's yearly offer has a free trial, with the store's own price; otherwise null (nothing is claimed). */
-export function proTrialLine(where, tiles) {
-  const y = (tiles || []).find((x) => x.id === "annual");
-  if (!y || !y.trialDays) return null;
-  return where === "web"
-    ? `Try Pro free for ${y.trialDays} days on the yearly plan, then ${y.price} in the iPhone and Android apps. Cancel any time.`
-    : `Try Pro free for ${y.trialDays} days on the yearly plan, then ${y.price}. Cancel any time.`;
-}
+/* (proTrialLine, the Pro sheet's "Try Pro free for 7 days on the yearly plan…" line, was removed 2026-11-25: critique-fixes
+   Task 5 keeps the store's trial on the yearly tile only, so she sees one free period.) */
 
 /** The local day Home last showed its old "Pro · 7-day free trial" note (record key proChip, device-only). Home stopped
     showing it on 2026-11-25 (docs/plans/critique-fixes.md Task 1: the header's plan badge is the one plan message); the

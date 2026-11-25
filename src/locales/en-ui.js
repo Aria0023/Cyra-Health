@@ -676,7 +676,7 @@ export const UI = {
   "pro.ownedNote": "Thank you for supporting Solia Health. Pro renews through your app store until you cancel.",
   "pro.choosePlan": "Choose a plan",
   "pro.askingTheStore": "Asking the app store for today's prices…",
-  "pro.freeTrialDays": "{n}-day free trial",
+  "pro.freeTrialDays": "{n}-day free trial on yearly, starts when you subscribe",
   "pro.waitingForStore": "Waiting for the store…",
   "pro.restorePurchases": "Restore purchases",
   "pro.termsOfUse": "Terms of Use",

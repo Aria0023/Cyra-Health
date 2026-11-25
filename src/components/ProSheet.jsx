@@ -4,7 +4,7 @@ import Icon from "./Icon.jsx";
 import { t } from "../lib/i18n.js";
 import { loadOffer, buyPro, sendTip, redeemCode, STORE_LINES, CODE_LINES } from "../lib/purchase.js";
 import { TIP_PRODUCTS, planLines, CANCEL_LINES, KEEP_LINE } from "../lib/pricing.js";
-import { planTiles, proTrialLine, storeTrialDays } from "../lib/plans.js";
+import { planTiles, storeTrialDays } from "../lib/plans.js";
 import { promoBanner } from "../lib/promos.js";
 import PromoBanner from "./PromoBanner.jsx";
 import { PlanTiles, GetInApp } from "./PlanTiles.jsx";
@@ -91,7 +91,6 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
   const lines = shown && shown.plans && shown.plans[pick] ? planLines(pick, promoPlans ? { ...shown.plans[pick], trialDays: storeTrialDays(shown.plans[pick].pkg && shown.plans[pick].pkg.product) } : shown.plans[pick]) : null;
   const where = native ? "store" : "web";
   const tiles = owned ? [] : planTiles({ where, offer: native ? shown : null });
-  const tLine = proTrialLine(where, tiles);
   const buy = async () => {
     if (busy || !lines) return;
     setBusy(true);
@@ -120,7 +119,6 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
       {!owned && tiles.length > 0 && (
         <div className="proplanstop">
           <p className="section-lab" id="pro-plans-lab">{selling ? t("pro.choosePlan") : PLANS_LAB}</p>
-          {tLine && <p className="protrialline">{tLine}</p>}
           <PlanTiles tiles={tiles} labelledBy="pro-plans-lab" pick={selling ? pick : null} onPick={selling ? setPick : null} />
           {!native && <GetInApp id="pro-getinapp" />}
           {/* Store check (2026-11-19, docs/plans/launch-tools.md Task 4): Apple requires "Restore purchases" where
