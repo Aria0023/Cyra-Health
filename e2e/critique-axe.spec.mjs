@@ -84,7 +84,7 @@ for (const scheme of ["light", "dark"]) {
       await audit(page, `Your profile, ${style} ${scheme}`);
       await gotoTab(page, "Body");
       const yes = page.locator("button.qface", { hasText: "A little" }).first();
-      if ((await yes.getAttribute("aria-pressed")) !== "true") await yes.click();
+      if ((await yes.getAttribute("aria-pressed")) !== "true") { await yes.click(); await page.waitForTimeout(250); } // 2026-11-25: let the 100 ms colour transition finish (axe caught it mid-way: #7D8091 on #6071BA)
       await audit(page, `quick check-in with faces, ${style} ${scheme}`);
       await gotoTab(page, "Mind");
       const mood = page.locator("#mood-card .moodbtn").nth(3);

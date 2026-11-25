@@ -38,7 +38,7 @@ test("required: Create your account comes first, Apple first, no skip; a wrong t
   await expect(page.locator(".signin-done")).toContainText("Signed in as maya@example.com.");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Where are you right now?" })).toBeVisible();
-  expect(state.sent.map((r) => r.path)).toEqual(["/api/accounts/config", "/api/accounts/email/start", "/api/accounts/email/verify", "/api/accounts/email/verify"]);
+  expect(state.sent.map((r) => r.path).filter((p) => p !== "/api/app-config")).toEqual(["/api/accounts/config", "/api/accounts/email/start", "/api/accounts/email/verify", "/api/accounts/email/verify"]); // 2026-11-25: plus the app settings GET at start (app-settings.spec.mjs checks it carries nothing about her)
 });
 
 test("required, end to end: email sign-in → app → You → sign out → gate → Google → delete account", async ({ page }) => {

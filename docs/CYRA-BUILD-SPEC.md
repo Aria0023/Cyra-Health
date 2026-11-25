@@ -3130,3 +3130,15 @@ hide / show, `wipe({ then, hash })`, the `#restored` / `#restore` hashes). Rules
 `src/lib/privacyFlows.test.mjs`; the scratch acceptance `lf/l10/lock-check.mjs` (Chromium's CDP virtual authenticator, simulated
 visibility, `page.clock`). No new dependency, network call or record key; the lock slot is documented in docs/ARCHITECTURE.md §3 and
 docs/PRIVACY-AUDIT.md (L10). No harness file was edited and no suite sets a lock. Privacy controls stay free core (docs/MONETIZATION.md).
+
+
+## A15. Upgrade entry, owner settings and organizations (2026-11-25, docs/plans/upgrade-enterprise.md)
+- **Upgrade (Task 1):** You shows "Upgrade to Pro" above its seven rows while she does not own Pro; it opens the one Pro
+  sheet. Locked parts that say Pro carry "See Pro" to the same sheet. Payment stays in the phone apps; the web sells nothing.
+- **Owner settings (Task 2):** backend `settings` module (production): owner-only `GET/PUT /api/settings` with a change
+  log, public `GET /api/app-config`. The app downloads it at start in a build with a server (one plain GET, nothing about
+  her), keeps a copy on the device, and falls back to the built-in defaults on any failure. Editable: features the build
+  offers turned off (from the next start; never on; never sign-in, on-device sources or the backup), the default style and
+  palette for new people, a Home announcement (plain text, 140 characters, off by default), up to three Help lines, the
+  web reference prices (they must match the store; the trial length is set in the stores). Not editable: privacy claims,
+  legal, clinical and safety text, the sign-in order. Portal page: App settings.

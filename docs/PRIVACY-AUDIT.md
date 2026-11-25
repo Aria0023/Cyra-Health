@@ -2996,3 +2996,29 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
   (beside "Create account"), and the signed-in account card when the backup needs Pro (under "An encrypted backup to
   Solia Health's server comes with Pro."). Both open the same sheet.
 - New user-facing text, verbatim: "Upgrade to Pro", "See Pro". No privacy sentence changed.
+
+### Task 2: owner settings — one new plain GET at start (server builds), one non-personal device copy
+- **New request:** in a build with a server (VITE_API_BASE), the app sends `GET /api/app-config` once when it starts
+  (`src/lib/appConfigLive.js`): no query, no header of ours, no token, no cookie (`credentials: "omit"`), no referrer. The
+  answer is the same for everyone (backend `settings` module `publicConfig`: features turned off, the default style and
+  palette for new people, the Home announcement while on, Help lines, web reference prices, when it changed). It holds no
+  email: the change log with the owner's email stays behind the owner's portal sign-in. e2e `app-settings.spec.mjs` checks
+  the request's method, empty query, no authorization, no cookie and no referrer. A build without a server never asks.
+- **New device copy:** the cleaned answer is kept in `localStorage` under `solia.appConfig.v1` (`src/lib/appConfig.js
+  keepAppConfig`), so the next start can turn off what the owner turned off before any screen is built
+  (`src/lib/appConfigBoot.js`, read first in `src/main.jsx`). App settings only, never her record, never in a backup;
+  Delete everything removes it too. The record itself is still in IndexedDB / NoCloud only, so "not cookies, not
+  localStorage" (Privacy & your data, about the record) stays true.
+- **What the owner can never change from the portal** (listed on the page, enforced by the server's checks): privacy
+  claims, legal text, clinical and safety text, the sign-in order, the trial length, turning on a feature the build doesn't
+  offer, and the shop tap count (it stays off until she turns it on). Sign-in, on-device sources and the encrypted backup
+  can't be turned off (REMOTE_OFF is ai, shop, wearables, webReminders, counts). The announcement and Help lines are plain
+  text (no markup, no control characters; 140 / 240 characters), shown as text.
+- **Legal:** `public/legal/privacy.html` §3 gains a row, verbatim: "App settings" / "Nothing about you. When the app starts
+  it downloads Solia Health's current app settings (for example which features are switched off, a short notice for Home
+  and the reference prices shown on the web) with a plain request, like loading a web page: the request carries no stage,
+  no log, no account and no identifier. A copy is kept on your device so the next start can use it, also offline." / "The
+  settings are the same for everyone. Like any request, it shows our server your device's internet address (see "Every
+  connection to our server")." FLAG FOR ATTORNEY REVIEW.
+- **New user-facing sentences in the app:** none of the app's own (the announcement and Help lines are the owner's text).
+  Portal sentences (owner-facing) are listed in docs/plans/upgrade-enterprise-progress.md Task 2.
