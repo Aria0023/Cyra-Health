@@ -255,3 +255,9 @@ Branch `feature/upgrade-enterprise`, worktree `/home/user/cyra-enterprise` (base
 - Verified 2026-11-25 on the Task 6 tree (a clean worktree at the Task 6 WIP commit, full runs): lint 0 errors / 23
   warnings; unit 737/737 (734 + 3); backend 148/148; smoke:all exit 0; build ok, "BUILD 2026.10.07-D" once in dist; e2e
   120/120 (118 + 2); axe 74/74.
+
+## Eval — DONE (commit "Eval: upgrade entry and enterprise panel")
+- docs/plans/upgrade-enterprise-eval.md: taps Home → Pro sheet before/after (badge 1 → 1; through You 3 → 2), every new
+  route with its role check, axe results, screenshots in the scratchpad's `shots16/`, every new sentence, deviations. The
+  temporary measurement / screenshot specs were deleted and the `/home/user/cyra-before` and `/home/user/cyra-verify`
+  worktrees removed.
