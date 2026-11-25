@@ -25,7 +25,7 @@ test("privacyFlows: web, no server, a custom flag set → only files is availabl
 
 test("privacyFlows: web, server, all flags, everything off → off rows; then on", () => {
   let r = byId(flowRows(base));
-  assert.equal(states(flowRows(base)), "reminders:off counts:off ai:off aiWeekly:na aiChat:na aiMeals:na wearables:off shopTaps:on feedback:send files:you cloud:na");
+  assert.equal(states(flowRows(base)), "reminders:off counts:off ai:off aiWeekly:na aiChat:na aiMeals:na wearables:off shopTaps:off feedback:send files:you cloud:na");
   r = byId(flowRows({ ...base, reminders: { enabled: true, status: "on", pending: [] }, research: true, askAI: true, wearLive: 1 }));
   for (const id of ["reminders", "counts", "ai", "wearables"]) assert.equal(r[id].state, "on", id);
   assert.equal(r.files.state, "you"); assert.equal(r.cloud.state, "na");
@@ -72,11 +72,11 @@ test("privacyFlows: cloud is 'na' unless the flag and the plan allow it; every i
   // D2 / D3 acceptance: the rows a build renders (state ≠ na)
   const shown = (c) => flowRows(c).filter((r) => r.state !== "na").map((r) => r.name);
   assert.deepEqual(shown({ ...base, server: false, flags: DEF }), ["Backups and files you make"]);
-  assert.deepEqual(shown({ ...base, server: true, flags: DEF }), ["Browser reminders", "Ask Solia Health's AI", "Wearable connections", "Count my shop taps anonymously", "Feedback you send", "Backups and files you make"], "Task 2: wearables on by default; 2026-11-19: the anonymous shop tap count, on unless she turns it off");
+  assert.deepEqual(shown({ ...base, server: true, flags: DEF }), ["Browser reminders", "Ask Solia Health's AI", "Wearable connections", "Count my shop taps anonymously", "Feedback you send", "Backups and files you make"], "Task 2: wearables on by default; 2026-11-19: the anonymous shop tap count (opt-in since 2026-11-25), listed as Off until she turns it on");
   assert.deepEqual(shown({ ...base, server: true, flags: ALL }), ["Browser reminders", "Weekly counts", "Ask Solia Health's AI", "Wearable connections", "Count my shop taps anonymously", "Feedback you send", "Backups and files you make"]);
   assert.deepEqual(shown({ ...base, server: true, flags: NONE }), ["Feedback you send", "Backups and files you make"], "2026-11-19: feedback is offered in any build with a server, and never sends on its own");
   assert.equal(byId(flowRows({ ...base, server: true })).feedback.state, "send");
-  assert.deepEqual(shown({ ...base, server: true, flags: ALL, shopTapsOff: true }).includes("Count my shop taps anonymously"), true, "off is still listed, as Off");
+  assert.deepEqual(shown({ ...base, server: true, flags: ALL }).includes("Count my shop taps anonymously"), true, "off (the default) is still listed, as Off");
 });
 
 test("privacyFlows: otherConnections — the server bullet in any build with a server, sign-in only with its flag", () => {

@@ -14,8 +14,10 @@
 export const AI_PREFS_DEFAULT = Object.freeze({ weekly: false, chat: false, labs: false });
 /** Her switches: { weekly, chat, labs }, each a real true or false (anything else is off). Meal photos
     (docs/plans/meal-photos.md, lib/mealPhoto.js) adds two keys that are present only when true, so every record saved
-    before it stays valid: `meals` (the Meal photos switch) and `hideCal` ("Show calorie estimates" turned off). */
-export const cleanAiPrefs = (v) => ({ weekly: !!v && v.weekly === true, chat: !!v && v.chat === true, labs: !!v && v.labs === true, ...(!!v && v.meals === true ? { meals: true } : {}), ...(!!v && v.hideCal === true ? { hideCal: true } : {}) });
+    before it stays valid: `meals` (the Meal photos switch) and `hideCal` ("Show calorie estimates" turned off).
+    2026-11-25 (docs/plans/critique-fixes.md Task 3): calorie estimates are HIDDEN unless she turns them on; `showCal`
+    (present only when true) is that choice. `hideCal` is still accepted so older records stay valid, but no longer read. */
+export const cleanAiPrefs = (v) => ({ weekly: !!v && v.weekly === true, chat: !!v && v.chat === true, labs: !!v && v.labs === true, ...(!!v && v.meals === true ? { meals: true } : {}), ...(!!v && v.hideCal === true ? { hideCal: true } : {}), ...(!!v && v.showCal === true ? { showCal: true } : {}) });
 
 export const CHAT_MAX = 40;
 export const CHAT_TEXT_MAX = 2000;

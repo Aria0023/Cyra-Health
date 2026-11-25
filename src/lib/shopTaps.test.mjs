@@ -15,17 +15,17 @@ test("tapBody: exactly { productId } for a catalog id; anything else is null", (
   for (const bad of ["", "Oura", "a b", "../x", "x".repeat(49), null, undefined, 7, { productId: "oura" }, "oura?stage=peri", "-oura"]) assert.equal(tapBody(bad), null, String(bad));
 });
 
-test("tapsOn: only in a build with a server and the shop, and only while her switch isn't off", () => {
-  assert.equal(tapsOn({ live: true, off: false }), true);
-  assert.equal(tapsOn({ live: true }), true, "on by default");
-  assert.equal(tapsOn({ live: true, off: true }), false);
-  assert.equal(tapsOn({ live: false, off: false }), false);
+test("tapsOn: only in a build with a server and the shop, and only once she turns her switch on (2026-11-25: opt-in)", () => {
+  assert.equal(tapsOn({ live: true, on: true }), true);
+  assert.equal(tapsOn({ live: true }), false, "off by default");
+  assert.equal(tapsOn({ live: true, on: false }), false);
+  assert.equal(tapsOn({ live: false, on: true }), false);
   assert.equal(tapsOn(), false);
 });
 
 test("sendShopTap: one POST with only the product id; no credentials, no referrer, no token; a failure is swallowed", async () => {
   calls.length = 0;
-  assert.equal(sendShopTap("oura", { live: true, off: false, base: "https://api.solia.test", fetchImpl }), true);
+  assert.equal(sendShopTap("oura", { live: true, on: true, base: "https://api.solia.test", fetchImpl }), true);
   assert.equal(calls.length, 1);
   const { url, init } = calls[0];
   assert.equal(url, `https://api.solia.test${TAP_PATH}`);
@@ -40,18 +40,19 @@ test("sendShopTap: one POST with only the product id; no credentials, no referre
 
 test("sendShopTap: the switch off, no server, no shop or a bad id → no request at all", () => {
   calls.length = 0;
-  assert.equal(sendShopTap("oura", { live: true, off: true, base: "https://api.solia.test", fetchImpl }), false);
-  assert.equal(sendShopTap("oura", { live: false, off: false, base: "https://api.solia.test", fetchImpl }), false);
-  assert.equal(sendShopTap("oura", { live: true, off: false, base: "", fetchImpl }), false);
-  assert.equal(sendShopTap("Not An Id", { live: true, off: false, base: "https://api.solia.test", fetchImpl }), false);
-  assert.equal(sendShopTap("oura", { live: true, off: false, base: "https://api.solia.test", fetchImpl: () => { throw new Error("blocked"); } }), false, "a throwing fetch never reaches the link");
+  assert.equal(sendShopTap("oura", { live: true, on: false, base: "https://api.solia.test", fetchImpl }), false);
+  assert.equal(sendShopTap("oura", { live: true, base: "https://api.solia.test", fetchImpl }), false, "unset is off");
+  assert.equal(sendShopTap("oura", { live: false, on: true, base: "https://api.solia.test", fetchImpl }), false);
+  assert.equal(sendShopTap("oura", { live: true, on: true, base: "", fetchImpl }), false);
+  assert.equal(sendShopTap("Not An Id", { live: true, on: true, base: "https://api.solia.test", fetchImpl }), false);
+  assert.equal(sendShopTap("oura", { live: true, on: true, base: "https://api.solia.test", fetchImpl: () => { throw new Error("blocked"); } }), false, "a throwing fetch never reaches the link");
   assert.equal(calls.length, 0);
 });
 
 test("privacy dashboard: the shop tap row exists only with a server and the shop flag, and follows her switch", () => {
   const row = (c) => flowRows(c).find((r) => r.id === "shopTaps");
-  assert.equal(row({ server: true, flags: { shop: true } }).state, "on");
-  assert.equal(row({ server: true, flags: { shop: true }, shopTapsOff: true }).state, "off");
+  assert.equal(row({ server: true, flags: { shop: true } }).state, "off", "2026-11-25: off until she turns it on");
+  assert.equal(row({ server: true, flags: { shop: true }, shopTapsOn: true }).state, "on");
   assert.equal(row({ server: false, flags: { shop: true } }).state, "na");
   assert.equal(row({ server: true, flags: { shop: false } }).state, "na");
   assert.equal(FLOW_COPY.names.shopTaps, TAP_COPY.name);

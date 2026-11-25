@@ -1914,6 +1914,8 @@ button.plantile.on { border-color:var(--primary); box-shadow:inset 0 0 0 1px var
    only: no colour carries a judgement, and a calorie range looks the same whatever its size. */
 .mealphoto-pick { margin-top:12px; }
 .mealphoto-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:48px; margin:0; }
+.mealphoto-btns { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+@media (max-width:359px) { .mealphoto-btns { grid-template-columns:1fr; } }
 .mealphoto-file { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
 .mealphoto-pick .rfoot { margin:8px 0 0; }
 .mealphoto-note { margin:12px 0 0; }

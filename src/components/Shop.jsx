@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Card } from "./ui/index.js";
 import Details from "./Details.jsx";
+import Switch from "./ui/Switch.jsx";
 import Icon from "./Icon.jsx";
 import { SHOP_COPY as C, SHOP_PAGE_COPY as P, AFFILIATE_LINE, TONE_LABEL, AVAIL_LABEL, CATEGORY_ICON, relFor, groupByBrand, brandsOf, monogram, brandHue } from "../lib/shop.js";
 import { itemsIn, itemsOf } from "../lib/shopCatalog.js";
@@ -114,7 +115,7 @@ function BrandSection({ brand, items, ...card }) {
 
 /** The Shop page. shop: lib/shopCatalog.js (live or bundled); initial: a category id to preselect (a contextual link or
     #/shop/<category>); live: this build downloads the catalog from its server (the footer says what that request carries). */
-export function ShopPage({ shop, categories, initial = null, allow = null, live = false, taps = false, onTap = null, onTry = null, onBack }) {
+export function ShopPage({ shop, categories, initial = null, allow = null, live = false, taps = false, tapsAsk = null, onTap = null, onTry = null, onBack }) {
   const firstCat = categories.some((c) => c.id === initial) ? initial : categories[0]?.id;
   const [mode, setMode] = useState("need");
   const [cat, setCat] = useState(firstCat);
@@ -151,6 +152,14 @@ export function ShopPage({ shop, categories, initial = null, allow = null, live 
         <h2 className="shopfoot-h">{P.footHead}</h2>
         <p className="rfoot">{P.footMatched(taps)}</p>
         {live && <p className="rfoot">{P.footList}</p>}
+        {/* 2026-11-25 (critique-fixes Task 3): the tap count is opt-in; the footer offers its switch once, quietly. */}
+        {tapsAsk && (
+          <div className="modrow shoptapask">
+            <p className="rfoot" id="shoptap-q">{TAP_COPY.ask}</p>
+            <div className="modrow-main"><div className="modinfo"><b id="shoptap-n">{TAP_COPY.switchName}</b></div>
+              <Switch checked={!!tapsAsk.on} onChange={tapsAsk.set} labelledBy="shoptap-n" describedBy="shoptap-q" /></div>
+          </div>
+        )}
         {taps && <p className="rfoot shoptaps">{TAP_COPY.foot}</p>}
         <p className="rfoot">{C.privacy}</p>
         <p className="rfoot">{C.notAdvice}</p>

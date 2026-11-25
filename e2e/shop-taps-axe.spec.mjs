@@ -22,6 +22,9 @@ for (const scheme of ["light", "dark"]) {
     await register(page, { url: process.env.E2E_API_URL, stage: "Perimenopause", pcos: "no", signin: "email" });
     await page.locator("header.mast").getByRole("button", { name: "Shop", exact: true }).click();
     const shop = page.locator("main.shoppage");
+    await shop.locator(".shoptapask").scrollIntoViewIfNeeded();
+    await audit(page, `Shop footer offering the tap switch (off, the default) ${scheme}`);
+    await shop.locator(".shoptapask").getByRole("switch", { name: "Count my taps anonymously" }).click(); // 2026-11-25: opt-in
     await shop.locator(".shoptaps").scrollIntoViewIfNeeded();
     await expect(shop.locator(".shoptaps")).toContainText("counts one anonymous tap");
     await audit(page, `Shop footer with the tap sentence ${scheme}`);

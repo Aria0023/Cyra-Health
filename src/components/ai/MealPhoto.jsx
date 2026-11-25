@@ -43,16 +43,24 @@ export async function downsizePhoto(file) {
   }
 }
 
+/* 2026-11-25 (docs/plans/critique-fixes.md Task 3): two ways in, everything after them unchanged. "Take a photo" opens the
+   camera (capture="environment"); "Choose a photo" opens her photo library or files (no capture attribute). */
 export function PhotoPick({ replace = false, busy = false, onFile }) {
-  const input = useRef(null);
+  const camera = useRef(null), library = useRef(null);
+  const picked = (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) onFile(f); };
   return (
     <div className="mealphoto-pick">
-      <button type="button" className="ghostbtn mealphoto-btn" aria-haspopup="dialog" aria-describedby="mealphoto-hint" disabled={busy} onClick={() => input.current?.click()}>
-        <Icon name="sparkle" size={16} />{replace ? C.replace : C.add}
-      </button>
-      {/* The input itself is out of the tab order and hidden from assistive tech: the button above opens it. */}
-      <input ref={input} type="file" accept="image/*" capture="environment" className="mealphoto-file" tabIndex={-1} aria-hidden="true"
-        onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) onFile(f); }} />
+      <div className="mealphoto-btns">
+        <button type="button" className="ghostbtn mealphoto-btn" aria-haspopup="dialog" aria-describedby="mealphoto-hint" disabled={busy} onClick={() => camera.current?.click()}>
+          <Icon name="sparkle" size={16} />{replace ? C.takeAgain : C.take}
+        </button>
+        <button type="button" className="ghostbtn mealphoto-btn" aria-haspopup="dialog" aria-describedby="mealphoto-hint" disabled={busy} onClick={() => library.current?.click()}>
+          <Icon name="file" size={16} />{replace ? C.chooseAgain : C.choose}
+        </button>
+      </div>
+      {/* The inputs are out of the tab order and hidden from assistive tech: the buttons above open them. */}
+      <input ref={camera} type="file" accept="image/*" capture="environment" className="mealphoto-file" data-pick="camera" tabIndex={-1} aria-hidden="true" onChange={picked} />
+      <input ref={library} type="file" accept="image/*" className="mealphoto-file" data-pick="library" tabIndex={-1} aria-hidden="true" onChange={picked} />
       <p className="rfoot" id="mealphoto-hint">{C.addHint}</p>
     </div>
   );
@@ -115,6 +123,7 @@ export function MealAnswerBody({ answer, showCal = true, preg = false, onSave, o
       ) : <p className="hint" role="status">{C.allRemoved}</p>}
       {showCal && usable.length > 0 && <TotalLine label={C.total} range={totalOf(usable)} />}
       {showCal && <p className="rfoot mealest-note">{C.calNote}</p>}
+      {!showCal && <p className="rfoot mealest-hidden">{C.calHidden}</p>}
       <p className="rfoot">{C.sureLab}: {C.sure[answer.sure]}.</p>
       {preg && <p className="rfoot mealest-preg">{C.preg}</p>}
       <p className="rfoot">{C.byAI} {C.notKept}</p>

@@ -36,7 +36,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Solia Health opens the camera only when you tap "Add from a photo" in Meal notes, with Meal photos turned on. You see the photo before anything is sent, and it is sent only when you tap Send.</string>
+	<string>Solia Health opens the camera only when you tap "Take a photo" in Meal notes, with Meal photos turned on. You see the photo before anything is sent, and it is sent only when you tap Send.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Solia Health reads your sleeping wrist temperature, resting heart rate, heart rate variability and sleep from Health on this device to show patterns alongside your cycle and symptoms, and, only if you connect a glucose sensor app such as Dexcom or FreeStyle Libre, your blood glucose readings to show them on your Body page. Solia Health never sends this data to its servers or to anyone else; it leaves this device only inside an encrypted backup you choose to save.</string>
 	<key>UIApplicationSceneManifest</key>

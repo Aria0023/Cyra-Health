@@ -874,13 +874,17 @@ is labelled an estimate; there are no targets, goals, "over" or "under", scores,
 and no diet or weight advice anywhere; and a switch, "Show calorie estimates", hides every calorie figure and portion
 guess while keeping the food names (it sits in the Meals sheet beside the numbers and in You → Solia Health's AI).
 Please say whether the hide switch should instead be OFF by default (numbers hidden until she asks), whether a short
-notice should appear the first time the feature is turned on, and whether any wording below should change. The
+notice should appear the first time the feature is turned on, and whether any wording below should change.
+**Answered 2026-11-25: hidden by default, owner decision 2026-11-25; clinician to confirm.** "Show calorie estimates" is now
+OFF for everyone who has not turned it on herself (docs/plans/critique-fixes.md Task 3): food names and the "how sure"
+line show; calorie figures and portion guesses appear only after she turns the switch on, and the answer says how
+("mealphotos.calHidden" below). The first-use notice and the wording remain open questions. The
 feature is not offered in the Pregnancy stage today (Meal notes is not offered there); the pregnancy line below is
 written and wired for the day it is.
 
 ### mealphotos.setting
 - Where: You → Solia Health's AI → "Meal photos" row, and "Show calorie estimates" under it
-- Text: Meal photos / Photograph a meal in Meal notes; the AI names the foods and gives a rough calorie range / When you choose a photo in Meal notes, Solia Health makes it smaller on this device, shows you the exact picture, and sends it only when you tap Send. It goes through Solia Health's server to Anthropic, maker of the Claude AI, which keeps it for a limited time. Nothing from your log goes with it. Solia Health's server never keeps the photo or the answer. Turning this off stops photos; estimates you already saved stay in your meal notes until you remove them. / Show calorie estimates / Turn this off to hide every calorie figure and portion guess. The food names stay.
+- Text: Meal photos / Photograph a meal in Meal notes; the AI names the foods and gives a rough calorie range / When you choose a photo in Meal notes, Solia Health makes it smaller on this device, shows you the exact picture, and sends it only when you tap Send. It goes through Solia Health's server to Anthropic, maker of the Claude AI, which keeps it for a limited time. Nothing from your log goes with it. Solia Health's server never keeps the photo or the answer. Turning this off stops photos; estimates you already saved stay in your meal notes until you remove them. / Show calorie estimates / Turn this off to hide every calorie figure and portion guess. The food names stay. (2026-11-25, now: "Off unless you turn it on: calorie figures and portion guesses stay hidden. The food names always show.")
 - Sources: describes the feature; no clinical claim.
 - Status: Awaiting clinician sign-off
 
@@ -933,3 +937,16 @@ written and wired for the day it is.
 - Text: Solia Health is not a contraceptive.
 - Sources: the same sentence as Learn → "What the fertile window is" and the cycle markers (lib/signals.js SIGNAL_COPY.ttc); only its placement is new.
 - Status: Awaiting clinician sign-off
+
+### mealphotos.calHidden
+- Where: the Meals sheet's answer ("What the photo shows"), while "Show calorie estimates" is off (the default since 2026-11-25)
+- Text: Calorie estimates are hidden. To see them, turn on "Show calorie estimates" in You → Solia Health's AI or at the bottom of the Meals sheet.
+- Sources: describes the setting; no clinical claim.
+- Status: Awaiting clinician sign-off
+
+### mealphotos.pick
+- Where: the Meals sheet, with Meal photos on: two buttons replace "Add from a photo" (2026-11-25)
+- Text: Take a photo / Choose a photo (and, for a note that already has an estimate, Take a new photo / Choose a new photo)
+- Sources: describes the feature; no clinical claim.
+- Status: Awaiting clinician sign-off
+

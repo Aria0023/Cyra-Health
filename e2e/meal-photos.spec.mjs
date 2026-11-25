@@ -66,6 +66,9 @@ test("Meal photos on: the exact previewed picture is what is sent, with nothing 
   await expect(toast(page)).toHaveText("Meal photos on. Nothing is sent until you tap Send.");
   const ai = page.locator("#you-ai");
   await expect(ai.getByRole("switch", { name: "Meal photos" })).toHaveAttribute("aria-checked", "true");
+  // 2026-11-25 (critique-fixes Task 3): calorie estimates are hidden until she turns them on; this test turns them on
+  await expect(ai.getByRole("switch", { name: "Show calorie estimates" })).toHaveAttribute("aria-checked", "false");
+  await ai.getByRole("switch", { name: "Show calorie estimates" }).click();
   await expect(ai.getByRole("switch", { name: "Show calorie estimates" })).toHaveAttribute("aria-checked", "true");
   await expect(ai).toContainText("Solia Health's server never keeps the photo or the answer.");
   expect(mealCalls(state)).toHaveLength(0);
@@ -74,10 +77,14 @@ test("Meal photos on: the exact previewed picture is what is sent, with nothing 
   await sheet.getByRole("button", { name: "Mostly carbs or sweet", exact: true }).click();
   await sheet.getByRole("button", { name: "Dipped", exact: true }).click();
   await expect(sheet.locator(".aileft")).toHaveText("56 of 60 meal photos left this month.");
-  const input = sheet.locator('input[type="file"]');
+  // 2026-11-25: two ways in: the camera (capture="environment") and the photo library (no capture attribute)
+  const input = sheet.locator('input[data-pick="camera"]');
   await expect(input).toHaveAttribute("accept", "image/*");
   await expect(input).toHaveAttribute("capture", "environment");
-  await expect(sheet.getByRole("button", { name: "Add from a photo" })).toBeVisible();
+  await expect(sheet.locator('input[data-pick="library"]')).toHaveAttribute("accept", "image/*");
+  expect(await sheet.locator('input[data-pick="library"]').getAttribute("capture")).toBeNull();
+  await expect(sheet.getByRole("button", { name: "Take a photo" })).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "Choose a photo" })).toBeVisible();
 
   // pick a 1600 × 1200 photo: it is made smaller here, then shown; nothing has gone
   await input.setInputFiles(plateFile(1600, 1200));
@@ -103,7 +110,7 @@ test("Meal photos on: the exact previewed picture is what is sent, with nothing 
   expect(mealCalls(state)).toHaveLength(0);
 
   // again, and Send
-  await sheet.locator('input[type="file"]').setInputFiles(plateFile(1600, 1200));
+  await sheet.locator('input[data-pick="library"]').setInputFiles(plateFile(1600, 1200)); // from the library this time
   await expect(send).toBeVisible();
   const shownSrc = await send.locator(".mealsend-img").getAttribute("src");
   expect(shownSrc.startsWith("data:image/jpeg;base64,")).toBe(true);
@@ -154,7 +161,7 @@ test("Meal photos on: the exact previewed picture is what is sent, with nothing 
   await expect(sheet.locator(".mealday-total")).toContainText("Day total from 1 photo: 400–600 kcal");
   await expect(sheet.locator(".mealday-total")).toContainText("A rough estimate from a photo. It can be well off.");
   await expect(sheet.locator(".aileft")).toHaveText("55 of 60 meal photos left this month.");
-  await expect(sheet.getByRole("button", { name: "Replace with a new photo" })).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "Take a new photo" })).toBeVisible();
   // no judgement, target or colour word anywhere in the sheet
   expect(await sheet.innerText()).not.toMatch(/\b(goal|target left|over|under|too much|healthy|unhealthy|good|bad|burn|deficit)\b/i);
 
@@ -207,9 +214,10 @@ test("Meal photos: not food adds nothing; the monthly limit and a failed read sa
     : { status: 502, json: { error: "no-answer" } }) });
   await start(page, state);
   await photosOn(page);
+  await page.locator("#you-ai").getByRole("switch", { name: "Show calorie estimates" }).click(); // 2026-11-25: off by default; this test reads the ranges
   let sheet = await openMeals(page, "Dinner");
   const shoot = async () => {
-    await page.locator('#meals-sheet input[type="file"]').setInputFiles(plateFile(640, 480));
+    await page.locator('#meals-sheet input[data-pick="camera"]').setInputFiles(plateFile(640, 480));
     await page.locator("#meal-send-sheet").getByRole("button", { name: "Send", exact: true }).click();
   };
   await shoot();
@@ -241,7 +249,7 @@ test("Meal photos: not food adds nothing; the monthly limit and a failed read sa
   await expect(sheet.locator(".mealest")).toHaveCount(0);
   // a file that is not a picture never leaves the device
   const n = mealCalls(state).length;
-  await sheet.locator('input[type="file"]').setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("not a picture") });
+  await sheet.locator('input[data-pick="library"]').setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("not a picture") });
   await expect(sheet.locator(".mealphoto-note")).toHaveText("That file couldn't be read as a photo. Nothing was sent.");
   expect(mealCalls(state)).toHaveLength(n);
   // switch off: the button and the input go
@@ -254,3 +262,30 @@ test("Meal photos: not food adds nothing; the monthly limit and a failed read sa
   await expect(sheet.locator('input[type="file"]')).toHaveCount(0);
   expect(mealCalls(state)).toHaveLength(n);
 });
+
+/* 2026-11-25 (docs/plans/critique-fixes.md Task 3): calorie estimates are hidden unless she turns them on. The answer
+   names the foods, says calories are hidden and how to show them, and no figure or portion guess appears anywhere. */
+test("Meal photos: calorie estimates are hidden by default; the answer says how to show them", async ({ page }) => {
+  const state = newApiState({ meal: () => ({ status: 200, json: ANSWER }) });
+  await start(page, state);
+  await photosOn(page);
+  await expect(page.locator("#you-ai").getByRole("switch", { name: "Show calorie estimates" })).toHaveAttribute("aria-checked", "false");
+  await expect(page.locator("#you-ai")).toContainText("Off unless you turn it on: calorie figures and portion guesses stay hidden. The food names always show.");
+  await openMeals(page);
+  await page.locator('#meals-sheet input[data-pick="library"]').setInputFiles(plateFile(800, 600));
+  await page.locator("#meal-send-sheet").getByRole("button", { name: "Send", exact: true }).click();
+  const answer = page.locator("#meal-answer-sheet");
+  await expect(answer.locator(".mealfood")).toHaveCount(3);
+  await expect(answer.locator(".mealest-hidden")).toHaveText("Calorie estimates are hidden. To see them, turn on \"Show calorie estimates\" in You → Solia Health's AI or at the bottom of the Meals sheet.");
+  expect(await answer.innerText()).not.toMatch(/kcal|kilocalor|about 1 cup|small bowl/);
+  await expect(answer.locator(".mealest-total")).toHaveCount(0);
+  await answer.getByRole("button", { name: "Save to this meal note" }).click();
+  const sheet = page.locator("#meals-sheet");
+  await expect(sheet.locator(".mealest-list li")).toHaveText(["White rice", "Lentil curry", "Steamed greens"]);
+  await expect(sheet.locator(".mealday-total")).toHaveCount(0);
+  const cal = sheet.getByRole("switch", { name: "Show calorie estimates" });
+  await expect(cal).toHaveAttribute("aria-checked", "false");
+  await cal.click();
+  await expect(sheet.locator(".mealest-total")).toContainText("Total 470–720 kcal");
+});
+

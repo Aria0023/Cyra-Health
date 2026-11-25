@@ -43,9 +43,9 @@ export function flowRows(c = {}) {
   if (f.wearables && c.demoWear) rows.push({ id: "wearables", name: FLOW_COPY.names.wearables, state: "off", note: "demo" });
   else if (f.wearables && c.server) rows.push({ id: "wearables", name: FLOW_COPY.names.wearables, state: (c.wearLive || 0) + (c.terraOff || 0) > 0 ? "on" : "off", note: (c.terraOff || 0) > 0 ? "terraOff" : null });
   else rows.push({ id: "wearables", name: FLOW_COPY.names.wearables, state: "na", note: null });
-  // 2026-11-19 (lib/shopTaps.js): the anonymous shop tap count — needs the shop flag and a server; ON unless she turned
-  // it off on this device (c.shopTapsOff). The one row with its own switch (components/PrivacyFlows.jsx).
-  rows.push({ id: "shopTaps", name: FLOW_COPY.names.shopTaps, state: f.shop && c.server ? (c.shopTapsOff === true ? "off" : "on") : "na", note: null });
+  // 2026-11-19 (lib/shopTaps.js): the anonymous shop tap count — needs the shop flag and a server. Since 2026-11-25 OFF
+  // unless she turned it on on this device (c.shopTapsOn). The one row with its own switch (components/PrivacyFlows.jsx).
+  rows.push({ id: "shopTaps", name: FLOW_COPY.names.shopTaps, state: f.shop && c.server ? (c.shopTapsOn === true ? "on" : "off") : "na", note: null });
   // 2026-11-19 (lib/feedback.js): feedback she types and sends from You → Help & about — any build with a server; never on its own.
   rows.push({ id: "feedback", name: FLOW_COPY.names.feedback, state: c.server ? "send" : "na", note: null });
   rows.push({ id: "files", name: FLOW_COPY.names.files, state: "you", note: null });
@@ -69,7 +69,7 @@ export const FLOW_COPY = Object.freeze({
   label: "What can leave this device",
   intro: "What this version of Solia Health can send, and when. Nothing about your health leaves this device unless a row below says On, or you take it out yourself as a backup, file or summary, or type it into feedback you send.",
   shopTapsOffSaid: "Shop taps are no longer counted from this device.",
-  shopTapsOnSaid: "Shop taps are counted anonymously again.",
+  shopTapsOnSaid: "Shop taps are now counted anonymously from this device.",
   states: Object.freeze({ on: "On", off: "Off", you: "When you make one", send: FEEDBACK_COPY.flowState }),
   names: Object.freeze({ remindersWeb: "Browser reminders", remindersPhone: "Reminders", counts: "Weekly counts", ai: "Ask Solia Health's AI", aiWeekly: "Solia Health's weekly write-up", aiChat: "Chat about your log", aiMeals: "Meal photos", wearables: "Wearable connections", shopTaps: TAP_COPY.name, feedback: FEEDBACK_COPY.flowName, files: "Backups and files you make", cloud: "Cloud backup" }),
   lines: Object.freeze({

@@ -32,9 +32,9 @@ for (const scheme of ["light", "dark"]) {
     await log.getByRole("button", { name: "Meals", exact: true }).click();
     const sheet = page.locator("#meals-sheet");
     await sheet.locator(".mealslots").getByRole("button", { name: "Lunch", exact: true }).click();
-    await expect(sheet.getByRole("button", { name: "Add from a photo" })).toBeVisible();
+    await expect(sheet.getByRole("button", { name: "Take a photo" })).toBeVisible(); // 2026-11-25: and "Choose a photo"
     await audit(page, `Meals sheet with the photo button ${scheme}`);
-    await sheet.locator('input[type="file"]').setInputFiles(plateFile(1600, 1200));
+    await sheet.locator('input[data-pick="camera"]').setInputFiles(plateFile(1600, 1200));
     const send = page.locator("#meal-send-sheet");
     await expect(send.locator(".mealsend-img")).toBeVisible();
     await audit(page, `What Solia Health will send, a photo ${scheme}`);
@@ -43,11 +43,11 @@ for (const scheme of ["light", "dark"]) {
     await expect(answer.locator(".mealfood")).toHaveCount(3);
     await audit(page, `the answer ${scheme}`);
     await answer.getByRole("button", { name: "Save to this meal note" }).click();
+    await expect(page.locator("#meals-sheet .mealest-total")).toHaveCount(0); // 2026-11-25: hidden until she turns them on
+    await audit(page, `a saved meal note, calories hidden (the default) ${scheme}`);
+    await page.locator("#meals-sheet").getByRole("switch", { name: "Show calorie estimates" }).click();
     await expect(page.locator("#meals-sheet .mealest-total")).toBeVisible();
     await audit(page, `a saved meal note with calories ${scheme}`);
-    await page.locator("#meals-sheet").getByRole("switch", { name: "Show calorie estimates" }).click();
-    await expect(page.locator("#meals-sheet .mealest-total")).toHaveCount(0);
-    await audit(page, `a saved meal note, calories hidden ${scheme}`);
     await ctx.close();
   });
 }

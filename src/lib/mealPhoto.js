@@ -11,7 +11,9 @@
    - the answer (foods, a portion guess and a calorie RANGE each, how sure) is cleaned again here (cleanAnswer), shown
      for her to edit or discard, and only what she saves is kept: in that meal note, as `est` (cleanEst), on this device
      and in her backups like the rest of the note. Solia Health keeps no copy of the photo anywhere;
-   - "Show calorie estimates" off (aiPrefs.hideCal) hides every calorie figure and portion guess; food names stay.
+   - "Show calorie estimates" off hides every calorie figure and portion guess; food names stay. Since 2026-11-25
+     (docs/plans/critique-fixes.md Task 3) it is OFF unless she turns it on (aiPrefs.showCal); she can pick a photo from
+     the camera ("Take a photo", capture="environment") or her library ("Choose a photo", no capture attribute).
    Guardrails: no targets, goals, "over" or "under", scores, streaks, colours for good or bad, or advice. Patterns and the
    AI summary never read `est` (lib/patterns.js, lib/aiSummary.js use the fixed chips only).
    Listed in docs/PRIVACY-AUDIT.md "Meal photos" and docs/CLINICIAN-REVIEW.md. */
@@ -103,14 +105,16 @@ export const MEAL_COPY = Object.freeze({
   adds: "When you choose a photo in Meal notes, Solia Health makes it smaller on this device, shows you the exact picture, and sends it only when you tap Send. It goes through Solia Health's server to Anthropic, maker of the Claude AI, which keeps it for a limited time. Nothing from your log goes with it. Solia Health's server never keeps the photo or the answer. Turning this off stops photos; estimates you already saved stay in your meal notes until you remove them.",
   needsNotes: "Meal notes is off. Turn it on in You → Your profile to use this.",
   showCal: "Show calorie estimates",
-  showCalHint: "Turn this off to hide every calorie figure and portion guess. The food names stay.",
+  showCalHint: "Off unless you turn it on: calorie figures and portion guesses stay hidden. The food names always show.",
   onSaid: "Meal photos on. Nothing is sent until you tap Send.",
   offSaid: "Meal photos off. Nothing more will be sent.",
   calOnSaid: "Calorie estimates are shown",
   calOffSaid: "Calorie estimates are hidden",
   // the Meals sheet
-  add: "Add from a photo",
-  replace: "Replace with a new photo",
+  take: "Take a photo",
+  choose: "Choose a photo",
+  takeAgain: "Take a new photo",
+  chooseAgain: "Choose a new photo",
   addHint: "Photograph only the food. You'll see exactly what will be sent before anything goes.",
   preparing: "Making the photo smaller on this device…",
   badPhoto: "That file couldn't be read as a photo. Nothing was sent.",
@@ -132,6 +136,7 @@ export const MEAL_COPY = Object.freeze({
   answerTitle: "What the photo shows",
   answerLead: "Change a name or remove anything that's wrong, then save. Nothing is saved until you do.",
   calNote: "A rough estimate from a photo. It can be well off.",
+  calHidden: "Calorie estimates are hidden. To see them, turn on \"Show calorie estimates\" in You → Solia Health's AI or at the bottom of the Meals sheet.",
   sureLab: "How sure the AI is",
   sure: Object.freeze({ low: "Not very sure", medium: "Fairly sure", high: "Quite sure" }),
   foodName: (n) => `Food ${n}`,

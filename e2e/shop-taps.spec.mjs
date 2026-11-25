@@ -1,7 +1,8 @@
 /* Anonymous shop tap counts (docs/plans/tracking-reports.md Task 1), the API build against the mock backend: opening a
    product ("Visit <brand>" or its picture) sends one POST whose body is exactly { productId }, with no sign-in token, no
    cookie and no referrer, even though she is signed in; the Shop footer and the privacy dashboard say so; with her
-   switch off nothing is sent and the footer says nothing is. The build without a server (the other bundle) never sends
+   switch off nothing is sent and the footer says nothing is. Since 2026-11-25 the switch is OFF until she turns it on
+   (in the Shop footer or in You → Privacy & your data). The build without a server (the other bundle) never sends
    a tap and has no switch. */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
@@ -21,6 +22,20 @@ test("opening a product sends exactly { productId }: no token, no cookie, no ref
   await register(page, { url: API_URL(), stage: "Trying to conceive", pcos: "no", signin: "email" });
   await openShop(page);
   const shop = page.locator("main.shoppage");
+  // 2026-11-25 (critique-fixes Task 3): OFF until she turns it on; the footer offers the switch once, quietly
+  const foot = shop.locator(".shopfoot");
+  await expect(foot).toContainText("Help Solia Health see which products people open?");
+  const ask = foot.getByRole("switch", { name: "Count my taps anonymously" });
+  await expect(ask).toHaveAttribute("aria-checked", "false");
+  await expect(foot).toContainText("Matched on this device; nothing about you is sent.");
+  await expect(foot).not.toContainText("anonymous tap");
+  const [popup0] = await Promise.all([page.waitForEvent("popup"), shop.locator('.shopcard[data-item="easyhome-lh"]').getByRole("link", { name: /Visit Easy@Home/ }).click()]);
+  await popup0.close();
+  await page.waitForTimeout(500);
+  expect(taps(state), "off by default: opening a product sends nothing").toEqual([]);
+  await ask.click();
+  await expect(ask).toHaveAttribute("aria-checked", "true");
+  await expect(page.locator(".toast")).toContainText("Shop taps are now counted anonymously from this device.");
   await expect(shop.locator(".shopfoot")).toContainText("When you open a product, Solia Health counts one anonymous tap for that product. It isn't linked to you or to anything you log.");
   await expect(shop.locator(".shopfoot")).toContainText("Matched on this device: your stage and what you log are never sent.");
   await expect(shop.locator(".shopfoot")).not.toContainText("nothing about you is sent");

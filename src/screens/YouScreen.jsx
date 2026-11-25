@@ -257,7 +257,7 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
                       {ai.mealNotesOn === false && <p className="modadds" id="ai-meals-needs">{MEAL_COPY.needsNotes}</p>}
                     </li>
                   )}
-                  {offer.meals && prefs.meals === true && <li className="airow-cal"><CalSwitch id="ai-mealcal" shown={prefs.hideCal !== true} onChange={(v) => ai.setPref("hideCal", !v)} /></li>}
+                  {offer.meals && prefs.meals === true && <li className="airow-cal"><CalSwitch id="ai-mealcal" shown={prefs.showCal === true} onChange={(v) => ai.setPref("showCal", v)} /></li>}
                 </ul>
                 {(prefs.weekly || prefs.chat) && (
                   <button type="button" role="checkbox" aria-checked={!!prefs.labs} aria-describedby="ai-labs-d" className={`consentopt ${prefs.labs ? "on" : ""}`} onClick={() => ai.setPref("labs", !prefs.labs)}>

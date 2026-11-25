@@ -2449,6 +2449,8 @@ replacement is literally true of the build it shows in; sign-in itself is unchan
 - **Her control:** "Count my shop taps anonymously" (You → Privacy & your data → How this works → What can leave this
   device), on by default, a device-only key (`shopTapsOff`, never in a backup, kept across a restore). Off: no tap
   request is made at all (unit and e2e tested). Delete everything resets it to on, like every other device setting.
+  **Superseded 2026-11-25 (critique-fixes Task 3): the count is now OFF by default for everyone, existing users included;
+  see "Critique fixes" at the end of this file.**
   A total already added can't be removed for one person, because nothing links it to her.
 - **Builds where nothing is sent:** no `VITE_API_BASE`, or the shop flag off: no request, no row, no switch.
 - **Sentences added or changed so each stays literally true:**
@@ -2921,4 +2923,33 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
   periods." (and, where the build offers a source, "A watch or ring adds temperature, which often rises after
   ovulation.") under "Based on your sign-up answer"; for Trying to conceive, "Solia Health is not a contraceptive." on Home,
   beside the Calendar's legend and in the empty fertility summary. See docs/CLINICIAN-REVIEW.md "Critique fixes".
+
+### Task 3: privacy defaults (shop tap count opt-in; calories hidden by default)
+- **Anonymous shop tap count is OPT-IN.** New device-only key `shopTapsOn` (never in a backup, kept across a restore):
+  nothing is sent until she turns "Count my shop taps anonymously" on, in You → Privacy & your data or in the Shop page's
+  footer ("Help Solia Health see which products people open?" / switch "Count my taps anonymously"). The older key
+  `shopTapsOff` still loads but is no longer read, so EVERY existing user starts with the count off: the old key could
+  not tell an explicit "on" from the default, so no earlier "on" is carried over (deviation from the brief's "may stay
+  on", in the stricter direction). Delete everything resets it to off. The request itself is unchanged.
+- Sentences changed (old → new):
+  - privacy list Details: "…Turn this off here and nothing is sent when you open a product." → "…It is off unless you
+    turn it on; while it is off, nothing is sent when you open a product."
+  - Shop footer (while on): "…You can turn this off in You → Privacy & your data." → "…You can turn this off here or in
+    You → Privacy & your data."; new footer offer "Help Solia Health see which products people open?" + "Count my taps
+    anonymously".
+  - toast: "Shop taps are counted anonymously again." → "Shop taps are now counted anonymously from this device."
+  - `public/legal/privacy.html`: "Anonymous shop tap counts (on unless you turn them off)" → "(off unless you turn them
+    on)"; "…the Shop tap totals described in Section 3, which you can turn off." → "…only if you turn it on, and you can
+    turn it off again."
+  - portal Clicks page note (`backend/public/portal/reports.js`): "(it is on unless she turns it off in the app)" → "(it is
+    off unless she turns it on in the app)".
+- **Meal photos: "Show calorie estimates" is OFF unless she turns it on** (`aiPrefs.showCal`, present only when true;
+  `hideCal` still loads, no longer read; device-only as before). Food names and "How sure the AI is" still show; the
+  answer says "Calorie estimates are hidden. To see them, turn on "Show calorie estimates" in You → Solia Health's AI or
+  at the bottom of the Meals sheet." Switch hint: "Turn this off to hide every calorie figure and portion guess. The food
+  names stay." → "Off unless you turn it on: calorie figures and portion guesses stay hidden. The food names always show."
+  What is sent is unchanged (the server still returns the ranges; the app only hides them).
+- **Meal photos: "Take a photo" (capture="environment") and "Choose a photo" (no capture attribute)** replace "Add from a
+  photo"; everything after the pick (made smaller on the device, previewed, sent only on Send) is unchanged.
+  `ios/App/App/Info.plist` camera string and docs/STORE-SETUP.md now name "Take a photo".
 

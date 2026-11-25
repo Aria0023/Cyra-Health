@@ -61,3 +61,18 @@ each task (compared line by line).
   smoke:all exit 0; build stamp once in dist; e2e full run 95 passed + 4 failed (the four specs above), then those three
   spec files re-run in full after the fix: 13/13 → 99/99 in all; axe full run 60 passed + 2 failed (devices-axe, the
   same missed card), then devices-axe re-run: 2/2 → 62/62.
+
+## Task 3: privacy defaults — DONE (final commit "Privacy defaults: shop tap count off unless she turns it on; calories hidden by default")
+- Shop taps opt-in: `lib/shopTaps.js` `tapsOn({ live, on })` / `sendShopTap(..., { on })`; new record key `shopTapsOn`
+  (device-only, not in backup; `shopTapsOff` kept loadable, unread). `lib/privacyFlows.js` row state from `shopTapsOn`.
+  Shop footer (`components/Shop.jsx`, `.shoptapask`): "Help Solia Health see which products people open?" + switch
+  "Count my taps anonymously", only where a tap can be sent (SHOP_LIVE). DEVIATION: nobody's earlier "on" carries over
+  (the old key could not record an explicit on), so it is off for every existing user.
+- Calories: `aiPrefs.showCal` (only when true); App/YouScreen/Meals sheet read it; answer line `MEAL_COPY.calHidden`.
+- Photo pick: two buttons/inputs (`data-pick="camera"` with capture="environment", `data-pick="library"` without).
+- Copy changed: see PRIVACY-AUDIT "Task 3" (every sentence old → new); CLINICIAN-REVIEW answered ("hidden by default, owner
+  decision 2026-11-25; clinician to confirm") + `mealphotos.calHidden`, `mealphotos.pick`; Info.plist; STORE-SETUP.
+- Tests changed: unit `shopTaps.test` (opt-in lines), `privacyFlows.test` (default state off), `record.test` (+shopTapsOn);
+  e2e `shop-taps.spec` (off by default, footer switch turns it on, then the old checks), `shop-taps-axe` (+footer offer),
+  `meal-photos.spec` (calories turned on where the test reads ranges; camera/library inputs; "Take a new photo"; new test
+  "calorie estimates are hidden by default"), `meal-photos-axe` (hidden first, then shown).

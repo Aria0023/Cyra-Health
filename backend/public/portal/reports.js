@@ -68,7 +68,7 @@ export function reportViews(L) {
       r.products.length ? table("Taps by product", ["Product", "Brand", "Taps"], r.products.map((p) => h("tr", { "data-product": p.productId }, h("th", { scope: "row" }, p.name), td(p.brand), td(num(p.taps), true))))
         : h("p", { class: "note" }, "No taps in this period yet."),
       h("div", { class: "acts" }, h("button", { type: "button", class: "btn", onclick: () => download(`/taps.csv?days=${clickDays}`, `solia-shop-taps-${clickDays}d.csv`, box) }, "Export CSV")),
-      h("p", { class: "note" }, "A tap is counted when someone opens a product from the Shop page with tap counting on (it is on unless she turns it off in the app). The app sends only the product's id; the server keeps one total per product per day, for 400 days."));
+      h("p", { class: "note" }, "A tap is counted when someone opens a product from the Shop page with tap counting on (it is off unless she turns it on in the app). The app sends only the product's id; the server keeps one total per product per day, for 400 days."));
   }
 
   /* ----- People: account and sign-in totals (owner). Counts only: no email, no name, no list of people. ----- */
