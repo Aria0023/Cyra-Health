@@ -3069,3 +3069,7 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
   many of them have an account or Pro, and joins per week), with any number under 10 shown as "fewer than 10". To count
   Pro, our server asks RevenueCat whether each account that joined has Pro, by account number only, and keeps only the
   total." Portal footer (backend/public/portal/index.html) changed: see the progress file. FLAG FOR ATTORNEY REVIEW.
+
+### Task 5: devices card, colour distinction — visual only
+- Home's "Connect a device" card gets a tinted surface, a coloured left edge, the device rows' icon chips and a filled
+  "See devices" (UI tokens only). No new sentence, request, stored value or key; the card's words are unchanged.

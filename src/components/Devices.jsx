@@ -84,10 +84,16 @@ export function DevicesSheet({ onClose, ...list }) {
 /** Home: shown until something is connected or she taps Not now (lib/devices.js homeDevicesCard). */
 export function DevicesHomeCard({ onOpen, onHide }) {
   return (
-    <Card id="home-devices" tint="body" icon="watch" title={C.homeTitle} level={2} className="devhome">
+    <Card id="home-devices" tint="mind" icon="watch" title={C.homeTitle} level={2} className="devhome">
+      {/* 2026-11-25 (upgrade-enterprise Task 5, owner: "still reads monotone"): a tinted surface with a coloured left edge,
+          the device rows' own icon chips (phone health, watch, ring: .devicon with their --devtint) and a filled "See
+          devices". UI tokens only (the domain tints and --primary), never a data-viz ramp; the words are unchanged. */}
+      <div className="devhome-chips" aria-hidden="true">
+        {[["phone", ROW_ICON.apple], ["ring", ROW_ICON.terra], ["ring", ROW_ICON.oura]].map(([kind, icon], i) => <span key={i} className="devicon" data-kind={kind}><Icon name={icon} size={20} /></span>)}
+      </div>
       <p className="hint">{C.homeBody}</p>
       <div className="devhome-acts">
-        <button type="button" className="ghostbtn" aria-haspopup="dialog" onClick={onOpen}>{C.homeOpen}</button>
+        <button type="button" className="cta devhome-go" aria-haspopup="dialog" onClick={onOpen}>{C.homeOpen}</button>
         <button type="button" className="linkbtn" onClick={onHide}>{C.homeHide}</button>
       </div>
     </Card>

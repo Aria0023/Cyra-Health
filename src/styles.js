@@ -537,6 +537,15 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 .devhow ol li { margin:0 0 4px; }
 .devhowto .bodypanel .devhow-note { color:var(--soft); }
 .devhome-acts { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin-top:10px; }
+/* 2026-11-25 (upgrade-enterprise Task 5): Home's "Connect a device" card stands apart in every style: its whole surface in
+   the ring/watch tint (the device rows' --tint-mind), a primary left edge like the device rows, their icon chips and a
+   filled "See devices". Specific enough to win over the style skins' card rules, so Mono and Clear keep it tinted too (their
+   tints are their own neutral greys, so the edge and the filled button carry the distinction there). Tokens only. */
+.cy[data-style] .v2card.devhome[data-tint] { background:linear-gradient(160deg, var(--tint-mind) 0, color-mix(in srgb, var(--tint-mind) 70%, var(--card)) 100%) var(--card); border-left:4px solid color-mix(in srgb, var(--primary) 70%, var(--tint-mind)); }
+.devhome-chips { display:flex; gap:8px; margin:2px 0 10px; }
+.devhome-chips .devicon[data-kind="phone"] { --devtint:var(--tint-body); } .devhome-chips .devicon[data-kind="ring"] { --devtint:var(--tint-patterns); }
+.devhome-chips .devicon { border-color:color-mix(in srgb, var(--primary) 30%, var(--edge)); }
+.devhome-acts .devhome-go { width:auto; flex:0 0 auto; min-height:44px; padding:10px 20px; margin:0; }
 .devhome-acts .linkbtn { min-height:44px; }
 .evcard .inp { margin-bottom:10px; }
 .evout { margin-top:14px; border-top:1px solid var(--line); padding-top:12px; }

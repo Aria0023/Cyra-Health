@@ -3152,3 +3152,5 @@ docs/PRIVACY-AUDIT.md (L10). No harness file was edited and no suite sets a lock
 - **Organization dashboards (Task 4):** an org admin (an email on the organization) signs in to the same portal and sees
   only its organization: people joined, signed-in accounts, Pro subscribers, joins per week; totals only, any number
   under 10 as "fewer than 10" (by the server). Owners see every organization. Every route checks the role on the server.
+- **Devices card (Task 5):** Home's "Connect a device" card stands apart in every style: its surface in the ring/watch tint,
+  a primary left edge, the device rows' icon chips and a filled "See devices" (tokens only; AA and axe in all nine styles).

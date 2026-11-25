@@ -213,3 +213,17 @@ Branch `feature/upgrade-enterprise`, worktree `/home/user/cyra-enterprise` (base
   | `npm run build` | ok; "BUILD 2026.10.07-D" once in dist |
   | e2e | 118/118 (117 + 1) |
   | axe | 72/72 (portal-enterprise-axe's two tests now also audit both dashboards) |
+
+## Task 5: devices card, colour distinction — IN PROGRESS
+- Home's "Connect a device" card (`src/components/Devices.jsx DevicesHomeCard`): tint `mind` (the ring/watch tint the device
+  rows use), its whole surface in that tint fading only to 70% (not the 92px top wash every tinted card has), a 4px left
+  edge in `--primary` mixed with the tint (like `.devrow`), the device rows' own icon chips (`.devicon` with `--devtint`:
+  phone health heart on `--tint-body`, watch and ring on `--tint-patterns`; icons from `ROW_ICON`; aria-hidden) and a
+  filled `cta` "See devices" (primary with `--on-primary`, AA in every palette). The rule is `.cy[data-style]
+  .v2card.devhome[data-tint]`, so Mono and Clear (which flatten tinted cards) keep it too; there the tints are their own
+  greys, and the edge and the filled button carry the distinction. Tokens only (the `--tint-*` domain tints from
+  src/lib/constants.js, `--primary`, `--edge`); no colour literal; no data-viz ramp. The words are unchanged.
+- No new user-facing sentence.
+- Tests: new `e2e/devices-look-axe.spec.mjs` (2: all nine styles, light and dark: three chips, a `.cta` button at 44px, a
+  4px edge, a surface unlike the other Home cards', axe 0 on the card and on Home).
+- Screenshots: shots16/devices-card-before-{light,dark}.png, devices-card-after-{light,dark}.png.
