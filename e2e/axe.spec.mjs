@@ -65,7 +65,7 @@ test("the Pro sheet: the store's prices, the trial, the renewal terms and tips (
     await expect(sheet.locator(".plantile")).toHaveCount(2);
     await expect(sheet.locator(".plantile").first()).toContainText("Yearly");
     await expect(sheet.locator(".plantile").first()).toContainText("7-day free trial");
-    await expect(sheet.locator(".protrialline")).toHaveText("Try Pro free for 7 days on the yearly plan, then $100.00 a year. Cancel any time.");
+    await expect(sheet.locator(".protrialline")).toHaveCount(0); // 2026-11-25 (critique-fixes Task 5): the trial is said on the yearly tile only
     await expect(sheet.locator("#pro-terms")).toContainText("Free for 7 days, then $100.00 a year. Renews every year until you cancel.");
     await expect(sheet.locator("#pro-terms")).toContainText("Cancel any time in Settings");
     await expect(sheet.getByRole("button", { name: /\$9\.99/ })).toBeVisible();
@@ -86,7 +86,7 @@ test("the Pro sheet on the web sells nothing: the two plan tiles and the price i
   await gotoYou(page, "Plan & account");
   await page.locator("#you-plan").getByRole("button", { name: "See what Pro adds" }).click();
   const sheet = page.locator("#pro-sheet");
-  await expect(sheet.locator(".protrialline")).toHaveText("Try Pro free for 7 days on the yearly plan, then $100 a year in the iPhone and Android apps. Cancel any time.");
+  await expect(sheet.locator(".protrialline")).toHaveCount(0); // 2026-11-25 (critique-fixes Task 5): the trial is said on the yearly tile only
   await expect(sheet.locator(".plantile")).toHaveText([/Yearly.*Best value.*\$100 a year.*About \$8\.33 a month.*7-day free trial/, /Monthly.*\$9\.95 a month/]);
   await expect(sheet.getByText("Coming soon to the App Store and Google Play")).toBeVisible();
   await expect(sheet.getByRole("button", { name: /free trial|Subscribe|App Store|Google Play/ })).toHaveCount(0);

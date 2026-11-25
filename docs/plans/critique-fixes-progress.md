@@ -135,3 +135,9 @@ Not user-facing or legal (unchanged): code comments; `public/legal/privacy.html`
   lines; the three `proTrialLine` lines removed with the function); e2e `guest.spec` (the sign-in step's words, the You
   card without a deadline until the last 12 hours, the gate heading "Create your account to keep going", Home's line
   without the story), `guest-axe` (gate heading); new `e2e/one-clock.spec.mjs` (1).
+- Also changed after the first full run: `plans.spec` "the web: You → Plan shows Yearly…" and `axe.spec` (both Pro sheet
+  tests) expected the removed `.protrialline`; they now check it is absent.
+- Verified 2026-11-25 on the Task 5 tree: lint 0 errors (25 warnings, same as main); app unit 722/722; backend 130/130;
+  smoke:all exit 0; build stamp once in dist; e2e full run 102 passed + 1 failed (plans.spec), then plans.spec re-run in
+  full: 2/2 → 103/103; axe full run 62 passed + 1 failed + 1 not run (axe.spec is serial), then axe.spec re-run in full
+  twice (the second web Pro sheet test also needed its line changed): 7/7 → 64/64.

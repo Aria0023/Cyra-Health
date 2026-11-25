@@ -32,7 +32,7 @@ test("the web: You → Plan shows Yearly with the 7-day free trial and Monthly; 
   await card.getByRole("button", { name: /See what Pro adds|See Pro plans/ }).click();
   const sheet = page.locator("#pro-sheet");
   await expect(sheet.locator(".plantile")).toHaveCount(2);
-  await expect(sheet.locator(".protrialline")).toHaveText("Try Pro free for 7 days on the yearly plan, then $100 a year in the iPhone and Android apps. Cancel any time.");
+  await expect(sheet.locator(".protrialline")).toHaveCount(0); // 2026-11-25 (critique-fixes Task 5): the store's trial is said on the yearly tile only
   // the tiles come before what Pro adds
   const top = await sheet.locator(".plantiles").boundingBox(), list = await sheet.locator(".prolist").boundingBox();
   expect(top.y).toBeLessThan(list.y);
