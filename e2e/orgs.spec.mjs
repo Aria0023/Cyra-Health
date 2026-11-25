@@ -76,6 +76,8 @@ test("a ?org= link: Join <name>?, nothing joined until Join; You → Your profil
   await expect(sheet.getByRole("heading", { name: "Join Lakeside Clinic?" })).toBeVisible();
   await expect(sheet).toContainText(PRIV);
   await expect(sheet).toContainText("Joining sends only the organization's name or code, and with your sign-in, your account notes which organization you joined.");
+  await expect(sheet.locator(".orgtotals")).toHaveText("Totals only. Its admins see how many people joined, how many of them have an account or Pro, and joins per week; any number under 10 shows as \"fewer than 10\", and they never see a name, an email or anything you log."); // Task 4
+  await expect(sheet.locator(".orgtotals strong")).toHaveText("Totals only.");
   expect(await page.evaluate(() => window.location.search)).toBe(""); // the link is taken out of the address bar
   expect(state.sent.filter((r) => r.path === "/api/orgs/join")).toHaveLength(0); // nothing joined yet
   await sheet.getByRole("button", { name: "Not now" }).first().click();

@@ -151,6 +151,7 @@ Branch `feature/upgrade-enterprise`, worktree `/home/user/cyra-enterprise` (base
   RECORD_IMPORTS), `features.test` (production modules + orgs), `youMenu` SECTION_PAGE `you-org`; e2e `orgs.spec.mjs` (4),
   `portal-orgs.spec.mjs` (2), `orgs-axe.spec.mjs` (2), `portal-enterprise-axe.spec.mjs` (+ Organizations pages); nav lists
   in `portal.spec` / `portal-subs.spec` gain "Organizations"; `e2e/lib/api.mjs` answers the three org routes.
+
 - Verified 2026-11-25 on the Task 3 tree (a clean worktree at the Task 3 WIP commit, full runs):
 
   | Check | Result |
@@ -163,3 +164,41 @@ Branch `feature/upgrade-enterprise`, worktree `/home/user/cyra-enterprise` (base
   | e2e | 117/117 (111 + 6) |
   | axe | 72/72 (70 + 2) |
 - The owner's Tasks 5 and 6 were appended to docs/plans/upgrade-enterprise.md in this commit (coordinator's request).
+
+## Task 4: organization dashboards — IN PROGRESS
+- Portal roles (`backend/src/modules/shop/index.js roleOf / auth`): a new role "orgAdmin" = an address listed in an
+  organization's `admins` (and not an owner or partner); `orgSlugs` = the organizations it is an admin of (null for an
+  owner; a partner who is also an org admin keeps the partner role plus `orgSlugs`). `auth(need)`: "any" now means owner
+  or partner (an org admin gets 403 on every shop, subscriptions and partner route), "owner", "org" (owner, or an admin of
+  at least one org), "session" (sign-out, /me). `me` shows `orgSlugs` only when it names an organization (so the existing
+  shop tests' `me` objects are unchanged).
+- Dashboards (`backend/src/modules/orgs/stats.js`, mounted by the orgs module): `GET /api/orgs/mine`, `GET
+  /api/orgs/:slug/stats` → people joined (all-time join totals), signed-in accounts that joined, Pro subscribers among them
+  (RevenueCat v1 `GET /v1/subscribers/{id}` per account, `revenuecat.js active()`, 10-minute cache, "not available" without
+  REVENUECAT_SECRET_KEY / REVENUECAT_PROJECT_ID; VERIFY AGAINST REVENUECAT'S DOCS like the other calls), joins per week (12
+  weeks, Monday-start UTC). Every number under 10 is sent as { value: null, fewerThan: 10, text: "fewer than 10" } by the
+  server. No people, emails or account ids. An org admin asking for any other slug (existing or not) gets 403.
+- Portal (`backend/public/portal/dash.js`; portal.js): an org admin's nav is "Dashboard" only, its header says
+  "Organization admin", sign-in lands on its dashboard, and every other hash shows the dashboard; owners get "Dashboards"
+  (every organization).
+- App: the join sheet and You → Your organization add, under the privacy line, verbatim: "Totals only. Its admins see how
+  many people joined, how many of them have an account or Pro, and joins per week; any number under 10 shows as "fewer
+  than 10", and they never see a name, an email or anything you log." (bold lead "Totals only.").
+- Portal sentences (dash.js, verbatim): "{name} dashboard" / "Organization dashboards" · "Totals only: how many people
+  joined, how many signed-in accounts and Pro subscribers, and joins per week. Nobody's name, email or health information
+  is shown, and Solia Health's server holds no health information." · stat labels "people joined", "signed-in accounts",
+  "Pro subscribers"; values "fewer than 10" / "not available" with "RevenueCat isn't set up on this server
+  (REVENUECAT_SECRET_KEY, REVENUECAT_PROJECT_ID)" or "RevenueCat didn't answer; try again later" · table "{name}: joins per
+  week", "Week of", "Joins" · "Totals as of {day} (UTC). Any number under 10 shows as "fewer than 10". "People joined"
+  counts every join with this organization's link or invite code, with or without an account; "signed-in accounts" are
+  accounts that joined it." · "Shown {time}." · "Edit this organization" · nav "Dashboard" (org admin) / "Dashboards"
+  (owner) · header role "Organization admin". Footer (index.html), changed sentence end: "…partner codes, the feedback
+  people send from the app, the app's settings, and organizations: their name, logo, colours, invite code and admins'
+  emails, with totals only of how many people joined, how many accounts and Pro subscribers they have and joins per week
+  (any number under 10 shown as "fewer than 10"); an organization's admin sees only its own organization's totals."
+- Tests: backend `orgs-stats.test.mjs` (6: masking and weeks; owner sees all; org admin sees only its org and gets 403 on
+  another org (existing or not), owner org routes and 6 shop routes; partner 403; anonymous and forged token 401; an admin
+  removed from the org is refused at once; Pro "not available" without RevenueCat); unit `org.test` +1 (the totals line);
+  e2e `portal-dashboard.spec.mjs` (1), `orgs.spec` (+2 assertions: the totals line and its bold lead),
+  `portal-enterprise-axe` (+ Dashboards, owner and org admin, phone and wide); nav lists in `portal.spec` /
+  `portal-subs.spec` gain "Dashboards".

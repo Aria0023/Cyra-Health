@@ -11,6 +11,7 @@
 //                                          token (optional), the account stores which organization it joined (orgSlug).
 //             POST /api/orgs/leave         { slug }: with the app's sign-in token, the account forgets the organization.
 //                                          Without one, nothing is stored or changed.
+//   Dashboards GET /api/orgs/mine · GET /api/orgs/:slug/stats — totals only, an owner or that organization's admins (stats.js)
 //   Owner     GET /api/orgs · POST /api/orgs · PATCH /api/orgs/:slug · POST/DELETE /api/orgs/:slug/logo
 //             (the portal's owner role, ADMIN_EMAILS, through the shop module's portal sign-in; a partner gets 403,
 //             nobody signed in 401). The old demo x-admin-key writes are gone.
@@ -29,6 +30,8 @@ import express from "express";
 import { rateLimiter } from "../../core/memory.js";
 import { normEmail, isEmail } from "../accounts/index.js";
 import { imageType } from "../shop/index.js";
+import { mountStats } from "./stats.js";
+import { revenueCat } from "../subscriptions/revenuecat.js";
 
 export const basePath = "/api/orgs";
 export const STAGE_IDS = Object.freeze(["cycle", "ttc", "preg", "peri", "meno"]);
@@ -122,7 +125,7 @@ export function publicOrg(o, logoData = null) {
 }
 export const newCode = () => Array.from(crypto.randomBytes(8), (b) => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[b % 32]).join("");
 
-export function mount(router, ctx, { clock = Date.now } = {}) {
+export function mount(router, ctx, { clock = Date.now, rc: rcOpt = null } = {}) {
   const { store, config } = ctx;
   if (!ctx.portal) throw new Error("orgs needs the shop module (the portal's sign-in) mounted before it");
   const { auth, audit } = ctx.portal;
@@ -187,6 +190,9 @@ export function mount(router, ctx, { clock = Date.now } = {}) {
     if (who && who.acct.orgSlug) await store.update("accounts", (a) => a.id === who.acct.id, { orgSlug: null });
     res.status(204).end();
   });
+
+  /* ================= dashboards: owners and the organization's admins (Task 4, stats.js) ================= */
+  mountStats(router, { store, auth, limited: limited(L.read), clock, rc: rcOpt || revenueCat(), isSolia });
 
   /* ================= owner ================= */
   const ownerView = (o) => ({ ...o, logo: o.logo ? { type: o.logo.type, bytes: o.logo.bytes, data: logoData(o) } : null });

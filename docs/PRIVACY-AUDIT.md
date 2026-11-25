@@ -3046,3 +3046,26 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
   apart from the note on your account if you were signed in. Your organization sees how many people joined, never what you
   log." FLAG FOR ATTORNEY REVIEW.
 - Every new app sentence: docs/plans/upgrade-enterprise-progress.md Task 3.
+
+### Task 4: organization dashboards — totals only; no new data from the app
+- **Who sees what:** an organization's admins (the emails an owner lists on it) sign in to the same portal with the same
+  emailed code and see only their organization: people joined (the daily join totals), signed-in accounts that joined,
+  Pro subscribers among those accounts, joins per week (12 weeks). Owners see every organization. Every number under 10 is
+  replaced by "fewer than 10" ON THE SERVER (`backend/src/modules/orgs/stats.js masked`), so the small number never
+  reaches the page. No list of people, no email, no account id, no health data (the server has none).
+- **Role checks on the server, every route:** `ctx.portal.auth("org")` and a slug check (another organization → 403,
+  existing or not); an org admin gets 403 on every owner route and every shop, subscriptions and partner route
+  (`auth("any")` now means owner or partner). Tests: `backend/test/orgs-stats.test.mjs`, `e2e/portal-dashboard.spec.mjs`.
+- **Pro count:** the server asks RevenueCat (v1 `GET /v1/subscribers/{account id}`) whether each account that joined has
+  the entitlement, keeps only the total for 10 minutes, and says "not available" without the RevenueCat keys. RevenueCat
+  already receives the account number while she is signed in (privacy.html "Pro and tips"); nothing new is sent to it
+  about her. VERIFY THE ENDPOINT AGAINST REVENUECAT'S DOCS before go-live, like the other calls in revenuecat.js.
+- **New app sentence (verbatim), beside the privacy line on the join sheet and You → Your organization:** "Totals only. Its
+  admins see how many people joined, how many of them have an account or Pro, and joins per week; any number under 10
+  shows as "fewer than 10", and they never see a name, an email or anything you log." ("Totals only." in bold.)
+- **Legal:** the "Joining an organization" row's last cell, verbatim: "Our server adds one to that organization's join
+  total for the day; it keeps no record of who joined, apart from the note on your account if you were signed in. Your
+  organization sees how many people joined, never what you log: its admins see totals only (how many people joined, how
+  many of them have an account or Pro, and joins per week), with any number under 10 shown as "fewer than 10". To count
+  Pro, our server asks RevenueCat whether each account that joined has Pro, by account number only, and keeps only the
+  total." Portal footer (backend/public/portal/index.html) changed: see the progress file. FLAG FOR ATTORNEY REVIEW.

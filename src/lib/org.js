@@ -22,6 +22,8 @@ export const LOGO_MAX_CHARS = 90_000; // a 64 KB image as base64, with its prefi
 /* Every sentence the org parts show (each literally true of this build). */
 export const ORG_COPY = Object.freeze({
   privacy: "Your organization sees how many people joined, never what you log.",
+  /* 2026-11-25 (upgrade-enterprise Task 4): exactly what its admins' dashboard shows (backend orgs/stats.js). */
+  totals: "Totals only. Its admins see how many people joined, how many of them have an account or Pro, and joins per week; any number under 10 shows as \"fewer than 10\", and they never see a name, an email or anything you log.",
   poweredBy: "Powered by Solia Health",
   codeLab: "Invite code (optional)",
   codeHint: "From your clinic or employer, if they gave you one.",

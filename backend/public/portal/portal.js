@@ -10,6 +10,7 @@ import { reportViews } from "./reports.js";
 import { launchViews } from "./launch.js";
 import { settingsViews } from "./settings.js";
 import { orgsViews } from "./orgs.js";
+import { dashViews } from "./dash.js";
 
 const CATEGORY_LABEL = { fertility: "Ovulation & fertility", pregnancy: "Pregnancy", labs: "Lab tests", glucose: "Blood sugar", wearables: "Wearables", periods: "Periods", meno: "Perimenopause & menopause", sleep: "Sleep" };
 const AVAIL_LABEL = { home: "Kit sent to your home", lab: "Sample taken at a lab", visit: "Online visit", app: "In an app", online: "Sold online", stores: "Sold online and in stores", rx: "By prescription" };
@@ -46,6 +47,8 @@ let ephemeral = null; // when sessionStorage is unavailable
 const token = () => (session || ephemeral)?.token || null;
 const me = () => (session || ephemeral)?.me || null;
 const isOwner = () => me()?.role === "owner";
+const isOrgAdmin = () => me()?.role === "orgAdmin"; // 2026-11-25 (upgrade-enterprise Task 4): sees only its organizations' totals
+const ROLE_WORD = { owner: "Owner", partner: "Partner", orgAdmin: "Organization admin" };
 const fmtTime = (iso) => { try { return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }); } catch { return iso || ""; } };
 const monogramOf = (b) => b?.monogram || (() => { const w = String(b?.name || "").split(/[^A-Za-z]+/).filter(Boolean); return w.length >= 2 ? (w[0][0] + w[1][0]).toUpperCase() : (w[0] || "?").slice(0, 2).toUpperCase(); })();
 const hueOf = (b) => { if (b?.hue && HUES.includes(b.hue)) return b.hue; let x = 0; for (const ch of String(b?.name || "")) x = (x * 31 + ch.charCodeAt(0)) >>> 0; return HUES[x % HUES.length]; };
@@ -75,18 +78,19 @@ function renderWho() {
   const who = document.getElementById("who"), nav = document.getElementById("nav");
   who.replaceChildren(); nav.replaceChildren();
   if (!me()) { nav.hidden = true; return; }
-  who.append(h("span", {}, "Signed in as ", h("b", { text: me().email }), ` · ${isOwner() ? "Owner" : "Partner"}`),
+  who.append(h("span", {}, "Signed in as ", h("b", { text: me().email }), ` · ${ROLE_WORD[me().role] || "Partner"}`),
     h("button", { type: "button", class: "btn small", onclick: async () => { try { await api("POST", "/auth/sign-out", {}); } catch { /* ends locally anyway */ } endSession("You're signed out."); } }, "Sign out"));
   const links = isOwner()
-    ? [["#/", "Overview"], ["#/readiness", "Readiness"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/subscriptions", "Subscriptions"], ["#/promotions", "Promotions"], ["#/grants", "Pro grants"], ["#/codes", "Codes"], ["#/clicks", "Clicks"], ["#/people", "People"], ["#/affiliates", "Affiliates"], ["#/weekly", "Weekly report"], ["#/ai-costs", "AI costs"], ["#/feedback", "Feedback"], ["#/settings", "App settings"], ["#/orgs", "Organizations"], ["#/activity", "Activity"]]
-    : [["#/products", "Products"], ["#/brands", "Brands"], ["#/codes", "Codes"], ["#/clicks", "Clicks"]];
+    ? [["#/", "Overview"], ["#/readiness", "Readiness"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/subscriptions", "Subscriptions"], ["#/promotions", "Promotions"], ["#/grants", "Pro grants"], ["#/codes", "Codes"], ["#/clicks", "Clicks"], ["#/people", "People"], ["#/affiliates", "Affiliates"], ["#/weekly", "Weekly report"], ["#/ai-costs", "AI costs"], ["#/feedback", "Feedback"], ["#/settings", "App settings"], ["#/orgs", "Organizations"], ["#/dashboard", "Dashboards"], ["#/activity", "Activity"]]
+    : isOrgAdmin() ? [["#/dashboard", "Dashboard"]]
+    : [["#/products", "Products"], ["#/brands", "Brands"], ["#/codes", "Codes"], ["#/clicks", "Clicks"], ...((me().orgSlugs || []).length ? [["#/dashboard", "Dashboard"]] : [])];
   for (const [href, label] of links) nav.append(h("a", { href, "data-nav": href }, label));
   nav.hidden = false;
   markNav();
 }
 function markNav() {
   const cur = location.hash.replace(/\?.*$/, "") || "#/";
-  const top = cur.startsWith("#/product") ? "#/products" : cur.startsWith("#/brand") ? "#/brands" : cur.startsWith("#/promotion") ? "#/promotions" : cur.startsWith("#/org/") ? "#/orgs" : cur;
+  const top = cur.startsWith("#/product") ? "#/products" : cur.startsWith("#/brand") ? "#/brands" : cur.startsWith("#/promotion") ? "#/promotions" : cur.startsWith("#/org/") ? "#/orgs" : cur.startsWith("#/dashboard/") ? "#/dashboard" : cur;
   for (const a of document.querySelectorAll("#nav a")) { if (a.dataset.nav === top || (top === "#/" && !isOwner() && a.dataset.nav === "#/products")) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); }
 }
 
@@ -163,7 +167,7 @@ function renderCode(addr, dev) {
       store.set(session);
       if (!store.get()) { ephemeral = session; session = null; }
       renderWho();
-      location.hash = isOwner() ? "#/" : "#/products";
+      location.hash = isOwner() ? "#/" : isOrgAdmin() ? "#/dashboard" : "#/products";
       route();
     } catch (err) {
       tell(box, err.why === "none" ? "This address has no portal access. Ask Solia Health for an invitation." : err.message, "err");
@@ -535,6 +539,9 @@ const appSettings = settingsViews({ h, api, show, field, textIn, area, select, m
 /* ----- Organizations (orgs.js; owner only) ----- */
 const organizations = orgsViews({ h, api, show, field, textIn, area, select, checks, checked, msgBox, tell, fmtTime });
 
+/* ----- organization dashboards (dash.js; owners and organization admins) ----- */
+const dashboards = dashViews({ h, api, show, fmtTime, table: reports.table, td: reports.td });
+
 /* ---------- router ---------- */
 async function route() {
   if (/\/apply\/?$/.test(location.pathname)) return renderApply();
@@ -543,6 +550,9 @@ async function route() {
   const hash = location.hash || "#/";
   const m = /^#\/(product|brand)\/(.+)$/.exec(hash);
   try {
+    if ((isOwner() || me().orgSlugs?.length) && hash === "#/dashboard") return await dashboards.renderDashboards();
+    if ((isOwner() || me().orgSlugs?.length) && hash.startsWith("#/dashboard/")) return await dashboards.renderDashboard(decodeURIComponent(hash.slice("#/dashboard/".length)));
+    if (isOrgAdmin()) return await dashboards.renderDashboards();
     if (m) return await (m[1] === "product" ? renderProduct(decodeURIComponent(m[2])) : renderBrand(decodeURIComponent(m[2])));
     if (hash === "#/brands") return await renderBrands();
     if (hash === "#/codes") return await subs.renderCodes();

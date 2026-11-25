@@ -58,3 +58,11 @@ test("the app and the backend agree on stages and the colour check", () => {
   const row = { slug: "lakeside", name: "Lakeside Clinic", theme: server.cleanOrg({ theme: CFG.theme }).patch.theme, stages: ["peri"], partnerIds: null };
   assert.ok(cleanOrgConfig(server.publicOrg(row, null)));
 });
+
+test("Task 4: the line where she joins says exactly what the dashboard shows, with a bold lead", async () => {
+  const { splitLead } = await import("./lead.js");
+  const { SMALL } = await import("../../backend/src/modules/orgs/stats.js");
+  assert.equal(splitLead(ORG_COPY.totals)[0], "Totals only.");
+  assert.match(ORG_COPY.totals, new RegExp(`under ${SMALL} shows as "fewer than ${SMALL}"`));
+  for (const w of ["joined", "an account", "Pro", "joins per week", "never see a name, an email or anything you log"]) assert.ok(ORG_COPY.totals.includes(w), w);
+});

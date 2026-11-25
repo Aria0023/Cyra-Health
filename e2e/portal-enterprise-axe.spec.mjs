@@ -1,6 +1,7 @@
 /* axe-core on the portal's enterprise pages (docs/plans/upgrade-enterprise.md), light and dark, phone and wide, against a
    real development backend (e2e/lib/portal.mjs): App settings empty, with a form error and after saves (the change log); Organizations empty, a
-   new one with a colour below AA, and a created one with its logo (Task 3).
+   new one with a colour below AA, and a created one with its logo (Task 3); Dashboards for an owner and an organization's
+   admin, phone and wide (Task 4).
    Every target is checked at 44px. */
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -63,6 +64,18 @@ for (const scheme of ["light", "dark"]) {
       await page.getByRole("button", { name: "Upload logo" }).click();
       await expect(page.locator(".msgbox .ok")).toHaveText("Logo uploaded.");
       await audit(page, `Organization with a logo ${scheme}`);
+      // Dashboards (Task 4): an owner's view of every organization, then its admin's own
+      await page.locator("#who").getByRole("button", { name: "Sign out" }).waitFor();
+      await nav(page, "Dashboards");
+      await expect(page.locator("[data-dash]")).toHaveCount(1);
+      await audit(page, `Dashboards, owner ${scheme}`);
+      const token = await page.evaluate(() => JSON.parse(sessionStorage.getItem("solia.portal")).token);
+      await fetch(`${be.url}/api/orgs/lakeside`, { method: "PATCH", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify({ admins: ["ana@lakeside.example"] }) });
+      await page.locator("#who").getByRole("button", { name: "Sign out" }).click();
+      await portalSignIn(page, be, "ana@lakeside.example", "Lakeside Clinic dashboard");
+      await audit(page, `Dashboard, org admin ${scheme}`);
+      await page.setViewportSize({ width: 1200, height: 900 });
+      await audit(page, `Dashboard, org admin, wide ${scheme}`);
     } finally { await ctx.close(); await be.stop(); }
   });
 }

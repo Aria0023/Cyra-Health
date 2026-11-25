@@ -56,6 +56,7 @@ export function OrgCard({ org, onJoin, onLeave }) {
           <p className="orgwho"><OrgLogo org={org} size={40} /><b>{org.name}</b></p>
           <p>{C.cardIn(org.name)}</p>
           <p className="rfoot orgpriv"><Icon name="shield" size={14} />{C.privacy}</p>
+          <p className="hint orgtotals"><Lead>{C.totals}</Lead></p>
           <button type="button" className="ghostbtn orgleave" onClick={onLeave}>{C.leave(org.name)}</button>
         </>
       ) : (
@@ -79,6 +80,7 @@ export function OrgJoinSheet({ offer, onJoin, onClose }) {
       <p><Lead>{C.joinLead(offer.name)}</Lead></p>
       <p className="hint">{C.joinWhat}</p>
       <p className="rfoot orgpriv"><Icon name="shield" size={14} />{C.privacy}</p>
+      <p className="hint orgtotals"><Lead>{C.totals}</Lead></p>
       {err && <p className="ainote orgerr" role="alert">{err}</p>}
       <div className="aisend-acts">
         <button type="button" className="cta" disabled={busy} onClick={join}>{busy ? C.joining : C.join}</button>

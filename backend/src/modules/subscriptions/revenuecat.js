@@ -9,6 +9,8 @@
 //   v2  GET  /v2/projects/{project_id}/offerings?limit=…                     offering identifiers, for the promotion editor
 //   v1  POST /v1/subscribers/{app_user_id}/entitlements/{entitlement}/promotional        body { duration }
 //   v1  POST /v1/subscribers/{app_user_id}/entitlements/{entitlement}/revoke_promotionals
+//   v1  GET  /v1/subscribers/{app_user_id}                                    whether the entitlement is active (2026-11-25,
+//                                                                            an organization dashboard's Pro count only)
 //
 // Secrets: REVENUECAT_SECRET_KEY (a secret API key, server only: never in the app, never logged, never sent anywhere but
 // RevenueCat's API host) and REVENUECAT_PROJECT_ID. If RevenueCat's v1 endpoints refuse the v2 key, set
@@ -29,6 +31,7 @@ export const RC_PATHS = Object.freeze({
   metricsOverview: (projectId) => `/v2/projects/${encodeURIComponent(projectId)}/metrics/overview`,
   offerings: (projectId) => `/v2/projects/${encodeURIComponent(projectId)}/offerings?limit=100`,
   grantPromotional: (appUserId, entitlement) => `/v1/subscribers/${encodeURIComponent(appUserId)}/entitlements/${encodeURIComponent(entitlement)}/promotional`,
+  subscriber: (appUserId) => `/v1/subscribers/${encodeURIComponent(appUserId)}`,
   revokePromotional: (appUserId, entitlement) => `/v1/subscribers/${encodeURIComponent(appUserId)}/entitlements/${encodeURIComponent(entitlement)}/revoke_promotionals`,
 });
 
@@ -97,6 +100,15 @@ export function revenueCat({ env = process.env, fetchImpl = globalThis.fetch, ti
       const e = j?.subscriber?.entitlements?.[entitlement];
       const exp = e && typeof e.expires_date === "string" && !Number.isNaN(Date.parse(e.expires_date)) ? new Date(e.expires_date).toISOString() : null;
       return { expiresAt: exp };
+    },
+    /** Whether this app user's entitlement is active now (no expiry, or one in the future) → true | false. A count is all
+        that is made of it (backend/src/modules/orgs/stats.js); nothing from the answer is kept. */
+    async active(appUserId, now = Date.now()) {
+      if (!APP_USER_RE.test(String(appUserId))) throw new RcError("not an account id");
+      const j = await call("GET", RC_PATHS.subscriber(appUserId), { secret: v1Key });
+      const e = j?.subscriber?.entitlements?.[entitlement];
+      if (!e || typeof e !== "object") return false;
+      return e.expires_date == null || (typeof e.expires_date === "string" && Date.parse(e.expires_date) > now);
     },
     /** Revokes every promotional grant of the entitlement for this app user (RevenueCat has no per-grant revoke). */
     async revoke(appUserId) {

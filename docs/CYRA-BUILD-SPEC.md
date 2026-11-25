@@ -3149,3 +3149,6 @@ docs/PRIVACY-AUDIT.md (L10). No harness file was edited and no suite sets a lock
   `?org=<slug>` (a "Join <name>?" sheet) or an invite code (registration, You → Your profile); the app wears the name, logo
   and colours, limits registration's stage cards, filters the Shop and remembers it (record key `org`, device-only).
   Leaving restores Solia's look. "Powered by Solia Health" stays visible.
+- **Organization dashboards (Task 4):** an org admin (an email on the organization) signs in to the same portal and sees
+  only its organization: people joined, signed-in accounts, Pro subscribers, joins per week; totals only, any number
+  under 10 as "fewer than 10" (by the server). Owners see every organization. Every route checks the role on the server.

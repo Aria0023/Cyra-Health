@@ -300,11 +300,19 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, mailer,
   }
 
   /* ---------- who is signed in ---------- */
+  /* Roles (2026-11-25, docs/plans/upgrade-enterprise.md Task 4): "orgAdmin" = an address listed as an admin on an
+     organization (orgs module); it sees only its organizations' totals. orgSlugs: the organizations this address is an
+     admin of (null for an owner: every one). A partner who is also an org admin keeps the partner role and its orgSlugs. */
   async function roleOf(email) {
-    if (owners().includes(email)) return { role: "owner", brandIds: null };
+    if (owners().includes(email)) return { role: "owner", brandIds: null, orgSlugs: null };
     const p = await store.findOne("shop_partners", (r) => r.email === email);
-    return p ? { role: "partner", brandIds: [...(p.brandIds || [])] } : null;
+    const orgSlugs = (await store.find("orgs")).filter((o) => Array.isArray(o.admins) && o.admins.includes(email)).map((o) => o.slug);
+    if (p) return { role: "partner", brandIds: [...(p.brandIds || [])], orgSlugs };
+    return orgSlugs.length ? { role: "orgAdmin", brandIds: [], orgSlugs } : null;
   }
+  /* need: "any" = an owner or a partner (the shop's and the subscriptions' shared routes); "owner"; "org" = an owner or an
+     admin of at least one organization (the orgs module's dashboards, which then check the slug); "session" = any
+     signed-in role (sign-out, /me). An org admin gets 403 on everything that isn't "org" or "session". */
   const auth = (need = "any") => async (req, res, next) => {
     res.set("cache-control", "no-store");
     const m = /^Bearer\s+(\S+)$/.exec(req.get("authorization") || "");
@@ -315,9 +323,13 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, mailer,
     const r = await roleOf(p.a);
     if (!r) return res.status(401).json({ error: "not signed in" });
     if (need === "owner" && r.role !== "owner") return res.status(403).json({ error: "only an owner can do this" });
+    if (need === "any" && r.role !== "owner" && r.role !== "partner") return res.status(403).json({ error: "only an owner or a partner can do this" });
+    if (need === "org" && r.role !== "owner" && !(r.orgSlugs || []).length) return res.status(403).json({ error: "only an owner or an organization's admin can do this" });
     req.portal = { email: p.a, sid: s.sid, ...r };
     next();
   };
+  // What the portal page is told about a role: orgSlugs only when it names an organization.
+  const meOf = (r) => ({ role: r.role, brandIds: r.brandIds, ...(r.orgSlugs && r.orgSlugs.length ? { orgSlugs: [...r.orgSlugs] } : {}) });
   const mayBrand = (who, brandId) => who.role === "owner" || who.brandIds.includes(brandId);
   const reading = limited(L.read), writing = limited(L.write);
   // The portal's sign-in, shared with modules mounted after this one (subscriptions, docs/plans/portal-subscriptions.md):
@@ -436,15 +448,15 @@ export function mount(router, ctx, { clock = Date.now, sweepMs = 30_000, mailer,
     await store.insert("shop_sessions", { sid: sidHash(sid), email, createdAt: now(), exp });
     if (role.role === "partner") await store.update("shop_partners", (p) => p.email === email, { status: "active", lastSignInAt: now() });
     await audit(email, "sign-in", `person:${email}`);
-    res.json({ token: signToken({ a: email, s: sid, x: exp, aud: "portal" }, key), me: { email, ...role }, expiresAt: new Date(exp).toISOString() });
+    res.json({ token: signToken({ a: email, s: sid, x: exp, aud: "portal" }, key), me: { email, ...meOf(role) }, expiresAt: new Date(exp).toISOString() });
   });
 
-  router.post("/auth/sign-out", auth(), async (req, res) => {
+  router.post("/auth/sign-out", auth("session"), async (req, res) => {
     await store.remove("shop_sessions", (s) => s.sid === req.portal.sid);
     res.sendStatus(204);
   });
 
-  router.get("/me", reading, auth(), (req, res) => res.json({ me: { email: req.portal.email, role: req.portal.role, brandIds: req.portal.brandIds } }));
+  router.get("/me", reading, auth("session"), (req, res) => res.json({ me: { email: req.portal.email, ...meOf(req.portal) } }));
 
   /* ================= brands ================= */
   router.get("/brands", reading, auth(), async (req, res) => {
