@@ -53,7 +53,7 @@ const PLANS_LAB = "Pro plans";
 export const CODE_COPY = Object.freeze({ lab: "Have a code?", open: "Have a code?", codeLab: "Your code", redeemPlay: "Redeem in Google Play" });
 export const untilLine = (iso) => { try { return `Pro until ${new Date(iso).toLocaleDateString(undefined, { dateStyle: "long" })}`; } catch { return ""; } };
 
-export default function ProSheet({ onClose, unlocked = false, owned = false, ai = false, cloud = false, gateOn = false, trialOver = false, store = null, native = false, onOwned, onRestore, ping, promo = null, onHidePromo = null, until = null, onCodeDone = null }) {
+export default function ProSheet({ onClose, unlocked = false, owned = false, ai = false, cloud = false, gateOn = false, trialOver = false, store = null, native = false, onOwned, onRestore, ping, promo = null, onHidePromo = null, until = null, onCodeDone = null, refs = null }) {
   const selling = !!(store && store.available) && !owned;
   const [offer, setOffer] = useState(null); // null while the store hasn't answered
   const [pick, setPick] = useState("annual");
@@ -90,7 +90,7 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
   // a promotion's offering: the button and terms name the trial its store product really has (none = none)
   const lines = shown && shown.plans && shown.plans[pick] ? planLines(pick, promoPlans ? { ...shown.plans[pick], trialDays: storeTrialDays(shown.plans[pick].pkg && shown.plans[pick].pkg.product) } : shown.plans[pick]) : null;
   const where = native ? "store" : "web";
-  const tiles = owned ? [] : planTiles({ where, offer: native ? shown : null });
+  const tiles = owned ? [] : planTiles({ where, offer: native ? shown : null, refs });
   const buy = async () => {
     if (busy || !lines) return;
     setBusy(true);

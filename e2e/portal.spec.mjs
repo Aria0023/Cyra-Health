@@ -29,7 +29,7 @@ test("apply, then the owner approves, sets up a product, publishes it, and expor
   // the owner
   await portalSignIn(page, be, OWNER, "Overview");
   await expect(page.locator(".who")).toContainText(`Signed in as ${OWNER} · Owner`);
-  await expect(page.getByRole("navigation", { name: "Portal" }).getByRole("link")).toHaveText(["Overview", "Readiness", "Products", "Brands", "Applications", "Partners", "Subscriptions", "Promotions", "Pro grants", "Codes", "Clicks", "People", "Affiliates", "Weekly report", "AI costs", "Feedback", "Activity"]);
+  await expect(page.getByRole("navigation", { name: "Portal" }).getByRole("link")).toHaveText(["Overview", "Readiness", "Products", "Brands", "Applications", "Partners", "Subscriptions", "Promotions", "Pro grants", "Codes", "Clicks", "People", "Affiliates", "Weekly report", "AI costs", "Feedback", "App settings", "Activity"]);
   await expect(page.locator(".stats").first()).toContainText("Applications waiting");
   await page.getByRole("link", { name: "Review applications" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Applications" })).toBeFocused();

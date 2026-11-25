@@ -1,4 +1,7 @@
 /* global __CYRA_DEV_GALLERY__ */
+/* First of all (2026-11-25, upgrade-enterprise Task 2): the kept copy of the owner's app settings, read before lib/features.js
+   runs, so a feature the owner turned off is off from this start (lib/appConfigBoot.js; app settings only). */
+import "./lib/appConfigBoot.js";
 import React, { lazy, Suspense, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 /* Fonts are bundled with the app (SIL Open Font License; the licence texts ship in

@@ -1156,6 +1156,11 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 .youmenu-nav { margin:0 0 var(--stack); }
 /* 2026-11-25 (upgrade-enterprise Task 1): "Upgrade to Pro" above the rows (a filled primary .cta, at least 44px). */
 .youupgrade { margin:0 0 var(--stack); }
+/* 2026-11-25 (upgrade-enterprise Task 2): the owner's Home announcement and Help lines (plain text from the app settings). */
+.homeannounce { display:flex; gap:8px; align-items:flex-start; margin:0 0 12px; padding:10px 14px; border-radius:var(--r-card); background:var(--card); border:1px solid var(--line); color:var(--ink); font-size:var(--fs-lg); }
+.homeannounce > svg { flex:none; margin-top:3px; color:var(--primary); }
+.helpextra { margin:12px 0 0; }
+.helpextra p { margin:0 0 8px; }
 .youupgrade-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:48px; }
 .yourows { list-style:none; margin:0; padding:0; display:grid; gap:10px; }
 .yourow { display:flex; align-items:center; gap:14px; width:100%; min-height:68px; padding:12px 14px; text-align:left; border:1px solid var(--edge); border-radius:var(--r-card); background:var(--card); box-shadow:var(--sh-card); color:var(--ink); font:inherit; cursor:pointer; transition:background-color var(--t-fast), border-color var(--t-fast); }

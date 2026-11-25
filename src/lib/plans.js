@@ -42,9 +42,10 @@ export const PLANS_COPY = Object.freeze({
   webOnly: "Pro is sold only in the iPhone and Android apps. Nothing is sold on the web.",
 });
 
-/** The web's tiles: the US reference prices (web wording only). */
-export function webTiles() {
-  const a = PRO_PRODUCTS.annual, m = PRO_PRODUCTS.monthly;
+/** The web's tiles: the US reference prices (web wording only). refs (2026-11-25, upgrade-enterprise Task 2): the owner's
+    reference prices from the portal's App settings, each falling back to the built-in one. */
+export function webTiles(refs = null) {
+  const a = { ...PRO_PRODUCTS.annual, ref: refs?.annual || PRO_PRODUCTS.annual.ref }, m = { ...PRO_PRODUCTS.monthly, ref: refs?.monthly || PRO_PRODUCTS.monthly.ref };
   const perMonth = perMonthOf(Number(a.ref.replace(/[^\d.]/g, "")), a.ref);
   return [
     { id: "annual", title: "Yearly", price: `${a.ref} a year`, note: perMonth ? `About ${perMonth} a month` : null, trial: a.trialDays ? PLANS_COPY.trialBadge(a.trialDays) : null, trialDays: a.trialDays, best: true },
@@ -53,8 +54,8 @@ export function webTiles() {
 }
 
 /** The tiles for where she is: "web" → webTiles(); "store" → the store offer's plans only (none until it answers). */
-export function planTiles({ where = "web", offer = null } = {}) {
-  if (where === "web") return webTiles();
+export function planTiles({ where = "web", offer = null, refs = null } = {}) {
+  if (where === "web") return webTiles(refs);
   const plans = offer && offer.plans && typeof offer.plans === "object" ? offer.plans : {};
   return PRO_PLAN_IDS.filter((id) => plans[id]).map((id) => {
     const l = planLines(id, plans[id]);

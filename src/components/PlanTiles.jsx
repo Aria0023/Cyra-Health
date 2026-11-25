@@ -59,7 +59,7 @@ export function GetInApp({ id = "getinapp" }) {
 
 /** You → Plan's tiles: the web's reference tiles and "Get Solia Health Pro in the app"; on a phone the store's own tiles
     once its offer has answered (nothing while it hasn't, or with no store: no reference price on a phone). */
-export function PlanCardTiles({ store = null, native = false, promo = null, onHidePromo = null }) {
+export function PlanCardTiles({ store = null, native = false, promo = null, onHidePromo = null, refs = null }) {
   const [offer, setOffer] = useState(null);
   const [promoOffer, setPromoOffer] = useState(null);
   const promoId = promo && native && store && store.available ? promo.offeringId : null;
@@ -77,7 +77,7 @@ export function PlanCardTiles({ store = null, native = false, promo = null, onHi
   }, [promoId, store]);
   const banner = promoBanner(promo, { where: native ? "store" : "web", offer: promoOffer, lines: planLines, trialDays: storeTrialDays });
   const shown = promoOffer && promoOffer.ok && Object.keys(promoOffer.plans || {}).length ? promoOffer : offer;
-  const tiles = native ? planTiles({ where: "store", offer: shown }) : planTiles({ where: "web" });
+  const tiles = native ? planTiles({ where: "store", offer: shown }) : planTiles({ where: "web", refs });
   if (!tiles.length && !banner) return null;
   return (
     <div className="youplantiles">

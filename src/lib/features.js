@@ -47,8 +47,10 @@ export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts:
     (promotions the app downloads with GET /api/promotions/active, Pro grants, partner codes) is the subscriptions module;
     insights (2026-11-19) is the portal's owner-only totals (accounts and sign-ins; the app never calls it); feedback
     (2026-11-19) takes You → Help & about's "Send feedback" / "Report a problem" (POST /api/feedback, lib/feedback.js: offered in
-    any build with a server) and holds the portal's owner-only inbox, which needs the shop module's portal sign-in. */
-export const FEATURE_ALSO = Object.freeze({ signin: Object.freeze(["oauth"]), shop: Object.freeze(["portal", "subscriptions", "insights", "feedback"]) });
+    any build with a server) and holds the portal's owner-only inbox, which needs the shop module's portal sign-in; settings
+    (2026-11-25) is the portal's owner-only App settings and the public GET /api/app-config the app downloads at start in any
+    build with a server (lib/appConfig.js); its writes need the shop module's portal sign-in. */
+export const FEATURE_ALSO = Object.freeze({ signin: Object.freeze(["oauth"]), shop: Object.freeze(["portal", "subscriptions", "insights", "feedback", "settings"]) });
 
 const words = (raw) => String(raw).split(",").map((w) => w.trim()).filter(Boolean);
 const known = (w) => FEATURE_NAMES.find((n) => n.toLowerCase() === w.toLowerCase());
@@ -92,8 +94,23 @@ export function parseDevFlags(raw) {
   return Object.fromEntries(DEV_FLAG_NAMES.map((n) => [n, all || list.some((w) => w.toLowerCase() === n.toLowerCase())]));
 }
 
-/** This build's flags (frozen). */
-export const FEATURES = Object.freeze(parseFeatures(import.meta.env?.VITE_FEATURES));
+/* Owner settings (2026-11-25, docs/plans/upgrade-enterprise.md Task 2; backend settings module, GET /api/app-config): the
+   owner can turn OFF some of the features this build offers, never turn one on. Only these may be turned off from there:
+   sign-in, the on-device sources and the encrypted backup never are (someone could be cut off from her account or her
+   backup). The list comes from the copy of the app config this device last downloaded (lib/appConfigBoot.js puts it on
+   globalThis.__soliaAppConfig before this module runs), so a change applies from the next start of the app. */
+export const REMOTE_OFF = Object.freeze(["ai", "shop", "wearables", "webReminders", "counts"]);
+/** flags with the names in `off` (only REMOTE_OFF names) turned off; never turns anything on. */
+export const withRemoteOff = (flags, off) => {
+  const out = { ...flags };
+  for (const n of Array.isArray(off) ? off : []) if (REMOTE_OFF.includes(n)) out[n] = false;
+  return out;
+};
+const bootOff = () => { try { const c = globalThis.__soliaAppConfig; return c && Array.isArray(c.featuresOff) ? c.featuresOff : []; } catch { return []; } };
+/** What this build offers before the owner's settings (frozen). */
+export const BUILD_FEATURES = Object.freeze(parseFeatures(import.meta.env?.VITE_FEATURES));
+/** This build's flags (frozen), less any the owner turned off. */
+export const FEATURES = Object.freeze(withRemoteOff(BUILD_FEATURES, bootOff()));
 
 /** This build's developer flags (frozen). */
 export const DEV_FLAGS = Object.freeze(parseDevFlags(import.meta.env?.VITE_FEATURES));

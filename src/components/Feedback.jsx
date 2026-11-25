@@ -13,7 +13,7 @@ import { FEEDBACK_COPY as C, HELP_COPY as H, FEEDBACK_MAX, FEEDBACK_KINDS, feedb
    signed in with an email (off by default), and "What will be sent": a list built from the very object that is
    posted, so the preview and the request cannot differ. NOTHING is sent while she types, toggles or reads the
    preview: the one request is made by the Send button (onSend(payload)). */
-export function HelpCard({ items = [], canSend = false, onOpen, supportEmail = "" }) {
+export function HelpCard({ items = [], canSend = false, onOpen, supportEmail = "", extra = [] }) {
   const mail = supportEmail ? <a className="helpmail" href={supportHref(supportEmail)}>{supportEmail}</a> : null;
   return (
     <Card id="you-help" tint="you" icon="book" eyebrow={H.eyebrow} title={H.title} level={2} className="youset youhelp" tabIndex={-1}>
@@ -25,6 +25,8 @@ export function HelpCard({ items = [], canSend = false, onOpen, supportEmail = "
           </Details>
         ))}
       </div>
+      {/* 2026-11-25 (upgrade-enterprise Task 2): up to three plain-text lines from the owner's app settings, shown as text. */}
+      {extra.length > 0 && <div className="helpextra">{extra.map((x, i) => <p key={i}>{x}</p>)}</div>}
       {canSend && (
         <div className="helpsend">
           <p className="section-lab">{H.contact}</p>

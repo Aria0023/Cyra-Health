@@ -27,6 +27,9 @@ export const TIP_PRODUCTS = Object.freeze([
 /** The web's sentence about Pro (no store on the web, so the US reference price, named as such). */
 // 2026-11-25 (critique-fixes Task 5): the store's trial is described on the yearly tile only, so this line names the prices.
 export const WEB_PRICE_LINE = `Pro is ${PRO_PRODUCTS.monthly.ref} a month or ${PRO_PRODUCTS.annual.ref} a year in the iPhone and Android apps.`;
+/** The same line with the owner's reference prices (2026-11-25, upgrade-enterprise Task 2: portal App settings; they must
+    match the store prices), each falling back to the built-in one. */
+export const webPriceLine = (refs = null) => `Pro is ${refs?.monthly || PRO_PRODUCTS.monthly.ref} a month or ${refs?.annual || PRO_PRODUCTS.annual.ref} a year in the iPhone and Android apps.`;
 
 /** "$2.50 a month" for a yearly price, from the store's own number and currency symbol in its price string. Null when
     the store's string can't be read safely (then nothing is claimed). */

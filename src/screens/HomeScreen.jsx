@@ -75,6 +75,7 @@ export default function HomeScreen({
   autoCard = null, autoConfirmed = false, devicesCard = null,
   askCard = null, aiWriteUp = null,
   ttc = false, more = false, setMore = () => {},
+  announcement = null,
 }) {
   const hour = new Date().getHours();
   const connectedCount = Object.values(wearSources).filter((w) => w && !w.pending).length;
@@ -154,6 +155,9 @@ export default function HomeScreen({
           </span>
         </div>
       )}
+      {/* The owner's Home announcement (2026-11-25, upgrade-enterprise Task 2; portal App settings, off by default): one
+          plain-text line from the app's settings, shown as text (never markup), only while the owner has it on. */}
+      {announcement && <p className="homeannounce" role="note"><Icon name="sparkle" size={14} /><span>{announcement}</span></p>}
       {/* ---- Hero: the date, her greeting, and the cycle-day ring (pregnancy: the week; menopause: days since the last
           period or the calm "no period tracking needed" state) with the prediction line and its uncertainty. ---- */}
       <div className="homehero" data-kind={hero.kind} data-len={String(hero.center).length > 7 ? "long" : String(hero.center).length > 6 ? "mid" : undefined}>

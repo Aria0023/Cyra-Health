@@ -225,7 +225,9 @@ import { evidenceBody, evidenceOffer, cleanSources, EVIDENCE_COPY } from "./lib/
 import { storeFor, restorePurchases, proOwned, startStore, linkAccount, unlinkAccount } from "./lib/purchase.js";
 import { cleanPromoCache, cleanPromoHidden, promosDue, promoFor, promoStageOf, isNewUser } from "./lib/promos.js";
 import { fetchPromos, PROMOS_LIVE } from "./lib/promoLive.js";
-import { WEB_PRICE_LINE } from "./lib/pricing.js";
+import { webPriceLine } from "./lib/pricing.js";
+import { bootAppConfig, keepAppConfig, webRefs } from "./lib/appConfig.js";
+import { fetchAppConfig } from "./lib/appConfigLive.js";
 import ConnectScreen from "./screens/ConnectScreen.jsx";
 import PregTodayScreen from "./screens/PregTodayScreen.jsx";
 import PregCalendarScreen from "./screens/PregCalendarScreen.jsx";
@@ -249,7 +251,11 @@ import { fmtDate } from "./lib/i18n.js";
 
 export default function CyraDemo() {
   const [orgId, setOrgId] = useState("cyra");
-  const [palIdx, setPalIdx] = useState({ peri: 0, preg: 0, periods: 0 });
+  /* The owner's app settings (2026-11-25, upgrade-enterprise Task 2, lib/appConfig.js): the copy this device kept, then the
+     one downloaded at start (a build with a server only). Not her data and never in her record. */
+  const [appCfg, setAppCfg] = useState(bootAppConfig);
+  const styleTouched = useRef(false); // she picked a style or palette herself: the owner's defaults for new people stop applying
+  const [palIdx, setPalIdx] = useState(() => { const d = bootAppConfig()?.defaultPalette ?? 0; return { peri: d, preg: d, periods: d }; });
   const [phase, setPhase] = useState("splash"); // splash -> register (3–4 steps) -> app
   const [showTable, setShowTable] = useState(false);
   const [conn, setConn] = useState({ closeness: 5, desire: 5, friction: 2, load: 5 });
@@ -410,7 +416,7 @@ export default function CyraDemo() {
   /* Appearance (L2, spec §8.4): her choice (persisted, a DEVICE_PREFS key), the device's own light/dark
      setting (matchMedia, followed live) and whether a print is under way (always light). */
   const [appearance, setAppearance] = useState(DEFAULT_APPEARANCE);
-  const [uiStyle, setUiStyle] = useState(DEFAULT_STYLE); // Solia: Soft or Mono, a device preference like appearance (lib/appearance.js STYLES)
+  const [uiStyle, setUiStyle] = useState(() => cleanStyle(bootAppConfig()?.defaultStyle || DEFAULT_STYLE)); // Solia: Soft or Mono, a device preference like appearance (lib/appearance.js STYLES)
   const [uiLocale, setUiLocale] = useState(null); // calm R10: null = follow this device's language (lib/i18n.js)
   const [systemDark, setSystemDark] = useState(() => typeof matchMedia === "function" && matchMedia(SYSTEM_DARK_QUERY).matches);
   const [printing, setPrinting] = useState(false);
@@ -1111,9 +1117,27 @@ export default function CyraDemo() {
      (as does printing), so a launch in a chosen scheme that differs from the device's never fades across. */
   const repaintTimer = useRef(null);
   const flashRepaint = () => { clearTimeout(repaintTimer.current); setRepaint(true); repaintTimer.current = setTimeout(() => setRepaint(false), 400); };
-  const choosePalette = (upd) => { setPalIdx(upd); flashRepaint(); };
+  const choosePalette = (upd) => { styleTouched.current = true; setPalIdx(upd); flashRepaint(); };
   const chooseAppearance = (v) => { const next = cleanAppearance(v); if (next === appearance) return; setAppearance(next); flashRepaint(); };
-  const chooseStyle = (v) => { const next = cleanStyle(v); if (next === uiStyle) return; setUiStyle(next); flashRepaint(); };
+  const chooseStyle = (v) => { styleTouched.current = true; const next = cleanStyle(v); if (next === uiStyle) return; setUiStyle(next); flashRepaint(); };
+  /* Downloading the owner's app settings once at start (one plain GET, nothing about her; lib/appConfigLive.js). A new
+     person who hasn't registered or picked a style yet starts with the owner's default style and palette; everyone else
+     keeps her own. featuresOff applies from the next start (lib/features.js). Any failure keeps the kept copy. */
+  const stageNow = useRef(null); stageNow.current = stage;
+  useEffect(() => {
+    let on = true;
+    fetchAppConfig().then((r) => {
+      if (!on) return;
+      if (r.ok) {
+        setAppCfg(r.cfg); keepAppConfig(r.cfg);
+        if (stageNow.current == null && !styleTouched.current) {
+          if (r.cfg.defaultStyle) setUiStyle(cleanStyle(r.cfg.defaultStyle));
+          if (r.cfg.defaultPalette != null) { const d = r.cfg.defaultPalette; setPalIdx({ peri: d, preg: d, periods: d }); }
+        }
+      } else if (r.invalid) { setAppCfg(null); keepAppConfig(null); }
+    });
+    return () => { on = false; };
+  }, []);
   const appearanceRef = useRef(appearance); appearanceRef.current = appearance;
   /* The device's setting is followed live (System). Printing always renders the light palette: beforeprint
      (and matchMedia("print"), which also covers print previews) flips it with flushSync, so the page the
@@ -2412,6 +2436,7 @@ export default function CyraDemo() {
     await cleanUpHere();
     if (startOver || pulseSent?.week === weekKey()) await storage.setHold(weekKey()); // this week's flags already went (or may have) from this device
     else await storage.dropStaleHold(weekKey());
+    keepAppConfig(null); // the kept copy of the app settings goes too (it is downloaded again at the next start)
     try { await storage.clear(); }
     catch (e) {
       // What already happened stays applied: reminders are off, ended connections are gone.
@@ -2884,7 +2909,7 @@ export default function CyraDemo() {
       guest={guest === "in" && guestNoteNow ? { line: GUEST_COPY.line(guestWhen, TRIAL_GATE), story: null, createLabel: GUEST_COPY.create, hideLabel: GUEST_COPY.hide, onCreate: () => setCreateOpen(true), onHide: () => { setGuestNoteNow(false); ping(GUEST_COPY.hidden); } } : null}
       acct={acct} stage={stage} stageName={stageName} goTab={goTab}
       hero={heroModel({ stage, isMeno, pred, predWhy, pregWeek, tri, dueDate, lastPeriodIso: isMeno ? lastPeriodDay(ins.sorted) : null, todayIso, pcosOn: pcosHere, wearHere: SOURCES_HERE })}
-      ttc={!!ttc} more={homeMore} setMore={setHomeMore}
+      ttc={!!ttc} more={homeMore} setMore={setHomeMore} announcement={appCfg?.announcement || null}
       tiles={homeTileIds.map((id) => ({ ...TILE_CATALOG.find((t) => t.id === id), logged: tileLogged(id, tileCtx) }))} onTile={(id) => pickLog(id)}
       tilePicker={{ choices: TILE_CATALOG.filter((t) => tileAvail.includes(t.id)), chosen: homeTileIds, custom: homeTiles != null, set: (ids) => setHomeTiles(ids == null ? null : cleanHomeTiles(ids)) }}
       step={homeStepSkip && homeStepSkip.day === todayIso ? null : gettingStarted(guide, { startIso: trialStart || todayIso, todayIso, preg: stage === "preg", meno: isMeno, logged: days.length > 0 || Object.keys(pregLog || {}).length > 0, periodKnown: days.some((d) => d && d.period) || !!(regAnswers && regAnswers.lastPeriod), practiced: Array.isArray(practiceLog) && practiceLog.length > 0, backedUp: !!lastBackupAt }) || (stage !== "preg" && experimentStep(experiments, todayIso)) || smallStep({ stage, entry: todayEntryNow, pcosOn: pcosHere, todayIso, skip: homeStepSkip })}
@@ -3256,7 +3281,7 @@ export default function CyraDemo() {
       voice={voiceSupported() ? { on: practiceVoice, set: (on) => { setPracticeVoice(on === true); ping(on ? "Voice guide on" : "Voice guide off"); } } : null}
       onTour={() => { setGuide(replayGuide(todayIso)); setHomeStepSkip(null); goTab("home"); ping("Getting started is back on Home, and each screen will show its tip again."); }} trial={{ gateOn: TRIAL_GATE && !proOwnedNow, line: trialNow }} acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={proOn} proOwned={proOwnedNow} storeReady={STORE.available} onPro={() => setProOpen(true)}
-      ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref, mealNotesOn: mealsHere }} onRestore={onRestore} storeLine={store.line || (isNative() ? null : WEB_PRICE_LINE)} meals={mealsOffered ? { on: mealsHere, photosInBuild: FEATURES.ai && hasServer(), onToggle: () => { const on = !mealsHere; setBodyPrefs((p) => cleanBodyPrefs({ ...p, mealsOn: on })); ping(on ? "Meal notes on" : "Meal notes off. What you noted is kept"); } } : null} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
+      ai={{ available: aiAvailable, on: askAI, set: setAskAI, offer, prefs: aiPrefs, setPref: setAiPref, mealNotesOn: mealsHere }} onRestore={onRestore} storeLine={store.line || (isNative() ? null : webPriceLine(webRefs(appCfg)))} refs={webRefs(appCfg)} meals={mealsOffered ? { on: mealsHere, photosInBuild: FEATURES.ai && hasServer(), onToggle: () => { const on = !mealsHere; setBodyPrefs((p) => cleanBodyPrefs({ ...p, mealsOn: on })); ping(on ? "Meal notes on" : "Meal notes off. What you noted is kept"); } } : null} language={pickerShown() ? { value: uiLocale, options: availableLocales(), set: (v) => setUiLocale(cleanLocale(v)) } : null}
       guest={guest === "in" ? { youLine: GUEST_COPY.youLine(guestNear({ start: guestStart, now: guestClock, seen: guestSeen }) ? guestWhen : null), story: guestStoryNow, createLabel: GUEST_COPY.create, onCreate: () => setCreateOpen(true) } : null}
       signMode={signMode} store={STORE} native={isNative()} promo={promoNow} onHidePromo={hidePromo} proUntil={proUntilNow} signedIn={signin ? { s: signin, required: REQUIRE_SIGNIN, onSignOut: signOutAccount, onDelete: deleteSignedInAccount } : null}
       account={ACCOUNTS_HERE ? { can: ACCOUNTS.available(), acct: cloudAccount.acct, sync: cloudSync, todayIso, onCreate: () => setAcctSheet("create"), onSignIn: () => setAcctSheet("signin"), onBackup: () => backupToCloud(), onSignOut: signOut, onDelete: deleteAccount, onUseBackup: resolveUseBackup, onKeepDevice: resolveKeepDevice, onPro: () => setProOpen(true) } : null}
@@ -3265,7 +3290,7 @@ export default function CyraDemo() {
       learn={<LearnCard items={learnFor({ stage, ttc, meno: isMeno })} onOpen={openLearn} />}
       homeCards={{ ask: !askCardOff, setAsk: (on) => { setAskCardOff(!on); ping(on ? ASK_COPY.shown : ASK_COPY.hidden); } }}
       care={FEATURES.shop ? <ShopEntryCard onOpen={() => openShop(null)} taps={shopTapsNow} /> : null}
-      help={<HelpCard items={helpItems({ trialGate: TRIAL_GATE, native: isNative(), server: hasServer(), wearables: FEATURES.wearables, deviceSync: FEATURES.deviceSync, accounts: ACCOUNTS_HERE })} canSend={hasServer()} onOpen={setFeedbackKind} supportEmail={SUPPORT_EMAIL} />} />
+      help={<HelpCard items={helpItems({ trialGate: TRIAL_GATE, native: isNative(), server: hasServer(), wearables: FEATURES.wearables, deviceSync: FEATURES.deviceSync, accounts: ACCOUNTS_HERE })} canSend={hasServer()} onOpen={setFeedbackKind} supportEmail={SUPPORT_EMAIL} extra={appCfg?.helpLines || []} />} />
   );
   const practicesView = () => <PracticesScreen favs={practiceFavs} onOpen={openPractice} featured={{ practice: localPractice(practiceOf("slow")), need: "calm" }} />;
   const journeyView = () => {
@@ -3390,9 +3415,9 @@ export default function CyraDemo() {
       )}
       {partnerOpen && partnerShown && <PartnerSheet prefs={partnerShare} setPrefs={setPartnerPrefs} pred={pred} ttc={ttc} phone={isNative()} onShare={sharePartner} onClose={() => setPartnerOpen(false)} />}
       {learnOpen && <LearnSheet id={learnOpen} onClose={() => setLearnOpen(null)} />}
-      {proOpen && <ProSheet gateOn={TRIAL_GATE} unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} promo={promoNow} onHidePromo={hidePromo} until={proUntilNow} onCodeDone={() => startStore(STORE).then(takeStore)} onClose={() => setProOpen(false)} />}
+      {proOpen && <ProSheet gateOn={TRIAL_GATE} unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} promo={promoNow} onHidePromo={hidePromo} until={proUntilNow} onCodeDone={() => startStore(STORE).then(takeStore)} refs={webRefs(appCfg)} onClose={() => setProOpen(false)} />}
       {createOpen && guest === "in" && <GuestCreateSheet onClose={() => setCreateOpen(false)} step={{ mode: signMode, providers: signinCfg?.providers || {}, busy: socialBusy, signedIn: signin, onProvider: startSocial, onEmailStart: emailStart, onEmailVerify, onRetry: askSigninConfig }} />}
-      {trialSheet && !proOpen && <ProSheet gateOn={TRIAL_GATE} trialOver unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} promo={promoNow} onHidePromo={hidePromo} until={proUntilNow} onCodeDone={() => startStore(STORE).then(takeStore)} onClose={() => setTrialSheet(false)} />}
+      {trialSheet && !proOpen && <ProSheet gateOn={TRIAL_GATE} trialOver unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} promo={promoNow} onHidePromo={hidePromo} until={proUntilNow} onCodeDone={() => startStore(STORE).then(takeStore)} refs={webRefs(appCfg)} onClose={() => setTrialSheet(false)} />}
       {acctSheetView}
       {evSendOpen && <AiSendSheet kind="evidence" body={evSendOpen.body} lines={evSendOpen.lines} busy={evBusy} onSend={sendEvidence} onClose={() => setEvSendOpen(null)} />}
       {aiSendOpen && <AiSendSheet kind={aiSendOpen.kind} body={aiSendOpen.body} lines={aiSendOpen.lines} busy={!!aiBusy} onSend={sendAi} onClose={() => setAiSendOpen(null)} />}

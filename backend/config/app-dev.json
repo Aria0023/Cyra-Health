@@ -26,7 +26,8 @@
     "portal",
     "subscriptions",
     "insights",
-    "feedback"
+    "feedback",
+    "settings"
   ],
   "opsConsole": true,
   "storage": {
