@@ -30,6 +30,7 @@ import { cleanLocale } from "./i18n.js";
 import { cleanQuestions } from "./visitQuestions.js";
 import { cleanNightSkips, cleanConfirmations, cleanTrackStats, cleanSourceExtras } from "./sources.js";
 import { cleanShopCatalog } from "./shopCatalog.js";
+import { cleanOrgRecord } from "./org.js";
 import { cleanShopHint } from "./shop.js";
 import { cleanPromoCache, cleanPromoHidden } from "./promos.js";
 
@@ -117,6 +118,7 @@ import { cleanPromoCache, cleanPromoHidden } from "./promos.js";
  * @property {(string|null)} guestSeen [device-only] [not-in-backup] 2026-11-16 (lib/guest.js): the latest time this device has seen while she was a guest (an ISO time), so a clock moved back never extends the guest window.
  * @property {(string|null)} guestNote [device-only] [not-in-backup] 2026-11-16 (lib/guest.js): the local day Home last showed its guest line (at most one day's first visit).
  * @property {boolean} shopTapsOn [device-only] [not-in-backup] 2026-11-25 (lib/shopTaps.js, critique-fixes Task 3): true once she turns ON "Count my shop taps anonymously" on this device; false or missing = off (opt-in). shopTapsOff above is no longer read.
+ * @property {null|Object} org [device-only] [not-in-backup] 2026-11-25 (docs/plans/upgrade-enterprise.md Task 3, lib/org.js): the organization she joined on this device (its public config: slug, name, logo, colours, stages, Shop lineup; nothing about her), or null for Solia Health's own look; never in any backup.
  * @property {boolean} homeMore [device-only] [not-in-backup] 2026-11-25 (docs/plans/critique-fixes.md Task 2): true while Home's "More for today" group is open on this device; false or missing = folded.
  * @property {(string|null)} trialStart [record] the first day of her free week (lib/trial.js, owner decision 2026-11-12), a local YYYY-MM-DD; in backups so a restore keeps it; null until she is in the app.
  * @property {Object<string, {on: boolean, since: (string|null)}>} modules [record] condition modules switched on or off (calm R1, lib/modules.js), POTS excepted (it stays in `pots`); missing means {} (all off).
@@ -305,7 +307,7 @@ export function migrate(raw, { version = RECORD_VERSION, steps = MIGRATIONS } = 
    guestStart (2026-11-16, lib/guest.js) is when she first tapped "Try it first": part of her record and of backups (a
    restore keeps the earlier of the backup's and this device's, App.jsx applyRestore). guestSeen (the latest time this
    device has seen as a guest) and guestNote (the day Home last showed the guest line) are device-only, never in a backup. */
-export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "askCardOff", "shopHint", "trialStart", "guide", "partnerShare", "glucoseLog", "proChip", "shopCatalog", "promos", "promoHidden", "guestStart", "guestSeen", "guestNote", "homeMore", "shopTapsOn"]);
+export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "askCardOff", "shopHint", "trialStart", "guide", "partnerShare", "glucoseLog", "proChip", "shopCatalog", "promos", "promoHidden", "guestStart", "guestSeen", "guestNote", "homeMore", "shopTapsOn", "org"]);
 /* Per-device choices a restored backup never overrides: sharing counts and asking the AI
    are consents given on this device; terraOff is this device's unfinished disconnects;
    lastBackupAt is the local day this device last made a backup (a date, nothing about her
@@ -313,7 +315,7 @@ export const PERSISTED = Object.freeze(["palIdx", "relationship", "connLog", "ca
    is whether this browser's Home install tip should stay away (null | "dismissed" |
    "installed", lib/pwa.js), also left out of the backup file; exportLog is this device's count of
    appointment PDFs this month (L9), null while exports are unlimited, also left out of the file. */
-export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "askCardOff", "shopHint", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "guestSeen", "guestNote", "homeMore", "shopTapsOn"]);
+export const DEVICE_ONLY = Object.freeze(["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "askCardOff", "shopHint", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "guestSeen", "guestNote", "homeMore", "shopTapsOn", "org"]);
 /* A display preference of this device (L2): appearance ("system" | "light" | "dark", lib/appearance.js).
    It is saved with the record and followed by every open tab of this browser (so it stays in RECORD,
    they are all the same device), but it is never in a backup file and never taken from one:
@@ -328,7 +330,7 @@ export const RECORD = Object.freeze(PERSISTED.filter((k) => !DEVICE_ONLY.include
    lastBackupAt (this device's own note of when it last backed up), installHint (whether this
    device's install tip is hidden), exportLog (this device's PDF count this month, L9) and appearance
    (this device's light/dark choice). */
-export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "askCardOff", "shopHint", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "guestSeen", "guestNote", "homeMore", "shopTapsOn", ...DEVICE_PREFS]);
+export const NOT_IN_BACKUP = Object.freeze(["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "askCardOff", "shopHint", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "guestSeen", "guestNote", "homeMore", "shopTapsOn", "org", ...DEVICE_PREFS]);
 
 /** The record as it goes into an encrypted backup file, as a new object (the input is not
     changed): every saved key, except that regAnswers loses zip and age (neither is used after
@@ -607,6 +609,7 @@ export const RULES = Object.freeze({
   guestNote: (v, p) => (v == null || (typeof v === "string" && isIso(v)) ? [] : [`${p}: expected null or YYYY-MM-DD, got ${show(v)}`]),
   shopTapsOn: (v, p) => (v === undefined || typeof v === "boolean" ? [] : [`${p}: expected true or false, got ${show(v)}`]),
   homeMore: (v, p) => (v === undefined || typeof v === "boolean" ? [] : [`${p}: expected true or false, got ${show(v)}`]),
+  org: (v, p) => (v === undefined || v === null || JSON.stringify(v) === JSON.stringify(cleanOrgRecord(v)) ? [] : [`${p}: expected null or a clean organization config, got ${show(v)}`]),
   // The free week (lib/trial.js): missing (a record from before it) or null, or a real local date.
   trialStart: (v, p) => (v == null || cleanTrialStart(v) === v ? [] : [`${p}: expected a YYYY-MM-DD date or null, got ${show(v)}`]),
   experiments: (v, p) => (JSON.stringify(v) === JSON.stringify(cleanExperiments(v)) ? [] : [`${p}: expected { active: { id, start, done: [days] } | null, skip: day | null, past: [{ id, start, days, target }] }, got ${show(v)}`]),

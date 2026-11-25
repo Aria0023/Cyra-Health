@@ -78,6 +78,23 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .logshop-go > svg:last-child { margin-left:auto; color:var(--soft); }
 .mark { font-family:var(--ff-display); font-weight:600; font-size:22px; }
 .sub { font-size:10.5px; font-weight:700; letter-spacing:.13em; text-transform:uppercase; color:var(--primary-text); margin-left:7px; vertical-align:3px; }
+/* Organizations (2026-11-25, upgrade-enterprise Task 3): a joined organization's mark (its logo, its name, "Powered by Solia
+   Health" under it) and the join parts. Tokens only: the org's colours arrive as --primary / --accent. */
+.mark.orgmark { display:inline-grid; grid-template-columns:auto 1fr; column-gap:8px; align-items:center; max-width:60vw; white-space:normal; }
+.mark.orgmark .orglogo { grid-row:1 / span 2; width:28px; height:28px; border-radius:8px; object-fit:contain; background:var(--card); }
+.mark.orgmark .orgname { font-size:18px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mark.orgmark .sub { margin-left:0; font-size:9.5px; letter-spacing:.08em; vertical-align:0; }
+.mark.orgmark:not(:has(.orglogo)) { grid-template-columns:1fr; }
+.orgcode { margin:14px 0 0; }
+.orgcode-row { display:flex; gap:8px; align-items:stretch; }
+.orgcode-row .inp { flex:1; min-height:44px; text-transform:uppercase; letter-spacing:.08em; }
+.orgcode-row .orgjoin { flex:none; min-height:44px; margin:0; }
+.orgpriv { display:flex; gap:6px; align-items:flex-start; }
+.orgpriv > svg { flex:none; margin-top:2px; }
+.orgwho { display:flex; gap:10px; align-items:center; margin:0 0 8px; }
+.orgwho .orglogo { border-radius:10px; object-fit:contain; background:var(--card); border:1px solid var(--line); }
+.orgleave { min-height:44px; }
+.regorg { margin-top:10px; }
 .orgsel { display:flex; gap:4px; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:3px; }
 .orgbtn { border:none; background:none; border-radius:var(--r-pbtn); padding:5px 12px; font:700 11.5px var(--ff-body); color:var(--soft); cursor:pointer; }
 .orgbtn.on { background:var(--primary); color:var(--on-primary); }

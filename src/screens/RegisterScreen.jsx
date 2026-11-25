@@ -10,7 +10,8 @@ import { allFlagGroups } from "../lib/pulse.js";
 import { reduceMotion } from "../lib/motion.js";
 import { paletteFor } from "../lib/appearance.js";
 import { localDay } from "../lib/engine.js";
-import { REG_STAGE, STAGE_LABELS, STAGE_CARDS, STEP_COPY, CYCLE_LENS, PCOS_ANSWERS, regSteps, missingFor, dueDateBounds, toggleStage, primaryStage, cleanStages, stageSummary } from "../lib/onboarding.js";
+import { stageCardsFor, ORG_COPY } from "../lib/org.js";
+import { REG_STAGE, STAGE_LABELS, STEP_COPY, CYCLE_LENS, PCOS_ANSWERS, regSteps, missingFor, dueDateBounds, toggleStage, primaryStage, cleanStages, stageSummary } from "../lib/onboarding.js";
 import { MODULE_FRAMING } from "../lib/modules.js";
 import { IBadge } from "../components/ui/index.js";
 import { FEATURES, remindersInBuild } from "../lib/features.js";
@@ -53,7 +54,7 @@ import { stepCopy } from "../locales/index.js";
 // The icon beside each data fact on the consent step (decorative; the sentence is unchanged).
 const FACT_ICONS = ["lock", "share", "heart", "clipboard", "trash", "file"];
 
-export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTouched, setRegTouched, cadence, setCadence, finishReg, onBackToSplash, scheme = "light", signinStep = null }) {
+export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTouched, setRegTouched, cadence, setCadence, finishReg, onBackToSplash, scheme = "light", signinStep = null, org = null, orgJoin = null }) {
   const steps = regSteps(reg.stage, { signin: !!signinStep });
   const key = steps[Math.min(regStep, steps.length - 1)];
   // A build with sign-in and a server has accounts: the Device step's "There's no Solia Health account" can't be said there.
@@ -119,7 +120,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
 
   return (
     <main className="obwrap">
-      <span className="mark">{t("onb.cyra")}<span className="sub">{t("onb.health")}</span></span>
+      {org ? <span className="mark orgmark"><span className="orgname">{org.name}</span><span className="sub">{ORG_COPY.poweredBy}</span></span> : <span className="mark">{t("onb.cyra")}<span className="sub">{t("onb.health")}</span></span>}
       <div className="prog" role="progressbar" aria-label={t("onb.setUpProgress")} aria-valuemin={1} aria-valuemax={steps.length} aria-valuenow={regStep + 1} style={{ marginTop: 14 }}>{steps.map((k, i) => <span key={k} className={i <= regStep ? "on" : ""} />)}</div>
       <div className="stepno">{t("onb.stepOf", { v0: regStep + 1, length: steps.length, short: rs.short })}</div>
       <div className={`regstep ${dir}`} key={regStep}>
@@ -131,7 +132,7 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
       {key === "stage" && (
         <>
           <div role="group" aria-label={t("onb.stagesPickAll")} className={`regcards ${bad("stage") ? "err" : ""}`}>
-            {STAGE_CARDS.map(([lbl, d]) => {
+            {stageCardsFor(org).map(([lbl, d]) => {
               const on = picked.includes(lbl);
               return (
                 <button key={lbl} type="button" aria-pressed={on} className={`stagecard hasart ${on ? "on" : ""}`} onClick={() => pickStage(lbl)}>
@@ -144,6 +145,10 @@ export default function RegisterScreen({ reg, setReg, regStep, setRegStep, regTo
             })}
           </div>
           <p className="hint stagesummary" aria-live="polite">{summary || t("onb.stagesAloneNote")}</p>
+          {/* 2026-11-25 (upgrade-enterprise Task 3): an optional invite code from a clinic or employer (builds with a
+              server); a joined organization shows only its stages above. */}
+          {orgJoin}
+          {org && <p className="hint regorg">{ORG_COPY.cardIn(org.name)}</p>}
         </>
       )}
 

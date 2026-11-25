@@ -3142,3 +3142,10 @@ docs/PRIVACY-AUDIT.md (L10). No harness file was edited and no suite sets a lock
   palette for new people, a Home announcement (plain text, 140 characters, off by default), up to three Help lines, the
   web reference prices (they must match the store; the trial length is set in the stores). Not editable: privacy claims,
   legal, clinical and safety text, the sign-in order. Portal page: App settings.
+- **Organizations (Task 3):** backend `orgs` module (production; owner-only writes through the portal sign-in, the demo
+  x-admin-key is gone; public `GET /api/orgs/:slug/config`, `POST /api/orgs/join` / `leave`). An organization has a name,
+  slug, small logo (64 KB), brand primary and accent for light and dark (AA 4.5:1 on Solia's page and card, checked on the
+  server, in the portal and in the app), allowed stages, a Shop lineup, an invite code and admin emails. She joins with
+  `?org=<slug>` (a "Join <name>?" sheet) or an invite code (registration, You → Your profile); the app wears the name, logo
+  and colours, limits registration's stage cards, filters the Shop and remembers it (record key `org`, device-only).
+  Leaving restores Solia's look. "Powered by Solia Health" stays visible.

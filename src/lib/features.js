@@ -49,8 +49,9 @@ export const FEATURE_MODULE = Object.freeze({ wearables: "integrations", counts:
     (2026-11-19) takes You → Help & about's "Send feedback" / "Report a problem" (POST /api/feedback, lib/feedback.js: offered in
     any build with a server) and holds the portal's owner-only inbox, which needs the shop module's portal sign-in; settings
     (2026-11-25) is the portal's owner-only App settings and the public GET /api/app-config the app downloads at start in any
-    build with a server (lib/appConfig.js); its writes need the shop module's portal sign-in. */
-export const FEATURE_ALSO = Object.freeze({ signin: Object.freeze(["oauth"]), shop: Object.freeze(["portal", "subscriptions", "insights", "feedback", "settings"]) });
+    build with a server (lib/appConfig.js); its writes need the shop module's portal sign-in; orgs (2026-11-25) is organizations: the public config, join and
+    leave the app calls in a build with a server (lib/orgLive.js), and the portal's owner-only Organizations. */
+export const FEATURE_ALSO = Object.freeze({ signin: Object.freeze(["oauth"]), shop: Object.freeze(["portal", "subscriptions", "insights", "feedback", "settings", "orgs"]) });
 
 const words = (raw) => String(raw).split(",").map((w) => w.trim()).filter(Boolean);
 const known = (w) => FEATURE_NAMES.find((n) => n.toLowerCase() === w.toLowerCase());

@@ -18,6 +18,8 @@ export function newApiState(over = {}) {
     meal: null, // (body) => { status, json } for POST /api/ai/meal (Meal photos)
     promotions: null, // GET /api/promotions/active answers { version: 1, promotions: this } when set; null = 404
     catalog: null, // GET /api/shop/catalog answers this (any JSON) when set; null = 404, so the app keeps its bundled catalog
+    orgs: {}, // slug → the public config GET /api/orgs/:slug/config and POST /api/orgs/join answer (upgrade-enterprise Task 3)
+    orgCodes: {}, // invite code → slug
     appConfig: null, // GET /api/app-config (the owner's app settings, upgrade-enterprise Task 2) answers this when set; null = 404 (built-in defaults)
     tapStatus: 204, // POST /api/shop/tap (the anonymous shop tap count)
     feedbackStatus: 201, // POST /api/feedback (You → Help & about's feedback sheet)
@@ -60,6 +62,10 @@ export async function mockApi(target, state) {
     if (p === "/api/promotions/active") return state.promotions == null ? json(404, { error: "not in the mock" }) : json(200, { version: 1, promotions: state.promotions });
     if (p === "/api/shop/tap" && method === "POST") return route.fulfill({ status: state.tapStatus || 204, headers: CORS }); // the anonymous tap count: an empty answer
     if (p === "/api/feedback" && method === "POST") return json(state.feedbackStatus || 201, state.feedbackStatus && state.feedbackStatus >= 400 ? { error: "refused" } : { ok: true });
+    const orgCfg = /^\/api\/orgs\/([a-z0-9-]+)\/config$/.exec(p);
+    if (orgCfg && method === "GET") return state.orgs[orgCfg[1]] ? json(200, state.orgs[orgCfg[1]]) : json(404, { error: "unknown organization" });
+    if (p === "/api/orgs/join" && method === "POST") { const slug = body?.slug ?? state.orgCodes[String(body?.code || "")]; return state.orgs[slug] ? json(200, { org: state.orgs[slug], account: !!req.headers().authorization }) : json(404, { error: "unknown" }); }
+    if (p === "/api/orgs/leave" && method === "POST") return route.fulfill({ status: 204, headers: CORS });
     if (p === "/api/app-config") return state.appConfig == null ? json(404, { error: "not in the mock" }) : json(200, state.appConfig);
     if (p === "/api/shop/catalog") return state.catalog == null ? json(404, { error: "not in the mock" }) : json(200, state.catalog);
     if (/^\/api\/shop\/images\/[a-f0-9]{24}$/.test(p)) return route.fulfill({ status: 200, headers: { ...CORS, "content-type": "image/png", "cache-control": "public, max-age=31536000, immutable" }, body: PNG_1PX });

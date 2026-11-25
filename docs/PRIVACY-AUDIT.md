@@ -3022,3 +3022,27 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
   connection to our server")." FLAG FOR ATTORNEY REVIEW.
 - **New user-facing sentences in the app:** none of the app's own (the announcement and Help lines are the owner's text).
   Portal sentences (owner-facing) are listed in docs/plans/upgrade-enterprise-progress.md Task 2.
+
+### Task 3: organizations — one optional join request, one device-only key, one account field
+- **What is sent, only on her tap:** `POST /api/orgs/join` with `{ code }` (registration's optional field or You → Your
+  organization) or `{ slug }` (the "Join" button of the sheet a `?org=` link opens); nothing else may be in the body (the
+  server refuses any other field). Her sign-in token goes with it only while she is signed in, and then her account row
+  stores `orgSlug` (which organization it joined). `POST /api/orgs/leave` is sent only while signed in and clears it; a
+  guest's leave sends nothing. Opening a `?org=` link sends `GET /api/orgs/<slug>/config` (public; counts nothing).
+- **What the server keeps:** `org_joins { day, slug, joins }`: one total per organization per day, nothing about who. The
+  account's `orgSlug` (signed-in joins only); deleting the account deletes it. No health data, no stage, no log.
+- **On the device:** record key `org` (device-only, never in a backup): the organization's public config (name, logo as a
+  small inline image, colours, stages, Shop lineup). Leaving sets it to null.
+- **Look and limits:** only the UI palette's primary and accent change (checked for AA 4.5:1 on Solia's page and card in
+  light and dark, on the server and again on the device); the data-viz ramps are untouched. The registration's stage
+  cards are limited to the organization's stages; she still picks exactly one. "Powered by Solia Health" stays in the header.
+- **The privacy line, where she joins (verbatim, literally true):** "Your organization sees how many people joined, never
+  what you log." In this task the organization's admins see nothing yet (Task 4 adds their totals-only dashboard).
+- **Legal:** `public/legal/privacy.html` §3 gains a row, verbatim: "Joining an organization (optional, with an invite code
+  or link from a clinic or employer)" / "Only the organization's name or its invite code. If you are signed in, your
+  sign-in goes with it, so your account notes which organization you joined; leaving the organization removes that note.
+  The app then shows the organization's name, logo and colours and the life stages and products it offers, which it keeps
+  on your device." / "Our server adds one to that organization's join total for the day; it keeps no record of who joined,
+  apart from the note on your account if you were signed in. Your organization sees how many people joined, never what you
+  log." FLAG FOR ATTORNEY REVIEW.
+- Every new app sentence: docs/plans/upgrade-enterprise-progress.md Task 3.

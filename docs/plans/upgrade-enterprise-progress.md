@@ -87,3 +87,67 @@ Branch `feature/upgrade-enterprise`, worktree `/home/user/cyra-enterprise` (base
   | `npm run build` | ok; "BUILD 2026.10.07-D" once in dist |
   | e2e | full run 110 passed + 1 failed (account.spec, above); after the fix account.spec 6/6 → 111/111 |
   | axe | full run 68 passed + 2 failed (critique-axe race, above); after the fix critique-axe 6/6 → 70/70 |
+
+## Task 3: organizations — IN PROGRESS
+- Backend `orgs` module rewritten and mounted in production (configs, PRODUCTION_MODULES, prod-smoke, readiness's module
+  list, app `FEATURE_ALSO.shop`); in app-dev.json it moved after `shop` (it needs the portal sign-in). The demo
+  `x-admin-key` writes are gone: every write is `ctx.portal.auth("owner")`. Public: `GET /api/orgs/:slug/config` (never
+  the invite code or admins), `POST /api/orgs/join` ({ slug } or { code }, nothing else; a daily join total
+  `org_joins { day, slug, joins }`; with the app's sign-in token the account row gets `orgSlug`), `POST /api/orgs/leave`
+  (with a sign-in: `orgSlug` cleared; without: nothing). Owner: `GET/POST /api/orgs`, `PATCH /api/orgs/:slug`,
+  `POST/DELETE /api/orgs/:slug/logo` (PNG/JPEG/WebP by magic bytes, at most 64 KB, a file under DATA_DIR/org-logos; the
+  config carries it as a data URL, so the app makes one request). Checks (`cleanOrg`): slug, name (plain text, 60), colours
+  (`themeProblems`: primary and accent, light and dark, each 4.5:1 on Solia's page AND card of its scheme), stages (subset
+  of cycle/ttc/preg/peri/meno, at least one), lineup (null = whole Shop, or published catalog product ids), invite code
+  (6-12 letters/digits, unique; made when empty), admins (at most 20 emails). The bootstrap "cyra" row now has Solia's real
+  palette tokens (ORGS.cyra: #5B54A6 / #A8486E, dark #B9B3F2 / #F0A3C0) and the app's stage ids; an older row is fixed on start.
+- App: `src/lib/org.js` (pure: cleaner re-checking every colour, `orgTheme` = Solia's page/card/ink/soft/line + the org's
+  primary/accent, `orgView`, `stageCardsFor`, `orgFromSearch`, `cleanCode`, ORG_COPY), `src/lib/orgLive.js` (peek, join,
+  leave), `src/components/OrgJoin.jsx` (OrgCodeField, OrgCard `#you-org` on You → Your profile, OrgJoinSheet `#org-join`).
+  Record key `org` (device-only, not in backup). App.jsx: `org` state → `orgUi = orgView(org)` (the old `ORGS[orgId]`
+  object), header mark with logo + name + "Powered by Solia Health", stage palettes and the palette picker off while
+  joined (existing org rules), registration's stage cards limited (a picked card it doesn't offer is unpicked), the Shop's
+  existing `allow` filter = the lineup. A `?org=` link asks for the public config only, takes the link out of the address
+  bar and opens "Join <name>?"; nothing is joined or counted until Join.
+- DEVIATION: the colour check is against Solia's page AND card colours of each scheme (the surfaces the brand colour sits
+  on and, for filled buttons, the colour of the text on it). A check against the ink colour was not added: Solia's own
+  palette (#5B54A6 on ink #1E2132, 2.4:1) would fail it, and primary is never text on ink.
+- DEVIATION: "Change your stage" (You → Your profile → Change) still runs the intake questions, which aren't limited by the
+  organization; the limit applies to registration's stage cards. She still gets exactly one stage.
+- Existing org behaviour kept: the header's plan badge shows only on Solia's own look (constants.js ORGS rule); You's
+  "Upgrade to Pro" stays.
+- New user-facing sentences in the app (src/lib/org.js ORG_COPY), verbatim: "Your organization sees how many people
+  joined, never what you log." (the privacy line, where she joins: registration's code field, the join sheet, You → Your
+  organization) · "Powered by Solia Health" · "Invite code (optional)" · "From your clinic or employer, if they gave you
+  one." · "Join" / "Checking…" · "Join {name}?" · "{name} offers Solia Health with its own look." · "Joining sends only the
+  organization's name or code, and with your sign-in, your account notes which organization you joined." · "Not now" ·
+  "You joined {name}." · "Leave {name}" · "You left the organization. Solia Health's own look is back." · "Your
+  organization" · "Joined through a clinic or employer? Enter its invite code." · "You're using {name}'s version of Solia
+  Health." · "That invite code isn't known. Check it with your organization." · "That organization link isn't known." ·
+  "Couldn't reach Solia Health's server. Try again when you're online." · "Joining an organization needs Solia Health's
+  server, which this version doesn't have." (not shown: the code field and card appear only in builds with a server).
+- Portal sentences (owner-facing, backend/public/portal/orgs.js), verbatim: "Branded versions of Solia Health for clinics
+  and employers: one app, with the organization's name, logo and colours, the life stages it offers and its Shop lineup.
+  People join with the organization's link or invite code." · "New organization" · "No organizations yet." · "{slug} ·
+  invite code {code} · {stages} · updated {when}" · "3 to 32 lowercase letters, digits or hyphens. It is in the join link
+  and can't be changed later." / "The slug can't be changed." · "Only the app's primary and accent colours, for light and
+  dark. The page, card and text colours stay Solia Health's, and charts keep their own colours. Each must reach 4.5:1 on
+  the page and on the card of its scheme (WCAG AA)." · "{a}:1 on the page, {c}:1 on the card: passes AA (4.5:1)" / "…:
+  below AA (4.5:1)" / "Not a colour yet: use #RRGGBB." · "Life stages it offers (each person still gets exactly one)" ·
+  "Show the whole Shop" · "6 to 12 letters or digits. Leave it empty and one is made for you." / "6 to 12 letters or
+  digits. Changing it stops the old code from working." · "Admin emails, one per line" · "They sign in to this portal and
+  see only this organization's totals." · "Fix the colours marked below first: each needs 4.5:1 on the page and the card."
+  · "Created {name}. Its invite code is {code}." · "Saved." · "Logo" · "No logo yet: the app shows the name only." · "Logo
+  file (PNG, JPEG or WebP, at most 64 KB; square works best)" · "Upload logo" / "Remove logo" · "Choose a PNG, JPEG or WebP
+  file first." · "The logo is larger than 64 KB." · "Logo uploaded." / "Logo removed." · "How people join" · "With the
+  invite code {code} on registration or in You → Your profile, or with a link to the app that ends in ?org={slug}." ·
+  "The app shows each person this, where she joins: "Your organization sees how many people joined, never what you log."
+  (This portal is at {origin}.)" · "There's no organization with that slug." · "All organizations".
+- Legal: `public/legal/privacy.html` §3 gains the row "Joining an organization (optional, with an invite code or link from
+  a clinic or employer)" (verbatim in docs/PRIVACY-AUDIT.md Task 3). FLAG FOR ATTORNEY REVIEW.
+- Tests: backend `orgs.test.mjs` (7: colours, checks, bootstrap palette, roles owner / partner 403 / anonymous 401 / the old
+  x-admin-key 401, logo, join by slug and code with the daily total and the account's orgSlug, leave); `insights-readiness`
+  line (+ orgs); unit `org.test.mjs` (5), `record.test` (the `org` key in the pinned lists, defaults, backup copy and
+  RECORD_IMPORTS), `features.test` (production modules + orgs), `youMenu` SECTION_PAGE `you-org`; e2e `orgs.spec.mjs` (4),
+  `portal-orgs.spec.mjs` (2), `orgs-axe.spec.mjs` (2), `portal-enterprise-axe.spec.mjs` (+ Organizations pages); nav lists
+  in `portal.spec` / `portal-subs.spec` gain "Organizations"; `e2e/lib/api.mjs` answers the three org routes.

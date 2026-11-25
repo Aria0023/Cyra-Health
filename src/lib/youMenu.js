@@ -27,7 +27,7 @@ export const youRowId = (view) => { const p = youPageOf(view); return p ? `you-r
 
 /* Every card id on You → the page it is on. */
 export const SECTION_PAGE = Object.freeze({
-  "you-stage": "youprofile", "you-about": "youprofile", "you-modules": "youprofile", "you-partner": "youprofile",
+  "you-stage": "youprofile", "you-about": "youprofile", "you-modules": "youprofile", "you-partner": "youprofile", "you-org": "youprofile",
   "you-privacy": "youprivacy", "you-counts": "youprivacy", "you-ai-link": "youprivacy",
   "you-ai": "youai",
   "you-plan": "youplan", "you-signin": "youplan", "you-guest": "youplan", "you-account": "youplan",

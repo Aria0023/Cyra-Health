@@ -66,7 +66,7 @@ import { flushSync } from "react-dom";
    The saved record's shape, version and key lists live in ./lib/record.js; entitlements in ./lib/plan.js.
    ================================================================ */
 
-import { SYMS, GSYM, ALL_SYM, ENERGY_ID, SCORE_SCALE, stagePalettes, ORGS, SYM_FAMILY, PRENATAL, vizVars, rampOf } from "./lib/constants.js";
+import { SYMS, GSYM, ALL_SYM, ENERGY_ID, SCORE_SCALE, stagePalettes, SYM_FAMILY, PRENATAL, vizVars, rampOf } from "./lib/constants.js";
 import { seed, fmt, addDays, routeIntake, insights, predict, whyNoPrediction, cycleSummary, cleanCycleFlags, toggleExclude, periodHead, basisLine, symBurden, scoreLabel, dayScore, isPeriodDay, trimesterOf, foldQuick, scoreRgb, scoreColorOf, inkOn } from "./lib/engine.js";
 import { DEFAULT_APPEARANCE, DEFAULT_STYLE, SYSTEM_DARK_QUERY, cleanAppearance, cleanStyle, resolveScheme, paletteFor, paletteVars, applyDocumentScheme } from "./lib/appearance.js";
 import { API_BASE, apiPost, hasServer } from "./lib/api.js";
@@ -228,6 +228,9 @@ import { fetchPromos, PROMOS_LIVE } from "./lib/promoLive.js";
 import { webPriceLine } from "./lib/pricing.js";
 import { bootAppConfig, keepAppConfig, webRefs } from "./lib/appConfig.js";
 import { fetchAppConfig } from "./lib/appConfigLive.js";
+import { orgView, cleanOrgRecord, orgFromSearch, ORG_COPY, ORG_STAGES } from "./lib/org.js";
+import { joinOrg, peekOrg, leaveOrg } from "./lib/orgLive.js";
+import { OrgCard, OrgCodeField, OrgJoinSheet } from "./components/OrgJoin.jsx";
 import ConnectScreen from "./screens/ConnectScreen.jsx";
 import PregTodayScreen from "./screens/PregTodayScreen.jsx";
 import PregCalendarScreen from "./screens/PregCalendarScreen.jsx";
@@ -250,7 +253,11 @@ import { fmtDate } from "./lib/i18n.js";
    stagePalettes(REG_STAGE[label], STAGE_LABELS[label])[0] (Menopause & beyond wears the soft teal first, calm R1). Exactly one experience per user. */
 
 export default function CyraDemo() {
-  const [orgId, setOrgId] = useState("cyra");
+  /* The organization she joined on this device (2026-11-25, upgrade-enterprise Task 3, lib/org.js; record key org,
+     device-only): its public config, or null for Solia Health's own look. orgOffer: the one a ?org= link named, not joined yet. */
+  const [org, setOrg] = useState(null);
+  const [orgOffer, setOrgOffer] = useState(null);
+  const orgId = org ? org.slug : "cyra";
   /* The owner's app settings (2026-11-25, upgrade-enterprise Task 2, lib/appConfig.js): the copy this device kept, then the
      one downloaded at start (a build with a server only). Not her data and never in her record. */
   const [appCfg, setAppCfg] = useState(bootAppConfig);
@@ -646,13 +653,13 @@ export default function CyraDemo() {
   const flushSave = () => { const run = pendingSave.current; if (!run) return Promise.resolve(); clearTimeout(saveTimer.current); pendingSave.current = null; return run(); };
   const settleSaves = async () => { await flushSave(); try { await lastSave.current; } catch { /* reported by the save itself */ } };
 
-  const org = ORGS[orgId];
+  const orgUi = orgView(org);
   const stagePal = stage && orgId === "cyra" ? stagePalettes(stage, stageName)[palIdx[stage]] : null;
   // Registration: from the moment she picks a stage card, the chrome wears that stage's first palette
   // (the same one finishReg lands on), so the choice shows before the app does. UI palette only.
-  const regPal = phase === "register" && reg.stage ? stagePalettes(REG_STAGE[reg.stage], STAGE_LABELS[reg.stage])[0] : null;
+  const regPal = orgId === "cyra" && phase === "register" && reg.stage ? stagePalettes(REG_STAGE[reg.stage], STAGE_LABELS[reg.stage])[0] : null;
   // The seven UI tokens for the scheme on screen (each palette's light values or its `dark` object).
-  const t = { ...paletteFor(org.theme, scheme), ...(stagePal ? paletteFor(stagePal, scheme) : regPal ? paletteFor(regPal, scheme) : {}) };
+  const t = { ...paletteFor(orgUi.theme, scheme), ...(stagePal ? paletteFor(stagePal, scheme) : regPal ? paletteFor(regPal, scheme) : {}) };
   /* The tracked list (L6): her stage's library plus what she added from the other one, hidden ones included
      (lib/daylog.js trackedIds). Every insight, chart, calendar card, report row and the doctor email runs on it,
      so a hidden chip still counts. */
@@ -799,7 +806,7 @@ export default function CyraDemo() {
     const n = ins.last30.length;
     let fertLine = null;
     const lines = [
-      `Hi — ahead of my appointment, a brief summary of the last 30 days (I logged ${n} of them in ${org.title || org.name}):`,
+      `Hi — ahead of my appointment, a brief summary of the last 30 days (I logged ${n} of them in ${orgUi.title || orgUi.name}):`,
       ``,
       ...ins.counts.filter((c) => c.days > 0).slice(0, 4).map((c) => `• ${c.label}: ${c.days} of ${n} logged days (${c.strong} moderate-to-strong)`),
       ...(ins.lens30.length >= 1 ? [``, `• Cycle length${ins.lens30.length > 1 ? "s" : ""} in these 30 days: ${ins.lens30.join(", ")} days${ins.variability30 != null ? ` (${ins.variability30}-day spread)` : ""}`] : []),
@@ -1137,6 +1144,27 @@ export default function CyraDemo() {
       } else if (r.invalid) { setAppCfg(null); keepAppConfig(null); }
     });
     return () => { on = false; };
+  }, []);
+  /* Organizations (2026-11-25, upgrade-enterprise Task 3; lib/org.js, lib/orgLive.js). Joining sends only the slug or the
+     code, with her sign-in only when she is signed in (her account then notes the organization). A joined organization
+     limits the registration's stage cards to its stages: a card she had picked that it doesn't offer is unpicked. */
+  const orgWhy = (why) => (why === "code" ? ORG_COPY.badCode : why === "unknown" ? ORG_COPY.badLink : why === "server" ? ORG_COPY.noServer : ORG_COPY.offline);
+  const applyOrg = (cfg) => {
+    setOrg(cfg);
+    const ok = cfg.stages.map((x) => ORG_STAGES[x]);
+    setReg((r) => { const stages = (r.stages || []).filter((l) => ok.includes(l)); return { ...r, stages, stage: r.stage && ok.includes(r.stage) ? r.stage : stages[0] || null }; });
+    ping(ORG_COPY.joined(cfg.name));
+  };
+  const joinByCode = async (code) => { const r = await joinOrg({ code }, signinRef.current?.token || null); if (!r.ok) return orgWhy(r.why); applyOrg(r.cfg); return null; };
+  const joinOffered = async () => { const o = orgOffer; if (!o) return null; const r = await joinOrg({ slug: o.slug }, signinRef.current?.token || null); if (!r.ok) return orgWhy(r.why); setOrgOffer(null); applyOrg(r.cfg); return null; };
+  const leaveOrgNow = () => { leaveOrg(signinRef.current?.token || null); setOrg(null); ping(ORG_COPY.left); };
+  // A ?org=<slug> link: its public config is asked for (nothing is counted), the link is taken out of the address bar,
+  // and "Join <name>?" opens. Nothing is joined until she presses Join.
+  useEffect(() => {
+    const slug = orgFromSearch(typeof window !== "undefined" ? window.location.search : "");
+    if (!slug) return;
+    try { const u = new URL(window.location.href); u.searchParams.delete("org"); window.history.replaceState(window.history.state, "", `${u.pathname}${u.search}${u.hash}`); } catch { /* the address stays as it was */ }
+    peekOrg(slug).then((r) => { if (r.ok) setOrgOffer(r.cfg); else ping(orgWhy(r.why)); });
   }, []);
   const appearanceRef = useRef(appearance); appearanceRef.current = appearance;
   /* The device's setting is followed live (System). Printing always renders the light palette: beforeprint
@@ -1776,8 +1804,8 @@ export default function CyraDemo() {
   };
 
   /* ---------- on-device persistence ---------- */
-  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLogRaw, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMedsRaw, medLog: setMedLogRaw, appts: setApptsRaw, journal: setJournalRaw, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDaysRaw, pregLog: setPregLogRaw, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestionsRaw(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLogRaw(cleanBodyLog(v)), labs: (v) => setLabsRaw(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLogRaw(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperimentsRaw(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)), signin: (v) => setSignin((cur) => cur || cleanSignin(v)), devicesHint: (v) => setDevicesHint(cleanDevicesHint(v)), practiceVoice: (v) => setPracticeVoice(v === true), shopTapsOff: (v) => setShopTapsOff(v === true), shopTapsOn: (v) => setShopTapsOn(v === true), askCardOff: (v) => setAskCardOff(v === true), shopHint: (v) => setShopHint(cleanShopHint(v)), trialStart: (v) => setTrialStart(cleanTrialStart(v)), guide: (v) => setGuide(cleanGuide(v)), partnerShare: (v) => setPartnerShare(cleanPartnerShare(v)), glucoseLog: (v) => setGlucoseLog(cleanGlucoseLog(v)), proChip: (v) => setProChip(cleanProChip(v)), shopCatalog: (v) => setShopCatalog(cleanShopCatalog(v)), promos: (v) => setPromos(cleanPromoCache(v)), promoHidden: (v) => setPromoHidden(cleanPromoHidden(v)), guestStart: (v) => setGuestStart(cleanGuestTime(v)), guestSeen: (v) => setGuestSeen(cleanGuestTime(v)), guestNote: (v) => setGuestNote(cleanGuestNote(v)), homeMore: (v) => setHomeMore(v === true) };
-  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats, signin, devicesHint, practiceVoice, shopTapsOff, askCardOff, shopHint, trialStart, guide, partnerShare, glucoseLog, proChip, shopCatalog, promos, promoHidden, guestStart, guestSeen, guestNote, homeMore, shopTapsOn };
+  const setters = { palIdx: setPalIdx, relationship: setRelationship, connLog: setConnLogRaw, cadence: setCadence, quietHours: setQuietHours, quickMode: setQuickMode, meds: setMedsRaw, medLog: setMedLogRaw, appts: setApptsRaw, journal: setJournalRaw, wearSources: setWearSources, wearData: setWearData, acct: setAcct, research: setResearch, stage: setStage, stageName: setStageName, welcome: setWelcome, days: setDaysRaw, pregLog: setPregLogRaw, pulseQueue: setPulseQueue, pulseSent: setPulseSent, pulseLastSend: setPulseLastSend, pulseRev: setPulseRev, askAI: setAskAI, regAnswers: setRegAnswers, kickTally: (v) => setKickTally(v && typeof v.day === "string" && Number.isFinite(v.n) ? { day: v.day, n: v.n } : null), terraOff: (v) => setTerraOff(cleanTerraOff(v)), lastBackupAt: (v) => setLastBackupAt(typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null), reminders: (v) => { const rev = Number.isFinite(v?.rev) ? v.rev : 0; adoptedRemRev.current = rev; setReminders({ enabled: !!v?.enabled, status: "off", endpoint: typeof v?.endpoint === "string" ? v.endpoint : null, pending: cleanPending(v?.pending), rev }); }, pots: (v) => setPots(cleanPots(v)), installHint: (v) => setInstallHint((cur) => mergeInstallHint(cleanInstallHint(v), cur)), appearance: (v) => setAppearance(cleanAppearance(v)), uiStyle: (v) => setUiStyle(cleanStyle(v)), visitQuestions: (v) => setVisitQuestionsRaw(cleanQuestions(v)), uiLocale: (v) => setUiLocale(cleanLocale(v)), cycleFlags: (v) => setCycleFlags(cleanCycleFlags(v)), symPrefs: (v) => setSymPrefs(cleanSymPrefs(v)), fertSigns: (v) => setFertSigns(cleanFertPrefs(v)), modules: (v) => setModules(cleanModules(v)), homeTiles: (v) => setHomeTiles(cleanHomeTiles(v)), bodyLog: (v) => setBodyLogRaw(cleanBodyLog(v)), labs: (v) => setLabsRaw(cleanLabs(v)), bodyPrefs: (v) => setBodyPrefs(cleanBodyPrefs(v)), moodLog: (v) => setMoodLogRaw(cleanMoodLog(v)), practiceLog: (v) => setPracticeLog(cleanPracticeLog(v)), practiceFavs: (v) => setPracticeFavs(cleanPracticeFavs(v)), practiceHaptics: (v) => setPracticeHaptics(v === true), experiments: (v) => setExperimentsRaw(cleanExperiments(v)), aiPrefs: (v) => setAiPrefs(cleanAiPrefs(v)), aiChat: (v) => setAiChat(cleanAiChat(v)), aiWeekly: (v) => setAiWeekly(cleanAiWeekly(v)), cloudAccount: (v) => setCloudAccount(cleanCloudAccount(v)), homeStepSkip: (v) => setHomeStepSkip(v && typeof v.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.day) && typeof v.id === "string" ? { day: v.day, id: v.id } : null), exportLog: (v) => setExportLog(v && typeof v.month === "string" && /^\d{4}-\d{2}$/.test(v.month) && Number.isInteger(v.n) && v.n >= 0 ? { month: v.month, n: v.n } : null), nightSkips: (v) => setNightSkips(cleanNightSkips(v)), confirmations: (v) => setConfirmations(cleanConfirmations(v)), trackStats: (v) => setTrackStats(cleanTrackStats(v)), signin: (v) => setSignin((cur) => cur || cleanSignin(v)), devicesHint: (v) => setDevicesHint(cleanDevicesHint(v)), practiceVoice: (v) => setPracticeVoice(v === true), shopTapsOff: (v) => setShopTapsOff(v === true), shopTapsOn: (v) => setShopTapsOn(v === true), askCardOff: (v) => setAskCardOff(v === true), shopHint: (v) => setShopHint(cleanShopHint(v)), trialStart: (v) => setTrialStart(cleanTrialStart(v)), guide: (v) => setGuide(cleanGuide(v)), partnerShare: (v) => setPartnerShare(cleanPartnerShare(v)), glucoseLog: (v) => setGlucoseLog(cleanGlucoseLog(v)), proChip: (v) => setProChip(cleanProChip(v)), shopCatalog: (v) => setShopCatalog(cleanShopCatalog(v)), promos: (v) => setPromos(cleanPromoCache(v)), promoHidden: (v) => setPromoHidden(cleanPromoHidden(v)), guestStart: (v) => setGuestStart(cleanGuestTime(v)), guestSeen: (v) => setGuestSeen(cleanGuestTime(v)), guestNote: (v) => setGuestNote(cleanGuestNote(v)), homeMore: (v) => setHomeMore(v === true), org: (v) => setOrg(cleanOrgRecord(v)) };
+  const values = { palIdx, relationship, connLog, cadence, quietHours, quickMode, meds, medLog, appts, journal, wearSources, wearData, acct, research, stage, stageName, welcome, days, pregLog, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, regAnswers, reminders, terraOff, kickTally, pots, lastBackupAt, installHint, appearance, cycleFlags, symPrefs, fertSigns, exportLog, modules, homeTiles, homeStepSkip, bodyLog, labs, bodyPrefs, moodLog, practiceLog, practiceFavs, practiceHaptics, experiments, aiPrefs, aiChat, aiWeekly, cloudAccount, uiLocale, uiStyle, visitQuestions, nightSkips, confirmations, trackStats, signin, devicesHint, practiceVoice, shopTapsOff, askCardOff, shopHint, trialStart, guide, partnerShare, glucoseLog, proChip, shopCatalog, promos, promoHidden, guestStart, guestSeen, guestNote, homeMore, shopTapsOn, org };
   const valuesRef = useRef(values); valuesRef.current = values;
   const stored = (k) => (k === "reminders" ? { enabled: !!reminders.enabled, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 } : values[k]);
   const snapshot = () => ({ v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app", ...Object.fromEntries(PERSISTED.map((k) => [k, stored(k)])) });
@@ -2045,7 +2073,7 @@ export default function CyraDemo() {
   }, [hydrated, phase]);
   // The document outside the column (color-scheme, --doc-bg) and the browser chrome (theme-color) follow the scheme and paper on screen.
   // While locked the page wears the base theme (no stage colour in the theme-color meta or the page background).
-  const lockT = paletteFor(org.theme, scheme);
+  const lockT = paletteFor(orgUi.theme, scheme);
   useLayoutEffect(() => { applyDocumentScheme(document, { scheme, paper: locked ? lockT.paper : t.paper }); }, [scheme, t.paper, locked, lockT.paper]);
   /* Calm R10: the UI language. Her saved choice (uiLocale, a device preference) when this build has that catalogue,
      else the device's best match; set before the children render, and <html lang>/dir follow it. */
@@ -2141,7 +2169,7 @@ export default function CyraDemo() {
     const restoreRem = isNative() ? !!saved.reminders?.enabled : !!reminders.enabled; // phone: scheduled on the phone, no server
     const rem = { enabled: restoreRem, endpoint: reminders.endpoint || null, pending: cleanPending(reminders.pending), rev: reminders.rev || 0 };
     setRem((x) => ({ ...x, enabled: restoreRem })); // this browser's own push addresses stay as they are
-    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, uiLocale, uiStyle, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount, signin, devicesHint, practiceVoice, shopTapsOff, askCardOff, shopHint, guide, proChip, shopCatalog, promos, promoHidden, guestSeen, guestNote, homeMore, shopTapsOn };
+    const keep = { research, pulseQueue, pulseSent, pulseLastSend, pulseRev, askAI, terraOff: cleanTerraOff(terraOff), lastBackupAt, installHint, appearance, uiLocale, uiStyle, exportLog, homeStepSkip, practiceHaptics, aiPrefs, aiChat, aiWeekly, cloudAccount: account || cloudAccount, signin, devicesHint, practiceVoice, shopTapsOff, askCardOff, shopHint, guide, proChip, shopCatalog, promos, promoHidden, guestSeen, guestNote, homeMore, shopTapsOn, org };
     if (account) setCloudAccount(account);
     await storage.save({ ...Object.fromEntries(PERSISTED.filter((k) => k in saved).map((k) => [k, saved[k]])), pots: restoredPots, wearSources: wear, cycleFlags: restoredFlags, symPrefs: restoredPrefs, fertSigns: restoredFert, modules: restoredModules, homeTiles: restoredTiles, ...restoredBody, ...keep, reminders: rem, v: RECORD_VERSION, savedAt: new Date().toISOString(), phase: "app" });
     applyReminders(restoreRem, saved.cadence || cadence, saved.quietHours || quietHours, { prompt: isNative() });
@@ -2821,8 +2849,10 @@ export default function CyraDemo() {
     return (
       <Shell {...shell} toast={toast} repaint={repaint}>
         <RegisterScreen reg={reg} setReg={setReg} regStep={regStep} setRegStep={setRegStep} regTouched={regTouched} setRegTouched={setRegTouched} cadence={cadence} setCadence={setCadence} finishReg={finishReg} onBackToSplash={() => setPhase("splash")} scheme={scheme}
+          org={org} orgJoin={hasServer() && !org ? <OrgCodeField id="reg-org-code" onJoin={joinByCode} /> : null}
           signinStep={FEATURES.signin ? { mode: signMode, providers: signinCfg?.providers || {}, busy: socialBusy, signedIn: signin, onProvider: startSocial, onEmailStart: emailStart, onEmailVerify, onRetry: askSigninConfig,
             guest: canTryFirst(signMode, GUEST_HOURS) ? { hours: GUEST_HOURS, story: guestStoryNow, onTry: () => setGuestStart((g) => g || new Date().toISOString()) } : null } : null} />
+        {orgOffer && orgOffer.slug !== orgId && <OrgJoinSheet offer={orgOffer} onJoin={joinOffered} onClose={() => setOrgOffer(null)} />}
       </Shell>
     );
   }
@@ -2868,7 +2898,7 @@ export default function CyraDemo() {
           {updateRow}
         </header>
         {settingsSheet}
-        <IntakeScreen org={org} acct={acct} ob={ob} setOb={setOb} obBusy={obBusy} setObBusy={setObBusy} setStage={chooseStage} setStageName={setStageName} setWelcome={setWelcome} setAppTab={setAppTab} setPregTab={setPregTab} finishOnboarding={finishOnboarding} />
+        <IntakeScreen org={orgUi} acct={acct} ob={ob} setOb={setOb} obBusy={obBusy} setObBusy={setObBusy} setStage={chooseStage} setStageName={setStageName} setWelcome={setWelcome} setAppTab={setAppTab} setPregTab={setPregTab} finishOnboarding={finishOnboarding} />
       </Shell>
     );
   }
@@ -2974,7 +3004,7 @@ export default function CyraDemo() {
   if (potsRun && potsOk) {
     return (
       <Shell {...shell} toast={toast}>
-        <header className="mast"><span className="mark">{org.name}<span className="sub">{org.tag}</span></span></header>
+        <header className="mast"><span className={`mark${orgUi.joined ? " orgmark" : ""}`}>{orgUi.logo && <img className="orglogo" src={orgUi.logo} alt="" width={24} height={24} />}<span className="orgname">{orgUi.name}</span><span className="sub">{orgUi.tag}</span></span></header>
         {potsRun.kind === "session"
           ? <SessionRunner run={potsRun} setRun={setPotsRun} pots={pots} setPots={setPotsLog} stage={stage} todayIso={todayIso} ping={ping}
               onEnd={() => { setPotsRun(null); setPotsSec("move"); setPotsFocus("move"); }} />
@@ -3262,7 +3292,7 @@ export default function CyraDemo() {
   const shopNow = shopFor(SHOP_LIVE ? shopCatalog : null, { apiBase: API_BASE, affiliates: AFFILIATES, images: SHOP_IMAGES, signed: SHOP_REVIEWED.signed });
   // 2026-11-19 (lib/shopTaps.js): the anonymous tap count; only in a build with a server and the shop, and only while her switch is on.
   const shopTapsNow = tapsOn({ live: SHOP_LIVE, on: shopTapsOn });
-  const shopProps = { shop: shopNow, live: shopNow.source === "live", taps: shopTapsNow, tapsAsk: SHOP_LIVE ? { on: shopTapsOn, set: (on) => { setShopTapsOn(on); ping(on ? FLOW_COPY.shopTapsOnSaid : FLOW_COPY.shopTapsOffSaid); } } : null, onTap: (id) => { sendShopTap(id, { live: SHOP_LIVE, on: shopTapsOn, base: API_BASE }); }, categories: shopCategories({ stage, ttc, pcos: pcosHere, glucose: glucoseOn }), allow: org.partnerIds || null };
+  const shopProps = { shop: shopNow, live: shopNow.source === "live", taps: shopTapsNow, tapsAsk: SHOP_LIVE ? { on: shopTapsOn, set: (on) => { setShopTapsOn(on); ping(on ? FLOW_COPY.shopTapsOnSaid : FLOW_COPY.shopTapsOffSaid); } } : null, onTap: (id) => { sendShopTap(id, { live: SHOP_LIVE, on: shopTapsOn, base: API_BASE }); }, categories: shopCategories({ stage, ttc, pcos: pcosHere, glucose: glucoseOn }), allow: orgUi.partnerIds || null };
   const shopCtx = FEATURES.shop ? { openCategory: (c) => openShop(c) } : null;
   const closeShop = () => {
     const back = shopFrom.current; shopFrom.current = null;
@@ -3277,7 +3307,7 @@ export default function CyraDemo() {
       onTry={(s) => { setMeds((m) => [...m, { id: Date.now(), name: `${s.brand} ${s.name}`, kind: shelfKind(s), started: todayIso }]); ping(shelfKind(s) === "care" ? "Added to What I'm trying" : "Added — your days before and after will be compared"); }} />
   ) : null;
   const youView = (
-    <YouScreen page={isYouPage(curTab) ? curTab : null} onOpenPage={(v) => showView(v, { head: true })} onBack={backYou} planLabel={planNow.label} planKey={planNow.key}
+    <YouScreen orgCard={hasServer() ? <OrgCard org={org} onJoin={joinByCode} onLeave={leaveOrgNow} /> : null} page={isYouPage(curTab) ? curTab : null} onOpenPage={(v) => showView(v, { head: true })} onBack={backYou} planLabel={planNow.label} planKey={planNow.key}
       voice={voiceSupported() ? { on: practiceVoice, set: (on) => { setPracticeVoice(on === true); ping(on ? "Voice guide on" : "Voice guide off"); } } : null}
       onTour={() => { setGuide(replayGuide(todayIso)); setHomeStepSkip(null); goTab("home"); ping("Getting started is back on Home, and each screen will show its tip again."); }} trial={{ gateOn: TRIAL_GATE && !proOwnedNow, line: trialNow }} acct={acct} stage={stage} stageName={stageName} onChangeStage={changeStage} modules={modRows} sp={settingsProps}
       pots={{ pots, onOn: potsOn, onOff: potsOff }} fertRow={fertRow} install={installOffer} planUnlocked={proOn} proOwned={proOwnedNow} storeReady={STORE.available} onPro={() => setProOpen(true)}
@@ -3304,7 +3334,7 @@ export default function CyraDemo() {
       onConnect={() => showView("connect", { head: true })}
       chat={offer.chat && aiPrefs.chat ? <ChatCard status={aiState} online={online} chat={aiChat} busy={aiBusy === "chat"} note={aiNote.chat} left={aiLeft.chat ? AI_COPY.leftChat(aiLeft.chat) : null} onCheck={checkAi} onPrepare={(q, clear) => prepareAi("chat", q, clear)} onClear={() => { setAiChat([]); ping("Chat cleared from this device"); }} seed={askSeed?.kind === "chat" ? askSeed : null} onSeeded={() => setAskSeed(null)} /> : null}
       evidence={evidenceCard("ai-evidence", askSeed?.kind === "evidence" ? askSeed : null)}
-      ask={<AskScreen embedded org={org} stage={stage} askQ={askQ} setAskQ={setAskQ} runAsk={runAsk} askBusy={askBusy} askOut={askOut} askAI={askAI} setAskAI={setAskAI} aiAvailable={aiAvailable} potsOn={potsTab && potsOk} ping={ping} />} />
+      ask={<AskScreen embedded org={orgUi} stage={stage} askQ={askQ} setAskQ={setAskQ} runAsk={runAsk} askBusy={askBusy} askOut={askOut} askAI={askAI} setAskAI={setAskAI} aiAvailable={aiAvailable} potsOn={potsTab && potsOk} ping={ping} />} />
     );
   };
   const practiceSheet = practiceOpen && practiceOf(practiceOpen.id) ? (
@@ -3325,7 +3355,7 @@ export default function CyraDemo() {
     <ShopContext.Provider value={shopCtx}>
     <Shell {...shell} toast={toast} repaint={repaint}>
       <header className="mast">
-        <span className="mark">{org.name}<span className="sub">{org.tag}</span></span>
+        <span className={`mark${orgUi.joined ? " orgmark" : ""}`}>{orgUi.logo && <img className="orglogo" src={orgUi.logo} alt="" width={24} height={24} />}<span className="orgname">{orgUi.name}</span><span className="sub">{orgUi.tag}</span></span>
         {/* Plan badge (2026-11-19): Pro, free week, guest and free never look the same; a tap opens the plans. Since
             2026-11-25 (docs/plans/critique-fixes.md Task 1) it is the ONE place every screen shows the plan or the free
             week: the header is brand, plan badge, Shop and settings, on one row (her name is in Home's greeting; the
@@ -3390,7 +3420,7 @@ export default function CyraDemo() {
             {appIs("cycles") && <CyclesScreen cyc={cyc} stage={stage} onUse={setCycleUse} pcosOn={pcosHere} lens={ins.lens} marks={signals ? signals.marks : null} ttc={ttc} />}
             {appIs("patterns") && patternsView()}
             {appIs("report") && <ReportScreen ins={ins} lens6={cyc.lens6} stage={stage} stageName={stageName} buildEmail={buildEmail} ping={ping} showTable={showTable} setShowTable={setShowTable} potsOn={potsTab && potsOk} todayIso={todayIso} appt={upcoming[0] || null} daysUntil={daysUntil} goTab={goTab} setShowAppts={setShowAppts} scoreOn={scoreOn} scoreColor={scoreColor} scheme={scheme} fert={ttc && fertOn ? { unit: tempUnit } : null} buildVisit={buildVisit} pdfLeft={pdfLeft} onPdfMade={onPdfMade} pdfLimit={PLAN.pdfExportsPerMonth} onHandoff={holdLock} mealsK={mealsHere ? mealCounts(bodyLog, addDays(todayIso, -29), todayIso).notes : 0}
-              buildSummary={buildClinician} hasName={!!firstName} accentHex={(stagePal || org.theme).primary} questions={visitQuestions} setQuestions={setVisitQuestions}
+              buildSummary={buildClinician} hasName={!!firstName} accentHex={(stagePal || orgUi.theme).primary} questions={visitQuestions} setQuestions={setVisitQuestions}
               aiWriteUp={offer.weekly && aiPrefs.weekly && aiWeekly?.writeup ? aiWeekly : null} />}
             {appIs("mind") && mindView()}
             {appIs("practices") && practicesView()}
@@ -3415,6 +3445,7 @@ export default function CyraDemo() {
       )}
       {partnerOpen && partnerShown && <PartnerSheet prefs={partnerShare} setPrefs={setPartnerPrefs} pred={pred} ttc={ttc} phone={isNative()} onShare={sharePartner} onClose={() => setPartnerOpen(false)} />}
       {learnOpen && <LearnSheet id={learnOpen} onClose={() => setLearnOpen(null)} />}
+      {orgOffer && orgOffer.slug !== orgId && <OrgJoinSheet offer={orgOffer} onJoin={joinOffered} onClose={() => setOrgOffer(null)} />}
       {proOpen && <ProSheet gateOn={TRIAL_GATE} unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} promo={promoNow} onHidePromo={hidePromo} until={proUntilNow} onCodeDone={() => startStore(STORE).then(takeStore)} refs={webRefs(appCfg)} onClose={() => setProOpen(false)} />}
       {createOpen && guest === "in" && <GuestCreateSheet onClose={() => setCreateOpen(false)} step={{ mode: signMode, providers: signinCfg?.providers || {}, busy: socialBusy, signedIn: signin, onProvider: startSocial, onEmailStart: emailStart, onEmailVerify, onRetry: askSigninConfig }} />}
       {trialSheet && !proOpen && <ProSheet gateOn={TRIAL_GATE} trialOver unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} promo={promoNow} onHidePromo={hidePromo} until={proUntilNow} onCodeDone={() => startStore(STORE).then(takeStore)} refs={webRefs(appCfg)} onClose={() => setTrialSheet(false)} />}

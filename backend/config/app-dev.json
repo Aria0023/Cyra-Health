@@ -11,7 +11,6 @@
     "catalog",
     "integrations",
     "agent",
-    "orgs",
     "users",
     "auth",
     "fhir",
@@ -27,7 +26,8 @@
     "subscriptions",
     "insights",
     "feedback",
-    "settings"
+    "settings",
+    "orgs"
   ],
   "opsConsole": true,
   "storage": {

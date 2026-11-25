@@ -1,5 +1,6 @@
 /* axe-core on the portal's enterprise pages (docs/plans/upgrade-enterprise.md), light and dark, phone and wide, against a
-   real development backend (e2e/lib/portal.mjs): App settings empty, with a form error and after saves (the change log).
+   real development backend (e2e/lib/portal.mjs): App settings empty, with a form error and after saves (the change log); Organizations empty, a
+   new one with a colour below AA, and a created one with its logo (Task 3).
    Every target is checked at 44px. */
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -41,6 +42,27 @@ for (const scheme of ["light", "dark"]) {
       await audit(page, `App settings, saved ${scheme}`);
       await page.setViewportSize({ width: 1200, height: 900 });
       await audit(page, `App settings, wide ${scheme}`);
+      await page.setViewportSize({ width: 390, height: 844 });
+      // Organizations (Task 3): the empty list, the form with a colour below AA, a created organization with its logo
+      await nav(page, "Organizations");
+      await expect(page.getByRole("heading", { level: 1, name: "Organizations" })).toBeVisible();
+      await audit(page, `Organizations, empty ${scheme}`);
+      await page.getByRole("link", { name: "New organization" }).click();
+      await expect(page.getByRole("heading", { level: 1, name: "New organization" })).toBeVisible();
+      await page.getByLabel("Name", { exact: true }).fill("Lakeside Clinic");
+      await page.getByLabel("Slug", { exact: true }).fill("lakeside");
+      await page.getByLabel("Primary, light").fill("#FFD6E0");
+      await expect(page.locator("#org-primary-check")).toContainText("below AA");
+      await page.getByRole("button", { name: "Create organization" }).click();
+      await expect(page.getByRole("alert")).toBeVisible();
+      await audit(page, `New organization, a colour below AA ${scheme}`);
+      await page.getByLabel("Primary, light").fill("#2F5D50");
+      await page.getByRole("button", { name: "Create organization" }).click();
+      await expect(page.getByRole("heading", { level: 1, name: "Lakeside Clinic" })).toBeVisible();
+      await page.locator("#org-logo").setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64") });
+      await page.getByRole("button", { name: "Upload logo" }).click();
+      await expect(page.locator(".msgbox .ok")).toHaveText("Logo uploaded.");
+      await audit(page, `Organization with a logo ${scheme}`);
     } finally { await ctx.close(); await be.stop(); }
   });
 }

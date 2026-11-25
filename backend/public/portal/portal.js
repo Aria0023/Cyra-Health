@@ -9,6 +9,7 @@ import { subsViews } from "./subs.js";
 import { reportViews } from "./reports.js";
 import { launchViews } from "./launch.js";
 import { settingsViews } from "./settings.js";
+import { orgsViews } from "./orgs.js";
 
 const CATEGORY_LABEL = { fertility: "Ovulation & fertility", pregnancy: "Pregnancy", labs: "Lab tests", glucose: "Blood sugar", wearables: "Wearables", periods: "Periods", meno: "Perimenopause & menopause", sleep: "Sleep" };
 const AVAIL_LABEL = { home: "Kit sent to your home", lab: "Sample taken at a lab", visit: "Online visit", app: "In an app", online: "Sold online", stores: "Sold online and in stores", rx: "By prescription" };
@@ -77,7 +78,7 @@ function renderWho() {
   who.append(h("span", {}, "Signed in as ", h("b", { text: me().email }), ` · ${isOwner() ? "Owner" : "Partner"}`),
     h("button", { type: "button", class: "btn small", onclick: async () => { try { await api("POST", "/auth/sign-out", {}); } catch { /* ends locally anyway */ } endSession("You're signed out."); } }, "Sign out"));
   const links = isOwner()
-    ? [["#/", "Overview"], ["#/readiness", "Readiness"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/subscriptions", "Subscriptions"], ["#/promotions", "Promotions"], ["#/grants", "Pro grants"], ["#/codes", "Codes"], ["#/clicks", "Clicks"], ["#/people", "People"], ["#/affiliates", "Affiliates"], ["#/weekly", "Weekly report"], ["#/ai-costs", "AI costs"], ["#/feedback", "Feedback"], ["#/settings", "App settings"], ["#/activity", "Activity"]]
+    ? [["#/", "Overview"], ["#/readiness", "Readiness"], ["#/products", "Products"], ["#/brands", "Brands"], ["#/applications", "Applications"], ["#/partners", "Partners"], ["#/subscriptions", "Subscriptions"], ["#/promotions", "Promotions"], ["#/grants", "Pro grants"], ["#/codes", "Codes"], ["#/clicks", "Clicks"], ["#/people", "People"], ["#/affiliates", "Affiliates"], ["#/weekly", "Weekly report"], ["#/ai-costs", "AI costs"], ["#/feedback", "Feedback"], ["#/settings", "App settings"], ["#/orgs", "Organizations"], ["#/activity", "Activity"]]
     : [["#/products", "Products"], ["#/brands", "Brands"], ["#/codes", "Codes"], ["#/clicks", "Clicks"]];
   for (const [href, label] of links) nav.append(h("a", { href, "data-nav": href }, label));
   nav.hidden = false;
@@ -85,7 +86,7 @@ function renderWho() {
 }
 function markNav() {
   const cur = location.hash.replace(/\?.*$/, "") || "#/";
-  const top = cur.startsWith("#/product") ? "#/products" : cur.startsWith("#/brand") ? "#/brands" : cur.startsWith("#/promotion") ? "#/promotions" : cur;
+  const top = cur.startsWith("#/product") ? "#/products" : cur.startsWith("#/brand") ? "#/brands" : cur.startsWith("#/promotion") ? "#/promotions" : cur.startsWith("#/org/") ? "#/orgs" : cur;
   for (const a of document.querySelectorAll("#nav a")) { if (a.dataset.nav === top || (top === "#/" && !isOwner() && a.dataset.nav === "#/products")) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); }
 }
 
@@ -531,6 +532,9 @@ const launch = launchViews({ h, api, show, field, textIn, area, select, msgBox, 
 /* ----- App settings (settings.js; owner only) ----- */
 const appSettings = settingsViews({ h, api, show, field, textIn, area, select, msgBox, tell, fmtTime, table: reports.table });
 
+/* ----- Organizations (orgs.js; owner only) ----- */
+const organizations = orgsViews({ h, api, show, field, textIn, area, select, checks, checked, msgBox, tell, fmtTime });
+
 /* ---------- router ---------- */
 async function route() {
   if (/\/apply\/?$/.test(location.pathname)) return renderApply();
@@ -557,6 +561,8 @@ async function route() {
     if (isOwner() && hash === "#/applications") return await renderApplications();
     if (isOwner() && hash === "#/activity") return await renderActivity();
     if (isOwner() && hash === "#/settings") return await appSettings.renderSettings();
+    if (isOwner() && hash === "#/orgs") return await organizations.renderOrgs();
+    if (isOwner() && hash.startsWith("#/org/")) return await organizations.renderOrg(decodeURIComponent(hash.slice("#/org/".length)));
     if (isOwner() && (hash === "#/" || hash === "#")) return await renderOverview();
     return await renderProducts();
   } catch (err) {
