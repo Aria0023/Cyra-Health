@@ -230,3 +230,25 @@ Branch `feature/upgrade-enterprise`, worktree `/home/user/cyra-enterprise` (base
 - Verified 2026-11-25 on the Task 5 tree (a clean worktree at the Task 5 WIP commit, full runs): lint 0 errors / 23
   warnings; unit 734/734; backend 148/148; smoke:all exit 0; build ok, "BUILD 2026.10.07-D" once in dist; e2e 118/118;
   axe 74/74 (72 + 2).
+
+## Task 6: subscribe any time during the free week — IN PROGRESS
+- `src/lib/plans.js freeWeekLine({ where, daysLeft, tiles })`, shown by the Pro sheet right under the plan tiles
+  (`#pro-freeweek`) while the free week runs (App.jsx passes `freeDays` = `trialDaysLeft` while the gate is on and she
+  doesn't own Pro; never on the "free week is over" sheet). Each plan's trial days come from the same tiles the sheet shows
+  (the store's own products on a phone, `storeTrialDays`; a promotion's offering too), never written in the sentence; no
+  tiles (the store hasn't answered) → no line.
+- Phone (store), verbatim with today's store setup: "You can subscribe now. Your free week isn't extended: the yearly plan's
+  7 free days start when you subscribe, and the monthly plan is charged from the day you subscribe." General form: "You can
+  subscribe now. Your free week isn't extended: {for each plan: "the {yearly|monthly} plan's {n} free days start when you
+  subscribe" | "the {yearly|monthly} plan is charged from the day you subscribe"}." DEVIATION (wording): the owner's "monthly
+  starts right away" became "the monthly plan is charged from the day you subscribe", which says exactly what happens
+  (no store trial on monthly: lib/pricing.js trialDays 0).
+- Web, verbatim: "You can get Pro in the iPhone or Android app at any time, during your free week too." (the sheet's
+  existing "Get Solia Health Pro in the app" and "Pro is sold only in the iPhone and Android apps. Nothing is sold on the
+  web." stay; still no web checkout).
+- "Upgrade to Pro" (Task 1) already shows during the free week (it hides only when she owns Pro); the e2e checks it there.
+- After a purchase the header's badge is "Pro" at once: the sheet calls `onOwned(true)` → `setProOwnedNow`, and the badge is
+  computed from `proOwnedNow` on every render. Checked with a mock store (unit `freeweek.test.mjs`: loadOffer → buyPro →
+  planBadge "Pro", plus the App.jsx and ProSheet.jsx wiring). Not checked in e2e: the web has no store, and the e2e
+  harness has no phone store.
+- Tests: unit `freeweek.test.mjs` (3); e2e `freeweek.spec.mjs` (2).

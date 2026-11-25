@@ -122,7 +122,7 @@ import { syncReminders, wantsReminders, forgetOnServer, forgetOnServerWhy, known
 import { isNative, hasPlugin, Haptics, Purchases, platform, appReturnUrl, newAppVerifier, waitForAppUrl, App as CapApp, Filesystem, Directory, Encoding, Share } from "./lib/native.js";
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pots/ui.js";
-import { canLog, cleanTrialStart, trialLine } from "./lib/trial.js";
+import { canLog, cleanTrialStart, trialLine, trialDaysLeft } from "./lib/trial.js";
 import { GUEST_HOURS, GUEST_COPY, canTryFirst, cleanGuestTime, cleanGuestNote, guestState, guestEndsAt, guestDeadline, guestStory, guestNoteNew, guestNear, nextGuestSeen, restoredGuestStart } from "./lib/guest.js";
 import { SAVED_LINE } from "./lib/saved.js";
 import { cleanGuide, hintFor, markSeen, replayGuide, gettingStarted } from "./lib/guide.js";
@@ -3446,7 +3446,7 @@ export default function CyraDemo() {
       {partnerOpen && partnerShown && <PartnerSheet prefs={partnerShare} setPrefs={setPartnerPrefs} pred={pred} ttc={ttc} phone={isNative()} onShare={sharePartner} onClose={() => setPartnerOpen(false)} />}
       {learnOpen && <LearnSheet id={learnOpen} onClose={() => setLearnOpen(null)} />}
       {orgOffer && orgOffer.slug !== orgId && <OrgJoinSheet offer={orgOffer} onJoin={joinOffered} onClose={() => setOrgOffer(null)} />}
-      {proOpen && <ProSheet gateOn={TRIAL_GATE} unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} promo={promoNow} onHidePromo={hidePromo} until={proUntilNow} onCodeDone={() => startStore(STORE).then(takeStore)} refs={webRefs(appCfg)} onClose={() => setProOpen(false)} />}
+      {proOpen && <ProSheet gateOn={TRIAL_GATE} unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} promo={promoNow} onHidePromo={hidePromo} until={proUntilNow} onCodeDone={() => startStore(STORE).then(takeStore)} refs={webRefs(appCfg)} freeDays={TRIAL_GATE && !proOwnedNow ? trialDaysLeft(trialStart || todayIso, todayIso) : 0} onClose={() => setProOpen(false)} />}
       {createOpen && guest === "in" && <GuestCreateSheet onClose={() => setCreateOpen(false)} step={{ mode: signMode, providers: signinCfg?.providers || {}, busy: socialBusy, signedIn: signin, onProvider: startSocial, onEmailStart: emailStart, onEmailVerify, onRetry: askSigninConfig }} />}
       {trialSheet && !proOpen && <ProSheet gateOn={TRIAL_GATE} trialOver unlocked={proOn} owned={proOwnedNow} ai={offer.any} cloud={ACCOUNTS_HERE} store={STORE} native={isNative()} onOwned={(o) => setProOwnedNow(o)} onRestore={onRestore} ping={ping} promo={promoNow} onHidePromo={hidePromo} until={proUntilNow} onCodeDone={() => startStore(STORE).then(takeStore)} refs={webRefs(appCfg)} onClose={() => setTrialSheet(false)} />}
       {acctSheetView}

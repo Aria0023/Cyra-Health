@@ -3073,3 +3073,12 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
 ### Task 5: devices card, colour distinction — visual only
 - Home's "Connect a device" card gets a tinted surface, a coloured left edge, the device rows' icon chips and a filled
   "See devices" (UI tokens only). No new sentence, request, stored value or key; the card's words are unchanged.
+
+### Task 6: subscribe any time during the free week — copy only
+- Nothing new is sent or stored. The Pro sheet adds one line under the plan tiles while the free week runs. Verbatim:
+  phone, with today's store products: "You can subscribe now. Your free week isn't extended: the yearly plan's 7 free days
+  start when you subscribe, and the monthly plan is charged from the day you subscribe." (each plan's days read from the
+  store's own product; a plan without a store trial is "charged from the day you subscribe"); web: "You can get Pro in
+  the iPhone or Android app at any time, during your free week too." Still no web checkout. Both are literally true: the
+  free week (lib/trial.js) is not extended by a purchase, a store trial starts at purchase (lib/pricing.js planLines,
+  App Store 3.1.2 terms under the buy button unchanged), and monthly has no store trial.

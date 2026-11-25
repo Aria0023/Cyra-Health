@@ -72,3 +72,20 @@ export function planTiles({ where = "web", offer = null, refs = null } = {}) {
     showing it on 2026-11-25 (docs/plans/critique-fixes.md Task 1: the header's plan badge is the one plan message); the
     key still loads so older records validate. */
 export const cleanProChip = (v) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+
+/* 2026-11-25 (docs/plans/upgrade-enterprise.md Task 6): during the free week the Pro sheet says she can subscribe now, and
+   exactly what that means for each plan. The free week (lib/trial.js) is not extended by subscribing, and a plan's own store
+   trial starts at purchase. Each plan's trial days come from the tiles (the store's own product on a phone, lib/pricing.js
+   PRO_PRODUCTS on the web), never written here. No tiles (the store hasn't answered) → no line, so nothing is claimed. */
+const planWord = { annual: "yearly", monthly: "monthly" };
+const FREE_NOW = "You can subscribe now. Your free week isn't extended:";
+/** → the sentence for where she is, or null. where: "store" | "web"; tiles: planTiles(...) for the same place. */
+export function freeWeekLine({ where = "web", daysLeft = 0, tiles = [] } = {}) {
+  if (!(daysLeft > 0) || !Array.isArray(tiles) || !tiles.length) return null;
+  if (where === "web") return "You can get Pro in the iPhone or Android app at any time, during your free week too.";
+  const parts = PRO_PLAN_IDS.map((id) => tiles.find((t) => t.id === id)).filter(Boolean).map((t) => (t.trialDays > 0
+    ? `the ${planWord[t.id]} plan's ${t.trialDays} free days start when you subscribe`
+    : `the ${planWord[t.id]} plan is charged from the day you subscribe`));
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}` : parts[0];
+  return `${FREE_NOW} ${list}.`;
+}

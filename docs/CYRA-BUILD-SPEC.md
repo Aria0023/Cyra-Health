@@ -3154,3 +3154,6 @@ docs/PRIVACY-AUDIT.md (L10). No harness file was edited and no suite sets a lock
   under 10 as "fewer than 10" (by the server). Owners see every organization. Every route checks the role on the server.
 - **Devices card (Task 5):** Home's "Connect a device" card stands apart in every style: its surface in the ring/watch tint,
   a primary left edge, the device rows' icon chips and a filled "See devices" (tokens only; AA and axe in all nine styles).
+- **Free week (Task 6):** during the free week the Pro sheet says under the tiles that she can subscribe now and what each
+  plan then does, its trial days read from the store's own products (lib/plans.js freeWeekLine); the web says Pro is in
+  the phone apps. "Upgrade to Pro" shows then too; after a purchase the header's badge is "Pro" on the same render.

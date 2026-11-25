@@ -4,7 +4,7 @@ import Icon from "./Icon.jsx";
 import { t } from "../lib/i18n.js";
 import { loadOffer, buyPro, sendTip, redeemCode, STORE_LINES, CODE_LINES } from "../lib/purchase.js";
 import { TIP_PRODUCTS, planLines, CANCEL_LINES, KEEP_LINE } from "../lib/pricing.js";
-import { planTiles, storeTrialDays } from "../lib/plans.js";
+import { planTiles, storeTrialDays, freeWeekLine } from "../lib/plans.js";
 import { promoBanner } from "../lib/promos.js";
 import PromoBanner from "./PromoBanner.jsx";
 import { PlanTiles, GetInApp } from "./PlanTiles.jsx";
@@ -53,7 +53,7 @@ const PLANS_LAB = "Pro plans";
 export const CODE_COPY = Object.freeze({ lab: "Have a code?", open: "Have a code?", codeLab: "Your code", redeemPlay: "Redeem in Google Play" });
 export const untilLine = (iso) => { try { return `Pro until ${new Date(iso).toLocaleDateString(undefined, { dateStyle: "long" })}`; } catch { return ""; } };
 
-export default function ProSheet({ onClose, unlocked = false, owned = false, ai = false, cloud = false, gateOn = false, trialOver = false, store = null, native = false, onOwned, onRestore, ping, promo = null, onHidePromo = null, until = null, onCodeDone = null, refs = null }) {
+export default function ProSheet({ onClose, unlocked = false, owned = false, ai = false, cloud = false, gateOn = false, trialOver = false, store = null, native = false, onOwned, onRestore, ping, promo = null, onHidePromo = null, until = null, onCodeDone = null, refs = null, freeDays = 0 }) {
   const selling = !!(store && store.available) && !owned;
   const [offer, setOffer] = useState(null); // null while the store hasn't answered
   const [pick, setPick] = useState("annual");
@@ -91,6 +91,9 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
   const lines = shown && shown.plans && shown.plans[pick] ? planLines(pick, promoPlans ? { ...shown.plans[pick], trialDays: storeTrialDays(shown.plans[pick].pkg && shown.plans[pick].pkg.product) } : shown.plans[pick]) : null;
   const where = native ? "store" : "web";
   const tiles = owned ? [] : planTiles({ where, offer: native ? shown : null, refs });
+  // 2026-11-25 (upgrade-enterprise Task 6): during the free week, that she can subscribe now and what each plan then does
+  // (its trial days read from the same tiles); on the web, that Pro is in the phone apps. Nothing is sold on the web.
+  const freeLine = owned || trialOver ? null : freeWeekLine({ where, daysLeft: freeDays, tiles });
   const buy = async () => {
     if (busy || !lines) return;
     setBusy(true);
@@ -120,6 +123,7 @@ export default function ProSheet({ onClose, unlocked = false, owned = false, ai 
         <div className="proplanstop">
           <p className="section-lab" id="pro-plans-lab">{selling ? t("pro.choosePlan") : PLANS_LAB}</p>
           <PlanTiles tiles={tiles} labelledBy="pro-plans-lab" pick={selling ? pick : null} onPick={selling ? setPick : null} />
+          {freeLine && <p className="hint profreeweek" id="pro-freeweek">{freeLine}</p>}
           {!native && <GetInApp id="pro-getinapp" />}
           {/* Store check (2026-11-19, docs/plans/launch-tools.md Task 4): Apple requires "Restore purchases" where
               purchases are offered. It sits directly under the plans, so it is on screen with them, never below the
