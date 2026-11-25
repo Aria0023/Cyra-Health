@@ -36,6 +36,19 @@ test("hero: pregnancy week, menopause count or calm state, long gap, no data", (
   assert.match(heroModel({ stage: "periods", predWhy: { kind: "long", days: 130 }, pcosOn: true, todayIso: T }).note, /not a mistake/);
   assert.equal(heroModel({ stage: "periods", todayIso: T }).kind, "start");
 });
+test("hero (2026-11-25): no period start says so in the ring; the sign-up estimate says it sharpens", () => {
+  const s = heroModel({ stage: "peri", todayIso: T });
+  assert.equal(s.kind, "start"); assert.equal(s.center, "No cycle yet"); assert.match(s.sub, /29/); assert.match(s.sub, /[A-Z][a-z]+/);
+  assert.equal(s.line, "Log a period start to see your cycle day");
+  const told = { cycleDay: 5, center: 28, phase: "follicular", state: "upcoming", fromIso: "2026-11-20", toIso: "2026-11-27", basis: "told", used: 0, wide: false };
+  assert.equal(heroModel({ stage: "periods", pred: told, todayIso: T }).note, "Based on your sign-up answer");
+  assert.equal(heroModel({ stage: "periods", pred: told, todayIso: T }).note2, "It sharpens as you log your periods.");
+  const w = heroModel({ stage: "periods", pred: told, todayIso: T, wearHere: true }).note2;
+  assert.match(w, /^It sharpens as you log your periods\. A watch or ring adds temperature/);
+  assert.doesNotMatch(w, /\d|accura|predict/i);
+  assert.equal(heroModel({ stage: "periods", pred: { ...told, basis: "logged", used: 3 }, todayIso: T, wearHere: true }).note2, null);
+  assert.equal(heroModel({ stage: "periods", pred: told, pcosOn: true, todayIso: T }).note2, null);
+});
 
 test("tiles: cleaning, defaults, availability, top-up", () => {
   assert.deepEqual([...DEFAULT_TILES], ["symptoms", "sleep", "mood", "move"]);

@@ -6,6 +6,7 @@ import Icon from "../components/Icon.jsx";
 import Details from "../components/Details.jsx";
 import { cleanFert, fertParts } from "../lib/fertility.js";
 import { t, fmtDate } from "../lib/i18n.js";
+import { SIGNAL_COPY } from "../lib/signals.js";
 
 /* Cycle & Peri — Calendar: any month, one at a time (‹ › move, "Back to this month" returns;
    the month resets when the tab is re-entered because the tab panel remounts). Fill = day
@@ -27,7 +28,7 @@ const FLOW_WORDS = { light: ", light flow", med: ", medium flow", heavy: ", heav
 const longDay = (iso) => fmtDate(iso, { weekday: "long", month: "long", day: "numeric" });
 const shortDay = (iso) => fmtDate(iso, { weekday: "short", month: "short", day: "numeric" });
 
-export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCycles = null, stage, isMeno = false, days, symIds, symMap, dayScore, scoreColor, scoreInk, scoreLabel, todayIso, selDay, setSelDay, onEdit, fertOn = false, tempUnit = "C", mealLine = null }) {
+export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCycles = null, stage, isMeno = false, days, symIds, symMap, dayScore, scoreColor, scoreInk, scoreLabel, todayIso, selDay, setSelDay, onEdit, fertOn = false, tempUnit = "C", mealLine = null, ttc = false }) {
   const [mo, setMo] = useState(0);
   const now = new Date();
   const first = new Date(now.getFullYear(), now.getMonth() + mo, 1);
@@ -114,6 +115,9 @@ export default function CalendarScreen({ pred, predWhy = null, cyc = null, onCyc
         {!isMeno && <><span><i className="dot d-pred" /> {t("cal.predicted")}</span><span><i className="dot d-fert" /> {t("cal.fertileEst")}</span></>}<span><i className="dot d-permark" /> {t("cal.period2")}</span><span><i className="d-sym" /> {t("cal.symptoms")}</span>
         {fertOn && <><span><Icon name="drop" size={11} className="d-ficon fm-ew" />{t("cal.eggWhite")}</span><span><Icon name="teststrip" size={11} className="d-ficon" />{t("cal.positiveTest")}</span></>}
       </div>
+      {/* Trying to conceive (2026-11-25, critique-fixes Task 2): the not-for-contraception line beside the fertile days
+          themselves, the same sentence as Learn's (lib/signals.js SIGNAL_COPY.ttc). */}
+      {ttc && !isMeno && <p className="rfoot calnotcontra">{SIGNAL_COPY.ttc}</p>}
       <div className="gradlegend">
         <span>{t("cal.heavierDay")}</span>
         <span className="gradbar" style={{ background: `linear-gradient(90deg, ${scoreColor(0)}, ${scoreColor(0.5)}, ${scoreColor(1)})` }} />

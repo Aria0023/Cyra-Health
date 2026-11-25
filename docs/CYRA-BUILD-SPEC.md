@@ -1978,6 +1978,13 @@ The reference implementation `App.jsx` contains all of the following. Treat the
 code as the source of truth for exact behavior; this addendum explains intent.
 
 ## A1. Home screen (default tab after registration)
+**Home order (2026-11-25, docs/plans/critique-fixes.md Task 2; normative over the paragraph below).** Hero (greeting, ring,
+next-period row; "No cycle yet" in the ring with no period start; "It sharpens as you log your periods." under a sign-up
+estimate; Trying to conceive: "Solia Health is not a contraceptive."), Quick log, POTS today / Today's auto-tracked, Getting
+started or Today's small step, Ask Solia, Body and Mind rails, Today's insight and the AI write-up, the install tip, then
+one folded group "More for today" (`#home-more`, record key `homeMore`, device-only, never in a backup) holding the patterns
+preview, the devices card, wearable cards, milestones, Coming up, the pulse and the section grid with its panels.
+
 **Home v2 (calm R3; normative where it differs from the older text below, which is kept for history).** `main.homev2`,
 top to bottom (pure logic in src/lib/home.js, unit-tested):
 1. *Hero* (`.homehero[data-kind]`, no card): the date eyebrow ("Thursday, October 29"), the greeting h1 `.greet`

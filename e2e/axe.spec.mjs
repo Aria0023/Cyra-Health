@@ -3,7 +3,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, gotoSegment, openLog, closeSheet, gotoGallery, gotoYou } from "./lib/nav.mjs";
+import { gotoTab, gotoSegment, openLog, closeSheet, gotoGallery, gotoYou, openHomeMore } from "./lib/nav.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 const audit = async (page, name) => {
@@ -19,6 +19,7 @@ test.beforeAll(async ({ browser }) => {
   page = await context.newPage();
   await register(page, { stage: "My Cycle", pcos: "yes", name: "Maya" });
   // S2: the demo source, so Home carries "Today's auto-tracked" and Body → Cycles its markers.
+  await openHomeMore(page); // 2026-11-25: Wearables sits in Home's "More for today"
   await page.getByRole("button", { name: /^Wearables/ }).click();
   await page.locator("#home-wear").getByRole("button", { name: "Connect" }).first().click();
   await expect(page.locator("#auto-tracked")).toBeVisible();

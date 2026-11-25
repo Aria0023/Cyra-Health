@@ -1219,6 +1219,15 @@ button.heroline { cursor:pointer; transition:transform var(--t-fast) var(--ease-
 .heroline-txt b { font-size:15px; font-weight:700; line-height:1.3; color:var(--ink); }
 .heroline-txt span { font-size:var(--fs-sm); line-height:1.35; color:var(--soft); }
 .heroline-go { flex:none; color:var(--primary-text); }
+/* 2026-11-25 (critique-fixes Task 2): the sign-up estimate's second line, the TTC not-for-contraception line, the ring
+   with no period start yet, and Home's one folded group "More for today". */
+.heroline-txt .heroline-more { margin-top:2px; }
+.homehero .notcontra { margin:8px 0 0; text-align:center; }
+.calnotcontra { margin:6px 0 10px; }
+.homev2 .homehero[data-kind="start"] .heroring .ringmid b { font-size:25px; max-width:124px; line-height:1.15; text-wrap:balance; }
+.homev2 > .disclosure.homemore { margin:var(--stack) 0 0; min-height:52px; font-size:var(--fs-md); }
+.homemore-body { padding:4px 0 0; }
+.homemore-body > :first-child { margin-top:12px; }
 .homehero .herorows { margin:6px 0 0; padding:0 14px; text-align:left; border-radius:var(--r-card); }
 .homehero .herorows .nextrow { min-height:44px; padding:6px 0; align-items:center; }
 .homehero .herorows .nexttext { line-height:1.3; } .homehero .herorows .nextsub { line-height:1.3; }

@@ -22,6 +22,12 @@ export async function setStyle(page, name) {
   await page.getByRole("radio", { name, exact: true }).click();
   await expect(page.locator(".cy")).toHaveAttribute("data-style", name.toLowerCase());
 }
+/** Opens Home's folded "More for today" group (2026-11-25, docs/plans/critique-fixes.md Task 2) if it is closed. */
+export async function openHomeMore(page) {
+  const more = page.getByRole("button", { name: "More for today" });
+  if ((await more.getAttribute("aria-expanded")) !== "true") await more.click();
+  await expect(more).toHaveAttribute("aria-expanded", "true");
+}
 /** A segment of the current tab ("Cycles", "Report", "Calendar", "Journey", …). */
 export async function gotoSegment(page, label) {
   await page.locator(".subnav").getByRole("button", { name: label, exact: true }).click();

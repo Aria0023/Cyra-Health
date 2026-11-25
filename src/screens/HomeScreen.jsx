@@ -17,8 +17,14 @@ import { MODULE_FRAMING } from "../lib/modules.js";
 import { t, fmtDate, fmtNumber } from "../lib/i18n.js";
 import { HAND_KINDS, kindLabel, dailyQuestion, doneWord, tryChip, tryWaitLine, TRY_MIN } from "../lib/trying.js";
 import Lead from "../components/Lead.jsx";
+import { SIGNAL_COPY } from "../lib/signals.js";
 
-/* Home v2 (calm R3, spec §5 Home). Top to bottom: the date eyebrow and her greeting; the hero, a large cycle-day ring
+/* 2026-11-25 (docs/plans/critique-fixes.md Task 2): the order is now the hero (with the next-period row), Quick log, the
+   POTS and auto-tracked cards when they apply, Getting started or Today's small step, Ask Solia, the Body and Mind rails,
+   Today's insight and the AI write-up, the install tip, then ONE folded group "More for today" (#home-more) holding the
+   patterns preview, the devices card, wearable cards, milestones, Coming up, the community pulse and the grid of
+   sections with their panels. Nothing was removed. The paragraph below describes the parts, in their older order.
+   Home v2 (calm R3, spec §5 Home). Top to bottom: the date eyebrow and her greeting; the hero, a large cycle-day ring
    over a soft stage-coloured shape (lib/home.js heroModel: "Day 23" in the serif, the phase under it, then the
    prediction line with its uncertainty range; pregnancy shows the week, menopause the days since the last period or a
    calm "No period tracking needed"), the check-in button and today's line (words only, never a score); the POTS card
@@ -68,6 +74,7 @@ export default function HomeScreen({
   fertRead = null,
   autoCard = null, autoConfirmed = false, devicesCard = null,
   askCard = null, aiWriteUp = null,
+  ttc = false, more = false, setMore = () => {},
 }) {
   const hour = new Date().getHours();
   const connectedCount = Object.values(wearSources).filter((w) => w && !w.pending).length;
@@ -106,16 +113,18 @@ export default function HomeScreen({
     const now = { recap: showRecap, wear: showWear, meds: showMeds, appts: showAppts, journal: showJournal };
     const prev = wasOpen.current; wasOpen.current = now;
     if (!prev) { // first render: only a roadmap item just sent here (UI M1 prefilled note) scrolls the open Appointments panel into view
-      if (showAppts && newAppt.note) document.getElementById("home-appts")?.scrollIntoView?.({ block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" });
+      if (showAppts && newAppt.note) requestAnimationFrame(() => document.getElementById("home-appts")?.scrollIntoView?.({ block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" }));
       return;
     }
     const opened = Object.keys(now).find((k) => now[k] && !prev[k]);
-    if (opened) document.getElementById(`home-${opened}`)?.scrollIntoView?.({ block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" });
+    if (opened) requestAnimationFrame(() => document.getElementById(`home-${opened}`)?.scrollIntoView?.({ block: "nearest", behavior: reduceMotion() ? "auto" : "smooth" }));
   }, [showRecap, showWear, showMeds, showAppts, showJournal]);
+  // A panel opened from elsewhere (an appointment to add, a roadmap note, a small step) opens "More for today" first.
+  const anyPanel = showRecap || showWear || showMeds || showAppts || showJournal;
+  useEffect(() => { if (anyPanel && !more) setMore(true); }, [anyPanel]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* Today's small step card. Getting started (lib/guide.js, ids gs-…) sits right under the hero so a newcomer sees it
-     first; any other small step keeps its place under Quick log. */
-  const guideStep = !!(step && typeof step.id === "string" && step.id.startsWith("gs-"));
+  /* Today's small step card, or Getting started (lib/guide.js, ids gs-…): since 2026-11-25 both sit under Quick log, so
+     logging is the first thing on Home for everyone. */
   const stepCard = step ? (
         <Card className="stepcard" eyebrow={step.eyebrow || t("home.todaysSmallStep")} title={step.title} icon={step.id === "breathe" ? "breath" : "sparkle"} tint="patterns" level={2}>
           <p className="stepbody"><Lead>{step.body}</Lead></p>
@@ -163,36 +172,29 @@ export default function HomeScreen({
         {hero.action ? (
           <button type="button" className="heroline" onClick={() => goTab(hero.action)}>
             <span className="heroline-ico" aria-hidden="true"><Icon name="calendar" size={16} /></span>
-            <span className="heroline-txt"><b>{hero.line}</b><span>{hero.note}</span></span>
+            <span className="heroline-txt"><b>{hero.line}</b><span>{hero.note}</span>{hero.note2 && <span className="heroline-more">{hero.note2}</span>}</span>
             <Icon name="arrow-right" size={16} className="heroline-go" />
           </button>
         ) : (
           <p className="heroline still">
             <span className="heroline-ico" aria-hidden="true"><Icon name={stage === "preg" ? "heart" : "sun"} size={16} /></span>
-            <span className="heroline-txt"><b>{hero.line}</b><span>{hero.note}</span></span>
+            <span className="heroline-txt"><b>{hero.line}</b><span>{hero.note}</span>{hero.note2 && <span className="heroline-more">{hero.note2}</span>}</span>
           </p>
         )}
         {/* Task A: a quiet "What does this mean?" beside the ring and its phase, and beside the fertile-window row. */}
         {(hero.kind === "cycle" || hero.kind === "long") && <p className="learnrow-wrap"><LearnLink id={hero.kind === "long" ? "irregular" : "cycle"} /></p>}
         {(hero.kind === "meno" || hero.kind === "calm") && <p className="learnrow-wrap"><LearnLink id="peri" /></p>}
         {heroRows.length > 0 && <div className="plaincard herorows">{heroRows.map(nextRow)}<p className="learnrow-wrap"><LearnLink id="fertile" /></p></div>}
+        {/* Trying to conceive (2026-11-25): the not-for-contraception line on the fertile-window view itself (lib/signals.js
+            SIGNAL_COPY.ttc, the same sentence as Learn's), whenever her ring or the fertile-window row is showing. */}
+        {ttc && (heroRows.length > 0 || hero.kind === "cycle") && <p className="rfoot notcontra">{SIGNAL_COPY.ttc}</p>}
         {/* Today's line (once today is logged) opens with a tick, so Home says plainly that today is done. */}
         {todayLine && <button type="button" className="todayline" onClick={() => goTab("today")}>{todayEntry && <Icon name="check" size={14} className="todaytick" />}<i className="fdot" aria-hidden="true" style={{ background: todayLine.color }} />{todayLine.text}</button>}
       </div>
 
-      {/* 2026-11-19: Ask Solia (components/ai/AiParts.jsx AskSoliaCard): a way into the chat and Ask with evidence, right
-          under the hero. It sends nothing itself; × hides it on this device. */}
-      {askCard}
-
-      {guideStep && stepCard}
-
-      {/* POTS add-on (App.jsx): the "POTS today" card while it's on, or the one-time offer card. Never replaces Today's insight. */}
-      {potsCard}
-      {/* The install tip (web only, spec A14.1): hiding it hands focus back to the check-in button. */}
-      {installTip && <InstallTip tip={installTip} returnFocusRef={ctaRef} />}
-      {/* Passive tracking S2: "Today's auto-tracked" sits above the Quick log while a source synced in the last 36 h (App.jsx). */}
-      {autoCard}
-
+      {/* 2026-11-25 (docs/plans/critique-fixes.md Task 2): Home has one first job. Under the hero: Quick log, then the
+          day's own cards (POTS today, Today's auto-tracked), Today's small step or Getting started, Ask Solia, the Body
+          and Mind rails, Today's insight (and the AI write-up); everything else folds into "More for today". */}
       {/* ---- Quick log: 2–4 tiles (her choice, You can change them here); each opens its logger. ---- */}
       <section className="quicklog" aria-labelledby="quicklog-t">
         <div className="qlhead">
@@ -204,8 +206,17 @@ export default function HomeScreen({
         </div>
       </section>
 
-      {/* ---- Today's small step: one optional suggestion from her log and stage, a Why line, and "Not today". ---- */}
-      {step && !guideStep && stepCard}
+      {/* POTS add-on (App.jsx): the "POTS today" card while it's on, or the one-time offer card. Never replaces Today's insight. */}
+      {potsCard}
+      {/* Passive tracking S2: "Today's auto-tracked" sits above the Quick log while a source synced in the last 36 h (App.jsx). */}
+      {autoCard}
+
+      {/* ---- Getting started, or Today's small step: one optional suggestion from her log and stage, a Why line, "Not today". ---- */}
+      {stepCard}
+
+      {/* 2026-11-19: Ask Solia (components/ai/AiParts.jsx AskSoliaCard): a way into the chat and Ask with evidence, right
+          under the hero. It sends nothing itself; × hides it on this device. */}
+      {askCard}
 
       {/* ---- Body and Mind: dotted step rails, a tick for what is logged today; untouched steps stay neutral. ---- */}
       <div className="railcards">
@@ -219,10 +230,6 @@ export default function HomeScreen({
         </section>
       </div>
 
-      {/* 2026-11-19: the one-time "Connect your devices" invite sits below the day's own cards, not above Quick log
-          (owner: Home isn't the main place for it; Body, the "+" sheet and You keep their own ways in). */}
-      {devicesCard}
-
       <section className="v2card insightcard" data-tint="mind" aria-labelledby="insight-t">
         <p className="section-lab" id="insight-t">{t("home.todaysInsight")}</p>
         {homeInsight.empty
@@ -233,6 +240,20 @@ export default function HomeScreen({
 
       {/* 2026-11-19: her weekly AI write-up, when she has one, under Today's insight (the same text as on Patterns). */}
       {aiWriteUp}
+
+      {/* The install tip (web only, spec A14.1): hiding it hands focus back to the Quick log heading. */}
+      {installTip && <InstallTip tip={installTip} returnFocusRef={ctaRef} />}
+
+      {/* ---- More for today (2026-11-25): one folded group for the rest, nothing removed. Open or closed is remembered on
+          this device (record key homeMore, device-only, never in a backup); a panel opened from elsewhere (an
+          appointment to add, a roadmap note) opens the group first. ---- */}
+      <button type="button" className={`disclosure homemore ${more ? "on" : ""}`} aria-expanded={more} aria-controls="home-more" onClick={() => setMore(!more)}>
+        <span>{t("home.moreForToday")}</span><Icon name="chevron" className="chev" />
+      </button>
+      <div id="home-more" className="homemore-body" hidden={!more}>
+      {/* 2026-11-19: the one-time "Connect your devices" invite sits below the day's own cards, not above Quick log
+          (owner: Home isn't the main place for it; Body, the "+" sheet and You keep their own ways in). */}
+      {devicesCard}
 
       {/* The compact, word-based patterns preview (components/HomePatterns.jsx); the full chart is in Patterns. */}
       {patternsCard}
@@ -278,8 +299,6 @@ export default function HomeScreen({
           </div>
         </>
       )}
-
-      {picking && tilePicker && <TilePicker {...tilePicker} onClose={() => setPicking(false)} />}
 
       {pulse && (<>
       <p className="section-lab">{t("home.youreNotAlone")} <span className="seclite">{t("home.lastWeekFromPeopleWho")}</span></p>
@@ -460,6 +479,10 @@ export default function HomeScreen({
           {Object.keys(journal).sort().reverse().slice(0, 5).map((iso) => <div className="jentry" key={iso}><b>{fmt(iso)}</b><p style={{ whiteSpace: "pre-wrap" }}>{journal[iso]}</p></div>)}
         </div>
       )}
+      </div>
+
+      {picking && tilePicker && <TilePicker {...tilePicker} onClose={() => setPicking(false)} />}
+
     </main>
   );
 }

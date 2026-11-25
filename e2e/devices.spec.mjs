@@ -4,7 +4,7 @@
    row is back; the demo build connects illustrative data with one tap. */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
-import { gotoYou } from "./lib/nav.mjs";
+import { gotoYou, openHomeMore } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
 test("API build in a browser: registration skips devices; the Home card's sheet lists every device with what it reads and where it goes; You", async ({ page }) => {
@@ -25,7 +25,8 @@ test("API build in a browser: registration skips devices; the Home card's sheet 
   await expect(page.getByRole("heading", { name: "Connect a device?" })).toHaveCount(0);
   await page.getByRole("checkbox", { name: /I agree to/ }).click();
   await page.getByRole("button", { name: "Enter Solia Health" }).click();
-  // Home: the card and its sheet list every device with what it reads and where it goes
+  // Home: the card and its sheet list every device with what it reads and where it goes (in "More for today" since 2026-11-25)
+  await openHomeMore(page);
   const card = page.locator("#home-devices");
   await expect(card).toBeVisible();
   await card.getByRole("button", { name: "See devices" }).click();
@@ -80,6 +81,7 @@ test("API build, Terra set up on the server: the Fitbit · Garmin · Whoop row i
 
 test("demo build: one tap connects (illustrative), the row says Connected and the Home card goes", async ({ page }) => {
   await register(page, { stage: "Perimenopause" });
+  await openHomeMore(page); // 2026-11-25: the card sits in Home's "More for today"
   const card = page.locator("#home-devices");
   await expect(card).toBeVisible();
   await card.getByRole("button", { name: "See devices" }).click();

@@ -31,3 +31,25 @@ each task (compared line by line).
 - Verified 2026-11-25 on the Task 1 tree (full runs, after the last change to this task's files): lint 0 errors (25 warnings,
   identical to main); app unit 720/720; backend 130/130; smoke:all exit 0; build stamp once in dist; e2e 94/94 (95 before:
   the two Home Pro-note tests became one); axe 60/60.
+
+## Task 2: Home has one first job — DONE (final commit "Home: Quick log first; the rest folds")
+- Order (`screens/HomeScreen.jsx`): guest line (last 12 h only), hero (ring, next-period row, Learn link, TTC line, today's
+  line), Quick log, POTS today and Today's auto-tracked (when they apply: they are logging cards, so they sit right under
+  Quick log), Getting started / Today's small step, Ask Solia, Body and Mind rails, Today's insight, AI write-up, the install
+  tip (web, one-time; kept visible), then the "More for today" disclosure (`#home-more`): devices card, patterns preview,
+  wearable cards, milestones, Coming up, pulse, the five section doors and their panels. Nothing removed.
+- `homeMore` record key (device-only, not in backups; `lib/record.js` + tests). A section panel that turns on while the
+  group is folded opens the group (effect in HomeScreen); scrolling to a panel waits a frame so the group is open first.
+- Ring with no period start (`lib/home.js` heroModel kind "start"): center "No cycle yet", sub the date small
+  ("November 25"); the existing row "Log a period start to see your cycle day" is the action.
+- Sign-up estimate (`HERO_COPY`): note2 "It sharpens as you log your periods." plus, where `SOURCES_HERE`, "A watch or ring
+  adds temperature, which often rises after ovulation." DEVIATION: the brief's "a connected watch or ring's temperature
+  helps" would be untrue of the prediction (it uses period starts only; lib/signals.js says a rise "can't predict next
+  month"), so the sentence says what the source adds, not that it improves the estimate.
+- TTC: "Solia Health is not a contraceptive." (SIGNAL_COPY.ttc, the existing sentence) under Home's ring/fertile row,
+  under the Calendar legend (`.calnotcontra`), and in the empty fertility summary (the logged state already ends "Not
+  contraception.").
+- Tests: new `e2e/home-order.spec.mjs` (5), new `e2e/critique-axe.spec.mjs` (header + Home folded/open, nine styles, light
+  and dark); `e2e/lib/nav.mjs` `openHomeMore`; specs that reach a folded card now open the group first: `auto.spec`,
+  `axe.spec`, `devices.spec`, `devices-axe.spec`. Unit: `home.test` +1, `record.test` lists + `homeMore`.
+- Docs: CYRA-BUILD-SPEC (Home order), PRIVACY-AUDIT, CLINICIAN-REVIEW (three new entries).

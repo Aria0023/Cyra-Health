@@ -18,9 +18,20 @@ const daysBetween = (a, b) => Math.round((Date.parse(b + "T12:00:00Z") - Date.pa
 const clamp01 = (v) => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
 
 /* ---------------- hero ---------------- */
-/** The cycle-day ring: { kind, value 0–1, center, sub, line, note, tone, action ("cal" | null) }.
-    kind: "preg" | "cycle" | "long" | "meno" | "calm" | "start". value is how far through (never shown as a number). */
-export function heroModel({ stage, isMeno = false, pred = null, predWhy = null, pregWeek = 0, tri = "", dueDate = "", lastPeriodIso = null, todayIso, pcosOn = false }) {
+/** Prediction honesty (2026-11-25, docs/plans/critique-fixes.md Task 2): the second line under "Based on your sign-up
+    answer". No numbers and no accuracy claim. The watch or ring sentence only where this build offers a source, and it
+    says only what a connected source adds (a nightly temperature, whose rise is seen after ovulation): the prediction
+    itself is worked out from period starts, never from temperature (lib/signals.js: "it can't predict next month"). */
+export const HERO_COPY = Object.freeze({
+  sharpens: "It sharpens as you log your periods.",
+  wear: "A watch or ring adds temperature, which often rises after ovulation.",
+  noCycle: "No cycle yet",
+});
+
+/** The cycle-day ring: { kind, value 0–1, center, sub, line, note, note2 (or null), tone, action ("cal" | null) }.
+    kind: "preg" | "cycle" | "long" | "meno" | "calm" | "start". value is how far through (never shown as a number).
+    wearHere: this build offers a wearable source (lib/wearables.js SOURCES_HERE). */
+export function heroModel({ stage, isMeno = false, pred = null, predWhy = null, pregWeek = 0, tri = "", dueDate = "", lastPeriodIso = null, todayIso, pcosOn = false, wearHere = false }) {
   const today = new Date(todayIso + "T12:00:00");
   const calm = { center: String(today.getDate()), sub: fmtDate(today, { month: "long" }) };
   if (stage === "preg") {
@@ -35,13 +46,16 @@ export function heroModel({ stage, isMeno = false, pred = null, predWhy = null, 
   if (pred) {
     const line = pred.state === "upcoming" ? `Next period likely ${fmtRange(pred.fromIso, pred.toIso)}` : periodHead(pred);
     const note = pcosOn ? MODULES.pcos.cycle.range.text : pred.wide ? "Cycles vary for you — the range is wide on purpose." : basisLine(pred);
-    return { kind: "cycle", value: clamp01(pred.cycleDay / Math.max(pred.center || 28, pred.cycleDay)), center: `Day ${pred.cycleDay}`, sub: pred.phase ? `${pred.phase} phase` : "", line, note, tone: "primary", action: "cal" };
+    const told = !pcosOn && !pred.wide && pred.basis === "told";
+    const note2 = told ? (wearHere ? `${HERO_COPY.sharpens} ${HERO_COPY.wear}` : HERO_COPY.sharpens) : null;
+    return { kind: "cycle", value: clamp01(pred.cycleDay / Math.max(pred.center || 28, pred.cycleDay)), center: `Day ${pred.cycleDay}`, sub: pred.phase ? `${pred.phase} phase` : "", line, note, note2, tone: "primary", action: "cal" };
   }
   if (predWhy?.kind === "long") {
     const note = pcosOn ? MODULES.pcos.cycle.expected.text : stage === "peri" ? "Long gaps are common in perimenopause." : "Over 120 days, too long to estimate.";
     return { kind: "long", value: 1, center: `Day ${predWhy.days}`, sub: "since your last period", line: `No period on record for ${predWhy.days} days`, note, tone: "soft", action: "cal" };
   }
-  return { kind: "start", value: 0, ...calm, line: "Log a period start to see your cycle day", note: "Any cycle length works.", tone: "soft", action: "cal" };
+  // No period start yet (2026-11-25): the ring says so in words; the date sits small under it, so it never reads as a cycle day.
+  return { kind: "start", value: 0, center: HERO_COPY.noCycle, sub: fmtDate(today, { day: "numeric", month: "long" }), line: "Log a period start to see your cycle day", note: "Any cycle length works.", tone: "soft", action: "cal" };
 }
 
 /* ---------------- quick log tiles ---------------- */

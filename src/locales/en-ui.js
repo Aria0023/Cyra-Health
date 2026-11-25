@@ -65,6 +65,7 @@ export const UI = {
   "cycles.luteal": "luteal {n} days",
   "cycles.riseFrom": "From your wearable's nightly temperatures, read on this device.",
   "home.quickLog": "Quick log",
+  "home.moreForToday": "More for today",
   "home.chooseYourQuickLogTiles": "Choose your Quick log tiles",
   "home.todaysSmallStep": "Today's small step",
   "home.notToday": "Not today",

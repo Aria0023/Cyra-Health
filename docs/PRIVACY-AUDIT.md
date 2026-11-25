@@ -2913,3 +2913,12 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
   never in a backup) so older records still load; nothing writes it any more. The guest line shows only in the guest
   window's last 12 hours. Nothing is sent by any of this; no privacy sentence changed.
 
+### Task 2: Home has one first job
+- **Order and folding only:** Quick log under the hero; the rest of Home in one group "More for today". Nothing removed.
+- **New record key `homeMore`** (true while that group is open): device-only, never in a backup, never sent; a restore
+  keeps this device's value.
+- New visible sentences (no data flow): "No cycle yet" in the ring with no period start; "It sharpens as you log your
+  periods." (and, where the build offers a source, "A watch or ring adds temperature, which often rises after
+  ovulation.") under "Based on your sign-up answer"; for Trying to conceive, "Solia Health is not a contraceptive." on Home,
+  beside the Calendar's legend and in the empty fertility summary. See docs/CLINICIAN-REVIEW.md "Critique fixes".
+

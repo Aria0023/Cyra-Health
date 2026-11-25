@@ -4,11 +4,12 @@
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 import { register } from "./lib/onboard.mjs";
-import { gotoTab, gotoSegment, toast, gotoGallery, gotoYou } from "./lib/nav.mjs";
+import { gotoTab, gotoSegment, toast, gotoGallery, gotoYou, openHomeMore } from "./lib/nav.mjs";
 import { pdfPages } from "./lib/pdf.mjs";
 
 const WORDS = /^(at your usual|lower than usual|higher than usual|(lower|higher), usual for your [a-z]+ days|a few more nights will show your usual|no reading|left out)$/;
 const connectDemo = async (page) => {
+  await openHomeMore(page); // 2026-11-25: Wearables sits in Home's "More for today"
   await page.getByRole("button", { name: /^Wearables/ }).click();
   const door = page.locator("#home-wear");
   await expect(door).toBeVisible();

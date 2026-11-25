@@ -913,3 +913,23 @@ written and wired for the day it is.
 - Text: If the photo does not show food or drink, or is too dark, blurred or far away to tell, set is_food to false […] Do not guess. / kcal_low and kcal_high: a RANGE of kilocalories for that portion […] keep the range honest and wide; never give a single figure. / Never judge the food or the person: no words such as healthy, unhealthy, good, bad, junk, clean, light, heavy, indulgent or treat. No advice, no targets, no comparison with what anyone should eat, nothing about weight or diets.
 - Sources: product rule; the server also drops any item whose name carries a judgement word, and any range outside 0–3000 kcal.
 - Status: Awaiting clinician sign-off
+
+## Critique fixes (2026-11-25, docs/plans/critique-fixes.md)
+
+### home.noCycleYet
+- Where: Home, inside the cycle ring when no period start is known (perimenopause and anyone without a period start); the date sits small under it
+- Text: No cycle yet
+- Sources: describes the app's state; no clinical claim. The row under it is unchanged: "Log a period start to see your cycle day" / "Any cycle length works."
+- Status: Awaiting clinician sign-off
+
+### home.predictionSharpens
+- Where: Home, under "Based on your sign-up answer" on the next-period row (only while the prediction rests on her sign-up answer)
+- Text: It sharpens as you log your periods. (Where the build offers a watch or ring source, followed by:) A watch or ring adds temperature, which often rises after ovulation.
+- Sources: the prediction moves from her sign-up answer to her own logged cycles (lib/engine.js basisLine); the temperature sentence restates the existing basal-temperature wording ("A rise like this is often seen after ovulation"). Deliberately NOT "temperature improves the prediction": the app's prediction uses period starts only.
+- Status: Awaiting clinician sign-off
+
+### ttc.notContraceptiveVisible
+- Where: Trying to conceive only: Home under the ring / fertile-window row, beside the Calendar's legend (fertile days), and the empty fertility summary on Patterns
+- Text: Solia Health is not a contraceptive.
+- Sources: the same sentence as Learn → "What the fertile window is" and the cycle markers (lib/signals.js SIGNAL_COPY.ttc); only its placement is new.
+- Status: Awaiting clinician sign-off

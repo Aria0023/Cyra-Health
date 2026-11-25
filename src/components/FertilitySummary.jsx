@@ -1,4 +1,5 @@
 import Icon from "./Icon.jsx";
+import { SIGNAL_COPY } from "../lib/signals.js";
 import { cycleWindow, fertSummary, fertSummaryLines, bbtShiftSentence, fertReportSentence, FERT_COPY } from "../lib/fertility.js";
 
 /* Fertility signs on Patterns and the Report (local-first L7, decision D6), Trying to conceive only (App.jsx passes
@@ -18,6 +19,8 @@ export default function FertilitySummary({ days, starts, todayIso, unit, onLog }
           <>
             <p className="plain">{FERT_COPY.sumEmpty}</p>
             <button type="button" className="linkbtn" onClick={onLog}>{FERT_COPY.sumLog}</button>
+            {/* 2026-11-25: the not-for-contraception line shows here too (the logged state's foot already says "Not contraception."). */}
+            <p className="rfoot">{SIGNAL_COPY.ttc}</p>
           </>
         ) : (
           <>

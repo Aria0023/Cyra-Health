@@ -3,6 +3,7 @@
    "Connect your devices" sheet with a connected (demo) row. 0 violations. */
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import { openHomeMore } from "./lib/nav.mjs";
 import { register, emailSignIn } from "./lib/onboard.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 
@@ -43,6 +44,7 @@ for (const scheme of ["light", "dark"]) {
     const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", colorScheme: scheme });
     const p2 = await ctx2.newPage();
     await register(p2, { stage: "My Cycle", name: "Maya" });
+    await openHomeMore(p2); // 2026-11-25: the card sits in Home's "More for today"
     await expect(p2.locator("#home-devices")).toBeVisible();
     await audit(p2, `Home devices card ${scheme}`);
     await p2.locator("#home-devices").getByRole("button", { name: "See devices" }).click();
