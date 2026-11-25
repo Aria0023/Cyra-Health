@@ -26,12 +26,12 @@ for (const scheme of ["light", "dark"]) {
       await nav(page, "App settings");
       await expect(page.getByRole("heading", { level: 1, name: "App settings" })).toBeVisible();
       await audit(page, `App settings, empty ${scheme}`);
-      await page.getByLabel("Announcement").fill("");
+      await page.getByLabel("Announcement", { exact: true }).fill("");
       await page.getByLabel("Show it on Home").check();
       await page.getByRole("button", { name: "Save announcement" }).click();
       await expect(page.getByRole("alert")).toBeVisible();
       await audit(page, `App settings, an error ${scheme}`);
-      await page.getByLabel("Announcement").fill("New sleep picks in the Shop.");
+      await page.getByLabel("Announcement", { exact: true }).fill("New sleep picks in the Shop.");
       await page.getByRole("button", { name: "Save announcement" }).click();
       await page.getByLabel("Line 1").fill("Ask your clinic about its own visits.");
       await page.getByRole("button", { name: "Save Help lines" }).click();

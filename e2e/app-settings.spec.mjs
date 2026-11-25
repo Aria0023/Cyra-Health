@@ -33,7 +33,7 @@ test.describe("portal", () => {
     await page.getByLabel("Monthly (for example $9.95)").fill("$8.95");
     await page.getByRole("button", { name: "Save prices" }).click();
     await expect(page.locator(".msgbox .ok")).toHaveText("Prices saved.");
-    await page.getByLabel("Announcement").fill("Shop by need has new sleep picks.");
+    await page.getByLabel("Announcement", { exact: true }).fill("Shop by need has new sleep picks.");
     await page.getByLabel("Show it on Home").check();
     await page.getByRole("button", { name: "Save announcement" }).click();
     await expect(page.locator(".msgbox .ok")).toHaveText("Announcement saved and on.");
@@ -68,7 +68,11 @@ test("the app: one plain GET at start; announcement, Help lines, prices and the 
   await expect(page.locator("#you-help .helpextra")).toHaveText("Your clinic can answer questions about its own visits.");
   await gotoYou(page, "Plan & account");
   await expect(page.locator("#you-plan .plantile").first()).toContainText("$90 a year");
-  await expect(page.locator("#you-store-line")).toHaveText("Pro is $8.95 a month or $90 a year in the iPhone and Android apps.");
+  // the web Pro sheet's tiles carry the same reference prices
+  await gotoTab(page, "You");
+  await page.locator("#you-upgrade").click();
+  await expect(page.locator("#pro-sheet .plantile").first()).toContainText("$90 a year");
+  await expect(page.locator("#pro-sheet .plantile").nth(1)).toContainText("$8.95 a month");
 });
 
 test("the app: a feature turned off is gone from the next start; no answer or a broken one means the built-in defaults", async ({ page }) => {
