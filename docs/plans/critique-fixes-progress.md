@@ -28,3 +28,6 @@ each task (compared line by line).
   unit: `planBadge.test` (+2: guest name, `badgeLines`; the "every badge" test now checks prefix/suffix),
   `plans.test` (Pro-note helpers removed → one test that the stored day still reads back).
 - Docs: PRIVACY-AUDIT (two rows + new section "Critique fixes"), CYRA-BUILD-SPEC (header paragraphs), MONETIZATION.
+- Verified 2026-11-25 on the Task 1 tree (full runs, after the last change to this task's files): lint 0 errors (25 warnings,
+  identical to main); app unit 720/720; backend 130/130; smoke:all exit 0; build stamp once in dist; e2e 94/94 (95 before:
+  the two Home Pro-note tests became one); axe 60/60.
