@@ -46,7 +46,7 @@ test("readinessRows: nothing set names the exact variables; the summary lists wh
   assert.deepEqual(r["signin-apple"].vars.map((v) => v.name), ["APPLE_CLIENT_ID", "APPLE_TEAM_ID", "APPLE_KEY_ID", "APPLE_PRIVATE_KEY"]);
   assert.deepEqual(r.subscriptions.vars.map((v) => v.name), ["REVENUECAT_SECRET_KEY", "REVENUECAT_PROJECT_ID"]);
   assert.equal(r.modules.status, "problem");
-  assert.match(r.modules.detail, /Not mounted: oauth, accounts, integrations, shop, portal, subscriptions, insights, feedback\./);
+  assert.match(r.modules.detail, /Not mounted: oauth, accounts, integrations, shop, portal, subscriptions, insights, feedback, settings\./);
   assert.equal(readinessSummary(rows).line, "0 of 13 ready. Needed for launch: Sign-in secret, Admin key, Owners, Email, Sign in with Apple, AI, Storage, Modules.");
 });
 
