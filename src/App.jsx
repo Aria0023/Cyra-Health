@@ -1,5 +1,5 @@
-import { planBadge } from "./lib/planBadge.js";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { planBadge, badgeLines } from "./lib/planBadge.js";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
 /* ================================================================
@@ -123,7 +123,7 @@ import { isNative, hasPlugin, Haptics, Purchases, platform, appReturnUrl, newApp
 import { POTS_EMPTY, freshEmpty, cleanPots, isLockedPots, mergePots, samePots, newEpoch, eraseLog, turnOn, turnOff, resetPregClearance, localeUnits, dayTotals, markOffered, markStaleRunning, logDose, addIntake, intakeToast, asksSodium, removeItem as removePotsItem, setSettings as setPotsSettings, newId as newPotsId, nowHHMM } from "./lib/pots.js";
 import { intakeText as potsIntakeText, ampm as potsAmpm } from "./components/pots/ui.js";
 import { canLog, cleanTrialStart, trialLine } from "./lib/trial.js";
-import { GUEST_HOURS, GUEST_COPY, canTryFirst, cleanGuestTime, cleanGuestNote, guestState, guestEndsAt, guestDeadline, guestStory, guestNoteNew, nextGuestSeen, restoredGuestStart } from "./lib/guest.js";
+import { GUEST_HOURS, GUEST_COPY, canTryFirst, cleanGuestTime, cleanGuestNote, guestState, guestEndsAt, guestDeadline, guestStory, guestNoteNew, guestNear, nextGuestSeen, restoredGuestStart } from "./lib/guest.js";
 import { SAVED_LINE } from "./lib/saved.js";
 import { cleanGuide, hintFor, markSeen, replayGuide, gettingStarted } from "./lib/guide.js";
 import { REG_STAGE, STAGE_LABELS, ANSWER_BLANK, pruneForStage, pregWeekFrom, pcosModuleFrom, goalsForStages } from "./lib/onboarding.js";
@@ -173,7 +173,6 @@ import BodySignals from "./components/BodySignals.jsx";
 import FertilitySigns from "./components/FertilitySigns.jsx";
 import QuickCheckin from "./components/QuickCheckin.jsx";
 import SettingsSheet from "./components/SettingsSheet.jsx";
-import PaletteSheet from "./components/PaletteSheet.jsx";
 import Icon from "./components/Icon.jsx";
 import { UpdateRow } from "./components/Pwa.jsx";
 import { reduceMotion } from "./lib/motion.js";
@@ -215,7 +214,7 @@ import PracticesScreen from "./screens/PracticesScreen.jsx";
 import JourneyScreen from "./screens/JourneyScreen.jsx";
 import PracticeSheet from "./components/mind/PracticeSheet.jsx";
 import ProSheet from "./components/ProSheet.jsx";
-import { proChipEligible, proChipNew, cleanProChip, PLANS_COPY } from "./lib/plans.js";
+import { cleanProChip } from "./lib/plans.js";
 import { AiSendSheet, WriteUpCard, ChatCard, AskSoliaCard, WriteUpHomeCard } from "./components/ai/AiParts.jsx";
 import { buildSummary, checkSummary, summaryLines, weeklyBody, chatBody } from "./lib/aiSummary.js";
 import { cleanAiPrefs, cleanAiChat, cleanAiWeekly, aiOffer, AI_COPY, askCard, ASK_COPY } from "./lib/aiFeatures.js";
@@ -251,7 +250,6 @@ import { fmtDate } from "./lib/i18n.js";
 export default function CyraDemo() {
   const [orgId, setOrgId] = useState("cyra");
   const [palIdx, setPalIdx] = useState({ peri: 0, preg: 0, periods: 0 });
-  const [showPal, setShowPal] = useState(false);
   const [phase, setPhase] = useState("splash"); // splash -> register (3–4 steps) -> app
   const [showTable, setShowTable] = useState(false);
   const [conn, setConn] = useState({ closeness: 5, desire: 5, friction: 2, load: 5 });
@@ -271,7 +269,7 @@ export default function CyraDemo() {
   const [cadence, setCadence] = useState("daily");
   const [quietHours, setQuietHours] = useState("evening");
   const [showSettings, setShowSettings] = useState(false);
-  const settingsBtnRef = useRef(null), palBtnRef = useRef(null); // the header buttons a closed sheet hands focus back to (UI S1)
+  const settingsBtnRef = useRef(null); // the header button a closed sheet hands focus back to (UI S1)
   const [quickMode, setQuickMode] = useState(true);
   const [expanded, setExpanded] = useState(false); // Today: "more detail" opened the full form for this visit (UI state only, never saved; quickMode is the preference)
   const [meds, setMedsRaw] = useState([]);
@@ -504,11 +502,10 @@ export default function CyraDemo() {
   /* Connect your devices (Task 2, lib/devices.js): devicesHint is "hidden" once she taps Not now on Home's card (device-only);
      devicesOpen is the sheet (UI only); serverSources is what the server said it can connect (asked when the list shows). */
   const [devicesHint, setDevicesHint] = useState(null);
-  /* Plans (2026-11-15, Task 2, lib/plans.js): proChip is the local day Home last showed "Pro · 7-day free trial"
-     (device-only, never in a backup); proChipNow is whether it shows in this visit (UI only), so it appears on at most
-     one day's first Home visit and goes when she hides it or opens the plans. */
+  /* Plans (2026-11-15): proChip was the local day Home last showed "Pro · 7-day free trial" (device-only, never in a
+     backup). Home no longer shows that note (2026-11-25, critique-fixes Task 1: the header's plan badge is the one place
+     for the plan); the key is kept, unchanged, so records written before still load and validate. */
   const [proChip, setProChip] = useState(null);
-  const [proChipNow, setProChipNow] = useState(false);
   /* The guest window (2026-11-16, lib/guest.js): guestStart is when she first tapped "Try it first" (her record and
      encrypted backups; null once she has signed in here); guestSeen is the latest time this device has seen while she
      was a guest (device-only: a clock moved back never extends the window); guestNote is the local day Home last showed
@@ -584,7 +581,7 @@ export default function CyraDemo() {
     setCoachNow(false);
     const a = document.activeElement;
     shopFrom.current = a && a !== document.body && !a.closest?.("[role=dialog]") ? a : null;
-    setDevicesOpen(false); setShowSettings(false); setShowPal(false); setLogOpen(false); setPotsOpen(false);
+    setDevicesOpen(false); setShowSettings(false); setLogOpen(false); setPotsOpen(false);
     setShopPage({ cat: cat || null, at: Date.now() });
     refreshShop();
   };
@@ -729,7 +726,7 @@ export default function CyraDemo() {
      lockNow drops the toast and the palette sheet; the Settings sheet keeps showSettings and remounts after the
      unlock (its typed passphrase or PIN is dropped with it). unlock cancels a passkey prompt still open. */
   const holdLock = () => { graceUntil.current = Date.now() + GRACE_MS; };
-  const lockNow = () => { clearTimeout(toastTimer.current); setToast(""); setShowPal(false); setLocked(true); };
+  const lockNow = () => { clearTimeout(toastTimer.current); setToast(""); setLocked(true); };
   const unlock = () => { passkeyAbort.current?.abort(); setLocked(false); };
   const tellLock = () => { try { channel.current?.postMessage({ type: "lock" }); } catch { /* single tab */ } };
   // Another tab changed the lock: take the slot's value (an off lock there opens this tab too).
@@ -956,16 +953,9 @@ export default function CyraDemo() {
     if (shopHint.coach || hintFor(guide, "home")) return;
     setShopHint((h) => ({ ...cleanShopHint(h), coach: true })); setCoachNow(true);
   }, [hydrated, phase, stage, curTab]); // eslint-disable-line react-hooks/exhaustive-deps
-  /* Plans (Task 2): Home's "Pro · 7-day free trial" note shows on the first Home visit of a day, only without Pro and never
-     beside the free-week bar; it isn't on any other screen and never in a notification (lib/plans.js). */
-  useEffect(() => {
-    if (!hydrated || phase !== "app" || !stage || curTab !== "home") return;
-    if (!proChipEligible({ owned: proOwnedNow, trialBar: !!trialNow }) || guest === "in" || signMode === "checking") return; // never beside the guest line
-    if (proChipNew({ shownDay: proChip, todayIso })) { setProChip(todayIso); setProChipNow(true); }
-  }, [hydrated, phase, stage, curTab, todayIso, proOwnedNow, trialNow, guest, signMode]); // eslint-disable-line react-hooks/exhaustive-deps
   /* The guest window (lib/guest.js). The clock is read when the record has loaded and whenever the app comes back to the
      front; while she is a guest the latest time seen is kept (it only moves forward). Home's guest line shows on the
-     first Home visit of a day, and goes when she hides it or creates her account; You → Plan & account always says it. */
+     first Home visit of a day once the window is nearly up (its last 12 hours, 2026-11-25), and goes when she hides it or creates her account; You → Plan & account always says it. */
   useEffect(() => {
     if (!hydrated) return undefined;
     const tick = () => { if (document.visibilityState !== "hidden") setGuestClock(Date.now()); };
@@ -979,8 +969,9 @@ export default function CyraDemo() {
   }, [hydrated, phase, guestStart, signin, guestClock]);
   useEffect(() => {
     if (!hydrated || phase !== "app" || !stage || curTab !== "home" || guest !== "in") return;
+    if (!guestNear({ start: guestStart, now: guestClock, seen: guestSeen })) return; // 2026-11-25: only once it is nearly up
     if (guestNoteNew({ shownDay: guestNote, todayIso })) { setGuestNote(todayIso); setGuestNoteNow(true); }
-  }, [hydrated, phase, stage, curTab, todayIso, guest]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hydrated, phase, stage, curTab, todayIso, guest, guestClock]); // eslint-disable-line react-hooks/exhaustive-deps
   /* ---------- navigation (calm R2) ----------
      One view at a time (appTab / pregTab, unchanged ids), shown under one of five tabs (lib/routes.js). A tab remembers
      the view she last had open in it. Switching from the nav (or a segment, or the log sheet) closes the POTS page;
@@ -1098,7 +1089,7 @@ export default function CyraDemo() {
     if (locked) { wasLocked.current = true; return; }
     if (!wasLocked.current) return;
     wasLocked.current = false;
-    const id = requestAnimationFrame(() => { if (!showSettings && !showPal) document.querySelector(".navtab.on")?.focus(); });
+    const id = requestAnimationFrame(() => { if (!showSettings) document.querySelector(".navtab.on")?.focus(); });
     return () => cancelAnimationFrame(id);
   }, [locked]); // eslint-disable-line
   const regPalFirst = useRef(true);
@@ -2818,7 +2809,7 @@ export default function CyraDemo() {
     else if (out === "dismissed" && from === "tip") setInstallHint((h) => mergeInstallHint(h, "dismissed"));
   };
   const hideInstallTip = () => { setInstallHint((h) => mergeInstallHint(h, "dismissed")); ping("Tip hidden. Install stays in Settings."); };
-  const showInstallSteps = () => { setShowPal(false); setSettingsFocus("install"); setShowSettings(true); };
+  const showInstallSteps = () => { setSettingsFocus("install"); setShowSettings(true); };
   // Reload for an update: pending saves are written first, then the waiting worker takes over.
   const reloadForUpdate = async () => { if (updating.current) return; updating.current = true; await settleSaves(); await applyUpdate(); };
   // The last child of header.mast (inside the banner landmark), on the app and intake screens only.
@@ -2833,6 +2824,7 @@ export default function CyraDemo() {
     regAnswers, onAnswer: setAnswer, daysLogged, lastBackupAt, todayIso, triggerRef: settingsBtnRef, cadence, setCadence, quietHours, setQuietHours, quickMode, setQuickMode, setShowSettings, ping,
     storageDriver, onExport: exportBackup, onImport: importBackup, onWipe: wipeDevice, keepsWeekNote, reminders, reminderSupport: reminderSupport(), onReminders: (on) => applyReminders(on),
     research, setResearch: setSharing, stage, stageName, pots, onPotsOn: potsOn, onPotsOff: potsOff, offlineCopy: offlineReady, appearance, onAppearance: chooseAppearance, uiStyle, onStyle: chooseStyle, legacyWear,
+    palette: orgId === "cyra" ? { stage, stageName, palIdx, setPalIdx: choosePalette, scheme } : null, // the stage palette (2026-11-25: was the header's palette button)
     flows, flowCtx: { native: isNative(), server: hasServer(), stage, onShopTaps: (on) => { setShopTapsOff(!on); ping(on ? FLOW_COPY.shopTapsOnSaid : FLOW_COPY.shopTapsOffSaid); } }, lock: lockApi, potsOn: potsTab && potsOk, onHandoff: holdLock,
   };
   // On the You tab the same controls are cards on the page, so the sheet is not drawn there (one copy of every id on screen).
@@ -2885,9 +2877,7 @@ export default function CyraDemo() {
     <HomeScreen
       askCard={askCardOff ? null : <AskSoliaCard m={askNow} onAsk={(q) => askTo("chat", q)} onEvidence={(q) => askTo("evidence", q)} onTurnOn={openYouAi} onPlans={() => setProOpen(true)} plansLabel={STORE.available ? PLAN_COPY.seePlans : PLAN_COPY.see} onCreate={() => setCreateOpen(true)} createLabel={GUEST_COPY.create} onHide={() => { setAskCardOff(true); ping(ASK_COPY.hidden); focusSel(["#quicklog-t"]); }} />}
       aiWriteUp={weeklyShown ? <WriteUpHomeCard last={weeklyShown} onOpen={() => { pendingFocus.current = ["#ai-writeup .aiout", ".viewpanel main h1"]; showView("patterns", { head: true }); }} /> : null}
-      trial={trialNow ? { line: trialNow, onPlans: () => setProOpen(true) } : null}
       guest={guest === "in" && guestNoteNow ? { line: GUEST_COPY.line(guestWhen), story: guestStoryNow, createLabel: GUEST_COPY.create, hideLabel: GUEST_COPY.hide, onCreate: () => setCreateOpen(true), onHide: () => { setGuestNoteNow(false); ping(GUEST_COPY.hidden); } } : null}
-      proChip={proChipNow && !proOwnedNow && !trialNow ? { label: PLANS_COPY.chip, hideLabel: PLANS_COPY.chipHide, onOpen: () => { setProChipNow(false); setProOpen(true); }, onHide: () => setProChipNow(false) } : null}
       acct={acct} stage={stage} stageName={stageName} goTab={goTab}
       hero={heroModel({ stage, isMeno, pred, predWhy, pregWeek, tri, dueDate, lastPeriodIso: isMeno ? lastPeriodDay(ins.sorted) : null, todayIso, pcosOn: pcosHere })}
       tiles={homeTileIds.map((id) => ({ ...TILE_CATALOG.find((t) => t.id === id), logged: tileLogged(id, tileCtx) }))} onTile={(id) => pickLog(id)}
@@ -3306,14 +3296,14 @@ export default function CyraDemo() {
     <Shell {...shell} toast={toast} repaint={repaint}>
       <header className="mast">
         <span className="mark">{org.name}<span className="sub">{org.tag}</span></span>
-        {stage && <span className={`acctchip${research && FEATURES.counts && hasServer() ? "" : " nameonly"}`} title={`${acct.anon ? "Anonymous" : acct.name || "You"}${research && FEATURES.counts && hasServer() ? " · sharing counts ✓" : ""}`}>{acct.anon ? "Anonymous" : acct.name || "You"}{research && FEATURES.counts && hasServer() ? " · sharing counts ✓" : ""}</span>}
-        {/* Plan badge (2026-11-19): Pro, free week, guest and free never look the same; a tap opens the plans. */}
-        {stage && orgId === "cyra" && <button type="button" className="stagechip planbadge" data-plan={planNow.key} aria-label={planNow.say} title={planNow.say} onClick={() => setProOpen(true)}>{planNow.label}</button>}
-        {/* One sheet at a time: opening either closes the other (UI S1). */}
-        {stage && orgId === "cyra" && <button ref={palBtnRef} className="stagechip icon" onClick={() => { setShowSettings(false); setShowPal((s) => !s); }} aria-label="Color palette" aria-expanded={showPal} aria-controls="palette-sheet"><Icon name="palette" size={18} /></button>}
+        {/* Plan badge (2026-11-19): Pro, free week, guest and free never look the same; a tap opens the plans. Since
+            2026-11-25 (docs/plans/critique-fixes.md Task 1) it is the ONE place every screen shows the plan or the free
+            week: the header is brand, plan badge, Shop and settings, on one row (her name is in Home's greeting; the
+            stage palette moved to You → App settings; whether counts are shared is on You → Privacy & your data). */}
+        {stage && orgId === "cyra" && <button type="button" className="stagechip planbadge" data-plan={planNow.key} aria-label={planNow.say} title={planNow.say} onClick={() => setProOpen(true)}>{badgeLines(planNow.label).map((l, i) => <Fragment key={i}>{i ? " " : ""}<span className="pbl">{l}</span></Fragment>)}</button>}
         {/* Shop by need (2026-11-15): opens the Shop page on every main tab; a labelled pill since 2026-11-19 */}
         {stage && FEATURES.shop && <button ref={shopBtnRef} type="button" className="stagechip shoppill shopbtn" aria-current={shopPage ? "page" : undefined} aria-describedby={coachNow && !overPage ? "shop-coach-t" : undefined} onClick={() => (shopPage ? null : openShop(null))}><Icon name="bag" size={18} /><span>{SHOP_PAGE_COPY.headerLabel}</span></button>}
-        {stage && <button ref={settingsBtnRef} className="stagechip icon" onClick={() => { setShowPal(false); setShowSettings((s) => !s); }} aria-label="Check-in settings" aria-expanded={showSettings} aria-controls="settings-sheet"><Icon name="sliders" size={18} /></button>}
+        {stage && <button ref={settingsBtnRef} className="stagechip icon" onClick={() => setShowSettings((s) => !s)} aria-label="Check-in settings" aria-expanded={showSettings} aria-controls="settings-sheet"><Icon name="sliders" size={18} /></button>}
         {updateRow}
         {/* The one-time hint under the Shop pill (in the page flow, so it never covers anything or traps focus). */}
         {stage && FEATURES.shop && coachNow && !overPage && curTab === "home" && <ShopCoach onClose={() => { setCoachNow(false); shopBtnRef.current?.focus({ preventScroll: true }); }} />}
@@ -3321,7 +3311,6 @@ export default function CyraDemo() {
 
       {/* ============ APP ============ */}
       {settingsSheet}
-      {showPal && stage && orgId === "cyra" && <PaletteSheet stage={stage} stageName={stageName} palIdx={palIdx} setPalIdx={choosePalette} setShowPal={setShowPal} triggerRef={palBtnRef} scheme={scheme} />}
       {/* ============ the current view, its segments, the nav and the log sheet (calm R2) ============
           The tabpanel is what the selected tab's aria-controls points at. Inside it: the segmented control when the tab
           hosts several views (a nav named "<Tab> views", buttons with aria-pressed), then the view, keyed so a switch
@@ -3383,7 +3372,7 @@ export default function CyraDemo() {
         )}
         </div>
       </div>
-      <NavPill tabs={localTabs(TABS)} current={curNavTab} onSelect={selectTab} onPlus={() => { setShowPal(false); setLogOpen(true); }} plusExpanded={logOpen} panelId={(id) => `panel-${id}`} />
+      <NavPill tabs={localTabs(TABS)} current={curNavTab} onSelect={selectTab} onPlus={() => setLogOpen(true)} plusExpanded={logOpen} panelId={(id) => `panel-${id}`} />
       {logOpen && <LogSheet items={localItems(logItems)} onPick={pickLog} onClose={() => setLogOpen(false)} onDevices={FEATURES.deviceSync || FEATURES.wearables ? () => { setLogOpen(false); openDevices(); } : null} onShop={FEATURES.shop ? () => { setLogOpen(false); openShop(null); } : null} />}
       {bodySheetView}
       {practiceSheet}

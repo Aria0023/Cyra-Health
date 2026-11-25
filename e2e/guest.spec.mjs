@@ -1,6 +1,7 @@
 /* The guest window (owner request 2026-11-16, lib/guest.js), in the API build against the mock backend (sign-in required):
    - "Create your account" offers the sign-ins, Apple first, AND "Try it first" with the whole story once; as a guest the
-     whole app works with saving, Home shows one quiet line (hidden for the day with one tap), You → Plan & account says until when,
+     whole app works with saving, the header's badge says "Guest", Home shows one quiet line in the window's last 12 hours
+     (hidden for the day with one tap), You → Plan & account says until when,
      and the server holds nothing about her: the only request about accounts is "which sign-ins do you have?".
    - 49 hours later, on the next open: "Your 2 guest days are up". No skip. The encrypted backup and Delete everything
      work right there without signing in. After signing in she is back in the app with what she logged, and isn't asked again.
@@ -53,12 +54,10 @@ test("guest window: try it first → the guest line → 49 hours later the gate,
   await page.getByRole("button", { name: "Try it first" }).click();
   await register(page, { url: API_URL(), stage: "My Cycle", pcos: "no", name: "Maya", signin: null, resume: true });
 
-  // Home: one quiet line with the deadline, a way to create the account and "Hide for today"
+  // 2026-11-25 (critique-fixes Task 1): the header's plan badge says "Guest"; Home has no guest line until it is nearly up
   const bar = page.locator(".guestbar");
-  await expect(bar).toContainText("You're trying Solia Health as a guest. Create an account by Wednesday, 10:00 AM to keep going.");
-  await expect(bar).toContainText("2 days as a guest, then a free account to keep going.");
-  await expect(bar.getByRole("button", { name: "Create account" })).toBeVisible();
-  await shot(page, "2-home-guest-line.png");
+  await expect(page.locator("header.mast .planbadge")).toHaveAccessibleName("Guest, no account yet. Open plans.");
+  await expect(bar).toHaveCount(0);
   // the whole app works, with saving
   await gotoTab(page, "Body");
   await page.getByRole("button", { name: "Save today's check-in" }).click();
@@ -78,8 +77,14 @@ test("guest window: try it first → the guest line → 49 hours later the gate,
   await expect(sheet.locator(".signinbtn").first()).toHaveText("Continue with Apple");
   await expect(sheet.getByRole("button", { name: "Try it first" })).toHaveCount(0);
   await sheet.getByRole("button", { name: "Close" }).click();
-  // Home's line hides for the day with one tap and doesn't come back on the same day
+  // In the window's last 12 hours Home shows one quiet line with the deadline, a way to create the account and "Hide for today"
   await gotoTab(page, "Home");
+  await laterOpen(page, 40);
+  await expect(bar).toContainText("You're trying Solia Health as a guest. Create an account by Wednesday, 10:00 AM to keep going.");
+  await expect(bar).toContainText("2 days as a guest, then a free account to keep going.");
+  await expect(bar.getByRole("button", { name: "Create account" })).toBeVisible();
+  await shot(page, "2-home-guest-line.png");
+  // Home's line hides for the day with one tap and doesn't come back on the same day
   await page.locator(".guestbar").getByRole("button", { name: "Hide for today" }).click();
   await expect(page.locator(".guestbar")).toHaveCount(0);
   await page.clock.runFor(2000);
@@ -175,6 +180,7 @@ test("guest window: Delete everything works from the gate without signing in", a
 test("guest window: signing in from Home's line inside the window ends it; signing out then asks to sign in, as before", async ({ page }) => {
   const state = newApiState();
   await tryFirst(page, state);
+  await laterOpen(page, 40); // Home's line shows in the window's last 12 hours (2026-11-25)
   await page.locator(".guestbar").getByRole("button", { name: "Create account" }).click();
   const sheet = page.locator("#guest-create");
   await expect(sheet).toContainText("Everything you logged as a guest stays on this device");

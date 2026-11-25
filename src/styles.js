@@ -44,12 +44,15 @@ ${Object.keys(SHOP_HUES).map((k) => `.cy [data-hue="${k}"] { --hue:var(--shop-${
 html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px)); }
 .cy * { box-sizing:border-box; }
 .mast { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:4px; margin-bottom:10px; }
-/* One row on a 390px phone (spec A1): wordmark, name chip (ellipsised past 110px), two 44px icon chips, the quiet stage link.
-   The chips can still narrow (their text wraps inside) and only when even that doesn't fit does the last one move to a second row, so the page never scrolls sideways. */
-.mast > .mark { margin-right:auto; }
-.mast > .stagechip, .mast > .acctchip { flex:1 1 min-content; max-width:max-content; margin-right:0; }
-.mast > /* Plan badge in the header: one look per plan state (lib/planBadge.js). 44px tall like the icon chips beside it. */
-.stagechip.planbadge { min-height:44px; padding:6px 12px; white-space:nowrap; letter-spacing:.02em; }
+/* One row at 390px and at 320px in every style (2026-11-25, docs/plans/critique-fixes.md Task 1): the wordmark, the plan
+   badge, Shop and the settings button, nothing else. The badge's two parts sit on two short lines ("Free week ·" over
+   "7 days left"); under 375px the Shop pill shows only its bag (its name "Shop" stays) and the wordmark steps down a
+   size. Wrapping stays allowed as a last resort, so the page never scrolls sideways. */
+.mast > .mark { margin-right:auto; white-space:nowrap; }
+.mast > .stagechip { flex:0 1 auto; margin-right:0; }
+/* Plan badge in the header: one look per plan state (lib/planBadge.js). 44px tall like the icon chips beside it. */
+.mast > .stagechip.planbadge { min-height:44px; padding:4px 10px; white-space:nowrap; letter-spacing:.02em; line-height:1.2; text-align:center; }
+.planbadge .pbl { display:block; }
 .planbadge[data-plan="pro"] { background:var(--primary); border-color:var(--primary); color:var(--on-primary); }
 .planbadge[data-plan="trial"] { background:color-mix(in srgb, var(--primary) 12%, var(--card)); border-color:var(--primary); color:var(--ink); }
 .planbadge[data-plan="ended"] { background:var(--card); border:2px solid var(--ink); color:var(--ink); }
@@ -58,12 +61,16 @@ html { --sa-t:var(--safe-area-inset-top, env(safe-area-inset-top, 0px)); --sa-b:
 .stagechip.icon { flex:0 0 44px; max-width:44px; }
 /* 2026-11-19 (visible-features Task 2): the header's labelled Shop pill, the one-time hint under it, the "+" sheet's row. */
 .mast > .stagechip.shoppill { flex:0 0 auto; max-width:none; display:inline-flex; align-items:center; gap:6px; height:44px; padding:0 14px 0 12px; border-color:transparent; border-radius:var(--r-pill); background:var(--primary); color:var(--on-primary); font:700 var(--fs-sm) var(--ff-body); box-shadow:var(--sh-opt); }
-/* A narrow phone (under 375px): her name's chip gives way (her name is in Home's greeting; the chip stays while it also
-   says "sharing counts"), so the brand and the plan badge share the first row and the three buttons the second. */
-@media (max-width:374px) { .mast > .acctchip.nameonly { display:none; } }
+@media (max-width:374px) {
+  .mast > .mark { font-size:19px; }
+  .mast > .mark .sub { margin-left:5px; letter-spacing:.1em; }
+  .mast > .stagechip.shoppill { width:44px; padding:0; justify-content:center; }
+  .mast > .stagechip.shoppill > span { position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+  .mast > .shopcoach { --coach-x:64px; }
+}
 .mast > .stagechip.shoppill[aria-current="page"] { background:var(--ink); color:var(--on-ink); }
 .mast > .shopcoach { flex:1 1 100%; position:relative; display:flex; align-items:center; justify-content:space-between; gap:8px; margin:8px 0 0; padding:2px 6px 2px 14px; border:1px solid var(--line); border-radius:var(--r-inner); background:var(--card); box-shadow:var(--sh-card); }
-.shopcoach::before { content:""; position:absolute; top:-7px; right:var(--coach-x, 62px); width:12px; height:12px; transform:rotate(45deg); background:var(--card); border-left:1px solid var(--line); border-top:1px solid var(--line); }
+.shopcoach::before { content:""; position:absolute; top:-7px; right:var(--coach-x, 83px); width:12px; height:12px; transform:rotate(45deg); background:var(--card); border-left:1px solid var(--line); border-top:1px solid var(--line); }
 .shopcoach p { display:flex; align-items:center; gap:8px; margin:0; font:700 var(--fs-sm) var(--ff-body); color:var(--ink); }
 .shopcoach .linkbtn { flex:none; min-height:44px; padding:0 10px; font-size:var(--fs-sm); }
 .logshop { margin-top:14px; padding-top:6px; border-top:1px solid var(--line); }
@@ -264,7 +271,7 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 .consentopt { display:flex; gap:11px; width:100%; text-align:left; border:1px solid var(--line); background:var(--card); border-radius:var(--r-card); padding:13px; font:400 var(--fs-sm) var(--ff-body); color:var(--ink); line-height:1.5; cursor:pointer; }
 .consentopt.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 7%, var(--card)); }
 .ckbox { flex-shrink:0; width:22px; height:22px; border:2px solid var(--primary); border-radius:7px; display:flex; align-items:center; justify-content:center; font-weight:700; color:var(--primary); }
-.acctchip { font-size:11px; font-weight:700; color:var(--ink); border:1px solid var(--line); background:var(--card); border-radius:var(--r-pbtn); padding:6px 10px; margin-right:0; max-width:110px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
 .stagechip { border:1px solid var(--line); background:var(--card); color:var(--primary-text); border-radius:var(--r-pbtn); padding:6px 10px; font:700 11px var(--ff-body); cursor:pointer; }
 .stagechip.icon { width:44px; height:44px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
 .stagechip[aria-expanded="true"] { background:color-mix(in srgb, var(--primary) 12%, var(--card)); border-color:var(--primary); }
@@ -360,6 +367,7 @@ html { scroll-padding-top:16px; scroll-padding-bottom:calc(150px + var(--sa-b));
 .d-permark { background:var(--primary); border-radius:50%; }
 .scorepill { float:none; font-size:11px; font-weight:700; color:var(--on-primary); border-radius:var(--r-chip); padding:3px 9px; white-space:nowrap; }
 .palsheet { background:var(--card); border:1px solid var(--edge); border-radius:var(--r-card); padding:14px; margin-bottom:14px; box-shadow:var(--sh-sheet); }
+.palsheet.palinline { background:none; border:0; padding:0; margin:0; box-shadow:none; }
 .palopt { display:flex; align-items:center; gap:11px; width:100%; text-align:left; border:1px solid var(--line); background:var(--card); border-radius:12px; padding:10px 12px; margin-bottom:8px; cursor:pointer; }
 .palopt.on { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 8%, var(--card)); }
 .palswatches { display:flex; gap:4px; flex-shrink:0; }
@@ -1188,7 +1196,6 @@ html:has(.pots-run .stopbar) { scroll-padding-bottom:calc(90px + var(--sa-b)); }
 /* ---- Home v2 (calm R3): the hero ring, Quick log, today's small step, the Body/Mind rails, the word-based patterns preview. ---- */
 .mast > .stagechip.icon { border-color:transparent; background:color-mix(in srgb, var(--primary) 9%, var(--card)); box-shadow:inset 0 0 0 1px var(--edge); }
 .mast > .stagechip.icon[aria-expanded="true"] { background:color-mix(in srgb, var(--primary) 16%, var(--card)); box-shadow:inset 0 0 0 1.5px var(--primary); }
-.mast > .acctchip { border-color:transparent; background:color-mix(in srgb, var(--ink) 5%, var(--card)); color:var(--soft); }
 .homehero { position:relative; text-align:center; padding:2px 0 4px; margin-bottom:var(--stack); }
 .homehero .homedate { margin:0 0 6px; }
 .homehero .greet { font-size:28px; letter-spacing:-.01em; }
@@ -1814,8 +1821,6 @@ button.plantile.on { border-color:var(--primary); box-shadow:inset 0 0 0 1px var
 .getinapp .storebtn { display:inline-flex; align-items:center; gap:8px; min-height:44px; }
 .getinapp-soon { margin:0 0 4px !important; font-size:var(--fs-sm); color:var(--soft); }
 .getinapp .rfoot { margin:0 !important; }
-.prochip { display:inline-flex; align-items:center; gap:2px; margin:0 0 12px; border:1px solid var(--line); border-radius:var(--r-pill); background:var(--card); }
-.prochip-open { display:inline-flex; align-items:center; gap:6px; min-height:44px; padding:0 6px 0 14px; border:0; background:none; color:var(--ink); font:600 var(--fs-sm) var(--ff-body); cursor:pointer; border-radius:var(--r-pill); }
 .prochip-hide { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border:0; background:none; color:var(--soft); cursor:pointer; border-radius:50%; }
 /* ---------- calm R9: the optional account (You → Plan & account, its sheets, the splash sign-in) ---------- */
 .acctcard { position:relative; overflow:hidden; }

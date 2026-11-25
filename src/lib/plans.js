@@ -38,8 +38,6 @@ export const PLANS_COPY = Object.freeze({
   playStoreLabel: "Get Solia Health on Google Play (opens in your browser)",
   comingSoon: "Coming soon to the App Store and Google Play",
   webOnly: "Pro is sold only in the iPhone and Android apps. Nothing is sold on the web.",
-  chip: "Pro · 7-day free trial",
-  chipHide: "Hide the Pro trial note for today",
 });
 
 /** The web's tiles: the US reference prices (web wording only). */
@@ -74,9 +72,7 @@ export function proTrialLine(where, tiles) {
     : `Try Pro free for ${y.trialDays} days on the yearly plan, then ${y.price}. Cancel any time.`;
 }
 
-/** Home's small "Pro · 7-day free trial" note: only for someone without Pro, never while the free-week bar shows (one
-    note at a time), and on at most one day's first Home visit: `shownDay` is the record key proChip (the local day it was
-    last shown; device-only, never in a backup). */
-export const proChipEligible = ({ owned = false, trialBar = false, enabled = true } = {}) => !!enabled && !owned && !trialBar;
-export const proChipNew = ({ shownDay = null, todayIso }) => typeof todayIso === "string" && shownDay !== todayIso;
+/** The local day Home last showed its old "Pro · 7-day free trial" note (record key proChip, device-only). Home stopped
+    showing it on 2026-11-25 (docs/plans/critique-fixes.md Task 1: the header's plan badge is the one plan message); the
+    key still loads so older records validate. */
 export const cleanProChip = (v) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);

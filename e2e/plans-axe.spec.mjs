@@ -1,5 +1,5 @@
 /* axe-core on Task 2's plans, light and dark: You → Plan's two tiles and "Get Solia Health Pro in the app" (no-server
-   build), the Pro sheet that opens with them, and Home's "Pro · 7-day free trial" note (API build, mocked server). */
+   build), the Pro sheet that opens with them, and Home with the header's plan badge (API build, mocked server; Home's Pro note is gone since 2026-11-25). */
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
@@ -29,8 +29,8 @@ for (const scheme of ["light", "dark"]) {
     const p2 = await ctx2.newPage();
     await mockApi(p2, newApiState());
     await register(p2, { url: process.env.E2E_API_URL, stage: "My Cycle", pcos: "no", signin: "email" });
-    await expect(p2.locator(".prochip")).toBeVisible();
-    await audit(p2, `Home Pro note ${scheme}`);
+    await expect(p2.locator("header.mast .planbadge")).toBeVisible(); // 2026-11-25: the badge, not a Home note, says the plan
+    await audit(p2, `Home with the plan badge ${scheme}`);
     await ctx2.close();
   });
 }

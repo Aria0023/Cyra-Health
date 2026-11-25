@@ -625,8 +625,8 @@ view model (`src/lib/routes.js`): the old screen ids stay the views (`appTab` / 
 Pregnancy: Body = Logs · Calendar, Patterns = the care roadmap (Milestones), You without Modules or Care. A tab with several
 views shows them as a pill segmented control `nav.subnav[aria-label="<Tab> views"] .seg` (buttons, aria-pressed; focus stays
 on the segment; it stays above a POTS page opened from that view, and a tap on a segment closes that page); the view under it (`.viewpanel`, keyed) fades in once. A tab remembers the view she last had open in it.
-The header keeps the wordmark, the name chip, the palette button and the "Check-in settings" button (the Settings sheet is
-unchanged). Fixed nav: `.cy` keeps 104px at the bottom, the sticky save bar sits above the pill, the toast rises over it.
+The header keeps the wordmark, the plan badge, the Shop pill and the "Check-in settings" button, on one row (2026-11-25,
+critique-fixes Task 1: the name chip and the palette button are gone; the stage palette is picked in You → App settings). Fixed nav: `.cy` keeps 104px at the bottom, the sticky save bar sits above the pill, the toast rises over it.
 **Deep links:** `#/<tab>[/<segment>]` (e.g. `#/body/calendar`, `#/patterns/report`, `#/mind/journey`) and the old names
 (`#/today`, `#/calendar`, `#/cycles`, `#/report`, `#/connect`, `#/ask`, `#/care` → You's "Support & care",
 `#/milestones`, `#/settings` → You) open their view once she is in the app; the hash is then cleared (a reload opens Home).
@@ -1560,7 +1560,7 @@ chart, clipboard, drop, salt, heart, book, sparkle, print, share, people, plus-c
 apple, google, facebook, file, download, moon (Settings → Appearance), arrow-up and arrow-down (the Move up / Move down
 buttons in "Your symptoms", L6), teststrip and thermometer (fertility signs, L7; `drop` stands for mucus), shield
 (Settings → Privacy & your data, L10) and backspace (the lock screen's "Delete last digit", L10). No emoji anywhere in src (they render differently per OS and the palette emoji was the most
-saturated object on every screen): the header buttons are `sliders` (settings) and `palette`, the kick button `foot`,
+saturated object on every screen): the header button is `sliders` (settings; `palette` labels the palette picker in You → App settings), the kick button `foot`,
 the palette tick and the Milestones "done" tag `check`. An icon is decorative: the text node beside it, or the button's
 aria-label, carries the meaning, and asserted texts ("✓ On", "✓ Taken", "✓ Sync", the `.ckbox` glyphs) stay as text.
 `.labico` (14px, --accent) is the glyph before a label; `.stagechip.icon` is the header icon chip (36px wide, 44px tall,
@@ -2021,7 +2021,9 @@ top to bottom (pure logic in src/lib/home.js, unit-tested):
    last month says the month "felt lighter / heavier / about the same", What I'm trying says "Your days have felt …
    since starting" instead of a day score).
 
-**Header row (`.mast`, one row at 390px in all three stages and with POTS on, <= 54px).** Wordmark (`.mark` 22px Fraunces
+**Header row (`.mast`).** Since 2026-11-25 (docs/plans/critique-fixes.md Task 1): wordmark · plan badge (two short lines) ·
+Shop pill (its bag only under 375px, name "Shop" kept) · Check-in settings, one row at 320px and 390px in all nine styles.
+The paragraph below is the older layout, kept as history. **Older header row (one row at 390px in all three stages and with POTS on, <= 54px).** Wordmark (`.mark` 22px Fraunces
 with the `.sub` tag) · name chip `.acctchip` (ellipsised past 110px, full text in `title`) · two 44px round icon chips
 (`.stagechip.icon`: palette, then Check-in settings; primary-tinted while `aria-expanded="true"`) · the "{stage} · change"
 link as `.stagechip.quiet` (no fill or border, underlined, may wrap to two lines inside its 44px box). Gap 4px; only when
@@ -2094,7 +2096,7 @@ doesn't apply).
 Fertility signs (L7) are never a weekly-count flag: `contribute()` gets `{ sym, sleepQ, flow }` only, and
 `FLAG_WORDS`, `PULSE_EVENTS` and `eventsForDay` are unchanged.
 **Flag (§9.1):** `counts`, off by default. Without it there is no pulse section on Home, no GET /api/pulse, no
-"Share anonymous weekly counts" (consent step, Settings, Today's sharing note, the header's "· sharing counts ✓"),
+"Share anonymous weekly counts" (consent step, Settings, Today's sharing note; the header's "· sharing counts ✓" until 2026-11-25),
 and a tally an earlier build queued is never sent.
 
 Three stage-specific anonymous aggregate counts ("3,550 women logged cramps this week").
@@ -2539,7 +2541,8 @@ backup you choose to save — and your age band and ZIP never go into one." and 
 `Details` per topic, chip rows as `ChipRow` / `MultiRow` from `src/components/AnswerChips.jsx`, no toast per tap). Each tap
 goes through App.jsx `setAnswer(k, v)` into `regAnswers` (autosaved within 1 s). `pregWeek` comes from
 `regAnswers.dueDate` (`pregWeekFrom`; the fixed week 22 without one), so a due date typed here updates Home at once.
-The header buttons carry `aria-controls="settings-sheet"` / `"palette-sheet"` next to their `aria-expanded`; opening one
+(Since 2026-11-25 the palette is an inline group in You → App settings, `#you-palette`, with no sheet, button or focus
+hand-back; the rest of this paragraph is history.) The header buttons carried `aria-controls="settings-sheet"` / `"palette-sheet"` next to their `aria-expanded`; opening one
 sheet closes the other (`setShowPal(false); setShowSettings(s => !s)` and the mirror), and Done / Close hand focus back
 to the button that opened the sheet (`triggerRef`). The palette sheet (`#palette-sheet`) is a `[role=group]` named by
 `p#pal-lab`; each `.palopt` carries `aria-pressed` and its own `--primary` / `--accent` / `--line` / `--paper-mini`,

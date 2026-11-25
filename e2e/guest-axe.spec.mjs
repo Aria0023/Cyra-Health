@@ -27,6 +27,9 @@ for (const scheme of ["light", "dark"]) {
     await audit(page, `Create your account with Try it first ${scheme}`);
     await page.getByRole("button", { name: "Try it first" }).click();
     await register(page, { url: process.env.E2E_API_URL, stage: "Perimenopause", pcos: "no", signin: null, resume: true });
+    await page.clock.runFor(2000); // Home's guest line shows in the window's last 12 hours (2026-11-25)
+    await page.clock.setSystemTime(new Date(START.getTime() + 40 * 3600000));
+    await page.reload();
     await expect(page.locator(".guestbar")).toBeVisible();
     await audit(page, `Home with the guest line ${scheme}`);
     await gotoYou(page, "Plan & account");

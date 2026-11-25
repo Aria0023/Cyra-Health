@@ -2,8 +2,7 @@
    - the web (no-server build): You → Plan shows Yearly (best value, 7-day free trial) and Monthly with the US reference
      prices, "Get Solia Health Pro in the app" and, with no store URL set, "Coming soon …" as plain text (no dead button);
      the Pro sheet opens with the same tiles and the trial line, and sells nothing;
-   - Home's "Pro · 7-day free trial" note (API build, no free-week gate): opens the Pro sheet, hides with ×, shows on at most
-     one day's first Home visit; never beside the free-week bar (the no-server build has the gate on). */
+   - since 2026-11-25 Home has no Pro note: the header's plan badge is the one plan message and opens the plans. */
 import { test, expect } from "@playwright/test";
 import { register } from "./lib/onboard.mjs";
 import { gotoTab, gotoYou } from "./lib/nav.mjs";
@@ -11,7 +10,7 @@ import { mockApi, newApiState } from "./lib/api.mjs";
 
 test("the web: You → Plan shows Yearly with the 7-day free trial and Monthly; the Pro sheet opens with them", async ({ page }) => {
   await register(page, { stage: "My Cycle", pcos: "no" });
-  await expect(page.locator(".prochip")).toHaveCount(0); // the free-week bar is on in this build: one note at a time
+  await expect(page.locator(".prochip")).toHaveCount(0); // 2026-11-25: Home has no Pro note at all
   await gotoYou(page, "Plan & account");
   const card = page.locator("#you-plan");
   const tiles = card.locator(".plantile");
@@ -43,34 +42,19 @@ test("the web: You → Plan shows Yearly with the 7-day free trial and Monthly; 
   expect(d.y).toBeGreaterThan(c.y + c.height - 1);
 });
 
-test("Home's Pro note: opens the plans and shows on at most one day's first visit", async ({ page }) => {
+/* 2026-11-25 (docs/plans/critique-fixes.md Task 1): Home no longer has the "Pro · 7-day free trial" note; the header's
+   plan badge is the one plan message on every screen, and a tap on it opens the same plans. */
+test("Home has no Pro note: the header's plan badge opens the plans", async ({ page }) => {
   const state = newApiState();
   await mockApi(page, state);
   await register(page, { url: process.env.E2E_API_URL, stage: "Perimenopause", signin: "email" });
-  const chip = page.locator(".prochip");
-  await expect(chip.getByRole("button", { name: "Pro · 7-day free trial" })).toBeVisible();
-  await chip.getByRole("button", { name: "Pro · 7-day free trial" }).click();
+  await expect(page.locator(".prochip")).toHaveCount(0);
+  await expect(page.getByText("Pro · 7-day free trial")).toHaveCount(0);
+  const badge = page.locator("header.mast .planbadge");
+  await expect(badge).toHaveAccessibleName("Free. Open plans.");
+  await badge.click();
   const sheet = page.locator("#pro-sheet");
   await expect(sheet.locator(".plantile")).toHaveCount(2);
   await sheet.getByRole("button", { name: "Done" }).click();
-  await expect(chip).toHaveCount(0); // opened once: gone for this visit
-  await page.waitForTimeout(1500); // the day it showed is saved on this device
-  await page.reload();
-  await expect(page.locator(".navpill")).toBeVisible();
-  await expect(chip).toHaveCount(0); // the same day: not again
-  await gotoTab(page, "You");
-  await gotoTab(page, "Home");
-  await expect(chip).toHaveCount(0);
-});
-
-test("Home's Pro note hides with × and focus moves on", async ({ page }) => {
-  const state = newApiState();
-  await mockApi(page, state);
-  await register(page, { url: process.env.E2E_API_URL, stage: "My Cycle", pcos: "no", signin: "email" });
-  const chip = page.locator(".prochip");
-  await chip.getByRole("button", { name: "Hide the Pro trial note for today" }).click();
-  await expect(chip).toHaveCount(0);
-  await expect(page.locator("#quicklog-t")).toBeFocused();
-  // never on another screen
   for (const tab of ["Body", "You"]) { await gotoTab(page, tab); await expect(page.locator(".prochip")).toHaveCount(0); }
 });

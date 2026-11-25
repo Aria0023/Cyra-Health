@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { planTiles, webTiles, storeTrialDays, proTrialLine, proChipEligible, proChipNew, cleanProChip, PLANS_COPY } from "./plans.js";
+import { planTiles, webTiles, storeTrialDays, proTrialLine, cleanProChip, PLANS_COPY } from "./plans.js";
 
 const offer = (annualProduct = {}, monthlyProduct = {}) => ({
   plans: {
@@ -41,15 +41,9 @@ test("plans: the trial badge comes from the store's own offer (iOS intro price, 
   assert.equal(proTrialLine("store", t), null, "no store trial, no trial sentence");
 });
 
-test("plans: Home's note only without Pro, never beside the free-week bar, at most one day's first visit", () => {
-  assert.equal(proChipEligible({ owned: false }), true);
-  assert.equal(proChipEligible({ owned: true }), false);
-  assert.equal(proChipEligible({ owned: false, trialBar: true }), false);
-  assert.equal(proChipNew({ shownDay: null, todayIso: "2026-11-15" }), true);
-  assert.equal(proChipNew({ shownDay: "2026-11-15", todayIso: "2026-11-15" }), false);
-  assert.equal(proChipNew({ shownDay: "2026-11-14", todayIso: "2026-11-15" }), true);
+test("plans: Home has no Pro note any more (2026-11-25); the stored day still reads back", () => {
   assert.equal(cleanProChip("2026-11-15"), "2026-11-15"); assert.equal(cleanProChip("x"), null); assert.equal(cleanProChip(3), null);
-  assert.equal(PLANS_COPY.chip, "Pro · 7-day free trial");
+  assert.equal(PLANS_COPY.chip, undefined);
 });
 
 test("plans: calm words only", () => {

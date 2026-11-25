@@ -79,6 +79,15 @@ export function restoredGuestStart(fromBackup, onDevice, signedIn = false) {
   return a || b;
 }
 
+/** "Nearly up": the last GUEST_NEAR_HOURS (12) of the window (2026-11-25, docs/plans/critique-fixes.md Tasks 1 and 5).
+    Only then does Home show the guest line and does any line name the deadline; before that the header's plan badge
+    says "Guest" and nothing counts hours. */
+export const GUEST_NEAR_HOURS = 12;
+export function guestNear({ start, now, seen = null, hours = GUEST_HOURS } = {}) {
+  const left = guestLeftMs({ start, now, seen, hours });
+  return left > 0 && left <= GUEST_NEAR_HOURS * HOUR;
+}
+
 /** Home's guest line shows on the first Home visit of a local day (guestNote is the last day it showed). */
 export const guestNoteNew = ({ shownDay = null, todayIso } = {}) => !!todayIso && shownDay !== todayIso;
 export const cleanGuestNote = (v) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);

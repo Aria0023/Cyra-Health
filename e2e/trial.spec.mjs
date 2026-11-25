@@ -1,5 +1,5 @@
 /* The free week (lib/trial.js, owner decision 2026-11-12), in the harness build (dev flag trialGate: the gate without a
-   store). Day 1 shows the days left; after 7 days a check-in can't be saved, the plans sheet explains why, and what she
+   store). Day 1 shows the days left (the header's plan badge); after 7 days a check-in can't be saved, the plans sheet explains why, and what she
    logged is still there to open. */
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
@@ -12,8 +12,11 @@ test("free week: days left on Home; after it, saving opens 'Your free week is ov
   const start = new Date("2026-11-12T10:00:00");
   await page.clock.install({ time: start });
   await register(page, { stage: "My Cycle", pcos: "no" });
-  const bar = page.locator(".trialbar");
-  await expect(bar).toContainText("Free week: 7 days left.");
+  // 2026-11-25: the header's plan badge is the one place that says it (Home has no free-week bar)
+  const badge = page.locator("header.mast .planbadge");
+  await expect(badge).toHaveText("Free week · 7 days left");
+  await expect(badge).toHaveAccessibleName("Free week · 7 days left. Open plans.");
+  await expect(page.locator(".trialbar")).toHaveCount(0);
 
   // Inside the free week a check-in saves.
   await gotoTab(page, "Body");
@@ -26,7 +29,7 @@ test("free week: days left on Home; after it, saving opens 'Your free week is ov
   await page.clock.runFor(2000);
   await page.clock.setSystemTime(new Date(start.getTime() + 8 * DAY));
   await page.reload();
-  await expect(page.locator(".trialbar")).toContainText("Your free week is over.");
+  await expect(page.locator("header.mast .planbadge")).toHaveText("Free week over");
   await gotoTab(page, "Body");
   await page.getByRole("button", { name: "Save today's check-in" }).click();
   const sheet = page.locator("#pro-sheet");

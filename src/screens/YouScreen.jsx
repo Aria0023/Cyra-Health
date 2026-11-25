@@ -1,3 +1,4 @@
+import PalettePicker from "../components/PalettePicker.jsx";
 import { Card, Chip, Switch, IBadge } from "../components/ui/index.js";
 import BrandMark from "../components/BrandMark.jsx";
 import Icon from "../components/Icon.jsx";
@@ -193,6 +194,7 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
     <>
       <Card id="you-appearance" tint="body" icon="moon" title={t("you.appearance")} level={2} className="youset">
         <AppearanceBody hideLab appearance={sp.appearance} onAppearance={sp.onAppearance} uiStyle={sp.uiStyle} onStyle={sp.onStyle} />
+        {sp.palette && <PalettePicker {...sp.palette} />}
       </Card>
     </>
   );

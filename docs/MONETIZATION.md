@@ -101,7 +101,8 @@ Supersedes "free core, forever" (§2) wherever the gate is on. `src/lib/trial.js
   appear only when the store's offer for the product has a free trial (`storeTrialDays`: iOS intro price at 0, Android free
   phase). The tiles pick the plan for the store's purchase button, as before. App Store Connect / Play Console must set the
   7-day free trial as the yearly product's introductory offer (docs/STORE-SETUP.md) or no trial is shown.
-- **Home:** a small "Pro · 7-day free trial" note for someone without Pro, on at most one day's first Home visit, hidden with ×,
+- **Home (until 2026-11-25; removed by docs/plans/critique-fixes.md Task 1: the header's plan badge is the one plan
+  message):** a small "Pro · 7-day free trial" note for someone without Pro, on at most one day's first Home visit, hidden with ×,
   opening the Pro sheet. Never beside the free-week bar, never on another screen, never in a notification. Record key
   `proChip` (the local day it last showed): device-only, never in a backup.
 

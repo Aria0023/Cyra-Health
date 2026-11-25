@@ -215,10 +215,11 @@ test("the one-time hint leaves when she opens the shop, and is counted as shown 
   await expect(page.locator(".shopcoach")).toHaveCount(0);
 });
 
-/* The header carries the brand, her name, the plan badge, the palette, the Shop pill and the settings button. It may
-   wrap to a second row, but nothing may overlap, be cut off or push the page sideways, in any style. */
+/* The header carries the brand, the plan badge, the Shop pill and the settings button (2026-11-25, critique-fixes Task 1:
+   her name and the palette button are gone) on ONE row at 320px and 390px: nothing may overlap, be cut off, wrap or push
+   the page sideways, in any style. Under 375px the Shop pill shows only its bag, and its name stays "Shop". */
 for (const width of [320, 390]) {
-  test(`the header fits at ${width}px in every style: Shop pill and plan badge, no overlap`, async ({ browser }) => {
+  test(`the header fits on one row at ${width}px in every style: brand, plan badge, Shop, settings`, async ({ browser }) => {
     test.setTimeout(180_000);
     const ctx = await browser.newContext({ viewport: { width, height: 844 }, reducedMotion: "reduce" });
     const page = await ctx.newPage();
@@ -228,7 +229,8 @@ for (const width of [320, 390]) {
       await setStyle(page, style);
       await gotoTab(page, "Home");
       const pill = page.locator("header.mast").getByRole("button", { name: "Shop", exact: true });
-      await expect(pill.locator("span")).toBeVisible();
+      if (width >= 375) await expect(pill.locator("span")).toBeVisible();
+      else expect(await pill.locator("span").evaluate((e) => e.getBoundingClientRect().width)).toBeLessThanOrEqual(1); // the bag only; the name "Shop" stays
       await expect(page.locator("header.mast .planbadge")).toBeVisible();
       const r = await page.locator("header.mast").evaluate((mast) => {
         const boxes = [...mast.children].filter((e) => e.offsetParent !== null).map((e) => { const b = e.getBoundingClientRect(); return { n: e.className, l: b.left, r: b.right, t: b.top, b: b.bottom, clip: e.scrollWidth > e.clientWidth + 1 && !e.classList.contains("acctchip") }; });
@@ -237,6 +239,12 @@ for (const width of [320, 390]) {
         return { overlaps, outside: boxes.filter((b) => b.l < -0.5 || b.r > window.innerWidth + 0.5).map((b) => b.n), clipped: boxes.filter((b) => b.clip).map((b) => b.n), sideways: document.documentElement.scrollWidth > window.innerWidth };
       });
       expect(r, `${style} at ${width}px`).toEqual({ overlaps: [], outside: [], clipped: [], sideways: false });
+      const row = await page.locator("header.mast").evaluate((mast) => {
+        const kids = [...mast.children].filter((e) => e.offsetParent !== null && !e.matches(".shopcoach, .updrow"));
+        const b = kids.map((e) => e.getBoundingClientRect());
+        return { names: kids.map((e) => e.getAttribute("aria-label") || e.textContent.trim()), oneRow: Math.max(...b.map((x) => x.top)) < Math.min(...b.map((x) => x.bottom)) };
+      });
+      expect(row, `${style} at ${width}px`).toEqual({ names: ["SoliaHealth", "Free week · 7 days left. Open plans.", "Shop", "Check-in settings"], oneRow: true });
       for (const b of await page.locator("header.mast > button").all()) { const box = await b.boundingBox(); expect(box.height, `${style} ${width}px target`).toBeGreaterThanOrEqual(44); expect(box.width).toBeGreaterThanOrEqual(44); }
     }
     await ctx.close();

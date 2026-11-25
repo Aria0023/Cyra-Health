@@ -55,7 +55,7 @@ const SLEPT = { good: "well", fair: "so-so", poor: "poorly" };
 const delta = (a, b, goodUp = true) => { const d = b - a; if (d === 0) return <span className="flat">{t("home.unchanged")}</span>; const good = goodUp ? d > 0 : d < 0; return <span className={good ? "up" : "down"}>{d > 0 ? "+" : ""}{d}</span>; };
 
 export default function HomeScreen({
-  trial = null, proChip = null, guest = null, acct, stage, stageName, goTab, todayIso, homeInsight, patternsCard = null, wearInsights, milestones, justReached = null, nextUp, pulse,
+  guest = null, acct, stage, stageName, goTab, todayIso, homeInsight, patternsCard = null, wearInsights, milestones, justReached = null, nextUp, pulse,
   todayEntry = null, scoreIds = [], scoreLabels = {},
   hero, tiles = [], onTile, tilePicker = null, step = null, onStep, onSkipStep, bodyRail = [], mindRail = [],
   recap, showRecap, setShowRecap,
@@ -134,13 +134,6 @@ export default function HomeScreen({
 
   return (
     <main className="homev2">
-      {/* The free week (lib/trial.js): one calm line with a way to see plans, only where the gate is on and Pro isn't. */}
-      {trial && trial.line && (
-        <div className="trialbar" role="status">
-          <span>{trial.line}</span>
-          <button type="button" className="linkbtn" aria-haspopup="dialog" onClick={trial.onPlans}>See plans</button>
-        </div>
-      )}
       {/* The guest window (2026-11-16, lib/guest.js): one quiet line for a guest, on the first Home visit of a day, with
           the whole story once, a way to create the account and "Hide for today". */}
       {guest && (
@@ -150,14 +143,6 @@ export default function HomeScreen({
             <button type="button" className="linkbtn" aria-haspopup="dialog" onClick={guest.onCreate}>{guest.createLabel}</button>
             <button type="button" className="prochip-hide" aria-label={guest.hideLabel} onClick={() => { guest.onHide(); ctaRef.current?.focus({ preventScroll: true }); }}><Icon name="close" size={14} /></button>
           </span>
-        </div>
-      )}
-      {/* Plans (2026-11-15): a small "Pro · 7-day free trial" note for someone without Pro, at most one day's first Home
-          visit, hidden with ×; it opens the plans sheet (App.jsx, lib/plans.js). */}
-      {proChip && (
-        <div className="prochip">
-          <button type="button" className="prochip-open" aria-haspopup="dialog" onClick={proChip.onOpen}><Icon name="sparkle" size={14} />{proChip.label}</button>
-          <button type="button" className="prochip-hide" aria-label={proChip.hideLabel} onClick={() => { proChip.onHide(); ctaRef.current?.focus({ preventScroll: true }); }}><Icon name="close" size={14} /></button>
         </div>
       )}
       {/* ---- Hero: the date, her greeting, and the cycle-day ring (pregnancy: the week; menopause: days since the last

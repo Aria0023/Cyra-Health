@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { planBadge } from "./planBadge.js";
+import { planBadge, badgeLines } from "./planBadge.js";
 
 const day = (n) => `2026-11-${String(n).padStart(2, "0")}`;
 test("Pro wins over everything", () => {
@@ -22,6 +22,15 @@ test("where nobody can subscribe there is no countdown: the plan is Free", () =>
 test("every badge has a label and a sentence", () => {
   for (const a of [{ owned: true }, { guest: "in" }, {}, { gateOn: true, startIso: day(1), todayIso: day(2) }, { gateOn: true }]) {
     const b = planBadge(a);
-    assert.equal(b.say, `${b.label}. Open plans.`, b.key);
+    assert.ok(b.say.startsWith(b.label) && b.say.endsWith(". Open plans."), b.key);
   }
+});
+test("the guest badge says what the one word leaves out", () => {
+  assert.equal(planBadge({ guest: "in" }).say, "Guest, no account yet. Open plans.");
+});
+test("the badge's words fit two short lines", () => {
+  assert.deepEqual(badgeLines("Free week \u00b7 3 days left"), ["Free week \u00b7", "3 days left"]);
+  assert.deepEqual(badgeLines("Free week over"), ["Free week", "over"]);
+  assert.deepEqual(badgeLines("Guest"), ["Guest"]);
+  assert.deepEqual(badgeLines("Pro"), ["Pro"]);
 });
