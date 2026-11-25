@@ -165,7 +165,7 @@ Branch `feature/upgrade-enterprise`, worktree `/home/user/cyra-enterprise` (base
   | axe | 72/72 (70 + 2) |
 - The owner's Tasks 5 and 6 were appended to docs/plans/upgrade-enterprise.md in this commit (coordinator's request).
 
-## Task 4: organization dashboards — IN PROGRESS
+## Task 4: organization dashboards — DONE (final commit "Organization dashboards: totals only")
 - Portal roles (`backend/src/modules/shop/index.js roleOf / auth`): a new role "orgAdmin" = an address listed in an
   organization's `admins` (and not an owner or partner); `orgSlugs` = the organizations it is an admin of (null for an
   owner; a partner who is also an org admin keeps the partner role plus `orgSlugs`). `auth(need)`: "any" now means owner
@@ -202,3 +202,14 @@ Branch `feature/upgrade-enterprise`, worktree `/home/user/cyra-enterprise` (base
   e2e `portal-dashboard.spec.mjs` (1), `orgs.spec` (+2 assertions: the totals line and its bold lead),
   `portal-enterprise-axe` (+ Dashboards, owner and org admin, phone and wide); nav lists in `portal.spec` /
   `portal-subs.spec` gain "Dashboards".
+- Verified 2026-11-25 on the Task 4 tree (a clean worktree at the Task 4 WIP commit, full runs):
+
+  | Check | Result |
+  | --- | --- |
+  | `npm run lint` | 0 errors, 23 warnings (unchanged from Task 3) |
+  | `npm run test:unit` | 734/734 (733 + 1) |
+  | `cd backend && npm test` | 148/148 (142 + 6) |
+  | `cd backend && npm run smoke:all` | exit 0 |
+  | `npm run build` | ok; "BUILD 2026.10.07-D" once in dist |
+  | e2e | 118/118 (117 + 1) |
+  | axe | 72/72 (portal-enterprise-axe's two tests now also audit both dashboards) |
