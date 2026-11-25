@@ -76,3 +76,8 @@ each task (compared line by line).
   e2e `shop-taps.spec` (off by default, footer switch turns it on, then the old checks), `shop-taps-axe` (+footer offer),
   `meal-photos.spec` (calories turned on where the test reads ranges; camera/library inputs; "Take a new photo"; new test
   "calorie estimates are hidden by default"), `meal-photos-axe` (hidden first, then shown).
+- Also changed after the first full run: `shop-live.spec` "an invalid catalog falls back" (its footer check assumed taps on
+  by default; now the footer says nothing is sent and offers the switch, off).
+- Verified 2026-11-25 on the Task 3 tree: lint 0 errors (25 warnings, same as main); app unit 721/721; backend 130/130;
+  smoke:all exit 0; build stamp once in dist; e2e full run 99 passed + 1 failed (shop-live, above), then shop-live re-run
+  in full: 2/2 → 100/100; axe full run 62/62.

@@ -76,7 +76,9 @@ test("an invalid catalog falls back to the bundled one", async ({ page }) => {
   await shop.getByRole("button", { name: "Sleep", exact: true }).click();
   await expect(shop.getByText("Lumen Sleep")).toHaveCount(0);
   await expect(shop.locator(".shopfoot")).not.toContainText("comes from Solia Health's server");
-  // 2026-11-19: this build has a server, so a tap can be counted (lib/shopTaps.js) and the footer no longer says "nothing about you is sent"
-  await expect(shop.locator(".shopfoot")).toContainText("Matched on this device: your stage and what you log are never sent.");
-  await expect(shop.locator(".shopfoot")).toContainText("counts one anonymous tap for that product");
+  // 2026-11-25 (critique-fixes Task 3): a tap could be counted in this build, but only once she turns it on, so the footer
+  // says nothing about her is sent and offers the switch
+  await expect(shop.locator(".shopfoot")).toContainText("Matched on this device; nothing about you is sent.");
+  await expect(shop.locator(".shopfoot")).not.toContainText("counts one anonymous tap for that product");
+  await expect(shop.locator(".shopfoot").getByRole("switch", { name: "Count my taps anonymously" })).toHaveAttribute("aria-checked", "false");
 });
