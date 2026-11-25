@@ -28,6 +28,7 @@ for (const scheme of ["light", "dark"]) {
     await expect(page.getByRole("heading", { name: "Your data and your choices" })).toBeVisible(); // no device step
     await page.getByRole("checkbox", { name: /I agree to/ }).click();
     await page.getByRole("button", { name: "Enter Solia Health" }).click();
+    await openHomeMore(page); // 2026-11-25: the card sits in Home's "More for today"
     await page.locator("#home-devices").getByRole("button", { name: "See devices" }).click();
     // 2026-11-19: Terra isn't set up on this (mock) server, so its row is hidden and the how-to stands in for it
     await expect(page.locator('#devices-sheet .devrow[data-device="terra"]')).toHaveCount(0);

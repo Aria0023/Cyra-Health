@@ -53,3 +53,11 @@ each task (compared line by line).
   and dark); `e2e/lib/nav.mjs` `openHomeMore`; specs that reach a folded card now open the group first: `auto.spec`,
   `axe.spec`, `devices.spec`, `devices-axe.spec`. Unit: `home.test` +1, `record.test` lists + `homeMore`.
 - Docs: CYRA-BUILD-SPEC (Home order), PRIVACY-AUDIT, CLINICIAN-REVIEW (three new entries).
+- Tests changed after the first full run (the brief moved what they pinned): `ask-solia.spec` (the card now follows Quick
+  log, not precedes it), `auto.spec` S2 (Today's auto-tracked now sits right under Quick log, not above it; title
+  changed) and S3 (opens "More for today" before the Wearables door), `devices.spec` / `devices-axe.spec` (open the group
+  before the Home devices card in the two API-build tests missed at first).
+- Verified 2026-11-25 on the Task 2 tree: lint 0 errors (25 warnings, same as main); app unit 721/721; backend 130/130;
+  smoke:all exit 0; build stamp once in dist; e2e full run 95 passed + 4 failed (the four specs above), then those three
+  spec files re-run in full after the fix: 13/13 → 99/99 in all; axe full run 60 passed + 2 failed (devices-axe, the
+  same missed card), then devices-axe re-run: 2/2 → 62/62.

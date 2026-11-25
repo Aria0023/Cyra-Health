@@ -70,6 +70,7 @@ test("API build, Terra set up on the server: the Fitbit · Garmin · Whoop row i
   const state = newApiState({ sources: { healthkit: "on-device", oura: true, terra: true } });
   await mockApi(page, state);
   await register(page, { url: process.env.E2E_API_URL, stage: "My Cycle", pcos: "no", signin: "email" });
+  await openHomeMore(page); // 2026-11-25: the card sits in Home's "More for today"
   await page.locator("#home-devices").getByRole("button", { name: "See devices" }).click();
   const sheet = page.locator("#devices-sheet");
   const terra = sheet.locator('.devrow[data-device="terra"]');

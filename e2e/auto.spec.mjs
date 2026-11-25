@@ -24,7 +24,7 @@ test("S1: connecting a demo source brings 90 days of illustrative readings and s
   await expect(page.getByRole("button", { name: /^Wearables/ })).toContainText("1 connected");
 });
 
-test("S2: the card above Quick log; Looks right confirms without writing a day; Skip this night; the markers; the table", async ({ page }) => {
+test("S2: the card right under Quick log; Looks right confirms without writing a day; Skip this night; the markers; the table", async ({ page }) => {
   await register(page, { stage: "My Cycle", pcos: "yes", name: "Maya" });
   await gotoTab(page, "You");
   await expect(page.locator(".youstage .youfact")).toContainText("75 days logged");
@@ -34,9 +34,9 @@ test("S2: the card above Quick log; Looks right confirms without writing a day; 
   await expect(card).toBeVisible();
   await expect(card).toContainText("Today's auto-tracked");
   await expect(card).toContainText(/synced/);
-  // above the Quick log
+  // 2026-11-25 (critique-fixes Task 2): Quick log is Home's first job; the card follows right under it
   const [cardBox, qlBox] = await Promise.all([card.boundingBox(), page.locator(".quicklog").boundingBox()]);
-  expect(cardBox.y).toBeLessThan(qlBox.y);
+  expect(cardBox.y).toBeGreaterThan(qlBox.y);
   // four rows, words only
   const rows = card.locator(".autorow");
   await expect(rows).toHaveCount(4);
@@ -172,6 +172,7 @@ test("S3: You → Devices & reminders manages the source; How this is going coun
   await expect(demo).toHaveAttribute("aria-checked", "false");
   await gotoTab(page, "Home");
   await expect(page.locator("#auto-tracked")).toHaveCount(0);
+  await openHomeMore(page); // 2026-11-25: the Wearables door sits in Home's "More for today"
   await expect(page.getByRole("button", { name: /^Wearables/ })).toContainText("optional");
 });
 

@@ -23,8 +23,8 @@ test("no server: a Coming soon card with no dead buttons; hide it, and You bring
   await expect(card).toContainText("Solia Health's AI isn't connected in this build yet, so there is nothing to ask here for now.");
   await expect(card.locator("button")).toHaveCount(1); // only ×
   await expect(card.locator("textarea")).toHaveCount(0);
-  // it sits right under the hero, before Quick log
-  expect(await page.evaluate(() => { const a = document.querySelector("#home-ask"), h = document.querySelector(".homehero"), q = document.querySelector(".quicklog"); return !!(h.compareDocumentPosition(a) & 4) && !!(a.compareDocumentPosition(q) & 4); })).toBe(true);
+  // 2026-11-25 (critique-fixes Task 2): Quick log comes first; the card follows it (and Getting started)
+  expect(await page.evaluate(() => { const a = document.querySelector("#home-ask"), h = document.querySelector(".homehero"), q = document.querySelector(".quicklog"); return !!(h.compareDocumentPosition(q) & 4) && !!(q.compareDocumentPosition(a) & 4); })).toBe(true);
   await card.getByRole("button", { name: "Hide the Ask Solia card" }).click();
   await expect(toast(page)).toContainText("Ask Solia is hidden.");
   await expect(card).toHaveCount(0);
