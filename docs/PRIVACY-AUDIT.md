@@ -3158,3 +3158,43 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
 - **Open for the attorney:** how long Render keeps request logs (the Privacy Policy still has `[confirm with Render]`);
   whether the footer's "(Washington My Health My Data Act)" label and the separate link meet RCW 19.373's homepage-link
   requirement; whether reference prices with the trial terms on a page that sells nothing need any further disclosure.
+
+### Task 3: support, delete your account, the policy's "This website" section, search and sharing
+- **`/delete-account/` (Google Play's account-deletion page) was written from the backend's code, not from memory.**
+  - *Deleted at once, in the one request* (`backend/src/modules/accounts/index.js`, `DELETE /api/accounts/me`): every
+    `account_sessions` row of the account, the `accounts` row (provider, email, name, createdAt, lastSeenDay, orgSlug),
+    the account's `ai_usage` rows, and through the delete hooks its linked feedback (`feedback/index.js`). A unit test
+    pins those lines of the backend.
+  - *Kept, and the page says so:* feedback sent without "It's OK to reply to me" (not linked to an account; 365 days,
+    `FEEDBACK_KEEP_DAYS`); the daily totals that name no one (shop taps 400 days, AI use 400 days, organization joins);
+    a free Pro grant's row with **the email it was made for** (`subscriptions/index.js`: the hook drops the account id
+    and sets `accountDeleted`; the row and its email stay until an owner revokes it); the store's and RevenueCat's own
+    purchase records; what already left (Anthropic, Terra); Apple / Google / Facebook and Resend's own records; Render's logs.
+  - **FLAG FOR ATTORNEY REVIEW, two points the code makes true but the owner should decide:** (1) a deleted account
+    leaves the grant row with her email until someone revokes the grant; (2) **there is no owner-side tool that deletes
+    an account on request**: an emailed deletion request can only be carried out by hand on the server's data files.
+    Google Play expects requests made without the app to be honoured. The page therefore promises nothing about how an
+    emailed request is handled; it gives the address when `VITE_SUPPORT_EMAIL` is set and otherwise says, verbatim, "An
+    email address for deletion requests has not been set up yet. Until it is, use the steps above in the app."
+  - The page names the app ("Solia Health") but not the developer: the company's legal name is still a placeholder in the
+    legal drafts. Google Play asks for the developer's name on this page.
+- **`/support/`** uses the app's own Help answers (`src/lib/feedback.js helpItems`) and cancel lines
+  (`src/lib/pricing.js CANCEL_LINES`). New sentences, FLAG FOR ATTORNEY REVIEW: "Solia Health can't help in an emergency.
+  If you think you may have a medical emergency, call your local emergency number (911 in the United States) or go to the
+  nearest emergency room. If you are thinking about harming yourself, in the United States call or text 988." (from the
+  draft Medical and AI Disclaimer, with "local emergency number" and "in the United States" added).
+- **`public/legal/privacy.html` §3 gains "This website"** (an `<h3 id="p-site">` after the table, before "We do not
+  collect your precise location…"), verbatim: "Our website (the pages that describe the app, and its support and
+  account-deletion pages) sets no cookies, stores nothing in your browser and loads nothing from any other company: no
+  analytics, no advertising or tracking pixels, and no fonts or scripts from elsewhere. Its front page runs one small
+  script that looks, on your device, for a Solia Health log already saved in that browser, so that it can open the web
+  app for you. That script sends nothing to us or to anyone else." / "Like any website, loading one of its pages shows our
+  hosting provider (Render) your device's internet (IP) address, your browser type and the time, as described under
+  "Every connection to our server" in the table above. The web app, which is at /app/ on the same web address, keeps your
+  log in your browser's storage as described in Section 2." No existing sentence was changed, weakened or strengthened;
+  the "App settings" and "Joining an organization" rows are untouched (a unit test checks all three). The retention of
+  Render's logs is still `[confirm with Render]`. FLAG FOR ATTORNEY REVIEW.
+- **Search and sharing are first-party.** The sharing card's picture is the site's own `/site/img/og.jpg`; nothing is
+  embedded from a social network and no page loads a social script. Structured data is `SoftwareApplication` with a name,
+  a description, where it runs and "The web app is free to use."; it has no rating, review, award or count field, and a
+  unit test fails if one appears. `/app/` is `noindex`; the legal drafts keep their own `noindex, nofollow`.

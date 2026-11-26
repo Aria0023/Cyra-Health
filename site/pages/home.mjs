@@ -3,12 +3,14 @@
    and names the file that makes it true. No testimonials, numbers of users, ratings, awards or health promises. */
 import { LABEL } from "./copy.mjs";
 import { head, header, footer, phone, iconChip, hrefFor } from "./layout.mjs";
+import { headSeo, softwareApplication } from "../build/seo.mjs";
 
 const UI = "src/locales/en-ui.js";
 const FLOWS = "src/lib/privacyFlows.js";
 const PRICING = "src/lib/pricing.js";
 
 export const HOME_TITLE = "Solia Health: cycle, pregnancy and menopause tracking that lives on your device";
+export const HOME_HEADLINE = "Cycle, fertility, pregnancy, perimenopause and menopause tracking that lives on your device.";
 export const HOME_SOURCE = "src/lib/onboarding.js STAGE_CARDS (the five stages); src/lib/storage.js (the record is kept on the device)";
 export const HOME_DESCRIPTION = { text: "Solia Health tracks your cycle, fertility, pregnancy, perimenopause and menopause. Your health log lives on your device.", source: HOME_SOURCE };
 
@@ -35,7 +37,7 @@ function hero(ctx, c) {
 <div class="wrap hero-in">
 <div class="hero-text">
 <p class="slogan">${c.t(d.splash.slogan, `${UI} splash.slogan`)}</p>
-<h1 id="hero-h">${c.t("Cycle, fertility, pregnancy, perimenopause and menopause tracking that lives on your device.", "src/lib/onboarding.js STAGE_CARDS (My Cycle, Trying to conceive, Pregnant, Perimenopause, Menopause & beyond); src/lib/storage.js (the record: IndexedDB in a browser, the app's own files on a phone)")}</h1>
+<h1 id="hero-h">${c.t(HOME_HEADLINE, "src/lib/onboarding.js STAGE_CARDS (My Cycle, Trying to conceive, Pregnant, Perimenopause, Menopause & beyond); src/lib/storage.js (the record: IndexedDB in a browser, the app's own files on a phone)")}</h1>
 <p class="lead">${c.t(d.splash.privacy.replace(/^Your health log lives on your device\. /, ""), `${UI} splash.yourHealthLogLivesOn (second sentence); docs/PRIVACY-AUDIT.md`)}</p>
 ${storeButtons(ctx, c)}
 <ul class="points">
@@ -333,7 +335,10 @@ ${q("q-tracking", "Does the website track me?", "site/pages/layout.mjs CSP; src/
 export function homePage(ctx, c) {
   const { d } = ctx;
   const banner = d.links.appStoreId ? `<meta name="apple-itunes-app" content="app-id=${d.links.appStoreId}">\n` : "";
-  return `${head(ctx, c, { title: HOME_TITLE, titleSource: HOME_SOURCE, description: HOME_DESCRIPTION, redirect: true, extra: banner + (ctx.headExtra?.home || "") })}
+  const ld = softwareApplication(ctx, { description: HOME_DESCRIPTION.text });
+  c.attr(ld.offers.description, "src/locales/en-ui.js splash.freeToUse; src/lib/trial.js (the free-week gate is on only where Pro can be bought, never on the web); src/lib/plans.js PLANS_COPY.webOnly");
+  const seo = headSeo(ctx, c, { path: "/", title: HOME_TITLE, description: HOME_DESCRIPTION.text, jsonLd: ld });
+  return `${head(ctx, c, { title: HOME_TITLE, titleSource: HOME_SOURCE, description: HOME_DESCRIPTION, redirect: true, extra: banner + seo })}
 <body>
 ${header(ctx, c, { home: true })}
 <main id="content">

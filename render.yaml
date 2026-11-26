@@ -35,6 +35,10 @@ services:
       # the same two store addresses (https://…). Unset = the website says "Coming soon to the App Store" / "Coming soon
       # to Google Play" as plain text, never a dead link. VITE_APP_STORE_ID (the app's numeric Apple id) also adds Apple's
       # Smart App Banner to the website's front page. Public, not secrets: paste them under this service's Environment tab.
+      # The website's own public address (https://your-domain), for its canonical links, sharing card and sitemap.xml.
+      # Leave it unset on Render's own address: the build reads RENDER_EXTERNAL_URL by itself. Set it with a custom domain.
+      - key: VITE_SITE_URL
+        sync: false
       - key: VITE_APP_STORE_URL
         sync: false
       - key: VITE_PLAY_STORE_URL

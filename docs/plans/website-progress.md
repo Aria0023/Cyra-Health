@@ -150,3 +150,72 @@ Task 3 edit; e2e and axe as full runs from a clean temporary worktree of f606222
 Note for whoever reruns the suite: `e2e/orgs.spec.mjs:68` ("a ?org= link…") reads the mock's request list on the line after
 a click, without waiting. It passed in every quiet run (Task 1, and this clean run) and failed twice while another suite
 and a build were running on the same machine. It was not edited (it is not about the website).
+
+## Task 3: "Store and law pages: support, delete your account, policies" — DONE
+
+**What was built**
+- **`/support/`** (`site/pages/support.mjs`), the App Store "Support URL": Get help (the support address when
+  `VITE_SUPPORT_EMAIL` is set, otherwise the app's You → Help & about; Send feedback and Report a problem where the app has a
+  server; an emergency note), Cancel a subscription (the app's own answer and both stores' cancel lines), Restore
+  purchases (phone, nothing found, the web), and the app's own answers to three common questions.
+- **`/delete-account/`** (`site/pages/delete.mjs`), Google Play's account-deletion page: the real steps for Delete account
+  (You → Plan & account → Delete account → Delete my account) and Delete everything (You → Privacy & your data → Delete
+  everything), the app's own words before each confirm, what the server deletes and how fast (at once, in the one
+  request), what is kept and why, and how to ask without the app. Written from the backend's code; a unit test pins the
+  lines of `accounts`, `feedback`, `subscriptions`, `shop` and `ai/spend` it relies on.
+- **`public/legal/privacy.html` §3 gains "This website"** (no cookies, nothing stored, nothing from another company, the
+  one script, the host's request details). Nothing else in the policy changed; the two earlier rows stay.
+- **Search and sharing, first-party** (`site/build/seo.mjs`): title and description per page, canonical, Open Graph and
+  Twitter card with the site's own 1200×630 picture (`site/img/og.jpg`, drawn by `npm run site:cards` from the headline and
+  the Home screenshot), `robots.txt`, `sitemap.xml`, JSON-LD `SoftwareApplication` on the front page with no rating or
+  review field, the app's favicon and touch icon. `/app/` gets `<meta name="robots" content="noindex">` in the web build
+  only (`scripts/build-web.mjs`); the 404 page is `noindex`; the legal drafts keep their own.
+- **`docs/STORE-SETUP.md` §9:** which address goes in which store field, and what still needs the owner. §5a's old line
+  ("There is none in this repo yet") now points at the page.
+- The front page's footer and its cancel / delete questions now link the two pages (they pointed at the questions in
+  Task 2); `e2e/lib/site.mjs` lists the two pages, so every site spec and the axe spec cover them without further edits.
+
+**Decisions and deviations**
+1. **The site only writes its own address when it knows it.** `VITE_SITE_URL` (a custom domain) or, on Render, the
+   address Render gives the static site (`RENDER_EXTERNAL_URL`). Without either there is no canonical link, no `og:url`
+   and no `sitemap.xml`, and the build says so: a guessed address would be a false claim. NOT VERIFIED: that Render sets
+   `RENDER_EXTERNAL_URL` during a static site's build (no access to Render from here). If it does not, set `VITE_SITE_URL`.
+2. **"How to ask by email without the app" has no address in this build** (`VITE_SUPPORT_EMAIL` is unset), so the page
+   says, verbatim, "An email address for deletion requests has not been set up yet. Until it is, use the steps above in
+   the app." With the variable set it gives the address. It promises nothing about handling, because **the backend has
+   no owner-side action that deletes an account on request** (found while reading it; flagged in docs/PRIVACY-AUDIT.md
+   and docs/STORE-SETUP.md §9).
+3. **A deleted account leaves a free Pro grant's row, with the email it was made for,** until an owner revokes the
+   grant. The page says so because the code does it; flagged for the attorney.
+4. **`robots.txt` disallows nothing.** `/app/` and the legal drafts carry `noindex` themselves; a `Disallow` would stop a
+   search engine from ever seeing that line.
+5. **Structured data names only "Web"** as the operating system until the store links are set, and one free offer
+   ("The web app is free to use."). No price is put in structured data: prices are the stores'.
+6. **The legal pages keep their own look** (`public/legal/legal.css`, plain and readable). Restyling them was not asked
+   for and they are attorney drafts; the website links to them as they are.
+7. **The developer's name is not on the delete-account page** (Google asks for it): the company's legal name is still a
+   placeholder in the legal drafts.
+
+**New user-facing sentences:** every one, verbatim with its source, is in `docs/plans/website-claims.md` (sections
+`/support/` and `/delete-account/`, and the sharing card's alt text on each page). The policy's two new paragraphs are
+verbatim in docs/PRIVACY-AUDIT.md ("Task 3").
+
+**Tests added:** unit `src/lib/site.test.mjs` 18 → 22 (+4); e2e `e2e/site.spec.mjs` 3 → 5 (+2); the axe spec's four
+tests now audit four pages each (no new test, more pages).
+
+**Verified 2026-11-26 on the Task 3 tree (full runs from the worktree, nothing else running)**
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | 0 errors, 23 warnings (the same 23) |
+| `npm run test:unit` | 761/761 (757 + 4) |
+| `cd backend && npm test` | 148/148 |
+| `cd backend && npm run smoke:all` | exit 0 |
+| `npm run build` | ok; "BUILD 2026.10.07-D" exactly once in `dist/`; `dist/app/index.html` carries `noindex`; without a known address the build warns and writes no `sitemap.xml` |
+| e2e (`npm run e2e -- --trace off`) | 128/128 (126 + 2) |
+| axe (`npm run e2e:axe -- --trace off`) | 78/78 (the four website tests now cover `/`, `/support/`, `/delete-account/` and the 404 page, light and dark, 390 and 1280) |
+| Native path | `npm run build:native`: the app at the root, its `index.html` has no `noindex` line and no website file; `npx cap copy android` passes the guard and copies only the app. Xcode / Android Studio builds NOT RUN. |
+
+After those runs one line of `site/build/app-data.mjs` changed (the helper server no longer pre-bundles, which had
+sometimes printed "The build was canceled" into the build log). The e2e build made afterwards with the same settings is
+byte-for-byte identical to the one the e2e and axe runs used (`diff -rq`), and lint and the 761 unit tests were run again.

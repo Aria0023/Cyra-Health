@@ -13,6 +13,9 @@ import { loadAppData } from "./app-data.mjs";
 import { tokensCss, themeColors } from "./tokens.mjs";
 import { makeCopy } from "../pages/copy.mjs";
 import { homePage, notFoundPage } from "../pages/home.mjs";
+import { supportPage } from "../pages/support.mjs";
+import { deleteAccountPage } from "../pages/delete.mjs";
+import { robotsTxt, sitemapXml } from "./seo.mjs";
 
 export const SITE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ROOT = path.resolve(SITE_DIR, "..");
@@ -68,8 +71,10 @@ export function siteContext(d) {
 
 /** The site's pages: id (its folder; "" for the front page), file in the out dir, and how it is written. */
 export const PAGES = [
-  { id: "", rel: "index.html", render: homePage },
-  { id: "404", rel: "404.html", render: notFoundPage },
+  { id: "", rel: "index.html", path: "/", render: homePage },
+  { id: "support", rel: "support/index.html", path: "/support/", render: supportPage },
+  { id: "delete-account", rel: "delete-account/index.html", path: "/delete-account/", render: deleteAccountPage },
+  { id: "404", rel: "404.html", path: null, render: notFoundPage }, // never in the sitemap
 ];
 
 /** Every page as { id, rel, html, claims }: claims is each sentence the page shows with the file that makes it true. */
@@ -88,7 +93,11 @@ export async function buildSite({ outDir, data = null }) {
   put(site("go.js"), read("static", "go.js"));
   put(site("site.css"), siteCss(d));
   for (const f of siteFonts().files) put(site(`fonts/${f.name}`), fs.readFileSync(f.from));
-  for (const name of fs.readdirSync(path.join(SITE_DIR, "img")).filter((n) => n.endsWith(".webp"))) put(site(`img/${name}`), read("img", name));
+  for (const name of fs.readdirSync(path.join(SITE_DIR, "img")).filter((n) => /\.(webp|jpg)$/.test(n))) put(site(`img/${name}`), read("img", name));
   for (const p of renderPages(d)) put(p.rel, p.html);
+  put("robots.txt", robotsTxt(d.site.url));
+  const sitemap = sitemapXml(d.site.url, PAGES.filter((p) => p.path).map((p) => p.path));
+  if (sitemap) put("sitemap.xml", sitemap);
+  else console.warn("\n[solia] WARNING: the website doesn't know its own address (set VITE_SITE_URL; on Render it is read from RENDER_EXTERNAL_URL), so no canonical links and no sitemap.xml were written.\n");
   return written.sort();
 }

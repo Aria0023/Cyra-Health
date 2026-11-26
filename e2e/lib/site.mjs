@@ -5,6 +5,8 @@ import { expect } from "@playwright/test";
 
 export const SITE_PAGES = [
   { id: "home", path: "/?site=1", h1: /tracking that lives on your device/ },
+  { id: "support", path: "/support/", h1: "Support" },
+  { id: "delete-account", path: "/delete-account/", h1: "Delete your Solia Health account and data" },
   { id: "not-found", path: "/no-such-page", h1: "This page doesn't exist", status: 404 },
 ];
 

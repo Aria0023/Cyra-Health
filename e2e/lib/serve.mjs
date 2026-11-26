@@ -17,12 +17,16 @@ import { serveStatic } from "../../site/build/serve.mjs";
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const DIST = process.env.E2E_DIST || "dist-e2e";
-export const BUILD_ENV = Object.freeze({ VITE_DEMO_WEARABLES: "true", VITE_DEMO_SEED: "true", VITE_FEATURES: "wearables,deviceSync,shop,signin,devGallery,proDev,trialGate", VITE_SUPPORT_EMAIL: "help@solia.example", CYRA_SKIP_POLICY_FETCH: "1" });
+/* SITE_ADDRESS (docs/plans/website.md Task 3): the address the website believes it has in the first bundle, so its canonical links,
+   sharing card and sitemap are written and checked (e2e/site.spec.mjs). Nothing is ever requested from it. The second bundle has
+   none, like a build outside Render with VITE_SITE_URL unset: no canonical link and no sitemap. */
+export const SITE_ADDRESS = "https://solia.example";
+export const BUILD_ENV = Object.freeze({ VITE_DEMO_WEARABLES: "true", VITE_DEMO_SEED: "true", VITE_FEATURES: "wearables,deviceSync,shop,signin,devGallery,proDev,trialGate", VITE_SUPPORT_EMAIL: "help@solia.example", VITE_SITE_URL: SITE_ADDRESS, CYRA_SKIP_POLICY_FETCH: "1" });
 /* The second bundle (dist-e2e-api/, Task 1-3 specs): the shipping defaults plus proDev, with a backend at API_BASE, a host that
    never resolves. Every request to it is answered by the spec itself (page.route, e2e/lib/api.mjs), so no real server runs. */
 export const API_BASE = "https://api.solia.test";
 export const API_DIST = process.env.E2E_API_DIST || "dist-e2e-api";
-export const API_BUILD_ENV = Object.freeze({ VITE_API_BASE: API_BASE, VITE_FEATURES: "proDev", CYRA_SKIP_POLICY_FETCH: "1" });
+export const API_BUILD_ENV = Object.freeze({ VITE_API_BASE: API_BASE, VITE_FEATURES: "proDev", VITE_SITE_URL: "", RENDER_EXTERNAL_URL: "", CYRA_SKIP_POLICY_FETCH: "1" });
 const npx = process.platform === "win32" ? "npx.cmd" : "npx";
 
 const run = (cmd, args, env) => new Promise((resolve, reject) => {

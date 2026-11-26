@@ -4,7 +4,9 @@
    stores nothing; the phone build is not the web build.
    Task 2: the site's colours and faces are the app's tokens; prices, plan lines and privacy rows are the app's own
    strings; no page references another origin, sets a cookie or carries an inline script or style; every word a page
-   shows is in the claims register with a source file that exists; the copy rules of the brief hold. */
+   shows is in the claims register with a source file that exists; the copy rules of the brief hold.
+   Task 3: the support and delete-account pages say what the app and the backend really do; canonical links, the
+   sitemap and the sharing card; structured data without any rating; the Privacy Policy's "This website" section. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -15,7 +17,8 @@ import { fileURLToPath } from "node:url";
 import { APP_BASE, REWRITES, NO_CACHE, fileFor, rewriteFor } from "../../site/build/hosting.mjs";
 import { nativeDistProblems } from "../../site/build/native-check.mjs";
 import { renderPages, siteCss, siteFonts, siteContext, ASSETS } from "../../site/build/site.mjs";
-import { loadAppData } from "../../site/build/app-data.mjs";
+import { loadAppData, siteUrl } from "../../site/build/app-data.mjs";
+import { robotsTxt, sitemapXml, OG_IMAGE } from "../../site/build/seo.mjs";
 import { tokensCss } from "../../site/build/tokens.mjs";
 import { claimsMarkdown, CLAIMS_FILE } from "../../site/build/claims.mjs";
 import { LABEL, plain } from "../../site/pages/copy.mjs";
@@ -203,7 +206,7 @@ const CSS = siteCss(D);
 const withLinks = (links) => renderPages({ ...D, links: { ...D.links, ...links } }).find((p) => p.rel === "index.html").html;
 
 test("every site page is a complete, accessible document; only the front page loads go.js", () => {
-  assert.ok(page("index.html") && page("404.html"));
+  assert.deepEqual(PAGES.map((p) => p.rel), ["index.html", "support/index.html", "delete-account/index.html", "404.html"]);
   for (const { rel, html } of PAGES) {
     assert.match(html, /^<!doctype html>\n<html lang="en">/, rel);
     assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1">/, rel);
@@ -245,6 +248,7 @@ test("no page, stylesheet or script references another origin, sets a cookie, or
     assert.ok(html.includes(`<meta http-equiv="Content-Security-Policy" content="${CSP}">`), `${rel}: the policy`);
     for (const m of html.matchAll(/<(link|script|img|source|iframe|video|audio|object|embed|form|use|image)\b[^>]*>/g)) {
       const tag = m[0];
+      if (/^<link rel="canonical"/.test(tag)) continue; // the page's own public address: a name, never fetched (checked below)
       assert.ok(!/<(iframe|video|audio|object|embed|form)\b/.test(tag), `${rel}: ${tag}`);
       for (const [, attr, url] of tag.matchAll(/\s(href|src|srcset|action|data|poster)="([^"]*)"/g)) for (const u of url.split(",").map((x) => x.trim().split(/\s+/)[0])) assert.ok(sameOrigin(u), `${rel}: ${attr}="${u}" leaves this origin`);
     }
@@ -315,10 +319,11 @@ test("copy rules: no testimonials, numbers of users, ratings, awards, outcome pr
 
 test("every word a page shows is in the claims register, and every source names a file that exists", () => {
   for (const { rel, html, claims } of PAGES) {
-    // visible text, alt text and labels, and the head's title and description
-    let rest = plain(html.replace(/<svg[\s\S]*?<\/svg>/g, " ")) + " " + [...html.matchAll(/\s(?:alt|aria-label|content)="([^"]*)"/g)].map((m) => plain(m[1])).join(" ");
-    const technical = [CSP, "width=device-width, initial-scale=1", "light dark", "no-referrer", "noindex", D.tokens.palette.light.paper, D.tokens.palette.dark.paper];
-    for (const t of technical) rest = rest.split(t).join(" ");
+    // visible text, alt text and labels, the head's title and description, the sharing card's words and the structured data's
+    const ld = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+    const words = [...html.matchAll(/<meta (?:name="(?:description|twitter:title|twitter:description)"|property="og:(?:title|description|image:alt|site_name)") content="([^"]*)"/g)].map((m) => m[1]);
+    for (const x of ld) words.push(x.name, x.description, x.offers.description);
+    let rest = plain(html.replace(/<svg[\s\S]*?<\/svg>|<script[\s\S]*?<\/script>/g, " ")) + " " + [...html.matchAll(/\s(?:alt|aria-label)="([^"]*)"/g)].map((m) => m[1]).concat(words).map(plain).join(" ");
     for (const c of [...claims].sort((a, b) => b.text.length - a.text.length)) { assert.ok(c.text.length > 0, `${rel}: an empty claim`); rest = rest.split(c.text).join(" "); }
     assert.equal(rest.replace(/[\s.,;:()→]+/g, ""), "", `${rel}: text that is not in the register`);
     for (const c of claims) {
@@ -353,8 +358,8 @@ test("the site's colours are the app's Soft tokens, generated; site.css itself h
   for (const [k, p] of Object.entries(stage)) { assert.ok(tokens.includes(`[data-stage="${k}"]{--primary:${p.primary};--accent:${p.accent}}`), k); assert.ok(tokens.includes(`[data-stage="${k}"]{--primary:${p.dark.primary};--accent:${p.dark.accent}}`), `${k} dark`); }
   assert.notEqual(stage.meno.primary, stage.peri.primary, "Menopause wears the soft teal, Perimenopause the lavender");
   // the hand-written stylesheet: tokens only
-  const own = read("site/css/site.css").replace(/\/\*[\s\S]*?\*\//g, "");
-  assert.deepEqual(own.match(/#[0-9a-fA-F]{3,8}\b|\b(rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\(/g) || [], [], "a colour literal in site/css/site.css");
+  const own = (read("site/css/site.css") + read("site/css/cards.css")).replace(/\/\*[\s\S]*?\*\//g, ""); // cards.css: the sharing card and the ad pictures
+  assert.deepEqual(own.match(/#[0-9a-fA-F]{3,8}\b|\b(rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\(/g) || [], [], "a colour literal in site/css/site.css or cards.css");
   assert.deepEqual(own.match(/\b(white|black|red|blue|green|gray|grey|purple|pink|orange|yellow|navy|teal|silver|gold|beige|ivory|lavender|coral|salmon|crimson|indigo|violet|magenta|cyan|maroon|olive|lime|aqua|fuchsia|tan|khaki|plum|orchid|peru|sienna|snow|linen)\b(?=[^-{]*[;}])/g) || [], [], "a named colour in site/css/site.css");
   // UI palettes and data-viz ramps stay separate: no ramp or family colour reaches the site
   const viz = new Set([...Object.values(RAMPS), ...Object.values(RAMPS_DARK)].flat(Infinity).concat(SOFT_RAMP.light, SOFT_RAMP.dark, FAMILIES.flatMap((f) => Object.values(f).filter((v) => typeof v === "string" && v.startsWith("#")))).map((v) => String(v).toLowerCase()));
@@ -399,3 +404,114 @@ test("screenshots are committed, sized and described; the stage illustrations an
   assert.ok(HOME.includes('<svg class="brandmark" aria-hidden="true"'));
   assert.ok(!/<svg(?![^>]*aria-hidden="true")/.test(HOME), "every drawing is decorative: the words beside it carry the meaning");
 });
+
+/* ---------- Task 3: support, delete your account, search and sharing ---------- */
+
+const SUPPORT = page("support/index.html").html;
+const DELETE = page("delete-account/index.html").html;
+const withData = (over, rel) => renderPages({ ...D, ...over }).find((p) => p.rel === rel).html;
+const MAIL = { links: { ...D.links, supportEmail: "help@solia.example", supportHref: "mailto:help@solia.example?subject=Solia%20Health%20support" } };
+
+test("support: help, cancelling on each store and restoring purchases, in the app's own words", () => {
+  const text = plain(SUPPORT);
+  for (const line of Object.values(CANCEL_LINES)) assert.ok(text.includes(line), line);
+  assert.ok(text.includes(KEEP_LINE));
+  assert.ok(text.includes("Pro is bought through the App Store or Google Play and renews there until you cancel."));
+  assert.ok(text.includes("Open You → Plan & account and tap Restore purchases."));
+  assert.ok(text.includes("There's nothing to restore on the web: Pro is sold in the iPhone and Android apps."));
+  for (const id of ["help", "cancel", "restore"]) assert.ok(SUPPORT.includes(`<h2 id="${id}">`), id);
+  // the address only when it is set; otherwise the app's Help, never an invented address
+  assert.ok(!SUPPORT.includes("mailto:") && text.includes("In the app. Open You → Help & about."));
+  const mailed = withData(MAIL, "support/index.html");
+  assert.ok(mailed.includes('<a href="mailto:help@solia.example?subject=Solia%20Health%20support">help@solia.example</a>') && !plain(mailed).includes("In the app. Open You → Help & about."));
+  // You → Help & about, Plan & account and Privacy & your data are the app's real page names
+  const menu = read("src/lib/youMenu.js");
+  for (const name of ["Help & about", "Plan & account", "Privacy & your data"]) assert.ok(menu.includes(name), name);
+});
+
+test("delete your account: the real steps, and what the backend really deletes and keeps", () => {
+  const text = plain(DELETE);
+  assert.deepEqual([...DELETE.matchAll(/<h2 id="([a-z]+)">/g)].map((m) => m[1]), ["account", "everything", "deleted", "kept", "request"]);
+  assert.ok(text.includes("Tap Delete account , then Delete my account .") || text.includes("Tap Delete account, then Delete my account."));
+  assert.ok(text.includes("Tap Delete everything and confirm."));
+  // the app's own words before each confirm
+  assert.ok(text.includes(D.deletion.account) && text.includes(D.deletion.wipePhone));
+  for (const line of D.deletion.morePhone) assert.ok(text.includes(line), line);
+  // what the server does, pinned against the backend's own code
+  const accounts = read("backend/src/modules/accounts/index.js");
+  for (const s of ['store.remove("account_sessions", (r) => r.accountId === w.acct.id)', 'store.remove("accounts", (a) => a.id === w.acct.id)', "runHooks(ctx.onAccountDelete", 'store.remove("ai_usage"']) assert.ok(accounts.includes(s), s);
+  const feedback = read("backend/src/modules/feedback/index.js");
+  assert.ok(feedback.includes("export const FEEDBACK_KEEP_DAYS = 365;") && feedback.includes('store.remove("feedback", (r) => r.accountId === id)'));
+  assert.ok(text.includes("It is deleted 365 days after it arrived."));
+  assert.ok(read("backend/src/modules/shop/index.js").includes("export const TAP_KEEP_DAYS = 400;") && read("backend/src/modules/ai/spend.js").includes("export const SPEND_KEEP_DAYS = 400;"));
+  assert.equal((text.match(/kept 400 days/g) || []).length, 2, "the two daily totals and how long each is kept");
+  const grants = read("backend/src/modules/subscriptions/index.js");
+  assert.ok(grants.includes("r.accountIds = r.accountIds.filter((a) => a !== id); r.accountDeleted = true;"), "a grant keeps its row and loses the account id");
+  assert.ok(text.includes("your account number is removed from that record, and the record itself, with the email it was made for, stays visible to Solia Health's owners until the grant is revoked"));
+  assert.ok(text.includes("Deleting your account does not cancel Pro."));
+  // without the app: an address only when one is set
+  assert.ok(!DELETE.includes("mailto:") && text.includes("An email address for deletion requests has not been set up yet."));
+  const mailed = withData(MAIL, "delete-account/index.html");
+  assert.ok(mailed.includes('<a href="mailto:help@solia.example?subject=Delete%20my%20Solia%20Health%20account">help@solia.example</a>') && !plain(mailed).includes("has not been set up yet"));
+  // the front page now leads here, and to Support
+  assert.ok(HOME.includes('<a href="/support/">Support</a>') && HOME.includes('<a href="/delete-account/">Delete your account</a>'));
+  assert.ok(HOME.includes('<a href="/delete-account/">What is deleted, and how to ask without the app</a>') && HOME.includes('<a href="/support/">More help on the Support page</a>'));
+});
+
+test("search and sharing: canonical and the sitemap only with a known address; the card; no rating, ever", () => {
+  assert.equal(D.site.url, "", "the repository's default: the site doesn't know its address");
+  assert.equal(siteUrl("", "https://cyra-health.onrender.com"), "https://cyra-health.onrender.com");
+  assert.equal(siteUrl("https://soliahealth.example/some/path?x=1", "https://cyra-health.onrender.com"), "https://soliahealth.example", "VITE_SITE_URL wins, as an origin");
+  for (const bad of ["http://insecure.example", "soliahealth.example", "https://localhost", "javascript:alert(1)", undefined]) assert.equal(siteUrl(bad), "", String(bad));
+  for (const { rel, html } of PAGES) {
+    assert.ok(!html.includes('rel="canonical"') && !html.includes('property="og:url"'), `${rel}: no guessed address`);
+    assert.equal(html.includes('<meta name="robots" content="noindex">'), rel === "404.html", `${rel}: noindex`);
+    if (rel === "404.html") { assert.ok(!html.includes("og:image")); continue; }
+    assert.ok(html.includes('<meta property="og:image" content="/site/img/og.jpg">') && html.includes('<meta name="twitter:card" content="summary_large_image">'), rel);
+    assert.ok(html.includes('<meta property="og:image:width" content="1200">') && html.includes('<meta property="og:image:height" content="630">'), rel);
+    const title = html.match(/<title>([^<]+)<\/title>/)[1], desc = html.match(/<meta name="description" content="([^"]+)">/)[1];
+    assert.ok(html.includes(`<meta property="og:title" content="${title}">`) && html.includes(`<meta property="og:description" content="${desc}">`), `${rel}: the card says what the page says`);
+  }
+  // with an address
+  const at = renderPages({ ...D, site: { url: "https://soliahealth.example" } });
+  const paths = { "index.html": "/", "support/index.html": "/support/", "delete-account/index.html": "/delete-account/" };
+  for (const p of at) {
+    if (!paths[p.rel]) { assert.ok(!p.html.includes('rel="canonical"')); continue; }
+    assert.ok(p.html.includes(`<link rel="canonical" href="https://soliahealth.example${paths[p.rel]}">`) && p.html.includes(`<meta property="og:url" content="https://soliahealth.example${paths[p.rel]}">`), p.rel);
+    assert.ok(p.html.includes('<meta property="og:image" content="https://soliahealth.example/site/img/og.jpg">'));
+  }
+  assert.equal(sitemapXml("", ["/"]), null);
+  assert.deepEqual([...sitemapXml("https://soliahealth.example", ["/", "/support/", "/delete-account/"]).matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]), ["https://soliahealth.example/", "https://soliahealth.example/support/", "https://soliahealth.example/delete-account/"]);
+  assert.equal(robotsTxt(""), "# Solia Health\nUser-agent: *\nAllow: /\n");
+  assert.ok(robotsTxt("https://soliahealth.example").endsWith("\nSitemap: https://soliahealth.example/sitemap.xml\n"));
+  assert.ok(!/Disallow/.test(robotsTxt("https://x.example")), "nothing is hidden from robots: /app/ and the draft legal pages say noindex themselves");
+  // the sharing card is a committed 1200x630 JPEG of this site's own
+  const og = fs.readFileSync(path.join(ROOT, "site", "img", OG_IMAGE.file));
+  assert.deepEqual([og[0], og[1]], [0xff, 0xd8], "a JPEG");
+  const sof = (() => { for (let i = 2; i < og.length - 9;) { if (og[i] !== 0xff) return null; const m = og[i + 1]; if (m >= 0xc0 && m <= 0xc2) return [og.readUInt16BE(i + 7), og.readUInt16BE(i + 5)]; i += 2 + og.readUInt16BE(i + 2); } return null; })();
+  assert.deepEqual(sof, [OG_IMAGE.width, OG_IMAGE.height]); assert.deepEqual([OG_IMAGE.width, OG_IMAGE.height], [1200, 630]);
+  assert.ok(og.length < 200_000);
+  // structured data: on the front page only; never a rating, a review or a count
+  const ldOf = (html) => [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+  assert.equal(ldOf(HOME).length, 1); assert.equal(ldOf(SUPPORT).length + ldOf(DELETE).length, 0);
+  const ld = ldOf(HOME)[0];
+  assert.deepEqual(Object.keys(ld).sort(), ["@context", "@type", "applicationCategory", "description", "name", "offers", "operatingSystem"]);
+  assert.equal(ld["@type"], "SoftwareApplication"); assert.equal(ld.operatingSystem, "Web", "iOS and Android are named only once their store pages are set");
+  const full = ldOf(renderPages({ ...D, site: { url: "https://soliahealth.example" }, links: { ...D.links, appStore: "https://apps.apple.com/app/id1234567890", playStore: "https://play.google.com/store/apps/details?id=com.cyrahealth.app" } })[0].html)[0];
+  assert.equal(full.operatingSystem, "Web, iOS, Android"); assert.equal(full.url, "https://soliahealth.example/"); assert.equal(full.installUrl.length, 2);
+  for (const x of [ld, full]) assert.ok(!/aggregateRating|ratingValue|ratingCount|"review|award|interactionStatistic|downloads/i.test(JSON.stringify(x)), "no rating or review field");
+  assert.ok(!/aggregateRating|"review"|ratingValue/.test(read("site/build/seo.mjs").replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "")), "the code has no such field to fill");
+  // the web build marks the app noindex; the phone build's page is left alone
+  assert.ok(read("scripts/build-web.mjs").includes('<meta name="robots" content="noindex" />') && !read("index.html").includes("noindex"));
+});
+
+test("the Privacy Policy's \"This website\" section says what the site does, and the earlier rows are still there", () => {
+  const html = read("public/legal/privacy.html");
+  const i = html.indexOf('<h3 id="p-site">This website</h3>');
+  assert.ok(i > html.indexOf('<h2 id="p3">') && i < html.indexOf('<h2 id="p4">'), "inside section 3");
+  const part = plain(html.slice(i, html.indexOf("<p>We do not collect your precise location")));
+  for (const s of ["sets no cookies, stores nothing in your browser and loads nothing from any other company", "no analytics, no advertising or tracking pixels, and no fonts or scripts from elsewhere", "That script sends nothing to us or to anyone else.", "shows our hosting provider (Render) your device's internet (IP) address, your browser type and the time"]) assert.ok(part.includes(s), s);
+  for (const row of ["<td>App settings</td>", "<td>Joining an organization (optional, with an invite code or link from a clinic or employer)</td>", "<td>Every connection to our server</td>"]) assert.ok(html.includes(row), row);
+  assert.ok(read("docs/PRIVACY-AUDIT.md").includes('`public/legal/privacy.html` §3 gains "This website"'), "the change is in the audit, flagged for the attorney");
+});
+

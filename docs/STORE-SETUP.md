@@ -116,8 +116,8 @@ Both are required by Apple's App Store review (and Google Play asks for in-app a
 - [ ] In App Store Connect → App Review Information, say where both are: "Restore purchases: on the plans sheet under
       the plan tiles, and in You → Plan & account. Account deletion: You → Plan & account → Delete account."
 - [ ] Google Play → Data safety → account deletion: Play also asks for a web address where someone can ask for their
-      account to be deleted without the app. There is none in this repo yet: publish one (a page or the support
-      address) before filling in that form.
+      account to be deleted without the app. Since 2026-11-26 the website has it: `<site>/delete-account/` (section 9).
+      Set `VITE_SUPPORT_EMAIL` first, so the page gives an address for requests made without the app.
 
 ## 6. Promotions, Pro grants and the subscriptions dashboard (partner portal)
 
@@ -195,3 +195,43 @@ own style**, built from the same two settings the app uses:
       where `storeButtons` builds the two links. Keep them as files served by the site itself: the website loads
       nothing from another origin, and a unit test fails if it does.
 
+
+## 9. Which web address goes in which store field (2026-11-26, docs/plans/website.md Task 3)
+
+`<site>` is the website's public address: today the Render address of the static site (`https://cyra-health.onrender.com`
+in `render.yaml`), later your own domain. Every page below is built by `npm run build` and is on the site as soon as
+Render deploys it.
+
+| Store field | Where it is | Paste this |
+| --- | --- | --- |
+| **Marketing URL** | App Store Connect → App Information (per version: "Marketing URL"); Play Console → Store listing → "Website" | `<site>/` |
+| **Support URL** (required by Apple) | App Store Connect → the version → "Support URL" | `<site>/support/` |
+| **Privacy Policy URL** (required by both) | App Store Connect → App Privacy → "Privacy Policy URL"; Play Console → Policy → App content → Privacy policy | `<site>/legal/privacy.html` |
+| **Terms of Use / EULA** | App Store Connect → App Information → "License Agreement" (a custom EULA) or a link in the description; Play has no field, link it in the description | `<site>/legal/terms.html` |
+| **Delete account URL** (required by Google) | Play Console → Policy → App content → Data safety → "Delete account URL" | `<site>/delete-account/` |
+| Consumer health data policy (Washington, Nevada, Connecticut) | No store field. It must be linked from the website's front page, and it is, in the footer, under its own name | `<site>/legal/health-data.html` |
+| The app's own links (`VITE_TERMS_URL`, `VITE_PRIVACY_URL`) | Render → static site → Environment, and `.env.local` for phone builds | `<site>/legal/terms.html`, `<site>/legal/privacy.html` |
+| The website's own address (`VITE_SITE_URL`) | Render → static site → Environment. Only needed with your own domain: on Render the build reads Render's address by itself | `https://your-domain` |
+
+**What still needs you before the stores**
+
+- [ ] **A real domain** (optional but expected by reviewers): add it in Render → the static site → Settings → Custom
+      Domains, then set `VITE_SITE_URL` to it and add it to the backend's `CORS_ORIGIN`. The canonical links, the sharing
+      card and `sitemap.xml` then use it.
+- [ ] **The store links:** `VITE_APP_STORE_URL`, `VITE_PLAY_STORE_URL`, `VITE_APP_STORE_ID` (section 8). Until then the
+      website says "Coming soon".
+- [ ] **A support address:** `VITE_SUPPORT_EMAIL`. Without it the Support page points to the app's Help, the clinics
+      section has no contact line, and **the delete-account page says no address for deletion requests is set up yet**.
+      Google Play expects a way to ask for deletion without the app, so set it before filling in that form.
+- [ ] **A way to carry out a deletion request that arrives by email.** The portal has no "delete this account" action
+      yet; today such a request would have to be done by hand on the server's data. Ask for that action to be built, or
+      decide how it will be handled, before the Play form says requests are honoured.
+- [ ] **Your company's legal name** on the delete-account page (Google asks for the developer's name there) and in the
+      legal pages, which still show `[COMPANY LEGAL NAME]`.
+- [ ] **Attorney sign-off.** The four legal pages are still drafts marked "not in effect" and `noindex`; the website's
+      footer says so by itself until the notices are removed. Every sentence the website adds is listed for review in
+      `docs/PRIVACY-AUDIT.md` ("The Solia Health website") and, word for word with its source, in
+      `docs/plans/website-claims.md`.
+- [ ] **The official store badges**, if you want them instead of the text buttons (section 8).
+- [ ] **The backend.** The website and the web app work without it. Sign-in, the AI features, meal photos, feedback, the
+      portal and organizations need the backend deployed (`render.yaml`, service `cyra-backend`) with its keys.

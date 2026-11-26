@@ -1,0 +1,32 @@
+/* Pictures drawn from HTML (site/cards.mjs): the sharing card (site/img/og.jpg) and the ad kit (docs/marketing/ads/).
+   The same Soft tokens as the website, written above this file when a card is drawn. NO COLOUR LITERAL here either. */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body { width: var(--w); height: var(--h); overflow: hidden; color: var(--ink); font: 400 calc(var(--u) * 2.2) / 1.45 var(--ff-body); font-synthesis: none;
+  background: linear-gradient(180deg, transparent 0, var(--paper) 100%), linear-gradient(105deg, color-mix(in srgb, var(--primary) 16%, var(--paper)), color-mix(in srgb, var(--wash-b) 100%, var(--paper)) 52%, color-mix(in srgb, var(--accent) 14%, var(--paper))), var(--paper); }
+h1, p, ul, figure { margin: 0; }
+ul { padding: 0; list-style: none; }
+.card { position: relative; width: 100%; height: 100%; display: grid; padding: calc(var(--u) * 5); gap: calc(var(--u) * 4); isolation: isolate; }
+.card::before, .card::after { content: ""; position: absolute; z-index: -1; border-radius: 50%; aspect-ratio: 1; }
+.card::before { width: calc(var(--u) * 62); right: calc(var(--u) * -14); bottom: calc(var(--u) * -18); background: radial-gradient(circle, color-mix(in srgb, var(--primary) 26%, var(--paper)) 0, color-mix(in srgb, var(--primary) 10%, var(--paper)) 48%, transparent 70%); }
+.card::after { width: calc(var(--u) * 34); left: calc(var(--u) * -10); top: calc(var(--u) * -12); background: radial-gradient(circle, color-mix(in srgb, var(--accent) 20%, var(--paper)) 0, transparent 70%); }
+.brand { display: flex; align-items: center; gap: calc(var(--u) * 1.1); font: 600 calc(var(--u) * 3.4) / 1 var(--ff-display); letter-spacing: -.012em; }
+.brand svg { width: calc(var(--u) * 4.2); height: calc(var(--u) * 4.2); color: var(--brand); }
+.brand span { font: 700 calc(var(--u) * 1.35) / 1 var(--ff-body); letter-spacing: .14em; text-transform: uppercase; color: color-mix(in srgb, var(--primary) 82%, var(--ink)); align-self: flex-end; padding-bottom: calc(var(--u) * .45); }
+h1 { font: 600 calc(var(--u) * var(--h1, 5.4)) / 1.08 var(--ff-display); letter-spacing: -.015em; text-wrap: balance; }
+.sub { font-size: calc(var(--u) * var(--sub, 2.35)); line-height: 1.42; color: var(--soft); text-wrap: pretty; }
+.cta { justify-self: start; display: inline-flex; align-items: center; min-height: calc(var(--u) * 6.4); padding: 0 calc(var(--u) * 3.2); border-radius: 999px; background: var(--primary); color: var(--on-primary); font: 700 calc(var(--u) * 2.3) / 1 var(--ff-body); box-shadow: 0 calc(var(--u) * 1) calc(var(--u) * 2.4) calc(var(--u) * -1.2) var(--primary); }
+.fine { font-size: calc(var(--u) * 1.55); line-height: 1.4; color: var(--soft); }
+.phone { margin: 0; width: calc(var(--u) * var(--phone, 30)); padding: calc(var(--u) * .9); border-radius: calc(var(--u) * 4.8); background: var(--card); border: 1px solid var(--edge); box-shadow: 0 calc(var(--u) * 4) calc(var(--u) * 7) calc(var(--u) * -3.6) color-mix(in srgb, var(--primary) 55%, transparent), var(--sh-lift); }
+.phone img { display: block; width: 100%; height: auto; border-radius: calc(var(--u) * 3.9); }
+.text { display: grid; gap: calc(var(--u) * 2.4); align-content: center; }
+.stages { display: flex; gap: calc(var(--u) * 1.4); }
+.stages li { flex: 1; display: grid; gap: calc(var(--u) * .8); justify-items: center; padding: calc(var(--u) * 1.6) calc(var(--u) * 1); border-radius: calc(var(--u) * 2.4); border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--edge)); background: color-mix(in srgb, var(--primary) 7%, var(--card)); font: 700 calc(var(--u) * 1.5) / 1.2 var(--ff-body); text-align: center; }
+.stages svg { width: 100%; height: auto; }
+
+/* layouts: wide (text left, phone right, running off the bottom), tall (text above, phone below), square */
+.wide { grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr); align-items: center; }
+.wide .art { align-self: start; justify-self: center; margin-top: calc(var(--u) * 1); }
+.tall, .square { grid-template-rows: auto minmax(0, 1fr); justify-items: start; }
+.tall .art, .square .art { justify-self: center; align-self: start; }
+.story { padding-top: calc(var(--u) * 16); padding-bottom: calc(var(--u) * 20); }

@@ -19,15 +19,31 @@ const STAGES = [
 ];
 const ICONS = ["lock", "shield", "clock", "chart", "clipboard", "calendar", "watch", "breath", "bag", "sparkle", "book", "note", "bowl", "check", "bell", "share", "user", "heart", "chevron", "download"];
 
+/** The website's own public address, for canonical links, sharing cards and the sitemap: VITE_SITE_URL when set (a
+    custom domain), else the address Render gives the static site at build time (RENDER_EXTERNAL_URL), else "" (then no
+    absolute address is written anywhere). An https origin only; a path, query or anything else is dropped. */
+export function siteUrl(...candidates) {
+  for (const v of candidates) {
+    const s = String(v || "").trim();
+    try { const u = new URL(s); if (u.protocol === "https:" && u.hostname.includes(".")) return u.origin; } catch { /* not an address */ }
+  }
+  return "";
+}
+
+/* This helper server only loads modules for Node (ssrLoadModule); it serves no browser, so it needs no dependency
+   pre-bundling. The React plugin asks for some anyway; without this, closing the server can cancel that work mid-way and
+   esbuild prints "The build was canceled" into the build log. */
+const noPrebundle = { name: "solia-site-no-prebundle", enforce: "post", configResolved(c) { c.optimizeDeps.noDiscovery = true; c.optimizeDeps.include = []; } };
+
 let cached = null;
 
 /** Loads the app's modules once per process. `env` is extra environment for the load (tests pin store links with it). */
 export async function loadAppData() {
   if (cached) return cached;
-  const { createServer } = await import("vite");
+  const { createServer, loadEnv } = await import("vite");
   const React = await import("react");
   const { renderToStaticMarkup } = await import("react-dom/server");
-  const vite = await createServer({ root: ROOT, mode: "production", appType: "custom", logLevel: "error", server: { middlewareMode: true, hmr: false, watch: null }, optimizeDeps: { noDiscovery: true, include: [] } });
+  const vite = await createServer({ root: ROOT, mode: "production", appType: "custom", logLevel: "silent" /* a module that fails to load still throws below; this only hides Vite's note when the helper server closes */, server: { middlewareMode: true, hmr: false, watch: null }, optimizeDeps: { noDiscovery: true, include: [] }, plugins: [noPrebundle] });
   try {
     const load = (p) => vite.ssrLoadModule(p);
     const [constants, pricing, plans, trial, pro, features, flows, taps, feedback, links, disclosures, signin, shop, devices, learn, home, guide, onboarding, mind, org, art, icon, brand, purchase, ui] = await Promise.all([
@@ -92,6 +108,9 @@ export async function loadAppData() {
       symptoms: { peri: Object.values(constants.SYM), cycle: Object.values(constants.PSYM), preg: Object.values(constants.GSYM) },
       links: { appStore: links.APP_STORE_URL, playStore: links.PLAY_STORE_URL, appStoreId: links.APP_STORE_ID, supportEmail: feedback.SUPPORT_EMAIL, supportHref: feedback.supportHref(feedback.SUPPORT_EMAIL) },
       legalDraft,
+      feedback: { send: feedback.FEEDBACK_COPY.sendFeedback, problem: feedback.FEEDBACK_COPY.reportProblem, warn: feedback.FEEDBACK_COPY.warn, line: feedback.FEEDBACK_COPY.flowLine },
+      store: { restoreWeb: purchase.STORE_LINES.restoreWeb, restoredNone: purchase.STORE_LINES.restoredNone },
+      site: { url: siteUrl(loadEnv("production", ROOT, "VITE_").VITE_SITE_URL, process.env.RENDER_EXTERNAL_URL) },
     };
     return cached;
   } finally { await vite.close(); }

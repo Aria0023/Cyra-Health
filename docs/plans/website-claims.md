@@ -13,10 +13,12 @@ support address and no site address set (the repository's defaults); with those 
 
 ## /
 
-170 claims, 11 labels.
+172 claims, 13 labels.
 
 | Words | Made true by |
 | --- | --- |
+| The web app is free to use. | src/locales/en-ui.js splash.freeToUse; src/lib/trial.js (the free-week gate is on only where Pro can be bought, never on the web); src/lib/plans.js PLANS_COPY.webOnly |
+| Solia Health: cycle, fertility, pregnancy, perimenopause and menopause tracking that lives on your device. A phone shows the app's Home screen with example data. | site/img/og.jpg (drawn by site/cards.mjs from the front page's headline and the Home screenshot); src/lib/onboarding.js STAGE_CARDS; src/lib/storage.js |
 | Solia Health: cycle, pregnancy and menopause tracking that lives on your device | src/lib/onboarding.js STAGE_CARDS (the five stages); src/lib/storage.js (the record is kept on the device) |
 | Solia Health tracks your cycle, fertility, pregnancy, perimenopause and menopause. Your health log lives on your device. | src/lib/onboarding.js STAGE_CARDS (the five stages); src/lib/storage.js (the record is kept on the device) |
 | Skip to the content | label |
@@ -178,9 +180,11 @@ support address and no site address set (the repository's defaults); with those 
 | Signing out, deleting your Solia Health account or removing the app doesn't cancel a subscription. Ending Pro never changes or deletes anything you logged. | src/lib/feedback.js helpItems (How do I cancel Pro?) |
 | On iPhone. Cancel any time in Settings → your name → Subscriptions. Payment is charged to your Apple Account. | src/lib/pricing.js CANCEL_LINES.app-store |
 | On Android. Cancel any time in Google Play → Payments & subscriptions → Subscriptions. Payment is charged to your Google Play account. | src/lib/pricing.js CANCEL_LINES.play |
+| More help on the Support page | label |
 | How do I cancel? | src/lib/feedback.js helpItems (How do I cancel Pro?) |
 | In the app, at any time. You → Privacy & your data → Delete everything erases your log on that device. It deletes your Solia Health account too, if you made one. | src/components/DataControls.jsx (Delete everything); src/lib/youMenu.js (the page names); src/lib/disclosures.js ACCOUNT_DELETE_LINE, wipeConfirm; e2e/store-checks.spec.mjs |
 | To delete only the account and keep your log: You → Plan & account → Delete account. | src/components/AccountParts.jsx; src/lib/signin.js SIGNIN_COPY.deleteAcct; backend/src/modules/accounts/index.js (DELETE /api/accounts/me); e2e/store-checks.spec.mjs |
+| What is deleted, and how to ask without the app | label |
 | How do I delete my account and data? | src/lib/disclosures.js; src/lib/signin.js |
 | No. These website pages set no cookies, keep nothing in your browser and load nothing from any other site: no analytics, no advertising pixels, and no fonts or scripts from elsewhere. | site/pages/layout.mjs CSP (the browser refuses anything from another origin); src/lib/site.test.mjs and e2e/site.spec.mjs (fail on another origin, a cookie or stored data) |
 | The front page runs one small script. It looks, on your device, for a Solia Health log already in this browser so it can open the web app for you. It sends nothing. | site/static/go.js; src/lib/site.test.mjs (go.js makes no request and stores nothing) |
@@ -196,6 +200,130 @@ support address and no site address set (the repository's defaults); with those 
 | Medical disclaimer | public/legal/medical-disclaimer.html |
 | Support | label |
 | Delete your account | label |
+| Drafts. The policies and terms linked here are drafts waiting for attorney review; each one says so at its top. | public/legal/*.html: every page carries the "Draft, not in effect" notice (checked at build time, site/build/app-data.mjs legalDraft) |
+| © Solia Health | label |
+
+## /support/
+
+33 claims, 17 labels.
+
+| Words | Made true by |
+| --- | --- |
+| Solia Health: cycle, fertility, pregnancy, perimenopause and menopause tracking that lives on your device. A phone shows the app's Home screen with example data. | site/img/og.jpg (drawn by site/cards.mjs from the front page's headline and the Home screenshot); src/lib/onboarding.js STAGE_CARDS; src/lib/storage.js |
+| Support · Solia Health | label |
+| How to get help with Solia Health, cancel a subscription in the App Store or Google Play, and restore purchases. | site/pages/support.mjs (what the page holds) |
+| Skip to the content | label |
+| Solia | docs/brand/README.md the product's name |
+| Health | docs/brand/README.md the product's name |
+| Sections | label |
+| Privacy | label |
+| Life stages | label |
+| What it does | label |
+| Pricing | label |
+| Questions | label |
+| Open the web app | site/build/hosting.mjs APP_BASE: the web app is served at /app/ |
+| Support | label |
+| How to get help with Solia Health, cancel a subscription, and restore purchases. | site/pages/support.mjs (what the page holds) |
+| Get help | label |
+| In the app. Open You → Help & about. It has short answers to common questions. | src/lib/youMenu.js (the page name); src/components/Feedback.jsx (HelpCard); src/lib/feedback.js helpItems |
+| Send feedback and Report a problem. Where the app is connected to Solia Health's server, You → Help & about also has these two buttons. You see exactly what will be sent before you send it. Please don't include health details. Nothing from your log is attached. | src/lib/feedback.js FEEDBACK_COPY (sendFeedback, reportProblem, warn), previewRows; src/components/Feedback.jsx (offered only in a build with a server) |
+| Solia Health can't help in an emergency. If you think you may have a medical emergency, call your local emergency number (911 in the United States) or go to the nearest emergency room. If you are thinking about harming yourself, in the United States call or text 988. | public/legal/medical-disclaimer.html (the emergency notice); public/legal/terms.html |
+| Cancel a subscription | label |
+| Pro is bought through the App Store or Google Play and renews there until you cancel. Cancel it in that store's subscription settings: Solia Health can't cancel it for you. | src/lib/feedback.js helpItems (How do I cancel Pro?) |
+| Signing out, deleting your Solia Health account or removing the app doesn't cancel a subscription. Ending Pro never changes or deletes anything you logged. | src/lib/feedback.js helpItems (How do I cancel Pro?) |
+| On iPhone. Cancel any time in Settings → your name → Subscriptions. Payment is charged to your Apple Account. | src/lib/pricing.js CANCEL_LINES.app-store |
+| On Android. Cancel any time in Google Play → Payments & subscriptions → Subscriptions. Payment is charged to your Google Play account. | src/lib/pricing.js CANCEL_LINES.play |
+| What happens to your log. If Pro ends, nothing you logged is changed or deleted, and you can always open, export or delete it. | src/lib/pricing.js KEEP_LINE; src/lib/trial.js |
+| Restore purchases | src/locales/en-ui.js pro.restorePurchases |
+| On a new phone, or after reinstalling. Open You → Plan & account and tap Restore purchases. The same button sits under the two plans on the plans screen. Use the Apple or Google account you subscribed with, and Pro turns on. | src/lib/purchase.js restorePurchases; src/screens/YouScreen.jsx; docs/STORE-SETUP.md section 5a; e2e/store-checks.spec.mjs |
+| If nothing is found. The app says “No Pro subscription was found for this Apple or Google account.” Check which account the phone's store is signed in to. | src/lib/purchase.js STORE_LINES.restoredNone |
+| On the web. There's nothing to restore on the web: Pro is sold in the iPhone and Android apps. | src/lib/purchase.js STORE_LINES.restoreWeb |
+| Common questions | label |
+| How does the free week work? | src/lib/feedback.js helpItems |
+| Where Pro can be bought (in the phone app, through the App Store or Google Play), the first 7 days include everything, and after that saving new entries needs Pro. What you logged always stays yours to open, export or delete. | src/lib/feedback.js helpItems (How does the free week work?); src/lib/trial.js |
+| Where does my data live? | src/lib/feedback.js helpItems |
+| What you log is kept on the device you use Solia Health on. Solia Health's servers don't keep a copy. | src/lib/feedback.js helpItems (Where does my data live?); src/lib/storage.js; src/lib/disclosures.js storeCopyLine |
+| That also means Solia Health can't get it back for you. Save an encrypted backup now and then in You → Privacy & your data, and keep the file and its passphrase somewhere safe. | src/lib/feedback.js helpItems (Where does my data live?); src/lib/backup.js |
+| How do I connect a watch or ring? | src/lib/feedback.js helpItems |
+| Open You → Devices & reminders and connect Apple Health (iPhone) or Health Connect (Android). Your watch's or ring's own app shares with it, and Solia Health reads it on your phone: those readings are never sent to a server. | src/lib/feedback.js helpItems (How do I connect a watch or ring?); src/lib/wearables.js; src/lib/devices.js |
+| Solia Health works fully without a device, and you can disconnect any time. | src/lib/feedback.js helpItems (How do I connect a watch or ring?); src/lib/devices.js DEVICE_COPY.lead |
+| How do I delete my account or my data? | label |
+| Delete your account and data | label |
+| Guidance, never a diagnosis. For anything medical, talk with your clinician. | src/locales/en-ui.js splash.guidanceNeverADiagnosisFor (the app's first screen) |
+| Policies and help | label |
+| Privacy Policy | public/legal/privacy.html |
+| Consumer Health Data Privacy Policy | public/legal/health-data.html |
+| (Washington My Health My Data Act) | public/legal/health-data.html: "required by Washington's My Health My Data Act (RCW 19.373)" |
+| Terms of Use | public/legal/terms.html |
+| Medical disclaimer | public/legal/medical-disclaimer.html |
+| Delete your account | label |
+| Drafts. The policies and terms linked here are drafts waiting for attorney review; each one says so at its top. | public/legal/*.html: every page carries the "Draft, not in effect" notice (checked at build time, site/build/app-data.mjs legalDraft) |
+| © Solia Health | label |
+
+## /delete-account/
+
+42 claims, 18 labels.
+
+| Words | Made true by |
+| --- | --- |
+| Solia Health: cycle, fertility, pregnancy, perimenopause and menopause tracking that lives on your device. A phone shows the app's Home screen with example data. | site/img/og.jpg (drawn by site/cards.mjs from the front page's headline and the Home screenshot); src/lib/onboarding.js STAGE_CARDS; src/lib/storage.js |
+| Delete your account and data · Solia Health | label |
+| How to delete your Solia Health account and your data: the steps in the app, what is deleted, what is kept and for how long. | site/pages/delete.mjs (what the page holds) |
+| Skip to the content | label |
+| Solia | docs/brand/README.md the product's name |
+| Health | docs/brand/README.md the product's name |
+| Sections | label |
+| Privacy | label |
+| Life stages | label |
+| What it does | label |
+| Pricing | label |
+| Questions | label |
+| Open the web app | site/build/hosting.mjs APP_BASE: the web app is served at /app/ |
+| Delete your Solia Health account and data | label |
+| You can delete your account and your data yourself, in the Solia Health app, at any time. This page says how, what is deleted, what is kept and for how long, and how to ask without the app. | backend/src/modules/accounts/index.js; src/components/DataControls.jsx; src/components/AccountParts.jsx; e2e/store-checks.spec.mjs |
+| Delete your account | label |
+| Open Solia Health and tap You . | src/lib/routes.js TABS; e2e/lib/nav.mjs |
+| Open Plan & account . | src/lib/youMenu.js; e2e/store-checks.spec.mjs |
+| Tap Delete account , then Delete my account . | src/lib/signin.js SIGNIN_COPY.deleteAcct, deleteGo; src/components/AccountParts.jsx; e2e/store-checks.spec.mjs |
+| This deletes your account from Solia Health's server: your sign-in email, name and how you signed in, your monthly AI use counts, and any feedback you sent with "It's OK to reply to me" on. It can't be undone. It doesn't cancel a Pro subscription: cancel that in the App Store or Google Play. Your health log on this device isn't touched; to erase it too, use Delete everything. | src/lib/signin.js SIGNIN_COPY.deleteBody (what the app says between the two taps); backend/src/modules/accounts/index.js |
+| How fast. At once. When you confirm, Solia Health's server removes the account and every signed-in session in the same request; nothing waits for a review. | backend/src/modules/accounts/index.js (DELETE /api/accounts/me removes account_sessions, accounts and ai_usage before it answers) |
+| Delete everything on your device | label |
+| Open Privacy & your data . | src/lib/youMenu.js; e2e/lib/nav.mjs YOU_PAGES |
+| Tap Delete everything and confirm. | src/components/DataControls.jsx (WipeConfirm) |
+| Every check-in, POTS log, note, appointment and setting goes for good. This also turns off reminders and disconnects Oura and Fitbit/Garmin/Whoop. It deletes your Solia Health account too, if you made one. Solia Health's servers keep no copy of your log, so it can't be recovered unless you saved a backup. | src/lib/disclosures.js wipeConfirm (what the app says before the confirm); src/App.jsx (wipe) |
+| If Solia Health's server, Oura or Fitbit/Garmin/Whoop can't confirm that, Solia Health tells you what did and didn't end and keeps your record on this device until you choose. | src/lib/disclosures.js wipeMore; src/components/DataControls.jsx |
+| Questions and meal photos already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms, and readings Terra already collected stay under Terra's policy. | src/lib/disclosures.js wipeMore; src/components/DataControls.jsx |
+| Apple Health or Health Connect access stays on until you turn it off in your phone's settings. | src/lib/disclosures.js wipeMore; src/components/DataControls.jsx |
+| Report files you already saved or shared aren't on this device's record. Delete them wherever you put them. | src/lib/disclosures.js wipeMore; src/components/DataControls.jsx |
+| How fast. At once, on that device; if a server step in the list above can't be confirmed, the app tells you and waits for your choice. The web app and each phone keep their own log, so use Delete everything on each device you used. | src/lib/storage.js (clear and delete the database, or the app's files); src/App.jsx (wipe); src/lib/disclosures.js wipeMore |
+| What is deleted from Solia Health's server | label |
+| Your account: how you signed in, your sign-in email, your name if the sign-in service sent one, when you made the account, the last day you used it, and which organization you joined, if you joined one while signed in. | backend/src/modules/accounts/index.js (the accounts row: provider, email, name, createdAt, lastSeenDay, orgSlug); backend/src/modules/orgs/index.js |
+| Every signed-in session, so no device stays signed in. | backend/src/modules/accounts/index.js (account_sessions) |
+| Your monthly AI use counts. | backend/src/modules/accounts/index.js (ai_usage rows of the account); backend/src/modules/ai/usage.js |
+| Feedback you sent with “It's OK to reply to me” on, because that feedback is linked to your account. | backend/src/modules/feedback/index.js (the account-delete hook) |
+| Delete everything also erases this browser's reminder address from the server, and disconnects Oura and Fitbit, Garmin or Whoop. | src/lib/disclosures.js deleteAlso; backend/src/modules/push/index.js (DELETE /api/push/subscribe); backend/src/modules/integrations/index.js |
+| Your health log was never there. Solia Health's servers don't keep a copy. It is on your device, and Delete everything erases it. | src/lib/disclosures.js storeCopyLine; src/lib/storage.js; docs/PRIVACY-AUDIT.md |
+| What is kept, and why | label |
+| Feedback sent without “It's OK to reply to me”. It is not linked to an account, so Solia Health cannot find it for one person. It is deleted 365 days after it arrived. | backend/src/modules/feedback/index.js (FEEDBACK_KEEP_DAYS = 365; without reply nothing links the message to an account) |
+| Totals that name no one. How often each Shop product was opened per day (kept 400 days, and only counted if you turned that on), how much the AI features were used per day by everyone together (kept 400 days), and how many people joined each organization per day. None of them holds an account, a device or anything you logged, so there is nothing of yours to remove. | backend/src/modules/shop/index.js (TAP_KEEP_DAYS = 400); backend/src/modules/ai/spend.js (SPEND_KEEP_DAYS = 400); backend/src/modules/orgs/index.js (org_joins: day, slug, joins) |
+| A free Pro grant made for your email. If Solia Health gave your email free Pro (for example through a clinic or partner), your account number is removed from that record, and the record itself, with the email it was made for, stays visible to Solia Health's owners until the grant is revoked. | backend/src/modules/subscriptions/index.js (subs_grants: email, accountIds; the account-delete hook drops the id and sets accountDeleted); public/legal/privacy.html (Pro and tips) |
+| Your subscription. Deleting your account does not cancel Pro. Apple or Google, and RevenueCat, which handles Pro for the stores, keep their own purchase records under their own policies. | src/lib/signin.js SIGNIN_COPY.deleteBody; src/lib/purchase.js STORE_LINES.whoKnows; public/legal/privacy.html (Pro and tips) |
+| What already left. Deleting can't pull back what already left: questions and meal photos already sent to Solia Health's AI stay with Anthropic for a limited time under its own terms and readings Terra already collected stay under Terra's policy. | src/lib/disclosures.js consentDetails |
+| Other services you used with it. Apple, Google or Facebook, if you signed in with one, and Resend, which delivers email sign-in codes for Solia Health, keep their own records under their own policies. | backend/src/modules/accounts/index.js (email codes are sent through Resend); backend/src/modules/oauth/index.js; public/legal/privacy.html section 5 |
+| Hosting logs. Like any web host, our hosting provider (Render) keeps its own request logs, which include internet addresses, under its own policy. | render.yaml (both services run on Render); public/legal/privacy.html (Every connection to our server) |
+| Ask without the app | label |
+| By email. An email address for deletion requests has not been set up yet. Until it is, use the steps above in the app. | src/lib/feedback.js SUPPORT_EMAIL (VITE_SUPPORT_EMAIL is not set in this build) |
+| What an email can and can't delete. It can delete what is on Solia Health's server. It can't erase the log on your device: only Delete everything on that device does, because Solia Health has no copy of it and no way to reach it. | src/lib/storage.js; src/lib/disclosures.js storeCopyLine; backend/src/modules/accounts/index.js |
+| Read the Privacy Policy | public/legal/privacy.html |
+| Get help on the Support page | label |
+| Guidance, never a diagnosis. For anything medical, talk with your clinician. | src/locales/en-ui.js splash.guidanceNeverADiagnosisFor (the app's first screen) |
+| Policies and help | label |
+| Privacy Policy | public/legal/privacy.html |
+| Consumer Health Data Privacy Policy | public/legal/health-data.html |
+| (Washington My Health My Data Act) | public/legal/health-data.html: "required by Washington's My Health My Data Act (RCW 19.373)" |
+| Terms of Use | public/legal/terms.html |
+| Medical disclaimer | public/legal/medical-disclaimer.html |
+| Support | label |
 | Drafts. The policies and terms linked here are drafts waiting for attorney review; each one says so at its top. | public/legal/*.html: every page carries the "Draft, not in effect" notice (checked at build time, site/build/app-data.mjs legalDraft) |
 | © Solia Health | label |
 

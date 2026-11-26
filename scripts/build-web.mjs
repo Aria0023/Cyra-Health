@@ -6,8 +6,9 @@
      2. public/legal/ moves from <out>/app/legal/ to <out>/legal/: the legal pages keep their address (/legal/…).
      3. The app's manifest gets "id": "/" (the installed web app's identity before the move), so a browser can update
         an app installed from the old address instead of treating /app/ as a different app.
-     4. The website (site/build/site.mjs) is written beside it: its pages, its own files under /site/ and the
-        retiring /sw.js.
+     4. The app's page gets <meta name="robots" content="noindex">: search engines should list the website, not the app.
+     5. The website (site/build/site.mjs) is written beside it: its pages, its own files under /site/, robots.txt,
+        sitemap.xml and the retiring /sw.js.
    The phone build is NOT this script: `npm run build:native` is plain `vite build` (the app at the root of dist/, no
    website), which `npm run cap:sync` copies into the iOS and Android projects (docs/NATIVE.md §2). */
 import fs from "node:fs";
@@ -33,6 +34,13 @@ const manifestPath = path.join(out, "app", "manifest.webmanifest");
 const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 manifest.id = "/";
 fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+
+// The app is not a page for search engines: the website is. (The phone build's index.html is untouched.)
+const appIndex = path.join(out, "app", "index.html");
+const appHtml = fs.readFileSync(appIndex, "utf8");
+const marker = '<meta name="color-scheme" content="light dark" />';
+if (!appHtml.includes(marker)) throw new Error("[solia] index.html changed: scripts/build-web.mjs can't add the app's noindex line");
+fs.writeFileSync(appIndex, appHtml.replace(marker, `${marker}\n    <meta name="robots" content="noindex" />`));
 
 const written = await buildSite({ outDir: out });
 console.log(`[solia] website: ${written.length} files beside ${path.relative(ROOT, path.join(out, "app"))}/ (${written.filter((f) => f.endsWith(".html")).join(", ")}; the rest under site/)`);
