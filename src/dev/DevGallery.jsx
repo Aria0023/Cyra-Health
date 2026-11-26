@@ -7,6 +7,7 @@ import { paletteFor, paletteVars, applyDocumentScheme, SYSTEM_DARK_QUERY, STYLES
 import AutoTrackedCard from "../components/AutoTrackedCard.jsx";
 import ProSheet from "../components/ProSheet.jsx";
 import { AskSoliaCard, WriteUpHomeCard } from "../components/ai/AiParts.jsx";
+import { MealPhotosCard } from "../components/ai/MealPhoto.jsx";
 import { storeFor } from "../lib/purchase.js";
 
 /* A pretend store for the Pro sheet preview (dev gallery only): the store's answers in the shape RevenueCat gives them,
@@ -127,6 +128,13 @@ export default function DevGallery() {
           <AskSoliaCard key={k} id={`dg-ask-${k}`} title={`Ask Solia (${k})`} m={m} onAsk={() => {}} onEvidence={() => {}} onTurnOn={() => {}} onPlans={() => {}} plansLabel="See Pro plans" onCreate={() => {}} createLabel="Create account" onHide={() => {}} />
         ))}
         <WriteUpHomeCard id="dg-writeup" last={{ writeup: "Your sleep was steadier in the weeks you moved more.\n\nHot flashes came up on 9 days, mostly in the second half of your cycle.", ask: "Could the night sweats be worth a visit?", day: null }} onOpen={() => {}} />
+
+        {/* 2026-11-26 (docs/plans/meal-photos-findable.md): the Body tab's Meal photos card in each state (lib/mealPhoto.js
+            mealCardState). Illustrative: the buttons do nothing here and nothing is sent. */}
+        <h2 className="section-lab">Meal photos card, each state</h2>
+        {["noserver", "signin", "pro", "off", "on"].map((st) => (
+          <MealPhotosCard key={st} id={`dg-meal-${st}`} title={`Meal photos (${st})`} state={st} showCal={false} left={st === "on" ? "56 of 60 meal photos left this month." : null} onSignIn={() => {}} onPro={() => {}} onTurnOn={() => {}} onFile={() => {}} onCal={() => {}} onHide={() => {}} />
+        ))}
 
         <Card level={2} hero eyebrow="Today's small step" title="A two-minute breathing practice" icon="breath" tint="mind" badge={<Chip variant="pro" />}>
           <p style={{ margin: "0 0 12px", color: "var(--soft)" }}>You logged a rough night. Slow breathing can make the afternoon feel steadier.</p>

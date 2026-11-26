@@ -33,7 +33,7 @@ const DEFAULTS = () => ({
   bodyLog: {}, labs: [], bodyPrefs: { weightOn: false, weightUnit: null, glucoseUnit: null, hba1cUnit: null, waistUnit: null },
   moodLog: {}, practiceLog: [], practiceFavs: [], practiceHaptics: false, experiments: { active: null, skip: null, past: [] },
   aiPrefs: { weekly: false, chat: false, labs: false }, aiChat: [], aiWeekly: null, cloudAccount: { rev: 0, acct: null }, uiLocale: null, uiStyle: "soft", visitQuestions: [],
-  nightSkips: {}, confirmations: {}, trackStats: { confirmed: 0, fast: 0, tooks: [], sourceSince: null, firstConfirm: null }, signin: null, devicesHint: null, practiceVoice: false, shopTapsOff: false, askCardOff: false, shopHint: { home: null, coach: true }, trialStart: null, guide: { seen: [], off: false, replay: null }, partnerShare: { pick: ["next", "today"], remind: false }, glucoseLog: { apps: [], connectedAt: null, lastSync: null, days: {} }, proChip: null, shopCatalog: null, promos: null, promoHidden: [], guestStart: null, guestSeen: null, guestNote: null, homeMore: false, shopTapsOn: false, org: null,
+  nightSkips: {}, confirmations: {}, trackStats: { confirmed: 0, fast: 0, tooks: [], sourceSince: null, firstConfirm: null }, signin: null, devicesHint: null, practiceVoice: false, shopTapsOff: false, askCardOff: false, shopHint: { home: null, coach: true }, trialStart: null, guide: { seen: [], off: false, replay: null }, partnerShare: { pick: ["next", "today"], remind: false }, glucoseLog: { apps: [], connectedAt: null, lastSync: null, days: {} }, proChip: null, shopCatalog: null, promos: null, promoHidden: [], guestStart: null, guestSeen: null, guestNote: null, homeMore: false, shopTapsOn: false, org: null, mealCardOff: false,
 });
 const appRecord = (over = {}) => {
   const d = { ...DEFAULTS(), ...over };
@@ -109,10 +109,10 @@ test("migrate: a missing, throwing or non-advancing step returns the input (all 
 
 test("key lists are the ones App.jsx used before L3 (pinned)", () => {
   // Copied from src/App.jsx at HEAD before L3 (L1 added installHint, L2 added appearance and DEVICE_PREFS); L5 appended cycleFlags, L6 symPrefs and L7 fertSigns (record keys: in RECORD and in backups); calm R1 appended modules (record, in backups); calm R3 appended homeTiles (record, in backups) and homeStepSkip (device-only, not in backups); calm R4 appended bodyLog, labs and bodyPrefs (record, in backups); calm R5 appended moodLog, practiceLog, practiceFavs (record, in backups) and practiceHaptics (device-only, not in backups); calm R6 appended experiments (record, in backups); calm R8 appended aiPrefs (device-only consent, in the file, never applied), aiChat and aiWeekly (device-only, not in backups); doctor report v2 appended visitQuestions (record, in backups).
-  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "askCardOff", "shopHint", "trialStart", "guide", "partnerShare", "glucoseLog", "proChip", "shopCatalog", "promos", "promoHidden", "guestStart", "guestSeen", "guestNote", "homeMore", "shopTapsOn", "org"]);
-  assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "askCardOff", "shopHint", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "guestSeen", "guestNote", "homeMore", "shopTapsOn", "org"]);
+  assert.deepEqual([...PERSISTED], ["palIdx", "relationship", "connLog", "cadence", "quietHours", "quickMode", "meds", "medLog", "appts", "journal", "wearSources", "wearData", "acct", "research", "stage", "stageName", "welcome", "days", "pregLog", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "regAnswers", "reminders", "terraOff", "kickTally", "pots", "lastBackupAt", "installHint", "appearance", "cycleFlags", "symPrefs", "fertSigns", "exportLog", "modules", "homeTiles", "homeStepSkip", "bodyLog", "labs", "bodyPrefs", "moodLog", "practiceLog", "practiceFavs", "practiceHaptics", "experiments", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "uiLocale", "uiStyle", "visitQuestions", "nightSkips", "confirmations", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "askCardOff", "shopHint", "trialStart", "guide", "partnerShare", "glucoseLog", "proChip", "shopCatalog", "promos", "promoHidden", "guestStart", "guestSeen", "guestNote", "homeMore", "shopTapsOn", "org", "mealCardOff"]);
+  assert.deepEqual([...DEVICE_ONLY], ["research", "pulseQueue", "pulseSent", "pulseLastSend", "pulseRev", "askAI", "terraOff", "lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiPrefs", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "askCardOff", "shopHint", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "guestSeen", "guestNote", "homeMore", "shopTapsOn", "org", "mealCardOff"]);
   assert.deepEqual([...DEVICE_PREFS], ["appearance", "uiLocale", "uiStyle"]);
-  assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "askCardOff", "shopHint", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "guestSeen", "guestNote", "homeMore", "shopTapsOn", "org", "appearance", "uiLocale", "uiStyle"]);
+  assert.deepEqual([...NOT_IN_BACKUP], ["lastBackupAt", "installHint", "exportLog", "homeStepSkip", "practiceHaptics", "aiChat", "aiWeekly", "cloudAccount", "trackStats", "signin", "devicesHint", "practiceVoice", "shopTapsOff", "askCardOff", "shopHint", "guide", "proChip", "shopCatalog", "promos", "promoHidden", "guestSeen", "guestNote", "homeMore", "shopTapsOn", "org", "mealCardOff", "appearance", "uiLocale", "uiStyle"]);
   assert.deepEqual([...RECORD], PERSISTED.filter((k) => !DEVICE_ONLY.includes(k) && k !== "reminders"));
   for (const k of NOT_IN_BACKUP) { assert.ok(PERSISTED.includes(k), `${k} persisted`); assert.ok(DEVICE_ONLY.includes(k) || DEVICE_PREFS.includes(k), `${k} device-only or a device pref`); }
   for (const k of DEVICE_ONLY) assert.ok(PERSISTED.includes(k), `${k} persisted`);
@@ -165,6 +165,7 @@ test("backupCopy matches the transform exportBackup used before L3", () => {
     delete snap.shopTapsOn; // 2026-11-25: this device's opt-in to shop tap counts never travels
     delete snap.homeMore; // 2026-11-25: whether Home's "More for today" is open on this device never travels
     delete snap.org; // 2026-11-25 (upgrade-enterprise Task 3): the organization joined on this device never travels
+    delete snap.mealCardOff; // 2026-11-26 (meal-photos-findable): this device's hidden Meal photos card never travels
     delete snap.guestSeen; delete snap.guestNote; // 2026-11-16: the guest clock stamp and the day Home showed the guest line never travel (guestStart does)
     for (const k of ["appearance", "uiLocale", "uiStyle"]) delete snap[k];
     return snap;
@@ -563,4 +564,19 @@ test("S1: wearSources entries may carry prefer / paused / lastSync as lib/source
   const copy = backupCopy(rec);
   assert.ok(!("series" in copy.wearData[0]) && copy.wearData[0].temp === 0.2, "the series is stripped from the file, the day row kept");
   assert.ok("series" in rec.wearData[0], "the input is not changed");
+});
+
+/* ---------- 2026-11-26 (docs/plans/meal-photos-findable.md): the Body tab's "Meal photos" card can be hidden ---------- */
+
+test("mealCardOff: device-only, never in a backup, true or false; a record from before it is still valid", () => {
+  assert.ok(PERSISTED.includes("mealCardOff") && DEVICE_ONLY.includes("mealCardOff") && NOT_IN_BACKUP.includes("mealCardOff") && !RECORD.includes("mealCardOff"));
+  for (const v of [true, false]) assert.deepEqual(validateRecord(appRecord({ mealCardOff: v })), [], String(v));
+  const old = appRecord(); delete old.mealCardOff;
+  assert.deepEqual(validateRecord(old), [], "missing is fine");
+  for (const bad of ["hidden", 1, null, {}, []]) {
+    const out = validateRecord(appRecord({ mealCardOff: bad }));
+    assert.equal(out.length, 1, String(bad)); assert.match(out[0], /^mealCardOff: expected true or false/);
+  }
+  const copy = backupCopy(appRecord({ mealCardOff: true }));
+  assert.ok(!("mealCardOff" in copy), "hiding the card on this device never travels in a backup");
 });

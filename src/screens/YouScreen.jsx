@@ -59,6 +59,9 @@ import { YOU_PAGES, youPageOf, YOU_COPY, upgradeShown } from "../lib/youMenu.js"
 export default function YouScreen({ acct, stage, stageName, onChangeStage, modules = [], pots = null, fertRow = null, planUnlocked = false, proOwned = false, storeReady = false, onPro, ai = { available: false, on: false, set: () => {} }, sp, install = null, care = null, onRestore = null, storeLine = null, trial = null, onTour = null, account = null, signedIn = null, help = null, language = null, meals = null, dataSources = null, partner = null, learn = null, signMode = "none", store = null, native = false, promo = null, onHidePromo = null, proUntil = null, guest = null, homeCards = null, page = null, onOpenPage = () => {}, onBack = () => {}, planLabel = null, planKey = null, voice = null, refs = null, orgCard = null }) {
   const offer = ai.offer || { any: false, weekly: false, chat: false, meals: false };
   const prefs = ai.prefs || { weekly: false, chat: false, labs: false };
+  // Meal photos is on only while Meal notes is too (a photo is saved in a meal note); the row says what turning it on will do.
+  const mealsOn = prefs.meals === true && ai.mealNotesOn !== false;
+  const mealsNeed = mealsOn ? null : ai.mealWay === "signin" ? MEAL_COPY.needsSignIn : ai.mealNotesOn === false ? MEAL_COPY.needsNotes : null;
   const who = acct?.anon ? "Anonymous" : acct?.name || "You";
   const { remindersHere, unavailable: remindersOff } = reminderModel({ reminders: sp.reminders, reminderSupport: sp.reminderSupport, cadence: sp.cadence });
   const anyModule = modules.length > 0 || !!fertRow;
@@ -242,15 +245,18 @@ export default function YouScreen({ acct, stage, stageName, onChangeStage, modul
                       <p className="modadds" id="ai-chat-d">{AI_COPY.chatAdds}</p>
                     </li>
                   )}
+                  {/* 2026-11-26 (docs/plans/meal-photos-findable.md): the switch shows whether photos can be taken (Meal photos
+                      AND Meal notes on). Turning it on opens "Turn on meal photos" (App.jsx ai.onMealsOn), which turns both
+                      on, or the sign-in sheet where this server asks for an account; turning it off is one tap, as before. */}
                   {offer.meals && (
                     <li className="modrow airow" data-ai="meals">
                       <div className="modrow-main"><div className="modinfo"><b id="ai-meals-n">{MEAL_COPY.name}</b><span className="hint">{MEAL_COPY.short}</span></div>
-                        <Switch checked={prefs.meals === true} onChange={(v) => ai.setPref("meals", v)} labelledBy="ai-meals-n" describedBy="ai-meals-d" /></div>
+                        <Switch checked={mealsOn} onChange={(v) => (v && ai.onMealsOn ? ai.onMealsOn() : ai.setPref("meals", v))} labelledBy="ai-meals-n" describedBy={`ai-meals-d${mealsNeed ? " ai-meals-needs" : ""}`} /></div>
                       <p className="modadds" id="ai-meals-d">{MEAL_COPY.adds}</p>
-                      {ai.mealNotesOn === false && <p className="modadds" id="ai-meals-needs">{MEAL_COPY.needsNotes}</p>}
+                      {mealsNeed && <p className="modadds" id="ai-meals-needs">{mealsNeed}</p>}
                     </li>
                   )}
-                  {offer.meals && prefs.meals === true && <li className="airow-cal"><CalSwitch id="ai-mealcal" shown={prefs.showCal === true} onChange={(v) => ai.setPref("showCal", v)} /></li>}
+                  {offer.meals && mealsOn && <li className="airow-cal"><CalSwitch id="ai-mealcal" shown={prefs.showCal === true} onChange={(v) => ai.setPref("showCal", v)} /></li>}
                 </ul>
                 {(prefs.weekly || prefs.chat) && (
                   <button type="button" role="checkbox" aria-checked={!!prefs.labs} aria-describedby="ai-labs-d" className={`consentopt ${prefs.labs ? "on" : ""}`} onClick={() => ai.setPref("labs", !prefs.labs)}>

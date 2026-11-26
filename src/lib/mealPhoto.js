@@ -14,6 +14,12 @@
    - "Show calorie estimates" off hides every calorie figure and portion guess; food names stay. Since 2026-11-25
      (docs/plans/critique-fixes.md Task 3) it is OFF unless she turns it on (aiPrefs.showCal); she can pick a photo from
      the camera ("Take a photo", capture="environment") or her library ("Choose a photo", no capture attribute).
+   2026-11-26 (docs/plans/meal-photos-findable.md): the feature can be found and turned on in one place. mealCardState
+   below says where she stands; the Body tab's card, the Meals sheet's "Add a photo instead?" line and the row in You →
+   Solia Health's AI read it, and "Turn on meal photos" is one sheet that turns on Meal notes and Meal photos together
+   with her calorie choice. Turning it on is a setting on this device and sends nothing; a photo taken from the card
+   goes through the same "What Solia Health will send" and the same Send. The answer's "Show them" turns on the same
+   "Show calorie estimates" choice.
    Guardrails: no targets, goals, "over" or "under", scores, streaks, colours for good or bad, or advice. Patterns and the
    AI summary never read `est` (lib/patterns.js, lib/aiSummary.js use the fixed chips only).
    Listed in docs/PRIVACY-AUDIT.md "Meal photos" and docs/CLINICIAN-REVIEW.md. */
@@ -98,18 +104,82 @@ export function dayTotal(meals) {
 /** Whether Meal photos can be offered: the ai flag, a server, the plan (plan.js aiMealPhotos) and Meal notes in her stage. */
 export const mealPhotoOffer = ({ flag = false, server = false, pro = false, mealsOffered = false } = {}) => !!flag && !!server && !!pro && !!mealsOffered;
 
+/* 2026-11-26 (docs/plans/meal-photos-findable.md, owner: "I don't see where can calculate calories of food when taking
+   pictures"): where she stands with Meal photos, for the Body tab's "Meal photos" card, the Meals sheet's "Add a photo
+   instead?" line and the row in You → Solia Health's AI. One answer for all three, first match wins:
+     null        the build has no ai flag, or her stage isn't offered Meal notes (never Pregnancy or Menopause): nothing shows;
+     "noserver"  the build has no server: the card says so and has no button;
+     "signin"    this server asks for sign-in and this device isn't signed in (a guest included): "Sign in to use meal photos";
+     "pro"       her plan doesn't have Meal photos: "See Pro";
+     "off"       Pro, and Meal notes or Meal photos is off: "Turn on meal photos" (one sheet turns both on);
+     "on"        both on: "Take a photo" / "Choose a photo".
+   `card` is whether the Body card shows: any state, unless she hid it on this device (record key mealCardOff).
+   signMode is lib/signin.js signinMode(): sign-in is asked for where the server has one set up ("required", "optional"),
+   which is where the server refuses a photo without it (backend ai/usage.js).
+   Nothing here sends anything, and no state turns the feature on by itself. Pure. */
+export function mealCardState({ flag = false, server = false, mealsOffered = false, signMode = "none", signedIn = false, pro = false, notesOn = false, photosOn = false, hidden = false } = {}) {
+  if (!flag || !mealsOffered) return { state: null, card: false };
+  const state = !server ? "noserver"
+    : (signMode === "required" || signMode === "optional") && !signedIn ? "signin"
+    : !pro ? "pro"
+    : notesOn === true && photosOn === true ? "on" : "off";
+  return { state, card: hidden !== true };
+}
+/** The Body card's hidden flag on this device (record key mealCardOff): a real true, else false. */
+export const cleanMealCardOff = (v) => v === true;
+/** The meal a photo taken from the Body card is filed under until she picks another: by the hour of the day (0–23). */
+export const slotForHour = (h) => { const n = Number(h); return !Number.isFinite(n) ? "snack" : n >= 4 && n < 11 ? "breakfast" : n >= 11 && n < 16 ? "lunch" : n >= 16 && n < 22 ? "dinner" : "snack"; };
+
 export const MEAL_COPY = Object.freeze({
   // You → Solia Health's AI
   name: "Meal photos",
   short: "Photograph a meal in Meal notes; the AI names the foods and gives a rough calorie range",
   adds: "When you choose a photo in Meal notes, Solia Health makes it smaller on this device, shows you the exact picture, and sends it only when you tap Send. It goes through Solia Health's server to Anthropic, maker of the Claude AI, which keeps it for a limited time. Nothing from your log goes with it. Solia Health's server never keeps the photo or the answer. Turning this off stops photos; estimates you already saved stay in your meal notes until you remove them.",
-  needsNotes: "Meal notes is off. Turn it on in You → Your profile to use this.",
+  // 2026-11-26 (meal-photos-findable): the row's switch now opens "Turn on meal photos", which turns Meal notes on too
+  needsNotes: "Meal notes is off. Turning this on turns Meal notes on too.",
+  needsSignIn: "Meal photos needs an account. Turning this on asks you to sign in first.",
   showCal: "Show calorie estimates",
   showCalHint: "Off unless you turn it on: calorie figures and portion guesses stay hidden. The food names always show.",
   onSaid: "Meal photos on. Nothing is sent until you tap Send.",
   offSaid: "Meal photos off. Nothing more will be sent.",
   calOnSaid: "Calorie estimates are shown",
   calOffSaid: "Calorie estimates are hidden",
+  // 2026-11-26 (docs/plans/meal-photos-findable.md): the Body tab's "Meal photos" card. Nothing on it sends anything.
+  cardEyebrow: "Solia Health's AI",
+  cardLead: "Photograph a meal. Solia Health's AI names the foods and can give a rough calorie range.",
+  cardOptIn: "Pro, and only if you turn it on.",
+  cardNoServer: "Meal photos need Solia Health's server, which this version doesn't have. With a server, you photograph a meal and Solia Health's AI names the foods and can give a rough calorie range.",
+  cardSignIn: "Sign in to use meal photos",
+  cardSeePro: "See Pro",
+  cardTurnOn: "Turn on meal photos",
+  cardNotNow: "Not now",
+  cardHide: "Hide this card",
+  cardCal: (shown) => `Calories: ${shown ? "shown" : "hidden"}`,
+  cardCalChange: "Change",
+  cardCalChangeSaid: "Change whether calorie estimates show",
+  cardFull: (n) => `Today already has ${n} meal notes, as many as one day holds, so a photo has nowhere to be saved. Nothing was sent.`,
+  hiddenSaid: Object.freeze({
+    noserver: "Meal photos card hidden.",
+    signin: "Hidden. With Pro, meal photos are in You → Solia Health's AI.",
+    pro: "Hidden. With Pro, meal photos are in You → Solia Health's AI.",
+    off: "Hidden. You can turn on meal photos any time in You → Solia Health's AI.",
+    on: "Hidden. Meal photos are still in the Meals sheet and in You → Solia Health's AI.",
+  }),
+  // "Turn on meal photos": the one confirmation sheet (the card, the Meals sheet's line and the row in You all open it)
+  onTitle: "Turn on meal photos",
+  onClose: "Close without turning anything on",
+  onShort: "Turning this on sends nothing. Each photo goes only after you've seen it and tapped Send: through Solia Health's server, which doesn't keep it, to Anthropic, which keeps it for a limited time.",
+  onAlsoNotes: "This also turns on Meal notes, which is where the foods from a photo are saved.",
+  onOffWhere: (alsoNotes) => (alsoNotes ? "You can turn Meal photos off in You → Solia Health's AI, and Meal notes off in You → Your profile." : "You can turn Meal photos off any time in You → Solia Health's AI."),
+  onGo: "Turn on meal photos",
+  onNo: "Not now",
+  bothOnSaid: "Meal notes and Meal photos are on. Nothing is sent until you tap Send.",
+  // the Meals sheet, while Meal photos is off
+  instead: "Add a photo instead?",
+  // a photo taken from the Body card: which of today's meal notes it is saved to
+  whichMeal: "Which meal was this?",
+  saveToday: "Save to today's meal notes",
+  whichMealReplaces: (label) => `${label} already has an estimate from a photo today. Saving replaces it.`,
   // the Meals sheet
   take: "Take a photo",
   choose: "Choose a photo",
@@ -139,6 +209,7 @@ export const MEAL_COPY = Object.freeze({
   answerLead: "Change a name or remove anything that's wrong, then save. Nothing is saved until you do.",
   calNote: "A rough estimate from a photo. It can be well off.",
   calHidden: "Calorie estimates are hidden. To see them, turn on \"Show calorie estimates\" in You → Solia Health's AI or at the bottom of the Meals sheet.",
+  showThem: "Show them", // 2026-11-26: flips the same "Show calorie estimates" choice, right in the answer
   sureLab: "How sure the AI is",
   sure: Object.freeze({ low: "Not very sure", medium: "Fairly sure", high: "Quite sure" }),
   foodName: (n) => `Food ${n}`,

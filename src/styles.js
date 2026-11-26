@@ -1989,6 +1989,32 @@ button.plantile.on { border-color:var(--primary); box-shadow:inset 0 0 0 1px var
 .mealsheet .calswitch .modadds { margin:6px 0 0; font-size:var(--fs-sm); line-height:1.5; color:var(--ink); }
 .airow-cal { list-style:none; }
 .airow-cal .calswitch { border-top:none; padding-top:0; }
+/* 2026-11-26 (docs/plans/meal-photos-findable.md): the Body tab's "Meal photos" card. Tinted like Home's "Connect a
+   device" card so it can be found: its surface in the warm patterns tint, a primary left edge, a filled main button.
+   UI tokens only (the domain tint and --primary), never a data-viz ramp, and no colour says anything about food. */
+.cy[data-style] .v2card.mealcard[data-tint] { background:linear-gradient(160deg, var(--tint-patterns) 0, color-mix(in srgb, var(--tint-patterns) 70%, var(--card)) 100%) var(--card); border-left:4px solid color-mix(in srgb, var(--primary) 70%, var(--tint-patterns)); margin-bottom:var(--gap); }
+.mealcard-line { margin:0; font-size:var(--fs-md); line-height:1.5; color:var(--ink); }
+.mealcard .mealphoto-pick { margin-top:12px; }
+.mealcard .mealphoto-btn { background:var(--card); }
+.mealcard .rfoot { color:var(--ink); }
+.mealcard-status { margin:0 !important; } .mealcard-status:empty { display:none; }
+.mealcard-cal { display:flex; flex-wrap:wrap; align-items:center; gap:0 6px; margin:0; font-size:var(--fs-sm); color:var(--ink); }
+.mealcard-cal .linkbtn { min-width:44px; }
+.mealcard-acts { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; margin-top:10px; }
+.mealcard[data-state="on"] .mealcard-acts { justify-content:space-between; margin-top:4px; }
+.mealcard-acts .mealcard-go { width:auto; flex:0 0 auto; min-height:44px; padding:10px 20px; margin:0; }
+.mealcard-acts .linkbtn { min-height:44px; font-size:var(--fs-sm); }
+/* the Meals sheet's "Add a photo instead?" line, the turn-on sheet, and the answer's "Show them" and "Which meal was this?" */
+.hint.mealphoto-instead { display:flex; flex-wrap:wrap; align-items:center; gap:0 8px; margin:12px 0 0; color:var(--ink); }
+.mealphoto-instead .linkbtn { min-height:44px; font-size:inherit; }
+.mealon .calswitch { margin:4px 0 0; padding:12px 0 0; border-top:var(--rule); }
+.mealon .calswitch .modadds { margin:6px 0 0; font-size:var(--fs-sm); line-height:1.5; color:var(--ink); }
+.hint.mealon-notes { margin:0 0 4px; color:var(--ink); }
+.mealon-where { margin:10px 0 4px; }
+.mealest-show { width:auto; min-height:44px; margin:2px 0 8px; padding:8px 18px; }
+.mealanswer-slot { margin:0 0 14px; }
+.mealanswer-slot .lab { margin:0 0 8px; }
+.mealanswer-slot .rfoot { margin:8px 0 0; color:var(--ink); } .mealanswer-slot .rfoot:empty { display:none; }
 /* ---- Mono style (Solia, 2026-11-01): a quieter single-colour skin of the same layout. The token layer is
    lib/constants.js MONO (neutral warm-grey paper and cards, one soft ink, one slate accent for every stage, domain tints
    resolved to one grey, no wash, no shadows); the few rules below make surfaces flat with hairlines, and icon badges

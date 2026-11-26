@@ -24,6 +24,7 @@ test("meal photo send sheet and the AI send sheet: one line, the rest under Deta
   await page.locator("#you-modules").getByRole("switch", { name: "Meal notes" }).click();
   await gotoYou(page, "Solia Health's AI");
   await page.locator("#you-ai").getByRole("switch", { name: "Meal photos" }).click();
+  await page.locator("#meal-on-sheet").getByRole("button", { name: "Turn on meal photos" }).click(); // 2026-11-26: the switch opens the confirmation
   await page.locator("#you-ai").getByRole("switch", { name: "Chat about your log" }).click();
   const log = await openLog(page);
   await log.getByRole("button", { name: "Meals", exact: true }).click();

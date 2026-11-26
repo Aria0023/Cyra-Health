@@ -26,6 +26,7 @@ for (const scheme of ["light", "dark"]) {
     await page.locator("#you-modules").getByRole("switch", { name: "Meal notes" }).click();
     await gotoYou(page, "Solia Health's AI");
     await page.locator("#you-ai").getByRole("switch", { name: "Meal photos" }).click();
+    await page.locator("#meal-on-sheet").getByRole("button", { name: "Turn on meal photos" }).click(); // 2026-11-26: the switch opens the confirmation
     await expect(page.locator("#you-ai").getByRole("switch", { name: "Show calorie estimates" })).toBeVisible();
     await audit(page, `You, Meal photos on ${scheme}`);
     const log = await openLog(page);

@@ -367,9 +367,25 @@ of `config/app.json` until the owner adds a persistent disk and enables it.
   `backend/src/modules/ai/meal.js`: never stored or logged; counts only: `ai_usage.meal`, default 60 a month, and spend
   kind `meal`). The answer (foods, a portion guess and a calorie RANGE each, how sure) can be edited, trimmed or
   discarded; what she saves is `meal.est = { items: [{ name, portion, low, high }], sure }`, labelled "Estimated from a
-  photo", on the device and in backups. The photo is never kept. "Show calorie estimates" off (`aiPrefs.hideCal`) hides
+  photo", on the device and in backups. The photo is never kept. "Show calorie estimates" off (the default since
+  2026-11-25; `aiPrefs.showCal`, present only when true) hides
   every calorie figure and portion guess. Patterns, the AI summary and the PDF never read `est`. With the switch off
   (and no saved estimate) Meal notes is exactly as above and nothing is sent.
+- **Findable (2026-11-26, `docs/plans/meal-photos-findable.md`).** `lib/mealPhoto.js mealCardState({ flag, server,
+  mealsOffered, signMode, signedIn, pro, notesOn, photosOn, hidden })` → `{ state, card }`, first match wins: no ai flag
+  or a stage without Meal notes → nothing; no server → `noserver`; the server asks for sign-in and the device isn't
+  signed in → `signin`; not Pro → `pro`; Meal notes or Meal photos off → `off`; else `on`. Three surfaces read it:
+  - Body tab card `#body-mealphotos` (`MealPhotosCard`, tinted like Home's devices card, UI tokens only), shown unless
+    she hid it (`mealCardOff`: device-only, never in a backup). `noserver`: one line, no button. `signin`: "Sign in to
+    use meal photos". `pro`: "See Pro". `off`: "Turn on meal photos". `on`: "Take a photo" / "Choose a photo" for today
+    and "Calories: shown / hidden · Change". "Not now" / "Hide this card" hides it.
+  - the Meals sheet, photos off: "Add a photo instead?" with the same way in.
+  - You → Solia Health's AI: the switch is on only while Meal notes is on too; turning it on opens the sheet.
+  "Turn on meal photos" (`#meal-on-sheet`) is the one confirmation: a short line, `MEAL_COPY.adds` under Details, the
+  "Show calorie estimates" switch (off unless she turns it on); Confirm sets `bodyPrefs.mealsOn`, `aiPrefs.meals` and
+  `aiPrefs.showCal` and **sends nothing**. A card photo is downsized on the device and opens the Meals sheet on "What
+  Solia Health will send"; its answer asks "Which meal was this?" (`slotForHour` picks first) and saves to that meal
+  note. While calories are hidden the answer has "Show them" (sets `aiPrefs.showCal`).
 
 ### 3.6 Her symptom list (symPrefs, local-first L6)
 ```js
