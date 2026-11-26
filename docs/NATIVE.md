@@ -70,10 +70,28 @@ backend is **when you build it**:
 npm install
 export VITE_API_BASE=https://cyra-backend.onrender.com   # or put it in .env.local, which git ignores
 export VITE_FEATURES=all  # or a list; unset = Ask Cyra's AI and reminders only (docs/ARCHITECTURE.md §10)
-npm run cap:sync      # vite build, then copy dist/ and the plugins into ios/ and android/
+npm run cap:sync      # the phone build (npm run build:native), then copy dist/ and the plugins into ios/ and android/
 npm run cap:ios       # the same, then open ios/App/App.xcodeproj in Xcode
 npm run cap:android   # the same, then open android/ in Android Studio
 ```
+
+**Two builds, one `dist/` (2026-11-26, docs/plans/website.md).** The website and the web app now share one address:
+the website at `/`, the web app under `/app/`. The phone apps did not change. There are two build commands, and they
+write different things into `dist/`:
+
+| Command | What is in `dist/` | Who uses it |
+| --- | --- | --- |
+| `npm run build:native` (plain `vite build`, base `/`) | The app at the root: `index.html`, `assets/`, `fonts/`, `icons/`, `legal/`, `voice/`, `shop/`, `sw.js`, `manifest.webmanifest`. Exactly what the phone build has always been. **No website pages.** | `npm run cap:sync`, `cap:ios`, `cap:android` (they run it for you) |
+| `npm run build` (`scripts/build-web.mjs`, base `/app/`) | The website at the root (`index.html`, `404.html`, `go.js`, the retiring `sw.js`, …), the app under `app/`, the legal pages at `legal/` | Render (the public site) and `npm run preview` |
+
+The mechanism is the smallest one that works: the same Vite config builds both; the web build only passes
+`base: "/app/"` and an out dir of `dist/app/`, then writes the website beside it. Nothing in `src/` knows which one it is
+in beyond Vite's own `import.meta.env.BASE_URL` (fonts, voice clips, shop images and the worker address already follow it).
+
+**A web build can never be copied into the phone apps by mistake.** Capacitor runs `capacitor:copy:before`
+(`package.json` → `node site/build/native-check.mjs`) before every `cap copy` and `cap sync`. If `dist/` holds the web
+build (an `app/` folder, `go.js`, a front page that is not the app) the copy stops with an explanation and nothing is
+written into `ios/` or `android/`. Always use `npm run cap:sync`; it builds the phone app first.
 
 **Feature flags.** `VITE_FEATURES` decides which optional features the phone app offers
 (`src/lib/features.js`). With the default flags (unset: `ai,webReminders`) the phone app offers

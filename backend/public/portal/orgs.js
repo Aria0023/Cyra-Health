@@ -111,7 +111,7 @@ export function orgsViews(L) {
         field("org-logo", "Logo file (PNG, JPEG or WebP, at most 64 KB; square works best)", file),
         h("div", { class: "acts" }, up, rm),
         h("h2", {}, "How people join"),
-        h("p", {}, "With the invite code ", h("b", {}, o.inviteCode), " on registration or in You → Your profile, or with a link to the app that ends in ", h("code", {}, `?org=${o.slug}`), "."),
+        h("p", {}, "With the invite code ", h("b", {}, o.inviteCode), " on registration or in You → Your profile, or with a link to the web app that ends in ", h("code", {}, `/app/?org=${o.slug}`), ". The web app lives under /app/ on the Solia Health website; the same ending on the website's front page (", h("code", {}, `/?org=${o.slug}`), ") is passed on to the app."),
         h("p", { class: "note" }, `The app shows each person this, where she joins: "Your organization sees how many people joined, never what you log." (This portal is at ${link}.)`));
     }
     show(isNew ? "New organization" : o.name, h("p", {}, h("a", { href: "#/orgs" }, "All organizations")), box, form, logoPart);

@@ -20,7 +20,7 @@
    makes any subscribe still waiting in line give up before it registers anything. */
 import { API_BASE, apiFetch, apiPost } from "./api.js";
 import { isNative, LocalNotifications } from "./native.js";
-import { whenActive } from "./pwa.js";
+import { whenActive, WORKER_URL } from "./pwa.js";
 import { CONFIRM_ID, CONFIRM_ACTION_TYPE, CONFIRM_ACTIONS, CONFIRM_TITLE, CONFIRM_TEXT, CONFIRM_AT, confirmDueAt } from "./confirmNight.js";
 import { PARTNER_NOTIFY } from "./partner.js";
 
@@ -143,7 +143,7 @@ async function syncNow({ cadence, nudge, body = REMINDER_BODY, confirm = false }
   if (!API_BASE) return { active: false, unavailable: true };
   const perm = prompt ? await Notification.requestPermission() : Notification.permission;
   if (perm !== "granted") return { active: false, blocked: true, denied: perm === "denied" };
-  const reg = await navigator.serviceWorker.register("/sw.js");
+  const reg = await navigator.serviceWorker.register(WORKER_URL);
   // The worker now keeps Cyra's files for offline use before it starts; until it is active the
   // browser can't subscribe — Settings says "Couldn't set up reminders just now".
   if (!(await whenActive(reg))) return { active: false, error: true, worker: true };

@@ -6,7 +6,9 @@
       (that stays in IndexedDB, which this worker never opens), never an answer from Cyra's
       server or any other site, never anything under /api/.
    BUILD is filled in by vite.config.js (cyraServiceWorker) at build time; in `vite dev` it
-   stays empty and the worker only handles reminders, as before. */
+   stays empty and the worker only handles reminders, as before. BUILD.base is where this build
+   of the app is served: "/app/" on the website (this file is then /app/sw.js with scope /app/),
+   "/" in the phone build; a tapped notification opens the app there. */
 const BUILD = {"version":"dev","base":"/","entry":null,"index":"/index.html","files":[]}; // @cyra-build
 /* Passive tracking S3 (plan §2.6): a payload with type "confirm-night" carries two action buttons, Looks right and Open. The
    local day is this device's (the night ends on the wake day). Everything else is the plain reminder as before. */
@@ -32,13 +34,13 @@ self.addEventListener("notificationclick", (event) => {
       const w = list.find((c) => "focus" in c);
       if (event.action === "ok") {
         if (w && typeof w.postMessage === "function") { w.postMessage({ type: "confirm-night", day }); return w.focus(); }
-        return self.clients.openWindow(`/#/confirm/${day}`);
+        return self.clients.openWindow(`${BUILD.base}#/confirm/${day}`);
       }
-      return w ? w.focus() : self.clients.openWindow("/");
+      return w ? w.focus() : self.clients.openWindow(BUILD.base);
     }));
     return;
   }
-  event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => { const w = list.find((c) => "focus" in c); return w ? w.focus() : self.clients.openWindow("/"); }));
+  event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => { const w = list.find((c) => "focus" in c); return w ? w.focus() : self.clients.openWindow(BUILD.base); }));
 });
 
 /* The page asks which build this worker carries (lib/pwa.js askBuild), to adopt an update

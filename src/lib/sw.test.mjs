@@ -269,3 +269,18 @@ test("message: CYRA_BUILD answers on the port, CYRA_SKIP_WAITING calls skipWaiti
 test("source: never writes a cache, opens IndexedDB, claims pages or imports scripts", () => {
   for (const banned of ["indexedDB", ".put(", "clients.claim", "importScripts"]) assert.ok(!SOURCE.includes(banned), banned);
 });
+
+/* The website (docs/plans/website.md Task 1): on the web this file is /app/sw.js, built with base "/app/", and a tapped
+   notification opens the app there, never the website at "/". */
+test("built for /app/: a tapped reminder opens /app/, Looks right opens /app/#/confirm/<day>", async () => {
+  const APP_BUILD = { version: "0123456789abcdef", base: "/app/", entry: "/app/assets/index-abc.js", index: "/app/index.html", files: ["/app/assets/index-abc.js", "/app/index.html", "/app/manifest.webmanifest"] };
+  const w = load(injectBuild(SOURCE, APP_BUILD));
+  let e = w.fire("notificationclick", ext({ notification: { close() {} } }));
+  await e.p;
+  e = w.fire("notificationclick", ext({ action: "ok", notification: { close() {}, data: { type: "confirm-night", day: "2026-11-08" } } }));
+  await e.p;
+  e = w.fire("notificationclick", ext({ action: "open", notification: { close() {}, data: { type: "confirm-night", day: "2026-11-08" } } }));
+  await e.p;
+  assert.deepEqual(w.log.opened, ["/app/", "/app/#/confirm/2026-11-08", "/app/"]);
+  assert.ok(!/openWindow\((`|")\//.test(SOURCE), "no notification opens a root address");
+});

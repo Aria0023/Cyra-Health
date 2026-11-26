@@ -126,7 +126,9 @@ a build that had it keeps its data, which this build doesn't show or contact).
 ## Run
     npm install
     npm run dev                      # the app at http://localhost:5173
-    npm run build                    # production build into dist/ (the splash shows BUILD 2026.10.07-D)
+    npm run build                    # the WEB build into dist/: the website at /, the app under /app/ (the splash shows BUILD 2026.10.07-D)
+    npm run preview                  # serve dist/ the way Render does (http://localhost:4173, the app at /app/)
+    npm run build:native             # the PHONE build into dist/: the app at the root, no website (cap:sync runs this)
     cd backend && npm install && npm start    # the backend at http://localhost:3000 (optional)
 
 `VITE_FEATURES=all VITE_API_BASE=http://localhost:3000 npm run dev` (with the backend running; in development it
@@ -146,18 +148,27 @@ in light and dark.
 Static site on Render: build `npm install && npm run build`, publish `dist`.
 `render.yaml` configures it automatically via Blueprint.
 
+One site, two parts (2026-11-26, docs/plans/website.md): the website owns `/` (source in `site/`), the web app lives
+under `/app/`, and `/legal/*` stays where it was. `scripts/build-web.mjs` builds the app with Vite's base `/app/` into
+`dist/app/` and writes the website beside it. Someone who already uses the web app in this browser is sent from `/`
+straight to `/app/` (`site/static/go.js`: an installed app, an app link such as `#/you` or `?org=…`, or a record
+already in this browser's IndexedDB; `/?site=1` always shows the website), and her record is untouched because it
+belongs to the origin, not the path (`e2e/site-move.spec.mjs` proves it). `/sw.js` is now a retiring worker that
+removes the old address's offline cache and unregisters itself; the app's worker is `/app/sw.js` with scope `/app/`.
+`render.yaml` rewrites only `/app/*` to `/app/index.html`; any other unknown address gets `404.html`.
+
 The build also writes the installable-app pieces: `manifest.webmanifest` and `icons/` are
 copied from `public/`, and `sw.js` gets this build's file list and version (vite.config.js,
 `cyraServiceWorker`; spec A14.1). The icons are committed PNGs drawn from the master mark in `docs/brand/`; regenerate them, and
 the native icon sets, with `node scripts/make-icons.mjs` then `python3 scripts/flatten-icons.py` (headless
 Chromium via an installed Playwright, not an npm dependency; run from the repo root). `render.yaml`
-sets `Cache-Control: no-cache` for `/`, `/index.html`, `/sw.js` and `/manifest.webmanifest` so
-browsers revalidate them; hashed `/assets/*` keep the host default.
+sets `Cache-Control: no-cache` for `/`, `/index.html`, `/sw.js`, `/app/`, `/app/index.html`, `/app/sw.js` and
+`/app/manifest.webmanifest` so browsers revalidate them; hashed `/app/assets/*` keep the host default.
 
 ## Phone apps (iOS / Android)
     VITE_API_BASE=https://cyra-backend.onrender.com npm run cap:ios       # builds, syncs and opens Xcode
     VITE_API_BASE=https://cyra-backend.onrender.com npm run cap:android   # builds, syncs and opens Android Studio
-    npm run cap:sync                                                      # build + copy into both shells
+    npm run cap:sync                                                      # phone build (build:native) + copy into both shells
 
 The shells are in `ios/` and `android/` (Capacitor; `capacitor.config.json`). Step-by-step guide (signing,
 HealthKit, Health Connect, the `cyrahealth://` return link, server settings, and what has and hasn't been

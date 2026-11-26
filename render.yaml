@@ -1,4 +1,4 @@
-# Render blueprint — the static app plus the backend it proxies through.
+# Render blueprint — the static site (the website at "/" and the web app under /app/) plus the backend it proxies through.
 # In Render: New > Blueprint, point at your repo, then paste secrets under each
 # service's Environment tab (sync: false entries are never read from this file).
 services:
@@ -35,7 +35,11 @@ services:
         sync: false
       - key: VITE_PRIVACY_URL
         sync: false
-    # The offline worker (public/sw.js, spec A14.1) revalidates these; hashed /assets/* keep the host default.
+    # One site, two parts (docs/plans/website.md, 2026-11-26): the website at "/" and the web app under /app/
+    # (scripts/build-web.mjs). The browser revalidates the two shells, both workers and the manifest; hashed
+    # /app/assets/* keep the host default. /sw.js is the retiring worker of the app's old address (site/static/sw.js),
+    # /app/sw.js the app's offline worker (public/sw.js, spec A14.1). These lists are pinned by src/lib/site.test.mjs
+    # against site/build/hosting.mjs, which the local preview and the e2e server follow.
     headers:
       - path: /
         name: Cache-Control
@@ -46,13 +50,24 @@ services:
       - path: /sw.js
         name: Cache-Control
         value: no-cache
-      - path: /manifest.webmanifest
+      - path: /app/
         name: Cache-Control
         value: no-cache
+      - path: /app/index.html
+        name: Cache-Control
+        value: no-cache
+      - path: /app/sw.js
+        name: Cache-Control
+        value: no-cache
+      - path: /app/manifest.webmanifest
+        name: Cache-Control
+        value: no-cache
+    # Only the app's own deep links are rewritten (Render tries this after looking for a file). There is no catch-all:
+    # an unknown address gets 404.html with status 404, and /legal/* are plain files.
     routes:
       - type: rewrite
-        source: /*
-        destination: /index.html
+        source: /app/*
+        destination: /app/index.html
 
   - type: web
     name: cyra-backend

@@ -23,7 +23,7 @@ jobs:
       - run: npm run test:unit
       - run: npm run build
       - name: build stamp
-        run: test "$(cat dist/assets/index-*.js | grep -o 'BUILD 2026\.10\.07-D' | wc -l)" = "1"
+        run: test "$(grep -rho 'BUILD 2026\.10\.07-D' dist | wc -l)" = "1"
       - name: backend smoke
         run: cd backend && npm ci && npm run smoke:all
       - run: npx playwright install --with-deps chromium

@@ -5,7 +5,7 @@
    The worker (public/sw.js) keeps only Cyra's own app files so Cyra opens without a
    connection; it never stores health data or any server answer. It is registered only in a
    production build, only while this device holds a record (App.jsx, phase "app"), at the
-   same URL lib/notifications.js uses for reminders, so there is one registration. Delete
+   same URL lib/notifications.js uses for reminders (WORKER_URL), so there is one registration. Delete
    everything unregisters it and deletes its caches (clearShellCaches).
 
    The pure helpers at the top are unit-tested (src/lib/pwa.test.mjs); the rest is browser glue. */
@@ -15,6 +15,10 @@ export const SHELL_CACHE_PREFIX = "cyra-shell-";
 export const INSTALL_HINT_AFTER = 1; // logged days before Home shows the install tip (L11: after the first saved check-in, never during onboarding)
 export const UPDATE_CHECK_GAP_MS = 3600000; // at most one update check an hour when Cyra comes back on screen
 const PROD = (() => { try { return !!import.meta.env.PROD; } catch { return false; } })();
+/* Where the app is served (Vite's base): "/app/" on the website (docs/plans/website.md Task 1), "/" in the phone build
+   and in `vite dev`. The worker is this build's own sw.js, and its scope is that folder. */
+export const workerUrlFor = (base) => `${typeof base === "string" && base.startsWith("/") ? (base.endsWith("/") ? base : `${base}/`) : "/"}sw.js`;
+export const WORKER_URL = workerUrlFor((() => { try { return import.meta.env.BASE_URL; } catch { return "/"; } })());
 /* The script this page runs. In the build that is /assets/index-<hash>.js, the entry chunk this
    module is bundled into; a waiting worker built from the same files names the same entry. */
 const PAGE_ENTRY = (() => { try { return new URL(import.meta.url).pathname; } catch { return null; } })();
@@ -132,12 +136,12 @@ async function consider(w) {
 }
 const watchInstalling = (w) => { if (w) w.addEventListener("statechange", () => { if (w.state === "installed") consider(w); }); };
 
-/** Register /sw.js (web, production build only). Memoized; a failed registration is tried again on the next call. */
+/** Register this build's sw.js (WORKER_URL; web, production build only). Memoized; a failed registration is tried again on the next call. */
 export function registerWorker({ onUpdateReady } = {}) {
   if (onUpdateReady) onUpdate = onUpdateReady;
   if (!swSupported()) return Promise.resolve(null);
   if (regPromise) return regPromise;
-  regPromise = navigator.serviceWorker.register("/sw.js").then((r) => {
+  regPromise = navigator.serviceWorker.register(WORKER_URL).then((r) => {
     reg = r; lastCheck = Date.now();
     if (r.waiting) consider(r.waiting);
     watchInstalling(r.installing);

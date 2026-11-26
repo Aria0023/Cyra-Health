@@ -6,7 +6,7 @@
    worker is adopted silently instead of offered. */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isIOSDevice, installModeFor, showInstallHint, offersInstall, cleanInstallHint, mergeInstallHint, updateAction, INSTALL_HINT_AFTER, SHELL_CACHE_PREFIX } from "./pwa.js";
+import { isIOSDevice, installModeFor, showInstallHint, offersInstall, cleanInstallHint, mergeInstallHint, updateAction, INSTALL_HINT_AFTER, SHELL_CACHE_PREFIX, workerUrlFor, WORKER_URL } from "./pwa.js";
 
 const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 const IPAD_DESKTOP = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15";
@@ -82,4 +82,14 @@ test("updateAction: adopt only the same non-empty entry", () => {
 
 test("the shell cache prefix matches public/sw.js", () => {
   assert.equal(SHELL_CACHE_PREFIX, "cyra-shell-");
+});
+
+/* The app lives under /app/ on the website and at "/" in the phone build and in dev (docs/plans/website.md Task 1): the
+   worker is that build's own sw.js, so its scope is the app's folder and never the website. */
+test("the worker is registered beside the app: /app/sw.js on the website, /sw.js at the root", () => {
+  assert.equal(workerUrlFor("/app/"), "/app/sw.js");
+  assert.equal(workerUrlFor("/app"), "/app/sw.js");
+  assert.equal(workerUrlFor("/"), "/sw.js");
+  for (const odd of [undefined, null, "", "./", "https://x.test/"]) assert.equal(workerUrlFor(odd), "/sw.js");
+  assert.equal(WORKER_URL, "/sw.js", "outside a Vite build (these tests) the base is the root");
 });
