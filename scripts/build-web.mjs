@@ -6,7 +6,8 @@
      2. public/legal/ moves from <out>/app/legal/ to <out>/legal/: the legal pages keep their address (/legal/…).
      3. The app's manifest gets "id": "/" (the installed web app's identity before the move), so a browser can update
         an app installed from the old address instead of treating /app/ as a different app.
-     4. The website (site/build/site.mjs) is written beside it: /, /404.html, /go.js and the retiring /sw.js.
+     4. The website (site/build/site.mjs) is written beside it: its pages, its own files under /site/ and the
+        retiring /sw.js.
    The phone build is NOT this script: `npm run build:native` is plain `vite build` (the app at the root of dist/, no
    website), which `npm run cap:sync` copies into the iOS and Android projects (docs/NATIVE.md §2). */
 import fs from "node:fs";
@@ -33,5 +34,5 @@ const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
 manifest.id = "/";
 fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
 
-const written = buildSite({ outDir: out });
-console.log(`[solia] website: ${written.length} files beside ${path.relative(ROOT, path.join(out, "app"))}/ (${written.join(", ")})`);
+const written = await buildSite({ outDir: out });
+console.log(`[solia] website: ${written.length} files beside ${path.relative(ROOT, path.join(out, "app"))}/ (${written.filter((f) => f.endsWith(".html")).join(", ")}; the rest under site/)`);

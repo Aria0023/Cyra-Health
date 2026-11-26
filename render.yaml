@@ -31,6 +31,16 @@ services:
       # Optional: the support address shown in You → Help (a mail link). Unset = no link. Public, not a secret.
       - key: VITE_SUPPORT_EMAIL
         sync: false
+      # The website's download buttons (site/pages/home.mjs) and the app's "Get Solia Health Pro in the app" buttons read
+      # the same two store addresses (https://…). Unset = the website says "Coming soon to the App Store" / "Coming soon
+      # to Google Play" as plain text, never a dead link. VITE_APP_STORE_ID (the app's numeric Apple id) also adds Apple's
+      # Smart App Banner to the website's front page. Public, not secrets: paste them under this service's Environment tab.
+      - key: VITE_APP_STORE_URL
+        sync: false
+      - key: VITE_PLAY_STORE_URL
+        sync: false
+      - key: VITE_APP_STORE_ID
+        sync: false
       - key: VITE_TERMS_URL
         sync: false
       - key: VITE_PRIVACY_URL

@@ -165,6 +165,22 @@ Chromium via an installed Playwright, not an npm dependency; run from the repo r
 sets `Cache-Control: no-cache` for `/`, `/index.html`, `/sw.js`, `/app/`, `/app/index.html`, `/app/sw.js` and
 `/app/manifest.webmanifest` so browsers revalidate them; hashed `/app/assets/*` keep the host default.
 
+## The website (`site/`)
+Plain HTML and one CSS file, built by `site/build/site.mjs` as the last step of `npm run build`; no React, and one small
+script on the front page (`site/static/go.js`, which opens the web app for someone who already uses it).
+
+- **It looks like the app because it is made from the app.** The colours are the Soft style's tokens from
+  `src/lib/constants.js` (`site/build/tokens.mjs`; `site/css/site.css` holds no colour of its own), the faces are the same
+  Fraunces and Karla files the app bundles, and the stage illustrations, icons and brand mark are rendered from the
+  app's components.
+- **It says what the app says.** Prices, plan lines, the privacy rows and what Pro adds are read from the app's modules at
+  build time (`site/build/app-data.mjs`). Every sentence on every page is listed with the file that makes it true in
+  `docs/plans/website-claims.md` (`npm run site:claims` rewrites it; the unit tests fail if it is out of date).
+- **It loads nothing from anywhere else and sets no cookie**, and each page carries a Content-Security-Policy that says so.
+  Unit tests and `e2e/site.spec.mjs` fail if that changes.
+- `npm run site:shots` retakes the app screenshots in `site/img/` (from the demo seed, light and dark).
+- Download buttons read `VITE_APP_STORE_URL` / `VITE_PLAY_STORE_URL` at build time (unset = "Coming soon …" as text).
+
 ## Phone apps (iOS / Android)
     VITE_API_BASE=https://cyra-backend.onrender.com npm run cap:ios       # builds, syncs and opens Xcode
     VITE_API_BASE=https://cyra-backend.onrender.com npm run cap:android   # builds, syncs and opens Android Studio

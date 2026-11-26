@@ -1,0 +1,37 @@
+{
+  "home": {
+    "light": "home-light.webp",
+    "width": 780,
+    "height": 1688,
+    "alt": "Solia Health's Home screen with example data: a ring showing the cycle day and phase, a card with the range of days the next period is likely to start, and Quick log buttons for symptoms, sleep, mood and movement.",
+    "dark": "home-dark.webp"
+  },
+  "log": {
+    "light": "log-light.webp",
+    "width": 780,
+    "height": 1688,
+    "alt": "Solia Health's Log something sheet with example data: a list of what can be logged today, opened from the plus button.",
+    "dark": "log-dark.webp"
+  },
+  "patterns": {
+    "light": "patterns-light.webp",
+    "width": 780,
+    "height": 1688,
+    "alt": "Solia Health's Patterns screen with example data: a timeline of the last cycles with their lengths, and this week's body and mind rings.",
+    "dark": "patterns-dark.webp"
+  },
+  "calendar": {
+    "light": "calendar-light.webp",
+    "width": 780,
+    "height": 1688,
+    "alt": "Solia Health's Calendar with example data: a month with logged period days, the predicted next period and the estimated fertile window.",
+    "dark": "calendar-dark.webp"
+  },
+  "report": {
+    "light": "report-light.webp",
+    "width": 780,
+    "height": 1688,
+    "alt": "Solia Health's Report screen with example data: the summary for an appointment and the Download PDF button.",
+    "dark": "report-dark.webp"
+  }
+}

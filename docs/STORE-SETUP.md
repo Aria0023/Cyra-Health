@@ -176,3 +176,22 @@ account management (not shared). See `docs/PRIVACY-AUDIT.md`, "Promotions, Pro g
 - [ ] Portal → Codes → upload the batch (store, offer, expiry, partner). The partner downloads its available codes in
       its own portal; you mark codes given out or redeemed from the stores' reports. The portal never claims to know
       which code was used: the stores don't report that to it.
+
+## 8. The website's download buttons (2026-11-26, docs/plans/website.md)
+
+The website's front page (`site/pages/home.mjs`) has one button per store. They are **plain text buttons in the site's
+own style**, built from the same two settings the app uses:
+
+- [ ] Render → static site "cyra-health" → Environment: `VITE_APP_STORE_URL` (the app's App Store page) and
+      `VITE_PLAY_STORE_URL` (its Google Play page), both `https://…`. Until each is set, the website says
+      "Coming soon to the App Store" / "Coming soon to Google Play" as text, never a link that goes nowhere.
+- [ ] `VITE_APP_STORE_ID` (the numeric Apple id, section 7) also adds Apple's Smart App Banner to the front page, so
+      Safari on an iPhone offers the app at the top of the page.
+- [ ] **Official badges (your choice).** Apple's "Download on the App Store" and Google's "Get it on Google Play" badge
+      artwork may be used instead of the text buttons, but each has its own licence and rules (size, clear space,
+      wording, one badge per store, your developer account in good standing): Apple's App Store Marketing Guidelines and
+      Google Play's badge guidelines. They are not in this repository. If you want them, download the artwork from Apple's
+      and Google's own marketing pages with your developer accounts, add the files under `site/img/`, and swap them in
+      where `storeButtons` builds the two links. Keep them as files served by the site itself: the website loads
+      nothing from another origin, and a unit test fails if it does.
+

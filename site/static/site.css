@@ -1,5 +1,0 @@
-/* Solia Health website (Task 1: the short front page; Task 2 replaces this with the full design). */
-html[data-wait] body { visibility: hidden; }
-body { margin: 0; font: 17px/1.5 system-ui, sans-serif; background: Canvas; color: CanvasText; }
-main { max-width: 34rem; margin: 0 auto; padding: 4rem 1rem; }
-.btn { display: inline-flex; align-items: center; min-height: 44px; padding: 0 1.25rem; border: 1px solid; border-radius: 999px; font-weight: 700; text-decoration: none; color: inherit; }

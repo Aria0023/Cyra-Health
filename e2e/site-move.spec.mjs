@@ -77,7 +77,7 @@ test("a first-time visitor gets the website; app links go to the app; nothing is
   const site = process.env.E2E_SITE_URL;
   await page.goto(`${site}/`);
   await expect(page).toHaveURL(`${site}/`);
-  await expect(page.locator("h1")).toHaveCount(1);
+  await expect(page.locator("h1")).toContainText("tracking that lives on your device");
   await expect(page.locator("html")).not.toHaveAttribute("data-wait", /.*/);
   await expect(page.getByRole("link", { name: "Open the web app" }).first()).toBeVisible();
   // looking for a record never creates a database, and the website keeps nothing

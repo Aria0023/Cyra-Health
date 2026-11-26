@@ -15,7 +15,7 @@ export function nativeDistProblems(dir) {
   const problems = [];
   const index = fs.readFileSync(path.join(dir, "index.html"), "utf8");
   if (!index.includes('<div id="root"></div>')) problems.push("index.html is not the app's page");
-  for (const rel of ["app/index.html", "go.js", "404.html", "site.css", "robots.txt", "sitemap.xml", "support", "delete-account"]) if (has(rel)) problems.push(`${rel} belongs to the website`);
+  for (const rel of ["app/index.html", "site", "404.html", "robots.txt", "sitemap.xml", "support", "delete-account"]) if (has(rel)) problems.push(`${rel} belongs to the website`);
   return problems;
 }
 

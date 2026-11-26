@@ -3082,3 +3082,79 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
   the iPhone or Android app at any time, during your free week too." Still no web checkout. Both are literally true: the
   free week (lib/trial.js) is not extended by a purchase, a store trial starts at purchase (lib/pricing.js planLines,
   App Store 3.1.2 terms under the buy button unchanged), and monthly has no store trial.
+
+## The Solia Health website (2026-11-26, docs/plans/website.md)
+
+### Task 1: the web app moves to /app/ — same origin, same record; no new request, nothing new leaves the device
+- The website now owns `/` and the web app lives under `/app/` on the same origin. Her record (IndexedDB `cyra`) belongs
+  to the origin, so it is untouched; `e2e/site-move.spec.mjs` registers at the old address, switches the same origin to
+  the new build and finds the same record at `/app/`.
+- `/` runs one script (`site/static/go.js`). It reads, on the device, whether this browser holds a record (it opens the
+  database without a version and aborts if there is none, so it never creates one; it reads key `v1` and nothing else),
+  whether the page runs as an installed app, and whether the address is an app link. It makes no request, sets no cookie
+  and stores nothing (unit tests in `src/lib/site.test.mjs` run it against a fake window and scan its source).
+- `/sw.js` is now a retiring worker: it deletes only the old address's file cache, unregisters and reloads. It never opens
+  IndexedDB. The app's own worker is `/app/sw.js` (scope `/app/`), unchanged in what it keeps: the app's files only.
+- No privacy sentence in the app changed. The portal's "How people join" line (owner-facing) names the new address.
+
+### Task 2: the website's pages — every sentence is a public claim
+- **Where every sentence comes from:** `docs/plans/website-claims.md` lists every sentence, label and alt text the pages
+  show, word for word, with the app or backend file that makes it true. It is generated from the pages
+  (`npm run site:claims`) and a unit test fails when it is out of date, when a page shows text that is not in it, or when a
+  source file does not exist. Sentences the app already has are read from the app's modules at build time
+  (`site/build/app-data.mjs`), so the site cannot drift from the app: the privacy rows (`src/lib/privacyFlows.js
+  FLOW_COPY`), the splash promise, prices and plan lines (`src/lib/pricing.js`, `src/lib/plans.js`, `src/lib/trial.js`),
+  what Pro adds (`src/components/ProSheet.jsx`), the cancel answers (`src/lib/feedback.js helpItems`).
+- **What the website itself does:** no cookie, nothing in localStorage / sessionStorage / IndexedDB / Cache Storage, no
+  service worker, no request to any other origin (fonts, images, CSS and the one script are the site's own files). Each
+  page carries a Content-Security-Policy that allows this origin only (`site/pages/layout.mjs CSP`), so the browser
+  enforces it. Pinned by `src/lib/site.test.mjs` (static scan) and `e2e/site.spec.mjs` (a real browser: every request,
+  every `Set-Cookie`, the cookie jar, every storage). The host (Render) receives the request, like any web host.
+- **Only shipping features are described.** `DEFAULT_FEATURES` has `counts` and `cloudBackup` off, so the website says
+  nothing about weekly counts or an encrypted backup on Solia Health's server (a unit test checks). "Backups and files
+  you make" is the encrypted backup FILE she saves herself.
+- **The list of what can leave the device is the app's whole list**, not a shorter one: a question to Solia Health's AI,
+  the weekly write-up, chat, meal photos, wearable connections, browser reminders, the shop tap count, feedback, files
+  she makes, her account, Pro (RevenueCat) and joining an organization. A shorter list under "only when you choose" would
+  have claimed more than the build does.
+- **New sentences written for the website (not the app's own strings). FLAG FOR ATTORNEY REVIEW, each one:**
+  - Hero: "Cycle, fertility, pregnancy, perimenopause and menopause tracking that lives on your device."
+  - "Your health log lives on your device. On a phone it is kept in the app's own storage; on the web, in your browser's
+    storage." and the five-item list under "What stays on your device" (shortened from `public/legal/privacy.html` §2).
+  - "Each of these does nothing until you use it, and the app says exactly what it sends where you turn it on. A version
+    of the app that doesn't offer one of them sends nothing for it."
+  - "No ads and no trackers. The app has no advertising and no third-party analytics or tracking code."
+  - Shop: "Some product links may be affiliate links, labelled "Affiliate link" in the app. Solia Health may earn a
+    commission if you buy through one. It never changes what we show you." The build has NO affiliate link configured
+    today (`src/config/affiliates.json` is empty), so the page says "may be"; the build switches the sentence to "Some
+    product links are affiliate links" by itself once one is configured (FTC endorsement guides: confirm the wording and
+    its placement).
+  - Questions: "No. Solia Health shows patterns from what you log and plain-language information. It does not diagnose,
+    treat, cure or prevent any condition and does not replace your clinician. It has not been reviewed or cleared by the
+    U.S. Food and Drug Administration." (from `public/legal/medical-disclaimer.html`) · "No. Solia Health is not a
+    contraceptive. … Period, ovulation and fertile-window predictions are estimates and can be wrong."
+  - Questions, "Does the website track me?": "No. These website pages set no cookies, keep nothing in your browser and
+    load nothing from any other site: no analytics, no advertising pixels, and no fonts or scripts from elsewhere." · "The
+    front page runs one small script. It looks, on your device, for a Solia Health log already in this browser so it can
+    open the web app for you. It sends nothing." · "The usual caveat. Like any web host, our hosting provider (Render)
+    receives the usual request details when a page loads, such as your IP address and browser type." · "The web app at
+    /app/ is separate from these pages: it keeps your log in this browser, on your device."
+  - Pricing: "These are reference prices. They are Solia Health's US prices as built into this version of the website.
+    Prices are set by the App Store and Google Play and can differ by country; the app shows the store's own price before
+    you subscribe." · "It renews until you cancel. Each plan renews automatically at the end of its month or year." ·
+    "No card, and nothing to cancel." (the free week) · "Nothing is sold on the web. The web app has no free-week limit:
+    logging, your cycle and a clear summary for appointments are free." (auto-renewal disclosure rules: confirm).
+  - Clinics and employers: "A clinic or employer can offer Solia Health under its own name, logo and colours, with the life
+    stages and products it chooses. People join with an invite code or a link." · "Totals only. The organization's admins
+    see how many people joined, how many of them have an account or Pro, and joins per week. Any number under 10 shows as
+    "fewer than 10", and they never see a name, an email or anything a person logs."
+  - Footer: "Drafts. The policies and terms linked here are drafts waiting for attorney review; each one says so at its
+    top." Shown only while a page in `public/legal/` still carries its draft notice; it disappears by itself when the
+    notices are removed.
+- **Deliberately not said:** no minimum age (open attorney question); no testimonial, rating, user count, press logo,
+  award, "clinically proven", "doctor recommended" or "HIPAA compliant"; no promise about a health outcome; no sentence
+  that states a visitor's own condition as a fact; no "we never sell your data" on the front page (that promise is in the
+  draft Privacy Policy, which the page links). A unit test scans every page for these.
+- **Open for the attorney:** how long Render keeps request logs (the Privacy Policy still has `[confirm with Render]`);
+  whether the footer's "(Washington My Health My Data Act)" label and the separate link meet RCW 19.373's homepage-link
+  requirement; whether reference prices with the trial terms on a page that sells nothing need any further disclosure.

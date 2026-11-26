@@ -79,3 +79,56 @@ Resume from here after a restart. Baselines on 530af43: 737 unit, 148 backend, 1
 | e2e (`npm run e2e -- --trace off`) | 123/123 (120 + 3 in `site-move.spec.mjs`) |
 | axe (`npm run e2e:axe -- --trace off`) | 74/74 |
 | Native path | `npm run build:native`: the app at the root of `dist/`, stamp once, no website file. `npx cap copy android` and `npx cap copy ios` ran here: the guard passed and both `public/` folders hold `index.html`, `assets/`, `fonts/`, `icons/`, `legal/`, `voice/`, `shop/`, `sw.js`, `manifest.webmanifest` and Capacitor's two cordova files, nothing else. On a web build the same command stops before copying. NOT RUN: Xcode and Android Studio builds (not available in this container). |
+
+## Task 2: "Website: what Solia Health is, and where to get it" — DONE
+
+**What was built**
+- `site/` is the source: `site/pages/` (the pages as plain strings: `home.mjs`, `layout.mjs`, `copy.mjs`), `site/css/site.css`
+  (the rules), `site/build/` (`site.mjs` the builder, `app-data.mjs` reads the app's modules through Vite, `tokens.mjs`
+  writes the CSS tokens, `claims.mjs` writes the claims list), `site/img/` (the screenshots), `site/shots.mjs` (retakes
+  them), `site/static/` (`go.js`, the retiring `sw.js`).
+- Output beside `dist/app/`: `/index.html`, `/404.html`, `/sw.js`, and the site's own files under `/site/`
+  (`site.css`, `go.js`, `fonts/` ×4, `img/` ×10). No React, no bundle, one CSS file, one script (front page only).
+- **The look is the app's Soft style, generated, not retyped:** the seven palette tokens of Periwinkle & Rose (the brand's
+  colour) and every Soft scheme token, light and dark, from `src/lib/constants.js`; each life stage card wears the palette
+  the app gives that stage (`stagePalettes`); Fraunces + Karla are the same `@fontsource-variable` files the app bundles;
+  StageArt, the icons and the brand mark are rendered from the app's components at build time. `site/css/site.css` has
+  no colour literal (a unit test scans it) and no data-viz ramp or family colour is used (a unit test checks).
+  The page background is the app's own wash recipe (`styles.js .cy`), the phones sit in soft halos like Home's cycle
+  ring, the buttons are the app's pills. Dark follows `prefers-color-scheme`.
+- **Screenshots are real:** `npm run site:shots` builds the web app with the shipping default features, no server and the
+  demo seed, registers in My Cycle and captures Home, the Log something sheet, Patterns, the Calendar and the Report at
+  390×844 @2x, light and dark, re-encoded as WebP (37–80 kB each, 780×1688). Each `<img>` has width, height and an alt
+  text that says the data is an example; each has a dark twin (`<picture>`); only the first loads eagerly.
+- **Sections, in the brief's order:** hero · "Your privacy, plainly" · five life stages · what it does · what Pro adds ·
+  pricing · clinics and employers · six questions · footer (Privacy Policy, Consumer Health Data Privacy Policy with
+  "(Washington My Health My Data Act)", Terms of Use, Medical disclaimer, Support, Delete your account, "© Solia Health").
+  Until Task 3 adds the two pages, "Support" and "Delete your account" go to the matching question on the front page
+  (`layout.mjs hrefFor`), so no link is dead in this commit.
+- **Every sentence, verbatim, with its source:** `docs/plans/website-claims.md` (generated from the pages; 169 claims and
+  13 labels on the front page). That file is the list of every new user-facing sentence this task added.
+- Download buttons: `VITE_APP_STORE_URL` / `VITE_PLAY_STORE_URL` through the app's own `src/lib/links.js`; unset →
+  "Coming soon to the App Store" / "Coming soon to Google Play" as text; `VITE_APP_STORE_ID` adds the Smart App Banner.
+  `render.yaml`, `.env.example` and `docs/STORE-SETUP.md` §8 (the official badges note) say so.
+- A strict Content-Security-Policy on every page (this origin only; no inline script or style anywhere).
+
+**Deviations from the brief, each because the brief's wording would not have been literally true of the build**
+1. **Affiliate links:** the brief asks to "say plainly that some product links are affiliate links". This build has none
+   configured (`src/config/affiliates.json` is all empty), so the page says "Some product links may be affiliate links,
+   labelled "Affiliate link" in the app. Solia Health may earn a commission if you buy through one." The build changes
+   "may be" to "are" by itself when at least one is configured.
+2. **"The optional encrypted backup":** the encrypted backup on Solia Health's server (`cloudBackup`) is not in the
+   shipping features, so the website describes the encrypted backup FILE she makes, which never reaches a server.
+3. **"The only things that ever leave":** the app's shipping build can send more than the brief's six (a question to the
+   AI, browser reminders, wearable connections, Pro's ids to RevenueCat, joining an organization). The section lists all
+   of the app's own rows instead of claiming a shorter list.
+4. **"Stays on her phone":** the hero says "lives on your device" (the app's own words; on the web it is the browser).
+5. **Clinics and employers contact link:** shown only when `VITE_SUPPORT_EMAIL` is set (it is unset here), as the brief
+   says "when set"; with it unset there is no contact line at all rather than an invented address.
+6. **The meta description does not say "for iPhone and Android"** while the store links are unset.
+7. **No "About the website" link was added to the app** (changing the app's screens is out of scope); `/?site=1` works.
+8. **No italic for the slogan** (the italic Fraunces file would add 81 kB for three words).
+
+**Tests added:** unit `src/lib/site.test.mjs` 8 → 18 (+10; Task 1's page test was rewritten for the real pages);
+e2e `e2e/site.spec.mjs` (+3); axe `e2e/site-axe.spec.mjs` (+4: light and dark × 390 and 1280, questions closed and
+open). Shared page list for the specs: `e2e/lib/site.mjs`.
