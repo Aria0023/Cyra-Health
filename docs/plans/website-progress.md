@@ -219,3 +219,53 @@ tests now audit four pages each (no new test, more pages).
 After those runs one line of `site/build/app-data.mjs` changed (the helper server no longer pre-bundles, which had
 sometimes printed "The build was canceled" into the build log). The e2e build made afterwards with the same settings is
 byte-for-byte identical to the one the e2e and axe runs used (`diff -rq`), and lint and the 761 unit tests were run again.
+
+## Task 4: "Ad kit: images and copy that pass the ad platforms' health rules" — DONE
+
+**What was built**
+- **`docs/marketing/ads/`: twelve pictures**, three concepts × four sizes, light only, drawn from HTML with the e2e
+  harness's Chromium at deviceScaleFactor 2 (`site/cards.mjs`, rules in `site/css/cards.css`, tokens only):
+  `privacy-first-*` (the Home screenshot), `life-stages-*` (the five stage illustrations from the app, each in its own
+  stage palette), `quick-log-*` (the Log something sheet) at 1080×1080, 1080×1350, 1080×1920 and 1200×628, saved as
+  JPEG at twice those sizes (156–453 kB each, 3.3 MB in all). Fonts and pictures are inside each card as data: URIs;
+  the drawing context is offline with scripts off. Not in `dist/`: the site builder copies `site/img/` only.
+- **`docs/marketing/ADS.md`**, generated from `site/ads.mjs` (`npm run site:ads`; `-- --md` for the words only): how to use
+  the kit, the picture table, and per concept the words on the picture, three headlines of at most 30 characters, three
+  of 31 to 40, two primary texts of at most 125, a long primary text, two descriptions and the call to action; the App
+  Store / Play listing text (name 12/30, subtitle 29/30, short description 70/80, promotional text 136/170, keywords
+  99/100); and the checklist of rules the lines were written to (Meta personal attributes, Meta health and reproductive
+  health, Google healthcare and medicines, Google personalised advertising, Apple 1.4.1 and 5.1.3, Google Play, FTC truth
+  in advertising, FTC Health Breach Notification Rule, affiliate disclosure, state law). It says plainly, at the top and
+  on the checklist's heading, that it is not legal advice and needs the attorney, and that no policy page could be read
+  while it was written.
+- Every line carries the file that makes it true, in the table beside it. **Every new sentence of this task, verbatim, is
+  in `docs/marketing/ADS.md`.**
+
+**Decisions and deviations**
+1. **JPEG, not PNG.** Soft gradients at 2160×3840 are several megabytes each as PNG; the twelve JPEGs at quality 90 are
+   3.3 MB together and every ad platform takes them.
+2. **"No ad networks. No trackers." and "on your device", not "No ads" and "private".** While writing the kit the
+   website's line "No ads and no trackers" was found to say more than the build does (the Shop lists products, some
+   through affiliate links), so the website's sentence changed too: "No ad networks and no trackers. The app shows no
+   advertising from ad networks and has no third-party analytics or tracking code. Its Shop lists products, and says
+   which links are affiliate links." (docs/PRIVACY-AUDIT.md, flagged.)
+3. **The call to action is "Learn more"**, the platform's own button, because the apps are not in the stores yet.
+4. **No dark set**: the brief asks for light.
+5. **The checklist is from memory of the platforms' rules.** NOT VERIFIED against their current text (no outside host is
+   reachable from this session); ADS.md says so.
+
+**Tests added:** unit `src/lib/site.test.mjs` 22 → 25 (+3: limits and sources; the wording rules; ADS.md up to date, the
+twelve pictures at twice the named size, nothing of the kit in the website build).
+
+**Verified 2026-11-26 on the Task 4 tree (full runs from the worktree, nothing else running)**
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | 0 errors, 23 warnings (the same 23) |
+| `npm run test:unit` | 764/764 (761 + 3) |
+| `cd backend && npm test` | 148/148 |
+| `cd backend && npm run smoke:all` | exit 0 |
+| `npm run build` | ok; "BUILD 2026.10.07-D" exactly once in `dist/`; no ad picture and no ADS.md in `dist/` |
+| e2e (`npm run e2e -- --trace off`) | 128/128 |
+| axe (`npm run e2e:axe -- --trace off`) | 78/78 |
+| Native path | `npm run build:native` + `npx cap copy android`: the app at the root, no website page, no ad kit. Xcode / Android Studio builds NOT RUN. |

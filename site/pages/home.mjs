@@ -105,7 +105,7 @@ ${off.join("\n")}
 ${self.join("\n")}
 </ul>
 <p class="fine">${c.t(P.other.server, `${FLOWS} FLOW_COPY.other.server; backend/src/core/memory.js`)}</p>
-<p>${c.h("<strong>No ads and no trackers.</strong> The app has no advertising and no third-party analytics or tracking code.", "package.json (no such dependency); public/legal/privacy.html (the short version, section 6); docs/MONETIZATION.md section 6; e2e/privacy.spec.mjs")} <a href="/legal/privacy.html">${c.t("Read the Privacy Policy", "public/legal/privacy.html")}</a></p>
+<p>${c.h("<strong>No ad networks and no trackers.</strong> The app shows no advertising from ad networks and has no third-party analytics or tracking code. Its Shop lists products, and says which links are affiliate links.", "package.json (no advertising or analytics dependency); public/legal/privacy.html (the short version, section 6); docs/MONETIZATION.md sections 6 and 7; src/lib/shop.js SHOP_COPY.affiliate; e2e/privacy.spec.mjs")} <a href="/legal/privacy.html">${c.t("Read the Privacy Policy", "public/legal/privacy.html")}</a></p>
 </div>
 </div>
 </div>

@@ -6,7 +6,9 @@
    strings; no page references another origin, sets a cookie or carries an inline script or style; every word a page
    shows is in the claims register with a source file that exists; the copy rules of the brief hold.
    Task 3: the support and delete-account pages say what the app and the backend really do; canonical links, the
-   sitemap and the sharing card; structured data without any rating; the Privacy Policy's "This website" section. */
+   sitemap and the sharing card; structured data without any rating; the Privacy Policy's "This website" section.
+   Task 4: the ad kit's lines are within their limits, each names a file that makes it true, none addresses the reader's
+   own health, and the twelve pictures exist at the sizes the kit names and are never part of the website build. */
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -19,6 +21,7 @@ import { nativeDistProblems } from "../../site/build/native-check.mjs";
 import { renderPages, siteCss, siteFonts, siteContext, ASSETS } from "../../site/build/site.mjs";
 import { loadAppData, siteUrl } from "../../site/build/app-data.mjs";
 import { robotsTxt, sitemapXml, OG_IMAGE } from "../../site/build/seo.mjs";
+import { adConcepts, storeListing, adCards, adsMarkdown, AD_SIZES, LIMITS, RULES, ADS_DIR, ADS_FILE } from "../../site/ads.mjs";
 import { tokensCss } from "../../site/build/tokens.mjs";
 import { claimsMarkdown, CLAIMS_FILE } from "../../site/build/claims.mjs";
 import { LABEL, plain } from "../../site/pages/copy.mjs";
@@ -407,6 +410,9 @@ test("screenshots are committed, sized and described; the stage illustrations an
 
 /* ---------- Task 3: support, delete your account, search and sharing ---------- */
 
+/** [width, height] of a JPEG, from its frame header. */
+const jpegSize = (b) => { for (let i = 2; i < b.length - 9;) { if (b[i] !== 0xff) return null; const m = b[i + 1]; if (m >= 0xc0 && m <= 0xc2) return [b.readUInt16BE(i + 7), b.readUInt16BE(i + 5)]; i += 2 + b.readUInt16BE(i + 2); } return null; };
+
 const SUPPORT = page("support/index.html").html;
 const DELETE = page("delete-account/index.html").html;
 const withData = (over, rel) => renderPages({ ...D, ...over }).find((p) => p.rel === rel).html;
@@ -488,8 +494,7 @@ test("search and sharing: canonical and the sitemap only with a known address; t
   // the sharing card is a committed 1200x630 JPEG of this site's own
   const og = fs.readFileSync(path.join(ROOT, "site", "img", OG_IMAGE.file));
   assert.deepEqual([og[0], og[1]], [0xff, 0xd8], "a JPEG");
-  const sof = (() => { for (let i = 2; i < og.length - 9;) { if (og[i] !== 0xff) return null; const m = og[i + 1]; if (m >= 0xc0 && m <= 0xc2) return [og.readUInt16BE(i + 7), og.readUInt16BE(i + 5)]; i += 2 + og.readUInt16BE(i + 2); } return null; })();
-  assert.deepEqual(sof, [OG_IMAGE.width, OG_IMAGE.height]); assert.deepEqual([OG_IMAGE.width, OG_IMAGE.height], [1200, 630]);
+  assert.deepEqual(jpegSize(og), [OG_IMAGE.width, OG_IMAGE.height]); assert.deepEqual([OG_IMAGE.width, OG_IMAGE.height], [1200, 630]);
   assert.ok(og.length < 200_000);
   // structured data: on the front page only; never a rating, a review or a count
   const ldOf = (html) => [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
@@ -513,5 +518,78 @@ test("the Privacy Policy's \"This website\" section says what the site does, and
   for (const s of ["sets no cookies, stores nothing in your browser and loads nothing from any other company", "no analytics, no advertising or tracking pixels, and no fonts or scripts from elsewhere", "That script sends nothing to us or to anyone else.", "shows our hosting provider (Render) your device's internet (IP) address, your browser type and the time"]) assert.ok(part.includes(s), s);
   for (const row of ["<td>App settings</td>", "<td>Joining an organization (optional, with an invite code or link from a clinic or employer)</td>", "<td>Every connection to our server</td>"]) assert.ok(html.includes(row), row);
   assert.ok(read("docs/PRIVACY-AUDIT.md").includes('`public/legal/privacy.html` §3 gains "This website"'), "the change is in the audit, flagged for the attorney");
+});
+
+/* ---------- Task 4: the ad kit ---------- */
+
+const sourcesExist = (src, what) => {
+  if (src === LABEL) return;
+  for (const part of src.split(/; (?![^()]*\))/)) {
+    const file = part.split(/[ :,]/)[0];
+    assert.ok(/^(src|backend|site|public|docs|e2e|scripts)\/|^(package\.json|render\.yaml|capacitor\.config\.json)$/.test(file) && fs.existsSync(path.join(ROOT, file)), `${what}: source ${file} does not exist`);
+  }
+};
+
+test("ad kit: three concepts, every line within its limit and with a source that exists", () => {
+  const concepts = adConcepts(D);
+  assert.deepEqual(concepts.map((c) => c.id), ["privacy-first", "life-stages", "quick-log"]);
+  for (const c of concepts) {
+    assert.ok(c.headlines30.length >= 3 && c.headlines40.length >= 3 && c.primary.length >= 2 && c.descriptions.length >= 2, `${c.id}: enough lines to rotate`);
+    for (const l of c.headlines30) assert.ok(l.text.length <= LIMITS.headline30, `${c.id}: "${l.text}" is ${l.text.length} > 30`);
+    for (const l of c.headlines40) assert.ok(l.text.length <= LIMITS.headline40 && l.text.length > LIMITS.headline30, `${c.id}: "${l.text}" is ${l.text.length} (31 to 40)`);
+    for (const l of c.primary) assert.ok(l.text.length <= LIMITS.primary, `${c.id}: primary text is ${l.text.length} > 125`);
+    for (const l of c.descriptions) assert.ok(l.text.length <= LIMITS.description, `${c.id}: "${l.text}"`);
+    assert.ok(c.cta.text.length <= LIMITS.cta);
+    for (const l of [c.image.headline, c.image.sub, ...c.headlines30, ...c.headlines40, ...c.primary, ...c.primaryLong, ...c.descriptions, c.cta]) sourcesExist(l.src, `${c.id} "${l.text.slice(0, 30)}"`);
+  }
+  const s = storeListing(D);
+  for (const k of ["name", "subtitle", "short", "promo", "keywords"]) { assert.ok(s[k].text.length <= LIMITS[k], `${k} is ${s[k].text.length} > ${LIMITS[k]}`); sourcesExist(s[k].src, k); }
+  assert.deepEqual([LIMITS.name, LIMITS.subtitle, LIMITS.short, LIMITS.promo, LIMITS.keywords], [30, 30, 80, 170, 100]);
+  assert.equal(s.name.text, JSON.parse(read("capacitor.config.json")).appName);
+  assert.ok(!/[A-Z]{4,}|!|free|best|#1|\$|\d/.test(`${s.name.text} ${s.subtitle.text} ${s.short.text}`), "no price, ranking, shouting or number in the name, subtitle or short description");
+  assert.ok(s.keywords.text.split(",").every((k) => /^[a-z]+$/.test(k)) && !/flo|clue|natural cycles|ovia|apple|google/i.test(s.keywords.text), "plain keywords, no other app's name");
+  // the app's own sentences are still the app's
+  assert.equal(concepts[2].image.headline.text, "Track in 30 seconds a day.");
+  assert.equal(concepts[1].image.sub.text, "One stage at a time. Changing it keeps everything you've logged.");
+});
+
+test("ad kit: no line speaks about the reader's own health, promises a result, names a price or breaks the copy rules", () => {
+  const lines = [...adConcepts(D).flatMap((c) => [c.image.headline, c.image.sub, ...c.headlines30, ...c.headlines40, ...c.primary, ...c.primaryLong, ...c.descriptions]), ...Object.values(storeListing(D))].map((l) => l.text);
+  const banned = [/\?/, /\bare you\b|\bdo you\b|\bstruggling\b|\bsuffering\b|\btired of\b/i,
+    /\byour (period|periods|cycle|cycles|pregnancy|baby|fertility|ovulation|menopause|perimenopause|pcos|symptoms?|hot flashes|body|hormones|weight|condition|diagnosis)\b/i,
+    /\byou(?:'re| are) (pregnant|trying|menopausal|perimenopausal|ovulating|late)\b/i,
+    /testimonial|\b\d[\d,.]*\+?\s*(million|thousand|k)?\s*(users|women|people|downloads|reviews)\b/i, /★|⭐|\bstars?\b|\brated\b|\brating/i, /award|as seen in|featured in/i,
+    /clinically|doctor[- ]recommended|recommended by|HIPAA|\bcures?\b|\btreats?\b|\bprevents?\b|guarantee|\bproven\b|\baccurate\b|\bbalance your\b|\bfix\b|\bboost\b|lose weight/i,
+    /\$\s?\d|\bfree trial\b|\b\d+% off\b|\bdiscount\b/i, /#1|\bbest\b|most trusted|\bleading\b|\bonly app\b/i, /\b(1[2-9]|21)\+|years? (old|of age)|\bminimum age/i];
+  for (const text of lines) for (const re of banned) assert.ok(!re.test(text), `"${text}" matches ${re}`);
+  // "your" appears only with a device, a phone or the log itself
+  for (const text of lines) for (const [, noun] of text.matchAll(/\byour ([a-z]+)/gi)) assert.ok(["device", "phone", "log", "health"].includes(noun.toLowerCase()), `"your ${noun}" in "${text}"`);
+  for (const text of lines.filter((t) => /your health\b/i.test(t))) assert.ok(/your health log|about your health leaves/i.test(text), `"${text}": "your health" only as the app's own privacy sentence`);
+  // fertility is never mentioned without the estimate / not-a-contraceptive line beside it
+  for (const text of lines.filter((t) => /fertile window/i.test(t))) assert.ok(/estimate/i.test(text) && /not a contraceptive/i.test(text), text);
+  const rules = RULES.map(([title]) => title).join(" | ");
+  for (const must of ["Meta", "personal attributes", "Google Ads: healthcare", "personalised advertising", "1.4.1 and 5.1.3", "FTC: truth in advertising", "Health Breach Notification Rule", "Affiliate disclosure"]) assert.ok(rules.includes(must), `the checklist covers ${must}`);
+});
+
+test("ad kit: ADS.md is generated and says it is not legal advice; twelve pictures at twice the named size, never in the website build", () => {
+  const md = adsMarkdown(D);
+  assert.equal(fs.readFileSync(ADS_FILE, "utf8"), md, "docs/marketing/ADS.md is out of date: run npm run site:ads -- --md");
+  assert.ok(md.includes("**This is not legal advice.**") && md.includes("Have your attorney review the kit and the checklist before any") && md.includes("(not legal advice)"));
+  assert.ok(md.includes("No outside page could be opened while this was written"), "it says the policies were not re-read");
+  assert.deepEqual(AD_SIZES.map((s) => s.id), ["1080x1080", "1080x1350", "1080x1920", "1200x628"]);
+  const cards = adCards(D);
+  assert.equal(cards.length, 12);
+  for (const c of cards) {
+    assert.equal(path.dirname(c.out), ADS_DIR); assert.equal(c.scale, 2, "deviceScaleFactor 2");
+    assert.ok(fs.existsSync(c.out), `${path.basename(c.out)}: run npm run site:ads`);
+    assert.deepEqual(jpegSize(fs.readFileSync(c.out)), [c.width * 2, c.height * 2], path.basename(c.out));
+    assert.ok(!/prefers-color-scheme/.test(c.html), "light only");
+    assert.ok(!/https?:\/\//.test(c.html.replace(/xmlns="http:\/\/www\.w3\.org\/[^"]+"/g, "")), "a card loads nothing from anywhere: fonts and pictures are inside it");
+  }
+  assert.deepEqual(fs.readdirSync(ADS_DIR).sort(), cards.map((c) => path.basename(c.out)).sort(), "nothing else in docs/marketing/ads/");
+  // not shipped: the site builder copies site/img/ only, and the ads are not there
+  const builder = read("site/build/site.mjs");
+  assert.ok(!/marketing|ads\.mjs/.test(builder.replace(/\/\*[\s\S]*?\*\//g, "")));
+  assert.ok(!fs.readdirSync(path.join(ROOT, "site", "img")).some((f) => /privacy-first|life-stages|quick-log/.test(f)));
 });
 

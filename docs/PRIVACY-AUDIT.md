@@ -3123,7 +3123,11 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
     storage." and the five-item list under "What stays on your device" (shortened from `public/legal/privacy.html` §2).
   - "Each of these does nothing until you use it, and the app says exactly what it sends where you turn it on. A version
     of the app that doesn't offer one of them sends nothing for it."
-  - "No ads and no trackers. The app has no advertising and no third-party analytics or tracking code."
+  - "No ad networks and no trackers. The app shows no advertising from ad networks and has no third-party analytics or
+    tracking code. Its Shop lists products, and says which links are affiliate links." (Changed in Task 4 from "No ads
+    and no trackers…": the Shop lists products, some through affiliate links, so "no ads" said more than the build does.
+    The draft Privacy Policy still says "the app has no advertising"; whether that sentence should also name the Shop is a
+    question for the attorney.)
   - Shop: "Some product links may be affiliate links, labelled "Affiliate link" in the app. Solia Health may earn a
     commission if you buy through one. It never changes what we show you." The build has NO affiliate link configured
     today (`src/config/affiliates.json` is empty), so the page says "may be"; the build switches the sentence to "Some
@@ -3198,3 +3202,22 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
   embedded from a social network and no page loads a social script. Structured data is `SoftwareApplication` with a name,
   a description, where it runs and "The web app is free to use."; it has no rating, review, award or count field, and a
   unit test fails if one appears. `/app/` is `noindex`; the legal drafts keep their own `noindex, nofollow`.
+
+### Task 4: the ad kit — words and pictures only; no ad network, pixel, tag or SDK anywhere
+- `docs/marketing/ADS.md` (generated from `site/ads.mjs`) and twelve pictures in `docs/marketing/ads/`. Nothing in the kit
+  is deployed: the site builder copies `site/img/` only (a unit test checks), and the pictures are drawn offline from the
+  committed app screenshots (example data), the app's tokens and the app's own font files.
+- **The owner's decision stands in code:** the website and the app load nothing from an ad platform. Nobody who sees or
+  clicks an ad is measured by an ad platform through Solia Health. The checklist in ADS.md says never to upload a user
+  list or app events to an ad platform (FTC Health Breach Notification Rule) and never to add a pixel, tag or SDK.
+- **Every line is a claim with a source** (the same rule as the website), kept within the platforms' character limits and
+  pinned by unit tests: no line addresses the reader's own health or condition, asks a question, promises a result,
+  names a price or uses a ranking word; "your" appears only with "device", "phone", "log" and in the app's own privacy
+  sentence; a fertile window is never mentioned without "estimate" and "Solia Health is not a contraceptive."
+- **Wording chosen to be narrower than the usual ad phrases, FLAG FOR ATTORNEY REVIEW:** "No ad networks. No trackers."
+  (not "no ads": the Shop lists products, some through affiliate links) and "on your device" (not "private": optional
+  features send what she chooses to a server). "Track in 30 seconds a day." is the app's own first-screen line.
+- **The checklist is not legal advice and says so twice.** It was written from the platforms' published rules as
+  remembered; no outside page could be opened in this session, so none of it was checked against today's policy text.
+  Meta's adults-only rule for reproductive health ads is given as an ad-targeting setting, not as a statement about who
+  may use the app (the minimum age is still an open attorney question, and the website says nothing about age).

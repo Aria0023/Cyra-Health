@@ -29,4 +29,17 @@ h1 { font: 600 calc(var(--u) * var(--h1, 5.4)) / 1.08 var(--ff-display); letter-
 .wide .art { align-self: start; justify-self: center; margin-top: calc(var(--u) * 1); }
 .tall, .square { grid-template-rows: auto minmax(0, 1fr); justify-items: start; }
 .tall .art, .square .art { justify-self: center; align-self: start; }
-.story { padding-top: calc(var(--u) * 16); padding-bottom: calc(var(--u) * 20); }
+/* a story: the words start below the top 14% (the platform's own header), and the brand line is larger */
+.story { padding-top: calc(var(--u) * 26); padding-bottom: 0; }
+.story .brand { font-size: calc(var(--u) * 4.6); }
+.story .brand svg { width: calc(var(--u) * 5.6); height: calc(var(--u) * 5.6); }
+.story .brand span { font-size: calc(var(--u) * 1.8); }
+/* the life-stages picture: the five illustrations in a row under the words (three and two in a story) */
+.tiles { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; align-content: center; justify-items: stretch; }
+.tiles .art { justify-self: stretch; align-self: start; margin-top: calc(var(--u) * 2); }
+.tiles.tall .stages { flex-wrap: wrap; justify-content: center; gap: calc(var(--u) * 2.4); }
+.tiles.tall .stages li { flex: 0 0 30.5%; font-size: calc(var(--u) * 2.5); padding: calc(var(--u) * 2.6) calc(var(--u) * 1.6); }
+.tiles.story { padding-bottom: calc(var(--u) * 36); align-content: start; }
+.tiles.square .stages li { font-size: calc(var(--u) * 1.9); padding: calc(var(--u) * 2) calc(var(--u) * 1); }
+.tiles.wide .stages li { font-size: calc(var(--u) * 2.2); padding: calc(var(--u) * 2) calc(var(--u) * 1.2); }
+.tiles.wide .stages svg { max-height: calc(var(--u) * 20); }

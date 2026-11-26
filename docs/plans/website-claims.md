@@ -83,7 +83,7 @@ support address and no site address set (the repository's defaults); with those 
 | Off until you turn it on | src/lib/features.js; src/lib/privacyFlows.js flowRows (state off) |
 | Only when you do it yourself | src/lib/privacyFlows.js flowRows (states you / send); src/lib/signin.js; src/lib/purchase.js; src/lib/orgLive.js |
 | Any request to Solia Health's server shows your device's internet address and app or browser type. Solia Health's own code doesn't keep the address. | src/lib/privacyFlows.js FLOW_COPY.other.server; backend/src/core/memory.js |
-| No ads and no trackers. The app has no advertising and no third-party analytics or tracking code. | package.json (no such dependency); public/legal/privacy.html (the short version, section 6); docs/MONETIZATION.md section 6; e2e/privacy.spec.mjs |
+| No ad networks and no trackers. The app shows no advertising from ad networks and has no third-party analytics or tracking code. Its Shop lists products, and says which links are affiliate links. | package.json (no advertising or analytics dependency); public/legal/privacy.html (the short version, section 6); docs/MONETIZATION.md sections 6 and 7; src/lib/shop.js SHOP_COPY.affiliate; e2e/privacy.spec.mjs |
 | Read the Privacy Policy | public/legal/privacy.html |
 | Five life stages, one at a time | src/lib/onboarding.js STAGE_CARDS, primaryStage (one experience per person) |
 | You choose the stage you are in, and the whole app is set up for it. One stage at a time. Changing it keeps everything you've logged. | src/lib/onboarding.js primaryStage; src/locales/en-ui.js you.cyraIsShapedAroundOne |

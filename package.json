@@ -10,6 +10,7 @@
     "preview": "node site/build/serve.mjs dist --host 0.0.0.0",
     "site:shots": "node site/shots.mjs",
     "site:cards": "node site/cards.mjs",
+    "site:ads": "node site/ads.mjs",
     "site:claims": "node site/build/claims.mjs",
     "test:unit": "node --test \"src/lib/*.test.mjs\"",
     "backend": "cd backend && npm install && npm start",
