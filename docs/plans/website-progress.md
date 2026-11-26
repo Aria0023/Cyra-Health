@@ -132,3 +132,21 @@ Resume from here after a restart. Baselines on 530af43: 737 unit, 148 backend, 1
 **Tests added:** unit `src/lib/site.test.mjs` 8 → 18 (+10; Task 1's page test was rewritten for the real pages);
 e2e `e2e/site.spec.mjs` (+3); axe `e2e/site-axe.spec.mjs` (+4: light and dark × 390 and 1280, questions closed and
 open). Shared page list for the specs: `e2e/lib/site.mjs`.
+
+**Verified 2026-11-26 on the Task 2 tree (WIP f606222; lint, unit, backend, smoke and build in the worktree before any
+Task 3 edit; e2e and axe as full runs from a clean temporary worktree of f606222, removed after the eval)**
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | 0 errors, 23 warnings (the same 23) |
+| `npm run test:unit` | 757/757 (747 + 10) |
+| `cd backend && npm test` | 148/148 |
+| `cd backend && npm run smoke:all` | exit 0 |
+| `npm run build` | ok; "BUILD 2026.10.07-D" exactly once in `dist/`; the site's own files are 804 kB in `dist/site/` |
+| e2e (`npm run e2e -- --trace off`) | 126/126 (123 + 3 in `site.spec.mjs`) |
+| axe (`npm run e2e:axe -- --trace off`) | 78/78 (74 + 4 in `site-axe.spec.mjs`: front page and 404, light and dark, 390 and 1280, questions closed and open) |
+| Native path | `npm run build:native` then the Capacitor guard: passes on the phone build, stops on the web build (now recognised by `app/`, `site/`, `404.html`). Xcode / Android Studio builds NOT RUN (not available here). |
+
+Note for whoever reruns the suite: `e2e/orgs.spec.mjs:68` ("a ?org= link…") reads the mock's request list on the line after
+a click, without waiting. It passed in every quiet run (Task 1, and this clean run) and failed twice while another suite
+and a build were running on the same machine. It was not edited (it is not about the website).
