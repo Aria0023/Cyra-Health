@@ -3,9 +3,11 @@ import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { register } from "./lib/onboard.mjs";
 import { gotoTab, gotoSegment, gotoYou } from "./lib/nav.mjs";
+import { settled } from "./lib/settle.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 const audit = async (page, name) => {
+  await settled(page);
   const r = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   expect(r.violations.map((v) => `${v.id}: ${v.nodes.slice(0, 3).map((n) => n.target.join(" ")).join(" | ")}`), name).toEqual([]);
 };

@@ -19,6 +19,9 @@ html { -webkit-text-size-adjust: 100%; scroll-padding-top: 24px; }
 html[data-wait] body { visibility: hidden; }
 body {
   margin: 0; color: var(--ink); font: 400 1.0625rem/1.6 var(--ff-body); font-synthesis: none;
+  /* modern-web-guidance visually-stable-font-fallbacks: scale a fallback font to the web font's x-height, so text keeps
+     its size and the page doesn't jump when Karla or Fraunces arrives */
+  font-size-adjust: from-font;
   /* the app's own wash (styles.js .cy): lavender to sky to pink across the top of the paper, fading into it */
   background: linear-gradient(180deg, transparent 0, var(--paper) 640px) no-repeat, linear-gradient(105deg, var(--wash-a), var(--wash-b) 52%, var(--wash-c)) no-repeat, var(--paper);
   background-size: 100% 640px, 100% 640px, auto;

@@ -6,11 +6,13 @@ import AxeBuilder from "@axe-core/playwright";
 import { register, emailSignIn } from "./lib/onboard.mjs";
 import { gotoTab, gotoYou, setStyle } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
+import { settled } from "./lib/settle.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 const LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 const LAKESIDE = { version: 1, slug: "lakeside", name: "Lakeside Clinic", logo: LOGO, theme: { primary: "#2F5D50", accent: "#8A4E18", dark: { primary: "#8AC2B0", accent: "#D8A96A" } }, stages: ["peri", "meno"], partnerIds: null, poweredBy: "Solia Health" };
 const audit = async (page, name) => {
+  await settled(page);
   const r = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   expect(r.violations.map((v) => `${v.id} (${v.impact}): ${v.help} — ${v.nodes.slice(0, 3).map((n) => n.target.join(" ")).join(" | ")}`), `${name}: axe violations`).toEqual([]);
 };

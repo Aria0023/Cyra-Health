@@ -10,10 +10,12 @@ import { register } from "./lib/onboard.mjs";
 import { gotoTab, openLog, gotoGallery, gotoYou, setStyle } from "./lib/nav.mjs";
 import { mockApi, newApiState } from "./lib/api.mjs";
 import { plateFile } from "./lib/photo.mjs";
+import { settled } from "./lib/settle.mjs";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "best-practice"];
 const STYLES = ["Soft", "Mono", "Clear", "Journal", "Aura", "Sky", "Blush", "Mint", "Sunset"];
 const audit = async (page, name, include = null) => {
+  await settled(page);
   let b = new AxeBuilder({ page }).withTags(TAGS);
   if (include) b = b.include(include);
   const r = await b.analyze();
