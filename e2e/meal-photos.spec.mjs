@@ -33,7 +33,8 @@ async function openMeals(page, slot = "Lunch") {
   if (slot) await sheet.locator(".mealslots").getByRole("button", { name: slot, exact: true }).click();
   return sheet;
 }
-const photosOn = async (page) => { if (!(await page.locator("#you-ai").count())) await gotoYou(page, "Solia Health's AI"); await page.locator("#you-ai").getByRole("switch", { name: "Meal photos" }).click(); };
+// 2026-11-26 (meal-photos-findable): turning the switch on opens "Turn on meal photos", and its button confirms; turning it off is one tap
+const photosOn = async (page) => { if (!(await page.locator("#you-ai").count())) await gotoYou(page, "Solia Health's AI"); const sw = page.locator("#you-ai").getByRole("switch", { name: "Meal photos" }); const off = (await sw.getAttribute("aria-checked")) === "false"; await sw.click(); if (off) await page.locator("#meal-on-sheet").getByRole("button", { name: "Turn on meal photos" }).click(); };
 
 test("Meal photos off (the default): Meal notes has no photo button, no file input and no calorie figure, and nothing is sent", async ({ page }) => {
   const state = newApiState({ meal: () => ({ status: 200, json: ANSWER }) });
@@ -46,11 +47,11 @@ test("Meal photos off (the default): Meal notes has no photo button, no file inp
   const sheet = await openMeals(page);
   await sheet.getByRole("button", { name: "Balanced", exact: true }).click();
   await sheet.getByRole("button", { name: "Steady", exact: true }).click();
-  await expect(sheet.getByRole("button", { name: /photo/i })).toHaveCount(0);
+  await expect(sheet.getByRole("button", { name: /photo/i })).toHaveText(["Turn on meal photos"]); // 2026-11-26: the one way in; no photo button
   await expect(sheet.locator('input[type="file"]')).toHaveCount(0);
   await expect(sheet.getByRole("switch")).toHaveCount(0);
   await expect(sheet).not.toContainText("kcal");
-  await expect(sheet).toContainText("No scores and no targets. No photos or calorie estimates unless you turn on Meal photos in You → Solia Health's AI.");
+  await expect(sheet).toContainText("No scores and no targets. No photos or calorie estimates unless you turn on Meal photos. Kept on this device");
   await expect(sheet.locator(".meallist li")).toHaveText(["Lunch · Balanced · energy steadyRemove"]);
   expect(mealCalls(state)).toHaveLength(0);
   expect(state.sent.some((r) => /meal/.test(r.path))).toBe(false);
@@ -258,7 +259,7 @@ test("Meal photos: not food adds nothing; the monthly limit and a failed read sa
   await photosOn(page);
   await expect(toast(page)).toHaveText("Meal photos off. Nothing more will be sent.");
   sheet = await openMeals(page, null);
-  await expect(sheet.getByRole("button", { name: /photo/i })).toHaveCount(0);
+  await expect(sheet.getByRole("button", { name: /photo/i })).toHaveText(["Turn on meal photos"]); // 2026-11-26: only the way back in
   await expect(sheet.locator('input[type="file"]')).toHaveCount(0);
   expect(mealCalls(state)).toHaveLength(n);
 });

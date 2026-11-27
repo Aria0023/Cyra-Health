@@ -5,12 +5,12 @@ import Details from "./Details.jsx";
 import { MODULE_FRAMING, MODULES, sourcesOf } from "../lib/modules.js";
 import {
   MOVE_TYPES, MOVE_MINUTES, MOVE_MAX, SLEEP_CHIPS, SLEEP_MAX, SLEEP_STEP, hoursText, bodyDay, moveLabel, PCOS_DAY, LAB_KINDS,
-  WEIGHT_UNITS, labText, convert, checkValue, MEAL_SLOTS, MEAL_KINDS, MEAL_LATE, MEAL_ENERGY, MEALS_PER_DAY, mealText,
+  WEIGHT_UNITS, labText, convert, checkValue, MEAL_SLOTS, MEAL_KINDS, MEAL_LATE, MEAL_ENERGY, MEALS_PER_DAY, mealText, mealSlotOpen,
 } from "../lib/bodylog.js";
 import { t, fmtDate } from "../lib/i18n.js";
 import { HAND_KINDS, dailyQuestion } from "../lib/trying.js";
-import { MEAL_COPY, dayTotal, kcalRange, kcalRangeSaid, totalOf } from "../lib/mealPhoto.js";
-import { downsizePhoto, PhotoPick, MealSendBody, MealAnswerBody, MealEstimate, CalSwitch } from "./ai/MealPhoto.jsx";
+import { MEAL_COPY, dayTotal, kcalRange, kcalRangeSaid, totalOf, slotForHour } from "../lib/mealPhoto.js";
+import { downsizePhoto, PhotoPick, MealSendBody, MealAnswerBody, MealEstimate, CalSwitch, MealTurnOnBody } from "./ai/MealPhoto.jsx";
 
 /* The fast log's sheets (calm R4, spec §3.5b). Each one writes on tap: there is no Save to forget, and she can close it
    whenever. Everything is on this device only (lib/bodylog.js keys bodyLog / labs / bodyPrefs, and the existing meds /
@@ -232,15 +232,29 @@ export function PcosSheet({ day, dayWord, todayIso, log, labs, units, onToggle, 
    saved, this sheet has no photo button, no calorie figure and sends nothing. With it on, the selected meal gets "Add
    from a photo": the picture is made smaller on this device, "What Solia Health will send" shows it, and it goes only
    on Send. The answer is shown to edit or discard; only what she saves is kept, in that meal note. The three steps
-   share this one dialog (its title changes), so there is never a dialog on top of a dialog. */
-export function MealsSheet({ day, dayWord, log, onAdd, onSet, onRemove, onClose, photo = null }) {
+   share this one dialog (its title changes), so there is never a dialog on top of a dialog.
+   2026-11-26 (docs/plans/meal-photos-findable.md):
+   - while Meal photos is off in a build that can offer it, one line, "Add a photo instead?", with the way that fits her
+     (photo.way, lib/mealPhoto.js mealCardState): "Turn on meal photos" (a fourth step of this dialog, MealTurnOnBody;
+     photo.turnOn(showCal) turns it on and sends nothing), "Sign in to use meal photos" or "See Pro" (photo.onSignIn /
+     photo.onPro close this sheet and open theirs);
+   - `start` = { shot } is a picture already picked on the Body card and made smaller there: the sheet opens on "What
+     Solia Health will send" for it. Cancel, Discard and a failed read go back to the card (photo.cardNote says why);
+     a saved answer asks which of today's meals it was (the hour's meal is picked until she changes it) and shows it;
+   - the answer's "Show them" turns on "Show calorie estimates" (photo.setShowCal). */
+export function MealsSheet({ day, dayWord, log, onAdd, onSet, onRemove, onClose, photo = null, start = null }) {
   const meals = bodyDay(log, day).meals || [];
   const [sel, setSel] = useState(meals.length ? meals[meals.length - 1].id : null);
-  const [shot, setShot] = useState(null); // { body, w, h, bytes, mealId }: the picture waiting for Send, in memory only
+  const [shot, setShot] = useState(() => (start && start.shot ? { ...start.shot, mealId: null } : null)); // { body, w, h, bytes, mealId }: the picture waiting for Send, in memory only
   const [answer, setAnswer] = useState(null); // { items, sure, mealId }: waiting for Save or Discard
   const [prep, setPrep] = useState(false), [busy, setBusy] = useState(false), [note, setNote] = useState(null);
-  const step = shot ? "send" : answer ? "answer" : "log";
-  const sheetId = step === "send" ? "meal-send-sheet" : step === "answer" ? "meal-answer-sheet" : "meals-sheet";
+  const [asking, setAsking] = useState(false); // the "Turn on meal photos" step
+  const [fromCard, setFromCard] = useState(!!(start && start.shot)); // until its answer is saved
+  const full = meals.length >= MEALS_PER_DAY;
+  const slotBlocked = (id) => !mealSlotOpen(meals, id);
+  const [slot, setSlot] = useState(() => { const now = slotForHour(new Date().getHours()); return slotBlocked(now) ? (MEAL_SLOTS.find((x) => !slotBlocked(x.id)) || { id: now }).id : now; });
+  const step = shot ? "send" : answer ? "answer" : asking ? "on" : "log";
+  const sheetId = step === "send" ? "meal-send-sheet" : step === "answer" ? "meal-answer-sheet" : step === "on" ? "meal-on-sheet" : "meals-sheet";
   const first = useRef(true);
   useEffect(() => { if (first.current) { first.current = false; return; } document.getElementById(`${sheetId}-t`)?.focus(); }, [sheetId]);
   const showCal = !photo || photo.showCal !== false;
@@ -260,12 +274,13 @@ export function MealsSheet({ day, dayWord, log, onAdd, onSet, onRemove, onClose,
     setBusy(true);
     const r = await photo.send(shot.body);
     setBusy(false); setShot(null); // the picture is dropped whatever came back
-    if (!r.ok) { setNote(r.line); return; }
-    if (!r.answer.food) { setNote(MEAL_COPY.notFood); return; }
+    const why = !r.ok ? r.line : !r.answer.food ? MEAL_COPY.notFood : null;
+    if (why && fromCard) { photo.cardNote(why); onClose(); return; } // back to the Body card, which says why
+    if (why) { setNote(why); return; }
     setAnswer({ ...r.answer, mealId: shot.mealId });
   };
   if (step === "send") {
-    const cancel = () => { if (busy) return; setShot(null); photo.ping(MEAL_COPY.cancelSaid); };
+    const cancel = () => { if (busy) return; setShot(null); photo.ping(MEAL_COPY.cancelSaid); if (fromCard) onClose(); };
     return (
       <Sheet id={sheetId} title="What Solia Health will send" closeLabel="Close what Solia Health will send" onClose={cancel} className="bsheet aisend mealsend">
         <MealSendBody shot={shot} signedIn={photo.signedIn} busy={busy} onSend={sendShot} onClose={cancel} />
@@ -273,17 +288,35 @@ export function MealsSheet({ day, dayWord, log, onAdd, onSet, onRemove, onClose,
     );
   }
   if (step === "answer") {
-    const discard = () => { setAnswer(null); photo.ping(MEAL_COPY.discardSaid); };
+    const discard = () => { setAnswer(null); photo.ping(MEAL_COPY.discardSaid); if (fromCard) onClose(); };
+    // A photo from the Body card has no meal note yet: it is saved to the one she picks (a new note, or today's note for that meal).
+    const had = answer.mealId == null && slot !== "snack" ? meals.find((m) => m.meal === slot) : null;
+    const save = (est) => {
+      const id = answer.mealId != null ? answer.mealId : had ? had.id : onAdd(slot);
+      if (!id) return; // the day is full: onAdd already said so
+      onSet(id, { est }); setSel(id); setAnswer(null); setFromCard(false);
+    };
     return (
       <Sheet id={sheetId} title={MEAL_COPY.answerTitle} closeLabel={MEAL_COPY.closeAnswer} onClose={discard} className="bsheet aisend mealanswer">
-        <MealAnswerBody answer={answer} showCal={showCal} preg={photo.preg} onDiscard={discard}
-          onSave={(est) => { onSet(answer.mealId, { est }); setSel(answer.mealId); setAnswer(null); }} />
+        <MealAnswerBody answer={answer} showCal={showCal} preg={photo.preg} onDiscard={discard} onSave={save}
+          onShowCal={() => photo.setShowCal(true)}
+          slot={answer.mealId == null ? { options: MEAL_SLOTS.map((x) => ({ id: x.id, label: x.label, blocked: slotBlocked(x.id) })), value: slot, onChange: setSlot, replaces: had && had.est ? MEAL_SLOTS.find((x) => x.id === slot).label : null } : null} />
+      </Sheet>
+    );
+  }
+  if (step === "on") {
+    const back = () => setAsking(false);
+    return (
+      <Sheet id={sheetId} title={MEAL_COPY.onTitle} closeLabel={MEAL_COPY.onClose} onClose={back} className="bsheet aisend mealon">
+        <MealTurnOnBody showCal={photo.showCal === true} onClose={back} onConfirm={(cal) => { photo.turnOn(cal); setAsking(false); }} />
       </Sheet>
     );
   }
   const dayTot = dayTotal(meals);
   const cur = meals.find((m) => m.id === sel) || null;
-  const full = meals.length >= MEALS_PER_DAY;
+  // The way to Meal photos while it is off (never in a build that can't offer it, and never once it is on).
+  const way = !photoOn && photo ? photo.way : null;
+  const wayBtn = way === "off" ? [MEAL_COPY.cardTurnOn, () => setAsking(true)] : way === "signin" ? [MEAL_COPY.cardSignIn, photo.onSignIn] : way === "pro" ? [MEAL_COPY.cardSeePro, photo.onPro] : null;
   const pickSlot = (slot) => {
     const had = slot !== "snack" ? meals.find((m) => m.meal === slot) : null;
     if (had) { setSel(had.id); return; }
@@ -317,7 +350,7 @@ export function MealsSheet({ day, dayWord, log, onAdd, onSet, onRemove, onClose,
       <div className="typechips mealslots" role="group" aria-labelledby="meal-slot-lab">
         {MEAL_SLOTS.map((x) => {
           const on = !!cur && cur.meal === x.id;
-          const blocked = full && !(x.id !== "snack" && meals.some((m) => m.meal === x.id));
+          const blocked = slotBlocked(x.id);
           return <button key={x.id} type="button" className={`mc ${on ? "on" : ""}`} aria-pressed={on} disabled={blocked} onClick={() => pickSlot(x.id)}>{x.label}</button>;
         })}
       </div>
@@ -345,6 +378,7 @@ export function MealsSheet({ day, dayWord, log, onAdd, onSet, onRemove, onClose,
       ) : (
         <p className="hint mealhint">{t("bodySheets.mealsPickFirst")}</p>
       )}
+      {wayBtn && <p className="hint mealphoto-instead">{MEAL_COPY.instead} <button type="button" className="linkbtn" aria-haspopup="dialog" onClick={wayBtn[1]}>{wayBtn[0]}</button></p>}
       {note && <p className="ainote mealphoto-note" role="status">{note}</p>}
       {photo && (photoOn || meals.some((m) => m.est)) && <CalSwitch id="meal-cal" shown={showCal} onChange={photo.setShowCal} />}
       <p className="rfoot">{photoOn ? t("bodySheets.mealsFootPhotosOn") : photo && photo.inBuild ? t("bodySheets.mealsFootPhotos") : t("bodySheets.mealsFoot")}</p>

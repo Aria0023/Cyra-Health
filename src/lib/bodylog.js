@@ -194,6 +194,9 @@ export const MEAL_ENERGY = Object.freeze([
   Object.freeze({ id: "crashed", label: "Crashed" }),
 ]);
 export const MEALS_PER_DAY = 6;
+/** Whether `slot` can take a note on a day that holds `meals`: a full day takes no new note, but a meal already noted
+    there can still be opened (never Snack, which repeats). */
+export const mealSlotOpen = (meals, slot) => { const l = Array.isArray(meals) ? meals : []; return l.length < MEALS_PER_DAY || (slot !== "snack" && l.some((m) => !!m && m.meal === slot)); };
 const SLOT_IDS = MEAL_SLOTS.map((x) => x.id), KIND_IDS = MEAL_KINDS.map((x) => x.id), ENERGY_IDS = MEAL_ENERGY.map((x) => x.id);
 const labelOf = (list, id) => (list.find((x) => x.id === id) || { label: id }).label;
 export const mealSlotLabel = (id) => labelOf(MEAL_SLOTS, id);

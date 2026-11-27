@@ -754,7 +754,7 @@ export const UI = {
   "bodySheets.energyAfter": "Energy after",
   "bodySheets.mealsPickFirst": "Pick a meal to note it, then tap what fits. Skip anything you like.",
   "bodySheets.mealsFoot": "No calories, no photos, no scores. Kept on this device and in your backups, like the rest of your log.",
-  "bodySheets.mealsFootPhotos": "No scores and no targets. No photos or calorie estimates unless you turn on Meal photos in You → Solia Health's AI. Kept on this device and in your backups, like the rest of your log.",
+  "bodySheets.mealsFootPhotos": "No scores and no targets. No photos or calorie estimates unless you turn on Meal photos. Kept on this device and in your backups, like the rest of your log.",
   "bodySheets.mealsFootPhotosOn": "No scores and no targets. A photo goes only when you tap Send, and Solia Health doesn't keep it. Foods and calorie ranges you save are estimates, kept on this device and in your backups, like the rest of your log.",
   "you.mealsShortPhotos": "Note what kind of meal it was and how your energy felt after. No scores and no targets. No photos or calorie estimates unless you turn on Meal photos.",
   "you.mealsName": "Meal notes",

@@ -3221,3 +3221,94 @@ the opt-in, previewed AI summary and the opt-in, previewed meal photo she choose
   remembered; no outside page could be opened in this session, so none of it was checked against today's policy text.
   Meta's adults-only rule for reproductive health ads is given as an ad-targeting setting, not as a statement about who
   may use the app (the minimum age is still an open attorney question, and the website says nothing about age).
+
+
+## Meal photos, findable (2026-11-26, docs/plans/meal-photos-findable.md)
+
+Owner: "I don't see where can calculate calories of food when taking pictures". The feature was invisible without a
+server and needed four steps in three places with one. This makes it findable and turns it on in one sheet. **Nothing
+new is sent, stored on a server or kept in a backup**, and Meal photos is still Pro, off until she turns it on, and
+previewed before every send (`docs/plans/meal-photos.md`).
+
+### What changed
+- **A "Meal photos" card on the Body tab** (`components/ai/MealPhoto.jsx MealPhotosCard`, `App.jsx mealCard`), in a
+  build with the ai flag, in the stages that are offered Meal notes (My Cycle, Trying to conceive, Perimenopause), even
+  while everything is off. Never in Pregnancy or Menopause. One state at a time, from the pure
+  `lib/mealPhoto.js mealCardState` (first match wins): no server → a line and no button; this server asks for sign-in
+  and the device isn't signed in (a guest included) → "Sign in to use meal photos" (the app's own "Create your account"
+  sheet); not Pro → "See Pro" (the Pro sheet); Pro with Meal notes or Meal photos off → "Turn on meal photos"; on → "Take
+  a photo" / "Choose a photo". The card makes no request in any state.
+- **One confirmation sheet, "Turn on meal photos"** (`MealTurnOnSheet`; the same body is a step of the Meals sheet).
+  Confirm runs `App.jsx turnOnMeals`: it sets `bodyPrefs.mealsOn` (if it was off), `aiPrefs.meals` and her calorie
+  choice `aiPrefs.showCal` on this device, and nothing else. **Turning it on sends nothing**: e2e
+  `meal-photos-findable.spec.mjs` counts every request to the mocked server before the sheet opens and after Confirm and
+  finds no new one of any kind. "Not now", the close button and Escape change nothing.
+- **A photo from the card** is made smaller on this device (`downsizePhoto`, unchanged) and handed to the Meals sheet,
+  which opens on its existing "What Solia Health will send" for today. It goes only on Send, as `{ image }` and nothing
+  else (the same `sendMealPhoto`; the e2e compares the posted bytes with the previewed picture). Cancel, Discard, a
+  failed read and "not food" come back to the card. The answer asks "Which meal was this?" (the hour's meal is picked
+  until she changes it) and is saved to that meal note for today, as before on the device only.
+- **The Meals sheet** (Meal notes on, Meal photos off, a build that can offer it): one line, "Add a photo instead?",
+  with the same way in by the same rules.
+- **You → Solia Health's AI**: the Meal photos switch now shows whether photos can be taken (Meal photos AND Meal notes
+  on). Turning it on opens the same sheet (or sign-in where the server asks for an account); turning it off is one tap.
+- **The answer**, while calories are hidden: a "Show them" button beside the existing line. It turns on the same
+  "Show calorie estimates" choice (`aiPrefs.showCal`); nothing is sent (the server already returned the ranges).
+- **Hiding the card**: "Not now" / "Hide this card" sets the new record key `mealCardOff` (true or false; validated in
+  `lib/record.js`; DEVICE_ONLY and NOT_IN_BACKUP, so it is never handed to another tab's record, never in a backup file
+  or cloud backup, and never sent anywhere). It turns nothing on or off.
+- **Sign-in where it is optional**: "Sign in to use meal photos" opens the existing create-account sheet for someone who
+  skipped sign-in too (before, that sheet opened only for a guest), with the existing line "Sign in so Solia Health knows
+  it's you. Your health log stays on this device."
+
+### Every new or changed sentence, verbatim
+Body card:
+- "Photograph a meal. Solia Health's AI names the foods and can give a rough calorie range. Pro, and only if you turn it
+  on." (sign in, See Pro and Turn on states; "Photograph a meal." in bold)
+- "Photograph a meal. Solia Health's AI names the foods and can give a rough calorie range." (on)
+- "Meal photos need Solia Health's server, which this version doesn't have. With a server, you photograph a meal and
+  Solia Health's AI names the foods and can give a rough calorie range." (no server; the first sentence in bold. The
+  feature is described only as what a server would add, so the card claims nothing this build cannot do.)
+- Buttons: "Sign in to use meal photos" · "See Pro" · "Turn on meal photos" · "Not now" · "Hide this card" · "Change"
+  (spoken: "Change whether calorie estimates show"). "Calories: shown" / "Calories: hidden".
+- "Today already has 6 meal notes, as many as one day holds, so a photo has nowhere to be saved. Nothing was sent."
+- After hiding: "Meal photos card hidden." (no server) · "Hidden. With Pro, meal photos are in You → Solia Health's AI."
+  (sign in, See Pro) · "Hidden. You can turn on meal photos any time in You → Solia Health's AI." (Turn on) · "Hidden.
+  Meal photos are still in the Meals sheet and in You → Solia Health's AI." (on). Each names only places that exist in
+  that state: without a server there is none; without Pro the AI page has no Meal photos row yet; the Meals sheet exists
+  only while Meal notes is on.
+"Turn on meal photos" sheet:
+- "Turning this on sends nothing. Each photo goes only after you've seen it and tapped Send: through Solia Health's
+  server, which doesn't keep it, to Anthropic, which keeps it for a limited time." (visible; MEAL_COPY.adds, unchanged
+  and word for word, is under Details)
+- "This also turns on Meal notes, which is where the foods from a photo are saved." (only when Meal notes is off)
+- "You can turn Meal photos off any time in You → Solia Health's AI." / "You can turn Meal photos off in You → Solia
+  Health's AI, and Meal notes off in You → Your profile."
+- Buttons "Turn on meal photos" · "Not now"; close label "Close without turning anything on". The switch is the existing
+  "Show calorie estimates" with its existing hint, off unless she turns it on.
+- Toast: "Meal notes and Meal photos are on. Nothing is sent until you tap Send." (both turned on; with Meal notes
+  already on the existing "Meal photos on. Nothing is sent until you tap Send.")
+Meals sheet:
+- "Add a photo instead?" + "Turn on meal photos" / "Sign in to use meal photos" / "See Pro".
+- Footer while photos are off (changed, because it can now be turned on from this sheet and from Body as well): "No
+  scores and no targets. No photos or calorie estimates unless you turn on Meal photos in You → Solia Health's AI. Kept
+  on this device and in your backups, like the rest of your log." → "No scores and no targets. No photos or calorie
+  estimates unless you turn on Meal photos. Kept on this device and in your backups, like the rest of your log."
+The answer:
+- "Show them" (button). "Which meal was this?" (Breakfast · Lunch · Dinner · Snack) · "Save to today's meal notes" ·
+  "Dinner already has an estimate from a photo today. Saving replaces it." (with the meal's name).
+You → Solia Health's AI, Meal photos row:
+- "Meal notes is off. Turn it on in You → Your profile to use this." → "Meal notes is off. Turning this on turns Meal
+  notes on too."
+- "Meal photos needs an account. Turning this on asks you to sign in first." (signed out where the server asks for it)
+
+### Claims checked against the build
+- "Turning this on sends nothing": `turnOnMeals` only calls `setBodyPrefs` and `setAiPrefs`; the usage count
+  (`GET /api/ai/usage`) is asked at start-up from her sign-in and plan, never from these switches.
+- "only after you've seen it and tapped Send": the card's buttons open a file picker; the only call to `mealSend` is the
+  send sheet's Send button (`BodySheets.jsx sendShot`), for card photos and Meals sheet photos alike.
+- "Solia Health's server, which doesn't keep it": `backend/src/modules/ai/meal.js`, unchanged (counts only).
+- MEAL_COPY.adds still opens "When you choose a photo in Meal notes": a card photo is previewed, sent and saved by the
+  Meals sheet, so the sentence covers it. Legal pages (`public/legal/*.html`) are unchanged and still true.
+- Not in this change: no way to bring a hidden card back (the feature stays in You → Solia Health's AI and the Meals
+  sheet, as each toast says).

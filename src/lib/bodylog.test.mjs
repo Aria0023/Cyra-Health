@@ -6,7 +6,7 @@ import {
   cleanLabs, addLab, removeLab, labText, unitsFor, cleanBodyPrefs, unitsOf, cleanBodyDay, cleanBodyLog, bodyDay,
   setSleepH, addMove, removeMove, togglePcos, setWeight, moveTotals, moveText, logRows, periodDayOf,
   kgToLb, lbToKg, pctToMmolMol, mmolMolToPct,
-  MEAL_SLOTS, MEAL_KINDS, MEAL_ENERGY, MEALS_PER_DAY, cleanMeal, addMeal, setMeal, removeMeal, mealText, mealsText, mealDayWords, mealCounts, mealReportLines,
+  MEAL_SLOTS, MEAL_KINDS, MEAL_ENERGY, MEALS_PER_DAY, cleanMeal, addMeal, setMeal, removeMeal, mealText, mealsText, mealDayWords, mealCounts, mealReportLines, mealSlotOpen,
 } from "./bodylog.js";
 import { MODULES } from "./modules.js";
 
@@ -219,4 +219,21 @@ test("meal notes: the switch is off by default and only stored when on; the Logs
   const row = logRows({ day, mealsOn: true }).find((r) => r.id === "meals");
   assert.deepEqual(row, { id: "meals", label: "Meals", icon: "bowl", tint: "body", value: "Snack · energy crashed", logged: true });
   assert.equal(logRows({ day: {}, mealsOn: true }).find((r) => r.id === "meals").logged, false);
+});
+
+/* 2026-11-26 (docs/plans/meal-photos-findable.md): where a photo taken from the Body card can be saved. */
+test("mealSlotOpen: any meal while the day has room; on a full day only a meal already noted, never a new Snack", () => {
+  const note = (meal, i) => ({ id: `m${i}`, meal });
+  for (const s of MEAL_SLOTS) { assert.equal(mealSlotOpen([], s.id), true, s.id); assert.equal(mealSlotOpen(undefined, s.id), true, s.id); assert.equal(mealSlotOpen(null, s.id), true, s.id); }
+  const five = ["breakfast", "snack", "snack", "snack", "snack"].map(note);
+  for (const s of MEAL_SLOTS) assert.equal(mealSlotOpen(five, s.id), true, `room left: ${s.id}`);
+  const full = [...five, note("lunch", 5)];
+  assert.equal(full.length, MEALS_PER_DAY);
+  assert.equal(mealSlotOpen(full, "breakfast"), true, "already noted: its note can take the photo");
+  assert.equal(mealSlotOpen(full, "lunch"), true);
+  assert.equal(mealSlotOpen(full, "dinner"), false, "no room for a new note");
+  assert.equal(mealSlotOpen(full, "snack"), false, "a Snack is always a new note");
+  const snacks = Array.from({ length: MEALS_PER_DAY }, (_, i) => note("snack", i));
+  assert.equal(MEAL_SLOTS.some((s) => mealSlotOpen(snacks, s.id)), false, "six snacks: nowhere to save a photo");
+  assert.equal(mealSlotOpen([null, ...full.slice(1)], "lunch"), true, "a broken entry is skipped, not thrown on");
 });

@@ -950,3 +950,41 @@ written and wired for the day it is.
 - Sources: describes the feature; no clinical claim.
 - Status: Awaiting clinician sign-off
 
+
+## Meal photos, findable (2026-11-26, docs/plans/meal-photos-findable.md)
+
+Owner request: the feature could not be found. It now has a card on the Body tab and one sheet that turns it on. Two
+things need a clinician's decision before launch, beyond the wording below:
+1. **Calorie defaults.** Calorie estimates are still hidden unless she turns them on. But she is now asked at the
+   moment she turns Meal photos on (a "Show calorie estimates" switch in that sheet, off until she moves it), and an
+   answer with calories hidden has a one-tap "Show them". Both make showing calories easier than it was on 2026-11-25
+   (when the only switches were in You and at the bottom of the Meals sheet). Is that acceptable, including for people
+   with a history of disordered eating? The alternative is to drop one or both.
+2. **Who sees the card.** Everyone in My Cycle, Trying to conceive and Perimenopause now sees a card that names a
+   "rough calorie range", before opting in to anything (she can hide it with "Not now"). It is never shown in Pregnancy.
+   It is not shown in Menopause, only because Meal notes is not offered there today: should Menopause be offered Meal
+   notes and Meal photos?
+
+### mealphotos.card
+- Where: Body tab, a tinted card near the top, in My Cycle, Trying to conceive and Perimenopause (never Pregnancy or Menopause), until she hides it
+- Text: Photograph a meal. Solia Health's AI names the foods and can give a rough calorie range. Pro, and only if you turn it on. / (once on) Photograph a meal. Solia Health's AI names the foods and can give a rough calorie range. / (a build without a server) Meal photos need Solia Health's server, which this version doesn't have. With a server, you photograph a meal and Solia Health's AI names the foods and can give a rough calorie range. / Calories: shown · Change / Calories: hidden · Change
+- Sources: describes the feature; no clinical claim. No target, score, colour or advice. See decision 2 above.
+- Status: Awaiting clinician sign-off
+
+### mealphotos.turnOn
+- Where: the "Turn on meal photos" sheet (opened from the Body card, the Meals sheet's "Add a photo instead?" and You → Solia Health's AI)
+- Text: Turning this on sends nothing. Each photo goes only after you've seen it and tapped Send: through Solia Health's server, which doesn't keep it, to Anthropic, which keeps it for a limited time. / This also turns on Meal notes, which is where the foods from a photo are saved. / Show calorie estimates / Off unless you turn it on: calorie figures and portion guesses stay hidden. The food names always show. / You can turn Meal photos off any time in You → Solia Health's AI.
+- Sources: describes the settings; no clinical claim. The calorie switch starts off. See decision 1 above.
+- Status: Awaiting clinician sign-off
+
+### mealphotos.showThem
+- Where: the answer ("What the photo shows") while calorie estimates are hidden: a button under the existing line "Calorie estimates are hidden. To see them, turn on "Show calorie estimates" in You → Solia Health's AI or at the bottom of the Meals sheet."
+- Text: Show them
+- Sources: turns on the same "Show calorie estimates" setting; she can turn it off again in You → Solia Health's AI or at the bottom of the Meals sheet. Every figure it reveals is still a range with "A rough estimate from a photo. It can be well off." See decision 1 above.
+- Status: Awaiting clinician sign-off
+
+### mealphotos.whichMeal
+- Where: the answer for a photo taken from the Body card (it has no meal note yet)
+- Text: Which meal was this? (Breakfast / Lunch / Dinner / Snack; the meal for the time of day is picked until she changes it) / Save to today's meal notes / Dinner already has an estimate from a photo today. Saving replaces it.
+- Sources: describes where the estimate is saved; no clinical claim. Meal times used for the first pick: 4–11 Breakfast, 11–16 Lunch, 16–22 Dinner, otherwise Snack (a convenience only; nothing is said about when to eat).
+- Status: Awaiting clinician sign-off
