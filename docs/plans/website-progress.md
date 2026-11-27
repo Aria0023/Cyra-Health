@@ -269,3 +269,25 @@ twelve pictures at twice the named size, nothing of the kit in the website build
 | e2e (`npm run e2e -- --trace off`) | 128/128 |
 | axe (`npm run e2e:axe -- --trace off`) | 78/78 |
 | Native path | `npm run build:native` + `npx cap copy android`: the app at the root, no website page, no ad kit. Xcode / Android Studio builds NOT RUN. |
+
+## Eval — DONE (`docs/plans/website-eval.md`, commit "Eval: the Solia Health website")
+- The eval file has: commits per task; the verification table per task; the returning-user redirect and record
+  carry-over proof (the test, and measurements on the final build); page weight and request counts with zero
+  third-party requests and zero cookies; the Lighthouse-style basics; axe results; the pointer to every public claim
+  (`docs/plans/website-claims.md`, `docs/marketing/ADS.md`); the screenshot list; and what was not verified.
+- Screenshots: session scratchpad `shots17/`, 32 files (every page at 390 and 1280, light and dark, full page and first
+  screen), from the final build.
+- **Added with the eval:** `e2e/lib/contrast.mjs` and its use in the four website axe tests. The site's backgrounds are
+  gradients, and axe marks text over a gradient "needs review", so axe alone decided the contrast of only the text on flat
+  surfaces. The helper measures every line of text against the worst pixel actually behind it: 1,424 lines per scheme,
+  lowest 5.75:1 in light and 7.04:1 in dark, none below AA.
+- **Changed with the eval:** on the front page `go.js` is now the first thing in `<head>` after the charset, viewport and
+  policy lines (it was after the stylesheet), so a returning user is sent on as early as a script can run. Measured:
+  nothing is painted on `/` before she leaves it.
+- Final verification on the final tree (full runs): lint 0 errors / 23 warnings; unit 764/764; backend 148/148; smoke
+  exit 0; build ok with the stamp exactly once; native path as before (android and ios copies).
+  - e2e: 127/128 and 127/128 on 2026-11-26 (`e2e/guest.spec.mjs:38` both times), 128/128 on 2026-11-27.
+  - axe: 78/78 on 2026-11-26; on 2026-11-27 two reruns were 69 passed / 3 failed / 6 not run and 71 / 1 / 6, all in
+    `e2e/axe.spec.mjs:31` and `e2e/meal-photos-axe.spec.mjs:20` (app screens; axe reads a 100 ms colour change half-way).
+    The untouched baseline 530af43 fails the same tests the same day (run by itself back to back, `axe.spec.mjs:31` passed 3 of 8
+    times there and 2 of 8 here). None of these tests was edited; the website's own tests passed in every run. Details in the eval.

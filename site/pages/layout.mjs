@@ -11,6 +11,8 @@ const SRC_BRAND = "docs/brand/README.md the product's name";
 /** Where a link goes: a page when the site has it, else the fallback (an anchor on the front page). */
 export const hrefFor = (ctx, page, fallback) => (ctx.pages.includes(page) ? `/${page}/` : fallback);
 
+/* On the front page go.js comes first in <head>, before the stylesheet and the font preloads: someone who already uses the
+   app is sent on as early as the browser can run a script, and nothing has been drawn yet. */
 export function head(ctx, c, { title, titleSource = LABEL, description, redirect = false, noindex = false, extra = "" }) {
   const { theme, assets } = ctx;
   return `<!doctype html>
@@ -19,7 +21,7 @@ export function head(ctx, c, { title, titleSource = LABEL, description, redirect
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="${CSP}">
-<meta name="referrer" content="no-referrer">
+${redirect ? `<script src="${assets.go}"></script>\n` : ""}<meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="${theme.light}" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="${theme.dark}" media="(prefers-color-scheme: dark)">
@@ -30,7 +32,7 @@ ${noindex ? '<meta name="robots" content="noindex">\n' : ""}${extra}<link rel="i
 <link rel="apple-touch-icon" href="/app/icons/apple-touch-icon.png">
 ${assets.preload.map((f) => `<link rel="preload" href="${f}" as="font" type="font/woff2" crossorigin>`).join("\n")}
 <link rel="stylesheet" href="${assets.css}">
-${redirect ? `<script src="${assets.go}"></script>\n` : ""}</head>`;
+</head>`;
 }
 
 export function header(ctx, c, { home = false } = {}) {
